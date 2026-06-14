@@ -1,0 +1,18 @@
+namespace SpellCircle;
+
+struct Vec2 {
+    x: float;
+    y: float;
+}
+
+table Circle {
+    pos: Vec2;
+    name: string;
+    radius: uint32;
+}
+
+table Scene {
+    circles: [Circle];
+}
+
+root_type Scene;

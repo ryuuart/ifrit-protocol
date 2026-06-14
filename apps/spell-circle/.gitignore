@@ -1,0 +1,10 @@
+# C/C++
+.cache/clangd/
+build/
+CMakeUserPresets.json
+
+# Python
+__pycache__
+
+# Claude
+.claude/settings.local.json

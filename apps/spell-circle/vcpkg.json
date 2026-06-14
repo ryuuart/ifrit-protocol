@@ -1,0 +1,10 @@
+{
+  "dependencies": [
+    "abseil",
+    "benchmark",
+    "concurrentqueue",
+    "flatbuffers",
+    "gtest",
+    "spdlog"
+  ]
+}
