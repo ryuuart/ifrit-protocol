@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(qtquick1 VERSION 0.1 LANGUAGES CXX)
 
+set(QT_QML_GENERATE_QMLLS_INI ON) # QMLLS Language Server config
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

@@ -3,6 +3,9 @@
 build/
 CMakeUserPresets.json
 
+## Qt
+.qmlls.ini
+
 # Python
 __pycache__
 
