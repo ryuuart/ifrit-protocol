@@ -70,9 +70,9 @@ void FeedModel::onSpellCircleReceived(const QString &source,
     });
 
     m_circles.append(CircleGeometry{
-        .name   = name,
-        .x      = circle->pos() ? circle->pos()->x() : 0.0f,
-        .y      = circle->pos() ? circle->pos()->y() : 0.0f,
+        .name = name,
+        .x = circle->pos() ? circle->pos()->x() : 0.0f,
+        .y = circle->pos() ? circle->pos()->y() : 0.0f,
         .radius = circle->radius(),
     });
   }

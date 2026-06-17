@@ -1,7 +1,6 @@
-add_library(SpellCircleNetwork STATIC
-    NetworkManager.h NetworkManager.cpp
-    FeedModel.h FeedModel.cpp
-    SpellCircle_generated.h
+qt_add_library(SpellCircleNetwork STATIC
+  NetworkManager.cpp include/NetworkManager.h
+  FeedModel.cpp include/FeedModel.h
 )
 
 target_link_libraries(SpellCircleNetwork
@@ -13,5 +12,5 @@ target_link_libraries(SpellCircleNetwork
 )
 
 target_include_directories(SpellCircleNetwork
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

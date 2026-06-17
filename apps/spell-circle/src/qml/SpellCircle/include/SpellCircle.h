@@ -1,5 +1,5 @@
 #pragma once
-#include "../../network/FeedModel.h"
+#include "FeedModel.h"
 #include <QtCanvasPainter/QCanvasPainterItem>
 
 class SpellCircle : public QCanvasPainterItem {

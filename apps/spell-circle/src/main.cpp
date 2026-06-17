@@ -1,6 +1,5 @@
-#include "SpellCircle.h"
-#include "network/FeedModel.h"
-#include "network/NetworkManager.h"
+#include "FeedModel.h"
+#include "NetworkManager.h"
 #include "spdlog/spdlog.h"
 #include <QDebug>
 #include <QGuiApplication>

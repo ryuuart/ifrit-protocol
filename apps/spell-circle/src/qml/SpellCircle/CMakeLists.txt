@@ -4,8 +4,8 @@ qt_add_qml_module(SpellCircleCanvas
     # QML_FILES
     #   SpellCircle.qml
     SOURCES
-      SpellCircle.cpp SpellCircle.h
-      SpellCircleRenderer.cpp SpellCircleRenderer.h
+      SpellCircle.cpp include/SpellCircle.h
+      SpellCircleRenderer.cpp include/SpellCircleRenderer.h
 )
 
 target_link_libraries(SpellCircleCanvas
@@ -18,5 +18,5 @@ target_link_libraries(SpellCircleCanvas
 )
 
 target_include_directories(SpellCircleCanvas PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/include
 )

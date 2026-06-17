@@ -1,6 +1,6 @@
 #pragma once
+#include "FeedModel.h"
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
-#include "../../network/FeedModel.h"
 
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
 public:
