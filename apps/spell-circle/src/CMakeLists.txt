@@ -27,5 +27,5 @@ target_link_libraries(SpellCircle
       Qt6::CanvasPainter
       spdlog::spdlog
       SpellCircleCanvas
-      SpellCircleNetwork
+      SpellCircleModels
 )

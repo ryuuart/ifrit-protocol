@@ -1,6 +1,6 @@
 import QtQuick
-import QtQuick.Controls
 import SpellCircle.Canvas 1.0
+import SpellCircle.Models 1.0
 
 Window {
     id: root
@@ -13,7 +13,7 @@ Window {
         id: spellCircle1
         width: 500
         height: 500
-        model: feedModel
+        model: Models.feedModel
     }
 
     Rectangle {
@@ -31,7 +31,7 @@ Window {
             id: feedView
             anchors.fill: parent
             anchors.margins: 4
-            model: feedModel
+            model: Models.feedModel
             clip: true
 
             delegate: Item {

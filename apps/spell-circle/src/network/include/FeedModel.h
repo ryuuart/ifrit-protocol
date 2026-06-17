@@ -32,8 +32,6 @@ public:
 
   explicit FeedModel(QObject *parent = nullptr);
 
-  static FeedModel *create(QQmlEngine *qmlEngine, QJSEngine *);
-
   int rowCount(const QModelIndex &parent = {}) const override;
   QVariant data(const QModelIndex &index,
                 int role = Qt::DisplayRole) const override;
