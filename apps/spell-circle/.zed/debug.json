@@ -10,7 +10,7 @@
     "request": "launch",
     "build": {
       "command": "cmake",
-      "args": ["--build", "--preset", "main", "--configuration", "Debug"],
+      "args": ["--build", "--preset", "main", "--config", "Debug"],
       "cwd": "$ZED_WORKTREE_ROOT",
     },
     // The program to debug. This field supports path resolution with ~ or . symbols.
