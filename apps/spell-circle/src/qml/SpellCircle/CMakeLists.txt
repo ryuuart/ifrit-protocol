@@ -7,6 +7,7 @@ qt_add_qml_module(SpellCircleCanvas
       SyphonBridge.mm include/SyphonBridge.h
       SpellCircle.cpp include/SpellCircle.h
       SpellCircleRenderer.cpp include/SpellCircleRenderer.h
+      TextPathPainter.cpp include/TextPathPainter.h
 )
 
 target_link_libraries(SpellCircleCanvas
