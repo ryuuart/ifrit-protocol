@@ -49,9 +49,9 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
     QPainterPath textPath;
     textPath.addEllipse(circle.x - r, circle.y - r, r * 2.0f, r * 2.0f);
 
-    m_textPathPainter.setPathOffset(0.5);
-    m_textPathPainter.setPerpendicularOffset(36);
-    m_textPathPainter.setFontSize(72);
+    m_textPathPainter.setPathOffset(0.75);
+    m_textPathPainter.setPerpendicularOffset(18);
+    m_textPathPainter.setFontSize(36);
     m_textPathPainter.setFontWeight(QFont::Bold);
     m_textPathPainter.setColor("red");
     m_textPathPainter.paint(p, textPath, circle.name);
