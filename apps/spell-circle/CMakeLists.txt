@@ -18,10 +18,15 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # Redirects QT modules
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
-find_package(Qt6 REQUIRED COMPONENTS Quick CanvasPainter Network)
+find_package(Qt6 REQUIRED COMPONENTS Quick CanvasPainter Network GuiPrivate)
 find_package(gtest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
+
+# MacOS Frameworks
+find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
+find_library(SYPHON_FRAMEWORK Syphon)
 
 qt_standard_project_setup(REQUIRES 6.11)
 

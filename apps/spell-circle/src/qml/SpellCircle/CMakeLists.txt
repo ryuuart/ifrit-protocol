@@ -4,6 +4,7 @@ qt_add_qml_module(SpellCircleCanvas
     # QML_FILES
     #   SpellCircle.qml
     SOURCES
+      SyphonBridge.mm include/SyphonBridge.h
       SpellCircle.cpp include/SpellCircle.h
       SpellCircleRenderer.cpp include/SpellCircleRenderer.h
 )
@@ -15,6 +16,10 @@ target_link_libraries(SpellCircleCanvas
     PRIVATE
       spdlog::spdlog
       SpellCircleNetwork
+      Qt::GuiPrivate
+      ${FOUNDATION_FRAMEWORK}
+      ${SYPHON_FRAMEWORK}
+      ${CORE_GRAPHICS_FRAMEWORK}
 )
 
 target_include_directories(SpellCircleCanvas PUBLIC

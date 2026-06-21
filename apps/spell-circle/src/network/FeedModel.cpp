@@ -46,6 +46,7 @@ void FeedModel::onSpellCircleReceived(const QString &source,
   m_circles.clear();
   m_circles.reserve(count);
 
+  // Iterate in reverse so prepend() keeps the scene's original order in m_items.
   beginInsertRows({}, 0, count - 1);
   for (int i = count - 1; i >= 0; --i) {
     const auto *circle =
