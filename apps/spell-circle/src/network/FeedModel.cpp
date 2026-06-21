@@ -34,6 +34,16 @@ QHash<int, QByteArray> FeedModel::roleNames() const {
   };
 }
 
+void FeedModel::clear() {
+  if (m_items.isEmpty())
+    return;
+  beginResetModel();
+  m_items.clear();
+  m_circles.clear();
+  endResetModel();
+  emit circlesChanged();
+}
+
 void FeedModel::onSpellCircleReceived(const QString &source,
                                       const QByteArray &payload) {
   const auto *sc = SpellCircle::GetScene(payload.constData());

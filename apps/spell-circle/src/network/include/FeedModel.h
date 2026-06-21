@@ -59,6 +59,9 @@ public slots:
    */
   void onSpellCircleReceived(const QString &source, const QByteArray &payload);
 
+  /** Removes all feed entries and circle geometry from the model. */
+  void clear();
+
 private:
   QList<FeedItem> m_items;
   QList<CircleGeometry> m_circles;

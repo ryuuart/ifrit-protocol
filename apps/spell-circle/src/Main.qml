@@ -124,6 +124,7 @@ Window {
                         visible: feedView.count === 0
                     }
                 }
+
             }
         }
 
@@ -262,6 +263,39 @@ Window {
                     radius: 1
                 }
 
+                // Checkerboard background for transparency, rendered in screen space
+                // and clipped to the canvas bounds so it stays performant at any zoom level.
+                Item {
+                    x: canvasDisplay.x
+                    y: canvasDisplay.y
+                    width: canvasDisplay.width
+                    height: canvasDisplay.height
+                    clip: true
+
+                    Canvas {
+                        x: -parent.x
+                        y: -parent.y
+                        width: canvasViewport.width
+                        height: canvasViewport.height
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            var s = 10;
+                            ctx.fillStyle = "#cccccc";
+                            ctx.fillRect(0, 0, width, height);
+                            ctx.fillStyle = "#999999";
+                            var cols = Math.ceil(width / s);
+                            var rows = Math.ceil(height / s);
+                            for (var row = 0; row < rows; row++) {
+                                for (var col = (row % 2); col < cols; col += 2) {
+                                    ctx.fillRect(col * s, row * s, s, s);
+                                }
+                            }
+                        }
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
+                    }
+                }
+
                 // The canvas thumbnail/preview
                 Item {
                     id: canvasDisplay
@@ -270,14 +304,9 @@ Window {
                     x: (canvasViewport.width  - width)  / 2 + mainArea.panX
                     y: (canvasViewport.height - height) / 2 + mainArea.panY
 
-                    // Canvas background (white surface)
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "#ffffff"
-                        opacity: 0.04
-                    }
-
                     SpellCircle {
+                        alphaBlending: true
+                        fillColor: "transparent"
                         anchors.fill: parent
                         model: Models.feedModel
                     }
@@ -369,6 +398,33 @@ Window {
                         mainArea.panY += ly * (1.0 - actual)
                     }
                 }
+            }
+
+            // ── Floating reset button ─────────────────────────────────────────
+            Rectangle {
+                z: 2
+                anchors {
+                    right: parent.right
+                    bottom: bottomBar.top
+                    rightMargin: 14
+                    bottomMargin: 14
+                }
+                width: resetTxt.width + 18
+                height: 28
+                radius: 5
+                color: resetHov.hovered ? "#3c3c3c" : "#252526"
+                visible: feedView.count > 0
+
+                Text {
+                    id: resetTxt
+                    anchors.centerIn: parent
+                    text: "Reset"
+                    color: resetHov.hovered ? "#dddddd" : "#888888"
+                    font.pixelSize: 11
+                }
+
+                HoverHandler { id: resetHov }
+                TapHandler { onTapped: Models.feedModel.clear() }
             }
 
             // ── Bottom toolbar ────────────────────────────────────────────────
