@@ -1,11 +1,13 @@
 qt_add_library(SpellCircleNetwork SHARED
   NetworkManager.cpp include/NetworkManager.h
-  FeedModel.cpp include/FeedModel.h
+  SpellCircleModel.cpp include/SpellCircleModel.h
+  GraphicsConfig.cpp include/GraphicsConfig.h
 )
 
 target_link_libraries(SpellCircleNetwork
     PUBLIC
       Qt6::Network
+      Qt6::Gui
     PRIVATE
       spdlog::spdlog
       flatbuffers::flatbuffers
@@ -20,6 +22,7 @@ qt_add_qml_module(SpellCircleModels
     VERSION 1.0
     SOURCES
       Models.cpp include/Models.h
+      FontDatabase.cpp include/FontDatabase.h
 )
 
 target_link_libraries(SpellCircleModels

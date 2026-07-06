@@ -11,6 +11,8 @@ qt_add_qml_module(SpellCircle
     QML_FILES
         Main.qml
         SquareButton.qml
+        SettingsWindow.qml
+        FontFamilyField.qml
 )
 
 set_target_properties(SpellCircle PROPERTIES
@@ -24,6 +26,8 @@ set_target_properties(SpellCircle PROPERTIES
 target_link_libraries(SpellCircle
     PRIVATE
       Qt6::Quick
+      Qt6::QuickControls2
+      Qt6::QuickLayouts
       Qt6::CanvasPainter
       spdlog::spdlog
       SpellCircleCanvas

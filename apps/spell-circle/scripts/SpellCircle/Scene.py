@@ -49,8 +49,72 @@ class Scene(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         return o == 0
 
+    # Scene
+    def Edges(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from SpellCircle.Edge import Edge
+            obj = Edge()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Scene
+    def EdgesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Scene
+    def EdgesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
+    # Scene
+    def Boxes(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from SpellCircle.Box import Box
+            obj = Box()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Scene
+    def BoxesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Scene
+    def BoxesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
+    # Scene
+    def Width(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Scene
+    def Height(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+        return 0.0
+
 def SceneStart(builder):
-    builder.StartObject(1)
+    builder.StartObject(5)
 
 def Start(builder):
     SceneStart(builder)
@@ -66,6 +130,42 @@ def SceneStartCirclesVector(builder, numElems):
 
 def StartCirclesVector(builder, numElems):
     return SceneStartCirclesVector(builder, numElems)
+
+def SceneAddEdges(builder, edges):
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(edges), 0)
+
+def AddEdges(builder, edges):
+    SceneAddEdges(builder, edges)
+
+def SceneStartEdgesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartEdgesVector(builder, numElems):
+    return SceneStartEdgesVector(builder, numElems)
+
+def SceneAddBoxes(builder, boxes):
+    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(boxes), 0)
+
+def AddBoxes(builder, boxes):
+    SceneAddBoxes(builder, boxes)
+
+def SceneStartBoxesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartBoxesVector(builder, numElems):
+    return SceneStartBoxesVector(builder, numElems)
+
+def SceneAddWidth(builder, width):
+    builder.PrependFloat32Slot(3, width, 0.0)
+
+def AddWidth(builder, width):
+    SceneAddWidth(builder, width)
+
+def SceneAddHeight(builder, height):
+    builder.PrependFloat32Slot(4, height, 0.0)
+
+def AddHeight(builder, height):
+    SceneAddHeight(builder, height)
 
 def SceneEnd(builder):
     return builder.EndObject()

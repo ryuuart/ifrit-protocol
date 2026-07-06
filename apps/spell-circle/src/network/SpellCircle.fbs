@@ -9,10 +9,37 @@ table Circle {
     pos: Vec2;
     name: string;
     radius: uint32;
+    text_start: float;
+    active: bool;
+}
+
+table Point {
+    value: string;
+    circle: Circle;
+    position: float;
+}
+
+table Edge {
+    first: Point;
+    second: Point;
+}
+
+table Box {
+    value: string;
+    point: Point;
+    active: bool;
 }
 
 table Scene {
     circles: [Circle];
+    edges: [Edge];
+    boxes: [Box];
+    // Author-space canvas dimensions. Geometry coordinates are expressed in this
+    // space; the renderer scales the scene up to the fixed native texture size
+    // (e.g. author a 100x100 scene that is rendered into a 4K texture). When 0,
+    // coordinates are assumed to already be in native texture space.
+    width: float;
+    height: float;
 }
 
 root_type Scene;

@@ -14,6 +14,11 @@ Window {
 
     property bool sidebarOpen: true
 
+    SettingsWindow {
+        id: settingsWindow
+        visible: false
+    }
+
     Item {
         anchors.fill: parent
 
@@ -74,7 +79,7 @@ Window {
                         right: parent.right
                         bottom: parent.bottom
                     }
-                    model: Models.feedModel
+                    model: Models.spellCircleModel
                     clip: true
 
                     delegate: Item {
@@ -148,8 +153,8 @@ Window {
                 bottom: parent.bottom
             }
 
-            readonly property int nativeW: 4000
-            readonly property int nativeH: 4000
+            readonly property int nativeW: Models.graphicsConfig.canvas.width
+            readonly property int nativeH: Models.graphicsConfig.canvas.height
             property real viewScale: fitScale
             property real panX: 0.0
             property real panY: 0.0
@@ -161,6 +166,9 @@ Window {
                 return Math.min(vw / nativeW, vh / nativeH)
             }
 
+            readonly property real minScale: 0.04
+            readonly property real maxScale: 16.0
+
             function fitView() {
                 viewScale = fitScale
                 panX = 0
@@ -171,6 +179,20 @@ Window {
                 viewScale = 1.0
                 panX = 0
                 panY = 0
+            }
+
+            // Scales by `factor` while keeping the canvas point under
+            // (px, py) — viewport-local coordinates — pinned in place.
+            function zoomAt(factor, px, py) {
+                var newScale = Math.max(minScale, Math.min(maxScale, viewScale * factor))
+                var actual = newScale / viewScale
+                if (actual === 1.0)
+                    return
+                var lx = px - canvasViewport.width  / 2 - panX
+                var ly = py - canvasViewport.height / 2 - panY
+                viewScale = newScale
+                panX += lx * (1.0 - actual)
+                panY += ly * (1.0 - actual)
             }
 
             // ── Top bar ──────────────────────────────────────────────────────
@@ -210,6 +232,36 @@ Window {
                     text: "Preview"
                     color: "#666666"
                     font.pixelSize: 12
+                }
+
+                // Settings (gear) button
+                Rectangle {
+                    id: settingsToggle
+                    anchors {
+                        verticalCenter: parent.verticalCenter
+                        right: parent.right
+                        rightMargin: 8
+                    }
+                    width: 28
+                    height: 24
+                    radius: 3
+                    color: settingsHov.hovered ? "#404040" : "#2d2d2d"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "⚙"
+                        color: settingsHov.hovered ? "#dddddd" : "#888888"
+                        font.pixelSize: 13
+                    }
+
+                    HoverHandler { id: settingsHov }
+                    TapHandler {
+                        onTapped: {
+                            settingsWindow.visible = true
+                            settingsWindow.raise()
+                            settingsWindow.requestActivate()
+                        }
+                    }
                 }
             }
 
@@ -305,10 +357,12 @@ Window {
                     y: (canvasViewport.height - height) / 2 + mainArea.panY
 
                     SpellCircle {
+                        clip: true
                         alphaBlending: true
                         fillColor: "transparent"
                         anchors.fill: parent
-                        model: Models.feedModel
+                        model: Models.spellCircleModel
+                        config: Models.graphicsConfig
                     }
 
                     // Canvas outline
@@ -383,19 +437,37 @@ Window {
                     }
                 }
 
-                // Mouse-wheel zoom towards cursor
+                // Touchpad two-finger scroll → pan (pixelDelta is the smooth scroll value).
+                // Mouse wheel → zoom toward cursor (discrete angleDelta, 120 units per notch).
+                // Device type is checked explicitly because macOS can synthesize pixelDelta
+                // for mouse wheel events, which would fool a pixelDelta-only check.
                 WheelHandler {
                     target: null
+                    acceptedDevices: PointerDevice.TouchPad
                     onWheel: (ev) => {
-                        var factor = ev.angleDelta.y > 0 ? 1.12 : (1.0 / 1.12)
-                        var newScale = Math.max(0.04, Math.min(16.0, mainArea.viewScale * factor))
-                        var actual  = newScale / mainArea.viewScale
-                        // Translate so the canvas point under the cursor stays fixed
-                        var lx = ev.x - canvasViewport.width  / 2 - mainArea.panX
-                        var ly = ev.y - canvasViewport.height / 2 - mainArea.panY
-                        mainArea.viewScale = newScale
-                        mainArea.panX += lx * (1.0 - actual)
-                        mainArea.panY += ly * (1.0 - actual)
+                        mainArea.panX += ev.pixelDelta.x
+                        mainArea.panY += ev.pixelDelta.y
+                    }
+                }
+                WheelHandler {
+                    target: null
+                    acceptedDevices: PointerDevice.Mouse
+                    onWheel: (ev) => {
+                        var factor = Math.pow(1.4, ev.angleDelta.y / 120.0)
+                        mainArea.zoomAt(factor, ev.x, ev.y)
+                    }
+                }
+
+                // Trackpad pinch-to-zoom (native macOS magnify gesture).
+                PinchHandler {
+                    target: null
+                    property real scaleAtStart: 1.0
+                    onActiveChanged: if (active) scaleAtStart = mainArea.viewScale
+                    onActiveScaleChanged: {
+                        if (!active)
+                            return
+                        var factor = (scaleAtStart * activeScale) / mainArea.viewScale
+                        mainArea.zoomAt(factor, centroid.position.x, centroid.position.y)
                     }
                 }
             }
@@ -424,7 +496,7 @@ Window {
                 }
 
                 HoverHandler { id: resetHov }
-                TapHandler { onTapped: Models.feedModel.clear() }
+                TapHandler { onTapped: Models.spellCircleModel.clear() }
             }
 
             // ── Bottom toolbar ────────────────────────────────────────────────

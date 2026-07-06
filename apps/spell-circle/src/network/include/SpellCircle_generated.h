@@ -20,6 +20,15 @@ struct Vec2;
 struct Circle;
 struct CircleBuilder;
 
+struct Point;
+struct PointBuilder;
+
+struct Edge;
+struct EdgeBuilder;
+
+struct Box;
+struct BoxBuilder;
+
 struct Scene;
 struct SceneBuilder;
 
@@ -51,7 +60,9 @@ struct Circle FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_POS = 4,
     VT_NAME = 6,
-    VT_RADIUS = 8
+    VT_RADIUS = 8,
+    VT_TEXT_START = 10,
+    VT_ACTIVE = 12
   };
   const SpellCircle::Vec2 *pos() const {
     return GetStruct<const SpellCircle::Vec2 *>(VT_POS);
@@ -62,6 +73,12 @@ struct Circle FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   uint32_t radius() const {
     return GetField<uint32_t>(VT_RADIUS, 0);
   }
+  float text_start() const {
+    return GetField<float>(VT_TEXT_START, 0.0f);
+  }
+  bool active() const {
+    return GetField<uint8_t>(VT_ACTIVE, 0) != 0;
+  }
   template <bool B = false>
   bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -69,6 +86,8 @@ struct Circle FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_NAME) &&
            verifier.VerifyString(name()) &&
            VerifyField<uint32_t>(verifier, VT_RADIUS, 4) &&
+           VerifyField<float>(verifier, VT_TEXT_START, 4) &&
+           VerifyField<uint8_t>(verifier, VT_ACTIVE, 1) &&
            verifier.EndTable();
   }
 };
@@ -86,6 +105,12 @@ struct CircleBuilder {
   void add_radius(uint32_t radius) {
     fbb_.AddElement<uint32_t>(Circle::VT_RADIUS, radius, 0);
   }
+  void add_text_start(float text_start) {
+    fbb_.AddElement<float>(Circle::VT_TEXT_START, text_start, 0.0f);
+  }
+  void add_active(bool active) {
+    fbb_.AddElement<uint8_t>(Circle::VT_ACTIVE, static_cast<uint8_t>(active), 0);
+  }
   explicit CircleBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -101,11 +126,15 @@ inline ::flatbuffers::Offset<Circle> CreateCircle(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const SpellCircle::Vec2 *pos = nullptr,
     ::flatbuffers::Offset<::flatbuffers::String> name = 0,
-    uint32_t radius = 0) {
+    uint32_t radius = 0,
+    float text_start = 0.0f,
+    bool active = false) {
   CircleBuilder builder_(_fbb);
+  builder_.add_text_start(text_start);
   builder_.add_radius(radius);
   builder_.add_name(name);
   builder_.add_pos(pos);
+  builder_.add_active(active);
   return builder_.Finish();
 }
 
@@ -113,22 +142,250 @@ inline ::flatbuffers::Offset<Circle> CreateCircleDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const SpellCircle::Vec2 *pos = nullptr,
     const char *name = nullptr,
-    uint32_t radius = 0) {
+    uint32_t radius = 0,
+    float text_start = 0.0f,
+    bool active = false) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   return SpellCircle::CreateCircle(
       _fbb,
       pos,
       name__,
-      radius);
+      radius,
+      text_start,
+      active);
+}
+
+struct Point FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef PointBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VALUE = 4,
+    VT_CIRCLE = 6,
+    VT_POSITION = 8
+  };
+  const ::flatbuffers::String *value() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_VALUE);
+  }
+  const SpellCircle::Circle *circle() const {
+    return GetPointer<const SpellCircle::Circle *>(VT_CIRCLE);
+  }
+  float position() const {
+    return GetField<float>(VT_POSITION, 0.0f);
+  }
+  template <bool B = false>
+  bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_VALUE) &&
+           verifier.VerifyString(value()) &&
+           VerifyOffset(verifier, VT_CIRCLE) &&
+           verifier.VerifyTable(circle()) &&
+           VerifyField<float>(verifier, VT_POSITION, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct PointBuilder {
+  typedef Point Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_value(::flatbuffers::Offset<::flatbuffers::String> value) {
+    fbb_.AddOffset(Point::VT_VALUE, value);
+  }
+  void add_circle(::flatbuffers::Offset<SpellCircle::Circle> circle) {
+    fbb_.AddOffset(Point::VT_CIRCLE, circle);
+  }
+  void add_position(float position) {
+    fbb_.AddElement<float>(Point::VT_POSITION, position, 0.0f);
+  }
+  explicit PointBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Point> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Point>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Point> CreatePoint(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> value = 0,
+    ::flatbuffers::Offset<SpellCircle::Circle> circle = 0,
+    float position = 0.0f) {
+  PointBuilder builder_(_fbb);
+  builder_.add_position(position);
+  builder_.add_circle(circle);
+  builder_.add_value(value);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Point> CreatePointDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *value = nullptr,
+    ::flatbuffers::Offset<SpellCircle::Circle> circle = 0,
+    float position = 0.0f) {
+  auto value__ = value ? _fbb.CreateString(value) : 0;
+  return SpellCircle::CreatePoint(
+      _fbb,
+      value__,
+      circle,
+      position);
+}
+
+struct Edge FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef EdgeBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_FIRST = 4,
+    VT_SECOND = 6
+  };
+  const SpellCircle::Point *first() const {
+    return GetPointer<const SpellCircle::Point *>(VT_FIRST);
+  }
+  const SpellCircle::Point *second() const {
+    return GetPointer<const SpellCircle::Point *>(VT_SECOND);
+  }
+  template <bool B = false>
+  bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_FIRST) &&
+           verifier.VerifyTable(first()) &&
+           VerifyOffset(verifier, VT_SECOND) &&
+           verifier.VerifyTable(second()) &&
+           verifier.EndTable();
+  }
+};
+
+struct EdgeBuilder {
+  typedef Edge Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_first(::flatbuffers::Offset<SpellCircle::Point> first) {
+    fbb_.AddOffset(Edge::VT_FIRST, first);
+  }
+  void add_second(::flatbuffers::Offset<SpellCircle::Point> second) {
+    fbb_.AddOffset(Edge::VT_SECOND, second);
+  }
+  explicit EdgeBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Edge> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Edge>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Edge> CreateEdge(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<SpellCircle::Point> first = 0,
+    ::flatbuffers::Offset<SpellCircle::Point> second = 0) {
+  EdgeBuilder builder_(_fbb);
+  builder_.add_second(second);
+  builder_.add_first(first);
+  return builder_.Finish();
+}
+
+struct Box FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef BoxBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VALUE = 4,
+    VT_POINT = 6,
+    VT_ACTIVE = 8
+  };
+  const ::flatbuffers::String *value() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_VALUE);
+  }
+  const SpellCircle::Point *point() const {
+    return GetPointer<const SpellCircle::Point *>(VT_POINT);
+  }
+  bool active() const {
+    return GetField<uint8_t>(VT_ACTIVE, 0) != 0;
+  }
+  template <bool B = false>
+  bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_VALUE) &&
+           verifier.VerifyString(value()) &&
+           VerifyOffset(verifier, VT_POINT) &&
+           verifier.VerifyTable(point()) &&
+           VerifyField<uint8_t>(verifier, VT_ACTIVE, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct BoxBuilder {
+  typedef Box Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_value(::flatbuffers::Offset<::flatbuffers::String> value) {
+    fbb_.AddOffset(Box::VT_VALUE, value);
+  }
+  void add_point(::flatbuffers::Offset<SpellCircle::Point> point) {
+    fbb_.AddOffset(Box::VT_POINT, point);
+  }
+  void add_active(bool active) {
+    fbb_.AddElement<uint8_t>(Box::VT_ACTIVE, static_cast<uint8_t>(active), 0);
+  }
+  explicit BoxBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Box> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Box>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Box> CreateBox(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> value = 0,
+    ::flatbuffers::Offset<SpellCircle::Point> point = 0,
+    bool active = false) {
+  BoxBuilder builder_(_fbb);
+  builder_.add_point(point);
+  builder_.add_value(value);
+  builder_.add_active(active);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<Box> CreateBoxDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *value = nullptr,
+    ::flatbuffers::Offset<SpellCircle::Point> point = 0,
+    bool active = false) {
+  auto value__ = value ? _fbb.CreateString(value) : 0;
+  return SpellCircle::CreateBox(
+      _fbb,
+      value__,
+      point,
+      active);
 }
 
 struct Scene FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef SceneBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CIRCLES = 4
+    VT_CIRCLES = 4,
+    VT_EDGES = 6,
+    VT_BOXES = 8,
+    VT_WIDTH = 10,
+    VT_HEIGHT = 12
   };
   const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Circle>> *circles() const {
     return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Circle>> *>(VT_CIRCLES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Edge>> *edges() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Edge>> *>(VT_EDGES);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Box>> *boxes() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Box>> *>(VT_BOXES);
+  }
+  float width() const {
+    return GetField<float>(VT_WIDTH, 0.0f);
+  }
+  float height() const {
+    return GetField<float>(VT_HEIGHT, 0.0f);
   }
   template <bool B = false>
   bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
@@ -136,6 +393,14 @@ struct Scene FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            VerifyOffset(verifier, VT_CIRCLES) &&
            verifier.VerifyVector(circles()) &&
            verifier.VerifyVectorOfTables(circles()) &&
+           VerifyOffset(verifier, VT_EDGES) &&
+           verifier.VerifyVector(edges()) &&
+           verifier.VerifyVectorOfTables(edges()) &&
+           VerifyOffset(verifier, VT_BOXES) &&
+           verifier.VerifyVector(boxes()) &&
+           verifier.VerifyVectorOfTables(boxes()) &&
+           VerifyField<float>(verifier, VT_WIDTH, 4) &&
+           VerifyField<float>(verifier, VT_HEIGHT, 4) &&
            verifier.EndTable();
   }
 };
@@ -146,6 +411,18 @@ struct SceneBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_circles(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Circle>>> circles) {
     fbb_.AddOffset(Scene::VT_CIRCLES, circles);
+  }
+  void add_edges(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Edge>>> edges) {
+    fbb_.AddOffset(Scene::VT_EDGES, edges);
+  }
+  void add_boxes(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Box>>> boxes) {
+    fbb_.AddOffset(Scene::VT_BOXES, boxes);
+  }
+  void add_width(float width) {
+    fbb_.AddElement<float>(Scene::VT_WIDTH, width, 0.0f);
+  }
+  void add_height(float height) {
+    fbb_.AddElement<float>(Scene::VT_HEIGHT, height, 0.0f);
   }
   explicit SceneBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -160,19 +437,37 @@ struct SceneBuilder {
 
 inline ::flatbuffers::Offset<Scene> CreateScene(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Circle>>> circles = 0) {
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Circle>>> circles = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Edge>>> edges = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<SpellCircle::Box>>> boxes = 0,
+    float width = 0.0f,
+    float height = 0.0f) {
   SceneBuilder builder_(_fbb);
+  builder_.add_height(height);
+  builder_.add_width(width);
+  builder_.add_boxes(boxes);
+  builder_.add_edges(edges);
   builder_.add_circles(circles);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<Scene> CreateSceneDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<::flatbuffers::Offset<SpellCircle::Circle>> *circles = nullptr) {
+    const std::vector<::flatbuffers::Offset<SpellCircle::Circle>> *circles = nullptr,
+    const std::vector<::flatbuffers::Offset<SpellCircle::Edge>> *edges = nullptr,
+    const std::vector<::flatbuffers::Offset<SpellCircle::Box>> *boxes = nullptr,
+    float width = 0.0f,
+    float height = 0.0f) {
   auto circles__ = circles ? _fbb.CreateVector<::flatbuffers::Offset<SpellCircle::Circle>>(*circles) : 0;
+  auto edges__ = edges ? _fbb.CreateVector<::flatbuffers::Offset<SpellCircle::Edge>>(*edges) : 0;
+  auto boxes__ = boxes ? _fbb.CreateVector<::flatbuffers::Offset<SpellCircle::Box>>(*boxes) : 0;
   return SpellCircle::CreateScene(
       _fbb,
-      circles__);
+      circles__,
+      edges__,
+      boxes__,
+      width,
+      height);
 }
 
 inline const SpellCircle::Scene *GetScene(const void *buf) {
