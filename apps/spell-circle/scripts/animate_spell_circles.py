@@ -32,17 +32,10 @@ Requires: pip install flatbuffers
 
 import argparse
 import math
-import socket
 import time
 
-from sc_builder import (
-    CircleSpec,
-    build_point,
-    build_edge,
-    build_box,
-    build_scene_bytes,
-    new_builder,
-)
+from sc_canvas import SCCanvas
+from sc_network import SCSender
 
 HOST = "127.0.0.1"
 PORT = 27015
@@ -157,10 +150,10 @@ def _hold_pulse(t, phase=0.0, hold=1.0, transition=0.3):
 
 
 def build_frame(t):
-    builder = new_builder()
+    sc = SCCanvas(CANVAS, CANVAS)
 
     # Central circle — label drifts slowly.
-    big = CircleSpec(
+    big = sc.circle(
         "FLARE SIGIL CIRCLE", CX, CY, round(BIG_R),
         text_start=(0.62 + t * 0.04) % 1.0,
     )
@@ -182,27 +175,23 @@ def build_frame(t):
             active = _ramp(math.sin(t * 2.2 + i * 1.3), 0.68)
         else:
             active = _hold_pulse(t, phase=i * 0.9)
-        smalls.append(CircleSpec(
+        smalls.append(sc.circle(
             name, cx, cy, max(1, round(r)),
             text_start=(0.75 + t * 0.09 + i * 0.13) % 1.0,
             active=active,
         ))
 
-    circle_offsets = [big.build(builder)] + [s.build(builder) for s in smalls]
-
-    edge_offsets = []
-
     # Star web on the big circle. Points here are pure edge endpoints with
     # nothing worth labelling, so they carry no value.
     for i in range(RING):
         for skip in RING_SKIPS:
-            a = build_point(builder, "", big, i / RING)
-            b = build_point(builder, "", big, ((i+skip)%RING)/RING)
-            edge_offsets.append(build_edge(builder, a, b))
+            a = sc.point(big, i / RING)
+            b = sc.point(big, ((i+skip)%RING)/RING)
+            sc.edge(a, b)
 
-    # Spoke from each orbiter to the big circle. Point offsets are kept in
+    # Spoke from each orbiter to the big circle. Points are kept in
     # `spoke_points` so a box can later be assigned the same Point as the
-    # edge's endpoint, rather than building a fresh one. The first spoke's
+    # edge's endpoint, rather than creating a fresh one. The first spoke's
     # big-circle endpoint demonstrates a Point's own value label (rendered
     # like a box) by tracking its live fractional position on the ring; the
     # rest carry no value.
@@ -210,19 +199,19 @@ def build_frame(t):
     for i, s in enumerate(smalls):
         pos = _pos_on_big(s.x, s.y)
         value = f"{pos:.2f}" if i == 0 else ""
-        a = build_point(builder, value, big, pos)
-        b = build_point(builder, "", s, 0.5)
-        edge_offsets.append(build_edge(builder, a, b))
+        a = sc.point(big, pos, value)
+        b = sc.point(s, 0.5)
+        sc.edge(a, b)
         spoke_points.append((a, b))
 
-    # Ring connecting adjacent orbiters. Point offsets kept in `ring_points`
-    # for the same reason as `spoke_points` above.
+    # Ring connecting adjacent orbiters. Points kept in `ring_points` for the
+    # same reason as `spoke_points` above.
     ring_points = []
     for i in range(n):
         sa, sb = smalls[i], smalls[(i + 1) % n]
-        a = build_point(builder, "", sa, 0.25)
-        b = build_point(builder, "", sb, 0.75)
-        edge_offsets.append(build_edge(builder, a, b))
+        a = sc.point(sa, 0.25)
+        b = sc.point(sb, 0.75)
+        sc.edge(a, b)
         ring_points.append((a, b))
 
     tracks = {"spoke": spoke_points[0], "ring": ring_points[0]}
@@ -230,44 +219,38 @@ def build_frame(t):
     # Boxes drifting around the big circle. Each holds its active/inactive
     # state for a beat (see _hold_pulse) rather than flickering, staggered by
     # phase so they don't all transition in lockstep.
-    box_offsets = []
     for i, (name, drift, phase) in enumerate(BOX_SPECS):
         pos = (t * drift + phase) % 1.0
         active = _hold_pulse(t, phase=i * 0.9 + 0.4)
-        pt = build_point(builder, "", big, pos)
-        box_offsets.append(build_box(builder, name, pt, active))
+        pt = sc.point(big, pos)
+        sc.box(name, pt, active=active)
 
     # Boxes pinned to one of the points an edge is already assigned to, so
     # they follow that point wherever the edge's endpoint goes.
     for i, (name, track, end) in enumerate(EDGE_RIDERS):
         pt = tracks[track][end]
         active = _hold_pulse(t, phase=i * 0.9 + 1.3)
-        box_offsets.append(build_box(builder, name, pt, active))
+        sc.box(name, pt, active=active)
 
     # DRIFTER: a box anchored to a radius-0 circle lapping a rectangular
     # racetrack, unconnected to any visible circle's perimeter.
     drifter_x, drifter_y = _racetrack(t, **DRIFTER_TRACK)
-    drifter_anchor = CircleSpec("", drifter_x, drifter_y, 0)
-    drifter_pt = build_point(builder, "", drifter_anchor, 0.0)
-    box_offsets.append(build_box(builder, "DRIFTER", drifter_pt,
-                                 _hold_pulse(t, phase=2.1)))
+    drifter_anchor = sc.anchor(drifter_x, drifter_y)
+    drifter_pt = sc.point(drifter_anchor)
+    sc.box("DRIFTER", drifter_pt, active=_hold_pulse(t, phase=2.1))
 
     # STRAY: a lone point (no box) lapping its own racetrack, labelled with
     # its live coordinates to make the arbitrary positioning visible. Points
     # only enter the scene's registry when referenced by an Edge or a Box
     # (see PointComponent's doc comment), so it rides a self-looped edge —
-    # both ends the same Point offset — purely to register it; the edge is
+    # both ends the same Point — purely to register it; the edge is
     # zero-length and draws nothing.
     stray_x, stray_y = _racetrack(t, **STRAY_TRACK)
-    stray_anchor = CircleSpec("", stray_x, stray_y, 0)
-    stray_pt = build_point(
-        builder, f"STRAY {stray_x:.0f},{stray_y:.0f}", stray_anchor, 0.0
-    )
-    edge_offsets.append(build_edge(builder, stray_pt, stray_pt))
+    stray_anchor = sc.anchor(stray_x, stray_y)
+    stray_pt = sc.point(stray_anchor, value=f"STRAY {stray_x:.0f},{stray_y:.0f}")
+    sc.edge(stray_pt, stray_pt)
 
-    return build_scene_bytes(
-        builder, circle_offsets, edge_offsets, box_offsets, CANVAS, CANVAS
-    )
+    return sc.to_bytes()
 
 
 def main():
@@ -279,14 +262,14 @@ def main():
 
     frame_time = 1.0 / args.fps
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+    with SCSender(args.host, args.port) as sender:
         t0 = time.monotonic()
         frame = 0
         print(f"Streaming to {args.host}:{args.port} at {args.fps} fps  (Ctrl-C to stop)")
         try:
             while True:
                 t = time.monotonic() - t0
-                sock.sendto(build_frame(t), (args.host, args.port))
+                sender.send(build_frame(t))
                 frame += 1
 
                 # Print actual FPS every 5 seconds.

@@ -20,9 +20,9 @@ Requires: pip install flatbuffers
 import argparse
 import math
 import random
-import socket
 
-from sc_builder import CircleSpec, build_point, build_edge, build_box, build_scene_bytes, new_builder
+from sc_canvas import SCCanvas
+from sc_network import send_once
 
 HOST = "127.0.0.1"
 PORT = 27015
@@ -44,10 +44,10 @@ def _scaled(value, canvas):
 
 
 def build_scene(canvas=CANVAS, n_smalls=5, n_boxes=3):
-    builder = new_builder(8192)
+    sc = SCCanvas(canvas, canvas)
 
     c = canvas / 2.0
-    big = CircleSpec(
+    big = sc.circle(
         "FLARE SIGIL CIRCLE",
         c, c,
         round(_scaled(1150, canvas)),
@@ -64,41 +64,37 @@ def build_scene(canvas=CANVAS, n_smalls=5, n_boxes=3):
         dist = random.uniform(big.radius + radius * 0.4, c - radius - margin)
         x = min(max(c + dist * math.cos(ang), radius + margin), canvas - radius - margin)
         y = min(max(c + dist * math.sin(ang), radius + margin), canvas - radius - margin)
-        smalls.append(CircleSpec(
+        smalls.append(sc.circle(
             name, x, y, round(radius),
             active=random.random(),
         ))
 
-    circle_offsets = [big.build(builder)] + [s.build(builder) for s in smalls]
-
     # Star web on the big circle. Points here are pure edge endpoints with
     # nothing worth labelling, so they carry no value.
     ring = 12
-    edge_offsets = []
     for i in range(ring):
         for skip in (5, 7):
-            a = build_point(builder, "", big, i / ring)
-            b = build_point(builder, "", big, ((i+skip)%ring)/ring)
-            edge_offsets.append(build_edge(builder, a, b))
+            a = sc.point(big, i / ring)
+            b = sc.point(big, ((i+skip)%ring)/ring)
+            sc.edge(a, b)
 
     # Spoke from each small circle to its nearest point on the big circle.
     for s in smalls:
         ang = math.atan2(s.y - c, s.x - c) / (2 * math.pi)
         big_pos = (ang + 1.0 + 0.25) % 1.0
-        a = build_point(builder, "", big, big_pos)
-        b = build_point(builder, "", s, 0.5)
-        edge_offsets.append(build_edge(builder, a, b))
+        a = sc.point(big, big_pos)
+        b = sc.point(s, 0.5)
+        sc.edge(a, b)
 
     # Boxes at random positions on the big circle. The anchor point carries
     # no value of its own — the box already draws `name` — to avoid stacking
     # an identical label on top of the box.
-    box_offsets = []
     for name in random.sample(BOX_NAMES, min(n_boxes, len(BOX_NAMES))):
-        pt = build_point(builder, "", big, random.random())
-        box_offsets.append(build_box(builder, name, pt, random.random()))
+        pt = sc.point(big, random.random())
+        sc.box(name, pt, active=random.random())
 
-    buf = build_scene_bytes(builder, circle_offsets, edge_offsets, box_offsets, canvas, canvas)
-    return buf, len(circle_offsets), len(edge_offsets), len(box_offsets)
+    buf = sc.to_bytes()
+    return buf, len(sc.circles), len(sc.edges), len(sc.boxes)
 
 
 def main():
@@ -121,8 +117,7 @@ def main():
         canvas=args.canvas, n_smalls=args.circles, n_boxes=args.boxes
     )
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.sendto(buf, (args.host, args.port))
+    send_once(buf, args.host, args.port)
 
     print(
         f"Sent SpellCircle ({n_circles} circles, {n_edges} edges, {n_boxes} boxes, "
