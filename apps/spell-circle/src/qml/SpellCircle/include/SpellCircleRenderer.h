@@ -36,7 +36,7 @@ private:
     QPointF center;
     float radius = 0.0f;
     float textStart = 0.0f;
-    bool active = false;
+    float active = 0.0f; // background fill alpha/intensity [0, 1]
   };
 
   /** A straight connector between two resolved point positions. */
@@ -54,7 +54,7 @@ private:
     // the box outward by the configured distance and to pick which of its
     // edges (the one facing the center) sits at that offset.
     QPointF direction;
-    bool active = false;
+    float active = 0.0f; // background fill alpha/intensity [0, 1]
   };
 
   void drawScene(QCanvasPainter *p);

@@ -32,13 +32,13 @@ from SpellCircle.Vec2 import CreateVec2
 class CircleSpec:
     """A circle plus the strings needed to rebuild it inside embedded Points."""
 
-    def __init__(self, name, x, y, radius, *, text_start=0.75, active=False):
+    def __init__(self, name, x, y, radius, *, text_start=0.75, active=0.0):
         self.name = name
         self.x = float(x)
         self.y = float(y)
         self.radius = int(radius)
         self.text_start = float(text_start)
-        self.active = bool(active)
+        self.active = float(active)  # background fill alpha/intensity [0, 1]
 
     def build(self, builder):
         name_off = builder.CreateString(self.name)
@@ -70,13 +70,16 @@ def build_edge(builder, a_off, b_off):
     return Edg.EdgeEnd(builder)
 
 
-def build_box(builder, value, point_off, active=False):
-    """Anchor a labelled box to a pre-built Point offset."""
+def build_box(builder, value, point_off, active=0.0):
+    """Anchor a labelled box to a pre-built Point offset.
+
+    `active` is the background fill alpha/intensity in [0, 1]; 0 draws no fill.
+    """
     value_off = builder.CreateString(value)
     Bx.BoxStart(builder)
     Bx.BoxAddValue(builder, value_off)
     Bx.BoxAddPoint(builder, point_off)
-    Bx.BoxAddActive(builder, active)
+    Bx.BoxAddActive(builder, float(active))
     return Bx.BoxEnd(builder)
 
 

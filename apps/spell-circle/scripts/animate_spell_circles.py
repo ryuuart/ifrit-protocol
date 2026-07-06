@@ -3,11 +3,14 @@
 Stream an animated SpellCircle scene over UDP at ~60 fps.
 
 Five circles orbit a central sigil at varying speeds (some clockwise, some
-counter-clockwise). Their radii pulse, they activate and deactivate as they
-cross invisible thresholds, and a star web of edges connects everything while
-labelled boxes travel along the perimeter of the central circle. A couple of
-extra boxes are pinned to one of the two points already assigned to a chosen
-edge, so they follow that point wherever the edge's endpoint goes.
+counter-clockwise). Their radii pulse, and a star web of edges connects
+everything while labelled boxes travel along the perimeter of the central
+circle. A couple of extra boxes are pinned to one of the two points already
+assigned to a chosen edge, so they follow that point wherever the edge's
+endpoint goes. Every circle and box holds its active/inactive fill state for
+about a second between smooth transitions so the change reads clearly instead
+of flickering, except the last orbiter (UMBRA), which keeps a fast
+sine-driven flash for contrast.
 
 The scene is authored in a 1000×1000 coordinate space so coordinates are easy
 to reason about; the app scales it up to the native 4K texture automatically.
@@ -82,6 +85,35 @@ def _pos_on_big(cx, cy):
     return (ang / (2.0 * math.pi) + 0.25 + 1.0) % 1.0
 
 
+def _ramp(value, threshold):
+    """Map a sine `value` in [-1, 1] to a fill intensity [0, 1]: 0 below
+    `threshold`, ramping up to 1 at the peak. Used for the one flashing
+    circle (UMBRA) so there's still something quick to contrast against the
+    held transitions everything else uses."""
+    return max(0.0, (value - threshold) / (1.0 - threshold))
+
+
+def _hold_pulse(t, phase=0.0, hold=1.0, transition=0.3):
+    """Trapezoidal wave in [0, 1]: eases up over `transition` seconds, holds
+    at 1 for `hold` seconds, eases down over `transition` seconds, then holds
+    at 0 for `hold` seconds — long enough to actually see each state instead
+    of flickering between them. `phase` (seconds) offsets where in the cycle
+    `t` starts, so multiple objects using this don't pulse in lockstep."""
+    period = 2.0 * (hold + transition)
+    x = (t + phase) % period
+    if x < transition:
+        u = x / transition
+        return u * u * (3.0 - 2.0 * u)
+    x -= transition
+    if x < hold:
+        return 1.0
+    x -= hold
+    if x < transition:
+        u = x / transition
+        return 1.0 - u * u * (3.0 - 2.0 * u)
+    return 0.0
+
+
 def build_frame(t):
     builder = new_builder()
 
@@ -101,8 +133,13 @@ def build_frame(t):
         cy = CY + orb_r * math.sin(ang)
         # Radius breathes on a per-circle frequency.
         r = base_r + 14.0 * FOOTPRINT_SCALE * math.sin(t * 1.4 + i * 1.1)
-        # Activate when the sine of a fast phase crosses a high threshold.
-        active = math.sin(t * 2.2 + i * 1.3) > 0.68
+        # Every orbiter but the last holds its active/inactive state for a
+        # beat so the transition reads clearly instead of flickering; the
+        # last one (UMBRA) keeps the quick sine-driven flash for contrast.
+        if i == n - 1:
+            active = _ramp(math.sin(t * 2.2 + i * 1.3), 0.68)
+        else:
+            active = _hold_pulse(t, phase=i * 0.9)
         smalls.append(CircleSpec(
             name, cx, cy, max(1, round(r)),
             text_start=(0.75 + t * 0.09 + i * 0.13) % 1.0,
@@ -143,11 +180,13 @@ def build_frame(t):
 
     tracks = {"spoke": spoke_points[0], "ring": ring_points[0]}
 
-    # Boxes drifting around the big circle.
+    # Boxes drifting around the big circle. Each holds its active/inactive
+    # state for a beat (see _hold_pulse) rather than flickering, staggered by
+    # phase so they don't all transition in lockstep.
     box_offsets = []
-    for name, drift, phase in BOX_SPECS:
+    for i, (name, drift, phase) in enumerate(BOX_SPECS):
         pos = (t * drift + phase) % 1.0
-        active = math.sin(t * 2.8 + phase * 6.0) > 0.55
+        active = _hold_pulse(t, phase=i * 0.9 + 0.4)
         pt = build_point(builder, name, big, pos)
         box_offsets.append(build_box(builder, name, pt, active))
 
@@ -155,7 +194,7 @@ def build_frame(t):
     # they follow that point wherever the edge's endpoint goes.
     for i, (name, track, end) in enumerate(EDGE_RIDERS):
         pt = tracks[track][end]
-        active = math.sin(t * 3.0 + i * 1.7) > 0.5
+        active = _hold_pulse(t, phase=i * 0.9 + 1.3)
         box_offsets.append(build_box(builder, name, pt, active))
 
     return build_scene_bytes(

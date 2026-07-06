@@ -76,8 +76,8 @@ struct Circle FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   float text_start() const {
     return GetField<float>(VT_TEXT_START, 0.0f);
   }
-  bool active() const {
-    return GetField<uint8_t>(VT_ACTIVE, 0) != 0;
+  float active() const {
+    return GetField<float>(VT_ACTIVE, 0.0f);
   }
   template <bool B = false>
   bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
@@ -87,7 +87,7 @@ struct Circle FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(name()) &&
            VerifyField<uint32_t>(verifier, VT_RADIUS, 4) &&
            VerifyField<float>(verifier, VT_TEXT_START, 4) &&
-           VerifyField<uint8_t>(verifier, VT_ACTIVE, 1) &&
+           VerifyField<float>(verifier, VT_ACTIVE, 4) &&
            verifier.EndTable();
   }
 };
@@ -108,8 +108,8 @@ struct CircleBuilder {
   void add_text_start(float text_start) {
     fbb_.AddElement<float>(Circle::VT_TEXT_START, text_start, 0.0f);
   }
-  void add_active(bool active) {
-    fbb_.AddElement<uint8_t>(Circle::VT_ACTIVE, static_cast<uint8_t>(active), 0);
+  void add_active(float active) {
+    fbb_.AddElement<float>(Circle::VT_ACTIVE, active, 0.0f);
   }
   explicit CircleBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -128,13 +128,13 @@ inline ::flatbuffers::Offset<Circle> CreateCircle(
     ::flatbuffers::Offset<::flatbuffers::String> name = 0,
     uint32_t radius = 0,
     float text_start = 0.0f,
-    bool active = false) {
+    float active = 0.0f) {
   CircleBuilder builder_(_fbb);
+  builder_.add_active(active);
   builder_.add_text_start(text_start);
   builder_.add_radius(radius);
   builder_.add_name(name);
   builder_.add_pos(pos);
-  builder_.add_active(active);
   return builder_.Finish();
 }
 
@@ -144,7 +144,7 @@ inline ::flatbuffers::Offset<Circle> CreateCircleDirect(
     const char *name = nullptr,
     uint32_t radius = 0,
     float text_start = 0.0f,
-    bool active = false) {
+    float active = 0.0f) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   return SpellCircle::CreateCircle(
       _fbb,
@@ -299,8 +299,8 @@ struct Box FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const SpellCircle::Point *point() const {
     return GetPointer<const SpellCircle::Point *>(VT_POINT);
   }
-  bool active() const {
-    return GetField<uint8_t>(VT_ACTIVE, 0) != 0;
+  float active() const {
+    return GetField<float>(VT_ACTIVE, 0.0f);
   }
   template <bool B = false>
   bool Verify(::flatbuffers::VerifierTemplate<B> &verifier) const {
@@ -309,7 +309,7 @@ struct Box FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyString(value()) &&
            VerifyOffset(verifier, VT_POINT) &&
            verifier.VerifyTable(point()) &&
-           VerifyField<uint8_t>(verifier, VT_ACTIVE, 1) &&
+           VerifyField<float>(verifier, VT_ACTIVE, 4) &&
            verifier.EndTable();
   }
 };
@@ -324,8 +324,8 @@ struct BoxBuilder {
   void add_point(::flatbuffers::Offset<SpellCircle::Point> point) {
     fbb_.AddOffset(Box::VT_POINT, point);
   }
-  void add_active(bool active) {
-    fbb_.AddElement<uint8_t>(Box::VT_ACTIVE, static_cast<uint8_t>(active), 0);
+  void add_active(float active) {
+    fbb_.AddElement<float>(Box::VT_ACTIVE, active, 0.0f);
   }
   explicit BoxBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -342,11 +342,11 @@ inline ::flatbuffers::Offset<Box> CreateBox(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> value = 0,
     ::flatbuffers::Offset<SpellCircle::Point> point = 0,
-    bool active = false) {
+    float active = 0.0f) {
   BoxBuilder builder_(_fbb);
+  builder_.add_active(active);
   builder_.add_point(point);
   builder_.add_value(value);
-  builder_.add_active(active);
   return builder_.Finish();
 }
 
@@ -354,7 +354,7 @@ inline ::flatbuffers::Offset<Box> CreateBoxDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *value = nullptr,
     ::flatbuffers::Offset<SpellCircle::Point> point = 0,
-    bool active = false) {
+    float active = 0.0f) {
   auto value__ = value ? _fbb.CreateString(value) : 0;
   return SpellCircle::CreateBox(
       _fbb,

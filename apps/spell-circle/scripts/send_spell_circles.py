@@ -66,7 +66,7 @@ def build_scene(canvas=CANVAS, n_smalls=5, n_boxes=3):
         y = min(max(c + dist * math.sin(ang), radius + margin), canvas - radius - margin)
         smalls.append(CircleSpec(
             name, x, y, round(radius),
-            active=random.random() < 0.4,
+            active=random.random(),
         ))
 
     circle_offsets = [big.build(builder)] + [s.build(builder) for s in smalls]
@@ -92,7 +92,7 @@ def build_scene(canvas=CANVAS, n_smalls=5, n_boxes=3):
     box_offsets = []
     for name in random.sample(BOX_NAMES, min(n_boxes, len(BOX_NAMES))):
         pt = build_point(builder, name, big, random.random())
-        box_offsets.append(build_box(builder, name, pt, random.random() < 0.4))
+        box_offsets.append(build_box(builder, name, pt, random.random()))
 
     buf = build_scene_bytes(builder, circle_offsets, edge_offsets, box_offsets, canvas, canvas)
     return buf, len(circle_offsets), len(edge_offsets), len(box_offsets)

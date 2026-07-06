@@ -233,9 +233,11 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     p->setStrokeStyle(m_accentColor);
     p->setLineWidth(strokeWidth);
     p->stroke(circlePath);
-    if (circle.active) {
+    if (circle.active > 0.0f) {
+      p->setGlobalAlpha(circle.active);
       p->setFillStyle(m_accentColor);
       p->fill(circlePath);
+      p->setGlobalAlpha(1.0f);
     }
     p->closePath();
 
@@ -285,9 +287,11 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     p->clearRect(boxGeom);
     p->beginPath();
     p->addPath(rect);
-    if (box.active) {
+    if (box.active > 0.0f) {
+      p->setGlobalAlpha(box.active);
       p->setFillStyle(m_accentColor);
       p->fill();
+      p->setGlobalAlpha(1.0f);
     }
     p->setStrokeStyle(m_accentColor);
     p->setLineWidth(strokeWidth);
@@ -295,7 +299,7 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     p->closePath();
 
     p->beginPath();
-    if (box.active) {
+    if (box.active > 0.0f) {
       p->setGlobalCompositeOperation(
           QCanvasPainter::CompositeOperation::DestinationOut);
       p->setFillStyle(QColorConstants::Black);
@@ -332,8 +336,12 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
   }
   beginCanvasPainting(m_canvas);
   drawScene(p);
-  m_displayImage =
-      p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps);
+  // The offscreen canvas's blended output is premultiplied-alpha; without
+  // this flag drawImage() re-applies alpha on top of already alpha-baked-in
+  // color, darkening every translucent fill (e.g. a 0.5 fill over background
+  // `bg` rendered as `255*0.5^2 + bg*0.5` instead of `255*0.5 + bg*0.5`).
+  m_displayImage = p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps |
+                                             QCanvasPainter::ImageFlag::Premultiplied);
   endCanvasPainting();
 }
 

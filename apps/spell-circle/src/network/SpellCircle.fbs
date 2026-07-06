@@ -10,7 +10,8 @@ table Circle {
     name: string;
     radius: uint32;
     text_start: float;
-    active: bool;
+    // Background fill intensity/alpha in [0, 1]; 0 draws no fill.
+    active: float;
 }
 
 table Point {
@@ -27,7 +28,8 @@ table Edge {
 table Box {
     value: string;
     point: Point;
-    active: bool;
+    // Background fill intensity/alpha in [0, 1]; 0 draws no fill.
+    active: float;
 }
 
 table Scene {

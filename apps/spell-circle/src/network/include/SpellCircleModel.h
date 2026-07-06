@@ -23,8 +23,8 @@ struct CircleComponent {
   float y = 0.0f;
   uint32_t radius = 0;
   float textStart =
-      0.0f;            // fraction [0, 1] where the label begins along the path
-  bool active = false; // filled when true
+      0.0f; // fraction [0, 1] where the label begins along the path
+  float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 
 /** Mirrors SpellCircle.fbs `Point` — a fractional position along a circle's
@@ -54,7 +54,7 @@ struct EdgeComponent {
 struct BoxComponent {
   QString value;
   entt::entity point = entt::null;
-  bool active = false; // filled when true
+  float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 
 /**

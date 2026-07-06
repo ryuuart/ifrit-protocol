@@ -46,8 +46,8 @@ class Box(object):
     def Active(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
-            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
+            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+        return 0.0
 
 def BoxStart(builder):
     builder.StartObject(3)
@@ -68,7 +68,7 @@ def AddPoint(builder, point):
     BoxAddPoint(builder, point)
 
 def BoxAddActive(builder, active):
-    builder.PrependBoolSlot(2, active, 0)
+    builder.PrependFloat32Slot(2, active, 0.0)
 
 def AddActive(builder, active):
     BoxAddActive(builder, active)
