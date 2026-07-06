@@ -9,6 +9,8 @@ apps/spell-circle/   — Qt/C++ app (builds, renders, and publishes spell circle
 apps/python/
   SpellCircle/       — Python package (FlatBuffers bindings + canvas/network API)
     test/            — Demo/test scripts that send scenes over UDP
+touchdesigner/        — TouchDesigner project (.toe) + its Python scripting workspace
+  scripts/            — Python env (uv-managed) used for TD DAT/CHOP scripting
 ```
 
 ## Build (apps/spell-circle)
@@ -106,3 +108,17 @@ UDP packet (FlatBuffers Scene)
 ## Network protocol
 
 UDP port **27015** (default). Each datagram is a FlatBuffers-encoded `SpellCircle.Scene` (defined in `apps/spell-circle/src/network/SpellCircle.fbs`). The verifier in `NetworkManager::onReadyRead` drops malformed packets before they reach the model.
+
+## TouchDesigner scripting workspace (`touchdesigner/`)
+
+`touchdesigner/scripts/` holds the Python project (`pyproject.toml`, `.python-version` pinned to 3.11, `uv`-managed `.venv/`) used for editing TouchDesigner DAT/CHOP scripts outside of TD itself. TD's Python Env Manager extension owns `touchdesigner/TDPyEnvManagerContext.yaml` (env name, install path) and auto-regenerates `touchdesigner/scripts/.vscode/touchdesigner.code-workspace`.
+
+VSCode's language-server config (interpreter path + extra analysis paths) is **generated, not committed** — it embeds this machine's absolute `TouchDesigner.app` path, which isn't portable across machines/users. Run:
+
+```
+python3 touchdesigner/scripts/configure_editors.py
+```
+
+It locates TD's bundled interpreter under `/Applications/TouchDesigner.app/Contents/Frameworks/Python.framework/Versions/Current`, and if `scripts/.venv` doesn't exist yet, first creates it via `uv sync --python <that interpreter>`. It then writes `touchdesigner/.vscode/settings.json` — `python.defaultInterpreterPath` set to TD's bundled interpreter, plus `python.analysis.extraPaths`/`python.autoComplete.extraPaths` pointing at both TD's `site-packages` and `scripts/.venv/lib/python3.11/site-packages`.
+
+The settings file is gitignored (`touchdesigner/.gitignore`) and scoped to the `touchdesigner/` folder root, so it only applies when that folder (not `scripts/`) is opened as the project root, and won't leak TD's interpreter onto `apps/python/`. Re-run the script whenever the venv is recreated or TD is reinstalled elsewhere; scripts run inside TD's embedded interpreter at runtime, the local `.venv` only exists for editor autocomplete/type-checking parity. (Zed's basedpyright integration didn't pick up this config reliably, so Zed isn't set up here.)

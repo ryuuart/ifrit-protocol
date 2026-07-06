@@ -1,0 +1,23 @@
+[project]
+name = "ifrit-protocol"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ifrit-protocol-apps",
+]
+
+[tool.uv.sources]
+ifrit-protocol-apps = { path = "../../apps/python", editable = true }
+
+[tool.uv]
+# setuptools' default editable-install strategy (PEP 660 "lenient"/"strict")
+# writes a .pth file that does `import <finder>; <finder>.install()` and
+# resolves the package via a MAPPING dict in that finder module. Pyright's
+# .pth parser only understands plain path-per-line .pth files and explicitly
+# skips any line starting with "import" — so Pylance can never resolve
+# SpellCircle through that finder, regardless of interpreter selection.
+# Forcing the deprecated "compat" mode makes setuptools emit a plain-path
+# .pth pointing at apps/python instead, which pyright's parser handles.
+config-settings-package = { "ifrit-protocol-apps" = { editable-mode = "compat" } }
