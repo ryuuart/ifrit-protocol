@@ -27,6 +27,13 @@ void BoxStyleConfig::setPadding(qreal padding) {
   emit changed();
 }
 
+void BoxStyleConfig::setDistance(qreal distance) {
+  if (qFuzzyCompare(m_distance, distance))
+    return;
+  m_distance = distance;
+  emit changed();
+}
+
 void CanvasSizeConfig::setWidth(int width) {
   if (m_width == width)
     return;
@@ -134,6 +141,7 @@ bool GraphicsConfig::load() {
     m_box->setWidth(boxObj.value("width").toDouble(m_box->width()));
     m_box->setHeight(boxObj.value("height").toDouble(m_box->height()));
     m_box->setPadding(boxObj.value("padding").toDouble(m_box->padding()));
+    m_box->setDistance(boxObj.value("distance").toDouble(m_box->distance()));
   }
 
   if (obj.contains("canvas") && obj["canvas"].isObject()) {
@@ -167,6 +175,7 @@ bool GraphicsConfig::save() const {
   boxObj["width"] = m_box->width();
   boxObj["height"] = m_box->height();
   boxObj["padding"] = m_box->padding();
+  boxObj["distance"] = m_box->distance();
 
   QJsonObject canvasObj;
   canvasObj["width"] = m_canvas->width();

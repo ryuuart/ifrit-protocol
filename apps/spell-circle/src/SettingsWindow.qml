@@ -121,6 +121,16 @@ Window {
                 onValueModified: settingsWindow.config.box.padding = value
             }
 
+            Label { text: "Box Distance"; Layout.preferredWidth: 100 }
+            SpinBox {
+                from: 0
+                to: 2000
+                editable: true
+                Layout.preferredWidth: 140
+                value: Math.round(settingsWindow.config.box.distance)
+                onValueModified: settingsWindow.config.box.distance = value
+            }
+
             Label { text: "Color"; Layout.preferredWidth: 100 }
             RowLayout {
                 spacing: 8

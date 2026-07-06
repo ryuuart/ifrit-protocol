@@ -45,10 +45,15 @@ private:
     QPointF second;
   };
 
-  /** A labelled box anchored at a resolved point position. */
+  /** A labelled box anchored at a resolved point position, offset outward
+   *  along the ray from the canvas center through that point. */
   struct ResolvedBox {
     QString value;
-    QPointF position;
+    QPointF anchor;
+    // Unit vector from the canvas center through `anchor`, used both to push
+    // the box outward by the configured distance and to pick which of its
+    // edges (the one facing the center) sits at that offset.
+    QPointF direction;
     bool active = false;
   };
 
@@ -90,4 +95,5 @@ private:
   qreal m_boxWidth = 360.0;
   qreal m_boxHeight = 140.0;
   qreal m_boxPadding = 16.0;
+  qreal m_boxDistance = 40.0;
 };

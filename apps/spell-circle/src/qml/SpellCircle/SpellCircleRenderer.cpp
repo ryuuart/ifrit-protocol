@@ -10,13 +10,6 @@
 #include <spdlog/spdlog.h>
 
 namespace {
-// Display cache resolution. QCanvasPainter is a CPU software rasterizer: it
-// tessellates paths on the CPU and uploads pixels to the GPU. Rendering at
-// 4000² = 16 MP costs ~16× more CPU time than 1024² = 1 MP. paint() blits
-// this cached image as a cheap GPU texture scale; it is only redrawn when
-// scene geometry actually changes, not on zoom or pan repaints.
-constexpr int kDisplaySize = 1024;
-
 // Identifies a Point's embedded circle by its raw (unscaled) values so that
 // points sharing the same anchor circle (very common — e.g. a dozen points
 // ringing the same big circle) resolve against one cached QPainterPath
@@ -105,6 +98,7 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
       m_boxWidth = sc->config()->box()->width();
       m_boxHeight = sc->config()->box()->height();
       m_boxPadding = sc->config()->box()->padding();
+      m_boxDistance = sc->config()->box()->distance();
     }
   }
 
@@ -174,10 +168,21 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
     });
   }
 
+  // Boxes face the canvas center: each is anchored along the ray from the
+  // center through its assigned point, so the direction of that ray is
+  // resolved once here rather than recomputed every frame in drawScene().
+  const QPointF canvasCenter(m_canvasWidth / 2.0f, m_canvasHeight / 2.0f);
+
   for (auto [entity, box] : registry.view<BoxComponent>().each()) {
+    const QPointF anchor = pointPosition(box.point);
+    QPointF direction = anchor - canvasCenter;
+    const double length = std::hypot(direction.x(), direction.y());
+    direction = length > 1e-6 ? direction / length : QPointF(0.0, -1.0);
+
     m_boxes.append(ResolvedBox{
         .value = box.value,
-        .position = pointPosition(box.point),
+        .anchor = anchor,
+        .direction = direction,
         .active = box.active,
     });
   }
@@ -196,6 +201,7 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
   const float boxWidth = static_cast<float>(m_boxWidth * m_scale);
   const float boxHeight = static_cast<float>(m_boxHeight * m_scale);
   const float boxPadding = static_cast<float>(m_boxPadding * m_scale);
+  const float boxDistance = static_cast<float>(m_boxDistance * m_scale);
 
   QFont scaledFont = m_font;
   scaledFont.setPointSizeF(m_font.pointSizeF() * m_scale);
@@ -256,8 +262,21 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     const float textW = static_cast<float>(bounds.width());
     const float bw = qMax(textW + boxPadding * 2.0f, boxWidth);
     const float bh = boxHeight;
-    const float bx = static_cast<float>(box.position.x());
-    const float by = static_cast<float>(box.position.y());
+
+    // The box's center sits on the ray from the canvas center through the
+    // point, pushed outward by boxDistance beyond the point — nothing more.
+    // An earlier version instead aligned whichever box edge the ray leans on
+    // more (picking a horizontal or vertical edge, or interpolating between
+    // them via ray/rectangle intersection near the corner), but that made the
+    // box's touching edge slide around its own perimeter as the point moved,
+    // producing a visible extra wobble on top of the translation whenever the
+    // ray swept past a corner. Anchoring just the center avoids that: the box
+    // rigidly translates along the ray with no edge-dependent correction.
+    const QPointF boxCenter = box.anchor + box.direction * boxDistance;
+    const float hw = bw / 2.0f;
+    const float hh = bh / 2.0f;
+    const float bx = static_cast<float>(boxCenter.x()) - hw;
+    const float by = static_cast<float>(boxCenter.y()) - hh;
 
     QCanvasPath rect;
     QRectF boxGeom(bx, by, bw, bh);
@@ -312,7 +331,6 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
     m_allocatedCanvasHeight = m_canvasHeight;
   }
   beginCanvasPainting(m_canvas);
-  // p->clearRect(0.0f, 0.0f, nw, nh);
   drawScene(p);
   m_displayImage =
       p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps);

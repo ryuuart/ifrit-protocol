@@ -11,6 +11,7 @@ class BoxStyleConfig : public QObject {
   Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY changed)
   Q_PROPERTY(qreal height READ height WRITE setHeight NOTIFY changed)
   Q_PROPERTY(qreal padding READ padding WRITE setPadding NOTIFY changed)
+  Q_PROPERTY(qreal distance READ distance WRITE setDistance NOTIFY changed)
 
 public:
   explicit BoxStyleConfig(QObject *parent = nullptr) : QObject(parent) {}
@@ -24,6 +25,12 @@ public:
   qreal padding() const { return m_padding; }
   void setPadding(qreal padding);
 
+  /** Distance (px, pre-scale) the box's inner edge sits beyond its assigned
+   *  point, measured outward along the ray from the canvas center through
+   *  that point. */
+  qreal distance() const { return m_distance; }
+  void setDistance(qreal distance);
+
 signals:
   void changed();
 
@@ -31,6 +38,7 @@ private:
   qreal m_width = 360.0;
   qreal m_height = 140.0;
   qreal m_padding = 16.0;
+  qreal m_distance = 40.0;
 };
 
 /** Native canvas width/height, exposed as a grouped QML property
