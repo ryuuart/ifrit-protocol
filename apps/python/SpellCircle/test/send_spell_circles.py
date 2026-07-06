@@ -19,10 +19,13 @@ Requires: pip install flatbuffers
 
 import argparse
 import math
+import os
 import random
+import sys
 
-from sc_canvas import SCCanvas
-from sc_network import send_once
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from SpellCircle import SCCanvas, send_once
 
 HOST = "127.0.0.1"
 PORT = 27015

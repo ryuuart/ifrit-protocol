@@ -2,7 +2,7 @@
 FlatBuffers serialization for SpellCircle scenes.
 
 This is the only module that touches the generated FlatBuffers bindings.
-Scene authoring (`sc_canvas.py`) and transport (`sc_network.py`) both stay
+Scene authoring (`canvas.py`) and transport (`network.py`) both stay
 ignorant of the wire format; they hand plain data to `SCBuilder` and get
 bytes back.
 
@@ -12,19 +12,13 @@ CircleSpec — plain data describing a circle (position, label, style)
 SCBuilder  — encodes CircleSpecs/points/edges/boxes into a Scene FlatBuffer
 """
 
-import os
-import sys
-
-# Make the generated FlatBuffers bindings importable from any working directory.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import flatbuffers
-from SpellCircle import Box as Bx
-from SpellCircle import Circle as Circ
-from SpellCircle import Edge as Edg
-from SpellCircle import Point as Pt
-from SpellCircle import Scene as SC
-from SpellCircle.Vec2 import CreateVec2
+from . import Box as Bx
+from . import Circle as Circ
+from . import Edge as Edg
+from . import Point as Pt
+from . import Scene as SC
+from .Vec2 import CreateVec2
 
 
 class CircleSpec:

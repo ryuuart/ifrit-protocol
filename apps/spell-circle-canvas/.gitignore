@@ -5,9 +5,3 @@ CMakeUserPresets.json
 
 ## Qt
 .qmlls.ini
-
-# Python
-__pycache__
-
-# Claude
-.claude/settings.local.json

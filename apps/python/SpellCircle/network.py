@@ -1,8 +1,8 @@
 """
 UDP transport for SpellCircle scene bytes.
 
-Kept separate from scene authoring (`sc_canvas.py`) and serialization
-(`sc_builder.py`): this module only knows how to move already-serialized
+Kept separate from scene authoring (`canvas.py`) and serialization
+(`builder.py`): this module only knows how to move already-serialized
 bytes over the wire.
 
 Public API

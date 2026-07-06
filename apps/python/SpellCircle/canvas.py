@@ -4,8 +4,8 @@ Canvas-style recording API for authoring SpellCircle scenes in Python.
 This module knows nothing about FlatBuffers or the network. It just records
 circles, points, edges, and boxes as plain Python objects — like a painter
 recording draw calls — and hands them to `SCBuilder` (the serialization
-layer, in `sc_builder.py`) only when `to_bytes()` is called. Sending the
-result over the wire is `sc_network.py`'s job. Scripts that author scenes
+layer, in `builder.py`) only when `to_bytes()` is called. Sending the
+result over the wire is `network.py`'s job. Scripts that author scenes
 should only ever import from here.
 
 Public API
@@ -22,11 +22,11 @@ Usage
     canvas.edge(p1, p2)
     canvas.box("ANGER", p1, active=0.4)
 
-    from sc_network import send_once
+    from SpellCircle.network import send_once
     send_once(canvas.to_bytes(), host="127.0.0.1", port=27015)
 """
 
-from sc_builder import CircleSpec, SCBuilder
+from .builder import CircleSpec, SCBuilder
 
 
 class PointRef:
