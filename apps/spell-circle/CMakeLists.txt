@@ -22,6 +22,7 @@ find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts CanvasPai
 find_package(gtest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
+find_package(entt CONFIG REQUIRED)
 
 # MacOS Frameworks
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)

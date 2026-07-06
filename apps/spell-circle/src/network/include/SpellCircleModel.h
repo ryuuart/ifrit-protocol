@@ -5,6 +5,7 @@
 #include <QString>
 #include <QtQml/qqml.h>
 #include <QtQml/qqmlregistration.h>
+#include <entt/entt.hpp>
 
 /** A single timestamped message entry shown in the activity feed. */
 struct FeedItem {
@@ -13,44 +14,58 @@ struct FeedItem {
   QString message;
 };
 
-/** Position, size, and label placement of a spell circle decoded from a packet. */
-struct CircleGeometry {
+/** Mirrors SpellCircle.fbs `Circle` — a named circle at an author-space
+ *  position, as decoded from the packet. Scaling to native coordinates and
+ *  all other positioning math is left to the renderer. */
+struct CircleComponent {
   QString name;
   float x = 0.0f;
   float y = 0.0f;
   uint32_t radius = 0;
-  float textStart = 0.0f;   // fraction [0, 1] where the label begins along the path
-  bool active = false;      // filled when true
+  float textStart =
+      0.0f;            // fraction [0, 1] where the label begins along the path
+  bool active = false; // filled when true
 };
 
-/** A graph node placed at a fractional position along a circle's perimeter,
- *  resolved to absolute canvas coordinates. */
-struct PointGeometry {
+/** Mirrors SpellCircle.fbs `Point` — a fractional position along a circle's
+ *  perimeter. The wire format embeds a full Circle per Point rather than
+ *  referencing Scene.circles, so `circle` is a value copy used only to
+ *  resolve this point's position at render time. A Point referenced by more
+ *  than one Edge/Box in the same packet (FlatBuffers is zero-copy, so this
+ *  shows up as the same underlying Point table under multiple fields) gets
+ *  one entity, shared via the entt::entity handles below. */
+struct PointComponent {
   QString value;
-  float x = 0.0f;
-  float y = 0.0f;
+  CircleComponent circle;
+  float position = 0.0f; // fraction [0, 1] clockwise from 12 o'clock
 };
 
-/** A straight connector between two resolved point positions. */
-struct EdgeGeometry {
-  float x1 = 0.0f;
-  float y1 = 0.0f;
-  float x2 = 0.0f;
-  float y2 = 0.0f;
+/** Mirrors SpellCircle.fbs `Edge` — a connector between two Point entities,
+ *  which may or may not be distinct from other Edges'/Boxes' Point entities
+ *  (see PointComponent). */
+struct EdgeComponent {
+  entt::entity first = entt::null;
+  entt::entity second = entt::null;
 };
 
-/** A labelled box anchored at a resolved point position. */
-struct BoxGeometry {
+/** Mirrors SpellCircle.fbs `Box` — a labelled box anchored to a Point
+ *  entity, which may be shared with other Edges/Boxes (see PointComponent).
+ */
+struct BoxComponent {
   QString value;
-  float x = 0.0f;
-  float y = 0.0f;
+  entt::entity point = entt::null;
   bool active = false; // filled when true
 };
 
 /**
  * List model that ingests incoming SpellCircle scene packets and exposes them
- * as QML-consumable feed items (one timestamped log entry per received scene)
- * and as resolved scene geometry (circles, points, edges, boxes) for rendering.
+ * as QML-consumable feed items (one timestamped log entry per received scene,
+ * capped to the 500 most recent so a long-running session doesn't grow the
+ * feed without bound) and as an entt::registry of scene entities mirroring
+ * the flatbuffer schema (CircleComponent/PointComponent/EdgeComponent/
+ * BoxComponent). This model only translates packet data into
+ * entities/components; positioning and scaling math is performed by the
+ * renderer, which queries the registry.
  */
 class SpellCircleModel : public QAbstractListModel {
   Q_OBJECT
@@ -72,48 +87,40 @@ public:
                 int role = Qt::DisplayRole) const override;
   QHash<int, QByteArray> roleNames() const override;
 
-  /** Geometry extracted from the most recently parsed scene. */
-  const QList<CircleGeometry> &circles() const { return m_circles; }
-  const QList<PointGeometry> &points() const { return m_points; }
-  const QList<EdgeGeometry> &edges() const { return m_edges; }
-  const QList<BoxGeometry> &boxes() const { return m_boxes; }
+  /** Scene entities decoded from the most recently parsed packet. */
+  const entt::registry &registry() const { return m_registry; }
 
-  /** Incremented every time geometry is replaced. The renderer compares this
-   *  against its own copy in synchronize() to skip redraws on zoom/pan. */
+  /** Author-space canvas dimensions from the most recently parsed Scene
+   *  (Scene.width/height); 0 means coordinates are already native. */
+  float sceneWidth() const { return m_sceneWidth; }
+  float sceneHeight() const { return m_sceneHeight; }
+
+  /** Incremented every time the registry is replaced. The renderer compares
+   *  this against its own copy in synchronize() to skip redraws on zoom/pan. */
   int generation() const { return m_generation; }
 
-  /** Width/height (px) of the native coordinate space scenes are scaled
-   *  into. Must match GraphicsConfig::canvas / the renderer's framebuffer. */
-  int canvasWidth() const { return m_canvasWidth; }
-  int canvasHeight() const { return m_canvasHeight; }
-
-  /** Updates the scaling target for future onSpellCircleReceived() calls.
-   *  Existing geometry was scaled into the old dimensions and would render at
-   *  the wrong scale/position in the new ones, so it's discarded rather than
-   *  kept stale; the feed log is left untouched. */
-  void setCanvasSize(int width, int height);
-
 signals:
-  /** Emitted after the scene geometry is replaced with newly parsed data. */
+  /** Emitted after the scene registry is replaced with newly parsed data. */
   void geometryChanged();
 
 public slots:
   /**
-   * Parses a FlatBuffers-encoded SpellCircle Scene from @p payload, replaces the
-   * current scene geometry, and prepends a single feed entry noting the receipt.
+   * Parses a FlatBuffers-encoded SpellCircle Scene from @p payload, replaces
+   * the current scene registry, and prepends a single feed entry noting the
+   * receipt.
    */
   void onSpellCircleReceived(const QString &source, const QByteArray &payload);
 
-  /** Removes all feed entries and scene geometry from the model. */
+  /** Removes all scene entities, and trims the feed down to its most recent
+   *  entries (rather than wiping it outright) so the sidebar list doesn't
+   *  flash empty and refill. */
   void clear();
 
 private:
   QList<FeedItem> m_items;
-  QList<CircleGeometry> m_circles;
-  QList<PointGeometry> m_points;
-  QList<EdgeGeometry> m_edges;
-  QList<BoxGeometry> m_boxes;
+  entt::registry m_registry;
+  bool m_hasGeometry = false;
+  float m_sceneWidth = 0.0f;
+  float m_sceneHeight = 0.0f;
   int m_generation = 0;
-  int m_canvasWidth = 4000;
-  int m_canvasHeight = 4000;
 };

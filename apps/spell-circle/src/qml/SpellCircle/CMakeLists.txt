@@ -17,6 +17,7 @@ target_link_libraries(SpellCircleCanvas
     PRIVATE
       spdlog::spdlog
       SpellCircleNetwork
+      EnTT::EnTT
       Qt::GuiPrivate
       ${FOUNDATION_FRAMEWORK}
       ${SYPHON_FRAMEWORK}

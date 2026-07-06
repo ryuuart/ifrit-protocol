@@ -45,7 +45,7 @@ void SyphonBridge::publishFrame(QRhiTexture *texture, QRhiCommandBuffer *cb,
   [m_syphon_bridge->server publishFrameTexture:mtlTex
                                onCommandBuffer:mtlCb
                                    imageRegion:NSMakeRect(0, 0, width, height)
-                                       flipped:NO];
+                                       flipped:YES];
 }
 
 void SyphonBridge::stop() {

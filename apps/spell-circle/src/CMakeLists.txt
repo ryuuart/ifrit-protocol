@@ -1,4 +1,5 @@
 add_subdirectory(network)
+add_subdirectory(platform)
 add_subdirectory(qml)
 
 qt_add_executable(SpellCircle
@@ -33,3 +34,7 @@ target_link_libraries(SpellCircle
       SpellCircleCanvas
       SpellCircleModels
 )
+
+if(APPLE)
+  target_link_libraries(SpellCircle PRIVATE SpellCircleAppNap)
+endif()

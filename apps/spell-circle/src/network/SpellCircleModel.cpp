@@ -1,43 +1,69 @@
 #include "SpellCircleModel.h"
 #include "SpellCircle_generated.h"
-#include <QPointF>
-#include <cmath>
+#include <QHash>
 #include <spdlog/spdlog.h>
 
 namespace {
 
-/**
- * Per-scene factor mapping author-space coordinates onto the native texture.
- * `sx`/`sy` scale x/y; `s` is the uniform factor used for scalar quantities
- * (radii) that cannot represent a non-square stretch.
- */
-struct SceneScale {
-  float sx = 1.0f;
-  float sy = 1.0f;
-  float s = 1.0f;
-};
+// Caps the activity feed so a long-running session doesn't grow m_items
+// (and the QML ListView backing it) without bound.
+constexpr int kMaxFeedItems = 500;
 
-/**
- * Resolves a Point to absolute canvas coordinates, scaled into native texture
- * space. A point carries its own circle, and `position` is the fraction [0, 1]
- * of the way around the circle's perimeter, measured clockwise from the top
- * (12 o'clock).
- */
-QPointF resolvePoint(const SpellCircle::Point *point, const SceneScale &scale) {
-  if (!point || !point->circle())
-    return {};
-  const auto *circle = point->circle();
-  const float cx = circle->pos() ? circle->pos()->x() : 0.0f;
-  const float cy = circle->pos() ? circle->pos()->y() : 0.0f;
-  const float r = static_cast<float>(circle->radius());
-  const double theta =
-      static_cast<double>(point->position()) * 2.0 * M_PI - M_PI_2;
-  return {(cx + r * static_cast<float>(std::cos(theta))) * scale.sx,
-          (cy + r * static_cast<float>(std::sin(theta))) * scale.sy};
-}
+// clear() trims the feed down to this many of the most recent entries
+// instead of wiping it, so the sidebar list doesn't flash empty and refill.
+constexpr int kClearKeepItems = kMaxFeedItems - 450;
 
 QString utf8(const flatbuffers::String *s) {
   return s ? QString::fromUtf8(s->c_str()) : QString();
+}
+
+CircleComponent toCircleComponent(const SpellCircle::Circle *circle) {
+  if (!circle)
+    return {};
+  return CircleComponent{
+      .name = utf8(circle->name()),
+      .x = circle->pos() ? circle->pos()->x() : 0.0f,
+      .y = circle->pos() ? circle->pos()->y() : 0.0f,
+      .radius = circle->radius(),
+      .textStart = circle->text_start(),
+      .active = circle->active(),
+  };
+}
+
+entt::entity makeCircleEntity(entt::registry &registry,
+                              const SpellCircle::Circle *circle) {
+  const entt::entity entity = registry.create();
+  registry.emplace<CircleComponent>(entity, toCircleComponent(circle));
+  return entity;
+}
+
+/**
+ * Returns the entity for `point`, creating it on first sight. FlatBuffers is
+ * zero-copy, so if the packet embeds the same Point table under more than
+ * one Edge/Box field (a vertex shared by several edges, say), every such
+ * occurrence decodes to the same `point` pointer — `pointCache` lets those
+ * occurrences resolve to one shared PointComponent entity instead of a
+ * fresh duplicate per reference.
+ */
+entt::entity getOrCreatePointEntity(
+    entt::registry &registry,
+    QHash<const SpellCircle::Point *, entt::entity> &pointCache,
+    const SpellCircle::Point *point) {
+  if (!point)
+    return entt::null;
+
+  if (const auto it = pointCache.constFind(point); it != pointCache.constEnd())
+    return it.value();
+
+  const entt::entity entity = registry.create();
+  registry.emplace<PointComponent>(
+      entity, PointComponent{
+                  .value = utf8(point->value()),
+                  .circle = toCircleComponent(point->circle()),
+                  .position = point->position(),
+              });
+  pointCache.insert(point, entity);
+  return entity;
 }
 
 } // namespace
@@ -75,36 +101,28 @@ QHash<int, QByteArray> SpellCircleModel::roleNames() const {
   };
 }
 
-void SpellCircleModel::setCanvasSize(int width, int height) {
-  if (m_canvasWidth == width && m_canvasHeight == height)
-    return;
-  m_canvasWidth = width;
-  m_canvasHeight = height;
-
-  const bool hadGeometry = !m_circles.isEmpty() || !m_points.isEmpty() ||
-                           !m_edges.isEmpty() || !m_boxes.isEmpty();
-  if (!hadGeometry)
-    return;
-  m_circles.clear();
-  m_points.clear();
-  m_edges.clear();
-  m_boxes.clear();
-  ++m_generation;
-  emit geometryChanged();
-}
-
 void SpellCircleModel::clear() {
-  const bool hadGeometry = !m_circles.isEmpty() || !m_points.isEmpty() ||
-                           !m_edges.isEmpty() || !m_boxes.isEmpty();
-  if (m_items.isEmpty() && !hadGeometry)
+  const bool willTrimFeed = m_items.size() > kClearKeepItems;
+  if (!willTrimFeed && !m_hasGeometry)
     return;
-  beginResetModel();
-  m_items.clear();
-  m_circles.clear();
-  m_points.clear();
-  m_edges.clear();
-  m_boxes.clear();
-  endResetModel();
+
+  // The registry isn't row data — rowCount()/data() only ever look at
+  // m_items — so clearing it needs no model reset/row signals of its own.
+  m_registry.clear();
+  m_hasGeometry = false;
+  m_sceneWidth = 0.0f;
+  m_sceneHeight = 0.0f;
+
+  // Trim the feed down to its most recent entries rather than wiping it
+  // outright: a beginResetModel() here would flash the sidebar list empty
+  // and refill it, whereas removing just the tail (oldest first, since new
+  // entries are prepended) leaves the remaining rows' delegates untouched.
+  if (willTrimFeed) {
+    beginRemoveRows({}, kClearKeepItems, m_items.size() - 1);
+    m_items.resize(kClearKeepItems);
+    endRemoveRows();
+  }
+
   ++m_generation;
   emit geometryChanged();
 }
@@ -115,80 +133,62 @@ void SpellCircleModel::onSpellCircleReceived(const QString &source,
   if (!scene)
     return;
 
-  m_circles.clear();
-  m_points.clear();
-  m_edges.clear();
-  m_boxes.clear();
+  m_registry.clear();
+  m_sceneWidth = scene->width();
+  m_sceneHeight = scene->height();
 
-  // Scenes may be authored in a smaller coordinate space and scaled up to the
-  // native texture. width/height of 0 mean coordinates are already native.
-  SceneScale scale;
-  if (scene->width() > 0.0f)
-    scale.sx = static_cast<float>(m_canvasWidth) / scene->width();
-  if (scene->height() > 0.0f)
-    scale.sy = static_cast<float>(m_canvasHeight) / scene->height();
-  scale.s = scale.sx;
+  int circleCount = 0;
+  int edgeCount = 0;
+  int boxCount = 0;
+
+  // Shared across edges/boxes so a Point referenced by more than one of them
+  // resolves to a single entity rather than being duplicated per reference.
+  QHash<const SpellCircle::Point *, entt::entity> pointCache;
 
   if (scene->circles()) {
-    m_circles.reserve(static_cast<int>(scene->circles()->size()));
     for (const auto *circle : *scene->circles()) {
-      m_circles.append(CircleGeometry{
-          .name = utf8(circle->name()),
-          .x = (circle->pos() ? circle->pos()->x() : 0.0f) * scale.sx,
-          .y = (circle->pos() ? circle->pos()->y() : 0.0f) * scale.sy,
-          .radius = static_cast<uint32_t>(
-              std::lround(circle->radius() * scale.s)),
-          .textStart = circle->text_start(),
-          .active = circle->active(),
-      });
+      makeCircleEntity(m_registry, circle);
+      ++circleCount;
     }
   }
 
   if (scene->edges()) {
-    m_edges.reserve(static_cast<int>(scene->edges()->size()));
     for (const auto *edge : *scene->edges()) {
-      const QPointF a = resolvePoint(edge->first(), scale);
-      const QPointF b = resolvePoint(edge->second(), scale);
-      m_edges.append(EdgeGeometry{
-          .x1 = static_cast<float>(a.x()),
-          .y1 = static_cast<float>(a.y()),
-          .x2 = static_cast<float>(b.x()),
-          .y2 = static_cast<float>(b.y()),
-      });
-      if (edge->first())
-        m_points.append(PointGeometry{.value = utf8(edge->first()->value()),
-                                      .x = static_cast<float>(a.x()),
-                                      .y = static_cast<float>(a.y())});
-      if (edge->second())
-        m_points.append(PointGeometry{.value = utf8(edge->second()->value()),
-                                      .x = static_cast<float>(b.x()),
-                                      .y = static_cast<float>(b.y())});
+      const entt::entity entity = m_registry.create();
+      m_registry.emplace<EdgeComponent>(
+          entity,
+          EdgeComponent{
+              .first = getOrCreatePointEntity(m_registry, pointCache,
+                                              edge->first()),
+              .second = getOrCreatePointEntity(m_registry, pointCache,
+                                               edge->second()),
+          });
+      ++edgeCount;
     }
   }
 
   if (scene->boxes()) {
-    m_boxes.reserve(static_cast<int>(scene->boxes()->size()));
     for (const auto *box : *scene->boxes()) {
-      const QPointF p = resolvePoint(box->point(), scale);
-      m_boxes.append(BoxGeometry{
-          .value = utf8(box->value()),
-          .x = static_cast<float>(p.x()),
-          .y = static_cast<float>(p.y()),
-          .active = box->active(),
-      });
-      if (box->point())
-        m_points.append(PointGeometry{.value = utf8(box->point()->value()),
-                                      .x = static_cast<float>(p.x()),
-                                      .y = static_cast<float>(p.y())});
+      const entt::entity entity = m_registry.create();
+      m_registry.emplace<BoxComponent>(
+          entity, BoxComponent{
+                      .value = utf8(box->value()),
+                      .point = getOrCreatePointEntity(m_registry, pointCache,
+                                                      box->point()),
+                      .active = box->active(),
+                  });
+      ++boxCount;
     }
   }
+
+  m_hasGeometry = circleCount > 0 || edgeCount > 0 || boxCount > 0;
 
   // One concise feed entry per received scene, rather than one per circle.
   const QString message = QStringLiteral("SpellCircle received — "
                                          "%1 circles, %2 edges, %3 boxes")
-                              .arg(m_circles.size())
-                              .arg(m_edges.size())
-                              .arg(m_boxes.size());
+                              .arg(circleCount)
+                              .arg(edgeCount)
+                              .arg(boxCount);
   beginInsertRows({}, 0, 0);
   m_items.prepend(FeedItem{
       .timestamp = QDateTime::currentDateTime(),
@@ -196,6 +196,12 @@ void SpellCircleModel::onSpellCircleReceived(const QString &source,
       .message = message,
   });
   endInsertRows();
+
+  if (m_items.size() > kMaxFeedItems) {
+    beginRemoveRows({}, kMaxFeedItems, m_items.size() - 1);
+    m_items.resize(kMaxFeedItems);
+    endRemoveRows();
+  }
 
   ++m_generation;
   emit geometryChanged();

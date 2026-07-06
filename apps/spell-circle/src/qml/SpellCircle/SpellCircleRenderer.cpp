@@ -3,18 +3,68 @@
 #include "SyphonBridge.h"
 #include <QCanvasPath>
 #include <QColor>
+#include <QHash>
 #include <QPainterPath>
+#include <cmath>
+#include <entt/entt.hpp>
 #include <spdlog/spdlog.h>
 
 namespace {
-const QColor kCircleFill(255, 0, 0, 255);
-const QColor kBoxActiveText("#0a0a0a");
 // Display cache resolution. QCanvasPainter is a CPU software rasterizer: it
 // tessellates paths on the CPU and uploads pixels to the GPU. Rendering at
 // 4000² = 16 MP costs ~16× more CPU time than 1024² = 1 MP. paint() blits
 // this cached image as a cheap GPU texture scale; it is only redrawn when
 // scene geometry actually changes, not on zoom or pan repaints.
 constexpr int kDisplaySize = 1024;
+
+// Identifies a Point's embedded circle by its raw (unscaled) values so that
+// points sharing the same anchor circle (very common — e.g. a dozen points
+// ringing the same big circle) resolve against one cached QPainterPath
+// instead of rebuilding + re-flattening an identical ellipse per point.
+struct CircleKey {
+  float x = 0.0f;
+  float y = 0.0f;
+  uint32_t radius = 0;
+
+  bool operator==(const CircleKey &other) const {
+    return x == other.x && y == other.y && radius == other.radius;
+  }
+};
+
+size_t qHash(const CircleKey &key, size_t seed = 0) {
+  return qHashMulti(seed, key.x, key.y, key.radius);
+}
+
+/** Builds a native-scaled ellipse path for `circle`, with caching enabled so
+ *  repeated pointAtPercent() calls (one per point anchored to it) reuse
+ *  QPainterPath's internal flattened-length cache instead of recomputing it
+ *  each time. */
+QPainterPath circleEllipsePath(const CircleComponent &circle, float sx,
+                               float sy, float s) {
+  const float cx = circle.x * sx;
+  const float cy = circle.y * sy;
+  const float r = static_cast<float>(circle.radius) * s;
+
+  QPainterPath path;
+  path.setCachingEnabled(true);
+  path.addEllipse(cx - r, cy - r, r * 2.0, r * 2.0);
+  return path;
+}
+
+/**
+ * Resolves a point placed at fractional `position` around `circlePath`'s
+ * perimeter (clockwise from 12 o'clock) by querying the path rather than
+ * doing the trigonometry by hand.
+ */
+QPointF pointAtPosition(const QPainterPath &circlePath, float position) {
+  // QPainterPath's percent parameter starts at 3 o'clock and runs clockwise;
+  // `position` is measured clockwise from 12 o'clock, a quarter-turn ahead.
+  float percent = std::fmod(position + 0.75f, 1.0f);
+  if (percent < 0.0f)
+    percent += 1.0f;
+  return circlePath.pointAtPercent(percent);
+}
+
 } // namespace
 
 SpellCircleRenderer::SpellCircleRenderer()
@@ -30,27 +80,20 @@ SpellCircleRenderer::~SpellCircleRenderer() { m_syphon->stop(); }
 void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
   auto *sc = static_cast<SpellCircle *>(item);
 
+  bool needsResolve = false;
+
   const int modelGen = sc->model() ? sc->model()->generation() : 0;
   if (modelGen != m_knownModelGeneration) {
     m_knownModelGeneration = modelGen;
     m_geometryDirty = true;
-    if (sc->model()) {
-      m_circles = sc->model()->circles();
-      m_points = sc->model()->points();
-      m_edges = sc->model()->edges();
-      m_boxes = sc->model()->boxes();
-    } else {
-      m_circles.clear();
-      m_points.clear();
-      m_edges.clear();
-      m_boxes.clear();
-    }
+    needsResolve = true;
   }
 
   const int configGen = sc->config() ? sc->config()->generation() : 0;
   if (configGen != m_knownConfigGeneration) {
     m_knownConfigGeneration = configGen;
     m_geometryDirty = true;
+    needsResolve = true;
     if (sc->config()) {
       m_accentColor = sc->config()->color();
       m_strokeWidth = sc->config()->strokeWidth();
@@ -63,6 +106,80 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
       m_boxHeight = sc->config()->box()->height();
       m_boxPadding = sc->config()->box()->padding();
     }
+  }
+
+  // Resolved positions depend on both the scene (model) and the native
+  // canvas size (config), so either changing requires re-resolving.
+  if (needsResolve)
+    resolveGeometry(sc->model());
+}
+
+void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
+  m_circles.clear();
+  m_edges.clear();
+  m_boxes.clear();
+  if (!model)
+    return;
+
+  const entt::registry &registry = model->registry();
+
+  // Scenes may be authored in a smaller coordinate space and scaled up to
+  // the native canvas; width/height of 0 mean coordinates are already
+  // native. Radius/point math assumes a uniform scale, matching sx.
+  const float sx = model->sceneWidth() > 0.0f
+                       ? static_cast<float>(m_canvasWidth) / model->sceneWidth()
+                       : 1.0f;
+  const float sy =
+      model->sceneHeight() > 0.0f
+          ? static_cast<float>(m_canvasHeight) / model->sceneHeight()
+          : 1.0f;
+  const float s = sx;
+
+  // Many points typically anchor to the same circle (e.g. a ring of points
+  // around one big circle), so cache each circle's ellipse path by its raw
+  // values rather than rebuilding it per point.
+  QHash<CircleKey, QPainterPath> circlePaths;
+  auto pathForCircle =
+      [&](const CircleComponent &circle) -> const QPainterPath & {
+    const CircleKey key{circle.x, circle.y, circle.radius};
+    auto it = circlePaths.find(key);
+    if (it == circlePaths.end())
+      it = circlePaths.insert(key, circleEllipsePath(circle, sx, sy, s));
+    return it.value();
+  };
+
+  auto pointPosition = [&](entt::entity pointEntity) -> QPointF {
+    const auto *point = registry.valid(pointEntity)
+                            ? registry.try_get<PointComponent>(pointEntity)
+                            : nullptr;
+    if (!point)
+      return {};
+    return pointAtPosition(pathForCircle(point->circle), point->position);
+  };
+
+  for (auto [entity, circle] : registry.view<CircleComponent>().each()) {
+    m_circles.append(ResolvedCircle{
+        .name = circle.name,
+        .center = QPointF(circle.x * sx, circle.y * sy),
+        .radius = static_cast<float>(circle.radius) * s,
+        .textStart = circle.textStart,
+        .active = circle.active,
+    });
+  }
+
+  for (auto [entity, edge] : registry.view<EdgeComponent>().each()) {
+    m_edges.append(ResolvedEdge{
+        .first = pointPosition(edge.first),
+        .second = pointPosition(edge.second),
+    });
+  }
+
+  for (auto [entity, box] : registry.view<BoxComponent>().each()) {
+    m_boxes.append(ResolvedBox{
+        .value = box.value,
+        .position = pointPosition(box.point),
+        .active = box.active,
+    });
   }
 }
 
@@ -89,8 +206,8 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
   for (const auto &edge : m_edges) {
     p->beginPath();
     QCanvasPath line;
-    line.moveTo(edge.x1, edge.y1);
-    line.lineTo(edge.x2, edge.y2);
+    line.moveTo(edge.first.x(), edge.first.y());
+    line.lineTo(edge.second.x(), edge.second.y());
     p->addPath(line);
     p->stroke(line);
     p->closePath();
@@ -98,10 +215,12 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
 
   // ── Circles ──────────────────────────────────────────────────────────────
   for (const auto &circle : m_circles) {
-    const float r = static_cast<float>(circle.radius);
+    const float r = circle.radius;
+    const float cx = static_cast<float>(circle.center.x());
+    const float cy = static_cast<float>(circle.center.y());
 
     QCanvasPath circlePath;
-    circlePath.circle(circle.x, circle.y, r);
+    circlePath.circle(cx, cy, r);
 
     p->beginPath();
     p->addPath(circlePath);
@@ -109,7 +228,7 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     p->setLineWidth(strokeWidth);
     p->stroke(circlePath);
     if (circle.active) {
-      p->setFillStyle(kCircleFill);
+      p->setFillStyle(m_accentColor);
       p->fill(circlePath);
     }
     p->closePath();
@@ -117,7 +236,7 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     if (!circle.name.isEmpty()) {
       QPainterPath textPath;
       textPath.setCachingEnabled(true);
-      textPath.addEllipse(circle.x - r, circle.y - r, r * 2.0f, r * 2.0f);
+      textPath.addEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f);
 
       m_textPathPainter.setPathOffset(circle.textStart);
       m_textPathPainter.setPerpendicularOffset(
@@ -137,8 +256,8 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     const float textW = static_cast<float>(bounds.width());
     const float bw = qMax(textW + boxPadding * 2.0f, boxWidth);
     const float bh = boxHeight;
-    const float bx = box.x;
-    const float by = box.y;
+    const float bx = static_cast<float>(box.position.x());
+    const float by = static_cast<float>(box.position.y());
 
     QCanvasPath rect;
     QRectF boxGeom(bx, by, bw, bh);
@@ -157,8 +276,17 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     p->closePath();
 
     p->beginPath();
-    p->setFillStyle(box.active ? kBoxActiveText : m_accentColor);
-    p->fillText(box.value, bx + boxPadding, by + boxPadding);
+    if (box.active) {
+      p->setGlobalCompositeOperation(
+          QCanvasPainter::CompositeOperation::DestinationOut);
+      p->setFillStyle(QColorConstants::Black);
+      p->fillText(box.value, bx + boxPadding, by + boxPadding);
+      p->setGlobalCompositeOperation(
+          QCanvasPainter::CompositeOperation::SourceOver);
+    } else {
+      p->setFillStyle(m_accentColor);
+      p->fillText(box.value, bx + boxPadding, by + boxPadding);
+    }
     p->closePath();
   }
 }
@@ -192,8 +320,6 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
 }
 
 void SpellCircleRenderer::paint(QCanvasPainter *p) {
-  // Blit the pre-rasterised display cache. This is a GPU texture scale —
-  // it costs almost nothing regardless of zoom level or frame rate.
   if (!m_displayImage.isNull())
     p->drawImage(m_displayImage, 0, 0, width(), height());
 }

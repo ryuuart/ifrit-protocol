@@ -1,3 +1,6 @@
+#ifdef __APPLE__
+#include "AppNap.h"
+#endif
 #include "spdlog/spdlog.h"
 #include <QDebug>
 #include <QGuiApplication>
@@ -6,6 +9,10 @@
 #include <QtQml/qqml.h>
 
 int main(int argc, char *argv[]) {
+#ifdef __APPLE__
+  AppNap::disable();
+#endif
+
   QGuiApplication app(argc, argv);
 
   spdlog::info("App started");

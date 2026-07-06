@@ -13,13 +13,4 @@ Models::Models(QObject *parent) : QObject(parent) {
   QObject::connect(m_networkManager, &NetworkManager::spellCircleReceived,
                    m_spellCircleModel,
                    &SpellCircleModel::onSpellCircleReceived);
-
-  m_spellCircleModel->setCanvasSize(m_graphicsConfig->canvas()->width(),
-                                    m_graphicsConfig->canvas()->height());
-  QObject::connect(m_graphicsConfig->canvas(), &CanvasSizeConfig::changed,
-                   m_spellCircleModel, [this]() {
-                     m_spellCircleModel->setCanvasSize(
-                         m_graphicsConfig->canvas()->width(),
-                         m_graphicsConfig->canvas()->height());
-                   });
 }

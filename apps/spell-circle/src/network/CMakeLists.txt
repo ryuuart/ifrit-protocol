@@ -8,6 +8,7 @@ target_link_libraries(SpellCircleNetwork
     PUBLIC
       Qt6::Network
       Qt6::Gui
+      EnTT::EnTT
     PRIVATE
       spdlog::spdlog
       flatbuffers::flatbuffers
