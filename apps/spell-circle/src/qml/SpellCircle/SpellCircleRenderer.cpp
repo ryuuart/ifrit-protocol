@@ -58,6 +58,16 @@ QPointF pointAtPosition(const QPainterPath &circlePath, float position) {
   return circlePath.pointAtPercent(percent);
 }
 
+// A radius-0 circle is never drawn (see the skip in drawScene()) and is used
+// purely as an invisible anchor: `position` has no meaningful angle around a
+// zero-radius perimeter, so a Point/Box/Edge anchored to one resolves
+// straight to the circle's own coordinates rather than walking a degenerate
+// ellipse path. This is what lets boxes/points be placed at an arbitrary
+// (x, y) instead of only along a visible circle's edge.
+bool isAnchorOnlyCircle(const CircleComponent &circle) {
+  return circle.radius == 0;
+}
+
 } // namespace
 
 SpellCircleRenderer::SpellCircleRenderer()
@@ -150,6 +160,8 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
                             : nullptr;
     if (!point)
       return {};
+    if (isAnchorOnlyCircle(point->circle))
+      return QPointF(point->circle.x * sx, point->circle.y * sy);
     return pointAtPosition(pathForCircle(point->circle), point->position);
   };
 
@@ -199,7 +211,9 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
     if (point.value.isEmpty())
       continue;
     const QPointF anchor =
-        pointAtPosition(pathForCircle(point.circle), point.position);
+        isAnchorOnlyCircle(point.circle)
+            ? QPointF(point.circle.x * sx, point.circle.y * sy)
+            : pointAtPosition(pathForCircle(point.circle), point.position);
 
     m_pointLabels.append(ResolvedBox{
         .value = point.value,
@@ -244,6 +258,11 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
 
   // ── Circles ──────────────────────────────────────────────────────────────
   for (const auto &circle : m_circles) {
+    // A radius-0 circle is an invisible anchor (see isAnchorOnlyCircle) used
+    // only to position points/boxes/edges — nothing to draw for it.
+    if (circle.radius <= 0.0f)
+      continue;
+
     const float r = circle.radius;
     const float cx = static_cast<float>(circle.center.x());
     const float cy = static_cast<float>(circle.center.y());

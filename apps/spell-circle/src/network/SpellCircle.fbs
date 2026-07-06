@@ -8,6 +8,12 @@ struct Vec2 {
 table Circle {
     pos: Vec2;
     name: string;
+    // A radius of 0 makes this an invisible anchor: it is not drawn (no
+    // stroke, fill, or name label), but Points/Boxes/Edges attached to it
+    // still resolve to its position, ignoring their `position` fraction
+    // (a zero-radius perimeter has no meaningful angle). This allows boxes
+    // or points to be placed at an arbitrary (x, y) rather than only along
+    // a visible circle's edge.
     radius: uint32;
     text_start: float;
     // Background fill intensity/alpha in [0, 1]; 0 draws no fill.

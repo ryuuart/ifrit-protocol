@@ -14,6 +14,13 @@ sine-driven flash for contrast. The first orbiter's spoke endpoint on the big
 circle also carries its own value label (drawn like a box) tracking its live
 fractional position [0, 1] on the ring.
 
+A box (DRIFTER) and a point (STRAY) each lap a rectangular racetrack near the
+canvas edges — straight sides and sharp corners, deliberately unlike anything
+circular in the rest of the scene — anchored to their own radius-0 "anchor"
+circle (see the Circle.radius doc in SpellCircle.fbs) rather than to any
+visible circle's perimeter, demonstrating that boxes/points can be placed at
+an arbitrary (x, y).
+
 The scene is authored in a 1000×1000 coordinate space so coordinates are easy
 to reason about; the app scales it up to the native 4K texture automatically.
 
@@ -79,6 +86,39 @@ EDGE_RIDERS = [
     ("COURIER", "spoke", 0),
     ("HERALD",  "ring",  1),
 ]
+
+# Free-roaming box/point: each laps its own rectangular racetrack
+# (period seconds per lap, margin inset from the canvas edges, phase in
+# [0, 1) of a lap, reverse direction). Sharp corners and straight edges read
+# as unmistakably not-a-circle, unlike a Lissajous blob that still hovers
+# near the sigil; different margins/periods/directions keep the two tracks
+# visually distinct from each other too.
+DRIFTER_TRACK = dict(period=14.0, margin=90.0, phase=0.0, reverse=False)
+STRAY_TRACK = dict(period=19.0, margin=40.0, phase=0.5, reverse=True)
+
+
+def _racetrack(t, period, margin=80.0, phase=0.0, reverse=False):
+    """Position moving at constant speed around a square perimeter inset
+    `margin` from the canvas edges, visiting all four corners every lap."""
+    x0 = y0 = margin
+    side = CANVAS - 2.0 * margin
+    perimeter = 4.0 * side
+
+    progress = t / period + phase
+    if reverse:
+        progress = -progress
+    d = (progress * perimeter) % perimeter
+
+    if d < side:
+        return x0 + d, y0
+    d -= side
+    if d < side:
+        return x0 + side, y0 + d
+    d -= side
+    if d < side:
+        return x0 + side - d, y0 + side
+    d -= side
+    return x0, y0 + side - d
 
 
 def _pos_on_big(cx, cy):
@@ -203,6 +243,27 @@ def build_frame(t):
         pt = tracks[track][end]
         active = _hold_pulse(t, phase=i * 0.9 + 1.3)
         box_offsets.append(build_box(builder, name, pt, active))
+
+    # DRIFTER: a box anchored to a radius-0 circle lapping a rectangular
+    # racetrack, unconnected to any visible circle's perimeter.
+    drifter_x, drifter_y = _racetrack(t, **DRIFTER_TRACK)
+    drifter_anchor = CircleSpec("", drifter_x, drifter_y, 0)
+    drifter_pt = build_point(builder, "", drifter_anchor, 0.0)
+    box_offsets.append(build_box(builder, "DRIFTER", drifter_pt,
+                                 _hold_pulse(t, phase=2.1)))
+
+    # STRAY: a lone point (no box) lapping its own racetrack, labelled with
+    # its live coordinates to make the arbitrary positioning visible. Points
+    # only enter the scene's registry when referenced by an Edge or a Box
+    # (see PointComponent's doc comment), so it rides a self-looped edge —
+    # both ends the same Point offset — purely to register it; the edge is
+    # zero-length and draws nothing.
+    stray_x, stray_y = _racetrack(t, **STRAY_TRACK)
+    stray_anchor = CircleSpec("", stray_x, stray_y, 0)
+    stray_pt = build_point(
+        builder, f"STRAY {stray_x:.0f},{stray_y:.0f}", stray_anchor, 0.0
+    )
+    edge_offsets.append(build_edge(builder, stray_pt, stray_pt))
 
     return build_scene_bytes(
         builder, circle_offsets, edge_offsets, box_offsets, CANVAS, CANVAS
