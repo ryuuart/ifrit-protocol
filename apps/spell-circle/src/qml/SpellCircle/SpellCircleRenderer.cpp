@@ -92,6 +92,7 @@ void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
       m_strokeWidth = sc->config()->strokeWidth();
       m_scale = sc->config()->scale();
       m_labelOffset = sc->config()->labelOffset();
+      m_pointDistance = sc->config()->pointDistance();
       m_canvasWidth = sc->config()->canvas()->width();
       m_canvasHeight = sc->config()->canvas()->height();
       m_font = sc->config()->font();
@@ -112,6 +113,7 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
   m_circles.clear();
   m_edges.clear();
   m_boxes.clear();
+  m_pointLabels.clear();
   if (!model)
     return;
 
@@ -168,22 +170,42 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
     });
   }
 
-  // Boxes face the canvas center: each is anchored along the ray from the
-  // center through its assigned point, so the direction of that ray is
-  // resolved once here rather than recomputed every frame in drawScene().
+  // Boxes (and point labels, below) face the canvas center: each is anchored
+  // along the ray from the center through its assigned point, so the
+  // direction of that ray is resolved once here rather than recomputed every
+  // frame in drawScene().
   const QPointF canvasCenter(m_canvasWidth / 2.0f, m_canvasHeight / 2.0f);
+  auto directionFrom = [&](const QPointF &anchor) {
+    QPointF direction = anchor - canvasCenter;
+    const double length = std::hypot(direction.x(), direction.y());
+    return length > 1e-6 ? direction / length : QPointF(0.0, -1.0);
+  };
 
   for (auto [entity, box] : registry.view<BoxComponent>().each()) {
     const QPointF anchor = pointPosition(box.point);
-    QPointF direction = anchor - canvasCenter;
-    const double length = std::hypot(direction.x(), direction.y());
-    direction = length > 1e-6 ? direction / length : QPointF(0.0, -1.0);
 
     m_boxes.append(ResolvedBox{
         .value = box.value,
         .anchor = anchor,
-        .direction = direction,
+        .direction = directionFrom(anchor),
         .active = box.active,
+    });
+  }
+
+  // Every Point carrying a non-empty value gets its own label, regardless of
+  // whether it's also an Edge endpoint or a Box's anchor — e.g. an animation
+  // script tracking a point's live position as it moves around a circle.
+  for (auto [entity, point] : registry.view<PointComponent>().each()) {
+    if (point.value.isEmpty())
+      continue;
+    const QPointF anchor =
+        pointAtPosition(pathForCircle(point.circle), point.position);
+
+    m_pointLabels.append(ResolvedBox{
+        .value = point.value,
+        .anchor = anchor,
+        .direction = directionFrom(anchor),
+        .active = 0.0f,
     });
   }
 }
@@ -202,6 +224,7 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
   const float boxHeight = static_cast<float>(m_boxHeight * m_scale);
   const float boxPadding = static_cast<float>(m_boxPadding * m_scale);
   const float boxDistance = static_cast<float>(m_boxDistance * m_scale);
+  const float pointDistance = static_cast<float>(m_pointDistance * m_scale);
 
   QFont scaledFont = m_font;
   scaledFont.setPointSizeF(m_font.pointSizeF() * m_scale);
@@ -255,11 +278,26 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
     }
   }
 
+  // ── Point value labels ──────────────────────────────────────────────────
+  // Positioned the same way as a box (anchor pushed outward by boxDistance
+  // along the ray from the canvas center), but a point isn't a box: just the
+  // text, no rect/stroke/fill around it.
+  p->setTextAlign(QCanvasPainter::TextAlign::Center);
+  p->setTextBaseline(QCanvasPainter::TextBaseline::Middle);
+  p->setFillStyle(m_accentColor);
+  for (const auto &label : m_pointLabels) {
+    const QPointF center = label.anchor + label.direction * pointDistance;
+    p->beginPath();
+    p->fillText(label.value, static_cast<float>(center.x()),
+                static_cast<float>(center.y()));
+    p->closePath();
+  }
+
   // ── Boxes ──────────────────────────────────────────────────────────────────
   p->setFont(scaledFont);
   p->setTextAlign(QCanvasPainter::TextAlign::Left);
   p->setTextBaseline(QCanvasPainter::TextBaseline::Top);
-  for (const auto &box : m_boxes) {
+  auto drawBox = [&](const ResolvedBox &box) {
     const QRectF bounds = p->textBoundingBox(box.value, 0.0f, 0.0f);
     const float textW = static_cast<float>(bounds.width());
     const float bw = qMax(textW + boxPadding * 2.0f, boxWidth);
@@ -311,7 +349,9 @@ void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
       p->fillText(box.value, bx + boxPadding, by + boxPadding);
     }
     p->closePath();
-  }
+  };
+  for (const auto &box : m_boxes)
+    drawBox(box);
 }
 
 void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
@@ -340,8 +380,9 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
   // this flag drawImage() re-applies alpha on top of already alpha-baked-in
   // color, darkening every translucent fill (e.g. a 0.5 fill over background
   // `bg` rendered as `255*0.5^2 + bg*0.5` instead of `255*0.5 + bg*0.5`).
-  m_displayImage = p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps |
-                                             QCanvasPainter::ImageFlag::Premultiplied);
+  m_displayImage =
+      p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps |
+                                QCanvasPainter::ImageFlag::Premultiplied);
   endCanvasPainting();
 }
 

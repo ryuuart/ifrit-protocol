@@ -10,7 +10,9 @@ assigned to a chosen edge, so they follow that point wherever the edge's
 endpoint goes. Every circle and box holds its active/inactive fill state for
 about a second between smooth transitions so the change reads clearly instead
 of flickering, except the last orbiter (UMBRA), which keeps a fast
-sine-driven flash for contrast.
+sine-driven flash for contrast. The first orbiter's spoke endpoint on the big
+circle also carries its own value label (drawn like a box) tracking its live
+fractional position [0, 1] on the ring.
 
 The scene is authored in a 1000×1000 coordinate space so coordinates are easy
 to reason about; the app scales it up to the native 4K texture automatically.
@@ -150,21 +152,26 @@ def build_frame(t):
 
     edge_offsets = []
 
-    # Star web on the big circle.
+    # Star web on the big circle. Points here are pure edge endpoints with
+    # nothing worth labelling, so they carry no value.
     for i in range(RING):
         for skip in RING_SKIPS:
-            a = build_point(builder, f"P{i}", big, i / RING)
-            b = build_point(builder, f"P{(i+skip)%RING}", big, ((i+skip)%RING)/RING)
+            a = build_point(builder, "", big, i / RING)
+            b = build_point(builder, "", big, ((i+skip)%RING)/RING)
             edge_offsets.append(build_edge(builder, a, b))
 
     # Spoke from each orbiter to the big circle. Point offsets are kept in
     # `spoke_points` so a box can later be assigned the same Point as the
-    # edge's endpoint, rather than building a fresh one.
+    # edge's endpoint, rather than building a fresh one. The first spoke's
+    # big-circle endpoint demonstrates a Point's own value label (rendered
+    # like a box) by tracking its live fractional position on the ring; the
+    # rest carry no value.
     spoke_points = []
-    for s in smalls:
+    for i, s in enumerate(smalls):
         pos = _pos_on_big(s.x, s.y)
-        a = build_point(builder, s.name, big, pos)
-        b = build_point(builder, "hub", s, 0.5)
+        value = f"{pos:.2f}" if i == 0 else ""
+        a = build_point(builder, value, big, pos)
+        b = build_point(builder, "", s, 0.5)
         edge_offsets.append(build_edge(builder, a, b))
         spoke_points.append((a, b))
 
@@ -173,8 +180,8 @@ def build_frame(t):
     ring_points = []
     for i in range(n):
         sa, sb = smalls[i], smalls[(i + 1) % n]
-        a = build_point(builder, "a", sa, 0.25)
-        b = build_point(builder, "b", sb, 0.75)
+        a = build_point(builder, "", sa, 0.25)
+        b = build_point(builder, "", sb, 0.75)
         edge_offsets.append(build_edge(builder, a, b))
         ring_points.append((a, b))
 
@@ -187,7 +194,7 @@ def build_frame(t):
     for i, (name, drift, phase) in enumerate(BOX_SPECS):
         pos = (t * drift + phase) % 1.0
         active = _hold_pulse(t, phase=i * 0.9 + 0.4)
-        pt = build_point(builder, name, big, pos)
+        pt = build_point(builder, "", big, pos)
         box_offsets.append(build_box(builder, name, pt, active))
 
     # Boxes pinned to one of the points an edge is already assigned to, so

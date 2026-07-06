@@ -85,6 +85,8 @@ class GraphicsConfig : public QObject {
   Q_PROPERTY(qreal scale READ scale WRITE setScale NOTIFY scaleChanged)
   Q_PROPERTY(qreal labelOffset READ labelOffset WRITE setLabelOffset NOTIFY
                  labelOffsetChanged)
+  Q_PROPERTY(qreal pointDistance READ pointDistance WRITE setPointDistance
+                 NOTIFY pointDistanceChanged)
   Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
   Q_PROPERTY(BoxStyleConfig *box READ box CONSTANT)
   Q_PROPERTY(CanvasSizeConfig *canvas READ canvas CONSTANT)
@@ -109,6 +111,13 @@ public:
   qreal labelOffset() const { return m_labelOffset; }
   void setLabelOffset(qreal labelOffset);
 
+  /** Distance (px, pre-scale) a Point's own value label sits beyond its
+   *  position, measured outward along the ray from the canvas center
+   *  through that point — the same offset a Box uses (box.distance), but a
+   *  separate knob since a point label isn't a box. */
+  qreal pointDistance() const { return m_pointDistance; }
+  void setPointDistance(qreal pointDistance);
+
   QFont font() const { return m_font; }
   void setFont(const QFont &font);
 
@@ -132,6 +141,7 @@ signals:
   void strokeWidthChanged();
   void scaleChanged();
   void labelOffsetChanged();
+  void pointDistanceChanged();
   void fontChanged();
   void generationChanged();
 
@@ -143,6 +153,7 @@ private:
   qreal m_strokeWidth = 4.0;
   qreal m_scale = 1.0;
   qreal m_labelOffset = 0.0;
+  qreal m_pointDistance = 40.0;
   QFont m_font;
   BoxStyleConfig *m_box;
   CanvasSizeConfig *m_canvas;

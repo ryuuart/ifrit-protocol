@@ -67,6 +67,13 @@ private:
   QList<ResolvedCircle> m_circles;
   QList<ResolvedEdge> m_edges;
   QList<ResolvedBox> m_boxes;
+  // Point.value labels: positioned the same way as m_boxes (anchor pushed
+  // outward along the ray from the canvas center) and sourced from every
+  // PointComponent with a non-empty value rather than from BoxComponent — a
+  // Point already anchoring a Box or Edge can still carry its own label —
+  // but drawn as plain text with no surrounding rect/stroke/fill, since a
+  // point isn't a box. `active` is unused here (Point has no fill concept).
+  QList<ResolvedBox> m_pointLabels;
   TextPathPainter m_textPathPainter;
   // Display cache — rasterised at kDisplaySize for cheap blitting in paint().
   QCanvasOffscreenCanvas m_displayCanvas;
@@ -96,4 +103,5 @@ private:
   qreal m_boxHeight = 140.0;
   qreal m_boxPadding = 16.0;
   qreal m_boxDistance = 40.0;
+  qreal m_pointDistance = 40.0;
 };

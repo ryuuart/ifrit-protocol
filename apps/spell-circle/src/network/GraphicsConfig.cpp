@@ -94,6 +94,14 @@ void GraphicsConfig::setLabelOffset(qreal labelOffset) {
   bumpGeneration();
 }
 
+void GraphicsConfig::setPointDistance(qreal pointDistance) {
+  if (qFuzzyCompare(m_pointDistance, pointDistance))
+    return;
+  m_pointDistance = pointDistance;
+  emit pointDistanceChanged();
+  bumpGeneration();
+}
+
 void GraphicsConfig::setFont(const QFont &font) {
   if (m_font == font)
     return;
@@ -135,6 +143,8 @@ bool GraphicsConfig::load() {
     m_scale = obj["scale"].toDouble(m_scale);
   if (obj.contains("labelOffset"))
     m_labelOffset = obj["labelOffset"].toDouble(m_labelOffset);
+  if (obj.contains("pointDistance"))
+    m_pointDistance = obj["pointDistance"].toDouble(m_pointDistance);
 
   if (obj.contains("box") && obj["box"].isObject()) {
     const QJsonObject boxObj = obj["box"].toObject();
@@ -165,6 +175,7 @@ bool GraphicsConfig::load() {
   emit strokeWidthChanged();
   emit scaleChanged();
   emit labelOffsetChanged();
+  emit pointDistanceChanged();
   emit fontChanged();
   bumpGeneration();
   return true;
@@ -191,6 +202,7 @@ bool GraphicsConfig::save() const {
   obj["strokeWidth"] = m_strokeWidth;
   obj["scale"] = m_scale;
   obj["labelOffset"] = m_labelOffset;
+  obj["pointDistance"] = m_pointDistance;
   obj["box"] = boxObj;
   obj["canvas"] = canvasObj;
   obj["font"] = fontObj;

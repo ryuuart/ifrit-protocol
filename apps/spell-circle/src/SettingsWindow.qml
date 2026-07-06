@@ -89,6 +89,16 @@ Window {
                 onValueModified: settingsWindow.config.labelOffset = value
             }
 
+            Label { text: "Point Distance"; Layout.preferredWidth: 100 }
+            SpinBox {
+                from: -2000
+                to: 2000
+                editable: true
+                Layout.preferredWidth: 140
+                value: Math.round(settingsWindow.config.pointDistance)
+                onValueModified: settingsWindow.config.pointDistance = value
+            }
+
             Label { text: "Box Size"; Layout.preferredWidth: 100 }
             RowLayout {
                 spacing: 6
