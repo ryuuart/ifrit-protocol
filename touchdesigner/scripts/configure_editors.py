@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Set up the TouchDesigner Python scripting workspace: create the uv venv
-against TouchDesigner's bundled interpreter if it doesn't exist yet, then
-generate machine-local VSCode settings pointing at it.
+"""Set up the TouchDesigner Python scripting workspace: create the venv the
+way TouchDesigner's own Python Env Manager does (via its bundled
+TDPyEnvManagerHelper, run under TouchDesigner's interpreter) if it doesn't
+exist yet, bootstrap uv into it, sync project dependencies, then generate
+machine-local VSCode settings pointing at it.
 
 Safe to re-run any time — it no-ops the venv creation if one already exists,
-and always rewrites the settings file.
+re-syncs dependencies, and always rewrites the settings file.
 
 Usage: python3 configure_editors.py
 """
@@ -25,6 +27,27 @@ TD_PYTHON_VERSIONS = TD_APP / "Contents/Frameworks/Python.framework/Versions"
 
 PYTHON_EXE_RE = re.compile(r"^python3\.\d+$")
 
+# Creates the venv in-process via TDPyEnvManagerHelper.createPythonEnv(), run under
+# TouchDesigner's own interpreter, then force-exits: TD's helper leaves something in
+# its shutdown path (unrelated to our venv work) that hangs the interpreter on a
+# normal return, so a clean process exit relies on os._exit after the call succeeds.
+_CREATE_VENV_SNIPPET = """
+import os, sys
+from tdutils.TDPyEnvManagerHelper import TDPyEnvManagerHelper
+
+helper = TDPyEnvManagerHelper()
+helper.logger = helper.setupLogger()
+helper.thread.start()
+try:
+    helper.createPythonEnv(sys.argv[1], sys.argv[2])
+    helper.stopWorker()
+    sys.stdout.flush()
+    os._exit(0)
+except Exception:
+    sys.stdout.flush()
+    os._exit(1)
+"""
+
 
 def find_td_python() -> Path:
     current = TD_PYTHON_VERSIONS / "Current"
@@ -39,10 +62,18 @@ def find_td_python() -> Path:
 
 
 def ensure_venv(td_python: Path) -> None:
-    if (VENV_DIR / "pyvenv.cfg").exists():
-        return
-    print(f"creating venv at {VENV_DIR} using {td_python}")
-    subprocess.run(["uv", "sync", "--python", str(td_python)], cwd=SCRIPTS_DIR, check=True)
+    if not (VENV_DIR / "pyvenv.cfg").exists():
+        print(f"creating venv at {VENV_DIR} via TDPyEnvManagerHelper ({td_python})")
+        subprocess.run(
+            [str(td_python), "-c", _CREATE_VENV_SNIPPET, str(SCRIPTS_DIR), VENV_DIR.name],
+            check=True,
+        )
+
+    venv_python = VENV_DIR / "bin" / "python"
+    print("bootstrapping uv into venv")
+    subprocess.run([str(venv_python), "-m", "pip", "install", "-q", "uv"], check=True)
+    print("running uv sync")
+    subprocess.run([str(venv_python), "-m", "uv", "sync"], cwd=SCRIPTS_DIR, check=True)
 
 
 def main() -> None:
