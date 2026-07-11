@@ -1,4 +1,5 @@
 #pragma once
+#include "CanvasSceneBackend.h"
 #include "SpellCircleModel.h"
 #include "TextPathPainter.h"
 #include <QColor>
@@ -30,6 +31,19 @@ protected:
   void render(QRhiCommandBuffer *cb) override;
 
 private:
+  // Grants access to the resolved geometry (m_circles/m_edges/m_boxes/
+  // m_pointLabels), style fields, and m_textPathPainter below, plus the
+  // inherited beginCanvasPainting()/endCanvasPainting() recording brackets —
+  // QCanvasPainterSceneBackend draws directly from these rather than going
+  // through a method on SpellCircleRenderer. SkiaSceneBackendImpl (defined at
+  // global scope in SkiaSceneBackend.mm, not in an anonymous namespace, so
+  // this forward-declaring friend actually names it) needs the same resolved
+  // geometry and style fields to draw the equivalent scene via Skia, but
+  // never uses m_textPathPainter or the QCanvasPainter recording brackets —
+  // those are QCanvasPainter-specific.
+  friend class QCanvasPainterSceneBackend;
+  friend class SkiaSceneBackendImpl;
+
   /** A circle resolved to absolute, native-scaled canvas coordinates. */
   struct ResolvedCircle {
     QString name;
@@ -56,8 +70,6 @@ private:
     QPointF direction;
     float active = 0.0f; // background fill alpha/intensity [0, 1]
   };
-
-  void drawScene(QCanvasPainter *p);
 
   /** Queries the model's registry (if the generation changed) and resolves
    *  every entity's canvas position/scale into m_circles/m_edges/m_boxes.
@@ -88,6 +100,14 @@ private:
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
   std::unique_ptr<SyphonBridge> m_syphon;
+
+  // The active offscreen-canvas backend, chosen once in
+  // initializeResources() and used for every draw in prePaint(). Defaults to
+  // QCanvasPainterSceneBackend; createSkiaSceneBackend() replaces it with a
+  // Skia Graphite backend when this build has SPELLCIRCLE_ENABLE_SKIA_CANVAS
+  // compiled in (see include/SkiaSceneBackend.h) — a build-time choice, so
+  // prePaint() itself never branches on which one it has.
+  std::unique_ptr<CanvasSceneBackend> m_sceneBackend;
 
   // Copied from GraphicsConfig in synchronize() — defaults match the
   // GraphicsConfig defaults so an unconfigured SpellCircle item (no

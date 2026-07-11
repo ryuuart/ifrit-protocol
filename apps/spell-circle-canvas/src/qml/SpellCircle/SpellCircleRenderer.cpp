@@ -1,7 +1,8 @@
 #include "SpellCircleRenderer.h"
+#include "QCanvasPainterSceneBackend.h"
+#include "SkiaSceneBackend.h"
 #include "SpellCircle.h"
 #include "SyphonBridge.h"
-#include <QCanvasPath>
 #include <QColor>
 #include <QHash>
 #include <QPainterPath>
@@ -58,8 +59,9 @@ QPointF pointAtPosition(const QPainterPath &circlePath, float position) {
   return circlePath.pointAtPercent(percent);
 }
 
-// A radius-0 circle is never drawn (see the skip in drawScene()) and is used
-// purely as an invisible anchor: `position` has no meaningful angle around a
+// A radius-0 circle is never drawn (see the skip in
+// QCanvasPainterSceneBackend::drawScene()) and is used purely as an invisible
+// anchor: `position` has no meaningful angle around a
 // zero-radius perimeter, so a Point/Box/Edge anchored to one resolves
 // straight to the circle's own coordinates rather than walking a degenerate
 // ellipse path. This is what lets boxes/points be placed at an arbitrary
@@ -185,7 +187,7 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
   // Boxes (and point labels, below) face the canvas center: each is anchored
   // along the ray from the center through its assigned point, so the
   // direction of that ray is resolved once here rather than recomputed every
-  // frame in drawScene().
+  // frame in the scene backend's drawScene().
   const QPointF canvasCenter(m_canvasWidth / 2.0f, m_canvasHeight / 2.0f);
   auto directionFrom = [&](const QPointF &anchor) {
     QPointF direction = anchor - canvasCenter;
@@ -226,151 +228,9 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
 
 void SpellCircleRenderer::initializeResources(QCanvasPainter *p) {
   m_syphon->start(rhi());
-}
-
-void SpellCircleRenderer::drawScene(QCanvasPainter *p) {
-  // All coordinates are in 0..canvasWidth / 0..canvasHeight scene space. The
-  // caller is responsible for setting up any scale transform before calling
-  // this.
-
-  const float strokeWidth = static_cast<float>(m_strokeWidth * m_scale);
-  const float boxWidth = static_cast<float>(m_boxWidth * m_scale);
-  const float boxHeight = static_cast<float>(m_boxHeight * m_scale);
-  const float boxPadding = static_cast<float>(m_boxPadding * m_scale);
-  const float boxDistance = static_cast<float>(m_boxDistance * m_scale);
-  const float pointDistance = static_cast<float>(m_pointDistance * m_scale);
-
-  QFont scaledFont = m_font;
-  scaledFont.setPointSizeF(m_font.pointSizeF() * m_scale);
-
-  // ── Edges (drawn underneath everything) ──────────────────────────────────
-  p->setStrokeStyle(m_accentColor);
-  p->setLineWidth(strokeWidth);
-  for (const auto &edge : m_edges) {
-    p->beginPath();
-    QCanvasPath line;
-    line.moveTo(edge.first.x(), edge.first.y());
-    line.lineTo(edge.second.x(), edge.second.y());
-    p->addPath(line);
-    p->stroke(line);
-    p->closePath();
-  }
-
-  // ── Circles ──────────────────────────────────────────────────────────────
-  for (const auto &circle : m_circles) {
-    // A radius-0 circle is an invisible anchor (see isAnchorOnlyCircle) used
-    // only to position points/boxes/edges — nothing to draw for it.
-    if (circle.radius <= 0.0f)
-      continue;
-
-    const float r = circle.radius;
-    const float cx = static_cast<float>(circle.center.x());
-    const float cy = static_cast<float>(circle.center.y());
-
-    QCanvasPath circlePath;
-    circlePath.circle(cx, cy, r);
-
-    p->beginPath();
-    p->addPath(circlePath);
-    p->setStrokeStyle(m_accentColor);
-    p->setLineWidth(strokeWidth);
-    p->stroke(circlePath);
-    if (circle.active > 0.0f) {
-      p->setGlobalAlpha(circle.active);
-      p->setFillStyle(m_accentColor);
-      p->fill(circlePath);
-      p->setGlobalAlpha(1.0f);
-    }
-    p->closePath();
-
-    if (!circle.name.isEmpty()) {
-      QPainterPath textPath;
-      textPath.setCachingEnabled(true);
-      textPath.addEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f);
-
-      m_textPathPainter.setPathOffset(circle.textStart);
-      m_textPathPainter.setPerpendicularOffset(
-          static_cast<float>(m_labelOffset * m_scale));
-      m_textPathPainter.setFont(scaledFont);
-      m_textPathPainter.setColor(m_accentColor);
-      m_textPathPainter.paint(p, textPath, circle.name);
-    }
-  }
-
-  // ── Point value labels ──────────────────────────────────────────────────
-  // Positioned the same way as a box (anchor pushed outward by boxDistance
-  // along the ray from the canvas center), but a point isn't a box: just the
-  // text, no rect/stroke/fill around it.
-  p->setTextAlign(QCanvasPainter::TextAlign::Center);
-  p->setTextBaseline(QCanvasPainter::TextBaseline::Middle);
-  p->setFillStyle(m_accentColor);
-  for (const auto &label : m_pointLabels) {
-    const QPointF center = label.anchor + label.direction * pointDistance;
-    p->beginPath();
-    p->fillText(label.value, static_cast<float>(center.x()),
-                static_cast<float>(center.y()));
-    p->closePath();
-  }
-
-  // ── Boxes ──────────────────────────────────────────────────────────────────
-  p->setFont(scaledFont);
-  p->setTextAlign(QCanvasPainter::TextAlign::Left);
-  p->setTextBaseline(QCanvasPainter::TextBaseline::Top);
-  auto drawBox = [&](const ResolvedBox &box) {
-    const QRectF bounds = p->textBoundingBox(box.value, 0.0f, 0.0f);
-    const float textW = static_cast<float>(bounds.width());
-    const float bw = qMax(textW + boxPadding * 2.0f, boxWidth);
-    const float bh = boxHeight;
-
-    // The box's center sits on the ray from the canvas center through the
-    // point, pushed outward by boxDistance beyond the point — nothing more.
-    // An earlier version instead aligned whichever box edge the ray leans on
-    // more (picking a horizontal or vertical edge, or interpolating between
-    // them via ray/rectangle intersection near the corner), but that made the
-    // box's touching edge slide around its own perimeter as the point moved,
-    // producing a visible extra wobble on top of the translation whenever the
-    // ray swept past a corner. Anchoring just the center avoids that: the box
-    // rigidly translates along the ray with no edge-dependent correction.
-    const QPointF boxCenter = box.anchor + box.direction * boxDistance;
-    const float hw = bw / 2.0f;
-    const float hh = bh / 2.0f;
-    const float bx = static_cast<float>(boxCenter.x()) - hw;
-    const float by = static_cast<float>(boxCenter.y()) - hh;
-
-    QCanvasPath rect;
-    QRectF boxGeom(bx, by, bw, bh);
-    rect.rect(boxGeom);
-
-    p->clearRect(boxGeom);
-    p->beginPath();
-    p->addPath(rect);
-    if (box.active > 0.0f) {
-      p->setGlobalAlpha(box.active);
-      p->setFillStyle(m_accentColor);
-      p->fill();
-      p->setGlobalAlpha(1.0f);
-    }
-    p->setStrokeStyle(m_accentColor);
-    p->setLineWidth(strokeWidth);
-    p->stroke();
-    p->closePath();
-
-    p->beginPath();
-    if (box.active > 0.0f) {
-      p->setGlobalCompositeOperation(
-          QCanvasPainter::CompositeOperation::DestinationOut);
-      p->setFillStyle(QColorConstants::Black);
-      p->fillText(box.value, bx + boxPadding, by + boxPadding);
-      p->setGlobalCompositeOperation(
-          QCanvasPainter::CompositeOperation::SourceOver);
-    } else {
-      p->setFillStyle(m_accentColor);
-      p->fillText(box.value, bx + boxPadding, by + boxPadding);
-    }
-    p->closePath();
-  };
-  for (const auto &box : m_boxes)
-    drawBox(box);
+  m_sceneBackend = createSkiaSceneBackend(rhi());
+  if (!m_sceneBackend)
+    m_sceneBackend = std::make_unique<QCanvasPainterSceneBackend>();
 }
 
 void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
@@ -393,16 +253,8 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
     m_allocatedCanvasWidth = m_canvasWidth;
     m_allocatedCanvasHeight = m_canvasHeight;
   }
-  beginCanvasPainting(m_canvas);
-  drawScene(p);
-  // The offscreen canvas's blended output is premultiplied-alpha; without
-  // this flag drawImage() re-applies alpha on top of already alpha-baked-in
-  // color, darkening every translucent fill (e.g. a 0.5 fill over background
-  // `bg` rendered as `255*0.5^2 + bg*0.5` instead of `255*0.5 + bg*0.5`).
-  m_displayImage =
-      p->addImage(m_canvas, QCanvasPainter::ImageFlag::GenerateMipmaps |
-                                QCanvasPainter::ImageFlag::Premultiplied);
-  endCanvasPainting();
+  m_displayImage = m_sceneBackend->drawScene(
+      *this, p, m_canvas, QSize(m_allocatedCanvasWidth, m_allocatedCanvasHeight));
 }
 
 void SpellCircleRenderer::paint(QCanvasPainter *p) {

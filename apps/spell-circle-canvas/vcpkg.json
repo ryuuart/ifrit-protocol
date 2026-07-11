@@ -3,9 +3,24 @@
     "abseil",
     "benchmark",
     "concurrentqueue",
+    "entt",
     "flatbuffers",
     "gtest",
     "spdlog",
-    "entt"
+    "icu",
+    {
+      "name": "harfbuzz",
+      "features": [
+        "coretext",
+        "icu"
+      ]
+    },
+    {
+      "name": "skia",
+      "features": [
+        "graphite",
+        "metal"
+      ]
+    }
   ]
 }

@@ -12,3 +12,7 @@ if(APPLE)
     ${CMAKE_CURRENT_LIST_DIR}/include
   )
 endif()
+
+if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
+  add_subdirectory(skia)
+endif()
