@@ -6,6 +6,9 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 
+#include <absl/container/flat_hash_map.h>
+
+#include <memory>
 #include <vector>
 
 namespace textflow {
@@ -25,6 +28,16 @@ struct LineInterval {
   // tangent (rendered with RSXform runs). `origin`/`dir` are ignored.
   sk_sp<SkContourMeasure> contour;
   float contourStart = 0;
+
+  // Contour intervals only: arc length consumed per unit of glyph advance.
+  // Compensates curvature when the glyphs' optical centers ride at a
+  // different radius than the measured baseline contour — e.g. text on the
+  // outside of a small circle reads too loose because the centers sit on a
+  // larger ring than the baseline; advanceScale = rBaseline / rCenter
+  // restores optical spacing. `length`, fitting, and alignment arithmetic
+  // all stay in unscaled advance units (set length = arcLength / scale to
+  // offer the whole contour), only the pen→arc mapping is scaled.
+  float advanceScale = 1.0f;
 };
 
 // Supplies the intervals available to each successive line. Implementations
@@ -60,13 +73,33 @@ private:
 class ExclusionFlow : public FlowGeometry {
 public:
   struct Shape {
-    enum Kind { kCircle, kRect } kind = kRect;
-    // kCircle uses the inscribed circle of `bounds`.
+    enum Kind { kCircle, kRect, kPath } kind = kRect;
+    // kCircle uses the inscribed circle of `bounds`; kPath ignores `bounds`.
     SkRect bounds = SkRect::MakeEmpty();
     float padding = 0; // extra standoff around the shape
+
+    // kPath: any SkPath — multiple contours, curves, winding or even-odd
+    // fill (holes and concavities stay available to text). The path is
+    // flattened once and cached by its generation ID, so animate it by
+    // setting `pathOffset` (free) rather than rebuilding the SkPath every
+    // frame (a re-flatten per frame — still cheap, but not free).
+    SkPath path;
+    SkPoint pathOffset = {0, 0};
+
+    static Shape Circle(const SkRect &bounds, float padding = 0) {
+      return {kCircle, bounds, padding, {}, {0, 0}};
+    }
+    static Shape Rect(const SkRect &bounds, float padding = 0) {
+      return {kRect, bounds, padding, {}, {0, 0}};
+    }
+    static Shape Path(const SkPath &path, float padding = 0) {
+      return {kPath, SkRect::MakeEmpty(), padding, path, {0, 0}};
+    }
   };
 
-  explicit ExclusionFlow(const SkRect &rect) : m_rect(rect) {}
+  // Defined out of line: FlatPath is incomplete here.
+  explicit ExclusionFlow(const SkRect &rect);
+  ~ExclusionFlow() override;
 
   std::vector<Shape> &shapes() { return m_shapes; }
   const SkRect &rect() const { return m_rect; }
@@ -78,9 +111,29 @@ public:
                      std::vector<LineInterval> &out) override;
 
 private:
+  struct FlatPath; // flattened-polygon cache entry (Flow.cpp)
+  const FlatPath &flattened(const SkPath &path);
+
   SkRect m_rect;
   std::vector<Shape> m_shapes;
   float m_minIntervalWidth = 8;
+  // unique_ptr values: FlatPath addresses stay stable across rehashes.
+  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> m_flatCache;
+};
+
+// Vertical-RL block (CJK book layout): each "line" is a top-to-bottom
+// column, columns advancing right to left. `lineHeight` is the column
+// pitch; the interval origin sits on the column's central axis, which is
+// what vertical-shaped glyphs centre themselves on (`ascent` is unused).
+// Pair with Paragraph::setWritingMode(WritingMode::kVerticalRL).
+class VerticalBlockFlow : public FlowGeometry {
+public:
+  explicit VerticalBlockFlow(const SkRect &rect) : m_rect(rect) {}
+  bool lineIntervals(int index, float lineHeight, float ascent,
+                     std::vector<LineInterval> &out) override;
+
+private:
+  SkRect m_rect;
 };
 
 // Fully explicit geometry: the caller supplies every line's intervals —

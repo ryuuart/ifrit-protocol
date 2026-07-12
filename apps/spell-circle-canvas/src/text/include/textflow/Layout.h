@@ -51,16 +51,27 @@ struct LayoutOptions {
   // Knuth-Plass must place at least one word on every interval it is given,
   // so slivers (e.g. between exclusion shapes) can be filtered out entirely.
   float kpMinInterval = 0.0f;
+
+  // Rendering hygiene for rotated/on-path glyphs: tangents snap to this
+  // many discrete directions (512 ≈ 0.7° — invisible) so animated curved
+  // text doesn't mint a fresh glyph-atlas strike per glyph per frame.
+  // 0 disables snapping (exact rotations for static artwork).
+  int rotationSteps = 512;
 };
 
 // One draw call: a shared word blob translated to `origin`, or a fully
-// positioned RSXform blob (contour intervals) drawn at (0,0).
+// positioned RSXform blob (contour/rotated intervals) drawn at (0,0).
+// Placeholder runs carry no blob at all — just the flow position where the
+// caller should draw its inline object (see Layout::placeholderRects).
 struct PlacedRun {
   sk_sp<SkTextBlob> blob;
+  ShapedWordRef shaped;    // glyph source (batched drawing, choreography)
   SkPoint origin = {0, 0};
   uint32_t styleIndex = 0; // paint lookup into Paragraph::spans()
   uint32_t wordIndex = 0;  // which Word produced this run
   int line = 0;
+  bool transformed = false; // RSXform blob (positions baked into the blob)
+  int placeholder = -1;     // ≥0: index into Paragraph::placeholders()
 };
 
 struct Layout {
@@ -71,9 +82,29 @@ struct Layout {
 
   bool overflowed() const { return firstUnplacedWord != ~0u; }
 
-  // Draws every run, resolving each run's paint color from the paragraph's
+  // Draws every run, resolving each run's paint from the paragraph's
   // current spans — so paint-only tweaks show up without any relayout.
-  void draw(SkCanvas *canvas, const Paragraph &paragraph) const;
+  // `overridePaint` replaces every span's paint (labels drawn in a caller-
+  // chosen color without touching the paragraph).
+  void draw(SkCanvas *canvas, const Paragraph &paragraph,
+            const PaintStyle *overridePaint = nullptr) const;
+
+  // Same output, minimal draw calls: horizontal runs are merged into one
+  // SkCanvas::drawGlyphs per (font, paint) bucket instead of one
+  // drawTextBlob per word — the difference between hundreds of GPU text
+  // draws per frame and a handful. Transformed runs fall back to their
+  // baked blobs.
+  void drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
+                   const PaintStyle *overridePaint = nullptr) const;
+
+  // Where every inline placeholder landed, ready to draw pills/images into.
+  struct PlacedPlaceholder {
+    int index = 0; // into Paragraph::placeholders()
+    SkRect rect = SkRect::MakeEmpty();
+    int line = 0;
+  };
+  std::vector<PlacedPlaceholder>
+  placeholderRects(const Paragraph &paragraph) const;
 };
 
 // Lays `paragraph` out into `geometry`. Ensures the paragraph is shaped

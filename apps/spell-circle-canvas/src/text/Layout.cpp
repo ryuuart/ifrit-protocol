@@ -43,9 +43,27 @@ float wordEm(const Word &word) {
   return word.segments.empty() ? 16.0f : word.segments.front().shaped->size;
 }
 
+// Snaps a unit tangent to one of `steps` directions (512 → 0.7° steps —
+// invisible). Continuously varying per-glyph rotations would otherwise mint
+// a fresh glyph-atlas strike every frame for every glyph on a moving path,
+// turning animated curved text into a per-frame mask-rasterization storm.
+// See LayoutOptions::rotationSteps.
+SkVector quantizeTangent(SkVector tan, int steps) {
+  if (steps <= 0)
+    return tan;
+  constexpr float kTwoPi = 6.2831853f;
+  const float angle = std::atan2(tan.fY, tan.fX);
+  int i = static_cast<int>(std::lround(angle / kTwoPi * steps)) % steps;
+  if (i < 0)
+    i += steps;
+  const float snapped = static_cast<float>(i) * kTwoPi / steps;
+  return {std::cos(snapped), std::sin(snapped)};
+}
+
 // Per-glyph RSXform blob for rotated straight intervals and path contours.
 sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord &sw,
-                                       const LineInterval &iv, float penX) {
+                                       const LineInterval &iv, float penX,
+                                       int rotationSteps) {
   if (sw.glyphs.empty())
     return nullptr;
   SkTextBlobBuilder builder;
@@ -64,7 +82,8 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord &sw,
     SkPoint pos;
     SkVector tan;
     if (iv.contour) {
-      float s = iv.contourStart + penX + penLocal + adv * 0.5f;
+      float s =
+          iv.contourStart + (penX + penLocal + adv * 0.5f) * iv.advanceScale;
       if (iv.contour->isClosed()) {
         // Closed contours wrap: text can march around the loop forever
         // (animate contourStart for an infinite marquee).
@@ -78,10 +97,13 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord &sw,
         pos = {0, 0};
         tan = {1, 0};
       }
+      // Rotation snaps; position stays exact.
+      tan = quantizeTangent(tan, rotationSteps);
     } else {
       tan = iv.dir;
       const float d = penX + penLocal + adv * 0.5f;
       pos = iv.origin + SkVector{tan.x() * d, tan.y() * d};
+      tan = quantizeTangent(tan, rotationSteps);
     }
 
     // Anchor the glyph's advance-center on the baseline point `pos`,
@@ -97,22 +119,39 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord &sw,
 }
 
 void emitSegment(Layout &out, const FlatInterval &fiv, const WordSegment &seg,
-                 uint32_t wordIndex, float penX) {
+                 uint32_t wordIndex, float penX, const LayoutOptions &opt) {
   const ShapedWord &sw = *seg.shaped;
   if (sw.glyphs.empty())
     return;
   PlacedRun run;
+  run.shaped = seg.shaped;
   run.styleIndex = seg.styleIndex;
   run.wordIndex = wordIndex;
   run.line = fiv.line;
-  const bool horizontal =
-      !fiv.iv.contour && fiv.iv.dir.x() == 1 && fiv.iv.dir.y() == 0;
+  const bool straight = !fiv.iv.contour;
+  const bool horizontal = straight && fiv.iv.dir.x() == 1 &&
+                          fiv.iv.dir.y() == 0 &&
+                          seg.form == SegmentForm::kFlow;
+  const bool verticalColumn =
+      straight && fiv.iv.dir.x() == 0 && fiv.iv.dir.y() == 1;
   if (horizontal) {
     run.blob = wordBlob(sw);
     run.origin = fiv.iv.origin + SkVector{penX, 0};
+  } else if (verticalColumn && seg.form == SegmentForm::kUpright) {
+    // Vertical-shaped word: positions already stack down the column.
+    run.blob = wordBlob(sw);
+    run.origin = fiv.iv.origin + SkVector{0, penX};
+  } else if (verticalColumn && seg.form == SegmentForm::kTateChuYoko) {
+    // Horizontal run set upright across the column, centred on its axis;
+    // penX already points at the run's baseline (see Paragraph::analyze).
+    run.blob = wordBlob(sw);
+    run.origin = fiv.iv.origin + SkVector{-sw.advance * 0.5f, penX};
   } else {
-    run.blob = buildTransformedBlob(sw, fiv.iv, penX);
+    // Rotated/curved: bake per-glyph transforms (kRotated Latin in a
+    // vertical column rotates 90° clockwise here via the interval tangent).
+    run.blob = buildTransformedBlob(sw, fiv.iv, penX, opt.rotationSteps);
     run.origin = {0, 0};
+    run.transformed = true;
   }
   if (run.blob)
     out.runs.push_back(std::move(run));
@@ -216,15 +255,26 @@ void placeWords(const std::vector<Word> &words, uint32_t first, uint32_t last,
       } else {
         perSpace = perIdeo = perGap;
       }
-    } else if (extra < 0 && spaceGaps > 0) {
-      // Shrink, but never beyond the glue's shrink limit — a slightly
-      // overfull line beats spaces collapsing to nothing.
+    } else if (extra < 0 && (spaceGaps + ideoGaps) > 0) {
+      // Shrink, but never beyond the shrink limits — a slightly overfull
+      // line beats spaces collapsing to nothing. Ideographic gaps compress
+      // a touch too, mirroring the breakers' shrink model (em * 0.03), so
+      // a break the breaker deemed renderable never leaks past the measure.
       float totalGlue = 0;
       for (uint32_t i = first; i + 1 < last; ++i)
         totalGlue += words[i].spaceWidth;
-      const float avgSpace = totalGlue / static_cast<float>(spaceGaps);
-      perSpace = std::max(extra / static_cast<float>(spaceGaps),
-                          -avgSpace * opt.glueShrink);
+      const float spaceCap =
+          spaceGaps > 0
+              ? totalGlue / static_cast<float>(spaceGaps) * opt.glueShrink
+              : 0;
+      const float ideoCap = 0.03f * wordEm(words[first]);
+      const float capacity = spaceCap * static_cast<float>(spaceGaps) +
+                             ideoCap * static_cast<float>(ideoGaps);
+      if (capacity > 0) {
+        const float k = std::min(1.0f, -extra / capacity);
+        perSpace = -k * spaceCap;
+        perIdeo = -k * ideoCap;
+      }
     }
     break;
   }
@@ -239,14 +289,25 @@ void placeWords(const std::vector<Word> &words, uint32_t first, uint32_t last,
     const uint32_t i = order[v];
     const Word &word = words[i];
     for (const WordSegment &seg : word.segments)
-      emitSegment(out, fiv, seg, i, pen + seg.xOffset);
+      emitSegment(out, fiv, seg, i, pen + seg.xOffset, opt);
+    if (word.placeholderIndex >= 0 && !fiv.iv.contour) {
+      // Inline slot: report where it landed (blob-less run; draw() and
+      // drawBatched() skip it, placeholderRects() surfaces it).
+      PlacedRun run;
+      run.origin = fiv.iv.origin +
+                   SkVector{fiv.iv.dir.x() * pen, fiv.iv.dir.y() * pen};
+      run.wordIndex = i;
+      run.line = fiv.line;
+      run.placeholder = word.placeholderIndex;
+      out.runs.push_back(std::move(run));
+    }
     pen += word.width;
     if (hyphenBreakTaken && i == last - 1) {
       // Discretionary break taken: render the hyphen right after the word.
       const uint32_t styleIndex =
           word.segments.empty() ? 0 : word.segments.back().styleIndex;
       emitSegment(out, fiv, WordSegment{word.hyphenGlyph, styleIndex, 0}, i,
-                  pen);
+                  pen, opt);
       pen += hyphenWidth;
     }
     if (v + 1 < order.size()) {
@@ -354,10 +415,12 @@ Layout layoutParagraph(FontContext &ctx, Paragraph &paragraph,
       }
       skips++;
       fiv = seq.get(++k);
-      if (!fiv && bestSkipK != SIZE_MAX) {
-        // Geometry exhausted mid-skip: rather than dropping the rest of the
-        // text, back up to the widest interval we passed and force the word
-        // in (overflowing) there.
+      if ((!fiv || skips >= kMaxIntervalSkips) && bestSkipK != SIZE_MAX) {
+        // Geometry exhausted or skips spent: rather than dropping the rest
+        // of the text (or jamming the word into whatever narrow interval
+        // the skip run happened to stop on — visibly overflowing into an
+        // exclusion shape), back up to the widest interval we passed and
+        // force the word in there.
         k = bestSkipK;
         fiv = seq.get(k);
         skips = kMaxIntervalSkips;
@@ -392,17 +455,36 @@ const sk_sp<SkMaskFilter> &blurFilter(float sigma) {
 
 } // namespace
 
-void Layout::draw(SkCanvas *canvas, const Paragraph &paragraph) const {
-  const std::vector<StyleSpan> &spans = paragraph.spans();
+namespace {
+
+const PaintStyle &resolvePaint(const std::vector<StyleSpan> &spans,
+                               uint32_t styleIndex,
+                               const PaintStyle *overridePaint) {
   static const PaintStyle kFallback;
+  if (overridePaint)
+    return *overridePaint;
+  return styleIndex < spans.size() ? spans[styleIndex].style.paint : kFallback;
+}
+
+void applyPaint(SkPaint &paint, const PaintStyle &style) {
+  paint.setColor(style.color);
+  paint.setShader(style.shader);
+  paint.setMaskFilter(style.maskFilter);
+  paint.setBlendMode(style.blendMode);
+}
+
+} // namespace
+
+void Layout::draw(SkCanvas *canvas, const Paragraph &paragraph,
+                  const PaintStyle *overridePaint) const {
+  const std::vector<StyleSpan> &spans = paragraph.spans();
   SkPaint paint;
   paint.setAntiAlias(true);
   for (const PlacedRun &run : runs) {
     if (!run.blob)
       continue;
-    const PaintStyle &style = run.styleIndex < spans.size()
-                                  ? spans[run.styleIndex].style.paint
-                                  : kFallback;
+    const PaintStyle &style =
+        resolvePaint(spans, run.styleIndex, overridePaint);
 
     // Shadow passes first (back to front), then the main fill.
     for (const DropShadow &shadow : style.shadows) {
@@ -415,11 +497,118 @@ void Layout::draw(SkCanvas *canvas, const Paragraph &paragraph) const {
                            run.origin.y() + shadow.offset.y(), shadowPaint);
     }
 
-    paint.setColor(style.color);
-    paint.setShader(style.shader);
-    paint.setMaskFilter(style.maskFilter);
+    applyPaint(paint, style);
     canvas->drawTextBlob(run.blob.get(), run.origin.x(), run.origin.y(),
                          paint);
+  }
+}
+
+std::vector<Layout::PlacedPlaceholder>
+Layout::placeholderRects(const Paragraph &paragraph) const {
+  std::vector<PlacedPlaceholder> out;
+  for (const PlacedRun &run : runs) {
+    if (run.placeholder < 0)
+      continue;
+    const Placeholder &ph =
+        paragraph.placeholders()[static_cast<size_t>(run.placeholder)];
+    out.push_back({run.placeholder,
+                   SkRect::MakeXYWH(run.origin.x(),
+                                    run.origin.y() - ph.height +
+                                        ph.baselineDrop,
+                                    ph.width, ph.height),
+                   run.line});
+  }
+  return out;
+}
+
+void Layout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
+                         const PaintStyle *overridePaint) const {
+  const std::vector<StyleSpan> &spans = paragraph.spans();
+
+  // Buckets keyed by (typeface, size, resolved paint). A frame's worth of
+  // horizontal runs collapses into one drawGlyphs call per bucket; scratch
+  // storage persists across frames (styles copied by value — span pointers
+  // would dangle between calls).
+  struct Bucket {
+    sk_sp<SkTypeface> typeface;
+    float size = 0;
+    PaintStyle style;
+    std::vector<SkGlyphID> glyphs;
+    std::vector<SkPoint> positions;
+  };
+  static thread_local std::vector<Bucket> buckets;
+  if (buckets.size() > 64)
+    buckets.clear(); // pathological style churn: don't grow forever
+  for (Bucket &b : buckets) {
+    b.glyphs.clear();
+    b.positions.clear();
+  }
+
+  SkPaint paint;
+  paint.setAntiAlias(true);
+
+  for (const PlacedRun &run : runs) {
+    if (!run.blob)
+      continue;
+    const PaintStyle &style =
+        resolvePaint(spans, run.styleIndex, overridePaint);
+
+    if (run.transformed || !run.shaped) {
+      // Positions are baked into the blob; draw it directly (with shadows).
+      for (const DropShadow &shadow : style.shadows) {
+        SkPaint shadowPaint;
+        shadowPaint.setAntiAlias(true);
+        shadowPaint.setColor(shadow.color);
+        if (shadow.blurSigma > 0)
+          shadowPaint.setMaskFilter(blurFilter(shadow.blurSigma));
+        canvas->drawTextBlob(run.blob.get(),
+                             run.origin.x() + shadow.offset.x(),
+                             run.origin.y() + shadow.offset.y(), shadowPaint);
+      }
+      applyPaint(paint, style);
+      canvas->drawTextBlob(run.blob.get(), run.origin.x(), run.origin.y(),
+                           paint);
+      continue;
+    }
+
+    const ShapedWord &sw = *run.shaped;
+    Bucket *bucket = nullptr;
+    for (Bucket &b : buckets)
+      if (b.typeface.get() == sw.typeface.get() && b.size == sw.size &&
+          b.style == style) {
+        bucket = &b;
+        break;
+      }
+    if (!bucket) {
+      buckets.push_back({sw.typeface, sw.size, style, {}, {}});
+      bucket = &buckets.back();
+    }
+    for (size_t i = 0; i < sw.glyphs.size(); ++i) {
+      bucket->glyphs.push_back(sw.glyphs[i]);
+      bucket->positions.push_back(run.origin + sw.positions[i]);
+    }
+  }
+
+  for (const Bucket &bucket : buckets) {
+    if (bucket.glyphs.empty())
+      continue;
+    const SkFont font = makeFont(bucket.typeface, bucket.size);
+    const SkSpan<const SkGlyphID> glyphs(bucket.glyphs.data(),
+                                         bucket.glyphs.size());
+    const SkSpan<const SkPoint> positions(bucket.positions.data(),
+                                          bucket.positions.size());
+    for (const DropShadow &shadow : bucket.style.shadows) {
+      SkPaint shadowPaint;
+      shadowPaint.setAntiAlias(true);
+      shadowPaint.setColor(shadow.color);
+      if (shadow.blurSigma > 0)
+        shadowPaint.setMaskFilter(blurFilter(shadow.blurSigma));
+      canvas->drawGlyphs(glyphs, positions,
+                         {shadow.offset.x(), shadow.offset.y()}, font,
+                         shadowPaint);
+    }
+    applyPaint(paint, bucket.style);
+    canvas->drawGlyphs(glyphs, positions, {0, 0}, font, paint);
   }
 }
 

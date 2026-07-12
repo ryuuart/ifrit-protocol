@@ -10,6 +10,7 @@
 #include <absl/hash/hash.h>
 
 #include <hb.h>
+#include <unicode/ubidi.h>
 #include <unicode/ubrk.h>
 
 #include <array>
@@ -30,6 +31,7 @@ struct ShapeKey {
   uint32_t letterSpacingBits = 0;
   ScriptTag script = 0;
   bool rtl = false;
+  bool vertical = false;
   std::string language;
   std::vector<FontFeature> features;
   std::u16string text;
@@ -44,6 +46,7 @@ struct ShapeKeyView {
   uint32_t letterSpacingBits = 0;
   ScriptTag script = 0;
   bool rtl = false;
+  bool vertical = false;
   std::string_view language;
   const FontFeature *features = nullptr;
   size_t featureCount = 0;
@@ -52,7 +55,7 @@ struct ShapeKeyView {
 
 inline ShapeKeyView viewOf(const ShapeKey &k) {
   return {k.typefaceID, k.sizeBits,       k.letterSpacingBits,
-          k.script,     k.rtl,            k.language,
+          k.script,     k.rtl,            k.vertical,        k.language,
           k.features.data(), k.features.size(), k.text};
 }
 
@@ -65,7 +68,7 @@ struct ShapeKeyHash {
   size_t operator()(const ShapeKeyView &v) const {
     return absl::HashOf(
         v.typefaceID, v.sizeBits, v.letterSpacingBits, v.script, v.rtl,
-        v.language,
+        v.vertical, v.language,
         std::string_view(reinterpret_cast<const char *>(v.features),
                          v.featureCount * sizeof(FontFeature)),
         std::string_view(reinterpret_cast<const char *>(v.text.data()),
@@ -79,7 +82,8 @@ struct ShapeKeyEq {
   bool operator()(const ShapeKeyView &a, const ShapeKeyView &b) const {
     return a.typefaceID == b.typefaceID && a.sizeBits == b.sizeBits &&
            a.letterSpacingBits == b.letterSpacingBits &&
-           a.script == b.script && a.rtl == b.rtl && a.language == b.language &&
+           a.script == b.script && a.rtl == b.rtl &&
+           a.vertical == b.vertical && a.language == b.language &&
            a.featureCount == b.featureCount &&
            std::memcmp(a.features, b.features,
                        a.featureCount * sizeof(FontFeature)) == 0 &&
@@ -125,6 +129,7 @@ struct FontContext::Impl {
   // Reused scratch objects (the context is single-threaded by contract).
   hb_buffer_t *buffer = nullptr;
   UBreakIterator *lineBreaker = nullptr; // lazily created, root locale
+  UBiDi *bidi = nullptr;                 // lazily created, setPara() reuses
 
   FontContext::Stats stats;
 

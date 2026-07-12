@@ -635,12 +635,14 @@ void sceneTypography(FontContext &ctx, const std::filesystem::path &outDir) {
 
   // Mixed families and sizes in one flow (serif / sans / mono / CJK).
   {
+    // Noto Sans/Serif (user-installed variable fonts): richer OpenType
+    // shaping coverage than the system defaults.
     SkFontMgr *mgr = ctx.fontMgr();
     TextStyle serif = style(20, kInk);
-    serif.shaping.typeface = mgr->matchFamilyStyle("Georgia", SkFontStyle());
+    serif.shaping.typeface =
+        mgr->matchFamilyStyle("Noto Serif", SkFontStyle());
     TextStyle sans = style(17, kBlue);
-    sans.shaping.typeface =
-        mgr->matchFamilyStyle("Avenir Next", SkFontStyle());
+    sans.shaping.typeface = mgr->matchFamilyStyle("Noto Sans", SkFontStyle());
     TextStyle mono = style(14, kAccent);
     mono.shaping.typeface = mgr->matchFamilyStyle("Menlo", SkFontStyle());
 
@@ -676,84 +678,6 @@ void sceneTypography(FontContext &ctx, const std::filesystem::path &outDir) {
 // EVERY frame (breathing measure, live word edits) while its letters
 // simultaneously leave their lines as particles/waves. The point: letter-
 // level choreography and full-paragraph relayout share one frame budget.
-
-// Quantized rotation: 64 angle steps are visually indistinguishable but
-// let Skia's glyph-mask cache actually hit — continuous per-letter angles
-// re-rasterize every glyph every frame on the CPU backend.
-inline void quantAngle(float angle, float &c, float &sn) {
-  constexpr int kSteps = 64;
-  constexpr float kTwoPi = 6.2831853f;
-  static const auto table = [] {
-    std::array<std::pair<float, float>, kSteps> t;
-    for (int i = 0; i < kSteps; ++i)
-      t[static_cast<size_t>(i)] = {std::cos(i * kTwoPi / kSteps),
-                                   std::sin(i * kTwoPi / kSteps)};
-    return t;
-  }();
-  int i = static_cast<int>(std::lround(angle / kTwoPi * kSteps)) % kSteps;
-  if (i < 0)
-    i += kSteps;
-  c = table[static_cast<size_t>(i)].first;
-  sn = table[static_cast<size_t>(i)].second;
-}
-
-// Per-frame draw batching: glyphs grouped by (font source, color) so a
-// frame of ~6500 letters is a handful of drawGlyphsRSXform calls.
-struct GlyphBatchSet {
-  struct Batch {
-    const ShapedWord *font = nullptr;
-    SkColor color = 0;
-    std::vector<SkGlyphID> glyphs;
-    std::vector<SkRSXform> xforms;
-  };
-  std::vector<Batch> batches;
-
-  Batch &batchFor(const ShapedWord *font, SkColor color) {
-    for (Batch &b : batches)
-      if (b.font == font && b.color == color)
-        return b;
-    batches.push_back({font, color, {}, {}});
-    return batches.back();
-  }
-  void clear() {
-    for (Batch &b : batches) {
-      b.glyphs.clear();
-      b.xforms.clear();
-    }
-  }
-  void draw(SkCanvas *canvas) const {
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    for (const Batch &b : batches) {
-      if (b.glyphs.empty())
-        continue;
-      paint.setColor(b.color);
-      canvas->drawGlyphsRSXform(
-          SkSpan<const SkGlyphID>(b.glyphs.data(), b.glyphs.size()),
-          SkSpan<const SkRSXform>(b.xforms.data(), b.xforms.size()), {0, 0},
-          makeFont(b.font->typeface, b.font->size), paint);
-    }
-  }
-};
-
-// Visits every placed glyph of a layout with its absolute rest position —
-// the bridge between line layout and per-letter choreography. Enumeration
-// order is stable across relayouts as long as the text itself is unchanged.
-template <typename F>
-void forEachPlacedGlyph(const Layout &layout, const Paragraph &para, F &&fn) {
-  static thread_local std::vector<uint32_t> segCounter;
-  segCounter.assign(para.words().size(), 0);
-  for (const PlacedRun &run : layout.runs) {
-    const Word &word = para.words()[run.wordIndex];
-    const WordSegment &seg =
-        word.segments[segCounter[run.wordIndex]++ % word.segments.size()];
-    const SkColor color = para.spans()[seg.styleIndex].style.paint.color;
-    const ShapedWord *sw = seg.shaped.get();
-    for (size_t i = 0; i < sw->glyphs.size(); ++i)
-      fn(sw, sw->glyphs[i], sw->advances[i], color,
-         run.origin + sw->positions[i]);
-  }
-}
 
 // ~1000 words of mixed Latin/CJK in alternating color/style chunks.
 Paragraph makeBigParagraph(int wordCount, float size) {
@@ -819,7 +743,7 @@ void sceneRain(FontContext &ctx, int frames,
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 1900));
   SkCanvas *canvas = surface->getCanvas();
-  GlyphBatchSet batchset;
+  GlyphRSXformBatches batchset;
   TimingStats layoutTime, simTime, drawTime;
 
   for (int frame = 0; frame < frames; ++frame) {
@@ -897,7 +821,7 @@ void sceneRain(FontContext &ctx, int frames,
             at = p.pos;
             quantAngle(p.angle, c, sn);
           }
-          GlyphBatchSet::Batch &b = batchset.batchFor(sw, color);
+          GlyphRSXformBatches::Batch &b = batchset.batchFor(sw, color);
           b.glyphs.push_back(glyph);
           b.xforms.push_back(
               {c, sn, at.fX - c * half, at.fY - sn * half});
@@ -969,7 +893,7 @@ void sceneRipple(FontContext &ctx, int frames,
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 960));
   SkCanvas *canvas = surface->getCanvas();
-  GlyphBatchSet batchset;
+  GlyphRSXformBatches batchset;
   TimingStats layoutTime, waveTime, drawTime;
   const char *swaps[] = {"letters", "glyphs ", "symbols", "strokes"};
 
@@ -1018,7 +942,7 @@ void sceneRipple(FontContext &ctx, int frames,
           quantAngle(tilt, c, sn);
           const SkPoint at = rest + offset;
           const float half = adv * 0.5f;
-          GlyphBatchSet::Batch &b = batchset.batchFor(sw, color);
+          GlyphRSXformBatches::Batch &b = batchset.batchFor(sw, color);
           b.glyphs.push_back(glyph);
           b.xforms.push_back(
               {c, sn, at.fX - c * half + half, at.fY - sn * half});
@@ -1124,6 +1048,413 @@ void scenePretext(FontContext &ctx, int frames,
   std::printf("\n");
 }
 
+
+// ── Scene G: script coverage + OpenType features ──────────────────────────
+
+// 2000 tokens across a dozen writing systems scattered as rotated confetti:
+// Arabic joins, Devanagari conjuncts, emoji ZWJ sequences and all — every
+// token resolved through per-codepoint fallback and the one shape cache.
+void sceneBabel(FontContext &ctx, const std::filesystem::path &outDir) {
+  const char *tokens[] = {
+      "حرف", "كلمة",  "अक्षर", "शब्द", "אות",  "מילה", "ตัวอักษร",
+      "字",   "글",     "λόγος", "буква", "🎉",   "👍🏽",  "文字",
+      "ঢাকা", "கடல்",  "ᚱᚢᚾ",   "ainm",  "słowo", "λέξη"};
+  std::mt19937 rng(77);
+  Paragraph para;
+  std::string text;
+  for (int i = 0; i < 2000; ++i) {
+    text += tokens[rng() % 20];
+    text += ' ';
+  }
+  para.appendText(text, style(15));
+  const uint32_t len = static_cast<uint32_t>(para.text().size());
+  for (uint32_t at = 0; at + 40 < len; at += 40)
+    para.setPaint(at, at + 20,
+                  PaintStyle{(at / 40) % 3 == 0   ? kAccent
+                             : (at / 40) % 3 == 1 ? kBlue
+                                                  : kInk});
+
+  LineSetFlow flow;
+  for (int i = 0; i < 2000; ++i) {
+    const float angle = static_cast<float>(rng() % 628) * 0.01f;
+    flow.lines().push_back({LineInterval{
+        {20.0f + static_cast<float>(rng() % 1360),
+         20.0f + static_cast<float>(rng() % 860)},
+        {std::cos(angle), std::sin(angle)},
+        60}});
+  }
+
+  const auto t0 = Clock::now();
+  Layout layout = layoutParagraph(ctx, para, flow);
+  const auto t1 = Clock::now();
+  Layout warm = layoutParagraph(ctx, para, flow);
+  const auto t2 = Clock::now();
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1400, 900));
+  surface->getCanvas()->clear(kPaper);
+  layout.draw(surface->getCanvas(), para);
+  writePng(surface.get(), outDir / "babel.png");
+  std::printf("Scene G — babel confetti: %zu tokens, %zu runs, cold %.1f us, "
+              "warm %.1f us\n",
+              para.words().size(), layout.runs.size(), toUs(t1 - t0),
+              toUs(t2 - t1));
+}
+
+// OpenType features made visible: ligature control, discretionary
+// ligatures, small caps, lining vs oldstyle figures — each row is the same
+// engine with a different FontFeature list (part of the shape-cache key).
+void sceneFeatures(FontContext &ctx, const std::filesystem::path &outDir) {
+  sk_sp<SkTypeface> hoefler =
+      ctx.fontMgr()->matchFamilyStyle("Hoefler Text", SkFontStyle());
+  if (!hoefler) {
+    std::printf("Scene G — features: Hoefler Text missing, skipped\n\n");
+    return;
+  }
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 560));
+  SkCanvas *canvas = surface->getCanvas();
+  canvas->clear(kPaper);
+
+  struct Row {
+    const char *label;
+    const char *text;
+    std::vector<FontFeature> features;
+  };
+  const Row rows[] = {
+      {"default (liga on, oldstyle figures)",
+       "The office staff filed 1234567890 affidavits.", {}},
+      {"liga=0 clig=0 (ligatures off)",
+       "The office staff filed 1234567890 affidavits.",
+       {{"liga", 0}, {"clig", 0}}},
+      {"dlig=1 (discretionary ct/st ligatures)",
+       "The strict architect stood fast.", {{"dlig", 1}}},
+      {"smcp=1 (small caps)",
+       "The office staff filed affidavits.", {{"smcp", 1}}},
+      {"lnum=1 (lining figures)",
+       "Figures 1234567890 rise to the cap height.", {{"lnum", 1}}},
+      {"frac=1 (fractions)",
+       "Mix 1/2 cup with 3/4 spoon.", {{"frac", 1}}},
+  };
+
+  float y = 30;
+  for (const Row &row : rows) {
+    Paragraph caption;
+    caption.appendText(row.label, style(12, kAccent));
+    BlockFlow capFlow(SkRect::MakeXYWH(40, y, 900, 18));
+    layoutParagraph(ctx, caption, capFlow).draw(canvas, caption);
+
+    TextStyle body = style(30, kInk);
+    body.shaping.typeface = hoefler;
+    body.shaping.features = row.features;
+    Paragraph para;
+    para.appendText(row.text, body);
+    BlockFlow flow(SkRect::MakeXYWH(40, y + 20, 900, 48));
+    layoutParagraph(ctx, para, flow).draw(canvas, para);
+    y += 88;
+  }
+
+  writePng(surface.get(), outDir / "features.png");
+  std::printf("Scene G — OpenType features panel written\n\n");
+}
+
+// ── Scene I: arbitrary SkPath exclusions (star / heart / donut hole) ──────
+
+void sceneShapes(FontContext &ctx, const std::filesystem::path &outDir) {
+  SkFontMgr *mgr = ctx.fontMgr();
+  TextStyle body = style(16.5f, kInk);
+  body.shaping.typeface = mgr->matchFamilyStyle("Noto Serif", SkFontStyle());
+
+  Paragraph para;
+  for (int i = 0; i < 7; ++i)
+    para.appendText(
+        "Text no longer flows around circles and boxes alone: any SkPath — "
+        "concave stars, compound paths, cubic hearts — carves its exact "
+        "silhouette out of the line bands, and even-odd holes stay open, so "
+        "the paragraph pours right through the middle of the donut. ",
+        body);
+
+  // Star (concave, winding fill).
+  SkPathBuilder star;
+  for (int i = 0; i < 5; ++i) {
+    const float a = -1.5707963f + static_cast<float>(i) * 2 * 6.2831853f / 5;
+    const SkPoint p = {215 + 135 * std::cos(a), 230 + 135 * std::sin(a)};
+    if (i == 0)
+      star.moveTo(p);
+    else
+      star.lineTo(p);
+  }
+  star.close();
+
+  // Heart (two cubics).
+  SkPathBuilder heart;
+  heart.moveTo(700, 620);
+  heart.cubicTo(540, 470, 590, 330, 700, 420);
+  heart.cubicTo(810, 330, 860, 470, 700, 620);
+  heart.close();
+
+  // Donut (even-odd: the hole is open to text).
+  SkPathBuilder donut;
+  donut.addCircle(330, 660, 150);
+  donut.addCircle(330, 660, 82);
+  donut.setFillType(SkPathFillType::kEvenOdd);
+
+  ExclusionFlow flow(SkRect::MakeXYWH(40, 40, 920, 800));
+  flow.shapes().push_back(ExclusionFlow::Shape::Path(star.detach(), 10));
+  flow.shapes().push_back(ExclusionFlow::Shape::Path(heart.detach(), 10));
+  flow.shapes().push_back(ExclusionFlow::Shape::Path(donut.detach(), 8));
+  flow.setMinIntervalWidth(46);
+
+  LayoutOptions opts;
+  opts.alignment = Alignment::kJustify;
+  opts.lineHeight = 26;
+
+  const auto t0 = Clock::now();
+  Layout layout = layoutParagraph(ctx, para, flow, opts);
+  const auto t1 = Clock::now();
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1000, 880));
+  SkCanvas *canvas = surface->getCanvas();
+  canvas->clear(kPaper);
+  SkPaint shapePaint;
+  shapePaint.setAntiAlias(true);
+  shapePaint.setColor(kShape);
+  for (const auto &shape : flow.shapes())
+    canvas->drawPath(shape.path, shapePaint);
+  layout.draw(canvas, para);
+
+  writePng(surface.get(), outDir / "shapes.png");
+  std::printf("Scene I — SkPath exclusions written (layout %.1f us, %d "
+              "lines)\n\n",
+              toUs(t1 - t0), layout.lineCount);
+}
+
+// ── Scene H: CJK typography — vertical-rl, ruby, kenten, tate-chu-yoko ────
+//
+// Ruby (furigana) and kenten (emphasis dots) are deliberately *not* library
+// features: they are a dozen lines each on top of the layout's placed runs
+// — the "build externally on TextFlow" pattern. Tate-chu-yoko needs the
+// breaker's cooperation, so it *is* a library feature
+// (VerticalForm::kTateChuYoko).
+
+// Placed extent of a UTF-16 range along its column/line: every run whose
+// word overlaps the range contributes [pen, pen + width) from its origin.
+struct RangeExtent {
+  bool valid = false;
+  int line = 0;
+  SkPoint origin = {0, 0}; // first covering run's origin (on the axis)
+  float begin = 0, end = 0; // flow-direction extent relative to origin
+};
+
+RangeExtent placedExtent(const Paragraph &para, const Layout &layout,
+                         uint32_t start, uint32_t end) {
+  RangeExtent extent;
+  for (const PlacedRun &run : layout.runs) {
+    const Word &word = para.words()[run.wordIndex];
+    if (word.textEnd <= start || word.textBegin >= end || run.transformed)
+      continue;
+    if (!extent.valid) {
+      extent.valid = true;
+      extent.line = run.line;
+      extent.origin = run.origin;
+      extent.begin = 0;
+      extent.end = word.width;
+    } else if (run.line == extent.line) {
+      // Same column/line: extend along the flow direction (vertical here).
+      const float offset = run.origin.y() - extent.origin.y();
+      extent.begin = std::min(extent.begin, offset);
+      extent.end = std::max(extent.end, offset + word.width);
+    }
+  }
+  return extent;
+}
+
+void sceneCjk(FontContext &ctx, const std::filesystem::path &outDir) {
+  SkFontMgr *mgr = ctx.fontMgr();
+  sk_sp<SkTypeface> mincho =
+      mgr->matchFamilyStyle("Hiragino Mincho ProN", SkFontStyle());
+  sk_sp<SkTypeface> notoSans =
+      mgr->matchFamilyStyle("Noto Sans", SkFontStyle());
+  if (!mincho) {
+    std::printf("Scene H — cjk: Hiragino Mincho ProN missing, skipped\n\n");
+    return;
+  }
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 700));
+  SkCanvas *canvas = surface->getCanvas();
+  canvas->clear(kPaper);
+
+  const float em = 26.0f;
+  auto jp = [&](float size, VerticalForm form = VerticalForm::kAuto) {
+    TextStyle s = style(size, kInk, "ja");
+    s.shaping.typeface = mincho;
+    s.shaping.verticalForm = form;
+    return s;
+  };
+
+  // ── Vertical-rl block (right side of the page) ─────────────────────────
+  Paragraph vert;
+  vert.appendText("縦組みの文章は、上から下へ、", jp(em));
+  vert.appendText("右から左へと流れる。平成", jp(em));
+  vert.appendText("31", jp(em, VerticalForm::kTateChuYoko));
+  vert.appendText("年", jp(em));
+  vert.appendText("12", jp(em, VerticalForm::kTateChuYoko));
+  vert.appendText("月、", jp(em));
+  vert.appendText("TextFlow", jp(em)); // UTR#50 rotates Latin automatically
+  vert.appendText("は縦書きに対応した。", jp(em));
+  vert.setWritingMode(WritingMode::kVerticalRL);
+
+  const SkRect vertRect = SkRect::MakeXYWH(430, 80, 500, 540);
+  VerticalBlockFlow vertFlow(vertRect);
+  LayoutOptions vertOpts;
+  vertOpts.lineHeight = em * 1.9f; // column pitch, ruby lives in the gap
+  Layout vertLayout = layoutParagraph(ctx, vert, vertFlow, vertOpts);
+  vertLayout.draw(canvas, vert);
+
+  // Ruby (furigana): a small vertical paragraph laid along the base's
+  // column, offset into the inter-column gap.
+  auto vertRuby = [&](std::u16string_view base, const char *rubyText) {
+    const std::vector<CharRange> found = findAll(vert, base);
+    if (found.empty())
+      return;
+    const RangeExtent extent =
+        placedExtent(vert, vertLayout, found[0].start, found[0].end);
+    if (!extent.valid)
+      return;
+    Paragraph ruby;
+    ruby.appendText(rubyText, jp(em * 0.5f));
+    ruby.setWritingMode(WritingMode::kVerticalRL);
+    const float length = ruby.naturalWidth(ctx);
+    const float mid =
+        extent.origin.y() + (extent.begin + extent.end) * 0.5f;
+    LineSetFlow flow;
+    flow.lines().push_back({LineInterval{
+        {extent.origin.x() + em * 0.62f, mid - length * 0.5f},
+        {0, 1},
+        length + 1}});
+    layoutParagraph(ctx, ruby, flow).draw(canvas, ruby);
+  };
+  vertRuby(u"縦組", "たてぐみ");
+  vertRuby(u"文章", "ぶんしょう");
+  vertRuby(u"対応", "たいおう");
+
+  // Kenten (emphasis dots): one sesame dot beside each emphasized glyph.
+  {
+    const std::vector<CharRange> found = findAll(vert, u"上から下へ");
+    SkPaint dot;
+    dot.setAntiAlias(true);
+    dot.setColor(kAccent);
+    if (!found.empty()) {
+      for (const PlacedRun &run : vertLayout.runs) {
+        const Word &word = vert.words()[run.wordIndex];
+        if (word.textEnd <= found[0].start || word.textBegin >= found[0].end ||
+            run.transformed || !run.shaped->vertical)
+          continue;
+        float pen = 0;
+        const ShapedWord &sw = *run.shaped;
+        for (size_t g = 0; g < sw.advances.size(); ++g) {
+          // Clusters are offsets into the shaped segment, which starts at
+          // the word's first character — dot only the emphasized glyphs.
+          const uint32_t at = word.textBegin + sw.clusters[g];
+          if (at >= found[0].start && at < found[0].end)
+            canvas->drawCircle(run.origin.x() + em * 0.60f,
+                               run.origin.y() + pen + sw.advances[g] * 0.5f,
+                               em * 0.07f, dot);
+          pen += sw.advances[g];
+        }
+      }
+    }
+  }
+
+  // ── Horizontal block with ruby + kenten (left side) ────────────────────
+  Paragraph horiz;
+  horiz.appendText("漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
+                   jp(em * 0.85f));
+  const SkRect horizRect = SkRect::MakeXYWH(50, 120, 330, 400);
+  BlockFlow horizFlow(horizRect);
+  LayoutOptions horizOpts;
+  horizOpts.lineHeight = em * 2.0f; // ruby lives above each line
+  Layout horizLayout = layoutParagraph(ctx, horiz, horizFlow, horizOpts);
+  horizLayout.draw(canvas, horiz);
+
+  auto horizRuby = [&](std::u16string_view base, const char *rubyText) {
+    const std::vector<CharRange> found = findAll(horiz, base);
+    if (found.empty())
+      return;
+    // Horizontal extent along the line this time.
+    float x0 = 0, x1 = 0, baseline = 0;
+    bool valid = false;
+    for (const PlacedRun &run : horizLayout.runs) {
+      const Word &word = horiz.words()[run.wordIndex];
+      if (word.textEnd <= found[0].start || word.textBegin >= found[0].end)
+        continue;
+      if (!valid) {
+        valid = true;
+        x0 = run.origin.x();
+        x1 = run.origin.x() + word.width;
+        baseline = run.origin.y();
+      } else if (run.origin.y() == baseline) {
+        x1 = std::max(x1, run.origin.x() + word.width);
+      }
+    }
+    if (!valid)
+      return;
+    Paragraph ruby;
+    ruby.appendText(rubyText, jp(em * 0.42f));
+    const float width = ruby.naturalWidth(ctx);
+    LineSetFlow flow;
+    flow.lines().push_back({LineInterval{
+        {(x0 + x1) * 0.5f - width * 0.5f, baseline - em * 0.98f},
+        {1, 0},
+        width + 1}});
+    layoutParagraph(ctx, ruby, flow).draw(canvas, ruby);
+  };
+  horizRuby(u"漢字", "かんじ");
+  horizRuby(u"圏点", "けんてん");
+
+  {
+    const std::vector<CharRange> found = findAll(horiz, u"強調");
+    SkPaint dot;
+    dot.setAntiAlias(true);
+    dot.setColor(kAccent);
+    if (!found.empty()) {
+      for (const PlacedRun &run : horizLayout.runs) {
+        const Word &word = horiz.words()[run.wordIndex];
+        if (word.textEnd <= found[0].start || word.textBegin >= found[0].end)
+          continue;
+        float pen = 0;
+        const ShapedWord &sw = *run.shaped;
+        for (size_t g = 0; g < sw.advances.size(); ++g) {
+          const uint32_t at = word.textBegin + sw.clusters[g];
+          if (at >= found[0].start && at < found[0].end)
+            canvas->drawCircle(run.origin.x() + pen + sw.advances[g] * 0.5f,
+                               run.origin.y() - em * 0.92f, em * 0.06f, dot);
+          pen += sw.advances[g];
+        }
+      }
+    }
+  }
+
+  // Captions.
+  auto caption = [&](const char *text, float x, float y) {
+    TextStyle s = style(13, kBlue);
+    s.shaping.typeface = notoSans;
+    Paragraph para;
+    para.appendText(text, s);
+    BlockFlow flow(SkRect::MakeXYWH(x, y, 400, 18));
+    layoutParagraph(ctx, para, flow).draw(canvas, para);
+  };
+  caption("horizontal: ruby + kenten (external utilities)", 50, 90);
+  caption("vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430, 630);
+  caption("tate-chu-yoko digits, ruby + kenten in the column gap", 430, 648);
+
+  writePng(surface.get(), outDir / "cjk.png");
+  std::printf("Scene H — CJK vertical/ruby/kenten/tate-chu-yoko written\n\n");
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -1139,6 +1470,10 @@ int main(int argc, char **argv) {
   sceneFreeform(ctx, outDir);
   sceneExtreme(ctx, outDir);
   sceneTypography(ctx, outDir);
+  sceneBabel(ctx, outDir);
+  sceneFeatures(ctx, outDir);
+  sceneCjk(ctx, outDir);
+  sceneShapes(ctx, outDir);
   scenePretext(ctx, frames, outDir);
 
   std::printf("PNGs written to %s\n",

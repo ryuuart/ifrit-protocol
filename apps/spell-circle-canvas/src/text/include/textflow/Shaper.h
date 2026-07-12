@@ -34,6 +34,11 @@ struct ShapedWord {
   std::vector<uint32_t> clusters; // UTF-16 index into the shaped text
   float advance = 0;              // total advance, letter spacing included
 
+  // Shaped top-to-bottom ('vert' forms, vertical metrics): positions stack
+  // glyphs downward from the origin (x centred on the column axis) and
+  // `advance`/`advances` measure vertical pen travel.
+  bool vertical = false;
+
   // Origin-relative blob built on first placement and reused by every frame
   // and every layout thereafter (shape once, reposition forever). Mutable
   // because building it is a pure cache fill on an otherwise-const value.
@@ -44,10 +49,12 @@ using ShapedWordRef = std::shared_ptr<const ShapedWord>;
 
 // Shapes `text` with HarfBuzz, going through FontContext's shape cache.
 // `typeface` must already be fallback-resolved (see
-// FontContext::resolveTypeface); `rtl` selects the HarfBuzz direction.
+// FontContext::resolveTypeface); `rtl` selects the HarfBuzz direction and
+// `vertical` shapes top-to-bottom (mutually exclusive with rtl).
 ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
                         const sk_sp<SkTypeface> &typeface,
-                        std::u16string_view text, ScriptTag script, bool rtl);
+                        std::u16string_view text, ScriptTag script, bool rtl,
+                        bool vertical = false);
 
 // Returns the shared origin-relative SkTextBlob for `word`, building and
 // memoizing it on first use. Cheap on every call after the first.

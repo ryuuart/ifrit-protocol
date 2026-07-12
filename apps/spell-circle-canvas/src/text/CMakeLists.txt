@@ -11,6 +11,8 @@ add_library(TextFlow STATIC
   Flow.cpp
   Layout.cpp
   KnuthPlass.cpp
+  Query.cpp
+  Labels.cpp
 
   include/textflow/TextFlow.h
   include/textflow/Style.h
@@ -19,6 +21,9 @@ add_library(TextFlow STATIC
   include/textflow/Paragraph.h
   include/textflow/Flow.h
   include/textflow/Layout.h
+  include/textflow/Query.h
+  include/textflow/Labels.h
+  include/textflow/Choreograph.h
 )
 
 target_compile_features(TextFlow PUBLIC cxx_std_20)
@@ -30,13 +35,28 @@ target_include_directories(TextFlow PUBLIC
 target_link_libraries(TextFlow
   PUBLIC
     unofficial::skia::skia
-    absl::inlined_vector # Word::segments inline storage (public header)
+    absl::inlined_vector  # Word::segments inline storage (public header)
+    absl::flat_hash_map   # ExclusionFlow / Labels caches (public headers)
+    absl::node_hash_map   # LabelCache (stable Paragraph& across inserts)
   PRIVATE
     harfbuzz::harfbuzz
     ICU::i18n
     ICU::uc
     ICU::data
-    absl::flat_hash_map
+)
+
+# Qt ↔ Skia bridging helpers (header-only). Separate target so the core
+# TextFlow library stays Qt-free; only Qt consumers link this.
+add_library(TextFlowQt INTERFACE
+  qt/include/textflowqt/TextFlowQt.h
+)
+target_include_directories(TextFlowQt INTERFACE
+  ${CMAKE_CURRENT_LIST_DIR}/qt/include
+)
+target_link_libraries(TextFlowQt INTERFACE
+  Qt6::Gui
+  unofficial::skia::skia
+  TextFlow # bridges Paragraph/Query types directly
 )
 
 add_executable(textflow_test

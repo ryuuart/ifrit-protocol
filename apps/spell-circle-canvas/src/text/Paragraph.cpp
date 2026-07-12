@@ -101,6 +101,30 @@ bool maybeRtl(UChar32 cp) {
          (cp >= 0x10800 && cp <= 0x10FFF) || (cp >= 0x1E800 && cp <= 0x1EFFF);
 }
 
+// Placement form of one codepoint in a vertical paragraph: the span's
+// explicit override, or UTR#50's per-character vertical orientation (CJK
+// upright, Latin rotated — the CSS text-orientation:mixed behaviour).
+SegmentForm resolveVerticalForm(const ShapingStyle &shaping, UChar32 cp) {
+  switch (shaping.verticalForm) {
+  case VerticalForm::kUpright:
+    return SegmentForm::kUpright;
+  case VerticalForm::kRotated:
+    return SegmentForm::kRotated;
+  case VerticalForm::kTateChuYoko:
+    return SegmentForm::kTateChuYoko;
+  case VerticalForm::kAuto:
+    break;
+  }
+  // Tr (transformed-rotated, e.g. CJK brackets and long vowel marks) stays
+  // upright too: TTB shaping applies the font's 'vert' substitutions, which
+  // supply the rotated forms — the browser behaviour for
+  // text-orientation: mixed. Only plain R (Latin, etc.) physically rotates.
+  const int32_t orientation =
+      u_getIntPropertyValue(cp, UCHAR_VERTICAL_ORIENTATION);
+  return orientation == U_VO_ROTATED ? SegmentForm::kRotated
+                                     : SegmentForm::kUpright;
+}
+
 struct ScriptRun {
   uint32_t end = 0;
   UScriptCode script = USCRIPT_COMMON;
@@ -110,9 +134,10 @@ struct ScriptRun {
 // preceding real script (or the following one at the start of the text).
 // Piggybacks RTL detection on the same codepoint walk so the (expensive)
 // UBiDi pass can be skipped for the overwhelmingly common LTR-only case.
-std::vector<ScriptRun> itemizeScripts(const std::u16string &text,
-                                      bool &anyRtl) {
-  std::vector<ScriptRun> runs;
+// Fills a caller-owned `runs` so per-analyze allocation amortizes away.
+void itemizeScripts(const std::u16string &text, bool &anyRtl,
+                    std::vector<ScriptRun> &runs) {
+  runs.clear();
   const int32_t len = static_cast<int32_t>(text.size());
   UScriptCode current = USCRIPT_COMMON;
   anyRtl = false;
@@ -136,20 +161,63 @@ std::vector<ScriptRun> itemizeScripts(const std::u16string &text,
     }
   }
   runs.push_back({static_cast<uint32_t>(len), current});
-  return runs;
 }
 
 } // namespace
 
+void Paragraph::recordEdit(uint32_t start, uint32_t removed,
+                           uint32_t inserted) {
+  ++m_revision;
+  constexpr size_t kMaxHistory = 256;
+  if (m_edits.size() >= kMaxHistory) {
+    m_edits.erase(m_edits.begin(),
+                  m_edits.begin() + static_cast<long>(kMaxHistory / 2));
+    m_editsBase += kMaxHistory / 2;
+  }
+  m_edits.push_back({start, removed, inserted});
+}
+
+bool Paragraph::editsSince(uint64_t sinceRevision,
+                           std::vector<EditOp> &out) const {
+  if (sinceRevision > m_revision || sinceRevision < m_editsBase)
+    return false;
+  for (uint64_t r = sinceRevision; r < m_revision; ++r)
+    out.push_back(m_edits[static_cast<size_t>(r - m_editsBase)]);
+  return true;
+}
+
 void Paragraph::clear() {
+  if (!m_text.empty())
+    recordEdit(0, static_cast<uint32_t>(m_text.size()), 0);
   m_text.clear();
   m_spans.clear();
   m_words.clear();
+  m_placeholders.clear();
+  markDirty();
+}
+
+void Paragraph::appendPlaceholder(const Placeholder &placeholder,
+                                  const TextStyle &style) {
+  m_placeholders.push_back(placeholder);
+  appendText(std::u16string_view(u"\uFFFC"), style);
+}
+
+void Paragraph::setPlaceholder(size_t index, const Placeholder &placeholder) {
+  if (index >= m_placeholders.size())
+    return;
+  m_placeholders[index] = placeholder;
   markDirty();
 }
 
 void Paragraph::appendText(std::string_view utf8, const TextStyle &style) {
   appendText(std::u16string_view(utf8ToUtf16(utf8)), style);
+}
+
+void Paragraph::setWritingMode(WritingMode mode) {
+  if (m_writingMode == mode)
+    return;
+  m_writingMode = mode;
+  markDirty();
 }
 
 void Paragraph::appendText(std::u16string_view utf16, const TextStyle &style) {
@@ -158,6 +226,7 @@ void Paragraph::appendText(std::u16string_view utf16, const TextStyle &style) {
   const uint32_t start = static_cast<uint32_t>(m_text.size());
   m_text.append(utf16);
   m_spans.push_back({start, static_cast<uint32_t>(m_text.size()), style});
+  recordEdit(start, 0, static_cast<uint32_t>(utf16.size()));
   markDirty();
 }
 
@@ -249,6 +318,7 @@ void Paragraph::replaceText(uint32_t start, uint32_t end,
   }
   if (insLen > 0)
     m_spans.push_back({start, start + insLen, insStyle});
+  recordEdit(start, delLen, insLen);
   normalizeSpans();
   markDirty();
 }
@@ -324,6 +394,17 @@ Paragraph::Strut Paragraph::strut(FontContext &ctx) const {
   return strut;
 }
 
+float Paragraph::naturalWidth(FontContext &ctx) {
+  ensureShaped(ctx);
+  float width = 0;
+  for (size_t i = 0; i < m_words.size(); ++i) {
+    width += m_words[i].width;
+    if (i + 1 < m_words.size())
+      width += m_words[i].spaceWidth;
+  }
+  return width;
+}
+
 void Paragraph::ensureShaped(FontContext &ctx) {
   if (!m_dirty)
     return;
@@ -351,7 +432,10 @@ void Paragraph::analyze(FontContext &ctx) {
   if (U_FAILURE(status) || !impl.lineBreaker)
     return;
 
-  std::vector<int32_t> boundaries;
+  // Scratch buffers persist across analyses (one FontContext == one thread
+  // by contract, so thread_local matches the ownership model).
+  static thread_local std::vector<int32_t> boundaries;
+  boundaries.clear();
   for (int32_t b = ubrk_next(impl.lineBreaker); b != UBRK_DONE;
        b = ubrk_next(impl.lineBreaker))
     boundaries.push_back(b);
@@ -360,20 +444,22 @@ void Paragraph::analyze(FontContext &ctx) {
 
   // ── Script runs (also detects whether bidi is needed at all) ──────────
   bool anyRtl = false;
-  const std::vector<ScriptRun> scripts = itemizeScripts(m_text, anyRtl);
+  static thread_local std::vector<ScriptRun> scripts;
+  itemizeScripts(m_text, anyRtl, scripts);
 
   // ── Bidi levels (skipped entirely for LTR-only text) ──────────────────
-  UBiDi *bidi = nullptr;
   const UBiDiLevel *levels = nullptr;
   uint8_t uniformLevel = 0; // used when the whole paragraph is one direction
   if (anyRtl) {
-    bidi = ubidi_openSized(len, 0, &status);
-    if (bidi && U_SUCCESS(status)) {
-      ubidi_setPara(bidi, text, len, UBIDI_DEFAULT_LTR, nullptr, &status);
+    if (!impl.bidi)
+      impl.bidi = ubidi_open(); // reused: setPara re-targets it per analyze
+    if (impl.bidi) {
+      status = U_ZERO_ERROR;
+      ubidi_setPara(impl.bidi, text, len, UBIDI_DEFAULT_LTR, nullptr, &status);
       if (U_SUCCESS(status)) {
-        const UBiDiDirection direction = ubidi_getDirection(bidi);
+        const UBiDiDirection direction = ubidi_getDirection(impl.bidi);
         if (direction == UBIDI_MIXED)
-          levels = ubidi_getLevels(bidi, &status);
+          levels = ubidi_getLevels(impl.bidi, &status);
         else if (direction == UBIDI_RTL)
           uniformLevel = 1;
       }
@@ -398,6 +484,7 @@ void Paragraph::analyze(FontContext &ctx) {
 
   // ── Words: one per break segment, split into uniform shaped runs ───────
   m_words.reserve(boundaries.size());
+  int placeholderSeen = 0;
   std::u16string wsScratch;
   uint32_t glueMemoStyle = ~0u;
   std::u16string_view glueMemoText;
@@ -406,6 +493,27 @@ void Paragraph::analyze(FontContext &ctx) {
   for (int32_t boundary : boundaries) {
     if (boundary <= prev)
       continue;
+
+    // Object-replacement characters are placeholder slots (see
+    // appendPlaceholder): unbreakable fixed-size words with no glyphs.
+    // UAX#14 usually isolates U+FFFC (class CB), but trailing punctuation
+    // can glue to it (e.g. "￼." via LB13), so peel slots off the front of
+    // the segment instead of requiring exact isolation.
+    while (prev < boundary &&
+           m_text[static_cast<size_t>(prev)] == 0xFFFC &&
+           static_cast<size_t>(placeholderSeen) < m_placeholders.size()) {
+      Word slot;
+      slot.textBegin = static_cast<uint32_t>(prev);
+      slot.textEnd = slot.wsEnd = static_cast<uint32_t>(prev + 1);
+      slot.bidiLevel = levels ? levels[prev] : uniformLevel;
+      slot.placeholderIndex = placeholderSeen++;
+      slot.width =
+          m_placeholders[static_cast<size_t>(slot.placeholderIndex)].width;
+      m_words.push_back(std::move(slot));
+      prev++;
+    }
+    if (boundary <= prev)
+      continue; // the segment was nothing but slots
 
     // Trailing whitespace (including any hard-break characters at the end).
     int32_t wsStart = boundary;
@@ -465,11 +573,16 @@ void Paragraph::analyze(FontContext &ctx) {
         limit = l;
       }
 
-      // Extend while the resolved typeface stays put.
+      // Extend while the resolved typeface (and, in vertical mode, the
+      // per-character vertical form) stays put.
+      const bool verticalMode = m_writingMode == WritingMode::kVerticalRL;
       const char *lang = span.style.shaping.language.empty()
                              ? nullptr
                              : span.style.shaping.language.c_str();
       sk_sp<SkTypeface> resolved;
+      SegmentForm segForm =
+          verticalMode ? SegmentForm::kUpright : SegmentForm::kFlow;
+      bool formSet = false;
       int32_t segEnd = pos;
       int32_t scan = pos;
       while (scan < limit) {
@@ -479,6 +592,16 @@ void Paragraph::analyze(FontContext &ctx) {
         if (inheritsFont(cp)) {
           segEnd = scan;
           continue;
+        }
+        if (verticalMode) {
+          const SegmentForm form = resolveVerticalForm(span.style.shaping, cp);
+          if (!formSet) {
+            segForm = form;
+            formSet = true;
+          } else if (form != segForm) {
+            segEnd = cpStart;
+            break;
+          }
         }
         sk_sp<SkTypeface> t =
             ctx.resolveTypeface(span.style.shaping.typeface, cp, lang);
@@ -496,12 +619,26 @@ void Paragraph::analyze(FontContext &ctx) {
       if (segEnd <= pos)
         segEnd = limit > pos ? limit : pos + 1; // defensive: always progress
 
+      const bool shapeVertical =
+          verticalMode && segForm == SegmentForm::kUpright;
       ShapedWordRef shaped = shapeWord(
           ctx, span.style.shaping, resolved,
           std::u16string_view(m_text).substr(pos, segEnd - pos),
-          hbScriptFor(scriptRun.script), (level & 1) != 0);
-      word.segments.push_back({shaped, styleIndex, word.width});
-      word.width += shaped->advance;
+          hbScriptFor(scriptRun.script),
+          (level & 1) != 0 && !shapeVertical, shapeVertical);
+      if (verticalMode && segForm == SegmentForm::kTateChuYoko) {
+        // 縦中横 occupies its font height along the column; xOffset lands on
+        // the run's baseline inside that box so placement needs no metrics.
+        const SkFont font = makeFont(resolved, span.style.shaping.size);
+        SkFontMetrics fm;
+        font.getMetrics(&fm);
+        word.segments.push_back(
+            {shaped, styleIndex, word.width - fm.fAscent, segForm});
+        word.width += -fm.fAscent + fm.fDescent;
+      } else {
+        word.segments.push_back({shaped, styleIndex, word.width, segForm});
+        word.width += shaped->advance;
+      }
       pos = segEnd;
     }
 
@@ -558,9 +695,10 @@ void Paragraph::analyze(FontContext &ctx) {
           sk_sp<SkTypeface> spaceFace = span.style.shaping.typeface
                                             ? span.style.shaping.typeface
                                             : ctx.defaultTypeface();
-          ShapedWordRef shapedWs =
-              shapeWord(ctx, span.style.shaping, spaceFace, ws,
-                        static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+          ShapedWordRef shapedWs = shapeWord(
+              ctx, span.style.shaping, spaceFace, ws,
+              static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,
+              /*vertical=*/m_writingMode == WritingMode::kVerticalRL);
           word.spaceWidth = shapedWs->advance;
           if (!needsScratch) { // scratch-backed views don't outlive the loop
             glueMemoStyle = styleIndex;
@@ -574,9 +712,6 @@ void Paragraph::analyze(FontContext &ctx) {
     m_words.push_back(std::move(word));
     prev = boundary;
   }
-
-  if (bidi)
-    ubidi_close(bidi);
 }
 
 } // namespace textflow

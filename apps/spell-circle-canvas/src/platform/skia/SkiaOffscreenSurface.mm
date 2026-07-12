@@ -54,7 +54,15 @@ void SkiaOffscreenSurface::submit() {
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
   context->insertRecording(info);
-  // Synchronous submit: block until the GPU has finished this recording, the
-  // same way the rest of the offscreen-canvas pipeline works today.
-  context->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kYes));
+  // Asynchronous submit: the Graphite context was built on Qt's own
+  // MTLCommandQueue (see SkiaGraphiteContext::create), and Metal executes
+  // command buffers on one queue in enqueue order — Qt's subsequent render
+  // pass (preview blit, mipmap generation, Syphon publish) is committed
+  // after this and therefore observes the finished texture without any CPU
+  // wait. Blocking here (SyncToCpu::kYes) used to charge the whole GPU
+  // frame — dominated by glyph rendering — to the render thread's prePaint.
+  context->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kNo));
+  // Lets Graphite reclaim resources of previously finished submissions
+  // without ever blocking.
+  context->checkAsyncWorkCompletion();
 }

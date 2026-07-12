@@ -25,8 +25,9 @@ public:
   SkCanvas *canvas() const;
 
   /** Snaps the Recorder's accumulated draw commands into a Recording,
-   *  inserts it into the Context, and submits it to the GPU synchronously
-   *  (blocks until the GPU has finished executing it). */
+   *  inserts it into the Context, and submits it to the GPU asynchronously.
+   *  Safe because Graphite shares Qt's Metal command queue: Qt's later
+   *  render pass is ordered after this submission on the same queue. */
   void submit();
 
 private:

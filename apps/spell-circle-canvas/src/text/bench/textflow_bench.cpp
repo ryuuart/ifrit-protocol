@@ -12,11 +12,13 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <include/ports/SkFontMgr_mac_ct.h>
 
 #include <benchmark/benchmark.h>
 
+#include <cmath>
 #include <random>
 #include <string>
 #include <vector>
@@ -214,6 +216,48 @@ static void BM_Update_MovingExclusions_300w(benchmark::State &state) {
 }
 BENCHMARK(BM_Update_MovingExclusions_300w)->Unit(benchmark::kMicrosecond);
 
+// Same sweep, but the obstacles are arbitrary SkPaths (a star and a donut
+// with a live hole). Moving via pathOffset reuses the cached flattening, so
+// the per-frame cost is scanline interval math, not path processing.
+static void BM_Update_MovingPathExclusions_300w(benchmark::State &state) {
+  Paragraph para;
+  para.appendText(makeText(300, /*mixed=*/true), style16());
+
+  SkPathBuilder star;
+  for (int i = 0; i < 5; ++i) {
+    const float a = -1.5707963f + static_cast<float>(i) * 2 * 6.2831853f / 5;
+    const SkPoint p = {150 + 110 * std::cos(a), 150 + 110 * std::sin(a)};
+    if (i == 0)
+      star.moveTo(p);
+    else
+      star.lineTo(p);
+  }
+  star.close();
+  SkPathBuilder donut;
+  donut.addCircle(450, 700, 110);
+  donut.addCircle(450, 700, 55);
+  donut.setFillType(SkPathFillType::kEvenOdd);
+
+  ExclusionFlow flow(SkRect::MakeWH(700, 3000));
+  flow.shapes().push_back(ExclusionFlow::Shape::Path(star.detach(), 8));
+  flow.shapes().push_back(ExclusionFlow::Shape::Path(donut.detach(), 8));
+  layoutParagraph(ctx(), para, flow);
+
+  LayoutOptions opts;
+  opts.alignment = Alignment::kJustify;
+  float t = 0;
+  for (auto _ : state) {
+    t += 0.03f;
+    flow.shapes()[0].pathOffset = {200 * std::sin(t),
+                                   900 * (0.5f + 0.5f * std::sin(t * 0.7f))};
+    flow.shapes()[1].pathOffset = {-150 * std::cos(t),
+                                   300 * std::sin(t * 1.3f)};
+    Layout layout = layoutParagraph(ctx(), para, flow, opts);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+}
+BENCHMARK(BM_Update_MovingPathExclusions_300w)->Unit(benchmark::kMicrosecond);
+
 // ── Font/style mixing and whole-paragraph updates ─────────────────────────
 
 // Three typefaces (serif/sans/mono) alternating span by span, plus CJK
@@ -403,5 +447,40 @@ static void BM_Draw_Raster_300w(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Draw_Raster_300w)->Unit(benchmark::kMicrosecond);
+
+// 2000 multi-script tokens (Arabic, Devanagari, Hebrew, Thai, CJK, emoji,
+// Greek, Cyrillic, Tamil, runes) scattered over 2000 rotated intervals —
+// letter-confetti at paragraph scale. Warm: placement + per-glyph RSXform
+// baking; every token still shape-cache resolved.
+static void BM_Confetti_Babel_2000(benchmark::State &state) {
+  const char *tokens[] = {
+      "حرف", "كلمة",  "अक्षर", "शब्द", "אות",  "מילה", "ตัวอักษร",
+      "字",   "글",     "λόγος", "буква", "🎉",   "👍🏽",  "文字",
+      "ঢাকা", "கடல்",  "ᚱᚢᚾ",   "ainm",  "słowo", "λέξη"};
+  std::mt19937 rng(77);
+  Paragraph para;
+  std::string text;
+  for (int i = 0; i < 2000; ++i) {
+    text += tokens[rng() % 20];
+    text += ' ';
+  }
+  para.appendText(text, style16());
+
+  LineSetFlow flow;
+  for (int i = 0; i < 2000; ++i) {
+    const float angle = static_cast<float>(rng() % 628) * 0.01f;
+    flow.lines().push_back({LineInterval{
+        {20.0f + static_cast<float>(rng() % 1360),
+         20.0f + static_cast<float>(rng() % 860)},
+        {std::cos(angle), std::sin(angle)},
+        60}});
+  }
+  layoutParagraph(ctx(), para, flow);
+  for (auto _ : state) {
+    Layout layout = layoutParagraph(ctx(), para, flow);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+}
+BENCHMARK(BM_Confetti_Babel_2000)->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

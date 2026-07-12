@@ -29,9 +29,16 @@ struct Node {
 } // namespace
 
 // Classic Knuth-Plass optimal line breaking over word boxes and glue, with
-// per-line (per-interval) widths from the flow geometry. Robustness twist:
-// when no feasible break survives at some boundary, the least-bad candidate
-// is force-accepted so the breaker always terminates with a full layout.
+// per-line (per-interval) widths from the flow geometry. Two robustness
+// twists borrowed from TeX:
+//  - when no feasible break survives at some boundary, the least-bad
+//    candidate is force-accepted (loose before overfull) so the breaker
+//    always terminates with a full layout;
+//  - if that lifeline ever had to accept an *overfull* line — text past the
+//    measure — the whole pass is redone with \emergencystretch (each line's
+//    own width added to its stretchability), which turns loose lines into
+//    real break nodes so overfull is never forced unless a single box is
+//    wider than the measure.
 Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
                         const LayoutOptions &opt) {
   Layout out;
@@ -85,122 +92,171 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
     return prefShrink[b - 1] - prefShrink[a];
   };
 
-  float lastWidth = seq.get(0)->iv.length;
-  auto intervalWidth = [&](uint32_t k) {
-    if (const FlatInterval *fiv = seq.get(k)) {
-      lastWidth = fiv->iv.length;
-      return fiv->iv.length;
-    }
-    return lastWidth; // geometry exhausted: assume it keeps the last width
-  };
+  // Shrink is only real when placement will actually render the line
+  // justified: ragged lines (and demoted last lines) render at natural
+  // width, so a "feasible shrunk" break there would leak past the measure.
+  const bool justify = opt.alignment == Alignment::kJustify;
+  const bool lastLineJustify =
+      justify && (opt.justifyLastLine ||
+                  opt.lastLineAlignment == Alignment::kJustify);
 
   std::vector<Node> arena;
-  arena.push_back({0, 0, 0, -1});
-  std::vector<int32_t> active = {0};
+  std::vector<int32_t> active;
   std::vector<int32_t> nextActive;
+  std::vector<std::pair<uint32_t, int32_t>> newNodes; // (interval, arena idx)
 
-  for (uint32_t j = 1; j <= n; ++j) {
-    const bool forced = (j == n) || words[j - 1].mandatoryBreakAfter;
+  // One full DP pass. Returns the best terminal arena index (-1 if the
+  // paragraph could not be completed) and reports whether the lifeline ever
+  // had to force an overfull line.
+  auto runPass = [&](bool emergency, bool &forcedOverfull,
+                     uint32_t &unplaced) -> int32_t {
+    forcedOverfull = false;
+    unplaced = ~0u;
+    arena.clear();
+    arena.push_back({0, 0, 0, -1});
+    active = {0};
 
-    nextActive.clear();
-    float bestForcedDemerits = kInfDemerits;
-    Node bestForced;
-    int32_t bestNewPerInterval = -1; // dedupe: best new node (any interval)
+    float lastWidth = seq.get(0)->iv.length;
+    auto intervalWidth = [&](uint32_t k) {
+      if (const FlatInterval *fiv = seq.get(k)) {
+        lastWidth = fiv->iv.length;
+        return fiv->iv.length;
+      }
+      return lastWidth; // geometry exhausted: assume it keeps the last width
+    };
 
-    std::vector<std::pair<uint32_t, int32_t>> newNodes; // (interval, arena idx)
+    for (uint32_t j = 1; j <= n; ++j) {
+      const bool forced = (j == n) || words[j - 1].mandatoryBreakAfter;
 
-    for (size_t ai = 0; ai < active.size(); ++ai) {
-      const int32_t nodeIdx = active[ai];
-      const Node &node = arena[nodeIdx];
-      const uint32_t a = node.breakAt;
-      const float W = intervalWidth(node.interval);
-      const float natural = lineNatural(a, j);
-      const float stretch = lineStretch(a, j);
-      const float shrink = lineShrink(a, j);
+      nextActive.clear();
+      newNodes.clear();
+      float bestForcedDemerits = kInfDemerits;
+      bool bestForcedOverfull = true;
+      Node bestForced;
 
-      float ratio;
-      if (natural < W)
-        ratio = stretch > 0 ? (W - natural) / stretch
-                            : (natural > W - 0.5f ? 0.0f : 1e9f);
-      else if (natural > W)
-        ratio = shrink > 0 ? (W - natural) / shrink : -1e9f;
-      else
-        ratio = 0;
+      for (size_t ai = 0; ai < active.size(); ++ai) {
+        const int32_t nodeIdx = active[ai];
+        const Node &node = arena[nodeIdx];
+        const uint32_t a = node.breakAt;
+        const float W = intervalWidth(node.interval);
+        const float natural = lineNatural(a, j);
+        const float stretch =
+            lineStretch(a, j) + (emergency ? W : 0.0f);
+        const float shrink = lineShrink(a, j);
 
-      const bool overfull = ratio < -1.0f;
-      const float r = std::min(std::abs(ratio), 500.0f); // pre-clamp: r³ fits
-      const float badness = std::min(100.0f * r * r * r, kMaxBadness);
-      const bool feasible = !overfull && badness <= opt.kpTolerance;
+        float ratio;
+        if (forced && natural <= W) {
+          // Paragraph-final (and hard-break-final) lines end wherever they
+          // end — TeX's \parfillskip absorbs the slack for free. Without
+          // this, a stretch-free underfull last line scores kMaxBadness and
+          // an *overfull* candidate with a cheaper history can beat it,
+          // leaking text past the measure.
+          ratio = 0;
+        } else if (natural < W) {
+          ratio = stretch > 0 ? (W - natural) / stretch
+                              : (natural > W - 0.5f ? 0.0f : 1e9f);
+        } else if (natural > W) {
+          const bool canShrink = forced ? lastLineJustify : justify;
+          ratio = (canShrink && shrink > 0) ? (W - natural) / shrink : -1e9f;
+        } else {
+          ratio = 0;
+        }
 
-      float demerits =
-          node.demerits + (kLinePenalty + badness) * (kLinePenalty + badness);
-      if (hyphenWidthAt(j) > 0)
-        demerits += opt.hyphenPenalty * opt.hyphenPenalty;
+        const bool overfull = ratio < -1.0f;
+        const float r = std::min(std::abs(ratio), 500.0f); // pre-clamp: r³
+        const float badness = std::min(100.0f * r * r * r, kMaxBadness);
+        const bool feasible = !overfull && badness <= opt.kpTolerance;
 
-      if (feasible || forced) {
-        Node candidate{j, node.interval + 1, demerits, nodeIdx};
+        float demerits = node.demerits +
+                         (kLinePenalty + badness) * (kLinePenalty + badness);
+        if (hyphenWidthAt(j) > 0)
+          demerits += opt.hyphenPenalty * opt.hyphenPenalty;
+
         if (feasible) {
+          Node candidate{j, node.interval + 1, demerits, nodeIdx};
           newNodes.emplace_back(candidate.interval, -1);
           arena.push_back(candidate);
           newNodes.back().second = static_cast<int32_t>(arena.size() - 1);
-        } else if (demerits < bestForcedDemerits) {
-          bestForcedDemerits = demerits;
-          bestForced = candidate;
+        } else {
+          // Lifeline: the least-bad infeasible candidate, uniformly
+          // penalized so any feasible path always beats it. A loose line
+          // beats an overfull one regardless of demerits: loose looks bad,
+          // but overfull leaks past the measure — only accept one when
+          // nothing else exists (a single box wider than the line).
+          const float penalized = demerits + 1e12f;
+          const bool better = overfull == bestForcedOverfull
+                                  ? penalized < bestForcedDemerits
+                                  : !overfull;
+          if (better) {
+            bestForcedDemerits = penalized;
+            bestForcedOverfull = overfull;
+            bestForced = Node{j, node.interval + 1, penalized, nodeIdx};
+          }
         }
-      } else if (demerits < bestForcedDemerits) {
-        // Track the least-bad infeasible candidate as a lifeline.
-        bestForcedDemerits = demerits + 1e12f;
-        bestForced = Node{j, node.interval + 1, demerits + 1e12f, nodeIdx};
+
+        // A node whose line is already over-shrunk only gets worse; retire.
+        if (!overfull && !forced)
+          nextActive.push_back(nodeIdx);
       }
 
-      // A node whose line is already over-shrunk only gets worse; retire it.
-      if (!overfull && !forced)
-        nextActive.push_back(nodeIdx);
-    }
-
-    if (forced) {
-      // Every line must end here: only nodes at j survive.
-      nextActive.clear();
-    }
-
-    // Keep the best new node per interval index (they subsume the rest).
-    std::sort(newNodes.begin(), newNodes.end());
-    for (size_t x = 0; x < newNodes.size(); ++x) {
-      if (x + 1 < newNodes.size() && newNodes[x].first == newNodes[x + 1].first) {
-        // same interval: keep the lower-demerits one
-        const int32_t a1 = newNodes[x].second, a2 = newNodes[x + 1].second;
-        if (arena[a1].demerits < arena[a2].demerits)
-          std::swap(newNodes[x], newNodes[x + 1]);
-        continue;
+      if (forced) {
+        // Every line must end here: only nodes at j survive.
+        nextActive.clear();
       }
-      nextActive.push_back(newNodes[x].second);
-    }
 
-    if (nextActive.empty()) {
-      // No feasible breaks anywhere: force the least-bad one.
-      if (bestForcedDemerits >= kInfDemerits) {
-        // Not even a forced candidate (empty active list — cannot happen
-        // while j advances one at a time, but stay safe).
-        out.firstUnplacedWord = j - 1;
-        break;
+      // Keep the best new node per interval index (they subsume the rest).
+      std::sort(newNodes.begin(), newNodes.end());
+      for (size_t x = 0; x < newNodes.size(); ++x) {
+        if (x + 1 < newNodes.size() &&
+            newNodes[x].first == newNodes[x + 1].first) {
+          // same interval: keep the lower-demerits one
+          const int32_t a1 = newNodes[x].second, a2 = newNodes[x + 1].second;
+          if (arena[a1].demerits < arena[a2].demerits)
+            std::swap(newNodes[x], newNodes[x + 1]);
+          continue;
+        }
+        nextActive.push_back(newNodes[x].second);
       }
-      arena.push_back(bestForced);
-      nextActive.push_back(static_cast<int32_t>(arena.size() - 1));
+
+      if (nextActive.empty()) {
+        // No feasible breaks anywhere: force the least-bad one.
+        if (bestForcedDemerits >= kInfDemerits) {
+          // Not even a forced candidate (empty active list — cannot happen
+          // while j advances one at a time, but stay safe).
+          unplaced = j - 1;
+          return -1;
+        }
+        if (bestForcedOverfull)
+          forcedOverfull = true;
+        arena.push_back(bestForced);
+        nextActive.push_back(static_cast<int32_t>(arena.size() - 1));
+      }
+
+      active = nextActive;
     }
 
-    active = nextActive;
-    (void)bestNewPerInterval;
+    int32_t best = -1;
+    for (int32_t idx : active)
+      if (arena[idx].breakAt == n &&
+          (best < 0 || arena[idx].demerits < arena[best].demerits))
+        best = idx;
+    return best;
+  };
+
+  bool forcedOverfull = false;
+  uint32_t unplaced = ~0u;
+  int32_t best = runPass(false, forcedOverfull, unplaced);
+  if (best < 0 || forcedOverfull) {
+    bool stillOverfull = false;
+    uint32_t unplaced2 = ~0u;
+    const int32_t retry = runPass(true, stillOverfull, unplaced2);
+    if (retry >= 0) {
+      best = retry;
+      unplaced = unplaced2;
+    }
   }
-
-  // Best terminal node.
-  int32_t best = -1;
-  for (int32_t idx : active)
-    if (arena[idx].breakAt == n &&
-        (best < 0 || arena[idx].demerits < arena[best].demerits))
-      best = idx;
   if (best < 0) {
-    if (out.firstUnplacedWord == ~0u)
-      out.firstUnplacedWord = 0;
+    out.firstUnplacedWord = unplaced != ~0u ? unplaced : 0;
     return out;
   }
 

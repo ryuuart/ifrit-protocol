@@ -37,6 +37,24 @@ FontContext::Impl::faceFor(const sk_sp<SkTypeface> &typeface) {
   hb_face_set_upem(rec.face, rec.upem);
   rec.font = hb_font_create(rec.face);
   hb_font_set_scale(rec.font, rec.upem, rec.upem);
+
+  // Variable fonts: mirror the typeface's design position (weight, width,
+  // optical size…) into HarfBuzz. Without this, HarfBuzz shapes at the
+  // default instance while Skia rasterizes the varied one — advances and
+  // rasterized glyphs silently disagree.
+  const int axisCount = typeface->getVariationDesignPosition({});
+  if (axisCount > 0) {
+    std::vector<SkFontArguments::VariationPosition::Coordinate> coords(
+        static_cast<size_t>(axisCount));
+    if (typeface->getVariationDesignPosition({coords.data(), coords.size()}) ==
+        axisCount) {
+      std::vector<hb_variation_t> vars(coords.size());
+      for (size_t i = 0; i < coords.size(); ++i)
+        vars[i] = {coords[i].axis, coords[i].value};
+      hb_font_set_variations(rec.font, vars.data(),
+                             static_cast<unsigned>(vars.size()));
+    }
+  }
   return rec;
 }
 
@@ -51,6 +69,8 @@ FontContext::Impl::~Impl() {
     hb_buffer_destroy(buffer);
   if (lineBreaker)
     ubrk_close(lineBreaker);
+  if (bidi)
+    ubidi_close(bidi);
 }
 
 FontContext::FontContext(sk_sp<SkFontMgr> fontMgr,

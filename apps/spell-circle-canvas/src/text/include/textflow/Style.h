@@ -1,5 +1,6 @@
 #pragma once
 
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPoint.h>
@@ -28,6 +29,17 @@ struct FontFeature {
   }
 };
 
+// How a span behaves when its paragraph is laid out vertically
+// (Paragraph::setWritingMode(WritingMode::kVerticalRL)). Ignored in
+// horizontal paragraphs.
+enum class VerticalForm : uint8_t {
+  kAuto,        // UTR#50 per character: CJK upright, Latin rotated
+  kUpright,     // force upright (TTB shaping, 'vert' forms)
+  kRotated,     // force rotated 90° clockwise (book-spine Latin)
+  kTateChuYoko, // 縦中横: shaped horizontally, set upright in the column —
+                // for short runs like two-digit numbers in vertical prose
+};
+
 // The subset of style that affects glyph selection and metrics. These fields
 // are baked into the shape-cache key, so changing any of them re-shapes the
 // words it covers. Everything that only affects how already-positioned glyphs
@@ -36,13 +48,15 @@ struct ShapingStyle {
   sk_sp<SkTypeface> typeface; // null → FontContext's default (+ fallback)
   float size = 16.0f;
   float letterSpacing = 0.0f; // px of tracking added after each cluster
+                              // (in vertical text this is JIS "aki")
   std::string language;       // BCP-47 tag ("ja", "ko", ...); empty → untagged
   std::vector<FontFeature> features;
+  VerticalForm verticalForm = VerticalForm::kAuto;
 
   bool operator==(const ShapingStyle &o) const {
     return typeface.get() == o.typeface.get() && size == o.size &&
            letterSpacing == o.letterSpacing && language == o.language &&
-           features == o.features;
+           features == o.features && verticalForm == o.verticalForm;
   }
 };
 
@@ -67,12 +81,14 @@ struct PaintStyle {
                                   // RGB; alpha still applies)
   sk_sp<SkMaskFilter> maskFilter; // e.g. blur on the glyphs themselves
   std::vector<DropShadow> shadows; // drawn back-to-front before the fill
+  SkBlendMode blendMode = SkBlendMode::kSrcOver; // e.g. kDstOut punch-outs
 
   // Identity comparison for the ref-counted effects: enough for span
   // merging, where "same object" is the case that matters.
   bool operator==(const PaintStyle &o) const {
     return color == o.color && shader.get() == o.shader.get() &&
-           maskFilter.get() == o.maskFilter.get() && shadows == o.shadows;
+           maskFilter.get() == o.maskFilter.get() && shadows == o.shadows &&
+           blendMode == o.blendMode;
   }
 };
 

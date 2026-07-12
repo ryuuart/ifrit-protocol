@@ -11,7 +11,11 @@ namespace textflow {
 SkFont makeFont(const sk_sp<SkTypeface> &typeface, float size) {
   SkFont font(typeface, size);
   font.setEdging(SkFont::Edging::kAntiAlias);
-  font.setSubpixel(true);
+  // Subpixel positioning only where it's visible (small text). At large
+  // sizes it multiplies every glyph into per-phase atlas entries, and
+  // animated layouts then re-rasterize thousands of big masks every frame
+  // — whole-pixel snapping at 48px+ is imperceptible (<2% of an em).
+  font.setSubpixel(size < 48.0f);
   font.setHinting(SkFontHinting::kNone);
   font.setLinearMetrics(true);
   return font;
@@ -19,7 +23,8 @@ SkFont makeFont(const sk_sp<SkTypeface> &typeface, float size) {
 
 ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
                         const sk_sp<SkTypeface> &typeface,
-                        std::u16string_view text, ScriptTag script, bool rtl) {
+                        std::u16string_view text, ScriptTag script, bool rtl,
+                        bool vertical) {
   FontContext::Impl &impl = ctx.impl();
 
   // Probe with a borrowed view — the warm path allocates nothing.
@@ -29,6 +34,7 @@ ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
   std::memcpy(&view.letterSpacingBits, &style.letterSpacing, sizeof(float));
   view.script = script;
   view.rtl = rtl;
+  view.vertical = vertical;
   view.language = style.language;
   view.features = style.features.data();
   view.featureCount = style.features.size();
@@ -45,6 +51,7 @@ ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
   key.letterSpacingBits = view.letterSpacingBits;
   key.script = script;
   key.rtl = rtl;
+  key.vertical = vertical;
   key.language = style.language;
   key.features = style.features;
   key.text.assign(text.begin(), text.end());
@@ -53,6 +60,7 @@ ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
   auto word = std::make_shared<ShapedWord>();
   word->typeface = typeface;
   word->size = style.size;
+  word->vertical = vertical;
 
   if (!typeface || text.empty()) {
     impl.shapeCache.emplace(std::move(key), word);
@@ -66,7 +74,11 @@ ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
   hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t *>(text.data()),
                       static_cast<int>(text.size()), 0,
                       static_cast<int>(text.size()));
-  hb_buffer_set_direction(buffer, rtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+  // Vertical shaping (TTB) makes HarfBuzz apply the font's 'vert' glyph
+  // substitutions and vertical advances/origins automatically.
+  hb_buffer_set_direction(buffer, vertical ? HB_DIRECTION_TTB
+                                  : rtl    ? HB_DIRECTION_RTL
+                                           : HB_DIRECTION_LTR);
   hb_buffer_set_script(buffer, static_cast<hb_script_t>(script));
   hb_buffer_set_language(buffer, style.language.empty()
                                      ? hb_language_get_default()
@@ -102,20 +114,28 @@ ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
   word->clusters.reserve(count);
 
   // HarfBuzz emits glyphs in visual (left-to-right pen) order for both
-  // directions, so the pen always accumulates forward.
+  // horizontal directions, so the pen always accumulates forward; in
+  // vertical mode the pen runs top to bottom instead. HarfBuzz has already
+  // subtracted each glyph's vertical origin from the offsets, so vertical
+  // positions below are relative to Skia's horizontal-origin convention
+  // (x roughly centres the glyph on the column axis).
   float pen = 0;
   for (unsigned i = 0; i < count; ++i) {
-    float adv = poss[i].x_advance * scale;
-    // Tracking applies once per cluster, on the cluster's last glyph
-    // (y-down canvas: HarfBuzz y offsets point up, so they negate).
+    // (y-down canvas: HarfBuzz y advances/offsets point up, so they negate.)
+    float adv = (vertical ? -poss[i].y_advance : poss[i].x_advance) * scale;
+    // Tracking applies once per cluster, on the cluster's last glyph.
     const bool clusterEnd =
         i + 1 == count || infos[i + 1].cluster != infos[i].cluster;
     if (clusterEnd)
       adv += style.letterSpacing;
 
     word->glyphs.push_back(static_cast<uint16_t>(infos[i].codepoint));
-    word->positions.push_back(
-        {pen + poss[i].x_offset * scale, -poss[i].y_offset * scale});
+    if (vertical)
+      word->positions.push_back(
+          {poss[i].x_offset * scale, pen - poss[i].y_offset * scale});
+    else
+      word->positions.push_back(
+          {pen + poss[i].x_offset * scale, -poss[i].y_offset * scale});
     word->advances.push_back(adv);
     word->clusters.push_back(infos[i].cluster);
     pen += adv;
