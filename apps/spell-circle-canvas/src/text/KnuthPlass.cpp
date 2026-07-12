@@ -39,9 +39,15 @@ struct Node {
 //    own width added to its stretchability), which turns loose lines into
 //    real break nodes so overfull is never forced unless a single box is
 //    wider than the measure.
-Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
-                        const LayoutOptions &opt) {
+// And one of scale: paths stop dead when the geometry runs out, and the
+// prefix sums fill lazily behind the DP frontier, so a paragraph that
+// vastly overflows its flow costs what *fits*, not its total length —
+// otherwise every relayout of a huge paragraph in a small box would break
+// thousands of lines only for placement to discard them.
+Layout knuthPlassLayout(FontContext &ctx, Paragraph &paragraph,
+                        IntervalSequence &seq, const LayoutOptions &opt) {
   Layout out;
+  const std::vector<Word> &words = paragraph.words();
   const uint32_t n = static_cast<uint32_t>(words.size());
   if (n == 0)
     return out;
@@ -52,26 +58,35 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
 
   // Prefix sums: content width, and glue width/stretch/shrink per gap
   // (gap i sits after word i; the last word's "gap" is never on a line).
-  std::vector<float> prefWidth(n + 1, 0), prefGlue(n + 1, 0),
-      prefStretch(n + 1, 0), prefShrink(n + 1, 0);
-  for (uint32_t i = 0; i < n; ++i) {
-    prefWidth[i + 1] = prefWidth[i] + words[i].width;
-    float glue = 0, stretch = 0, shrink = 0;
-    if (words[i].spaceWidth > 0) {
-      glue = words[i].spaceWidth;
-      stretch = glue * opt.glueStretch;
-      shrink = glue * opt.glueShrink;
-    } else if (opt.ideographicJustify && i + 1 < n &&
-               (words[i].ideographic || words[i + 1].ideographic)) {
-      const float em =
-          words[i].segments.empty() ? 16.0f : words[i].segments[0].shaped->size;
-      stretch = em * 0.25f;
-      shrink = em * 0.03f;
+  // Extended on demand up to the furthest boundary the DP visits.
+  static thread_local std::vector<float> prefWidth, prefGlue, prefStretch,
+      prefShrink;
+  prefWidth.assign(1, 0);
+  prefGlue.assign(1, 0);
+  prefStretch.assign(1, 0);
+  prefShrink.assign(1, 0);
+  auto ensurePref = [&](uint32_t upto) {
+    for (uint32_t i = static_cast<uint32_t>(prefWidth.size()) - 1; i < upto;
+         ++i) {
+      prefWidth.push_back(prefWidth[i] + words[i].width);
+      float glue = 0, stretch = 0, shrink = 0;
+      if (words[i].spaceWidth > 0) {
+        glue = words[i].spaceWidth;
+        stretch = glue * opt.glueStretch;
+        shrink = glue * opt.glueShrink;
+      } else if (opt.ideographicJustify && i + 1 < n &&
+                 (words[i].ideographic || words[i + 1].ideographic)) {
+        const float em = words[i].segments.empty()
+                             ? 16.0f
+                             : words[i].segments[0].shaped->size;
+        stretch = em * 0.25f;
+        shrink = em * 0.03f;
+      }
+      prefGlue.push_back(prefGlue[i] + glue);
+      prefStretch.push_back(prefStretch[i] + stretch);
+      prefShrink.push_back(prefShrink[i] + shrink);
     }
-    prefGlue[i + 1] = prefGlue[i] + glue;
-    prefStretch[i + 1] = prefStretch[i] + stretch;
-    prefShrink[i + 1] = prefShrink[i] + shrink;
-  }
+  };
 
   // Extra width when the line ends on a discretionary (soft-hyphen) break.
   auto hyphenWidthAt = [&](uint32_t b) -> float {
@@ -105,9 +120,10 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
   std::vector<int32_t> nextActive;
   std::vector<std::pair<uint32_t, int32_t>> newNodes; // (interval, arena idx)
 
-  // One full DP pass. Returns the best terminal arena index (-1 if the
-  // paragraph could not be completed) and reports whether the lifeline ever
-  // had to force an overfull line.
+  // One full DP pass. Returns the best terminal arena index (-1 if nothing
+  // could be placed), reports whether the lifeline ever had to force an
+  // overfull line, and — when the geometry ran out before the text did —
+  // the first word that no longer fit.
   auto runPass = [&](bool emergency, bool &forcedOverfull,
                      uint32_t &unplaced) -> int32_t {
     forcedOverfull = false;
@@ -116,16 +132,19 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
     arena.push_back({0, 0, 0, -1});
     active = {0};
 
-    float lastWidth = seq.get(0)->iv.length;
-    auto intervalWidth = [&](uint32_t k) {
-      if (const FlatInterval *fiv = seq.get(k)) {
-        lastWidth = fiv->iv.length;
-        return fiv->iv.length;
-      }
-      return lastWidth; // geometry exhausted: assume it keeps the last width
+    // The path that placed the most text before running out of geometry —
+    // the fallback result when no path reaches the end of the paragraph.
+    int32_t bestEnd = -1;
+    auto considerEnd = [&](int32_t idx) {
+      if (bestEnd < 0 || arena[idx].breakAt > arena[bestEnd].breakAt ||
+          (arena[idx].breakAt == arena[bestEnd].breakAt &&
+           arena[idx].demerits < arena[bestEnd].demerits))
+        bestEnd = idx;
     };
 
-    for (uint32_t j = 1; j <= n; ++j) {
+    for (uint32_t j = 1; j <= n && !active.empty(); ++j) {
+      paragraph.ensureShapedTo(ctx, j); // lazy: shape at the DP frontier
+      ensurePref(j);
       const bool forced = (j == n) || words[j - 1].mandatoryBreakAfter;
 
       nextActive.clear();
@@ -137,11 +156,16 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
       for (size_t ai = 0; ai < active.size(); ++ai) {
         const int32_t nodeIdx = active[ai];
         const Node &node = arena[nodeIdx];
+        const FlatInterval *lineIv = seq.get(node.interval);
+        if (!lineIv) {
+          // No geometry left for this path's next line: it ends here.
+          considerEnd(nodeIdx);
+          continue;
+        }
         const uint32_t a = node.breakAt;
-        const float W = intervalWidth(node.interval);
+        const float W = lineIv->iv.length;
         const float natural = lineNatural(a, j);
-        const float stretch =
-            lineStretch(a, j) + (emergency ? W : 0.0f);
+        const float stretch = lineStretch(a, j) + (emergency ? W : 0.0f);
         const float shrink = lineShrink(a, j);
 
         float ratio;
@@ -218,19 +242,16 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
         nextActive.push_back(newNodes[x].second);
       }
 
-      if (nextActive.empty()) {
+      if (nextActive.empty() && bestForcedDemerits < kInfDemerits) {
         // No feasible breaks anywhere: force the least-bad one.
-        if (bestForcedDemerits >= kInfDemerits) {
-          // Not even a forced candidate (empty active list — cannot happen
-          // while j advances one at a time, but stay safe).
-          unplaced = j - 1;
-          return -1;
-        }
         if (bestForcedOverfull)
           forcedOverfull = true;
         arena.push_back(bestForced);
         nextActive.push_back(static_cast<int32_t>(arena.size() - 1));
       }
+      // With no forced candidate either, every path hit the end of the
+      // geometry: the loop exits on the empty active list and the partial
+      // result below stands.
 
       active = nextActive;
     }
@@ -240,6 +261,11 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
       if (arena[idx].breakAt == n &&
           (best < 0 || arena[idx].demerits < arena[best].demerits))
         best = idx;
+    if (best < 0 && bestEnd >= 0) {
+      // Geometry ran out before the text did: place what fits.
+      best = bestEnd;
+      unplaced = arena[bestEnd].breakAt;
+    }
     return best;
   };
 
@@ -256,9 +282,11 @@ Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
     }
   }
   if (best < 0) {
-    out.firstUnplacedWord = unplaced != ~0u ? unplaced : 0;
+    out.firstUnplacedWord = 0;
     return out;
   }
+  if (unplaced != ~0u)
+    out.firstUnplacedWord = unplaced;
 
   std::vector<uint32_t> breaks; // ascending word indices, ending with n
   for (int32_t idx = best; idx > 0; idx = arena[idx].prev)

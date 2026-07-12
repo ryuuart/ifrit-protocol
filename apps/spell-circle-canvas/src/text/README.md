@@ -251,6 +251,23 @@ care.
 - Knuth-Plass consumes one interval per line slot and always places at least
   one word per interval; filter slivers with `kpMinInterval` when combining
   KP with exclusions.
+- Layout cost is bounded by the *geometry*, not the text. Both breakers
+  stop dead when the flow runs out of intervals (`Layout::overflowed()` and
+  `firstUnplacedWord` report the cut), Knuth-Plass fills its prefix sums
+  lazily behind the DP frontier, and **shaping itself is lazy**: analysis
+  splits into whole-text itemization (ICU boundaries/bidi/scripts — cheap)
+  and per-word HarfBuzz shaping that the breakers pull just ahead of their
+  frontier (`Paragraph::ensureShapedTo`), so words past the geometry are
+  never shaped at all. A 30,000-word paragraph in a 15-line box shapes
+  ~600 words and relays out in the same time as a 3,000-word one (enforced
+  by `Stress.HugeOverflow…` / `Stress.OverflowShapesOnlyWhatFits`).
+  `Paragraph::ensureShaped` still shapes everything for direct measurement
+  (`naturalWidth`, queries); unchanged text never reshapes either way.
+- Overflow can be made visible: set `LayoutOptions::ellipsis` (e.g. `u"…"`)
+  and the final placed line is trimmed until the marker fits at its end,
+  reported via `Layout::ellipsized` — CSS text-overflow semantics, shaped
+  in the style of the line's tail. Straight horizontal flows only; curved
+  and vertical intervals overflow without a marker.
 - Lines never render past the measure. The breakers only count shrink where
   placement will actually shrink (justified lines that aren't a demoted last
   line), final lines get TeX's \parfillskip (a loose last line is free), and

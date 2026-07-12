@@ -405,12 +405,25 @@ float Paragraph::naturalWidth(FontContext &ctx) {
   return width;
 }
 
-void Paragraph::ensureShaped(FontContext &ctx) {
+void Paragraph::ensureAnalyzed(FontContext &ctx) {
   if (!m_dirty)
     return;
   normalizeSpans();
   analyze(ctx);
   m_dirty = false;
+}
+
+void Paragraph::ensureShapedTo(FontContext &ctx, uint32_t wordCount) {
+  ensureAnalyzed(ctx);
+  const uint32_t upTo =
+      std::min(wordCount, static_cast<uint32_t>(m_words.size()));
+  for (; m_shapedWords < upTo; ++m_shapedWords)
+    shapeWordContent(ctx, m_words[m_shapedWords]);
+}
+
+void Paragraph::ensureShaped(FontContext &ctx) {
+  ensureAnalyzed(ctx);
+  ensureShapedTo(ctx, static_cast<uint32_t>(m_words.size()));
 }
 
 void Paragraph::analyze(FontContext &ctx) {
@@ -468,27 +481,9 @@ void Paragraph::analyze(FontContext &ctx) {
     }
   }
 
-  // Running resolvers (all inputs are visited in ascending order).
-  size_t spanIdx = 0;
-  auto styleIndexAt = [&](uint32_t pos) -> uint32_t {
-    while (spanIdx + 1 < m_spans.size() && m_spans[spanIdx].end <= pos)
-      spanIdx++;
-    return static_cast<uint32_t>(spanIdx);
-  };
-  size_t scriptIdx = 0;
-  auto scriptRunAt = [&](uint32_t pos) -> const ScriptRun & {
-    while (scriptIdx + 1 < scripts.size() && scripts[scriptIdx].end <= pos)
-      scriptIdx++;
-    return scripts[scriptIdx];
-  };
-
-  // ── Words: one per break segment, split into uniform shaped runs ───────
+  // ── Words: one per break segment (segment/shape runs resolved lazily) ──
   m_words.reserve(boundaries.size());
   int placeholderSeen = 0;
-  std::u16string wsScratch;
-  uint32_t glueMemoStyle = ~0u;
-  std::u16string_view glueMemoText;
-  float glueMemoWidth = 0;
   int32_t prev = 0;
   for (int32_t boundary : boundaries) {
     if (boundary <= prev)
@@ -554,163 +549,214 @@ void Paragraph::analyze(FontContext &ctx) {
           isIdeographicScript(uscript_getScript(firstCp, &scStatus));
     }
 
-    // Split [prev, wsStart) wherever style, script, bidi level, or the
-    // fallback-resolved typeface changes; shape each piece via the cache.
-    int32_t pos = prev;
-    while (pos < wsStart) {
-      const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(pos));
-      const StyleSpan &span = m_spans[styleIndex];
-      const ScriptRun &scriptRun = scriptRunAt(static_cast<uint32_t>(pos));
-      const uint8_t level = levels ? levels[pos] : uniformLevel;
+    // Glyphs, widths, and glue come later: shapeWordContent() fills them in
+    // lazily (see ensureShapedTo), so text past the layout frontier never
+    // pays for HarfBuzz.
+    m_words.push_back(std::move(word));
+    prev = boundary;
+  }
 
-      int32_t limit = std::min<int32_t>(
-          {wsStart, static_cast<int32_t>(span.end),
-           static_cast<int32_t>(scriptRun.end)});
-      if (levels) {
-        int32_t l = pos;
-        while (l < limit && levels[l] == level)
-          l++;
-        limit = l;
+  // Persist what lazy shaping needs: script runs (compact, ICU-free form)
+  // and per-unit bidi levels (only when actually mixed).
+  m_scripts.clear();
+  m_scripts.reserve(scripts.size());
+  for (const ScriptRun &run : scripts)
+    m_scripts.push_back({run.end, static_cast<int32_t>(run.script)});
+  m_uniformLevel = uniformLevel;
+  if (levels)
+    m_levels.assign(levels, levels + len);
+  else
+    m_levels.clear();
+  m_shapedWords = 0;
+  m_shapeSpanCursor = 0;
+  m_shapeScriptCursor = 0;
+  m_glueMemoStyle = ~0u;
+  m_glueMemoText.clear();
+}
+
+// Shapes one word's content: segment splitting (style / script / bidi /
+// fallback-typeface / vertical-form boundaries), the discretionary hyphen,
+// and trailing-whitespace glue. Called in ascending word order only — the
+// span/script cursors advance monotonically.
+void Paragraph::shapeWordContent(FontContext &ctx, Word &word) {
+  if (word.placeholderIndex >= 0)
+    return; // slots carry their size from the placeholder record
+
+  const UChar *text = reinterpret_cast<const UChar *>(m_text.data());
+  const int32_t len = static_cast<int32_t>(m_text.size());
+
+  auto styleIndexAt = [&](uint32_t pos) -> uint32_t {
+    while (m_shapeSpanCursor + 1 < m_spans.size() &&
+           m_spans[m_shapeSpanCursor].end <= pos)
+      m_shapeSpanCursor++;
+    return m_shapeSpanCursor;
+  };
+  auto scriptAt = [&](uint32_t pos) -> const ScriptRunEnd & {
+    while (m_shapeScriptCursor + 1 < m_scripts.size() &&
+           m_scripts[m_shapeScriptCursor].end <= pos)
+      m_shapeScriptCursor++;
+    return m_scripts[m_shapeScriptCursor];
+  };
+  auto levelAt = [&](int32_t pos) -> uint8_t {
+    return m_levels.empty() ? m_uniformLevel
+                            : m_levels[static_cast<size_t>(pos)];
+  };
+
+  // Split [textBegin, textEnd) wherever style, script, bidi level, or the
+  // fallback-resolved typeface changes; shape each piece via the cache.
+  const int32_t wsStart = static_cast<int32_t>(word.textEnd);
+  int32_t pos = static_cast<int32_t>(word.textBegin);
+  while (pos < wsStart) {
+    const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(pos));
+    const StyleSpan &span = m_spans[styleIndex];
+    const ScriptRunEnd &scriptRun = scriptAt(static_cast<uint32_t>(pos));
+    const uint8_t level = levelAt(pos);
+
+    int32_t limit = std::min<int32_t>(
+        {wsStart, static_cast<int32_t>(span.end),
+         static_cast<int32_t>(scriptRun.end)});
+    if (!m_levels.empty()) {
+      int32_t l = pos;
+      while (l < limit && m_levels[static_cast<size_t>(l)] == level)
+        l++;
+      limit = l;
+    }
+
+    // Extend while the resolved typeface (and, in vertical mode, the
+    // per-character vertical form) stays put.
+    const bool verticalMode = m_writingMode == WritingMode::kVerticalRL;
+    const char *lang = span.style.shaping.language.empty()
+                           ? nullptr
+                           : span.style.shaping.language.c_str();
+    sk_sp<SkTypeface> resolved;
+    SegmentForm segForm =
+        verticalMode ? SegmentForm::kUpright : SegmentForm::kFlow;
+    bool formSet = false;
+    int32_t segEnd = pos;
+    int32_t scan = pos;
+    while (scan < limit) {
+      const int32_t cpStart = scan;
+      UChar32 cp;
+      U16_NEXT(text, scan, limit, cp);
+      if (inheritsFont(cp)) {
+        segEnd = scan;
+        continue;
       }
-
-      // Extend while the resolved typeface (and, in vertical mode, the
-      // per-character vertical form) stays put.
-      const bool verticalMode = m_writingMode == WritingMode::kVerticalRL;
-      const char *lang = span.style.shaping.language.empty()
-                             ? nullptr
-                             : span.style.shaping.language.c_str();
-      sk_sp<SkTypeface> resolved;
-      SegmentForm segForm =
-          verticalMode ? SegmentForm::kUpright : SegmentForm::kFlow;
-      bool formSet = false;
-      int32_t segEnd = pos;
-      int32_t scan = pos;
-      while (scan < limit) {
-        const int32_t cpStart = scan;
-        UChar32 cp;
-        U16_NEXT(text, scan, limit, cp);
-        if (inheritsFont(cp)) {
-          segEnd = scan;
-          continue;
-        }
-        if (verticalMode) {
-          const SegmentForm form = resolveVerticalForm(span.style.shaping, cp);
-          if (!formSet) {
-            segForm = form;
-            formSet = true;
-          } else if (form != segForm) {
-            segEnd = cpStart;
-            break;
-          }
-        }
-        sk_sp<SkTypeface> t =
-            ctx.resolveTypeface(span.style.shaping.typeface, cp, lang);
-        if (!resolved) {
-          resolved = std::move(t);
-        } else if (t.get() != resolved.get()) {
+      if (verticalMode) {
+        const SegmentForm form = resolveVerticalForm(span.style.shaping, cp);
+        if (!formSet) {
+          segForm = form;
+          formSet = true;
+        } else if (form != segForm) {
           segEnd = cpStart;
           break;
         }
-        segEnd = scan;
       }
-      if (!resolved)
-        resolved = span.style.shaping.typeface ? span.style.shaping.typeface
-                                               : ctx.defaultTypeface();
-      if (segEnd <= pos)
-        segEnd = limit > pos ? limit : pos + 1; // defensive: always progress
-
-      const bool shapeVertical =
-          verticalMode && segForm == SegmentForm::kUpright;
-      ShapedWordRef shaped = shapeWord(
-          ctx, span.style.shaping, resolved,
-          std::u16string_view(m_text).substr(pos, segEnd - pos),
-          hbScriptFor(scriptRun.script),
-          (level & 1) != 0 && !shapeVertical, shapeVertical);
-      if (verticalMode && segForm == SegmentForm::kTateChuYoko) {
-        // 縦中横 occupies its font height along the column; xOffset lands on
-        // the run's baseline inside that box so placement needs no metrics.
-        const SkFont font = makeFont(resolved, span.style.shaping.size);
-        SkFontMetrics fm;
-        font.getMetrics(&fm);
-        word.segments.push_back(
-            {shaped, styleIndex, word.width - fm.fAscent, segForm});
-        word.width += -fm.fAscent + fm.fDescent;
-      } else {
-        word.segments.push_back({shaped, styleIndex, word.width, segForm});
-        word.width += shaped->advance;
+      sk_sp<SkTypeface> t =
+          ctx.resolveTypeface(span.style.shaping.typeface, cp, lang);
+      if (!resolved) {
+        resolved = std::move(t);
+      } else if (t.get() != resolved.get()) {
+        segEnd = cpStart;
+        break;
       }
-      pos = segEnd;
+      segEnd = scan;
     }
+    if (!resolved)
+      resolved = span.style.shaping.typeface ? span.style.shaping.typeface
+                                             : ctx.defaultTypeface();
+    if (segEnd <= pos)
+      segEnd = limit > pos ? limit : pos + 1; // defensive: always progress
 
-    if (word.hyphenBreak) {
-      // Shape the hyphen the breaker may render here, in the style of the
-      // word's tail. Content-addressed like everything else: one entry per
-      // style, shared by every hyphenatable word.
-      const uint32_t styleIndex = word.segments.empty()
-                                      ? styleIndexAt(static_cast<uint32_t>(prev))
-                                      : word.segments.back().styleIndex;
-      const StyleSpan &span = m_spans[styleIndex];
-      sk_sp<SkTypeface> face = span.style.shaping.typeface
-                                   ? span.style.shaping.typeface
-                                   : ctx.defaultTypeface();
-      word.hyphenGlyph =
-          shapeWord(ctx, span.style.shaping, face, u"-",
-                    static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+    const bool shapeVertical =
+        verticalMode && segForm == SegmentForm::kUpright;
+    ShapedWordRef shaped = shapeWord(
+        ctx, span.style.shaping, resolved,
+        std::u16string_view(m_text).substr(static_cast<size_t>(pos),
+                                           static_cast<size_t>(segEnd - pos)),
+        hbScriptFor(static_cast<UScriptCode>(scriptRun.script)),
+        (level & 1) != 0 && !shapeVertical, shapeVertical);
+    if (verticalMode && segForm == SegmentForm::kTateChuYoko) {
+      // 縦中横 occupies its font height along the column; xOffset lands on
+      // the run's baseline inside that box so placement needs no metrics.
+      const SkFont font = makeFont(resolved, span.style.shaping.size);
+      SkFontMetrics fm;
+      font.getMetrics(&fm);
+      word.segments.push_back(
+          {shaped, styleIndex, word.width - fm.fAscent, segForm});
+      word.width += -fm.fAscent + fm.fDescent;
+    } else {
+      word.segments.push_back({shaped, styleIndex, word.width, segForm});
+      word.width += shaped->advance;
     }
+    pos = segEnd;
+  }
 
-    // Trailing whitespace becomes justification glue. Hard-break characters
-    // are zero-width; tabs measure as spaces (documented simplification).
-    // The overwhelmingly common glue (" " in the same style as the previous
-    // word) is memoized locally, skipping even the shape-cache probe.
-    if (wsStart < boundary) {
-      wsScratch.clear();
-      bool needsScratch = false;
+  if (word.hyphenBreak) {
+    // Shape the hyphen the breaker may render here, in the style of the
+    // word's tail. Content-addressed like everything else: one entry per
+    // style, shared by every hyphenatable word.
+    const uint32_t styleIndex =
+        word.segments.empty() ? styleIndexAt(word.textBegin)
+                              : word.segments.back().styleIndex;
+    const StyleSpan &span = m_spans[styleIndex];
+    sk_sp<SkTypeface> face = span.style.shaping.typeface
+                                 ? span.style.shaping.typeface
+                                 : ctx.defaultTypeface();
+    word.hyphenGlyph =
+        shapeWord(ctx, span.style.shaping, face, u"-",
+                  static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+  }
+
+  // Trailing whitespace becomes justification glue. Hard-break characters
+  // are zero-width; tabs measure as spaces (documented simplification).
+  // The overwhelmingly common glue (" " in the same style as the previous
+  // word) is memoized, skipping even the shape-cache probe.
+  const int32_t boundary = static_cast<int32_t>(word.wsEnd);
+  if (wsStart < boundary) {
+    static thread_local std::u16string wsScratch;
+    wsScratch.clear();
+    bool needsScratch = false;
+    for (int32_t k = wsStart; k < boundary; ++k) {
+      const char16_t c = m_text[static_cast<size_t>(k)];
+      if (isHardBreakChar(c) || c == u'\t') {
+        needsScratch = true;
+        break;
+      }
+    }
+    std::u16string_view ws;
+    if (needsScratch) {
       for (int32_t k = wsStart; k < boundary; ++k) {
-        const char16_t c = m_text[k];
-        if (isHardBreakChar(c) || c == u'\t') {
-          needsScratch = true;
-          break;
-        }
+        const char16_t c = m_text[static_cast<size_t>(k)];
+        if (isHardBreakChar(c))
+          continue;
+        wsScratch.push_back(c == u'\t' ? u' ' : c);
       }
-      std::u16string_view ws;
-      if (needsScratch) {
-        for (int32_t k = wsStart; k < boundary; ++k) {
-          const char16_t c = m_text[k];
-          if (isHardBreakChar(c))
-            continue;
-          wsScratch.push_back(c == u'\t' ? u' ' : c);
-        }
-        ws = wsScratch;
+      ws = wsScratch;
+    } else {
+      ws = std::u16string_view(m_text).substr(
+          static_cast<size_t>(wsStart),
+          static_cast<size_t>(boundary - wsStart));
+    }
+    if (!ws.empty()) {
+      const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(wsStart));
+      if (styleIndex == m_glueMemoStyle && ws == m_glueMemoText) {
+        word.spaceWidth = m_glueMemoWidth;
       } else {
-        ws = std::u16string_view(m_text).substr(
-            static_cast<size_t>(wsStart),
-            static_cast<size_t>(boundary - wsStart));
-      }
-      if (!ws.empty()) {
-        const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(wsStart));
-        if (styleIndex == glueMemoStyle && ws == glueMemoText) {
-          word.spaceWidth = glueMemoWidth;
-        } else {
-          const StyleSpan &span = m_spans[styleIndex];
-          sk_sp<SkTypeface> spaceFace = span.style.shaping.typeface
-                                            ? span.style.shaping.typeface
-                                            : ctx.defaultTypeface();
-          ShapedWordRef shapedWs = shapeWord(
-              ctx, span.style.shaping, spaceFace, ws,
-              static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,
-              /*vertical=*/m_writingMode == WritingMode::kVerticalRL);
-          word.spaceWidth = shapedWs->advance;
-          if (!needsScratch) { // scratch-backed views don't outlive the loop
-            glueMemoStyle = styleIndex;
-            glueMemoText = ws;
-            glueMemoWidth = word.spaceWidth;
-          }
-        }
+        const StyleSpan &span = m_spans[styleIndex];
+        sk_sp<SkTypeface> spaceFace = span.style.shaping.typeface
+                                          ? span.style.shaping.typeface
+                                          : ctx.defaultTypeface();
+        ShapedWordRef shapedWs = shapeWord(
+            ctx, span.style.shaping, spaceFace, ws,
+            static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,
+            /*vertical=*/m_writingMode == WritingMode::kVerticalRL);
+        word.spaceWidth = shapedWs->advance;
+        m_glueMemoStyle = styleIndex;
+        m_glueMemoText.assign(ws);
+        m_glueMemoWidth = word.spaceWidth;
       }
     }
-
-    m_words.push_back(std::move(word));
-    prev = boundary;
   }
 }
 

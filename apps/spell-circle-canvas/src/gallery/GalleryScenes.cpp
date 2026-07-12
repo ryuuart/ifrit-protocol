@@ -222,6 +222,7 @@ public:
     opts.breaker = params.breaker;
     opts.lineHeight = em * 1.7f;
     opts.kpMinInterval = em * 3;
+    opts.ellipsis = u"…"; // paste a novel: the tail is marked, not shaped
 
     const auto t0 = Clock::now();
     Layout layout = layoutParagraph(ctx, m_body.para, flow, opts);
@@ -289,6 +290,7 @@ public:
     opts.lineHeight = em * 1.6f;
     opts.hyphenate = true;
     opts.kpMinInterval = em * 3;
+    opts.ellipsis = u"…";
 
     canvas->clear(kPaper);
     drawCaption(canvas, ctx, "greedy", {w * 0.07f, 18});

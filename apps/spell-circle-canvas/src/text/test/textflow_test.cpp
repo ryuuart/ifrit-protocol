@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <random>
 #include <set>
 #include <cmath>
@@ -1576,6 +1577,128 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
   // Features are part of the shape-cache key: both variants coexist.
   EXPECT_NE(a.words()[0].segments[0].shaped.get(),
             b.words()[0].segments[0].shaped.get());
+}
+
+// ── Overflowing paragraphs must cost what fits, not what exists ───────────
+
+TEST(Stress, HugeOverflowRelayoutIsBoundedByGeometry) {
+  FontContext &ctx = sharedContext();
+  const char *pool[] = {"letters", "flow",    "around", "boxes",  "while",
+                        "the",     "breaker", "stops",  "at",     "geometry",
+                        "instead", "of",      "walking", "every", "word"};
+  std::mt19937 rng(11);
+  std::string text;
+  for (int i = 0; i < 30000; ++i) {
+    text += pool[rng() % 15];
+    text += ' ';
+  }
+  Paragraph para;
+  para.appendText(text, basicStyle());
+  BlockFlow flow(SkRect::MakeWH(420, 320)); // room for ~1% of the text
+
+  for (Breaker breaker : {Breaker::kGreedy, Breaker::kKnuthPlass}) {
+    LayoutOptions opts;
+    opts.breaker = breaker;
+    opts.alignment = Alignment::kJustify;
+    Layout layout = layoutParagraph(ctx, para, flow, opts); // warm shapes
+    EXPECT_TRUE(layout.overflowed());
+    EXPECT_GT(layout.runs.size(), 50u);
+    EXPECT_LT(layout.firstUnplacedWord, 600u);
+
+    // Warm relayout must not scale with the ~29,700 words that never fit
+    // (verified: a 3k-word paragraph relayouts in the same time as this
+    // 30k one). The bounds sit far above the geometry-bounded cost but
+    // far below an O(total words) regression, which is ~50× slower here.
+    const auto t0 = std::chrono::steady_clock::now();
+    constexpr int kIters = 20;
+    for (int i = 0; i < kIters; ++i)
+      layout = layoutParagraph(ctx, para, flow, opts);
+    const double avgUs =
+        std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - t0)
+            .count() /
+        kIters;
+#ifdef NDEBUG
+    const double boundUs = 2000.0;
+#else
+    const double boundUs = 20000.0; // Debug: same work, ~20× the overhead
+#endif
+    EXPECT_LT(avgUs, boundUs)
+        << (breaker == Breaker::kGreedy ? "greedy" : "knuth-plass")
+        << " relayout scales with unplaced text";
+  }
+}
+
+TEST(Layout, EllipsisMarksOverflow) {
+  FontContext &ctx = sharedContext();
+  Paragraph para = makeParagraph(
+      "far more text than a two line box can ever hope to hold so the "
+      "marker has to step in and admit that the rest is missing");
+  BlockFlow flow(SkRect::MakeWH(260, 44)); // ~2 lines
+  LayoutOptions opts;
+  opts.ellipsis = u"…";
+
+  Layout layout = layoutParagraph(ctx, para, flow, opts);
+  ASSERT_TRUE(layout.overflowed());
+  ASSERT_TRUE(layout.ellipsized);
+  ASSERT_FALSE(layout.runs.empty());
+  const PlacedRun &marker = layout.runs.back();
+  ASSERT_TRUE(marker.shaped);
+  // The marker sits at the end of the final line, inside the measure.
+  EXPECT_EQ(marker.line, layout.runs[layout.runs.size() - 2].line);
+  EXPECT_LE(marker.origin.x() + marker.shaped->advance, 260.0f + 0.75f);
+  EXPECT_GT(marker.origin.x(), 0.0f);
+  // Truncated words count as unplaced.
+  for (const PlacedRun &run : layout.runs)
+    if (&run != &marker)
+      EXPECT_LT(run.wordIndex, layout.firstUnplacedWord);
+}
+
+TEST(Layout, NoEllipsisWhenTextFits) {
+  FontContext &ctx = sharedContext();
+  Paragraph para = makeParagraph("short and sweet");
+  BlockFlow flow(SkRect::MakeWH(400, 200));
+  LayoutOptions opts;
+  opts.ellipsis = u"…";
+
+  Layout layout = layoutParagraph(ctx, para, flow, opts);
+  EXPECT_FALSE(layout.overflowed());
+  EXPECT_FALSE(layout.ellipsized);
+}
+
+TEST(Stress, OverflowShapesOnlyWhatFits) {
+  // Lazy shaping: layout pulls HarfBuzz along its frontier, so the ~29k
+  // words that never fit the box are itemized but never shaped. Every word
+  // is unique so the content-addressed cache can't hide eager shaping.
+  FontContext &ctx = sharedContext();
+  std::string text;
+  for (int i = 0; i < 30000; ++i) {
+    text += "word";
+    text += std::to_string(i);
+    text += ' ';
+  }
+  Paragraph para;
+  para.appendText(text, basicStyle());
+  BlockFlow flow(SkRect::MakeWH(420, 320));
+
+  const uint64_t callsBefore = ctx.stats().shapeCalls;
+  LayoutOptions opts;
+  opts.breaker = Breaker::kKnuthPlass;
+  opts.alignment = Alignment::kJustify;
+  Layout layout = layoutParagraph(ctx, para, flow, opts);
+  const uint64_t shaped = ctx.stats().shapeCalls - callsBefore;
+
+  EXPECT_TRUE(layout.overflowed());
+  EXPECT_GT(layout.runs.size(), 50u);
+  EXPECT_GT(para.shapedWordCount(), layout.runs.size() / 2);
+  // ~600 placed words (+ glue + slack); eager shaping would be ~30,000.
+  EXPECT_LT(shaped, 3000u) << "overflow text was shaped eagerly";
+  EXPECT_LT(para.shapedWordCount(), 3000u);
+
+  // Full shaping still available on demand (measurement, queries, …).
+  para.ensureShaped(ctx);
+  EXPECT_EQ(para.shapedWordCount(), para.words().size());
+  EXPECT_GT(para.naturalWidth(ctx), 400.0f * 300.0f); // ~30k words wide
 }
 
 // ── 2000-token multi-script confetti stress ───────────────────────────────

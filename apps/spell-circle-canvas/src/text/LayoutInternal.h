@@ -83,9 +83,11 @@ inline bool hyphenTakenAt(const std::vector<Word> &words, uint32_t last,
          !words[last - 1].mandatoryBreakAfter;
 }
 
-// Knuth-Plass entry: breaks + places every word. Defined in KnuthPlass.cpp.
-Layout knuthPlassLayout(const std::vector<Word> &words, IntervalSequence &seq,
-                        const LayoutOptions &options);
+// Knuth-Plass entry: breaks + places every word that fits. Takes the
+// paragraph (not just its words) so it can pull lazy shaping along its own
+// frontier. Defined in KnuthPlass.cpp.
+Layout knuthPlassLayout(FontContext &ctx, Paragraph &paragraph,
+                        IntervalSequence &seq, const LayoutOptions &options);
 
 } // namespace detail
 } // namespace textflow

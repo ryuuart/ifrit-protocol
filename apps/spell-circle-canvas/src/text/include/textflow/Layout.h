@@ -57,6 +57,13 @@ struct LayoutOptions {
   // text doesn't mint a fresh glyph-atlas strike per glyph per frame.
   // 0 disables snapping (exact rotations for static artwork).
   int rotationSteps = 512;
+
+  // When the text overflows the geometry, trim the final placed line so
+  // this marker fits at its end (CSS text-overflow / SkParagraph
+  // setEllipsis). Empty (the default) disables it; Layout::ellipsized
+  // reports whether it fired. Straight horizontal flows only — curved and
+  // vertical intervals overflow without a marker.
+  std::u16string ellipsis;
 };
 
 // One draw call: a shared word blob translated to `origin`, or a fully
@@ -79,6 +86,9 @@ struct Layout {
   int lineCount = 0;
   // First word that found no room (geometry exhausted); ~0u when all fit.
   uint32_t firstUnplacedWord = ~0u;
+  // An overflow marker (LayoutOptions::ellipsis) was appended to the final
+  // placed line. Its run is the last in `runs`.
+  bool ellipsized = false;
 
   bool overflowed() const { return firstUnplacedWord != ~0u; }
 

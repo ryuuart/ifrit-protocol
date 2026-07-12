@@ -11,6 +11,9 @@
 
 #include <absl/container/flat_hash_map.h>
 
+#include <hb.h>
+#include <unicode/utf16.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -327,13 +330,96 @@ void placeWords(const std::vector<Word> &words, uint32_t first, uint32_t last,
   }
 }
 
+// Overflow marker: trim the final placed line until `opt.ellipsis` fits at
+// its end, then append it as one more run (CSS text-overflow semantics).
+// Straight horizontal intervals only — curved/vertical flows just overflow.
+void applyEllipsis(FontContext &ctx, Paragraph &paragraph,
+                   IntervalSequence &seq, const LayoutOptions &opt,
+                   Layout &out) {
+  if (out.runs.empty())
+    return;
+  // Overflow means the breakers consumed every interval the geometry had,
+  // so the final placed line sits on the last one.
+  const FlatInterval *last = nullptr;
+  for (size_t k = 0; const FlatInterval *fiv = seq.get(k); ++k)
+    last = fiv;
+  if (!last || last->iv.contour || last->iv.dir.x() != 1 ||
+      last->iv.dir.y() != 0)
+    return;
+
+  // Shape the marker in the style of the line's tail (fallback-resolved on
+  // its first codepoint; cache-shared like every other word).
+  const int line = out.runs.back().line;
+  const uint32_t styleIndex = out.runs.back().styleIndex;
+  const uint32_t tailWord = out.runs.back().wordIndex;
+  const StyleSpan &span = paragraph.spans()[styleIndex];
+  UChar32 first;
+  {
+    size_t i = 0;
+    U16_NEXT(opt.ellipsis.data(), i, opt.ellipsis.size(), first);
+  }
+  const char *lang = span.style.shaping.language.empty()
+                         ? nullptr
+                         : span.style.shaping.language.c_str();
+  sk_sp<SkTypeface> face =
+      ctx.resolveTypeface(span.style.shaping.typeface, first, lang);
+  if (!face)
+    face = ctx.defaultTypeface();
+  ShapedWordRef marker =
+      shapeWord(ctx, span.style.shaping, face, opt.ellipsis,
+                static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+  if (!marker || marker->glyphs.empty())
+    return;
+
+  size_t begin = out.runs.size();
+  while (begin > 0 && out.runs[begin - 1].line == line)
+    begin--;
+  auto runEndX = [&](const PlacedRun &r) {
+    const float w =
+        r.shaped ? r.shaped->advance
+                 : (r.placeholder >= 0
+                        ? paragraph.placeholders()[static_cast<size_t>(
+                                                       r.placeholder)]
+                              .width
+                        : 0.0f);
+    return r.origin.x() + w;
+  };
+
+  // Drop whole trailing words until the marker fits inside the interval.
+  const float limit = last->iv.origin.x() + last->iv.length -
+                      marker->advance + 0.25f;
+  while (out.runs.size() > begin && runEndX(out.runs.back()) > limit) {
+    const uint32_t w = out.runs.back().wordIndex;
+    while (out.runs.size() > begin && out.runs.back().wordIndex == w) {
+      out.firstUnplacedWord =
+          std::min(out.firstUnplacedWord, out.runs.back().wordIndex);
+      out.runs.pop_back();
+    }
+  }
+
+  PlacedRun run;
+  run.shaped = marker;
+  run.blob = wordBlob(*marker);
+  run.styleIndex = styleIndex;
+  run.wordIndex = tailWord;
+  run.line = line;
+  if (out.runs.size() > begin)
+    run.origin = {runEndX(out.runs.back()), out.runs.back().origin.y()};
+  else
+    run.origin = {last->iv.origin.x(), last->iv.origin.y()};
+  out.runs.push_back(std::move(run));
+  out.ellipsized = true;
+}
+
 } // namespace detail
 
 Layout layoutParagraph(FontContext &ctx, Paragraph &paragraph,
                        FlowGeometry &geometry, const LayoutOptions &opt) {
   using namespace detail;
 
-  paragraph.ensureShaped(ctx);
+  // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
+  // their own frontier, so text past the geometry never shapes at all.
+  paragraph.ensureAnalyzed(ctx);
 
   const Paragraph::Strut strut = paragraph.strut(ctx);
   const float lineHeight = opt.lineHeight > 0 ? opt.lineHeight : strut.height;
@@ -348,8 +434,12 @@ Layout layoutParagraph(FontContext &ctx, Paragraph &paragraph,
                        opt.breaker == Breaker::kKnuthPlass ? opt.kpMinInterval
                                                            : 0.0f);
 
-  if (opt.breaker == Breaker::kKnuthPlass)
-    return knuthPlassLayout(words, seq, opt);
+  if (opt.breaker == Breaker::kKnuthPlass) {
+    Layout out = knuthPlassLayout(ctx, paragraph, seq, opt);
+    if (!opt.ellipsis.empty() && out.overflowed())
+      applyEllipsis(ctx, paragraph, seq, opt, out);
+    return out;
+  }
 
   // ── Greedy breaker ───────────────────────────────────────────────────
   size_t k = 0;
@@ -379,6 +469,7 @@ Layout layoutParagraph(FontContext &ctx, Paragraph &paragraph,
       out.firstUnplacedWord = i;
       break;
     }
+    paragraph.ensureShapedTo(ctx, i + 1); // lazy: shape at the frontier
     const Word &word = words[i];
     const float glue = (i > first) ? words[i - 1].spaceWidth : 0;
     // Soft-hyphen words reserve room for the hyphen so a break taken right
@@ -436,6 +527,8 @@ Layout layoutParagraph(FontContext &ctx, Paragraph &paragraph,
 
   flush(i, /*isLast=*/true);
   out.lineCount = lastLineUsed + 1;
+  if (!opt.ellipsis.empty() && out.overflowed())
+    applyEllipsis(ctx, paragraph, seq, opt, out);
   return out;
 }
 

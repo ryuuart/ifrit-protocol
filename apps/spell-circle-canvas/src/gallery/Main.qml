@@ -73,7 +73,7 @@ ApplicationWindow {
                     id: sizeSlider
                     Layout.fillWidth: true
                     from: 10; to: 40; value: view.fontSize
-                    onMoved: view.fontSize = value
+                    onValueChanged: view.fontSize = value
                 }
                 Label {
                     text: Math.round(sizeSlider.value) + "px"

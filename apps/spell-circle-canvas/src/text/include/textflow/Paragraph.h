@@ -155,6 +155,15 @@ public:
   // ── Analysis ──────────────────────────────────────────────────────────
   // Runs segmentation + shaping if anything changed since the last call.
   void ensureShaped(FontContext &ctx);
+  // Segmentation only (ICU boundaries, bidi, scripts — no HarfBuzz work):
+  // words() gets its break/direction structure but no glyphs or widths yet.
+  // Layout drives shaping lazily from here, so a paragraph that overflows
+  // its geometry only ever shapes the words that can actually land.
+  void ensureAnalyzed(FontContext &ctx);
+  // Shapes words [0, wordCount); ascending and idempotent — the breakers
+  // call this just ahead of their frontier.
+  void ensureShapedTo(FontContext &ctx, uint32_t wordCount);
+  uint32_t shapedWordCount() const { return m_shapedWords; }
   bool needsShaping() const { return m_dirty; }
   const std::vector<Word> &words() const { return m_words; }
 
@@ -175,6 +184,7 @@ private:
   void recordEdit(uint32_t start, uint32_t removed, uint32_t inserted);
   void normalizeSpans();
   void analyze(FontContext &ctx);
+  void shapeWordContent(FontContext &ctx, Word &word);
 
   std::u16string m_text;
   std::vector<StyleSpan> m_spans;
@@ -182,6 +192,22 @@ private:
   std::vector<Placeholder> m_placeholders;
   WritingMode m_writingMode = WritingMode::kHorizontal;
   bool m_dirty = true;
+
+  // Itemization results analyze() leaves behind for lazy shaping
+  // (ensureShapedTo). `script` is a UScriptCode, stored as int32_t to keep
+  // ICU out of this header.
+  struct ScriptRunEnd {
+    uint32_t end = 0;
+    int32_t script = 0;
+  };
+  std::vector<ScriptRunEnd> m_scripts;
+  std::vector<uint8_t> m_levels; // per-unit bidi levels; empty when uniform
+  uint8_t m_uniformLevel = 0;
+  uint32_t m_shapedWords = 0; // words [0, m_shapedWords) carry glyphs
+  uint32_t m_shapeSpanCursor = 0, m_shapeScriptCursor = 0;
+  uint32_t m_glueMemoStyle = ~0u; // common-glue memo (" " in one style)
+  std::u16string m_glueMemoText;
+  float m_glueMemoWidth = 0;
 
   uint64_t m_revision = 0;
   std::vector<EditOp> m_edits; // ops [m_editsBase, m_revision)
