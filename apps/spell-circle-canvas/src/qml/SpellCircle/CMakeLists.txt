@@ -40,9 +40,10 @@ target_link_libraries(SpellCircleCanvas
 )
 
 # SpellCircleSkia (the generic Skia/Metal GPU plumbing under src/platform/skia)
-# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON.
+# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. TextFlow (src/text)
+# provides the animated text layer drawn by SkiaSceneBackend.mm.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkia)
+  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkia TextFlow)
 endif()
 
 target_include_directories(SpellCircleCanvas PUBLIC

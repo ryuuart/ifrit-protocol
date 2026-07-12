@@ -1,5 +1,6 @@
 add_subdirectory(network)
 add_subdirectory(platform)
+add_subdirectory(text)
 add_subdirectory(qml)
 
 qt_add_executable(SpellCircle

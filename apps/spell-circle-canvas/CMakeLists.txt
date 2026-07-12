@@ -36,11 +36,15 @@ find_package(gtest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 find_package(entt CONFIG REQUIRED)
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  find_package(unofficial-skia CONFIG REQUIRED)
-endif()
-find_package(icu REQUIRED COMPONENTS i18n)
+find_package(benchmark CONFIG REQUIRED)
+find_package(absl CONFIG REQUIRED)
+# Skia is needed unconditionally now: the TextFlow text-layout library
+# (src/text) builds on it even when the Skia scene backend is disabled.
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
+
+enable_testing()
 
 # MacOS Frameworks
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
