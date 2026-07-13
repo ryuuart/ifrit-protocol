@@ -1841,6 +1841,47 @@ TEST(Stress, OverflowShapesOnlyWhatFits) {
   EXPECT_GT(para.naturalWidth(ctx), 400.0f * 300.0f); // ~30k words wide
 }
 
+TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
+  // A huge paragraph that fits *entirely* (10k words on screen). On a
+  // uniform-width flow the breaker merges same-breakpoint paths (TeX's
+  // one-measure model), so the active list stays bounded by the line width
+  // and warm relayout stays linear — without the merge this case was ~20×
+  // slower and grew super-linearly.
+  FontContext &ctx = sharedContext();
+  const char *pool[15] = {"letters", "falling", "gently", "against", "words",
+                          "beacon",  "steady",  "rhythm", "turing",  "flow",
+                          "lattice", "shapes",  "glyphs", "marker",  "cache"};
+  std::mt19937 rng(11);
+  std::string text;
+  for (int i = 0; i < 10000; ++i) {
+    text += pool[rng() % 15];
+    text += ' ';
+  }
+  Paragraph para;
+  para.appendText(text, basicStyle());
+  BlockFlow flow(SkRect::MakeWH(420, 40000)); // tall: everything fits
+  LayoutOptions opts;
+  opts.breaker = Breaker::kKnuthPlass;
+  opts.alignment = Alignment::kJustify;
+  Layout layout = layoutParagraph(ctx, para, flow, opts); // warm shapes
+  ASSERT_FALSE(layout.overflowed());
+
+  const auto t0 = std::chrono::steady_clock::now();
+  constexpr int kIters = 5;
+  for (int i = 0; i < kIters; ++i)
+    layout = layoutParagraph(ctx, para, flow, opts);
+  const double avgUs = std::chrono::duration<double, std::micro>(
+                           std::chrono::steady_clock::now() - t0)
+                           .count() /
+                       kIters;
+#ifdef NDEBUG
+  const double boundUs = 8000.0; // measured ~1.9ms
+#else
+  const double boundUs = 80000.0; // Debug: same work, ~20× the overhead
+#endif
+  EXPECT_LT(avgUs, boundUs) << "KP active list grows with the paragraph";
+}
+
 TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   // The marker workflow: repaint ranges every frame (hue cycling), relayout.
   // Paint edits must not re-run ICU analysis over the whole text or rebuild

@@ -263,6 +263,13 @@ care.
 - Knuth-Plass consumes one interval per line slot and always places at least
   one word per interval; filter slivers with `kpMinInterval` when combining
   KP with exclusions.
+- Knuth-Plass is linear in *placed* words on uniform-width flows
+  (`FlowGeometry::uniformIntervals`, true for BlockFlow/VerticalBlockFlow):
+  paths reaching the same breakpoint on different line numbers face
+  identical futures and merge, TeX's one-measure model, so the active list
+  stays bounded by the line width. A fully-placed 10k-word paragraph
+  relayouts in ~2 ms (`Stress.KnuthPlassFullyPlacedIsLinear`); variable
+  geometry keeps the conservative one-node-per-interval dedup.
 - Layout cost is bounded by the *geometry*, not the text. Both breakers
   stop dead when the flow runs out of intervals (`Layout::overflowed()` and
   `firstUnplacedWord` report the cut), Knuth-Plass fills its prefix sums

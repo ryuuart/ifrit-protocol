@@ -53,6 +53,13 @@ public:
   // means "this line has no room, try the next one".
   virtual bool lineIntervals(int index, float lineHeight, float ascent,
                              std::vector<LineInterval> &out) = 0;
+
+  // True when every line yields one interval of the same width (TeX's
+  // model — BlockFlow and friends). Knuth-Plass uses this to merge paths
+  // that reached the same breakpoint on different line numbers: their
+  // futures are identical, so only the best survives and the active list
+  // stays bounded by the line width instead of growing with the paragraph.
+  virtual bool uniformIntervals() const { return false; }
 };
 
 // Classic paragraph block: horizontal lines filling a rectangle.
@@ -61,6 +68,7 @@ public:
   explicit BlockFlow(const SkRect &rect) : m_rect(rect) {}
   bool lineIntervals(int index, float lineHeight, float ascent,
                      std::vector<LineInterval> &out) override;
+  bool uniformIntervals() const override { return true; }
 
 private:
   SkRect m_rect;
@@ -131,6 +139,7 @@ public:
   explicit VerticalBlockFlow(const SkRect &rect) : m_rect(rect) {}
   bool lineIntervals(int index, float lineHeight, float ascent,
                      std::vector<LineInterval> &out) override;
+  bool uniformIntervals() const override { return true; }
 
 private:
   SkRect m_rect;

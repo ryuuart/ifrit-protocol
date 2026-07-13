@@ -278,43 +278,57 @@ public:
                     const SceneParams &params, FontContext &ctx) override {
     if (!m_serif)
       m_serif = defaultSerif(ctx);
-    m_body.ensure(params, defaultText(), m_serif);
+    const bool rebuilt = m_body.ensure(params, defaultText(), m_serif);
 
     const float w = size.width(), h = size.height();
     const float em = params.fontSize;
-    const float measure =
-        w * 0.36f * (1.0f + 0.10f * std::sin(static_cast<float>(t) * 0.5f));
+    // Whole-pixel measure: the breathing sine moves well under a pixel per
+    // frame, so most frames pose the *same* problem as the last — quantize
+    // and reuse the cached layouts instead of re-breaking 2× per frame.
+    // Sub-pixel measure changes are invisible anyway.
+    const float measure = std::round(
+        w * 0.36f * (1.0f + 0.10f * std::sin(static_cast<float>(t) * 0.5f)));
 
-    LayoutOptions opts;
-    opts.alignment = params.alignment;
-    opts.lineHeight = em * 1.6f;
-    opts.hyphenate = true;
-    opts.kpMinInterval = em * 3;
-    opts.ellipsis = u"…";
+    double layoutUs = 0;
+    if (rebuilt || m_body.para.needsShaping() || measure != m_lastMeasure ||
+        size != m_lastSize || params.alignment != m_lastAlignment) {
+      m_lastMeasure = measure;
+      m_lastSize = size;
+      m_lastAlignment = params.alignment;
+
+      LayoutOptions opts;
+      opts.alignment = params.alignment;
+      opts.lineHeight = em * 1.6f;
+      opts.hyphenate = true;
+      opts.kpMinInterval = em * 3;
+      opts.ellipsis = u"…";
+
+      const auto t0 = Clock::now();
+      for (int pass = 0; pass < 2; ++pass) {
+        opts.breaker = pass == 0 ? Breaker::kGreedy : Breaker::kKnuthPlass;
+        const float x = pass == 0 ? w * 0.07f : w * 0.55f;
+        BlockFlow flow(SkRect::MakeXYWH(x, 48, measure, h - 80));
+        m_layouts[pass] = layoutParagraph(ctx, m_body.para, flow, opts);
+      }
+      layoutUs = toUs(Clock::now() - t0);
+    }
 
     canvas->clear(kPaper);
     drawCaption(canvas, ctx, "greedy", {w * 0.07f, 18});
     drawCaption(canvas, ctx, "knuth-plass (optimal, TeX badness)",
                 {w * 0.55f, 18});
 
-    double layoutUs = 0;
     int runs = 0;
     for (int pass = 0; pass < 2; ++pass) {
-      opts.breaker = pass == 0 ? Breaker::kGreedy : Breaker::kKnuthPlass;
       const float x = pass == 0 ? w * 0.07f : w * 0.55f;
-      BlockFlow flow(SkRect::MakeXYWH(x, 48, measure, h - 80));
-      const auto t0 = Clock::now();
-      Layout layout = layoutParagraph(ctx, m_body.para, flow, opts);
-      layoutUs += toUs(Clock::now() - t0);
-      runs += static_cast<int>(layout.runs.size());
-
+      runs += static_cast<int>(m_layouts[pass].runs.size());
       SkPaint rule;
       rule.setAntiAlias(true);
       rule.setStyle(SkPaint::kStroke_Style);
       rule.setStrokeWidth(1);
       rule.setColor(0x3323252B);
       canvas->drawLine(x + measure, 44, x + measure, h - 44, rule);
-      layout.drawBatched(canvas, m_body.para);
+      m_layouts[pass].drawBatched(canvas, m_body.para);
     }
     return {layoutUs, runs, 0};
   }
@@ -322,6 +336,10 @@ public:
 private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
+  std::array<Layout, 2> m_layouts;
+  float m_lastMeasure = -1;
+  SkISize m_lastSize = {0, 0};
+  Alignment m_lastAlignment = Alignment::kStart;
 };
 
 // ── Scene 3: infinite loop marquee on a closed figure-eight ───────────────
@@ -887,22 +905,40 @@ public:
 
     const float w = size.width(), h = size.height();
     const SkRect box = SkRect::MakeXYWH(w * 0.1f, 40, w * 0.8f, h - 80);
-    BlockFlow flow(box);
-    LayoutOptions opts;
-    opts.alignment = params.alignment;
-    opts.breaker = params.breaker;
-    opts.lineHeight = params.fontSize * 1.8f;
 
-    const auto t0 = Clock::now();
-    Layout layout = layoutParagraph(ctx, m_body.para, flow, opts);
-    const auto t1 = Clock::now();
+    // The layout is memoized: the hue cycle repaints the same ranges every
+    // frame, which leaves the span structure (and so every run's styleIndex)
+    // untouched — draws resolve the new color live from the paragraph, no
+    // relayout needed. Only real changes (edits, controls, resize, a marker
+    // set whose boundaries moved) re-break lines, so a screenful of 10k
+    // words costs its layout once, not 60× a second.
+    double layoutUs = 0;
+    if (m_body.para.needsShaping() ||
+        m_body.para.revision() != m_lastRevision || size != m_lastSize ||
+        params.alignment != m_lastAlignment ||
+        params.breaker != m_lastBreaker || m_layout.runs.empty()) {
+      m_lastRevision = m_body.para.revision();
+      m_lastSize = size;
+      m_lastAlignment = params.alignment;
+      m_lastBreaker = params.breaker;
 
-    // Remember how much text actually landed: the next re-query (text edit)
-    // scopes itself to this window.
-    m_placedEnd =
-        layout.overflowed()
-            ? m_body.para.words()[layout.firstUnplacedWord].textBegin
-            : static_cast<uint32_t>(m_body.para.text().size());
+      BlockFlow flow(box);
+      LayoutOptions opts;
+      opts.alignment = params.alignment;
+      opts.breaker = params.breaker;
+      opts.lineHeight = params.fontSize * 1.8f;
+
+      const auto t0 = Clock::now();
+      m_layout = layoutParagraph(ctx, m_body.para, flow, opts);
+      layoutUs = toUs(Clock::now() - t0);
+
+      // Remember how much text actually landed: the next re-query (text
+      // edit) scopes itself to this window.
+      m_placedEnd =
+          m_layout.overflowed()
+              ? m_body.para.words()[m_layout.firstUnplacedWord].textBegin
+              : static_cast<uint32_t>(m_body.para.text().size());
+    }
 
     canvas->clear(kPaper);
     // The breaker already stops placing words once the box is full, but a
@@ -911,7 +947,7 @@ public:
     // caption below.
     canvas->save();
     canvas->clipRect(box);
-    layout.drawBatched(canvas, m_body.para);
+    m_layout.drawBatched(canvas, m_body.para);
     canvas->restore();
 
     drawCaption(canvas, ctx,
@@ -921,13 +957,18 @@ public:
                     : "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; ranges follow "
                       "the scripted edits",
                 {w * 0.1f, h - 30}, w * 0.8f);
-    return {toUs(t1 - t0), static_cast<int>(layout.runs.size()), 0};
+    return {layoutUs, static_cast<int>(m_layout.runs.size()), 0};
   }
 
 private:
   BodyCache m_body;
   MarkerSet m_marks;
   sk_sp<SkTypeface> m_serif;
+  Layout m_layout; // memoized across frames (see render)
+  uint64_t m_lastRevision = ~0ull;
+  SkISize m_lastSize = {0, 0};
+  Alignment m_lastAlignment = Alignment::kStart;
+  Breaker m_lastBreaker = Breaker::kGreedy;
   uint32_t m_placedEnd = 0; // text frontier of the last layout (0 = unknown)
   bool m_scoped = false;    // last re-query was window-scoped
 };

@@ -165,7 +165,11 @@ ApplicationWindow {
             GalleryView {
                 id: view
                 anchors.fill: parent
-                Component.onCompleted: sceneIndex = initialScene
+                Component.onCompleted: {
+                    sceneIndex = initialScene
+                    if (initialText.length > 0)
+                        sceneText = initialText
+                }
             }
         }
     }

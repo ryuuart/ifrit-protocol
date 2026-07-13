@@ -119,6 +119,7 @@ Layout knuthPlassLayout(FontContext &ctx, Paragraph &paragraph,
   std::vector<int32_t> active;
   std::vector<int32_t> nextActive;
   std::vector<std::pair<uint32_t, int32_t>> newNodes; // (interval, arena idx)
+  const bool uniform = seq.uniform();
 
   // One full DP pass. Returns the best terminal arena index (-1 if nothing
   // could be placed), reports whether the lifeline ever had to force an
@@ -228,18 +229,41 @@ Layout knuthPlassLayout(FontContext &ctx, Paragraph &paragraph,
         nextActive.clear();
       }
 
-      // Keep the best new node per interval index (they subsume the rest).
-      std::sort(newNodes.begin(), newNodes.end());
-      for (size_t x = 0; x < newNodes.size(); ++x) {
-        if (x + 1 < newNodes.size() &&
-            newNodes[x].first == newNodes[x + 1].first) {
-          // same interval: keep the lower-demerits one
-          const int32_t a1 = newNodes[x].second, a2 = newNodes[x + 1].second;
-          if (arena[a1].demerits < arena[a2].demerits)
-            std::swap(newNodes[x], newNodes[x + 1]);
-          continue;
+      if (uniform && !newNodes.empty()) {
+        // Every interval has the same width, so paths that reached this
+        // breakpoint on different line numbers face identical futures
+        // (TeX's model — all lines share one measure): keep the single
+        // best, preferring fewer lines consumed on ties (more geometry
+        // left for a bounded flow). Without this merge the active list
+        // grows with the paragraph and huge fully-placed paragraphs turn
+        // super-linear.
+        int32_t best = newNodes[0].second;
+        uint32_t bestInterval = newNodes[0].first;
+        for (size_t x = 1; x < newNodes.size(); ++x) {
+          const int32_t idx = newNodes[x].second;
+          if (arena[idx].demerits < arena[best].demerits ||
+              (arena[idx].demerits == arena[best].demerits &&
+               newNodes[x].first < bestInterval)) {
+            best = idx;
+            bestInterval = newNodes[x].first;
+          }
         }
-        nextActive.push_back(newNodes[x].second);
+        nextActive.push_back(best);
+      } else {
+        // Variable geometry: a path on a different interval index faces a
+        // genuinely different future, so keep the best node per interval.
+        std::sort(newNodes.begin(), newNodes.end());
+        for (size_t x = 0; x < newNodes.size(); ++x) {
+          if (x + 1 < newNodes.size() &&
+              newNodes[x].first == newNodes[x + 1].first) {
+            // same interval: keep the lower-demerits one
+            const int32_t a1 = newNodes[x].second, a2 = newNodes[x + 1].second;
+            if (arena[a1].demerits < arena[a2].demerits)
+              std::swap(newNodes[x], newNodes[x + 1]);
+            continue;
+          }
+          nextActive.push_back(newNodes[x].second);
+        }
       }
 
       if (nextActive.empty() && bestForcedDemerits < kInfDemerits) {

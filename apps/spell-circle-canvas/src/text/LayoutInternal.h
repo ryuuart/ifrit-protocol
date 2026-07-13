@@ -35,6 +35,9 @@ public:
     return k < m_flat.size() ? &m_flat[k] : nullptr;
   }
 
+  // See FlowGeometry::uniformIntervals.
+  bool uniform() const { return m_geometry.uniformIntervals(); }
+
 private:
   void fetchLine() {
     m_scratch.clear();

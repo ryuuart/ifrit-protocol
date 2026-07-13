@@ -11,3 +11,6 @@ __pycache__
 
 # Claude
 .claude/settings.local.json
+
+# General
+build

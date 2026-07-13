@@ -129,7 +129,7 @@ static void BM_Layout_Warm(benchmark::State &state) {
     benchmark::DoNotOptimize(layout.runs.data());
   }
 }
-BENCHMARK(BM_Layout_Warm)->Arg(100)->Arg(500)->Arg(2000)
+BENCHMARK(BM_Layout_Warm)->Arg(100)->Arg(500)->Arg(2000)->Arg(10000)
     ->Unit(benchmark::kMicrosecond);
 
 // ── The acceptance scenarios ──────────────────────────────────────────────
@@ -378,7 +378,7 @@ static void BM_KnuthPlass_Warm(benchmark::State &state) {
     benchmark::DoNotOptimize(layout.runs.data());
   }
 }
-BENCHMARK(BM_KnuthPlass_Warm)->Arg(100)->Arg(500)->Arg(2000)
+BENCHMARK(BM_KnuthPlass_Warm)->Arg(100)->Arg(500)->Arg(2000)->Arg(10000)
     ->Unit(benchmark::kMicrosecond);
 
 static void BM_KnuthPlass_EditOneWord_500w(benchmark::State &state) {

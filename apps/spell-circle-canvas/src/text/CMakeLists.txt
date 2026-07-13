@@ -62,7 +62,7 @@ target_link_libraries(TextFlowQt INTERFACE
 add_executable(textflow_test
   test/textflow_test.cpp
 )
-target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest GTest::gtest_main)
+target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest_main)
 add_test(NAME textflow_test COMMAND textflow_test)
 
 add_executable(textflow_bench
