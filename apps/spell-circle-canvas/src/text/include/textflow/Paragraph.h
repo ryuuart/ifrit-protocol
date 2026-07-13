@@ -22,6 +22,16 @@ struct StyleSpan {
   TextStyle style;
 };
 
+// UTF-16 code-unit range into a Paragraph's text, end exclusive. The common
+// currency between the query layer (Query.h), scoped searches, and batch
+// restyling.
+struct CharRange {
+  uint32_t start = 0;
+  uint32_t end = 0;
+  bool empty() const { return end <= start; }
+  bool operator==(const CharRange &) const = default;
+};
+
 // How a segment is placed relative to the flow direction. kFlow is every
 // segment of a horizontal paragraph; the others only appear in vertical
 // paragraphs (resolved from ShapingStyle::verticalForm / UTR#50).
@@ -130,9 +140,16 @@ public:
   // Restyles a range (splits spans as needed). Re-shapes only words whose
   // shaping inputs actually changed — the rest hit the cache.
   void setStyle(uint32_t start, uint32_t end, const TextStyle &style);
-  // Paint-only restyle: same span surgery, but shaping keys are untouched,
-  // so ensureShaped() re-shapes nothing at all.
+  // Paint-only restyle: same span surgery, but shaping keys are untouched
+  // and the text didn't move, so the next ensure* skips ICU re-analysis
+  // entirely — it only re-derives the already-shaped words' segments against
+  // the new span list (pure shape-cache hits unless a boundary lands
+  // mid-word). Cost is bounded by the shaped prefix, not the text.
   void setPaint(uint32_t start, uint32_t end, const PaintStyle &paint);
+  // Batch form: applies `paint` to every range in one span-list rebuild —
+  // restyling N marker ranges costs one pass, not N quadratic rebuilds.
+  // Ranges may arrive unsorted/overlapping; they are sanitized internally.
+  void setPaint(const std::vector<CharRange> &ranges, const PaintStyle &paint);
 
   const std::u16string &text() const { return m_text; }
   const std::vector<StyleSpan> &spans() const { return m_spans; }
@@ -164,7 +181,7 @@ public:
   // call this just ahead of their frontier.
   void ensureShapedTo(FontContext &ctx, uint32_t wordCount);
   uint32_t shapedWordCount() const { return m_shapedWords; }
-  bool needsShaping() const { return m_dirty; }
+  bool needsShaping() const { return m_dirty || m_paintDirty; }
   const std::vector<Word> &words() const { return m_words; }
 
   // Line-height inputs from the first span's font (the "strut"): returns
@@ -181,9 +198,16 @@ public:
 
 private:
   void markDirty() { m_dirty = true; }
+  // Paint edits only move span boundaries: analysis (words, scripts, bidi)
+  // stands and the shaped prefix just needs its segments re-derived.
+  void markPaintDirty() {
+    if (!m_dirty)
+      m_paintDirty = true;
+  }
   void recordEdit(uint32_t start, uint32_t removed, uint32_t inserted);
   void normalizeSpans();
   void analyze(FontContext &ctx);
+  void reshapeShapedPrefix(FontContext &ctx);
   void shapeWordContent(FontContext &ctx, Word &word);
 
   std::u16string m_text;
@@ -192,6 +216,7 @@ private:
   std::vector<Placeholder> m_placeholders;
   WritingMode m_writingMode = WritingMode::kHorizontal;
   bool m_dirty = true;
+  bool m_paintDirty = false;
 
   // Itemization results analyze() leaves behind for lazy shaping
   // (ensureShapedTo). `script` is a UScriptCode, stored as int32_t to keep

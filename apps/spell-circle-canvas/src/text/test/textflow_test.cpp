@@ -1453,6 +1453,146 @@ TEST(Query, MarkerSetReportsHistoryLoss) {
   EXPECT_TRUE(marks.get("w")->empty()); // cleared, caller must re-query
 }
 
+TEST(Query, ScopedSearchesStayInsideTheWindow) {
+  //                            0123456789012345678901234567890
+  Paragraph para = makeParagraph("the cat sat on the mat, the end");
+
+  // Substring search: offsets are absolute, matches before the window
+  // drop out ("the" at 0), matches ending exactly at the edge stay.
+  const std::vector<CharRange> the = findAll(para, "the", {4, 27});
+  ASSERT_EQ(the.size(), 2u);
+  EXPECT_EQ(the[0], (CharRange{15, 18}));
+  EXPECT_EQ(the[1], (CharRange{24, 27}));
+  // A match straddling the edge is not a match: "the" at 24 ends at 27,
+  // one unit past end=26.
+  const std::vector<CharRange> clipped = findAll(para, "the", {4, 26});
+  ASSERT_EQ(clipped.size(), 1u);
+  EXPECT_EQ(clipped[0], (CharRange{15, 18}));
+
+  // Regex: same substring semantics, offsets absolute.
+  const auto ats = findRegex(para, "[cms]at", {8, 22});
+  ASSERT_TRUE(ats.has_value());
+  ASSERT_EQ(ats->size(), 2u); // sat, mat — cat starts at 4, outside
+  EXPECT_EQ((*ats)[0], (CharRange{8, 11}));
+  EXPECT_EQ((*ats)[1], (CharRange{19, 22}));
+
+  // The window's edges are text boundaries: ^ and $ anchor to them.
+  const auto anchored = findRegex(para, "^sat", {8, 22});
+  ASSERT_TRUE(anchored.has_value());
+  ASSERT_EQ(anchored->size(), 1u);
+  EXPECT_EQ((*anchored)[0], (CharRange{8, 11}));
+
+  // Degenerate scopes clamp instead of tripping.
+  EXPECT_TRUE(findAll(para, "the", {40, 90}).empty());
+  EXPECT_TRUE(findRegex(para, "the", {27, 9000})->empty());
+  const auto full = findRegex(para, "the", {0, 9000});
+  ASSERT_TRUE(full.has_value());
+  EXPECT_EQ(full->size(), 3u);
+}
+
+TEST(Query, BatchPaintMatchesSequentialPaint) {
+  const char *text = "one two three four five six seven eight nine ten";
+  Paragraph sequential = makeParagraph(text);
+  Paragraph batched = makeParagraph(text);
+
+  const std::vector<CharRange> words = findAll(sequential, "e"); // scattered
+  ASSERT_GT(words.size(), 3u);
+  PaintStyle green;
+  green.color = 0xFF00AA00;
+  for (const CharRange &r : words)
+    sequential.setPaint(r.start, r.end, green);
+  batched.setPaint(words, green);
+
+  ASSERT_EQ(sequential.spans().size(), batched.spans().size());
+  for (size_t i = 0; i < batched.spans().size(); ++i) {
+    EXPECT_EQ(sequential.spans()[i].start, batched.spans()[i].start);
+    EXPECT_EQ(sequential.spans()[i].end, batched.spans()[i].end);
+    EXPECT_EQ(sequential.spans()[i].style.paint.color,
+              batched.spans()[i].style.paint.color);
+  }
+
+  // Unsorted and overlapping input is sanitized, not trusted.
+  Paragraph messy = makeParagraph(text);
+  std::vector<CharRange> ranges = {{8, 13}, {0, 3}, {10, 17}, {3, 3}};
+  messy.setPaint(ranges, green);
+  uint32_t painted = 0;
+  for (const StyleSpan &span : messy.spans())
+    if (span.style.paint.color == green.color)
+      painted += span.end - span.start;
+  EXPECT_EQ(painted, 3u + 9u); // [0,3) + merged [8,17)
+}
+
+TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
+  FontContext &ctx = sharedContext();
+  Paragraph para = makeParagraph(
+      "the quick brown fox jumps over the lazy dog again and again");
+  BlockFlow flow(SkRect::MakeWH(300, 200));
+  Layout before = layoutParagraph(ctx, para, flow);
+  const uint32_t shapedBefore = para.shapedWordCount();
+
+  // Repaint word-aligned ranges: span boundaries land between words, so
+  // every segment re-derives from the shape cache — zero new shape calls.
+  const std::vector<CharRange> marks = findAll(para, "again");
+  ASSERT_EQ(marks.size(), 2u);
+  PaintStyle red;
+  red.color = 0xFFCC0000;
+  const uint64_t callsBefore = ctx.stats().shapeCalls;
+  para.setPaint(marks, red);
+  Layout after = layoutParagraph(ctx, para, flow);
+  EXPECT_EQ(ctx.stats().shapeCalls, callsBefore);
+
+  // Same geometry in, same geometry out — only paint moved.
+  EXPECT_EQ(para.shapedWordCount(), shapedBefore);
+  ASSERT_EQ(after.runs.size(), before.runs.size());
+  for (size_t i = 0; i < after.runs.size(); ++i) {
+    EXPECT_EQ(after.runs[i].origin.x(), before.runs[i].origin.x());
+    EXPECT_EQ(after.runs[i].origin.y(), before.runs[i].origin.y());
+  }
+  // And the marked words resolve to the new paint through their runs.
+  int redRuns = 0;
+  for (const PlacedRun &run : after.runs)
+    if (para.spans()[run.styleIndex].style.paint.color == red.color)
+      redRuns++;
+  EXPECT_EQ(redRuns, 2);
+
+  // Steady state (hue cycling the same ranges): the span boundaries come
+  // out identical, so nothing is even paint-dirty — the existing layout's
+  // styleIndices already resolve to the new color, no relayout required.
+  PaintStyle blue;
+  blue.color = 0xFF0000CC;
+  para.setPaint(marks, blue);
+  EXPECT_FALSE(para.needsShaping());
+  int blueRuns = 0;
+  for (const PlacedRun &run : after.runs)
+    if (para.spans()[run.styleIndex].style.paint.color == blue.color)
+      blueRuns++;
+  EXPECT_EQ(blueRuns, 2);
+}
+
+TEST(Query, PaintBoundaryMidWordSplitsSegments) {
+  FontContext &ctx = sharedContext();
+  Paragraph para = makeParagraph("highlight");
+  para.ensureShaped(ctx);
+  ASSERT_EQ(para.words().size(), 1u);
+  ASSERT_EQ(para.words()[0].segments.size(), 1u);
+  const float whole = para.words()[0].width;
+
+  PaintStyle blue;
+  blue.color = 0xFF0000CC;
+  para.setPaint(0, 4, blue); // "high" | "light"
+  para.ensureShaped(ctx);
+
+  const Word &word = para.words()[0];
+  ASSERT_EQ(word.segments.size(), 2u);
+  EXPECT_EQ(para.spans()[word.segments[0].styleIndex].style.paint.color,
+            blue.color);
+  EXPECT_NE(para.spans()[word.segments[1].styleIndex].style.paint.color,
+            blue.color);
+  // Width comes back as the sum of the halves (kerning across the split
+  // may drift a hair, nothing more).
+  EXPECT_NEAR(word.width, whole, whole * 0.05f);
+}
+
 TEST(Scripts, ArabicLamAlefLigates) {
   FontContext &ctx = sharedContext();
   Paragraph para = makeParagraph("لا"); // lam + alef: mandatory ligature
@@ -1699,6 +1839,54 @@ TEST(Stress, OverflowShapesOnlyWhatFits) {
   para.ensureShaped(ctx);
   EXPECT_EQ(para.shapedWordCount(), para.words().size());
   EXPECT_GT(para.naturalWidth(ctx), 400.0f * 300.0f); // ~30k words wide
+}
+
+TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
+  // The marker workflow: repaint ranges every frame (hue cycling), relayout.
+  // Paint edits must not re-run ICU analysis over the whole text or rebuild
+  // spans once per range — cost stays bounded by the geometry, like the
+  // relayout itself (see Stress.HugeOverflowRelayoutIsGeometryBounded).
+  FontContext &ctx = sharedContext();
+  const char *pool[15] = {"letters", "falling", "gently", "against", "words",
+                          "Beacon",  "steady",  "rhythm", "Turing",  "flow",
+                          "Lattice", "shapes",  "glyphs", "Марка",   "cache"};
+  std::mt19937 rng(7);
+  std::string text;
+  for (int i = 0; i < 30000; ++i) {
+    text += pool[rng() % 15];
+    text += ' ';
+  }
+  Paragraph para;
+  para.appendText(text, basicStyle());
+  BlockFlow flow(SkRect::MakeWH(420, 320)); // room for ~1% of the text
+  Layout layout = layoutParagraph(ctx, para, flow); // warm analysis + shapes
+  ASSERT_TRUE(layout.overflowed());
+
+  // Scoped query over the placed window only.
+  const uint32_t placedEnd = para.words()[layout.firstUnplacedWord].textBegin;
+  const std::vector<CharRange> marks =
+      findRegex(para, "\\b\\p{Lu}\\p{Ll}+", {0, placedEnd})
+          .value_or(std::vector<CharRange>{});
+  ASSERT_GT(marks.size(), 10u);
+
+  const auto t0 = std::chrono::steady_clock::now();
+  constexpr int kIters = 20;
+  for (int i = 0; i < kIters; ++i) {
+    PaintStyle hue;
+    hue.color = 0xFF000000 | static_cast<uint32_t>(i * 1234567);
+    para.setPaint(marks, hue);
+    layout = layoutParagraph(ctx, para, flow);
+  }
+  const double avgUs = std::chrono::duration<double, std::micro>(
+                           std::chrono::steady_clock::now() - t0)
+                           .count() /
+                       kIters;
+#ifdef NDEBUG
+  const double boundUs = 3000.0;
+#else
+  const double boundUs = 30000.0; // Debug: same work, ~20× the overhead
+#endif
+  EXPECT_LT(avgUs, boundUs) << "paint restyle scales with unplaced text";
 }
 
 // ── 2000-token multi-script confetti stress ───────────────────────────────

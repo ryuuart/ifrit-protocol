@@ -56,8 +56,7 @@ struct BodyCache {
   // Returns true when the paragraph was rebuilt this call.
   bool ensure(const SceneParams &params, const QString &fallbackText,
               const sk_sp<SkTypeface> &fallbackFace) {
-    const QString &text =
-        params.text.isEmpty() ? fallbackText : params.text;
+    const QString &text = params.text.isEmpty() ? fallbackText : params.text;
     const sk_sp<SkTypeface> &face =
         params.typeface ? params.typeface : fallbackFace;
     if (text == builtText && face.get() == builtFace &&
@@ -94,7 +93,7 @@ Paragraph makeBigParagraph(int wordCount, float size) {
                          "their",   "lines",   "and",    "return",  "again",
                          "layout",  "engine",  "words",  "measure", "glyph",
                          "cascade", "gentle",  "steady", "rhythm",  "flowing"};
-  const char *cjk[] = {"文字", "雨", "波紋", "字形", "빗물", "글자",
+  const char *cjk[] = {"文字", "雨",   "波紋", "字形", "빗물", "글자",
                        "물결", "여울", "漣漪", "文雨", "字落", "縦横"};
   const TextStyle styles[3] = {makeStyle(size, kInk), makeStyle(size, kBlue),
                                makeStyle(size, kAccent)};
@@ -186,8 +185,9 @@ public:
     ExclusionFlow flow(SkRect::MakeXYWH(28, 24, w - 56, h - 48));
 
     const float cr = std::min(w, h) * 0.13f;
-    const SkPoint c = {w * 0.32f + w * 0.2f * std::sin(static_cast<float>(t) * 0.9f),
-                       h * 0.38f + h * 0.24f * std::sin(static_cast<float>(t) * 0.53f)};
+    const SkPoint c = {
+        w * 0.32f + w * 0.2f * std::sin(static_cast<float>(t) * 0.9f),
+        h * 0.38f + h * 0.24f * std::sin(static_cast<float>(t) * 0.53f)};
     flow.shapes().push_back(ExclusionFlow::Shape::Circle(
         SkRect::MakeXYWH(c.x() - cr, c.y() - cr, 2 * cr, 2 * cr), em * 0.5f));
 
@@ -205,13 +205,13 @@ public:
     const SkPath spiky =
         spikyRingPath(static_cast<float>(t), std::min(w, h) * 0.19f);
     ExclusionFlow::Shape star = ExclusionFlow::Shape::Path(spiky, em * 0.4f);
-    star.pathOffset = {w * 0.6f + w * 0.18f * std::cos(static_cast<float>(t) * 0.4f),
-                       h * 0.3f + h * 0.1f * std::sin(static_cast<float>(t) * 0.7f)};
+    star.pathOffset = {
+        w * 0.6f + w * 0.18f * std::cos(static_cast<float>(t) * 0.4f),
+        h * 0.3f + h * 0.1f * std::sin(static_cast<float>(t) * 0.7f)};
     flow.shapes().push_back(star);
     // The donut drifts too: moving a path via pathOffset reuses its cached
     // flattening, and every frame is a full live relayout around it.
-    ExclusionFlow::Shape donut =
-        ExclusionFlow::Shape::Path(m_donut, em * 0.4f);
+    ExclusionFlow::Shape donut = ExclusionFlow::Shape::Path(m_donut, em * 0.4f);
     donut.pathOffset = {w * 0.05f * std::sin(static_cast<float>(t) * 0.6f),
                         h * 0.06f * std::cos(static_cast<float>(t) * 0.45f)};
     flow.shapes().push_back(donut);
@@ -370,8 +370,7 @@ public:
     LineInterval interval;
     interval.contour = m_contour;
     interval.length = loopLen;
-    interval.contourStart =
-        std::fmod(static_cast<float>(t) * 110.0f, loopLen);
+    interval.contourStart = std::fmod(static_cast<float>(t) * 110.0f, loopLen);
     flow.lines().push_back({interval});
 
     const auto t0 = Clock::now();
@@ -447,61 +446,62 @@ public:
 
     m_batches.clear();
     size_t idx = 0;
-    forEachPlacedGlyph(layout, m_para, [&](const ShapedWord *sw,
-                                           SkGlyphID glyph, float adv,
-                                           SkColor color, SkPoint rest) {
-      Particle &p = m_parts[idx % m_parts.size()];
-      idx++;
-      const float half = adv * 0.5f;
-      const SkPoint restCenter = rest + SkVector{half, 0};
-      float c = 1, sn = 0;
-      SkPoint at = restCenter;
-      switch (p.mode) {
-      case Particle::kAttached:
-        break;
-      case Particle::kFalling: {
-        if (p.vy == 0 && p.pos.fY == 0) {
-          p.pos = restCenter;
-          p.vy = 2.5f + static_cast<float>(m_rng() % 100) * 0.025f;
-          p.vx = 0;
-          p.spin = (static_cast<float>(m_rng() % 100) - 50.0f) * 0.0015f;
-          p.angle = 0;
-        }
-        p.pos.fY += p.vy;
-        p.pos.fX += p.vx;
-        p.angle += p.spin;
-        SkVector dir = p.pos - domeC;
-        if (dir.length() < standoff && p.pos.fY < domeC.fY)
-          p.mode = Particle::kSliding;
-        if (p.pos.fY > size.height() + 30)
-          p = Particle{}; // drained: rejoin the paragraph
-        break;
-      }
-      case Particle::kSliding: {
-        SkVector dir = p.pos - domeC;
-        dir.normalize();
-        p.pos = domeC + dir * standoff;
-        SkVector tangent = {-dir.fY, dir.fX};
-        if (tangent.fX * dir.fX < 0)
-          tangent = -tangent;
-        const float slide = p.vy * (0.55f + 0.9f * std::abs(dir.fX));
-        p.pos += tangent * slide;
-        p.angle = std::atan2(tangent.fY, tangent.fX);
-        if (dir.fY > -0.18f) {
-          p.mode = Particle::kFalling;
-          p.vx = tangent.fX * slide;
-        }
-        break;
-      }
-      }
-      if (p.mode != Particle::kAttached) {
-        at = p.pos;
-        quantAngle(p.angle, c, sn);
-      }
-      GlyphRSXformBatches::Batch &b = m_batches.batchFor(sw, color);
-      b.glyphs.push_back(glyph);
-      b.xforms.push_back({c, sn, at.fX - c * half, at.fY - sn * half});
-    });
+    forEachPlacedGlyph(
+        layout, m_para,
+        [&](const ShapedWord *sw, SkGlyphID glyph, float adv, SkColor color,
+            SkPoint rest) {
+          Particle &p = m_parts[idx % m_parts.size()];
+          idx++;
+          const float half = adv * 0.5f;
+          const SkPoint restCenter = rest + SkVector{half, 0};
+          float c = 1, sn = 0;
+          SkPoint at = restCenter;
+          switch (p.mode) {
+          case Particle::kAttached:
+            break;
+          case Particle::kFalling: {
+            if (p.vy == 0 && p.pos.fY == 0) {
+              p.pos = restCenter;
+              p.vy = 2.5f + static_cast<float>(m_rng() % 100) * 0.025f;
+              p.vx = 0;
+              p.spin = (static_cast<float>(m_rng() % 100) - 50.0f) * 0.0015f;
+              p.angle = 0;
+            }
+            p.pos.fY += p.vy;
+            p.pos.fX += p.vx;
+            p.angle += p.spin;
+            SkVector dir = p.pos - domeC;
+            if (dir.length() < standoff && p.pos.fY < domeC.fY)
+              p.mode = Particle::kSliding;
+            if (p.pos.fY > size.height() + 30)
+              p = Particle{}; // drained: rejoin the paragraph
+            break;
+          }
+          case Particle::kSliding: {
+            SkVector dir = p.pos - domeC;
+            dir.normalize();
+            p.pos = domeC + dir * standoff;
+            SkVector tangent = {-dir.fY, dir.fX};
+            if (tangent.fX * dir.fX < 0)
+              tangent = -tangent;
+            const float slide = p.vy * (0.55f + 0.9f * std::abs(dir.fX));
+            p.pos += tangent * slide;
+            p.angle = std::atan2(tangent.fY, tangent.fX);
+            if (dir.fY > -0.18f) {
+              p.mode = Particle::kFalling;
+              p.vx = tangent.fX * slide;
+            }
+            break;
+          }
+          }
+          if (p.mode != Particle::kAttached) {
+            at = p.pos;
+            quantAngle(p.angle, c, sn);
+          }
+          GlyphRSXformBatches::Batch &b = m_batches.batchFor(sw, color);
+          b.glyphs.push_back(glyph);
+          b.xforms.push_back({c, sn, at.fX - c * half, at.fY - sn * half});
+        });
 
     canvas->clear(kPaper);
     SkPaint umbrella;
@@ -553,14 +553,16 @@ public:
 
     const float w = size.width(), h = size.height();
     if (frame % 90 == 0)
-      m_drops.push_back({{60.0f + static_cast<float>(m_rng() % std::max(1, static_cast<int>(w) - 120)),
-                          60.0f + static_cast<float>(m_rng() % std::max(1, static_cast<int>(h) - 120))},
-                         frame});
+      m_drops.push_back(
+          {{60.0f + static_cast<float>(m_rng() %
+                                       std::max(1, static_cast<int>(w) - 120)),
+            60.0f + static_cast<float>(m_rng() %
+                                       std::max(1, static_cast<int>(h) - 120))},
+           frame});
     for (const SkPoint &p : m_pending)
       m_drops.push_back({p, frame});
     m_pending.clear();
-    std::erase_if(m_drops,
-                  [&](const Drop &d) { return frame - d.born > 280; });
+    std::erase_if(m_drops, [&](const Drop &d) { return frame - d.born > 280; });
 
     // Live edit mid-ripple: same-length swap, everything else cache-hot.
     static const char *swaps[] = {"letters", "glyphs ", "symbols", "strokes"};
@@ -582,32 +584,35 @@ public:
     const auto t1 = Clock::now();
 
     m_batches.clear();
-    forEachPlacedGlyph(layout, m_para, [&](const ShapedWord *sw,
-                                           SkGlyphID glyph, float adv,
-                                           SkColor color, SkPoint rest) {
-      SkVector offset = {0, 0};
-      float tilt = 0;
-      for (const Drop &drop : m_drops) {
-        SkVector rv = rest - drop.center;
-        const float r = rv.length() + 1.0f;
-        const float ringR = 6.0f * static_cast<float>(frame - drop.born);
-        const float dr = (r - ringR) / 46.0f;
-        if (dr > 3 || dr < -3)
-          continue;
-        const float amp =
-            42.0f * std::exp(-static_cast<float>(frame - drop.born) / 150.0f);
-        const float pulse = amp * std::exp(-dr * dr);
-        offset += rv * (pulse / r);
-        tilt += pulse * 0.012f * (dr < 0 ? -1.0f : 1.0f);
-      }
-      float c, sn;
-      quantAngle(tilt, c, sn);
-      const SkPoint at = rest + offset;
-      const float half = adv * 0.5f;
-      GlyphRSXformBatches::Batch &b = m_batches.batchFor(sw, color);
-      b.glyphs.push_back(glyph);
-      b.xforms.push_back({c, sn, at.fX - c * half + half, at.fY - sn * half});
-    });
+    forEachPlacedGlyph(
+        layout, m_para,
+        [&](const ShapedWord *sw, SkGlyphID glyph, float adv, SkColor color,
+            SkPoint rest) {
+          SkVector offset = {0, 0};
+          float tilt = 0;
+          for (const Drop &drop : m_drops) {
+            SkVector rv = rest - drop.center;
+            const float r = rv.length() + 1.0f;
+            const float ringR = 6.0f * static_cast<float>(frame - drop.born);
+            const float dr = (r - ringR) / 46.0f;
+            if (dr > 3 || dr < -3)
+              continue;
+            const float amp =
+                42.0f *
+                std::exp(-static_cast<float>(frame - drop.born) / 150.0f);
+            const float pulse = amp * std::exp(-dr * dr);
+            offset += rv * (pulse / r);
+            tilt += pulse * 0.012f * (dr < 0 ? -1.0f : 1.0f);
+          }
+          float c, sn;
+          quantAngle(tilt, c, sn);
+          const SkPoint at = rest + offset;
+          const float half = adv * 0.5f;
+          GlyphRSXformBatches::Batch &b = m_batches.batchFor(sw, color);
+          b.glyphs.push_back(glyph);
+          b.xforms.push_back(
+              {c, sn, at.fX - c * half + half, at.fY - sn * half});
+        });
 
     canvas->clear(kPaper);
     const int glyphs = m_batches.draw(canvas);
@@ -640,8 +645,8 @@ public:
     const float w = size.width(), h = size.height();
     const float em = std::clamp(std::min(w, h) / 24.0f, 16.0f, 30.0f);
     if (!m_mincho) {
-      m_mincho =
-          ctx.fontMgr()->matchFamilyStyle("Hiragino Mincho ProN", SkFontStyle());
+      m_mincho = ctx.fontMgr()->matchFamilyStyle("Hiragino Mincho ProN",
+                                                 SkFontStyle());
       if (!m_mincho)
         m_mincho = ctx.defaultTypeface();
     }
@@ -746,11 +751,11 @@ private:
     ruby.setWritingMode(WritingMode::kVerticalRL);
     const float length = ruby.naturalWidth(ctx);
     LineSetFlow flow;
-    flow.lines().push_back({LineInterval{
-        {origin.x() + m_em * 0.62f,
-         origin.y() + (begin + end) * 0.5f - length * 0.5f},
-        {0, 1},
-        length + 1}});
+    flow.lines().push_back(
+        {LineInterval{{origin.x() + m_em * 0.62f,
+                       origin.y() + (begin + end) * 0.5f - length * 0.5f},
+                      {0, 1},
+                      length + 1}});
     layoutParagraph(ctx, ruby, flow).draw(canvas, ruby);
   }
 
@@ -841,22 +846,32 @@ public:
     if (!m_serif)
       m_serif = defaultSerif(ctx);
     if (m_body.ensure(params, defaultText(), m_serif)) {
+      // Scoped query: only search the window the box can actually place
+      // (the frontier of the previous layout). Paste a novel and the regex
+      // scans the visible text, not megabytes that will never land — and
+      // the marker set stays small, so the per-frame repaint below stays
+      // cheap too.
+      const uint32_t textLen =
+          static_cast<uint32_t>(m_body.para.text().size());
+      const CharRange scope{0, m_placedEnd > 0 ? std::min(m_placedEnd, textLen)
+                                               : textLen};
+      m_scoped = scope.end < textLen;
       m_marks = MarkerSet(m_body.para);
       m_marks.set("caps",
-                  findRegex(m_body.para, "\\b\\p{Lu}\\p{Ll}+").value_or(
-                      std::vector<CharRange>{}));
+                  findRegex(m_body.para, "\\b\\p{Lu}\\p{Ll}+", scope)
+                      .value_or(std::vector<CharRange>{}));
     }
 
     // Scripted live edits: swap a word every ~2.5s; markers ride along.
     static const char *cycle[] = {"watches", "guards ", "studies", "shadows"};
     if (frame > 0 && frame % 150 == 0) {
       for (const char *word : cycle) {
-        const size_t at = m_body.para.text().find(
-            std::u16string(word, word + 7).c_str());
+        const size_t at =
+            m_body.para.text().find(std::u16string(word, word + 7).c_str());
         if (at != std::u16string::npos) {
-          m_body.para.replaceText(
-              static_cast<uint32_t>(at), static_cast<uint32_t>(at + 7),
-              cycle[(frame / 150) % 4]);
+          m_body.para.replaceText(static_cast<uint32_t>(at),
+                                  static_cast<uint32_t>(at + 7),
+                                  cycle[(frame / 150) % 4]);
           break;
         }
       }
@@ -865,13 +880,14 @@ public:
     // Hue-cycling highlight over every marker range — paint-only restyle,
     // zero reshaping.
     PaintStyle highlight;
-    const SkScalar hsv[3] = {
-        std::fmod(static_cast<float>(t) * 40.0f, 360.0f), 0.75f, 0.72f};
+    const SkScalar hsv[3] = {std::fmod(static_cast<float>(t) * 40.0f, 360.0f),
+                             0.75f, 0.72f};
     highlight.color = SkHSVToColor(hsv);
     m_marks.applyPaint(m_body.para, "caps", highlight);
 
     const float w = size.width(), h = size.height();
-    BlockFlow flow(SkRect::MakeXYWH(w * 0.1f, 40, w * 0.8f, h - 80));
+    const SkRect box = SkRect::MakeXYWH(w * 0.1f, 40, w * 0.8f, h - 80);
+    BlockFlow flow(box);
     LayoutOptions opts;
     opts.alignment = params.alignment;
     opts.breaker = params.breaker;
@@ -881,11 +897,29 @@ public:
     Layout layout = layoutParagraph(ctx, m_body.para, flow, opts);
     const auto t1 = Clock::now();
 
+    // Remember how much text actually landed: the next re-query (text edit)
+    // scopes itself to this window.
+    m_placedEnd =
+        layout.overflowed()
+            ? m_body.para.words()[layout.firstUnplacedWord].textBegin
+            : static_cast<uint32_t>(m_body.para.text().size());
+
     canvas->clear(kPaper);
+    // The breaker already stops placing words once the box is full, but a
+    // hard clip guards the last visible line's descenders/overshoot too —
+    // type or paste past capacity and the box still never bleeds into the
+    // caption below.
+    canvas->save();
+    canvas->clipRect(box);
     layout.drawBatched(canvas, m_body.para);
+    canvas->restore();
+
     drawCaption(canvas, ctx,
-                "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; ranges follow the "
-                "scripted edits",
+                m_scoped
+                    ? "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; query scoped to "
+                      "the placed window — overflow text is never scanned"
+                    : "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; ranges follow "
+                      "the scripted edits",
                 {w * 0.1f, h - 30}, w * 0.8f);
     return {toUs(t1 - t0), static_cast<int>(layout.runs.size()), 0};
   }
@@ -894,6 +928,8 @@ private:
   BodyCache m_body;
   MarkerSet m_marks;
   sk_sp<SkTypeface> m_serif;
+  uint32_t m_placedEnd = 0; // text frontier of the last layout (0 = unknown)
+  bool m_scoped = false;    // last re-query was window-scoped
 };
 
 // ── Scene 8: inline placeholders — pills and figures woven into the flow ──
@@ -923,8 +959,8 @@ public:
     // paragraph live, and reshapes exactly zero words.
     m_para.setPlaceholder(
         0, {m_pillWidths[0] *
-                (1.0f + 0.4f * (0.5f + 0.5f * static_cast<float>(
-                                                  std::sin(t * 1.7)))),
+                (1.0f +
+                 0.4f * (0.5f + 0.5f * static_cast<float>(std::sin(t * 1.7)))),
             em * 1.35f, em * 0.3f});
 
     const float w = size.width(), h = size.height();
@@ -954,9 +990,8 @@ public:
         bg.setColor(placed.index == 0 ? kAccent : kBlue);
         canvas->drawRoundRect(placed.rect, placed.rect.height() * 0.5f,
                               placed.rect.height() * 0.5f, bg);
-        Paragraph &label =
-            m_pillLabels.get(m_pillTexts[static_cast<size_t>(placed.index)],
-                             m_sans, em * 0.68f);
+        Paragraph &label = m_pillLabels.get(
+            m_pillTexts[static_cast<size_t>(placed.index)], m_sans, em * 0.68f);
         const float textW = label.naturalWidth(ctx);
         PaintStyle white;
         white.color = SK_ColorWHITE;
@@ -977,8 +1012,7 @@ public:
         // A tiny sparkline so the "figure" reads as content.
         SkPathBuilder spark;
         for (int i = 0; i <= 16; ++i) {
-          const float sx =
-              placed.rect.left() + placed.rect.width() * i / 16.0f;
+          const float sx = placed.rect.left() + placed.rect.width() * i / 16.0f;
           const float sy = placed.rect.centerY() -
                            placed.rect.height() * 0.3f *
                                std::sin(i * 0.7f + static_cast<float>(t));
@@ -1049,6 +1083,101 @@ private:
   float m_builtEm = 0;
 };
 
+// ── Scene 9: overflow & ellipsis — CSS text-overflow semantics ───────────
+
+class OverflowScene final : public Scene {
+public:
+  QString name() const override {
+    return QStringLiteral("Overflow & ellipsis");
+  }
+  QString defaultText() const override {
+    return QStringLiteral(
+        "The box below breathes between comfortably containing this "
+        "paragraph and cutting it well short. The left pane simply stops "
+        "wherever the last word happens to fit; the right pane trims its "
+        "final line until a shaped ellipsis lands cleanly at the edge — "
+        "CSS text-overflow semantics, except the marker is a real glyph run "
+        "instead of a string glued onto the end. Nothing here reshapes: the "
+        "same cached words are just placed into a shorter or taller measure "
+        "as the box resizes, frame after frame.");
+  }
+
+  FrameStats render(SkCanvas *canvas, SkISize size, double t, int /*frame*/,
+                    const SceneParams &params, FontContext &ctx) override {
+    if (!m_serif)
+      m_serif = defaultSerif(ctx);
+    m_body.ensure(params, defaultText(), m_serif);
+
+    const float w = size.width(), h = size.height();
+    const float em = params.fontSize;
+    const float breathe = 0.5f + 0.5f * static_cast<float>(std::sin(t * 0.4));
+    const float maxBoxH = std::max(h - 140.0f, em * 3.0f);
+    const float boxH =
+        em * 2.4f + std::max(0.0f, maxBoxH - em * 2.4f) * breathe;
+    const float paneW = w * 0.4f;
+
+    canvas->clear(kPaper);
+    drawCaption(canvas, ctx, "clipped — no ellipsis", {w * 0.06f, 18});
+    drawCaption(canvas, ctx, "LayoutOptions::ellipsis = \"…\"",
+                {w * 0.54f, 18});
+
+    double layoutUs = 0;
+    int runs = 0;
+    QString status[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      const float x = pass == 0 ? w * 0.06f : w * 0.54f;
+      const SkRect box = SkRect::MakeXYWH(x, 48, paneW, boxH);
+
+      BlockFlow flow(box);
+      LayoutOptions opts;
+      opts.alignment = params.alignment;
+      opts.breaker = params.breaker;
+      opts.lineHeight = em * 1.5f;
+      if (pass == 1)
+        opts.ellipsis = u"…";
+
+      const auto t0 = Clock::now();
+      Layout layout = layoutParagraph(ctx, m_body.para, flow, opts);
+      layoutUs += toUs(Clock::now() - t0);
+      runs += static_cast<int>(layout.runs.size());
+
+      SkPaint border;
+      border.setAntiAlias(true);
+      border.setStyle(SkPaint::kStroke_Style);
+      border.setStrokeWidth(1.2f);
+      border.setColor(layout.overflowed() ? kAccent : 0x3323252B);
+      canvas->drawRect(box, border);
+      layout.drawBatched(canvas, m_body.para);
+
+      if (layout.overflowed()) {
+        const int unplaced = static_cast<int>(m_body.para.words().size() -
+                                              layout.firstUnplacedWord);
+        const QString word =
+            unplaced == 1 ? QStringLiteral("word") : QStringLiteral("words");
+        status[pass] = QStringLiteral("overflowed — %1 %2 cut%3")
+                           .arg(unplaced)
+                           .arg(word)
+                           .arg(pass == 1 && layout.ellipsized
+                                    ? QStringLiteral(", ellipsis drawn")
+                                    : QString());
+      } else {
+        status[pass] = QStringLiteral("fits — nothing cut");
+      }
+    }
+
+    drawCaption(canvas, ctx, status[0].toUtf8().constData(),
+                {w * 0.06f, 48 + boxH + 22}, paneW);
+    drawCaption(canvas, ctx, status[1].toUtf8().constData(),
+                {w * 0.54f, 48 + boxH + 22}, paneW);
+
+    return {layoutUs, runs, 0};
+  }
+
+private:
+  BodyCache m_body;
+  sk_sp<SkTypeface> m_serif;
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Scene>> makeScenes() {
@@ -1061,6 +1190,7 @@ std::vector<std::unique_ptr<Scene>> makeScenes() {
   scenes.push_back(std::make_unique<VerticalScene>());
   scenes.push_back(std::make_unique<MarkersScene>());
   scenes.push_back(std::make_unique<SlotsScene>());
+  scenes.push_back(std::make_unique<OverflowScene>());
   return scenes;
 }
 

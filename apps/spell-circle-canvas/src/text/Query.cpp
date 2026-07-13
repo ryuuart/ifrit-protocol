@@ -37,20 +37,42 @@ uint32_t mapPos(uint32_t pos, const Paragraph::EditOp &op, bool isEnd) {
   return isEnd ? op.start + op.inserted : op.start;
 }
 
+// Clamps a query scope to the paragraph's text.
+CharRange clampScope(const Paragraph &para, CharRange scope) {
+  const uint32_t len = static_cast<uint32_t>(para.text().size());
+  scope.start = std::min(scope.start, len);
+  scope.end = std::min(std::max(scope.end, scope.start), len);
+  return scope;
+}
+
 } // namespace
 
 std::vector<CharRange> findAll(const Paragraph &para,
-                               std::u16string_view needle) {
+                               std::u16string_view needle, CharRange scope) {
   std::vector<CharRange> out;
   if (needle.empty())
     return out;
-  const std::u16string &text = para.text();
-  for (size_t pos = text.find(needle); pos != std::u16string::npos;
+  scope = clampScope(para, scope);
+  const std::u16string_view text =
+      std::u16string_view(para.text())
+          .substr(scope.start, scope.end - scope.start);
+  for (size_t pos = text.find(needle); pos != std::u16string_view::npos;
        pos = text.find(needle, pos + needle.size())) {
-    out.push_back({static_cast<uint32_t>(pos),
-                   static_cast<uint32_t>(pos + needle.size())});
+    out.push_back({scope.start + static_cast<uint32_t>(pos),
+                   scope.start + static_cast<uint32_t>(pos + needle.size())});
   }
   return out;
+}
+
+std::vector<CharRange> findAll(const Paragraph &para,
+                               std::u16string_view needle) {
+  return findAll(para, needle,
+                 {0, static_cast<uint32_t>(para.text().size())});
+}
+
+std::vector<CharRange> findAll(const Paragraph &para,
+                               std::string_view utf8Needle, CharRange scope) {
+  return findAll(para, std::u16string_view(toUtf16(utf8Needle)), scope);
 }
 
 std::vector<CharRange> findAll(const Paragraph &para,
@@ -59,7 +81,8 @@ std::vector<CharRange> findAll(const Paragraph &para,
 }
 
 std::optional<std::vector<CharRange>> findRegex(const Paragraph &para,
-                                                std::string_view utf8Pattern) {
+                                                std::string_view utf8Pattern,
+                                                CharRange scope) {
   const std::u16string pattern = toUtf16(utf8Pattern);
   UErrorCode status = U_ZERO_ERROR;
   URegularExpression *re =
@@ -71,18 +94,28 @@ std::optional<std::vector<CharRange>> findRegex(const Paragraph &para,
     return std::nullopt;
   }
   std::vector<CharRange> out;
+  scope = clampScope(para, scope);
+  // The engine sees only the window, so anchors and \b treat its edges as
+  // the ends of the text — substring semantics, matching findAll.
   const std::u16string &text = para.text();
-  uregex_setText(re, reinterpret_cast<const UChar *>(text.data()),
-                 static_cast<int32_t>(text.size()), &status);
+  uregex_setText(re, reinterpret_cast<const UChar *>(text.data()) + scope.start,
+                 static_cast<int32_t>(scope.end - scope.start), &status);
   while (U_SUCCESS(status) && uregex_findNext(re, &status)) {
     const int32_t s = uregex_start(re, 0, &status);
     const int32_t e = uregex_end(re, 0, &status);
     if (U_FAILURE(status))
       break;
-    out.push_back({static_cast<uint32_t>(s), static_cast<uint32_t>(e)});
+    out.push_back({scope.start + static_cast<uint32_t>(s),
+                   scope.start + static_cast<uint32_t>(e)});
   }
   uregex_close(re);
   return out;
+}
+
+std::optional<std::vector<CharRange>> findRegex(const Paragraph &para,
+                                                std::string_view utf8Pattern) {
+  return findRegex(para, utf8Pattern,
+                   {0, static_cast<uint32_t>(para.text().size())});
 }
 
 std::vector<CharRange> wordRanges(Paragraph &para, FontContext &ctx) {
@@ -146,9 +179,10 @@ void MarkerSet::applyStyle(Paragraph &para, std::string_view name,
 void MarkerSet::applyPaint(Paragraph &para, std::string_view name,
                            const PaintStyle &paint) {
   sync(para);
+  // Batch: all ranges land in one span-list rebuild, so re-painting a large
+  // marker set every frame stays O(spans + ranges).
   if (const std::vector<CharRange> *ranges = get(name))
-    for (const CharRange &range : std::vector<CharRange>(*ranges))
-      para.setPaint(range.start, range.end, paint);
+    para.setPaint(*ranges, paint);
   m_revision = para.revision();
 }
 

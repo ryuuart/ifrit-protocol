@@ -19,13 +19,8 @@ namespace textflow {
 
 class FontContext;
 
-// UTF-16 code-unit range into a Paragraph's text, end exclusive.
-struct CharRange {
-  uint32_t start = 0;
-  uint32_t end = 0;
-  bool empty() const { return end <= start; }
-  bool operator==(const CharRange &) const = default;
-};
+// CharRange (a UTF-16 code-unit range, end exclusive) lives in Paragraph.h —
+// it is shared with Paragraph's batch restyling API.
 
 // Every non-overlapping occurrence of `needle`, left to right.
 std::vector<CharRange> findAll(const Paragraph &para,
@@ -33,10 +28,23 @@ std::vector<CharRange> findAll(const Paragraph &para,
 std::vector<CharRange> findAll(const Paragraph &para,
                                std::string_view utf8Needle);
 
+// Scoped variants: search only inside `scope` (clamped to the text), as if
+// that window were the whole string — a match never extends past either
+// edge. This is the cost control for large documents: scope the query to
+// what the layout actually placed (e.g. up to Layout::firstUnplacedWord's
+// textBegin) and the search is bounded by the geometry, not the text.
+std::vector<CharRange> findAll(const Paragraph &para,
+                               std::u16string_view needle, CharRange scope);
+std::vector<CharRange> findAll(const Paragraph &para,
+                               std::string_view utf8Needle, CharRange scope);
+
 // Every match of an ICU regular expression (full Unicode semantics; the
 // pattern is UTF-8). std::nullopt when the pattern does not compile.
 std::optional<std::vector<CharRange>> findRegex(const Paragraph &para,
                                                 std::string_view utf8Pattern);
+std::optional<std::vector<CharRange>> findRegex(const Paragraph &para,
+                                                std::string_view utf8Pattern,
+                                                CharRange scope);
 
 // The content range of every word — the line-break segments the layout
 // itself uses, trailing whitespace excluded. Shapes on demand (cache-hot).

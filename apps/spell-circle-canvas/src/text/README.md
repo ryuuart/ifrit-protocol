@@ -156,7 +156,10 @@ layout.drawBatched(canvas, para);      // few drawGlyphs calls instead of
                                        // GPU canvases with many runs
 
 para.replaceText(4, 9, "swift");       // edit: next layout re-shapes 1 word
-para.setPaint(0, 6, {SK_ColorRED});    // restyle: re-shapes 0 words
+para.setPaint(0, 6, {SK_ColorRED});    // restyle: re-shapes 0 words — and
+                                       // skips ICU re-analysis too (paint
+                                       // edits only re-derive the shaped
+                                       // prefix's segments, cache-hot)
 
 // Query layer (optional): HTML/JS-flavoured selection + styling.
 for (CharRange r : findRegex(para, "\\p{Lu}\\w+").value_or({}))
@@ -164,7 +167,16 @@ for (CharRange r : findRegex(para, "\\p{Lu}\\w+").value_or({}))
 MarkerSet marks(para);
 marks.set("keywords", findAll(para, "glyph"));
 para.replaceText(0, 0, "New intro. ");  // markers shift with the edit
-marks.applyPaint(para, "keywords", {accent}); // syncs, then restyles
+marks.applyPaint(para, "keywords", {accent}); // syncs, then restyles all
+                                              // ranges in ONE span rebuild
+
+// Large documents: scope queries to what the layout can actually place —
+// search cost follows the geometry, not the text (see the markers gallery
+// scene). Scoped matches never extend past the window's edges.
+uint32_t placed = layout.overflowed()
+                      ? para.words()[layout.firstUnplacedWord].textBegin
+                      : uint32_t(para.text().size());
+findRegex(para, "\\p{Lu}\\w+", {0, placed});
 
 // Vertical CJK (書字方向): columns top-to-bottom, right-to-left.
 para.setWritingMode(WritingMode::kVerticalRL);

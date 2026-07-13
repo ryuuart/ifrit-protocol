@@ -348,6 +348,32 @@ void Paragraph::setStyle(uint32_t start, uint32_t end, const TextStyle &style) {
   markDirty();
 }
 
+namespace {
+
+// Span boundaries unchanged means every WordSegment::styleIndex still points
+// at the right span — a repaint over the same ranges (hue cycling a marker
+// set every frame) needs no reconcile at all.
+std::vector<std::pair<uint32_t, uint32_t>>
+spanBoundaries(const std::vector<StyleSpan> &spans) {
+  std::vector<std::pair<uint32_t, uint32_t>> out;
+  out.reserve(spans.size());
+  for (const StyleSpan &span : spans)
+    out.push_back({span.start, span.end});
+  return out;
+}
+
+bool sameSpanBoundaries(const std::vector<std::pair<uint32_t, uint32_t>> &a,
+                        const std::vector<StyleSpan> &b) {
+  if (a.size() != b.size())
+    return false;
+  for (size_t i = 0; i < a.size(); ++i)
+    if (a[i].first != b[i].start || a[i].second != b[i].end)
+      return false;
+  return true;
+}
+
+} // namespace
+
 void Paragraph::setPaint(uint32_t start, uint32_t end,
                          const PaintStyle &paint) {
   const uint32_t len = static_cast<uint32_t>(m_text.size());
@@ -356,6 +382,8 @@ void Paragraph::setPaint(uint32_t start, uint32_t end,
   if (start == end)
     return;
 
+  const std::vector<std::pair<uint32_t, uint32_t>> before =
+      spanBoundaries(m_spans);
   std::vector<StyleSpan> next;
   next.reserve(m_spans.size() + 2);
   for (const StyleSpan &span : m_spans) {
@@ -374,9 +402,74 @@ void Paragraph::setPaint(uint32_t start, uint32_t end,
   }
   m_spans = std::move(next);
   normalizeSpans();
-  // Shaping keys are untouched: re-analysis is pure cache hits, and a layout
-  // that only re-draws (Layout::draw reads span paints live) needs nothing.
-  markDirty();
+  // Shaping keys and the text itself are untouched, so the words/scripts/
+  // bidi analysis stands — at most the shaped prefix's span indices need
+  // re-deriving (see reshapeShapedPrefix). When even the boundaries came
+  // out unchanged (repainting the same ranges), the indices are already
+  // right and nothing at all is dirty: draws just read the new paint.
+  if (!sameSpanBoundaries(before, m_spans))
+    markPaintDirty();
+}
+
+void Paragraph::setPaint(const std::vector<CharRange> &ranges,
+                         const PaintStyle &paint) {
+  const uint32_t len = static_cast<uint32_t>(m_text.size());
+
+  // Sanitize into sorted, clamped, non-overlapping ranges.
+  std::vector<CharRange> rs;
+  rs.reserve(ranges.size());
+  for (const CharRange &range : ranges) {
+    CharRange r{std::min(range.start, len), std::min(range.end, len)};
+    if (!r.empty())
+      rs.push_back(r);
+  }
+  std::sort(rs.begin(), rs.end(),
+            [](const CharRange &a, const CharRange &b) {
+              return a.start < b.start;
+            });
+  size_t merged = 0;
+  for (size_t i = 1; i < rs.size(); ++i) {
+    if (rs[i].start <= rs[merged].end)
+      rs[merged].end = std::max(rs[merged].end, rs[i].end);
+    else
+      rs[++merged] = rs[i];
+  }
+  if (!rs.empty())
+    rs.resize(merged + 1);
+  if (rs.empty())
+    return;
+
+  const std::vector<std::pair<uint32_t, uint32_t>> before =
+      spanBoundaries(m_spans);
+  // One pass over spans and ranges together: each output span is either an
+  // untouched piece or a painted intersection, so the whole batch costs
+  // O(spans + ranges) instead of one full rebuild per range.
+  std::vector<StyleSpan> next;
+  next.reserve(m_spans.size() + 2 * rs.size());
+  size_t ri = 0;
+  for (const StyleSpan &span : m_spans) {
+    uint32_t pos = span.start;
+    while (pos < span.end) {
+      while (ri < rs.size() && rs[ri].end <= pos)
+        ri++;
+      if (ri == rs.size() || rs[ri].start >= span.end) {
+        next.push_back({pos, span.end, span.style});
+        break;
+      }
+      if (rs[ri].start > pos) {
+        next.push_back({pos, rs[ri].start, span.style});
+        pos = rs[ri].start;
+      }
+      StyleSpan mid{pos, std::min(span.end, rs[ri].end), span.style};
+      mid.style.paint = paint;
+      pos = mid.end;
+      next.push_back(std::move(mid));
+    }
+  }
+  m_spans = std::move(next);
+  normalizeSpans();
+  if (!sameSpanBoundaries(before, m_spans))
+    markPaintDirty();
 }
 
 Paragraph::Strut Paragraph::strut(FontContext &ctx) const {
@@ -406,11 +499,40 @@ float Paragraph::naturalWidth(FontContext &ctx) {
 }
 
 void Paragraph::ensureAnalyzed(FontContext &ctx) {
-  if (!m_dirty)
+  if (m_dirty) {
+    normalizeSpans();
+    analyze(ctx);
+    m_dirty = false;
+    m_paintDirty = false;
     return;
-  normalizeSpans();
-  analyze(ctx);
-  m_dirty = false;
+  }
+  if (m_paintDirty) {
+    m_paintDirty = false;
+    reshapeShapedPrefix(ctx);
+  }
+}
+
+// Paint-only reconcile: the text didn't change, so line breaks, scripts,
+// and bidi levels all stand — skip analyze()'s O(text) ICU passes and only
+// re-derive segments for the words that were already shaped, against the
+// new span list. Unchanged words hit the shape cache; only a boundary
+// landing mid-word shapes new sub-segments.
+void Paragraph::reshapeShapedPrefix(FontContext &ctx) {
+  const uint32_t shaped = m_shapedWords;
+  m_shapedWords = 0;
+  m_shapeSpanCursor = 0;
+  m_shapeScriptCursor = 0;
+  m_glueMemoStyle = ~0u;
+  m_glueMemoText.clear();
+  for (; m_shapedWords < shaped; ++m_shapedWords) {
+    Word &word = m_words[m_shapedWords];
+    if (word.placeholderIndex >= 0)
+      continue; // slots carry no glyphs; width comes from the record
+    word.segments.clear();
+    word.width = 0;
+    word.spaceWidth = 0;
+    shapeWordContent(ctx, word);
+  }
 }
 
 void Paragraph::ensureShapedTo(FontContext &ctx, uint32_t wordCount) {
