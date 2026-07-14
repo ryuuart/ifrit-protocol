@@ -6,6 +6,14 @@ qt_add_executable(TextFlowGallery
   gallery_main.cpp
 )
 
+set_target_properties(TextFlowGallery PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.TextFlowGallery"
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    MACOSX_BUNDLE TRUE
+    # WIN32_EXECUTABLE TRUE
+)
+
 set_source_files_properties(
   ../qml/gallery/Main.qml
   PROPERTIES QT_RESOURCE_ALIAS Main.qml
