@@ -50,6 +50,12 @@ sk_sp<SkTypeface> resolveGalleryTypeface(SkFontMgr *fontManager,
 
 constexpr std::string_view kNotoSerifPrefix = "Noto Serif";
 constexpr std::string_view kNotoCuneiformFamily = "Noto Sans Cuneiform";
+constexpr const char *kSystemNotoCuneiformPath =
+    "/System/Library/Fonts/Supplemental/NotoSansCuneiform-Regular.ttf";
+
+bool isCuneiform(int32_t codePoint) {
+  return codePoint >= 0x12000 && codePoint <= 0x1254F;
+}
 
 bool startsWith(std::string_view text, std::string_view prefix) {
   return text.size() >= prefix.size() &&
@@ -92,7 +98,8 @@ sk_sp<SkTypeface> resolvePlatformFallback(SkFontMgr &fontManager,
 textflow::FontContext::FallbackResolver
 makeGalleryFallbackResolver(SkFontMgr &fontManager) {
   std::vector<std::string> serifFamilies;
-  bool hasCuneiformFamily = false;
+  sk_sp<SkTypeface> cuneiformTypeface =
+      fontManager.makeFromFile(kSystemNotoCuneiformPath);
   const int familyCount = fontManager.countFamilies();
   serifFamilies.reserve(static_cast<size_t>(std::max(0, familyCount)));
   for (int familyIndex = 0; familyIndex < familyCount; ++familyIndex) {
@@ -101,18 +108,28 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
     const std::string_view familyName(family.c_str(), family.size());
     if (startsWith(familyName, kNotoSerifPrefix))
       serifFamilies.emplace_back(familyName);
-    else if (familyName == kNotoCuneiformFamily)
-      hasCuneiformFamily = true;
+    else if (!cuneiformTypeface && familyName == kNotoCuneiformFamily)
+      cuneiformTypeface = fontManager.matchFamilyStyle(
+          kNotoCuneiformFamily.data(), SkFontStyle());
   }
   std::sort(serifFamilies.begin(), serifFamilies.end());
   serifFamilies.erase(
       std::unique(serifFamilies.begin(), serifFamilies.end()),
       serifFamilies.end());
 
-  return [serifFamilies = std::move(serifFamilies), hasCuneiformFamily](
+  return [serifFamilies = std::move(serifFamilies),
+          cuneiformTypeface = std::move(cuneiformTypeface)](
              SkFontMgr &manager, const SkTypeface &primaryTypeface,
              int32_t codePoint,
              std::string_view languageTag) -> sk_sp<SkTypeface> {
+    // macOS ships Noto Sans Cuneiform, but CoreText can resolve its character
+    // map and rasterizer from different copies when a newer user-installed
+    // font has the same PostScript name. Loading the system file directly
+    // keeps HarfBuzz's glyph IDs and Skia's outlines from the same face.
+    if (isCuneiform(codePoint) && cuneiformTypeface &&
+        cuneiformTypeface->unicharToGlyph(codePoint) != 0)
+      return cuneiformTypeface;
+
     const std::string primaryFamily = typefaceFamily(primaryTypeface);
     if (!startsWith(primaryFamily, kNotoSerifPrefix))
       return resolvePlatformFallback(manager, primaryTypeface, codePoint,
@@ -137,10 +154,6 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
         if (sk_sp<SkTypeface> candidate = tryFamily(family))
           return candidate;
       }
-    }
-    if (hasCuneiformFamily) {
-      if (sk_sp<SkTypeface> cuneiform = tryFamily(kNotoCuneiformFamily))
-        return cuneiform;
     }
     return resolvePlatformFallback(manager, primaryTypeface, codePoint,
                                    languageTag);

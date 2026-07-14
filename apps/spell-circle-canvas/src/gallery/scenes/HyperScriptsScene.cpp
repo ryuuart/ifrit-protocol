@@ -123,9 +123,15 @@ public:
       drawSceneLabel(canvas, fontContext, kLabels[panelIndex],
                      {panel.left() + 12, panel.top() + 8}, panel.width() - 24);
 
+      // U+12031's ink is much taller than Noto Sans Cuneiform's ordinary
+      // signs and rises above the fallback strut. Keep that overshoot clear of
+      // the captions in the two panels that contain it.
+      const float fallbackOvershoot =
+          panelIndex == 1 || panelIndex == 6 ? baseSize * 1.5f : 0.0f;
+      const float textTop = panel.top() + 31 + fallbackOvershoot;
       const SkRect textBox = SkRect::MakeXYWH(
-          panel.left() + 12, panel.top() + 31, panel.width() - 24,
-          std::max(1.0f, panel.height() - 38));
+          panel.left() + 12, textTop, panel.width() - 24,
+          std::max(1.0f, panel.bottom() - textTop - 7));
       BlockFlow flow(textBox);
       ParagraphLayoutOptions options;
       options.alignment =
