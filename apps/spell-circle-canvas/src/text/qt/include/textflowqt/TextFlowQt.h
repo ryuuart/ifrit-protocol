@@ -1,11 +1,13 @@
 #pragma once
 
-// Qt ↔ TextFlow/Skia bridging. Lives in its own tiny interface target
-// (TextFlowQt) so the core TextFlow library stays Qt-free — link this only
-// from Qt applications.
-//
-// QString and Paragraph both store UTF-16, so text crosses the bridge as a
-// zero-copy view — no transcoding, no allocation.
+/** @file
+ * Qt ↔ TextFlow/Skia bridging. Lives in its own tiny interface target
+ * (TextFlowQt) so the core TextFlow library stays Qt-free — link this only
+ * from Qt applications.
+ *
+ * QString and Paragraph both store UTF-16, so text crosses the bridge as a
+ * zero-copy view — no transcoding, no allocation.
+ */
 
 #include <textflow/Paragraph.h>
 #include <textflow/Query.h>
@@ -28,10 +30,13 @@
 
 namespace textflowqt {
 
-// ── Text (zero-copy: QString is UTF-16, and so is Paragraph) ─────────────
+/** @name Text (zero-copy: QString is UTF-16, and so is Paragraph)
+ *  @{
+ */
 
-// Borrowed view of a QString's storage: valid only while `text` is alive and
-// unmodified.
+/** Returns a borrowed view of a QString's storage: valid only while `text`
+ * is alive and unmodified.
+ */
 inline std::u16string_view toU16(const QString &text) {
   return {reinterpret_cast<const char16_t *>(text.constData()),
           static_cast<size_t>(text.size())};
@@ -65,7 +70,11 @@ findAllOccurrences(const textflow::Paragraph &paragraph,
   return textflow::findAllOccurrences(paragraph, toU16(needle));
 }
 
-// ── Geometry / color ─────────────────────────────────────────────────────
+/** @} */
+
+/** @name Geometry / color
+ *  @{
+ */
 
 /** Converts a QColor to its unpremultiplied Skia color value. */
 inline SkColor toSkColor(const QColor &color) {
@@ -86,10 +95,16 @@ inline SkRect toSkRect(const QRectF &rectangle) {
                           static_cast<float>(rectangle.height()));
 }
 
-// ── Fonts ────────────────────────────────────────────────────────────────
+/** @} */
 
-// QFont::weight() is already on the 1–900 (Thin..Black) scale SkFontStyle
-// uses, so it carries straight through.
+/** @name Fonts
+ *  @{
+ */
+
+/** Converts a QFont's weight/slant to an SkFontStyle. QFont::weight() is
+ * already on the 1–900 (Thin..Black) scale SkFontStyle uses, so it carries
+ * straight through.
+ */
 inline SkFontStyle toSkFontStyle(const QFont &font) {
   SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant;
   if (font.style() == QFont::StyleItalic)
@@ -100,10 +115,12 @@ inline SkFontStyle toSkFontStyle(const QFont &font) {
                      SkFontStyle::kNormal_Width, slant);
 }
 
-// Resolves the QFont's family + style through the given font manager.
-// An empty family yields the platform default. May return null when the
-// manager has no match at all — callers should fall back to their default
-// typeface (e.g. FontContext::defaultTypeface()).
+/** Resolves the QFont's family + style through the given font manager.
+ *
+ * An empty family yields the platform default. May return null when the
+ * manager has no match at all — callers should fall back to their default
+ * typeface (e.g. FontContext::defaultTypeface()).
+ */
 inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *fontManager,
                                       const QFont &font) {
   if (!fontManager)
@@ -112,5 +129,7 @@ inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *fontManager,
   return fontManager->matchFamilyStyle(
       family.isEmpty() ? nullptr : family.constData(), toSkFontStyle(font));
 }
+
+/** @} */
 
 } // namespace textflowqt

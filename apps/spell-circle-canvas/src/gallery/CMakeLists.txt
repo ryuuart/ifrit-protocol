@@ -24,6 +24,17 @@ qt_add_qml_module(TextFlowGallery
   SOURCES
     GalleryView.cpp include/GalleryView.h
     GalleryScenes.cpp include/GalleryScenes.h
+    scenes/SceneSupport.cpp scenes/SceneSupport.h
+    scenes/SceneFactories.h
+    scenes/ExclusionsScene.cpp
+    scenes/KnuthPlassScene.cpp
+    scenes/LoopScene.cpp
+    scenes/RainScene.cpp
+    scenes/RippleScene.cpp
+    scenes/VerticalScene.cpp
+    scenes/MarkersScene.cpp
+    scenes/SlotsScene.cpp
+    scenes/OverflowScene.cpp
 )
 
 target_include_directories(TextFlowGallery PRIVATE include)

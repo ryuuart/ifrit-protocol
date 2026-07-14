@@ -179,6 +179,89 @@ TEST(Itemization, FallbackResolvesCjkGlyphs) {
     }
 }
 
+TEST(Itemization, CustomFallbackResolverControlsSelection) {
+  sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+  sk_sp<SkTypeface> primary =
+      fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
+  sk_sp<SkTypeface> preferred =
+      fontManager->matchFamilyStyle("Noto Serif JP", SkFontStyle());
+  constexpr SkUnichar kJapaneseHiragana = 0x3042; // あ
+  if (!primary || !preferred || primary->unicharToGlyph(kJapaneseHiragana) ||
+      !preferred->unicharToGlyph(kJapaneseHiragana))
+    GTEST_SKIP() << "Noto Sans / Noto Serif JP fallback fixture unavailable";
+
+  int resolverCalls = 0;
+  std::string observedLanguage;
+  FontContext fontContext(
+      std::move(fontManager), nullptr,
+      [&](SkFontMgr &, const SkTypeface &, int32_t codePoint,
+          std::string_view languageTag) {
+        resolverCalls++;
+        observedLanguage = languageTag;
+        return codePoint == kJapaneseHiragana ? preferred : nullptr;
+      });
+
+  TextStyle textStyle;
+  textStyle.shaping.typeface = primary;
+  textStyle.shaping.languageTag = "ja";
+  Paragraph paragraph;
+  paragraph.appendText("あ", textStyle);
+  paragraph.ensureShaped(fontContext);
+
+  ASSERT_FALSE(paragraph.words().empty());
+  const sk_sp<SkTypeface> &resolved =
+      paragraph.words().front().segments.front().shaped->typeface;
+  ASSERT_TRUE(resolved);
+  EXPECT_EQ(resolved->uniqueID(), preferred->uniqueID());
+  EXPECT_EQ(observedLanguage, "ja");
+  EXPECT_EQ(resolverCalls, 1);
+}
+
+TEST(Itemization, FallbackCacheIncludesLanguage) {
+  sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+  sk_sp<SkTypeface> primary =
+      fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
+  sk_sp<SkTypeface> simplified =
+      fontManager->matchFamilyStyle("Noto Sans SC", SkFontStyle());
+  sk_sp<SkTypeface> traditional =
+      fontManager->matchFamilyStyle("Noto Sans TC", SkFontStyle());
+  constexpr SkUnichar kSharedHanCharacter = 0x4E2D; // 中
+  if (!primary || !simplified || !traditional ||
+      primary->unicharToGlyph(kSharedHanCharacter) ||
+      !simplified->unicharToGlyph(kSharedHanCharacter) ||
+      !traditional->unicharToGlyph(kSharedHanCharacter) ||
+      simplified->uniqueID() == traditional->uniqueID())
+    GTEST_SKIP() << "regional Noto CJK fallback fixtures unavailable";
+
+  int resolverCalls = 0;
+  FontContext fontContext(
+      std::move(fontManager), nullptr,
+      [&](SkFontMgr &, const SkTypeface &, int32_t,
+          std::string_view languageTag) {
+        resolverCalls++;
+        return languageTag == "zh-Hant" ? traditional : simplified;
+      });
+
+  sk_sp<SkTypeface> hans =
+      fontContext.resolveTypeface(primary, kSharedHanCharacter, "zh-Hans");
+  sk_sp<SkTypeface> hant =
+      fontContext.resolveTypeface(primary, kSharedHanCharacter, "zh-Hant");
+  ASSERT_TRUE(hans);
+  ASSERT_TRUE(hant);
+  EXPECT_EQ(hans->uniqueID(), simplified->uniqueID());
+  EXPECT_EQ(hant->uniqueID(), traditional->uniqueID());
+  EXPECT_EQ(resolverCalls, 2);
+
+  // Both exact language keys are now warm.
+  sk_sp<SkTypeface> warmHans =
+      fontContext.resolveTypeface(primary, kSharedHanCharacter, "zh-Hans");
+  sk_sp<SkTypeface> warmHant =
+      fontContext.resolveTypeface(primary, kSharedHanCharacter, "zh-Hant");
+  EXPECT_EQ(warmHans->uniqueID(), simplified->uniqueID());
+  EXPECT_EQ(warmHant->uniqueID(), traditional->uniqueID());
+  EXPECT_EQ(resolverCalls, 2);
+}
+
 TEST(Itemization, HardBreakIsMandatory) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph("first line\nsecond");
@@ -1089,21 +1172,39 @@ TEST(Placeholders, ResizeRelayoutsLive) {
 // tests, adapted to TextFlow's word model.
 
 TEST(Correctness, VariableAxesReachHarfBuzz) {
-  // A variable instance must shape with the same design position Skia
-  // rasterizes: identical advances across weights would mean HarfBuzz
-  // silently shaped the default instance.
+  // A multi-axis variable instance must shape with the same complete design
+  // position Skia rasterizes.
   FontContext &fontContext = sharedContext();
   sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
       "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) <= 0)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  const int axisCount = base ? base->getVariationDesignPosition({}) : 0;
+  if (axisCount < 2)
+    GTEST_SKIP() << "no multi-axis variable Noto Sans installed";
 
-  const SkFontArguments::VariationPosition::Coordinate heavy{
-      SkSetFourByteTag('w', 'g', 'h', 't'), 900.0f};
+  std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates(
+      static_cast<size_t>(axisCount));
+  if (base->getVariationDesignPosition(
+          {coordinates.data(), coordinates.size()}) != axisCount)
+    GTEST_SKIP() << "Noto Sans variation position unavailable";
+  bool changedWeight = false;
+  bool changedWidth = false;
+  for (auto &coordinate : coordinates) {
+    if (coordinate.axis == SkSetFourByteTag('w', 'g', 'h', 't')) {
+      coordinate.value = 900.0f;
+      changedWeight = true;
+    } else if (coordinate.axis == SkSetFourByteTag('w', 'd', 't', 'h')) {
+      coordinate.value = 62.5f;
+      changedWidth = true;
+    }
+  }
+  if (!changedWeight || !changedWidth)
+    GTEST_SKIP() << "Noto Sans wght/wdth axes unavailable";
+
   SkFontArguments args;
-  args.setVariationDesignPosition({&heavy, 1});
-  sk_sp<SkTypeface> black = base->makeClone(args);
-  ASSERT_TRUE(black);
+  args.setVariationDesignPosition(
+      {coordinates.data(), static_cast<int>(coordinates.size())});
+  sk_sp<SkTypeface> varied = base->makeClone(args);
+  ASSERT_TRUE(varied);
 
   constexpr std::string_view kText = "hamburgefonstiv";
   auto shapedAdvance = [&](const sk_sp<SkTypeface> &typeface) {
@@ -1119,14 +1220,15 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
   };
 
   const float regular = shapedAdvance(base);
-  const float bold = shapedAdvance(black);
-  EXPECT_GT(bold, regular * 1.01f) << "wght 900 should shape wider than 400";
+  const float variedAdvance = shapedAdvance(varied);
+  EXPECT_GT(std::abs(variedAdvance - regular), regular * 0.01f)
+      << "changing wght and wdth should affect shaping";
 
   // HarfBuzz's advances agree with what Skia measures for that instance.
   const SkScalar measured =
-      makeFont(black, 32.0f)
+      makeFont(varied, 32.0f)
           .measureText(kText.data(), kText.size(), SkTextEncoding::kUTF8);
-  EXPECT_NEAR(bold, measured, bold * 0.015f);
+  EXPECT_NEAR(variedAdvance, measured, variedAdvance * 0.015f);
 }
 
 TEST(Correctness, ClusterCoverageIsComplete) {

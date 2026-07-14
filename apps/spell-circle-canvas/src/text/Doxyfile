@@ -1,0 +1,35 @@
+# Doxygen config for TextFlow's public API. Run from this directory:
+#
+#   doxygen Doxyfile
+#
+# Output lands in ../../build/docs/textflow/html (gitignored; build/ is
+# already excluded repo-wide). Unlisted settings fall back to Doxygen's
+# built-in defaults — this file only pins down what TextFlow needs.
+
+PROJECT_NAME           = "TextFlow"
+PROJECT_BRIEF          = "A cache-first Skia text layout engine (HarfBuzz + ICU, no SkShaper/SkParagraph)"
+OUTPUT_DIRECTORY       = ../../build/docs/textflow
+
+INPUT                  = include qt/include README.md
+FILE_PATTERNS          = *.h
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+STRIP_FROM_PATH        = include qt/include
+
+# Comment style: /** */, /*!, ///, and //! are all recognized; plain //
+# stays a normal (non-documentation) comment.
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HAVE_DOT               = NO
+FULL_PATH_NAMES        = NO
+SORT_BRIEF_DOCS        = NO
+SORT_MEMBER_DOCS       = NO

@@ -121,6 +121,21 @@ struct ShapeKeyEq {
   }
 };
 
+// (primary typefaceId, codepoint, interned language) -> fallback typeface.
+// Interning keeps the hot cache key compact while preserving exact language
+// identity (rather than accepting collisions from a truncated string hash).
+struct FallbackKey {
+  uint32_t typefaceId = 0;
+  int32_t codePoint = 0;
+  uint32_t languageId = 0;
+  bool operator==(const FallbackKey &) const = default;
+};
+
+template <typename H> H AbslHashValue(H hashState, const FallbackKey &key) {
+  return H::combine(std::move(hashState), key.typefaceId, key.codePoint,
+                    key.languageId);
+}
+
 struct FontContext::Impl {
   // One hb_face/hb_font pair per SkTypeface, scaled to the face's unitsPerEm so
   // shaped positions convert to pixels with a single multiply
@@ -134,10 +149,14 @@ struct FontContext::Impl {
 
   sk_sp<SkFontMgr> fontManager;
   sk_sp<SkTypeface> defaultTypeface;
+  FontContext::FallbackResolver fallbackResolver;
 
   absl::flat_hash_map<uint32_t, TypefaceRecord> typefaceRecords;
-  // (primary typefaceId, codepoint) → typeface that renders it.
-  absl::flat_hash_map<uint64_t, sk_sp<SkTypeface>> fallbackTypefaces;
+  absl::flat_hash_map<FallbackKey, sk_sp<SkTypeface>> fallbackTypefaces;
+  absl::flat_hash_map<std::string, uint32_t> fallbackLanguageIds;
+  std::string lastFallbackLanguageTag;
+  uint32_t lastFallbackLanguageId = 0;
+  uint32_t nextFallbackLanguageId = 1;
   // ASCII fast path: per primary typeface, a direct-mapped table for the
   // codepoints that dominate Latin text, plus a one-entry memo of the last
   // primary used (itemization rarely alternates primaries mid-paragraph).
@@ -159,6 +178,20 @@ struct FontContext::Impl {
   // (e.g. fuzzing random strings) shouldn't grow without bound. Clearing
   // wholesale costs one cold frame, then re-fills.
   static constexpr size_t kMaxShapeEntries = 1 << 17;
+
+  uint32_t fallbackLanguageId(std::string_view languageTag) {
+    if (languageTag.empty())
+      return 0;
+    if (languageTag == lastFallbackLanguageTag)
+      return lastFallbackLanguageId;
+    auto [entry, inserted] = fallbackLanguageIds.try_emplace(
+        std::string(languageTag), nextFallbackLanguageId);
+    if (inserted)
+      ++nextFallbackLanguageId;
+    lastFallbackLanguageTag = entry->first;
+    lastFallbackLanguageId = entry->second;
+    return lastFallbackLanguageId;
+  }
 
   TypefaceRecord &recordForTypeface(const sk_sp<SkTypeface> &typeface);
   ~Impl();

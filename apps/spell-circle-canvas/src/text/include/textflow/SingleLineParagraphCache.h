@@ -1,8 +1,10 @@
 #pragma once
 
-// Optional cache for high-frequency labels, captions, and other short text.
-// It complements layoutSingleLine() while keeping application-specific path
-// geometry out of the core TextFlow library.
+/** @file
+ * Optional cache for high-frequency labels, captions, and other short text.
+ * It complements layoutSingleLine() while keeping application-specific path
+ * geometry out of the core TextFlow library.
+ */
 
 #include "Paragraph.h"
 

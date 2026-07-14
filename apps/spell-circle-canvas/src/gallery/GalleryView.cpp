@@ -9,6 +9,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontArguments.h>
+#include <include/core/SkFontParameters.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <include/ports/SkFontMgr_mac_ct.h>
@@ -16,11 +17,32 @@
 #include <QFont>
 #include <QMouseEvent>
 #include <QQuickWindow>
+#include <QVariantMap>
 #include <rhi/qrhi.h>
 
 #include <chrono>
+#include <limits>
 
 using namespace gallery;
+
+namespace {
+
+QString axisTagName(uint32_t tag) {
+  QString name;
+  name.reserve(4);
+  for (int shift = 24; shift >= 0; shift -= 8)
+    name.append(QChar(static_cast<char>((tag >> shift) & 0xff)));
+  return name;
+}
+
+sk_sp<SkTypeface> resolveGalleryTypeface(SkFontMgr *fontManager,
+                                         const QString &family) {
+  if (!fontManager || family.isEmpty())
+    return nullptr;
+  return textflowqt::toSkTypeface(fontManager, QFont(family));
+}
+
+} // namespace
 
 // ── Render-thread side ─────────────────────────────────────────────────────
 
@@ -31,6 +53,12 @@ public:
   void render(QRhiCommandBuffer *commandBuffer) override;
 
 private:
+  struct FontCoordinate {
+    uint32_t tag = 0;
+    float value = 0;
+    bool operator==(const FontCoordinate &) const = default;
+  };
+
   /// Draws the selected scene in logical coordinates onto an Skia canvas.
   void renderScene(SkCanvas *canvas, float devicePixelRatio, QSize logicalSize);
 
@@ -45,16 +73,15 @@ private:
   SceneParams m_sceneParameters;
   QString m_sceneText;
   QString m_fontFamily;
-  int m_fontWeight = 0;
+  std::vector<FontCoordinate> m_fontCoordinates;
+  uint64_t m_fontAxesRevision = std::numeric_limits<uint64_t>::max();
+  bool m_typefaceDirty = true;
   int m_sceneIndex = 0;
   bool m_animating = true;
   bool m_useGpuBackend = true;
 
-  // Resolved (family, weight) → typeface, cached: re-cloning a variable
-  // instance every frame would mint fresh uniqueIDs and defeat the shape
-  // cache.
-  QString m_resolvedFamily{QStringLiteral("\0")};
-  int m_resolvedWeight = -1;
+  // The resolved typeface is rebuilt only when the GUI-side family/axis
+  // revision changes. Stable frames do one integer comparison in synchronize.
   sk_sp<SkTypeface> m_resolvedTypeface;
   std::vector<SkPoint> m_pendingClicks;
   QSize m_logicalSize;
@@ -101,9 +128,19 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
     m_animating = view->m_animating;
   }
   m_useGpuBackend = view->m_gpu;
-  m_fontWeight = view->m_fontWeight;
   m_sceneText = view->m_sceneText;
-  m_fontFamily = view->m_fontFamily;
+  if (m_fontFamily != view->m_fontFamily) {
+    m_fontFamily = view->m_fontFamily;
+    m_typefaceDirty = true;
+  }
+  if (m_fontAxesRevision != view->m_fontAxesRevision) {
+    m_fontAxesRevision = view->m_fontAxesRevision;
+    m_fontCoordinates.clear();
+    m_fontCoordinates.reserve(view->m_fontAxes.size());
+    for (const GalleryView::FontAxis &axis : view->m_fontAxes)
+      m_fontCoordinates.push_back({axis.tag, axis.value});
+    m_typefaceDirty = true;
+  }
   m_sceneParameters.text = m_sceneText;
   m_sceneParameters.fontSize = static_cast<float>(view->m_fontSize);
   m_sceneParameters.alignment = static_cast<textflow::TextAlignment>(
@@ -166,31 +203,35 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
                    m_sceneIndex, 0, static_cast<int>(m_scenes.size()) - 1))]
           .get();
 
-  // Font family resolves on this thread (owns the FontContext). A weight
-  // is a variable-font `wght` design position cloned onto the family
-  // (Noto Sans when none is picked); shaping follows it because
-  // recordForTypeface mirrors the clone's design position into HarfBuzz.
-  if (m_fontFamily.isEmpty() && m_fontWeight == 0) {
+  // Font family resolves on this thread (owns the FontContext). Every axis
+  // discovered from the selected family is cloned onto the typeface; shaping
+  // follows because recordForTypeface mirrors the clone's complete design
+  // position into HarfBuzz.
+  if (m_fontFamily.isEmpty()) {
+    if (m_typefaceDirty) {
+      m_resolvedTypeface.reset();
+      m_typefaceDirty = false;
+    }
     m_sceneParameters.typeface = nullptr;
   } else {
-    if (m_fontFamily != m_resolvedFamily || m_fontWeight != m_resolvedWeight) {
-      m_resolvedFamily = m_fontFamily;
-      m_resolvedWeight = m_fontWeight;
-      const QString family =
-          m_fontFamily.isEmpty() ? QStringLiteral("Noto Sans") : m_fontFamily;
-      sk_sp<SkTypeface> typeface =
-          textflowqt::toSkTypeface(m_fontContext->fontManager(), QFont(family));
-      if (typeface && m_fontWeight > 0) {
-        const SkFontArguments::VariationPosition::Coordinate weightCoordinate{
-            SkSetFourByteTag('w', 'g', 'h', 't'),
-            static_cast<float>(m_fontWeight)};
+    if (m_typefaceDirty) {
+      sk_sp<SkTypeface> typeface = resolveGalleryTypeface(
+          m_fontContext->fontManager(), m_fontFamily);
+      if (typeface && !m_fontCoordinates.empty()) {
+        std::vector<SkFontArguments::VariationPosition::Coordinate>
+            coordinates;
+        coordinates.reserve(m_fontCoordinates.size());
+        for (const FontCoordinate &coordinate : m_fontCoordinates)
+          coordinates.push_back({coordinate.tag, coordinate.value});
         SkFontArguments fontArguments;
-        fontArguments.setVariationDesignPosition({&weightCoordinate, 1});
+        fontArguments.setVariationDesignPosition(
+            {coordinates.data(), static_cast<int>(coordinates.size())});
         if (sk_sp<SkTypeface> variedTypeface =
                 typeface->makeClone(fontArguments))
           typeface = std::move(variedTypeface);
       }
       m_resolvedTypeface = std::move(typeface);
+      m_typefaceDirty = false;
     }
     m_sceneParameters.typeface = m_resolvedTypeface;
   }
@@ -372,6 +413,7 @@ void GalleryView::setFontFamily(const QString &family) {
   if (family == m_fontFamily)
     return;
   m_fontFamily = family;
+  refreshFontAxes();
   emit fontFamilyChanged();
   update();
 }
@@ -385,12 +427,89 @@ void GalleryView::setFontSize(qreal size) {
   update();
 }
 
-void GalleryView::setFontWeight(int weight) {
-  const int clampedWeight = weight <= 0 ? 0 : std::clamp(weight, 100, 900);
-  if (clampedWeight == m_fontWeight)
+QVariantList GalleryView::fontAxes() const {
+  QVariantList axes;
+  axes.reserve(static_cast<qsizetype>(m_fontAxes.size()));
+  for (const FontAxis &axis : m_fontAxes) {
+    QVariantMap values;
+    values.insert(QStringLiteral("tag"), axis.tagName);
+    values.insert(QStringLiteral("minimum"), axis.minimum);
+    values.insert(QStringLiteral("defaultValue"), axis.defaultValue);
+    values.insert(QStringLiteral("maximum"), axis.maximum);
+    values.insert(QStringLiteral("hidden"), axis.hidden);
+    axes.push_back(values);
+  }
+  return axes;
+}
+
+QVariantMap GalleryView::fontAxisValues() const {
+  QVariantMap values;
+  for (const FontAxis &axis : m_fontAxes)
+    values.insert(axis.tagName, axis.value);
+  return values;
+}
+
+void GalleryView::setFontAxisValue(const QString &tag, qreal value) {
+  for (FontAxis &axis : m_fontAxes) {
+    if (axis.tagName != tag)
+      continue;
+    const float clampedValue =
+        std::clamp(static_cast<float>(value), axis.minimum, axis.maximum);
+    if (clampedValue == axis.value)
+      return;
+    axis.value = clampedValue;
+    ++m_fontAxesRevision;
+    emit fontAxisValuesChanged();
+    update();
     return;
-  m_fontWeight = clampedWeight;
-  emit fontWeightChanged();
+  }
+}
+
+void GalleryView::refreshFontAxes() {
+  std::vector<FontAxis> axes;
+  if (!m_fontFamily.isEmpty()) {
+    // Axis discovery is GUI-side so QML updates as soon as the family changes.
+    // Rendering resolves the same family independently on the render thread.
+    static sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+    sk_sp<SkTypeface> typeface =
+        resolveGalleryTypeface(fontManager.get(), m_fontFamily);
+    const int axisCount =
+        typeface ? typeface->getVariationDesignParameters({}) : 0;
+    if (axisCount > 0) {
+      std::vector<SkFontParameters::Variation::Axis> parameters(
+          static_cast<size_t>(axisCount));
+      std::vector<SkFontArguments::VariationPosition::Coordinate> position(
+          static_cast<size_t>(axisCount));
+      const bool haveParameters =
+          typeface->getVariationDesignParameters(
+              {parameters.data(), parameters.size()}) == axisCount;
+      const bool havePosition =
+          typeface->getVariationDesignPosition(
+              {position.data(), position.size()}) == axisCount;
+      if (haveParameters) {
+        axes.reserve(parameters.size());
+        for (const SkFontParameters::Variation::Axis &parameter : parameters) {
+          float value = parameter.def;
+          if (havePosition) {
+            const auto coordinate = std::find_if(
+                position.begin(), position.end(), [&](const auto &candidate) {
+                  return candidate.axis == parameter.tag;
+                });
+            if (coordinate != position.end())
+              value = coordinate->value;
+          }
+          axes.push_back({parameter.tag, axisTagName(parameter.tag),
+                          parameter.min, parameter.def, parameter.max,
+                          std::clamp(value, parameter.min, parameter.max),
+                          parameter.isHidden()});
+        }
+      }
+    }
+  }
+  m_fontAxes = std::move(axes);
+  ++m_fontAxesRevision;
+  emit fontAxesChanged();
+  emit fontAxisValuesChanged();
   update();
 }
 

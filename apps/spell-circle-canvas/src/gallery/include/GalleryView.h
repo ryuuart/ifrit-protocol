@@ -16,7 +16,10 @@
 #include <QElapsedTimer>
 #include <QQuickRhiItem>
 #include <QTimer>
+#include <QVariantList>
+#include <QVariantMap>
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -35,8 +38,9 @@ class GalleryView : public QQuickRhiItem {
                  fontFamilyChanged)
   Q_PROPERTY(
       qreal fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged)
-  Q_PROPERTY(int fontWeight READ fontWeight WRITE setFontWeight NOTIFY
-                 fontWeightChanged)
+  Q_PROPERTY(QVariantList fontAxes READ fontAxes NOTIFY fontAxesChanged)
+  Q_PROPERTY(QVariantMap fontAxisValues READ fontAxisValues NOTIFY
+                 fontAxisValuesChanged)
   Q_PROPERTY(int alignmentIndex READ alignmentIndex WRITE setAlignmentIndex
                  NOTIFY alignmentIndexChanged)
   Q_PROPERTY(int lineBreakStrategyIndex READ lineBreakStrategyIndex WRITE
@@ -76,10 +80,12 @@ public:
   qreal fontSize() const { return m_fontSize; }
   /** Selects the font size in points. */
   void setFontSize(qreal size);
-  /** Returns the selected variable-font weight, or zero for automatic. */
-  int fontWeight() const { return m_fontWeight; }
-  /** Selects a variable-font weight, or zero for automatic. */
-  void setFontWeight(int weight);
+  /** Returns the selected family's discovered variable-font axes. */
+  QVariantList fontAxes() const;
+  /** Returns current design coordinates keyed by four-character axis tag. */
+  QVariantMap fontAxisValues() const;
+  /** Sets one variable-font design coordinate, clamped to its axis range. */
+  Q_INVOKABLE void setFontAxisValue(const QString &tag, qreal value);
   /** Returns the index into the gallery's text-alignment choices. */
   int alignmentIndex() const { return m_alignmentIndex; }
   /** Selects one of the gallery's text alignments. */
@@ -103,7 +109,8 @@ signals:
   void sceneTextChanged();
   void fontFamilyChanged();
   void fontSizeChanged();
-  void fontWeightChanged();
+  void fontAxesChanged();
+  void fontAxisValuesChanged();
   void alignmentIndexChanged();
   void lineBreakStrategyIndexChanged();
   void gpuChanged();
@@ -116,6 +123,19 @@ protected:
 private:
   friend class GalleryViewRenderer;
 
+  struct FontAxis {
+    uint32_t tag = 0;
+    QString tagName;
+    float minimum = 0;
+    float defaultValue = 0;
+    float maximum = 0;
+    float value = 0;
+    bool hidden = false;
+    bool operator==(const FontAxis &) const = default;
+  };
+
+  void refreshFontAxes();
+
   // GUI-side scene instances: metadata only (never rendered with).
   std::vector<std::unique_ptr<gallery::Scene>> m_sceneMetadata;
 
@@ -124,7 +144,8 @@ private:
   QString m_sceneText;
   QString m_fontFamily;
   qreal m_fontSize = 17.0;
-  int m_fontWeight = 0;     // 0 = font default; else a variable `wght` position
+  std::vector<FontAxis> m_fontAxes;
+  uint64_t m_fontAxesRevision = 0;
   int m_alignmentIndex = 3; // kJustify
   int m_lineBreakStrategyIndex = 0; // kGreedy
   bool m_gpu = true;                // Graphite when available

@@ -122,7 +122,8 @@ its points and even-odd hole morphing live — greedy-vs-Knuth-Plass,
 infinite loop, letter rain, click-to-ripple pool, vertical CJK with
 ruby/kenten/tate-chu-yoko, regex markers, inline slots & pills), live text
 editing, and font/size/alignment/line-breaking controls plus a variable-font
-Weight slider (`wght` 100–900, "auto" = the font's own position). It renders through a QQuickRhiItem: **Skia Graphite on Qt's own
+axis panel discovered from the selected family (`wght`, `wdth`, `opsz`, or
+whatever that font exposes). It renders through a QQuickRhiItem: **Skia Graphite on Qt's own
 Metal queue** — the same GPU path as the SpellCircle app — with a CPU
 raster + texture-upload fallback, and a **GPU switch** in the panel that
 flips between the two live for A/B comparison. The status line reports the
@@ -272,13 +273,18 @@ care.
 - Script coverage is fallback-driven and tested: Arabic joining and
   lam-alef ligation, Devanagari conjuncts, supplementary-plane Cuneiform,
   emoji ZWJ/modifier/flag sequences as single grapheme clusters.
+- Font fallback uses the supplied `SkFontMgr`'s platform cascade by default.
+  Pass a `FontContext::FallbackResolver` at construction to implement an
+  application-owned family list or script/language policy; TextFlow does not
+  infer a serif/sans relationship from family names. The Noto CJK demo uses
+  Noto Sans and Serif only as convenient incomplete primary-font fixtures.
 - Variable fonts shape at their design position: `recordForTypeface` mirrors each
   SkTypeface's variation coordinates into HarfBuzz
   (`hb_font_set_variations`), so an instance made with
   `SkTypeface::makeClone(SkFontArguments)` shapes exactly what Skia
   rasterizes. Clone once and reuse — each clone carries its own uniqueID,
-  hence its own shape-cache keys (the gallery's Weight slider caches one
-  clone per family+weight for this reason).
+  hence its own shape-cache keys (the gallery caches one clone per family and
+  complete coordinate list for this reason).
 - Rendering hygiene for animation: subpixel positioning is size-gated
   (<48px) and on-path rotations quantize to 512 steps, so Skia's glyph
   atlas keeps hitting while text moves; without both, animated 4K text
@@ -313,8 +319,8 @@ care.
   and vertical intervals overflow without a marker.
 - Lines never render past the measure. The breakers only count shrink where
   placement will actually shrink (justified lines that aren't a demoted last
-  line), final lines get TeX's \parfillskip (a loose last line is free), and
-  when no break fits the tolerance the pass reruns with \emergencystretch
+  line), final lines get TeX's `\parfillskip` (a loose last line is free), and
+  when no break fits the tolerance the pass reruns with `\emergencystretch`
   (each line's own width added to its stretchability) rather than force an
   overfull line — one is only ever forced when a single unbreakable box is
   wider than every interval. Justified CJK shrinks ideographic gaps by up to

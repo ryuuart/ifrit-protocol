@@ -1,14 +1,16 @@
 #pragma once
 
-// Per-glyph choreography utilities — the "letters leave their lines"
-// pattern (rain, ripples, marquees) distilled from the demos and the
-// gallery. Optional layer: nothing in the core pipeline includes this.
-//
-// The recipe: lay the paragraph out normally, walk every placed glyph with
-// its rest position via forEachPlacedGlyph, displace/rotate it however the
-// effect wants, and accumulate into GlyphRSXformBatches — one
-// drawGlyphsRSXform call per (font, color) instead of thousands of
-// per-glyph draws.
+/** @file
+ * Per-glyph choreography utilities — the "letters leave their lines"
+ * pattern (rain, ripples, marquees) distilled from the demos and the
+ * gallery. Optional layer: nothing in the core pipeline includes this.
+ *
+ * The recipe: lay the paragraph out normally, walk every placed glyph with
+ * its rest position via forEachPlacedGlyph, displace/rotate it however the
+ * effect wants, and accumulate into GlyphRSXformBatches — one
+ * drawGlyphsRSXform call per (font, color) instead of thousands of
+ * per-glyph draws.
+ */
 
 #include "Paragraph.h"
 #include "ParagraphLayout.h"
@@ -27,16 +29,20 @@
 
 namespace textflow {
 
-// Visits every placed glyph of a layout with its shaped source, glyph ID,
-// advance, span color, and absolute rest position. Enumeration order is
-// stable across relayouts as long as the text itself is unchanged — which
-// is what lets per-glyph particle state survive a per-frame relayout.
-// `fn(const ShapedWord *, SkGlyphID, float advance, SkColor, SkPoint rest)`.
-/** Callable accepted by forEachPlacedGlyph(). */
+/** Callable accepted by forEachPlacedGlyph(): `fn(const ShapedWord *,
+ * SkGlyphID, float advance, SkColor, SkPoint rest)`.
+ */
 template <typename Visitor>
 concept PlacedGlyphVisitor = std::invocable<Visitor &, const ShapedWord *,
                                             SkGlyphID, float, SkColor, SkPoint>;
 
+/** Visits every placed glyph of `layout` with its shaped source, glyph ID,
+ * advance, span color, and absolute rest position.
+ *
+ * Enumeration order is stable across relayouts as long as the text itself
+ * is unchanged — which is what lets per-glyph particle state survive a
+ * per-frame relayout.
+ */
 template <PlacedGlyphVisitor Visitor>
 inline void forEachPlacedGlyph(const ParagraphLayout &layout,
                                const Paragraph &paragraph, Visitor &&visitor) {
@@ -59,10 +65,12 @@ inline void forEachPlacedGlyph(const ParagraphLayout &layout,
   }
 }
 
-// Quantized rotation (64 steps ≈ 5.6°, visually indistinguishable for
-// tumbling letters): continuous per-letter angles would re-rasterize every
-// glyph mask every frame on the CPU raster backend. The GPU backend doesn't
-// need this, but it doesn't hurt there either.
+/** Quantizes `angle` to `cosine`/`sine` on a 64-step table (≈5.6° per step,
+ * visually indistinguishable for tumbling letters): continuous per-letter
+ * angles would re-rasterize every glyph mask every frame on the CPU raster
+ * backend. The GPU backend doesn't need this, but it doesn't hurt there
+ * either.
+ */
 inline void quantizeAngle(float angle, float &cosine, float &sine) {
   constexpr int kSteps = 64;
   constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
@@ -82,9 +90,9 @@ inline void quantizeAngle(float angle, float &cosine, float &sine) {
   sine = angleTable[static_cast<size_t>(stepIndex)].second;
 }
 
-// Glyphs grouped by (font source, color): a frame of thousands of animated
-// letters collapses into a handful of drawGlyphsRSXform calls. Reuse one
-// instance across frames — clear() keeps the allocations.
+/// Glyphs grouped by (font source, color): a frame of thousands of animated
+/// letters collapses into a handful of drawGlyphsRSXform calls. Reuse one
+/// instance across frames — clear() keeps the allocations.
 struct GlyphRSXformBatches {
   struct Batch {
     const ShapedWord *font = nullptr;
@@ -103,8 +111,10 @@ struct GlyphRSXformBatches {
     return batches.back();
   }
 
-  // Convenience for the common "advance-centre anchored at `at`, rotated by
-  // (`cosine`, `sine`) placement the effects use.
+  /** Appends one glyph, anchored at its advance-centre `centerPosition` and
+   * rotated by (`cosine`, `sine`) — the placement convention the effects
+   * use.
+   */
   void addGlyph(const ShapedWord *font, SkColor color, SkGlyphID glyph,
                 float halfAdvance, SkPoint centerPosition, float cosine = 1,
                 float sine = 0) {
@@ -123,7 +133,7 @@ struct GlyphRSXformBatches {
     }
   }
 
-  // Returns the number of glyphs drawn.
+  /** Draws every batch and returns the number of glyphs drawn. */
   int draw(SkCanvas *canvas) const {
     SkPaint paint;
     paint.setAntiAlias(true);

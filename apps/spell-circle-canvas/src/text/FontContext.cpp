@@ -3,6 +3,8 @@
 #include <include/core/SkData.h>
 #include <include/core/SkFontStyle.h>
 
+#include <string_view>
+
 namespace textflow {
 
 namespace {
@@ -19,6 +21,17 @@ hb_blob_t *getTable(hb_face_t *, hb_tag_t tag, void *context) {
       static_cast<const char *>(rawData->data()), rawData->size(),
       HB_MEMORY_MODE_READONLY, rawData,
       [](void *releasedData) { static_cast<SkData *>(releasedData)->unref(); });
+}
+
+sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr &fontManager,
+                                        const SkTypeface &primaryTypeface,
+                                        int32_t codePoint,
+                                        std::string_view languageTag) {
+  const char *languageTags[] = {languageTag.data()};
+  return fontManager.matchFamilyStyleCharacter(
+      nullptr, primaryTypeface.fontStyle(),
+      languageTag.empty() ? nullptr : languageTags,
+      languageTag.empty() ? 0 : 1, codePoint);
 }
 
 } // namespace
@@ -80,10 +93,13 @@ FontContext::Impl::~Impl() {
 }
 
 FontContext::FontContext(sk_sp<SkFontMgr> fontManager,
-                         sk_sp<SkTypeface> defaultTypeface)
+                         sk_sp<SkTypeface> defaultTypeface,
+                         FallbackResolver fallbackResolver)
     : m_impl(std::make_unique<Impl>()) {
   m_impl->fontManager = std::move(fontManager);
   m_impl->defaultTypeface = std::move(defaultTypeface);
+  m_impl->fallbackResolver = fallbackResolver ? std::move(fallbackResolver)
+                                              : resolveSystemFallback;
   m_impl->shapingBuffer = hb_buffer_create();
 }
 
@@ -128,9 +144,9 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
       return sk_ref_sp(cachedTypeface);
   }
 
-  const uint64_t fallbackKey =
-      (static_cast<uint64_t>(resolvedPrimaryTypeface->uniqueID()) << 32) |
-      static_cast<uint32_t>(codePoint);
+  const std::string_view language = languageTag ? languageTag : "";
+  const FallbackKey fallbackKey{resolvedPrimaryTypeface->uniqueID(), codePoint,
+                                m_impl->fallbackLanguageId(language)};
   auto cachedFallback = m_impl->fallbackTypefaces.find(fallbackKey);
   if (cachedFallback != m_impl->fallbackTypefaces.end())
     return cachedFallback->second;
@@ -139,19 +155,20 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
   sk_sp<SkTypeface> resolvedTypeface = resolvedPrimaryTypeface;
   if (resolvedPrimaryTypeface->unicharToGlyph(codePoint) == 0) {
     m_impl->stats.fallbackQueries++;
-    const char *languageTags[1] = {languageTag};
-    const int languageTagCount = (languageTag && *languageTag) ? 1 : 0;
     sk_sp<SkTypeface> matchingTypeface =
-        m_impl->fontManager->matchFamilyStyleCharacter(
-            nullptr, resolvedPrimaryTypeface->fontStyle(),
-            languageTagCount ? languageTags : nullptr, languageTagCount,
-            codePoint);
+        m_impl->fontManager && m_impl->fallbackResolver
+            ? m_impl->fallbackResolver(*m_impl->fontManager,
+                                       *resolvedPrimaryTypeface, codePoint,
+                                       language)
+            : nullptr;
     if (matchingTypeface && matchingTypeface->unicharToGlyph(codePoint) != 0)
       resolvedTypeface = std::move(matchingTypeface);
   }
   const auto insertedEntry =
       m_impl->fallbackTypefaces.emplace(fallbackKey, resolvedTypeface).first;
-  if (isAscii)
+  // A missing ASCII character may be resolved differently by language. Only
+  // put primary-coverage hits in the language-independent fast table.
+  if (isAscii && insertedEntry->second.get() == resolvedPrimaryTypeface.get())
     (*m_impl->lastAsciiFallbackTable)[codePoint] = insertedEntry->second.get();
   return resolvedTypeface;
 }

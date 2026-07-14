@@ -23,6 +23,12 @@ ColumnLayout {
         return matches;
     }
 
+    /** Keeps compact axis readouts useful for both integer and fractional axes. */
+    function formatAxisValue(value) {
+        const rounded = Math.round(value);
+        return Math.abs(value - rounded) < 0.01 ? rounded.toString() : value.toFixed(2);
+    }
+
     spacing: 10
 
     Label {
@@ -80,23 +86,52 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
-        Label {
-            text: "Weight"
-            color: "#9aa3b2"
-        }
-        Slider {
-            id: weightSlider
+    Label {
+        text: "Variable axes"
+        color: "#9aa3b2"
+        visible: root.view.fontAxes.length > 0
+    }
+    Repeater {
+        model: root.view.fontAxes
+
+        delegate: RowLayout {
+            required property var modelData
+
             Layout.fillWidth: true
-            from: 50
-            to: 900
-            stepSize: 50
-            value: root.view.fontWeight < 100 ? 50 : root.view.fontWeight
-            onValueChanged: root.view.fontWeight = value < 100 ? 0 : value
-        }
-        Label {
-            text: weightSlider.value < 100 ? "auto" : Math.round(weightSlider.value).toString()
-            color: "#9aa3b2"
+            visible: !modelData.hidden
+
+            Label {
+                Layout.preferredWidth: 38
+                text: modelData.tag
+                color: "#9aa3b2"
+                font.family: Ui.Theme.monospaceFontFamily
+            }
+            Slider {
+                id: axisSlider
+                Layout.fillWidth: true
+                from: modelData.minimum
+                to: modelData.maximum
+                value: root.view.fontAxisValues[modelData.tag]
+                onMoved: root.view.setFontAxisValue(modelData.tag, value)
+
+                ToolTip.visible: hovered
+                ToolTip.text: "Range " + root.formatAxisValue(from) + "–"
+                              + root.formatAxisValue(to) + "; default "
+                              + root.formatAxisValue(modelData.defaultValue)
+            }
+            Label {
+                Layout.preferredWidth: 42
+                horizontalAlignment: Text.AlignRight
+                text: root.formatAxisValue(axisSlider.value)
+                color: "#9aa3b2"
+            }
+            ToolButton {
+                text: "↺"
+                flat: true
+                onClicked: root.view.setFontAxisValue(modelData.tag, modelData.defaultValue)
+                ToolTip.visible: hovered
+                ToolTip.text: "Reset " + modelData.tag
+            }
         }
     }
 

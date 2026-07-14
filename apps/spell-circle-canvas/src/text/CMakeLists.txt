@@ -74,5 +74,21 @@ target_link_libraries(textflow_bench PRIVATE TextFlow benchmark::benchmark)
 
 add_executable(textflow_demo
   demo/textflow_demo.cpp
+  demo/DemoSupport.cpp demo/DemoSupport.h
+  demo/DemoScenes.h
+  demo/SceneExclusions.cpp
+  demo/SceneKnuthPlass.cpp
+  demo/SceneFreeform.cpp
+  demo/SceneExtreme.cpp
+  demo/SceneTypography.cpp
+  demo/ScenePretext.cpp
+  demo/SceneRain.cpp
+  demo/SceneRipple.cpp
+  demo/SceneLoop.cpp
+  demo/SceneBabel.cpp
+  demo/SceneFeatures.cpp
+  demo/SceneCjk.cpp
+  demo/SceneShapes.cpp
+  demo/SceneFallback.cpp
 )
 target_link_libraries(textflow_demo PRIVATE TextFlow)
