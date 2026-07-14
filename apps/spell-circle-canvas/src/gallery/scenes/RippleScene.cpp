@@ -50,7 +50,8 @@ public:
     });
 
     // Live edit mid-ripple: same-length swap, everything else cache-hot.
-    static const char *swaps[] = {"letters", "glyphs ", "symbols", "strokes"};
+    static const char8_t *swaps[] = {u8"letters", u8"glyphs ", u8"symbols",
+                                     u8"strokes"};
     if (frameNumber > 0 && frameNumber % 150 == 0) {
       const size_t textOffset = m_paragraph.text().find(u"letters");
       if (textOffset != std::u16string::npos)

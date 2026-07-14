@@ -30,27 +30,27 @@ void sceneFeatures(FontContext &fontContext,
   canvas->clear(kPaper);
 
   struct Row {
-    const char *label;
-    const char *text;
+    const char8_t *label;
+    const char8_t *text;
     std::vector<FontFeature> fontFeatures;
   };
   const Row rows[] = {
-      {"default (liga on, oldstyle figures)",
-       "The office staff filed 1234567890 affidavits.",
+      {u8"default (liga on, oldstyle figures)",
+       u8"The office staff filed 1234567890 affidavits.",
        {}},
-      {"liga=0 clig=0 (ligatures off)",
-       "The office staff filed 1234567890 affidavits.",
+      {u8"liga=0 clig=0 (ligatures off)",
+       u8"The office staff filed 1234567890 affidavits.",
        {{"liga", 0}, {"clig", 0}}},
-      {"dlig=1 (discretionary ct/st ligatures)",
-       "The strict architect stood fast.",
+      {u8"dlig=1 (discretionary ct/st ligatures)",
+       u8"The strict architect stood fast.",
        {{"dlig", 1}}},
-      {"smcp=1 (small caps)",
-       "The office staff filed affidavits.",
+      {u8"smcp=1 (small caps)",
+       u8"The office staff filed affidavits.",
        {{"smcp", 1}}},
-      {"lnum=1 (lining figures)",
-       "Figures 1234567890 rise to the cap height.",
+      {u8"lnum=1 (lining figures)",
+       u8"Figures 1234567890 rise to the cap height.",
        {{"lnum", 1}}},
-      {"frac=1 (fractions)", "Mix 1/2 cup with 3/4 spoon.", {{"frac", 1}}},
+      {u8"frac=1 (fractions)", u8"Mix 1/2 cup with 3/4 spoon.", {{"frac", 1}}},
   };
 
   float rowTop = 30;

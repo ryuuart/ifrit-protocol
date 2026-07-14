@@ -19,7 +19,7 @@ namespace textflow {
 
 namespace {
 
-std::u16string utf8ToUtf16(std::string_view utf8) {
+std::u16string utf8ToUtf16(std::u8string_view utf8) {
   if (utf8.empty())
     return {};
   std::u16string utf16;
@@ -28,7 +28,8 @@ std::u16string utf8ToUtf16(std::string_view utf8) {
   int32_t codeUnitsWritten = 0;
   u_strFromUTF8(reinterpret_cast<UChar *>(utf16.data()),
                 static_cast<int32_t>(utf16.size()), &codeUnitsWritten,
-                utf8.data(), static_cast<int32_t>(utf8.size()), &status);
+                reinterpret_cast<const char *>(utf8.data()),
+                static_cast<int32_t>(utf8.size()), &status);
   if (U_FAILURE(status))
     return {};
   utf16.resize(codeUnitsWritten);
@@ -218,7 +219,7 @@ void Paragraph::setPlaceholder(size_t index, const Placeholder &placeholder) {
   markDirty();
 }
 
-void Paragraph::appendText(std::string_view utf8, const TextStyle &style) {
+void Paragraph::appendText(std::u8string_view utf8, const TextStyle &style) {
   appendText(std::u16string_view(utf8ToUtf16(utf8)), style);
 }
 
@@ -290,7 +291,7 @@ void Paragraph::normalizeSpans() {
 }
 
 void Paragraph::replaceText(uint32_t start, uint32_t end,
-                            std::string_view utf8) {
+                            std::u8string_view utf8) {
   const uint32_t textLength = static_cast<uint32_t>(m_text.size());
   start = std::min(start, textLength);
   end = std::min(std::max(end, start), textLength);

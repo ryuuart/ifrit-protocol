@@ -20,42 +20,43 @@ void sceneExclusions(FontContext &fontContext, int frames,
               "shapes\n");
 
   ParagraphBuilder builder(style(17));
-  builder.addText("Typography is the craft of arranging type. ");
-  builder.pushStyle(style(22, kAccent)).addText("Glyphs flow").popStyle();
-  builder.addText(" around obstacles the way water flows around stones. ");
+  builder.addText(u8"Typography is the craft of arranging type. ");
+  builder.pushStyle(style(22, kAccent)).addText(u8"Glyphs flow").popStyle();
+  builder.addText(u8" around obstacles the way water flows around stones. ");
   builder.pushStyle(style(19, kBlue, "ja"))
-      .addText("日本語のテキストも同じ流れに乗って、")
+      .addText(u8"日本語のテキストも同じ流れに乗って、")
       .popStyle();
-  builder.addText("shapes push the lines apart and the words find their way. ");
+  builder.addText(
+      u8"shapes push the lines apart and the words find their way. ");
   builder.pushStyle(style(19, kInk, "ko"))
-      .addText("한국어 단어들도 자연스럽게 흐르고, ")
+      .addText(u8"한국어 단어들도 자연스럽게 흐르고, ")
       .popStyle();
   builder.pushStyle(style(19, kInk, "zh"))
-      .addText("中文字符同样围绕形状排布。")
+      .addText(u8"中文字符同样围绕形状排布。")
       .popStyle();
-  builder.addText("Latin and CJK scripts mix freely because every word is "
+  builder.addText(u8"Latin and CJK scripts mix freely because every word is "
                   "shaped once, cached, and repositioned with pure "
                   "arithmetic. ");
-  builder.addText("The moving circles below force a full line-breaking pass "
+  builder.addText(u8"The moving circles below force a full line-breaking pass "
                   "every frame, yet the layout stays far under a "
                   "millisecond. ");
   builder.pushStyle(style(17, kAccent))
-      .addText("Performance is key. ")
+      .addText(u8"Performance is key. ")
       .popStyle();
   builder.addText(
-      "When a shape slides across a line, the line splits into fragments and "
+      u8"When a shape slides across a line, the line splits into fragments and "
       "each fragment justifies itself independently; when the shape moves "
       "on, the fragments knit back together as if nothing happened. ");
   builder.pushStyle(style(19, kBlue, "ja"))
-      .addText("形が動くたびに行は裂け、また元通りに繋がる。")
+      .addText(u8"形が動くたびに行は裂け、また元通りに繋がる。")
       .popStyle();
-  builder.addText("No word is ever reshaped for any of this — the shape "
+  builder.addText(u8"No word is ever reshaped for any of this — the shape "
                   "cache hands back the same glyph runs and only their "
                   "positions change, frame after frame after frame. ");
   builder.pushStyle(style(19, kInk, "ko"))
-      .addText("모든 글자는 한 번만 성형되고 계속 재사용됩니다. ")
+      .addText(u8"모든 글자는 한 번만 성형되고 계속 재사용됩니다. ")
       .popStyle();
-  builder.addText("That is the whole trick, and it is enough to keep a "
+  builder.addText(u8"That is the whole trick, and it is enough to keep a "
                   "richly styled, multi-script paragraph reflowing at well "
                   "over a thousand frames per second.");
   Paragraph paragraph = builder.build();
@@ -77,7 +78,7 @@ void sceneExclusions(FontContext &fontContext, int frames,
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(900, 740));
   SkCanvas *canvas = surface->getCanvas();
 
-  const char *swaps[] = {"water", "sand ", "wind ", "light"};
+  const char8_t *swaps[] = {u8"water", u8"sand ", u8"wind ", u8"light"};
   const SkColor flashes[] = {kAccent, kBlue, kInk};
 
   TimingStats layoutTime, drawTime;

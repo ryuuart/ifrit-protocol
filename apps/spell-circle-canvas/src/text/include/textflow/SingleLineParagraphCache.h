@@ -23,7 +23,7 @@ namespace detail {
 /** Text view encodings accepted by the shared single-line cache machinery. */
 template <typename View>
 concept CacheableTextView =
-    std::same_as<std::remove_cvref_t<View>, std::string_view> ||
+    std::same_as<std::remove_cvref_t<View>, std::u8string_view> ||
     std::same_as<std::remove_cvref_t<View>, std::u16string_view>;
 
 } // namespace detail
@@ -41,7 +41,7 @@ public:
       : m_maximumEntries(maximumEntries) {}
 
   /** Returns the cached paragraph for UTF-8 text, creating it when absent. */
-  [[nodiscard]] Paragraph &paragraphFor(std::string_view utf8,
+  [[nodiscard]] Paragraph &paragraphFor(std::u8string_view utf8,
                                         const sk_sp<SkTypeface> &typeface,
                                         float fontSize);
 

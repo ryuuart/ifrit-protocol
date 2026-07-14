@@ -12,6 +12,7 @@
 #include <absl/container/flat_hash_set.h>
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <memory>
@@ -35,7 +36,7 @@ TextStyle basicStyle(float fontSize = 16.0f) {
   return style;
 }
 
-Paragraph makeParagraph(std::string_view utf8, float fontSize = 16.0f) {
+Paragraph makeParagraph(std::u8string_view utf8, float fontSize = 16.0f) {
   Paragraph paragraph;
   paragraph.appendText(utf8, basicStyle(fontSize));
   return paragraph;
@@ -57,7 +58,7 @@ float runEnd(const Paragraph &paragraph, const PositionedRun &run) {
 
 TEST(Shaper, ShapesLatinWord) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("Hello");
+  Paragraph paragraph = makeParagraph(u8"Hello");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const Word &word = paragraph.words()[0];
@@ -71,7 +72,7 @@ TEST(Shaper, CacheHitsOnIdenticalWords) {
   FontContext &fontContext = sharedContext();
   fontContext.purgeShapeCache();
   fontContext.resetStats();
-  Paragraph paragraph = makeParagraph("tick tock tick tock tick");
+  Paragraph paragraph = makeParagraph(u8"tick tock tick tock tick");
   paragraph.ensureShaped(fontContext);
   // 3 distinct shape inputs: "tick", "tock", " " (glue). Repeats hit cache.
   EXPECT_EQ(fontContext.stats().shapeCalls, 3u);
@@ -81,12 +82,12 @@ TEST(Shaper, CacheHitsOnIdenticalWords) {
 TEST(Shaper, EditReshapesOnlyTheEditedWord) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "the quick brown fox jumps over the lazy dog again and again");
+      u8"the quick brown fox jumps over the lazy dog again and again");
   paragraph.ensureShaped(fontContext);
 
   fontContext.resetStats();
   // "quick" → "swift": positions 4..9.
-  paragraph.replaceText(4, 9, "swift");
+  paragraph.replaceText(4, 9, u8"swift");
   paragraph.ensureShaped(fontContext);
   // Only the new word content misses the cache ("swift"); everything else
   // (words and glue) must hit.
@@ -96,7 +97,8 @@ TEST(Shaper, EditReshapesOnlyTheEditedWord) {
 
 TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("colorful words change their paint only");
+  Paragraph paragraph =
+      makeParagraph(u8"colorful words change their paint only");
   paragraph.ensureShaped(fontContext);
 
   fontContext.resetStats();
@@ -107,7 +109,7 @@ TEST(Shaper, PaintOnlyRestyleNeverReshapes) {
 
 TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("alpha beta gamma delta epsilon");
+  Paragraph paragraph = makeParagraph(u8"alpha beta gamma delta epsilon");
   paragraph.ensureShaped(fontContext);
 
   fontContext.resetStats();
@@ -121,7 +123,7 @@ TEST(Shaper, FontSizeRestyleReshapesOnlyCoveredWords) {
 
 TEST(Shaper, ClustersAreMonotone) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("office"); // 'ffi' may ligate
+  Paragraph paragraph = makeParagraph(u8"office"); // 'ffi' may ligate
   paragraph.ensureShaped(fontContext);
   const auto &clusters = paragraph.words()[0].segments[0].shaped->clusters;
   EXPECT_TRUE(std::is_sorted(clusters.begin(), clusters.end()));
@@ -129,7 +131,7 @@ TEST(Shaper, ClustersAreMonotone) {
 
 TEST(Shaper, WordBlobIsSharedAcrossLayouts) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("stable");
+  Paragraph paragraph = makeParagraph(u8"stable");
   paragraph.ensureShaped(fontContext);
   const ShapedWordRef &shaped = paragraph.words()[0].segments[0].shaped;
   const SkTextBlob *first = wordBlob(*shaped).get();
@@ -141,7 +143,7 @@ TEST(Shaper, WordBlobIsSharedAcrossLayouts) {
 
 TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("Skia は速い and 빠르다 也很快");
+  Paragraph paragraph = makeParagraph(u8"Skia は速い and 빠르다 也很快");
   paragraph.ensureShaped(fontContext);
   ASSERT_GT(paragraph.words().size(), 4u);
 
@@ -158,7 +160,7 @@ TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
 
 TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("日本語のテキスト");
+  Paragraph paragraph = makeParagraph(u8"日本語のテキスト");
   paragraph.ensureShaped(fontContext);
   // ICU line breaking splits ideographic text nearly per character; the
   // exact count depends on kinsoku rules, but it must be far more than one.
@@ -169,7 +171,7 @@ TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
 
 TEST(Itemization, FallbackResolvesCjkGlyphs) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("abc漢字xyz");
+  Paragraph paragraph = makeParagraph(u8"abc漢字xyz");
   paragraph.ensureShaped(fontContext);
   for (const Word &word : paragraph.words())
     for (const WordSegment &seg : word.segments) {
@@ -192,20 +194,20 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
 
   int resolverCalls = 0;
   std::string observedLanguage;
-  FontContext fontContext(
-      std::move(fontManager), nullptr,
-      [&](SkFontMgr &, const SkTypeface &, int32_t codePoint,
-          std::string_view languageTag) {
-        resolverCalls++;
-        observedLanguage = languageTag;
-        return codePoint == kJapaneseHiragana ? preferred : nullptr;
-      });
+  FontContext fontContext(std::move(fontManager), nullptr,
+                          [&](SkFontMgr &, const SkTypeface &,
+                              int32_t codePoint, std::string_view languageTag) {
+                            resolverCalls++;
+                            observedLanguage = languageTag;
+                            return codePoint == kJapaneseHiragana ? preferred
+                                                                  : nullptr;
+                          });
 
   TextStyle textStyle;
   textStyle.shaping.typeface = primary;
   textStyle.shaping.languageTag = "ja";
   Paragraph paragraph;
-  paragraph.appendText("あ", textStyle);
+  paragraph.appendText(u8"あ", textStyle);
   paragraph.ensureShaped(fontContext);
 
   ASSERT_FALSE(paragraph.words().empty());
@@ -234,13 +236,13 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
     GTEST_SKIP() << "regional Noto CJK fallback fixtures unavailable";
 
   int resolverCalls = 0;
-  FontContext fontContext(
-      std::move(fontManager), nullptr,
-      [&](SkFontMgr &, const SkTypeface &, int32_t,
-          std::string_view languageTag) {
-        resolverCalls++;
-        return languageTag == "zh-Hant" ? traditional : simplified;
-      });
+  FontContext fontContext(std::move(fontManager), nullptr,
+                          [&](SkFontMgr &, const SkTypeface &, int32_t,
+                              std::string_view languageTag) {
+                            resolverCalls++;
+                            return languageTag == "zh-Hant" ? traditional
+                                                            : simplified;
+                          });
 
   sk_sp<SkTypeface> hans =
       fontContext.resolveTypeface(primary, kSharedHanCharacter, "zh-Hans");
@@ -264,7 +266,7 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
 
 TEST(Itemization, HardBreakIsMandatory) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("first line\nsecond");
+  Paragraph paragraph = makeParagraph(u8"first line\nsecond");
   paragraph.ensureShaped(fontContext);
   bool sawMandatory = false;
   for (const Word &word : paragraph.words())
@@ -274,7 +276,7 @@ TEST(Itemization, HardBreakIsMandatory) {
 
 TEST(Itemization, RtlWordShapesRtl) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("שלום");
+  Paragraph paragraph = makeParagraph(u8"שלום");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const auto &clusters = paragraph.words()[0].segments[0].shaped->clusters;
@@ -290,10 +292,10 @@ TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
   red.paint.color = SK_ColorRED;
   TextStyle blue = basicStyle();
   blue.paint.color = SK_ColorBLUE;
-  paragraph.appendText("red ", red);
-  paragraph.appendText("blue", blue);
+  paragraph.appendText(u8"red ", red);
+  paragraph.appendText(u8"blue", blue);
 
-  paragraph.replaceText(4, 8, "teal"); // swap the blue word's text
+  paragraph.replaceText(4, 8, u8"teal"); // swap the blue word's text
   paragraph.ensureShaped(fontContext);
   ASSERT_GE(paragraph.spans().size(), 2u);
   EXPECT_EQ(paragraph.spans().front().style.paint.color, SK_ColorRED);
@@ -469,7 +471,7 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
   // the breaker placed an overfull line into the gap beside it.
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "Typography is the craft of arranging type, and glyphs flow around "
+      u8"Typography is the craft of arranging type, and glyphs flow around "
       "obstacles the way water flows around stones. 日本語のテキストも同じ"
       "流れに乗って進み、한국어 단어들도 자연스럽게 흐르고, 中文字符同样"
       "围绕形状排布。 Latin and CJK mix freely because every word is shaped "
@@ -532,7 +534,7 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
 TEST(ParagraphLayout, GreedyLinesRespectWidth) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "one two three four five six seven eight nine ten eleven twelve "
+      u8"one two three four five six seven eight nine ten eleven twelve "
       "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty");
   BlockFlow flow(SkRect::MakeWH(200, 600));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
@@ -546,7 +548,7 @@ TEST(ParagraphLayout, GreedyLinesRespectWidth) {
 
 TEST(ParagraphLayout, MandatoryBreakStartsNewLine) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("alpha\nbeta");
+  Paragraph paragraph = makeParagraph(u8"alpha\nbeta");
   BlockFlow flow(SkRect::MakeWH(500, 300));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
   ASSERT_EQ(layout.runs.size(), 2u);
@@ -558,7 +560,7 @@ TEST(ParagraphLayout, CenterAndEndAlignment) {
   FontContext &fontContext = sharedContext();
   ParagraphLayoutOptions options;
 
-  Paragraph paragraph = makeParagraph("word");
+  Paragraph paragraph = makeParagraph(u8"word");
   BlockFlow flow(SkRect::MakeWH(400, 100));
 
   options.alignment = TextAlignment::kStart;
@@ -580,7 +582,7 @@ TEST(ParagraphLayout, CenterAndEndAlignment) {
 TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "justification stretches the spaces between words so every full line "
+      u8"justification stretches the spaces between words so every full line "
       "extends to the right edge of the measure exactly");
   BlockFlow flow(SkRect::MakeWH(260, 600));
   ParagraphLayoutOptions options;
@@ -603,7 +605,7 @@ TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
 TEST(ParagraphLayout, ExclusionShapeSplitsText) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "text flows around the shape and continues on the far side of it, "
+      u8"text flows around the shape and continues on the far side of it, "
       "filling both fragments of every interrupted line with words");
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
   flow.shapes().push_back(
@@ -630,7 +632,7 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
 
 TEST(ParagraphLayout, LineSetFlowPlacesTextOnArbitrarySegments) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("words on custom lines flow freely");
+  Paragraph paragraph = makeParagraph(u8"words on custom lines flow freely");
 
   LineSetFlow flow;
   flow.lines().push_back({LineInterval{{50, 40}, {1, 0}, 150}});
@@ -651,7 +653,7 @@ TEST(ParagraphLayout, LineSetFlowPlacesTextOnArbitrarySegments) {
 
 TEST(ParagraphLayout, RotatedLineBakesTransformedBlob) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("diagonal");
+  Paragraph paragraph = makeParagraph(u8"diagonal");
   const float inv = 1.0f / std::sqrt(2.0f);
   LineSetFlow flow;
   flow.lines().push_back({LineInterval{{0, 0}, {inv, inv}, 400}});
@@ -667,7 +669,7 @@ TEST(ParagraphLayout, RotatedLineBakesTransformedBlob) {
 
 TEST(ParagraphLayout, PathFlowLaysGlyphsAlongCircle) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("around and around and around it goes");
+  Paragraph paragraph = makeParagraph(u8"around and around and around it goes");
   SkPath circle = SkPath::Circle(200, 200, 120);
   PathFlow flow(circle);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
@@ -694,7 +696,7 @@ TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
   // half — the half-scale layout's final word must sit at roughly half the
   // angle around the ring (pen starts at (200, 0) and marches clockwise).
   auto lastRunAngle = [&](float scale) {
-    Paragraph paragraph = makeParagraph("curvature compensation", 40.0f);
+    Paragraph paragraph = makeParagraph(u8"curvature compensation", 40.0f);
     LineInterval interval;
     interval.contour = ring;
     interval.length = ring->length() / scale;
@@ -720,7 +722,7 @@ TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
 TEST(ParagraphLayout, OverflowReportsFirstUnplacedWord) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "far more text than could ever fit inside such a tiny little box");
+      u8"far more text than could ever fit inside such a tiny little box");
   BlockFlow flow(SkRect::MakeWH(120, 40));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
   EXPECT_TRUE(layout.overflowed());
@@ -755,7 +757,7 @@ float raggedness(const Paragraph &paragraph, const ParagraphLayout &layout,
 TEST(KnuthPlass, ProducesValidLines) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "In olden times when wishing still helped one, there lived a king "
+      u8"In olden times when wishing still helped one, there lived a king "
       "whose daughters were all beautiful; and the youngest was so beautiful "
       "that the sun itself, which has seen so much, was astonished whenever "
       "it shone in her face.");
@@ -779,8 +781,8 @@ TEST(KnuthPlass, ProducesValidLines) {
 
 TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
   FontContext &fontContext = sharedContext();
-  const char *tale =
-      "It was the best of times, it was the worst of times, it was the age "
+  const char8_t *tale =
+      u8"It was the best of times, it was the worst of times, it was the age "
       "of wisdom, it was the age of foolishness, it was the epoch of belief, "
       "it was the epoch of incredulity, it was the season of Light, it was "
       "the season of Darkness, it was the spring of hope, it was the winter "
@@ -806,7 +808,7 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
 TEST(KnuthPlass, JustifiedCjkParagraph) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
+      u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
       "何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している"
       "。");
   BlockFlow flow(SkRect::MakeWH(280, 600));
@@ -827,12 +829,12 @@ TEST(KnuthPlass, JustifiedCjkParagraph) {
 TEST(Incremental, OneWordEditKeepsOtherWordBlobs) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "steady text with one word that will change between frames while all "
+      u8"steady text with one word that will change between frames while all "
       "other words keep their shaped blobs perfectly intact");
   BlockFlow flow(SkRect::MakeWH(300, 600));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
-  paragraph.replaceText(17, 20, "two"); // "one" → "two"
+  paragraph.replaceText(17, 20, u8"two"); // "one" → "two"
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
 
   // Blobs are shared via the shape cache: unchanged words reuse the very
@@ -848,7 +850,7 @@ TEST(Incremental, OneWordEditKeepsOtherWordBlobs) {
 TEST(Incremental, MovingExclusionOnlyRepositions) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "the shape moves through the paragraph and every frame the words "
+      u8"the shape moves through the paragraph and every frame the words "
       "reflow around it without any reshaping at all, just new positions");
   ExclusionFlow flow(SkRect::MakeWH(360, 400));
   flow.shapes().push_back(
@@ -869,7 +871,7 @@ TEST(Incremental, MovingExclusionOnlyRepositions) {
 TEST(Typography, LastLineAlignmentEnd) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "a justified paragraph whose final line is pushed to the right edge "
+      u8"a justified paragraph whose final line is pushed to the right edge "
       "instead of hanging on the left like usual short last lines do");
   BlockFlow flow(SkRect::MakeWH(260, 600));
   ParagraphLayoutOptions options;
@@ -896,7 +898,7 @@ TEST(Typography, SoftHyphenRendersHyphenOnBreak) {
   FontContext &fontContext = sharedContext();
   // "extra­ordinarily" fits neither whole nor as "extra" without the
   // discretionary break being taken on a narrow measure.
-  Paragraph paragraph = makeParagraph("an extra­ordinarily narrow measure");
+  Paragraph paragraph = makeParagraph(u8"an extra­ordinarily narrow measure");
   BlockFlow flow(SkRect::MakeWH(90, 300));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -917,7 +919,7 @@ TEST(Typography, SoftHyphenRendersHyphenOnBreak) {
 
 TEST(Typography, SoftHyphenInvisibleWhenNotBroken) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("extra­ordinarily");
+  Paragraph paragraph = makeParagraph(u8"extra­ordinarily");
   BlockFlow flow(SkRect::MakeWH(500, 100)); // plenty of room: no break
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -935,7 +937,7 @@ TEST(Typography, SoftHyphenInvisibleWhenNotBroken) {
 TEST(Typography, KnuthPlassUsesSoftHyphens) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph =
-      makeParagraph("the as­ton­ish­ing­ly in­com­pre­hen"
+      makeParagraph(u8"the as­ton­ish­ing­ly in­com­pre­hen"
                     "­si­ble hy­phen­ation ma­chin­ery works");
   BlockFlow flow(SkRect::MakeWH(120, 600));
   ParagraphLayoutOptions options;
@@ -950,7 +952,7 @@ TEST(Typography, KnuthPlassUsesSoftHyphens) {
 TEST(Typography, SpanRestyleAcrossLines) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "a long sentence that will certainly wrap across several lines gets "
+      u8"a long sentence that will certainly wrap across several lines gets "
       "one continuous span of emphasis applied to its middle third and the "
       "styling must follow the words wherever the line breaker puts them");
   BlockFlow flow(SkRect::MakeWH(220, 600));
@@ -986,7 +988,7 @@ TEST(Typography, SpanRestyleAcrossLines) {
 
 TEST(Typography, ShadowAndShaderDrawWithoutRelayout) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("effects are paint-only");
+  Paragraph paragraph = makeParagraph(u8"effects are paint-only");
   BlockFlow flow(SkRect::MakeWH(400, 100));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -1046,7 +1048,7 @@ TEST(KnuthPlass, LinesNeverExceedTheMeasure) {
   // infeasible unless there is truly no alternative.
   Paragraph paragraph;
   paragraph.appendText(
-      "The para­graph breaker con­sid­ers every way to break "
+      u8"The para­graph breaker con­sid­ers every way to break "
       "this text into lines and picks the one with the least bad­ness, "
       "ex­act­ly like TeX. Greedy breaking com­mits line by "
       "line and leaves rag­ged, in­con­sis­tent "
@@ -1080,9 +1082,9 @@ TEST(KnuthPlass, LinesNeverExceedTheMeasure) {
 TEST(Placeholders, ReservesWidthInTheLine) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
-  paragraph.appendText("before ", basicStyle());
+  paragraph.appendText(u8"before ", basicStyle());
   paragraph.appendPlaceholder({90, 20, 0}, basicStyle());
-  paragraph.appendText(" after", basicStyle());
+  paragraph.appendText(u8" after", basicStyle());
 
   BlockFlow flow(SkRect::MakeWH(600, 60)); // everything on one line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
@@ -1109,7 +1111,7 @@ TEST(Placeholders, ReservesWidthInTheLine) {
 TEST(Placeholders, SitOnTheBaselineWithDrop) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
-  paragraph.appendText("x ", basicStyle());
+  paragraph.appendText(u8"x ", basicStyle());
   paragraph.appendPlaceholder({40, 30, 8},
                               basicStyle()); // bottom 8px below base
   BlockFlow flow(SkRect::MakeWH(300, 60));
@@ -1129,9 +1131,9 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
   for (int placeholderIndex = 0; placeholderIndex < 6; ++placeholderIndex) {
-    paragraph.appendText("word word word ", basicStyle());
+    paragraph.appendText(u8"word word word ", basicStyle());
     paragraph.appendPlaceholder({60, 14, 0}, basicStyle());
-    paragraph.appendText(" ", basicStyle());
+    paragraph.appendText(u8" ", basicStyle());
   }
   BlockFlow flow(SkRect::MakeWH(220, 400));
   ParagraphLayoutOptions options;
@@ -1154,7 +1156,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 TEST(Placeholders, ResizeRelayoutsLive) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
-  paragraph.appendText("pill: ", basicStyle());
+  paragraph.appendText(u8"pill: ", basicStyle());
   paragraph.appendPlaceholder({50, 16, 0}, basicStyle());
   BlockFlow flow(SkRect::MakeWH(400, 60));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
@@ -1206,7 +1208,7 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
   sk_sp<SkTypeface> varied = base->makeClone(args);
   ASSERT_TRUE(varied);
 
-  constexpr std::string_view kText = "hamburgefonstiv";
+  constexpr std::u8string_view kText = u8"hamburgefonstiv";
   auto shapedAdvance = [&](const sk_sp<SkTypeface> &typeface) {
     Paragraph paragraph;
     TextStyle style = basicStyle(32.0f);
@@ -1234,21 +1236,22 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
 TEST(Correctness, ClusterCoverageIsComplete) {
   FontContext &fontContext = sharedContext();
   // Ligating Latin, joining Arabic, conjunct Devanagari, ZWJ emoji.
-  const char *samples[] = {"office", "العربية", "नमस्ते", "👨‍👩‍👧"};
-  for (const char *sample : samples) {
+  const char8_t *samples[] = {u8"office", u8"العربية", u8"नमस्ते",
+                              u8"👨‍👩‍👧"};
+  for (const char8_t *sample : samples) {
     Paragraph paragraph = makeParagraph(sample);
     paragraph.ensureShaped(fontContext);
     for (const Word &word : paragraph.words())
       for (const WordSegment &seg : word.segments) {
         const auto &clusters = seg.shaped->clusters;
-        ASSERT_FALSE(clusters.empty()) << sample;
+        ASSERT_FALSE(clusters.empty());
         const size_t segLen = seg.shaped->glyphs.size();
         // Every cluster index points inside the shaped text, and the run
         // starts at offset 0 from one end (LTR: front, RTL: back).
         const uint32_t first = std::min(clusters.front(), clusters.back());
-        EXPECT_EQ(first, 0u) << sample;
+        EXPECT_EQ(first, 0u);
         for (uint32_t cluster : clusters)
-          EXPECT_LT(cluster, word.textEnd - word.textBegin) << sample;
+          EXPECT_LT(cluster, word.textEnd - word.textBegin);
         EXPECT_GT(segLen, 0u);
       }
   }
@@ -1256,7 +1259,7 @@ TEST(Correctness, ClusterCoverageIsComplete) {
 
 TEST(Correctness, ZwnjBlocksArabicJoining) {
   FontContext &fontContext = sharedContext();
-  auto glyphsOf = [&](const char *text) {
+  auto glyphsOf = [&](const char8_t *text) {
     Paragraph paragraph = makeParagraph(text);
     paragraph.ensureShaped(fontContext);
     std::multiset<uint16_t> ids;
@@ -1268,13 +1271,13 @@ TEST(Correctness, ZwnjBlocksArabicJoining) {
     return ids;
   };
   // "بب" joins (initial+final forms); a ZWNJ between forces isolated forms.
-  EXPECT_NE(glyphsOf("بب"), glyphsOf("ب‌ب"));
+  EXPECT_NE(glyphsOf(u8"بب"), glyphsOf(u8"ب‌ب"));
 }
 
 TEST(Correctness, CombiningMarkAttachesToBase) {
   FontContext &fontContext = sharedContext();
-  Paragraph nfc = makeParagraph("café"); // é precomposed
-  Paragraph nfd = makeParagraph("café"); // e + combining acute
+  Paragraph nfc = makeParagraph(u8"café"); // é precomposed
+  Paragraph nfd = makeParagraph(u8"café"); // e + combining acute
   nfc.ensureShaped(fontContext);
   nfd.ensureShaped(fontContext);
   ASSERT_EQ(nfc.words().size(), 1u);
@@ -1291,11 +1294,10 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
 
 TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
   FontContext &fontContext = sharedContext();
-  Paragraph plain = makeParagraph("ZALGO TEXT", 32.0f);
-  Paragraph stacked = makeParagraph(
-      "Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚ "
-      "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
-      32.0f);
+  Paragraph plain = makeParagraph(u8"ZALGO TEXT", 32.0f);
+  Paragraph stacked = makeParagraph(u8"Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚ "
+                                    "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
+                                    32.0f);
   plain.ensureShaped(fontContext);
   stacked.ensureShaped(fontContext);
   if (!allGlyphsResolved(stacked))
@@ -1317,7 +1319,7 @@ TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
 TEST(Correctness, KinsokuProhibitsLineInitialPunctuation) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph =
-      makeParagraph("これは、禁則処理のテストです。行頭に句読点は来ない。");
+      makeParagraph(u8"これは、禁則処理のテストです。行頭に句読点は来ない。");
   paragraph.ensureShaped(fontContext);
   const std::u16string &text = paragraph.text();
   for (const Word &word : paragraph.words()) {
@@ -1336,8 +1338,8 @@ TEST(Correctness, KinsokuProhibitsLineInitialPunctuation) {
 
 TEST(Correctness, NbspNeverBreaks) {
   FontContext &fontContext = sharedContext();
-  Paragraph spaced = makeParagraph("100 km");
-  Paragraph glued = makeParagraph("100 km");
+  Paragraph spaced = makeParagraph(u8"100 km");
+  Paragraph glued = makeParagraph(u8"100 km");
   spaced.ensureShaped(fontContext);
   glued.ensureShaped(fontContext);
   EXPECT_EQ(spaced.words().size(), 2u);
@@ -1346,8 +1348,8 @@ TEST(Correctness, NbspNeverBreaks) {
 
 TEST(Correctness, TabsMeasureAsSpaces) {
   FontContext &fontContext = sharedContext();
-  Paragraph tab = makeParagraph("a\tb");
-  Paragraph space = makeParagraph("a b");
+  Paragraph tab = makeParagraph(u8"a\tb");
+  Paragraph space = makeParagraph(u8"a b");
   tab.ensureShaped(fontContext);
   space.ensureShaped(fontContext);
   ASSERT_EQ(tab.words().size(), 2u);
@@ -1357,7 +1359,7 @@ TEST(Correctness, TabsMeasureAsSpaces) {
 TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "several reasonably long words keep justification honest here", 18.0f);
+      u8"several reasonably long words keep justification honest here", 18.0f);
   paragraph.ensureShaped(fontContext);
   // A measure a hair narrower than a natural line forces shrink.
   ParagraphLayoutOptions options;
@@ -1386,7 +1388,7 @@ TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
 
 TEST(Correctness, BidiVisualOrderForMixedDirections) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("aaa בבב גגג zzz", 16.0f);
+  Paragraph paragraph = makeParagraph(u8"aaa בבב גגג zzz", 16.0f);
   BlockFlow flow(SkRect::MakeWH(600, 60)); // one wide line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -1404,7 +1406,7 @@ TEST(Correctness, BidiVisualOrderForMixedDirections) {
 
 TEST(Correctness, StrutMatchesFontMetrics) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("metrics", 32.0f);
+  Paragraph paragraph = makeParagraph(u8"metrics", 32.0f);
   const Paragraph::Strut strut = paragraph.strut(fontContext);
   const SkFont font = makeFont(fontContext.defaultTypeface(), 32.0f);
   SkFontMetrics metrics;
@@ -1416,12 +1418,12 @@ TEST(Correctness, StrutMatchesFontMetrics) {
 
 TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("ab 𝕏𝕐 cd"); // 𝕏/𝕐 are surrogate pairs
+  Paragraph paragraph = makeParagraph(u8"ab 𝕏𝕐 cd"); // 𝕏/𝕐 are surrogate pairs
   paragraph.ensureShaped(fontContext);
   // Cut straight through the middle of the first surrogate pair.
   const size_t textOffset = paragraph.text().find(u"ab");
   ASSERT_NE(textOffset, std::u16string::npos);
-  paragraph.replaceText(4, 5, "Z");    // [4,5) is inside a pair for this string
+  paragraph.replaceText(4, 5, u8"Z");  // [4,5) is inside a pair for this string
   paragraph.ensureShaped(fontContext); // must not crash or emit garbage words
   for (const Word &word : paragraph.words())
     EXPECT_LE(word.textEnd, paragraph.text().size());
@@ -1436,7 +1438,8 @@ TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
 TEST(Vertical, UprightCjkStacksDownColumns) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
-  paragraph.appendText("縦書きのテキストは上から下へ流れる", basicStyle(20.0f));
+  paragraph.appendText(u8"縦書きのテキストは上から下へ流れる",
+                       basicStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
@@ -1467,7 +1470,7 @@ TEST(Vertical, VertFeatureSubstitutesForms) {
   FontContext &fontContext = sharedContext();
   auto glyphsOf = [&](WritingMode mode) {
     Paragraph paragraph;
-    paragraph.appendText("「縦組み」", basicStyle(20.0f));
+    paragraph.appendText(u8"「縦組み」", basicStyle(20.0f));
     paragraph.setWritingMode(mode);
     paragraph.ensureShaped(fontContext);
     std::multiset<uint16_t> ids;
@@ -1485,7 +1488,7 @@ TEST(Vertical, VertFeatureSubstitutesForms) {
 TEST(Vertical, AutoRotatesLatinMixedIntoCjk) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
-  paragraph.appendText("縦書きにHTTPが混ざる", basicStyle(20.0f));
+  paragraph.appendText(u8"縦書きにHTTPが混ざる", basicStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
   ParagraphLayoutOptions options;
@@ -1511,9 +1514,9 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
   tcy.shaping.verticalForm = VerticalForm::kTateChuYoko;
 
   Paragraph paragraph;
-  paragraph.appendText("平成", japaneseStyle);
-  paragraph.appendText("31", tcy);
-  paragraph.appendText("年の縦組み", japaneseStyle);
+  paragraph.appendText(u8"平成", japaneseStyle);
+  paragraph.appendText(u8"31", tcy);
+  paragraph.appendText(u8"年の縦組み", japaneseStyle);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
@@ -1541,25 +1544,25 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
 // ── Query layer (Query.h — optional, built on the Paragraph edit log) ────
 
 TEST(Query, FindAllAndRegex) {
-  Paragraph paragraph = makeParagraph("the cat sat on the mat, the end");
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
   const std::vector<CharRange> occurrences =
-      findAllOccurrences(paragraph, "the");
+      findAllOccurrences(paragraph, u8"the");
   ASSERT_EQ(occurrences.size(), 3u);
   EXPECT_EQ(occurrences[0], (CharRange{0, 3}));
   EXPECT_EQ(occurrences[2], (CharRange{24, 27}));
 
-  const auto matches = findRegexMatches(paragraph, "[cms]at");
+  const auto matches = findRegexMatches(paragraph, u8"[cms]at");
   ASSERT_TRUE(matches.has_value());
   ASSERT_EQ(matches->size(), 3u);
   EXPECT_EQ((*matches)[0], (CharRange{4, 7}));   // cat
   EXPECT_EQ((*matches)[2], (CharRange{19, 22})); // mat
 
-  EXPECT_FALSE(findRegexMatches(paragraph, "[unclosed").has_value());
+  EXPECT_FALSE(findRegexMatches(paragraph, u8"[unclosed").has_value());
 }
 
 TEST(Query, WordRangesMatchSegmentation) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("one two three");
+  Paragraph paragraph = makeParagraph(u8"one two three");
   const std::vector<CharRange> words = wordRanges(paragraph, fontContext);
   ASSERT_EQ(words.size(), 3u);
   EXPECT_EQ(words[0], (CharRange{0, 3}));
@@ -1568,35 +1571,36 @@ TEST(Query, WordRangesMatchSegmentation) {
 }
 
 TEST(Query, MarkerSetFollowsEdits) {
-  Paragraph paragraph = makeParagraph("alpha beta gamma delta");
+  Paragraph paragraph = makeParagraph(u8"alpha beta gamma delta");
   MarkerSet marks(paragraph);
-  marks.setRanges("greek", findAllOccurrences(paragraph, "gamma")); // [11, 16)
+  marks.setRanges("greek",
+                  findAllOccurrences(paragraph, u8"gamma")); // [11, 16)
 
   // Insert before the marker: it shifts.
-  paragraph.replaceText(0, 0, ">>> ");
+  paragraph.replaceText(0, 0, u8">>> ");
   ASSERT_TRUE(marks.synchronize(paragraph));
   ASSERT_EQ(marks.rangesFor("greek")->size(), 1u);
   EXPECT_EQ(marks.rangesFor("greek")->front(), (CharRange{15, 20}));
 
   // Replace text overlapping the marker: it absorbs the replacement.
   paragraph.replaceText(17, 22,
-                        "MMA plus"); // ">>> alpha beta gaMMA plus delta"
+                        u8"MMA plus"); // ">>> alpha beta gaMMA plus delta"
   ASSERT_TRUE(marks.synchronize(paragraph));
   EXPECT_EQ(marks.rangesFor("greek")->front(), (CharRange{15, 25}));
 
   // Delete the whole marked range: the marker collapses and is dropped.
-  paragraph.replaceText(15, 25, "");
+  paragraph.replaceText(15, 25, u8"");
   ASSERT_TRUE(marks.synchronize(paragraph));
   EXPECT_TRUE(marks.rangesFor("greek")->empty());
 }
 
 TEST(Query, MarkerSetStylesAcrossEdits) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("keep the flame lit forever");
+  Paragraph paragraph = makeParagraph(u8"keep the flame lit forever");
   MarkerSet marks(paragraph);
-  marks.setRanges("flame", findAllOccurrences(paragraph, "flame"));
+  marks.setRanges("flame", findAllOccurrences(paragraph, u8"flame"));
 
-  paragraph.replaceText(0, 4, "guard"); // shifts the marker by +1
+  paragraph.replaceText(0, 4, u8"guard"); // shifts the marker by +1
   PaintStyle red;
   red.color = 0xFFFF0000;
   marks.applyPaint(paragraph, "flame", red);
@@ -1617,62 +1621,62 @@ TEST(Query, MarkerSetStylesAcrossEdits) {
 }
 
 TEST(Query, MarkerSetReportsHistoryLoss) {
-  Paragraph paragraph = makeParagraph("word");
+  Paragraph paragraph = makeParagraph(u8"word");
   MarkerSet marks(paragraph);
-  marks.setRanges("w", findAllOccurrences(paragraph, "word"));
+  marks.setRanges("w", findAllOccurrences(paragraph, u8"word"));
   // Blow past the bounded history (256 ops).
   for (int editIndex = 0; editIndex < 400; ++editIndex)
-    paragraph.replaceText(0, 0, "x");
+    paragraph.replaceText(0, 0, u8"x");
   EXPECT_FALSE(marks.synchronize(paragraph));
   EXPECT_TRUE(marks.rangesFor("w")->empty()); // cleared, caller must re-query
 }
 
 TEST(Query, ScopedSearchesStayInsideTheWindow) {
   //                            0123456789012345678901234567890
-  Paragraph paragraph = makeParagraph("the cat sat on the mat, the end");
+  Paragraph paragraph = makeParagraph(u8"the cat sat on the mat, the end");
 
   // Substring search: offsets are absolute, matches before the window
   // drop out ("the" at 0), matches ending exactly at the edge stay.
   const std::vector<CharRange> occurrences =
-      findAllOccurrences(paragraph, "the", {4, 27});
+      findAllOccurrences(paragraph, u8"the", {4, 27});
   ASSERT_EQ(occurrences.size(), 2u);
   EXPECT_EQ(occurrences[0], (CharRange{15, 18}));
   EXPECT_EQ(occurrences[1], (CharRange{24, 27}));
   // A match straddling the edge is not a match: "the" at 24 ends at 27,
   // one unit past end=26.
   const std::vector<CharRange> clipped =
-      findAllOccurrences(paragraph, "the", {4, 26});
+      findAllOccurrences(paragraph, u8"the", {4, 26});
   ASSERT_EQ(clipped.size(), 1u);
   EXPECT_EQ(clipped[0], (CharRange{15, 18}));
 
   // Regex: same substring semantics, offsets absolute.
-  const auto matches = findRegexMatches(paragraph, "[cms]at", {8, 22});
+  const auto matches = findRegexMatches(paragraph, u8"[cms]at", {8, 22});
   ASSERT_TRUE(matches.has_value());
   ASSERT_EQ(matches->size(), 2u); // sat, mat — cat starts at 4, outside
   EXPECT_EQ((*matches)[0], (CharRange{8, 11}));
   EXPECT_EQ((*matches)[1], (CharRange{19, 22}));
 
   // The window's edges are text boundaries: ^ and $ anchor to them.
-  const auto anchored = findRegexMatches(paragraph, "^sat", {8, 22});
+  const auto anchored = findRegexMatches(paragraph, u8"^sat", {8, 22});
   ASSERT_TRUE(anchored.has_value());
   ASSERT_EQ(anchored->size(), 1u);
   EXPECT_EQ((*anchored)[0], (CharRange{8, 11}));
 
   // Degenerate scopes clamp instead of tripping.
-  EXPECT_TRUE(findAllOccurrences(paragraph, "the", {40, 90}).empty());
-  EXPECT_TRUE(findRegexMatches(paragraph, "the", {27, 9000})->empty());
-  const auto full = findRegexMatches(paragraph, "the", {0, 9000});
+  EXPECT_TRUE(findAllOccurrences(paragraph, u8"the", {40, 90}).empty());
+  EXPECT_TRUE(findRegexMatches(paragraph, u8"the", {27, 9000})->empty());
+  const auto full = findRegexMatches(paragraph, u8"the", {0, 9000});
   ASSERT_TRUE(full.has_value());
   EXPECT_EQ(full->size(), 3u);
 }
 
 TEST(Query, BatchPaintMatchesSequentialPaint) {
-  const char *text = "one two three four five six seven eight nine ten";
+  const char8_t *text = u8"one two three four five six seven eight nine ten";
   Paragraph sequential = makeParagraph(text);
   Paragraph batched = makeParagraph(text);
 
   const std::vector<CharRange> words =
-      findAllOccurrences(sequential, "e"); // scattered
+      findAllOccurrences(sequential, u8"e"); // scattered
   ASSERT_GT(words.size(), 3u);
   PaintStyle green;
   green.color = 0xFF00AA00;
@@ -1705,14 +1709,14 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
 TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "the quick brown fox jumps over the lazy dog again and again");
+      u8"the quick brown fox jumps over the lazy dog again and again");
   BlockFlow flow(SkRect::MakeWH(300, 200));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   const uint32_t shapedBefore = paragraph.shapedWordCount();
 
   // Repaint word-aligned ranges: span boundaries land between words, so
   // every segment re-derives from the shape cache — zero new shape calls.
-  const std::vector<CharRange> marks = findAllOccurrences(paragraph, "again");
+  const std::vector<CharRange> marks = findAllOccurrences(paragraph, u8"again");
   ASSERT_EQ(marks.size(), 2u);
   PaintStyle red;
   red.color = 0xFFCC0000;
@@ -1753,7 +1757,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
 
 TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("highlight");
+  Paragraph paragraph = makeParagraph(u8"highlight");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
@@ -1777,7 +1781,7 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
 
 TEST(Scripts, ArabicLamAlefLigates) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("لا"); // lam + alef: mandatory ligature
+  Paragraph paragraph = makeParagraph(u8"لا"); // lam + alef: mandatory ligature
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const ShapedWord &shapedWord = *paragraph.words()[0].segments[0].shaped;
@@ -1789,7 +1793,7 @@ TEST(Scripts, ArabicLamAlefLigates) {
 
 TEST(Scripts, ArabicJoinsRtl) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("العربية تكتب من اليمين إلى اليسار");
+  Paragraph paragraph = makeParagraph(u8"العربية تكتب من اليمين إلى اليسار");
   paragraph.ensureShaped(fontContext);
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Arabic font on this system";
@@ -1804,7 +1808,7 @@ TEST(Scripts, ArabicJoinsRtl) {
 
 TEST(Scripts, DevanagariFormsConjunctClusters) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("नमस्ते दुनिया");
+  Paragraph paragraph = makeParagraph(u8"नमस्ते दुनिया");
   paragraph.ensureShaped(fontContext);
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Devanagari font on this system";
@@ -1819,9 +1823,10 @@ TEST(Scripts, DevanagariFormsConjunctClusters) {
 
 TEST(Scripts, CuneiformSupplementaryPlane) {
   FontContext &fontContext = sharedContext();
-  // Three codepoints beyond the BMP (U+12000, U+12038, U+1204D): each is a
-  // surrogate pair, so correct cluster values step by 2 UTF-16 units.
-  Paragraph paragraph = makeParagraph("𒀀𒀸𒁍");
+  // Four codepoints beyond the BMP (U+12000, U+12031, U+12038, U+1204D):
+  // each is a surrogate pair, so correct cluster values step by 2 UTF-16
+  // units. U+12031 is also featured by the hyper-scripts demo.
+  Paragraph paragraph = makeParagraph(u8"𒀀𒀱𒀸𒁍");
   paragraph.ensureShaped(fontContext);
   if (!allGlyphsResolved(paragraph))
     GTEST_SKIP() << "no Cuneiform font on this system";
@@ -1838,7 +1843,7 @@ TEST(Scripts, CuneiformSupplementaryPlane) {
 TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
   FontContext &fontContext = sharedContext();
   // Family emoji: 4 people joined by ZWJ = 11 UTF-16 units, ONE grapheme.
-  Paragraph paragraph = makeParagraph("👨‍👩‍👧‍👦");
+  Paragraph paragraph = makeParagraph(u8"👨‍👩‍👧‍👦");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
@@ -1851,7 +1856,7 @@ TEST(Scripts, EmojiZwjFamilyIsOneCluster) {
 
 TEST(Scripts, EmojiModifierAndFlagClusters) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("👍🏽 🇺🇸"); // skin tone; regional pair
+  Paragraph paragraph = makeParagraph(u8"👍🏽 🇺🇸"); // skin tone; regional pair
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
   for (const Word &word : paragraph.words()) {
@@ -1864,7 +1869,7 @@ TEST(Scripts, EmojiModifierAndFlagClusters) {
 
 TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("great👍work");
+  Paragraph paragraph = makeParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
   absl::flat_hash_set<const SkTypeface *> faces;
   for (const Word &word : paragraph.words())
@@ -1891,8 +1896,8 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
 
   Paragraph ligaturesEnabledParagraph;
   Paragraph ligaturesDisabledParagraph;
-  ligaturesEnabledParagraph.appendText("official", ligaturesEnabledStyle);
-  ligaturesDisabledParagraph.appendText("official", ligaturesDisabledStyle);
+  ligaturesEnabledParagraph.appendText(u8"official", ligaturesEnabledStyle);
+  ligaturesDisabledParagraph.appendText(u8"official", ligaturesDisabledStyle);
   ligaturesEnabledParagraph.ensureShaped(fontContext);
   ligaturesDisabledParagraph.ensureShaped(fontContext);
   const size_t enabledGlyphCount =
@@ -1910,12 +1915,12 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
 
 TEST(Stress, HugeOverflowRelayoutIsBoundedByGeometry) {
   FontContext &fontContext = sharedContext();
-  const char *wordPool[] = {"letters", "flow",     "around",  "boxes",
-                            "while",   "the",      "breaker", "stops",
-                            "at",      "geometry", "instead", "of",
-                            "walking", "every",    "word"};
+  const char8_t *wordPool[] = {
+      u8"letters", u8"flow",    u8"around",  u8"boxes", u8"while",
+      u8"the",     u8"breaker", u8"stops",   u8"at",    u8"geometry",
+      u8"instead", u8"of",      u8"walking", u8"every", u8"word"};
   std::mt19937 randomEngine(11);
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < 30000; ++wordIndex) {
     text += wordPool[randomEngine() % 15];
     text += ' ';
@@ -1964,7 +1969,7 @@ TEST(Stress, HugeOverflowRelayoutIsBoundedByGeometry) {
 TEST(ParagraphLayout, EllipsisMarksOverflow) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
-      "far more text than a two line box can ever hope to hold so the "
+      u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
   BlockFlow flow(SkRect::MakeWH(260, 44)); // ~2 lines
   ParagraphLayoutOptions options;
@@ -1989,7 +1994,7 @@ TEST(ParagraphLayout, EllipsisMarksOverflow) {
 
 TEST(ParagraphLayout, NoEllipsisWhenTextFits) {
   FontContext &fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph("short and sweet");
+  Paragraph paragraph = makeParagraph(u8"short and sweet");
   BlockFlow flow(SkRect::MakeWH(400, 200));
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
@@ -2005,10 +2010,15 @@ TEST(Stress, OverflowShapesOnlyWhatFits) {
   // words that never fit the box are itemized but never shaped. Every word
   // is unique so the content-addressed cache can't hide eager shaping.
   FontContext &fontContext = sharedContext();
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < 30000; ++wordIndex) {
-    text += "word";
-    text += std::to_string(wordIndex);
+    text += u8"word";
+    char number[16];
+    const auto [end, error] =
+        std::to_chars(std::begin(number), std::end(number), wordIndex);
+    ASSERT_EQ(error, std::errc{});
+    text.append(reinterpret_cast<const char8_t *>(number),
+                static_cast<size_t>(end - number));
     text += ' ';
   }
   Paragraph paragraph;
@@ -2045,12 +2055,12 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
   // and warm relayout stays linear — without the merge this case was ~20×
   // slower and grew super-linearly.
   FontContext &fontContext = sharedContext();
-  const char *wordPool[15] = {"letters", "falling", "gently",  "against",
-                              "words",   "beacon",  "steady",  "rhythm",
-                              "turing",  "flow",    "lattice", "shapes",
-                              "glyphs",  "marker",  "cache"};
+  const char8_t *wordPool[15] = {
+      u8"letters", u8"falling", u8"gently", u8"against", u8"words",
+      u8"beacon",  u8"steady",  u8"rhythm", u8"turing",  u8"flow",
+      u8"lattice", u8"shapes",  u8"glyphs", u8"marker",  u8"cache"};
   std::mt19937 randomEngine(11);
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < 10000; ++wordIndex) {
     text += wordPool[randomEngine() % 15];
     text += ' ';
@@ -2090,12 +2100,12 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   // spans once per range — cost stays bounded by the geometry, like the
   // relayout itself (see Stress.HugeOverflowRelayoutIsGeometryBounded).
   FontContext &fontContext = sharedContext();
-  const char *wordPool[15] = {"letters", "falling", "gently",  "against",
-                              "words",   "Beacon",  "steady",  "rhythm",
-                              "Turing",  "flow",    "Lattice", "shapes",
-                              "glyphs",  "Марка",   "cache"};
+  const char8_t *wordPool[15] = {
+      u8"letters", u8"falling", u8"gently", u8"against", u8"words",
+      u8"Beacon",  u8"steady",  u8"rhythm", u8"Turing",  u8"flow",
+      u8"Lattice", u8"shapes",  u8"glyphs", u8"Марка",   u8"cache"};
   std::mt19937 randomEngine(7);
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < 30000; ++wordIndex) {
     text += wordPool[randomEngine() % 15];
     text += ' ';
@@ -2111,7 +2121,7 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   const uint32_t placedEnd =
       paragraph.words()[layout.firstUnplacedWord].textBegin;
   const std::vector<CharRange> marks =
-      findRegexMatches(paragraph, "\\b\\p{Lu}\\p{Ll}+", {0, placedEnd})
+      findRegexMatches(paragraph, u8"\\b\\p{Lu}\\p{Ll}+", {0, placedEnd})
           .value_or(std::vector<CharRange>{});
   ASSERT_GT(marks.size(), 10u);
 
@@ -2142,14 +2152,14 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
 
 TEST(Stress, BabelConfetti2000) {
   FontContext &fontContext = sharedContext();
-  const char *tokens[] = {"حرف",   "كلمة",   "अक्षर", "शब्द",   "אות",
-                          "מילה",  "ตัวอักษร", "字",   "글",    "λόγος",
-                          "буква", "🎉",     "👍🏽", "文字",  "ঢাকা",
-                          "கடல்",   "ᚱᚢᚾ",    "ainm", "słowo", "λέξη"};
+  const char8_t *tokens[] = {
+      u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
+      u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
+      u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
   std::mt19937 randomEngine(77);
   Paragraph paragraph;
   TextStyle style = basicStyle(18.0f);
-  std::string text;
+  std::u8string text;
   for (int tokenIndex = 0; tokenIndex < 2000; ++tokenIndex) {
     text += tokens[randomEngine() % 20];
     text += ' ';

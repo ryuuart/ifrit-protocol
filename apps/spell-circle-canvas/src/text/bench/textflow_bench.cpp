@@ -33,30 +33,31 @@ FontContext &fontContext() {
   return *instance;
 }
 
-const std::vector<std::string> &latinWords() {
-  static const std::vector<std::string> words = {
-      "the",     "quick",   "brown", "fox",     "jumps",   "over",
-      "lazy",    "dogs",    "while", "seventy", "wizards", "conjure",
-      "spell",   "circles", "of",    "light",   "and",     "shadow",
-      "beneath", "ancient", "stars", "text",    "layout",  "engines",
-      "measure", "shape",   "place", "glyphs",  "with",    "care"};
+const std::vector<std::u8string> &latinWords() {
+  static const std::vector<std::u8string> words = {
+      u8"the",     u8"quick",   u8"brown",  u8"fox",     u8"jumps",
+      u8"over",    u8"lazy",    u8"dogs",   u8"while",   u8"seventy",
+      u8"wizards", u8"conjure", u8"spell",  u8"circles", u8"of",
+      u8"light",   u8"and",     u8"shadow", u8"beneath", u8"ancient",
+      u8"stars",   u8"text",    u8"layout", u8"engines", u8"measure",
+      u8"shape",   u8"place",   u8"glyphs", u8"with",    u8"care"};
   return words;
 }
 
-const std::vector<std::string> &cjkWords() {
-  static const std::vector<std::string> words = {
-      "文字",   "レイアウト", "エンジン", "高速",   "描画", "字形",
-      "配置",   "計算",       "한글",     "텍스트", "배치", "엔진",
-      "빠르게", "그리기",     "漢字",     "排版",   "引擎", "快速",
-      "绘制",   "字体",       "測定",     "測量",   "캐시"};
+const std::vector<std::u8string> &cjkWords() {
+  static const std::vector<std::u8string> words = {
+      u8"文字",   u8"レイアウト", u8"エンジン", u8"高速",   u8"描画", u8"字形",
+      u8"配置",   u8"計算",       u8"한글",     u8"텍스트", u8"배치", u8"엔진",
+      u8"빠르게", u8"그리기",     u8"漢字",     u8"排版",   u8"引擎", u8"快速",
+      u8"绘制",   u8"字体",       u8"測定",     u8"測量",   u8"캐시"};
   return words;
 }
 
-std::string makeText(int wordCount, bool mixed, uint32_t seed = 7) {
+std::u8string makeText(int wordCount, bool mixed, uint32_t seed = 7) {
   std::mt19937 randomEngine(seed);
   const auto &latin = latinWords();
   const auto &cjk = cjkWords();
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
     if (mixed && (randomEngine() % 3 == 0))
       text += cjk[randomEngine() % cjk.size()];
@@ -78,7 +79,7 @@ TextStyle style16() {
 // ── Shaping: cold vs cache-hot ────────────────────────────────────────────
 
 static void BM_Shape_Cold_Latin100(benchmark::State &state) {
-  const std::string text = makeText(100, /*mixed=*/false);
+  const std::u8string text = makeText(100, /*mixed=*/false);
   for ([[maybe_unused]] auto benchmarkIteration : state) {
     fontContext().purgeShapeCache();
     Paragraph paragraph;
@@ -90,7 +91,7 @@ static void BM_Shape_Cold_Latin100(benchmark::State &state) {
 BENCHMARK(BM_Shape_Cold_Latin100)->Unit(benchmark::kMicrosecond);
 
 static void BM_Shape_Cold_Mixed100(benchmark::State &state) {
-  const std::string text = makeText(100, /*mixed=*/true);
+  const std::u8string text = makeText(100, /*mixed=*/true);
   for ([[maybe_unused]] auto benchmarkIteration : state) {
     fontContext().purgeShapeCache();
     Paragraph paragraph;
@@ -102,7 +103,7 @@ static void BM_Shape_Cold_Mixed100(benchmark::State &state) {
 BENCHMARK(BM_Shape_Cold_Mixed100)->Unit(benchmark::kMicrosecond);
 
 static void BM_Shape_Warm_Mixed100(benchmark::State &state) {
-  const std::string text = makeText(100, /*mixed=*/true);
+  const std::u8string text = makeText(100, /*mixed=*/true);
   {
     Paragraph warmup;
     warmup.appendText(text, style16());
@@ -148,7 +149,8 @@ static void BM_Update_EditOneWord_500w(benchmark::State &state) {
   BlockFlow flow(SkRect::MakeWH(600, 20000));
   layoutParagraph(fontContext(), paragraph, flow);
   // Same-length alternatives so the text stays put across iterations.
-  const char *alternatives[] = {"changed", "updated", "swapped", "resized"};
+  const char8_t *alternatives[] = {u8"changed", u8"updated", u8"swapped",
+                                   u8"resized"};
   paragraph.replaceText(0, 3, alternatives[0]);
   int alternativeIndex = 0;
   for ([[maybe_unused]] auto benchmarkIteration : state) {
@@ -291,10 +293,10 @@ static void BM_Layout_Warm_MultiFont_500w(benchmark::State &state) {
   const auto &latin = latinWords();
   const auto &cjk = cjkWords();
   for (int wordIndex = 0; wordIndex < 500; ++wordIndex) {
-    std::string word = (randomEngine() % 3 == 0)
-                           ? cjk[randomEngine() % cjk.size()]
-                           : latin[randomEngine() % latin.size()];
-    paragraph.appendText(word + " ", styles[wordIndex % 3]);
+    std::u8string word = (randomEngine() % 3 == 0)
+                             ? cjk[randomEngine() % cjk.size()]
+                             : latin[randomEngine() % latin.size()];
+    paragraph.appendText(word + u8" ", styles[wordIndex % 3]);
   }
   BlockFlow flow(SkRect::MakeWH(600, 20000));
   layoutParagraph(fontContext(), paragraph, flow);
@@ -309,7 +311,7 @@ BENCHMARK(BM_Layout_Warm_MultiFont_500w)->Unit(benchmark::kMicrosecond);
 // after one cycle every word is cache-hot, so this is the steady-state cost
 // of "swap the whole text each frame".
 static void BM_Update_ReplaceWholeParagraph_500w(benchmark::State &state) {
-  std::string variants[4];
+  std::u8string variants[4];
   for (uint32_t variantIndex = 0; variantIndex < 4; ++variantIndex)
     variants[variantIndex] =
         makeText(500, /*mixed=*/true, /*seed=*/variantIndex + 1);
@@ -344,12 +346,12 @@ static void BM_Update_ReplaceWholeParagraph_Cold_500w(benchmark::State &state) {
     fontContext().purgeShapeCache(); // force truly-unseen text
     // Synthesize unique gibberish words so no shape can be reused, unlike
     // makeText's small vocabulary.
-    std::string next;
+    std::u8string next;
     for (int wordIndex = 0; wordIndex < 500; ++wordIndex) {
       const int wordLength = 3 + static_cast<int>(randomEngine() % 8);
       for (int characterIndex = 0; characterIndex < wordLength;
            ++characterIndex)
-        next += static_cast<char>('a' + randomEngine() % 26);
+        next += static_cast<char8_t>('a' + randomEngine() % 26);
       next += ' ';
     }
     state.ResumeTiming();
@@ -413,7 +415,8 @@ static void BM_KnuthPlass_EditOneWord_500w(benchmark::State &state) {
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
   layoutParagraph(fontContext(), paragraph, flow, options);
-  const char *alternatives[] = {"changed", "updated", "swapped", "resized"};
+  const char8_t *alternatives[] = {u8"changed", u8"updated", u8"swapped",
+                                   u8"resized"};
   paragraph.replaceText(0, 3, alternatives[0]);
   int alternativeIndex = 0;
   for ([[maybe_unused]] auto benchmarkIteration : state) {
@@ -430,13 +433,13 @@ BENCHMARK(BM_KnuthPlass_EditOneWord_500w)->Unit(benchmark::kMicrosecond);
 static void BM_KnuthPlass_Hyphenated_300w(benchmark::State &state) {
   std::mt19937 randomEngine(7);
   const auto &latin = latinWords();
-  std::string text;
+  std::u8string text;
   for (int wordIndex = 0; wordIndex < 300; ++wordIndex) {
-    const std::string &word = latin[randomEngine() % latin.size()];
+    const std::u8string &word = latin[randomEngine() % latin.size()];
     if (word.size() > 4) { // Inject a soft hyphen mid-word.
       text.append(word, 0, word.size() / 2);
-      text += "\xc2\xad"; // U+00AD
-      text.append(word, word.size() / 2, std::string::npos);
+      text += u8"\u00ad";
+      text.append(word, word.size() / 2, std::u8string::npos);
     } else {
       text += word;
     }
@@ -479,13 +482,13 @@ BENCHMARK(BM_Draw_Raster_300w)->Unit(benchmark::kMicrosecond);
 // letter-confetti at paragraph scale. Warm: placement + per-glyph RSXform
 // baking; every token still shape-cache resolved.
 static void BM_Confetti_Babel_2000(benchmark::State &state) {
-  const char *tokens[] = {"حرف",   "كلمة",   "अक्षर", "शब्द",   "אות",
-                          "מילה",  "ตัวอักษร", "字",   "글",    "λόγος",
-                          "буква", "🎉",     "👍🏽", "文字",  "ঢাকা",
-                          "கடல்",   "ᚱᚢᚾ",    "ainm", "słowo", "λέξη"};
+  const char8_t *tokens[] = {
+      u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
+      u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
+      u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
   std::mt19937 randomEngine(77);
   Paragraph paragraph;
-  std::string text;
+  std::u8string text;
   for (int tokenIndex = 0; tokenIndex < 2000; ++tokenIndex) {
     text += tokens[randomEngine() % 20];
     text += ' ';

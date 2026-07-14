@@ -117,7 +117,7 @@ public:
     }
 
     drawCaption(canvas, fontContext,
-                "appendPlaceholder() weaves fixed-size slots into the flow; "
+                u8"appendPlaceholder() weaves fixed-size slots into the flow; "
                 "placeholderRects() reports where they landed",
                 {canvasWidth * 0.1f, canvasHeight - 30}, canvasWidth * 0.8f);
     return {toMicroseconds(layoutEndTime - layoutStartTime),
@@ -127,9 +127,9 @@ public:
 private:
   /// Rebuilds the paragraph and measures every inline pill label.
   void build(FontContext &fontContext, float fontSize) {
-    m_pillTexts = {"LOW RISK", "42 ms", "β-channel", "cache-hot"};
+    m_pillTexts = {u8"LOW RISK", u8"42 ms", u8"β-channel", u8"cache-hot"};
     m_pillWidths.clear();
-    for (const char *text : m_pillTexts) {
+    for (const char8_t *text : m_pillTexts) {
       Paragraph &label = m_pillLabelParagraphs.paragraphFor(
           text, m_sansTypeface, fontSize * 0.68f);
       m_pillWidths.push_back(label.naturalWidth(fontContext) + fontSize * 1.1f);
@@ -143,22 +143,22 @@ private:
       placeholder.width = m_pillWidths[pillIndex];
       m_paragraph.appendPlaceholder(placeholder, body);
     };
-    m_paragraph.appendText("Status pills ride the baseline like words — ",
+    m_paragraph.appendText(u8"Status pills ride the baseline like words — ",
                            body);
     addPill(0);
     m_paragraph.appendText(
-        " — and the flow simply makes room: it wraps them, justifies around "
+        u8" — and the flow simply makes room: it wraps them, justifies around "
         "them, and re-places them when they resize. Round-trip latency ",
         body);
     addPill(1);
-    m_paragraph.appendText(" stays within budget, the experiment on the ",
+    m_paragraph.appendText(u8" stays within budget, the experiment on the ",
                            body);
     addPill(2);
-    m_paragraph.appendText(" keeps converging, and every relayout here is ",
+    m_paragraph.appendText(u8" keeps converging, and every relayout here is ",
                            body);
     addPill(3);
     m_paragraph.appendText(
-        ". Even a small figure can sit inline without leaving the "
+        u8". Even a small figure can sit inline without leaving the "
         "paragraph ",
         body);
     // Sized to the line: lines don't grow per-box yet (see README
@@ -167,7 +167,7 @@ private:
     m_paragraph.appendPlaceholder(
         {fontSize * 7.0f, fontSize * 1.8f, fontSize * 0.3f}, body);
     m_paragraph.appendText(
-        " because the breaker treats every slot as an unbreakable word — "
+        u8" because the breaker treats every slot as an unbreakable word — "
         "the object-replacement character anchors it in the text, and the "
         "layout reports the rect where it landed.",
         body);
@@ -175,7 +175,7 @@ private:
 
   Paragraph m_paragraph;
   SingleLineParagraphCache m_pillLabelParagraphs;
-  std::vector<const char *> m_pillTexts;
+  std::vector<const char8_t *> m_pillTexts;
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;
   sk_sp<SkTypeface> m_sansTypeface;

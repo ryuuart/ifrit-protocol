@@ -79,8 +79,8 @@ public:
     }
 
     canvas->clear(kPaper);
-    drawCaption(canvas, fontContext, "greedy", {canvasWidth * 0.07f, 18});
-    drawCaption(canvas, fontContext, "knuth-plass (optimal, TeX badness)",
+    drawCaption(canvas, fontContext, u8"greedy", {canvasWidth * 0.07f, 18});
+    drawCaption(canvas, fontContext, u8"knuth-plass (optimal, TeX badness)",
                 {canvasWidth * 0.55f, 18});
 
     int runCount = 0;

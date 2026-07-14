@@ -42,7 +42,7 @@ void sceneExtreme(FontContext &fontContext,
   {
     Paragraph paragraph;
     paragraph.appendText(
-        "zigzag lines carry words up and down and up and down while the "
+        u8"zigzag lines carry words up and down and up and down while the "
         "layout treats every slanted segment as just another interval — "
         "ジグザグの線の上でも単語は流れ続ける — 지그재그 선 위에서도",
         style(16));
@@ -86,7 +86,7 @@ void sceneExtreme(FontContext &fontContext,
     }
     Paragraph paragraph;
     paragraph.appendText(
-        "a scribbled stroke is still a line to this engine, the pen just "
+        u8"a scribbled stroke is still a line to this engine, the pen just "
         "wanders wherever the curve goes — 落書きの線でも文字は流れる",
         style(15, kBlue));
     PathFlow flow(pathBuilder.detach());
@@ -112,9 +112,9 @@ void sceneExtreme(FontContext &fontContext,
       Paragraph paragraph;
       paragraph.appendText(
           line == 0
-              ? "extremely bumpy baselines shake every glyph yet the words "
+              ? u8"extremely bumpy baselines shake every glyph yet the words "
                 "keep their spacing along the arc length of the wave"
-              : "波打つベースラインの上でも字形は接線に沿って進む — 파도치는 "
+              : u8"波打つベースラインの上でも字形は接線に沿って進む — 파도치는 "
                 "기준선 위에서도 글자는 계속 흐른다 — 波浪基线上的文字",
           style(15, line == 0 ? kInk : kAccent));
       PathFlow flow(pathBuilder.detach());
@@ -136,15 +136,15 @@ void sceneExtreme(FontContext &fontContext,
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1000, 620));
     confetti->getCanvas()->clear(kPaper);
 
-    std::string letters;
-    const char *cjk[] = {"文", "字", "術", "式", "光", "影",
-                         "한", "글", "빛", "円", "陣", "魔"};
+    std::u8string letters;
+    const char8_t *cjk[] = {u8"文", u8"字", u8"術", u8"式", u8"光", u8"影",
+                            u8"한", u8"글", u8"빛", u8"円", u8"陣", u8"魔"};
     std::mt19937 randomEngine(5);
     for (int letterIndex = 0; letterIndex < 120; ++letterIndex) {
       if (letterIndex % 3 == 2)
         letters += cjk[randomEngine() % 12];
       else
-        letters += static_cast<char>('a' + randomEngine() % 26);
+        letters += static_cast<char8_t>('a' + randomEngine() % 26);
       letters += ' ';
     }
     Paragraph paragraph;

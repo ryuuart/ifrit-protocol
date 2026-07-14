@@ -60,7 +60,8 @@ inline void replaceText(textflow::Paragraph &paragraph, uint32_t start,
   const QByteArray utf8 = text.toUtf8();
   paragraph.replaceText(
       start, end,
-      std::string_view(utf8.constData(), static_cast<size_t>(utf8.size())));
+      std::u8string_view(reinterpret_cast<const char8_t *>(utf8.constData()),
+                         static_cast<size_t>(utf8.size())));
 }
 
 /** Finds every occurrence of `needle` without transcoding it. */

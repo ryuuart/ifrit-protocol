@@ -16,6 +16,7 @@
 #include <QString>
 
 #include <chrono>
+#include <string_view>
 
 namespace gallery {
 
@@ -53,7 +54,8 @@ sk_sp<SkTypeface> defaultSerif(textflow::FontContext &fontContext);
 
 /// Draws a small single-line explanatory caption.
 void drawCaption(SkCanvas *canvas, textflow::FontContext &fontContext,
-                 const char *text, SkPoint baselineOrigin, float width = 520);
+                 std::u8string_view text, SkPoint baselineOrigin,
+                 float width = 520);
 
 /// Builds mixed Latin/CJK filler in alternating color chunks.
 textflow::Paragraph makeBigParagraph(int wordCount, float fontSize);

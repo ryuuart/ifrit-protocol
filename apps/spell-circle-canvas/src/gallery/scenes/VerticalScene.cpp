@@ -55,9 +55,9 @@ public:
     verticalLayout.draw(canvas, m_verticalParagraph);
 
     // Ruby + kenten are external utilities over the placed runs.
-    rubyVertical(canvas, fontContext, verticalLayout, u"縦組", "たてぐみ");
-    rubyVertical(canvas, fontContext, verticalLayout, u"文章", "ぶんしょう");
-    rubyVertical(canvas, fontContext, verticalLayout, u"対応", "たいおう");
+    rubyVertical(canvas, fontContext, verticalLayout, u"縦組", u8"たてぐみ");
+    rubyVertical(canvas, fontContext, verticalLayout, u"文章", u8"ぶんしょう");
+    rubyVertical(canvas, fontContext, verticalLayout, u"対応", u8"たいおう");
     kentenVertical(
         canvas, verticalLayout, u"上から下へ",
         0.6f + 0.4f * static_cast<float>(std::sin(elapsedSeconds * 2.0)));
@@ -70,11 +70,12 @@ public:
     ParagraphLayout horizontalLayout = layoutParagraph(
         fontContext, m_horizontalParagraph, horizontalFlow, horizontalOptions);
     horizontalLayout.draw(canvas, m_horizontalParagraph);
-    rubyHorizontal(canvas, fontContext, horizontalLayout, u"漢字", "かんじ");
-    rubyHorizontal(canvas, fontContext, horizontalLayout, u"圏点", "けんてん");
+    rubyHorizontal(canvas, fontContext, horizontalLayout, u"漢字", u8"かんじ");
+    rubyHorizontal(canvas, fontContext, horizontalLayout, u"圏点",
+                   u8"けんてん");
 
     drawCaption(canvas, fontContext,
-                "vertical-rl: UTR#50 orientation, 'vert' forms, "
+                u8"vertical-rl: UTR#50 orientation, 'vert' forms, "
                 "tate-chu-yoko digits, ruby + kenten on top",
                 {30, canvasHeight - 28}, canvasWidth - 60);
 
@@ -97,31 +98,31 @@ private:
   /// Rebuilds both comparison paragraphs for a new display size.
   void buildParagraphs(float fontSize) {
     m_verticalParagraph.clear();
-    m_verticalParagraph.appendText("縦組みの文章は、上から下へ、",
+    m_verticalParagraph.appendText(u8"縦組みの文章は、上から下へ、",
                                    japaneseStyle(fontSize));
-    m_verticalParagraph.appendText("右から左へと流れる。平成",
+    m_verticalParagraph.appendText(u8"右から左へと流れる。平成",
                                    japaneseStyle(fontSize));
     m_verticalParagraph.appendText(
-        "31", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
-    m_verticalParagraph.appendText("年", japaneseStyle(fontSize));
+        u8"31", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
+    m_verticalParagraph.appendText(u8"年", japaneseStyle(fontSize));
     m_verticalParagraph.appendText(
-        "12", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
-    m_verticalParagraph.appendText("月、", japaneseStyle(fontSize));
-    m_verticalParagraph.appendText("TextFlow", japaneseStyle(fontSize));
-    m_verticalParagraph.appendText("は縦書きに対応した。",
+        u8"12", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
+    m_verticalParagraph.appendText(u8"月、", japaneseStyle(fontSize));
+    m_verticalParagraph.appendText(u8"TextFlow", japaneseStyle(fontSize));
+    m_verticalParagraph.appendText(u8"は縦書きに対応した。",
                                    japaneseStyle(fontSize));
     m_verticalParagraph.setWritingMode(WritingMode::kVerticalRL);
 
     m_horizontalParagraph.clear();
     m_horizontalParagraph.appendText(
-        "漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
+        u8"漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
         japaneseStyle(fontSize * 0.8f));
   }
 
   /// Places a ruby annotation alongside the first matching vertical range.
   void rubyVertical(SkCanvas *canvas, FontContext &fontContext,
                     const ParagraphLayout &layout, std::u16string_view baseText,
-                    const char *rubyText) {
+                    const char8_t *rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(m_verticalParagraph, baseText);
     if (matches.empty())
@@ -199,7 +200,7 @@ private:
   /// Places a ruby annotation above the first matching horizontal range.
   void rubyHorizontal(SkCanvas *canvas, FontContext &fontContext,
                       const ParagraphLayout &layout,
-                      std::u16string_view baseText, const char *rubyText) {
+                      std::u16string_view baseText, const char8_t *rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(m_horizontalParagraph, baseText);
     if (matches.empty())

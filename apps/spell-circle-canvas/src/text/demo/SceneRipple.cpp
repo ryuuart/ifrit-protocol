@@ -47,7 +47,7 @@ void sceneRipple(FontContext &fontContext, int frames,
   SkCanvas *canvas = surface->getCanvas();
   GlyphRSXformBatches glyphBatches;
   TimingStats layoutTime, waveTime, drawTime;
-  const char *swaps[] = {"letters", "glyphs ", "symbols", "strokes"};
+  const char8_t *swaps[] = {u8"letters", u8"glyphs ", u8"symbols", u8"strokes"};
 
   for (int frame = 0; frame < frames; ++frame) {
     if (frame % 55 == 0)

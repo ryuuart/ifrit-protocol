@@ -9,7 +9,7 @@ namespace textflow {
 
 namespace {
 
-std::u16string toUtf16(std::string_view utf8) {
+std::u16string toUtf16(std::u8string_view utf8) {
   if (utf8.empty())
     return {};
   std::u16string utf16;
@@ -18,7 +18,8 @@ std::u16string toUtf16(std::string_view utf8) {
   int32_t codeUnitsWritten = 0;
   u_strFromUTF8(reinterpret_cast<UChar *>(utf16.data()),
                 static_cast<int32_t>(utf16.size()), &codeUnitsWritten,
-                utf8.data(), static_cast<int32_t>(utf8.size()), &status);
+                reinterpret_cast<const char *>(utf8.data()),
+                static_cast<int32_t>(utf8.size()), &status);
   if (U_FAILURE(status))
     return {};
   utf16.resize(static_cast<size_t>(codeUnitsWritten));
@@ -75,20 +76,20 @@ std::vector<CharRange> findAllOccurrences(const Paragraph &paragraph,
 }
 
 std::vector<CharRange> findAllOccurrences(const Paragraph &paragraph,
-                                          std::string_view utf8Needle,
+                                          std::u8string_view utf8Needle,
                                           CharRange scope) {
   return findAllOccurrences(paragraph, std::u16string_view(toUtf16(utf8Needle)),
                             scope);
 }
 
 std::vector<CharRange> findAllOccurrences(const Paragraph &paragraph,
-                                          std::string_view utf8Needle) {
+                                          std::u8string_view utf8Needle) {
   return findAllOccurrences(paragraph,
                             std::u16string_view(toUtf16(utf8Needle)));
 }
 
 std::optional<std::vector<CharRange>>
-findRegexMatches(const Paragraph &paragraph, std::string_view utf8Pattern,
+findRegexMatches(const Paragraph &paragraph, std::u8string_view utf8Pattern,
                  CharRange scope) {
   const std::u16string pattern = toUtf16(utf8Pattern);
   UErrorCode status = U_ZERO_ERROR;
@@ -121,7 +122,7 @@ findRegexMatches(const Paragraph &paragraph, std::string_view utf8Pattern,
 }
 
 std::optional<std::vector<CharRange>>
-findRegexMatches(const Paragraph &paragraph, std::string_view utf8Pattern) {
+findRegexMatches(const Paragraph &paragraph, std::u8string_view utf8Pattern) {
   return findRegexMatches(paragraph, utf8Pattern,
                           {0, static_cast<uint32_t>(paragraph.text().size())});
 }

@@ -61,7 +61,7 @@ struct WordSegment {
   ShapedWordRef shaped;
   uint32_t styleIndex = 0; ///< index into Paragraph::spans()
   float advanceOffset = 0; ///< pen offset from the word origin (for
-                          ///< kTateChuYoko this lands on the run's baseline)
+                           ///< kTateChuYoko this lands on the run's baseline)
   SegmentForm form = SegmentForm::kFlow;
 };
 
@@ -130,7 +130,7 @@ public:
   /** Removes all text, styles, placeholders, and cached analysis. */
   void clear();
   /** Appends UTF-8 text using `style`. */
-  void appendText(std::string_view utf8, const TextStyle &style);
+  void appendText(std::u8string_view utf8, const TextStyle &style);
   /** Appends UTF-16 text using `style`. */
   void appendText(std::u16string_view utf16, const TextStyle &style);
 
@@ -162,7 +162,7 @@ public:
 
   // ── Editing (UTF-16 ranges) ───────────────────────────────────────────
   /** Replaces UTF-16 range `[start, end)` with UTF-8 and adjusts spans. */
-  void replaceText(uint32_t start, uint32_t end, std::string_view utf8);
+  void replaceText(uint32_t start, uint32_t end, std::u8string_view utf8);
   /** Applies shaping and paint configuration to a UTF-16 range (splits spans
    * as needed). Re-shapes only words whose shaping inputs actually changed
    * — the rest hit the cache.
@@ -317,7 +317,7 @@ public:
     return *this;
   }
   /** Appends UTF-8 text using the active style. */
-  ParagraphBuilder &addText(std::string_view utf8) {
+  ParagraphBuilder &addText(std::u8string_view utf8) {
     m_paragraph.appendText(utf8, m_styleStack.back());
     return *this;
   }

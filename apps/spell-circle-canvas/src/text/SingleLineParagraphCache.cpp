@@ -8,18 +8,24 @@ namespace textflow {
 
 namespace {
 
-void appendUtf8Key(std::string &key, std::string_view utf8) { key += utf8; }
+void appendUtf8Key(std::string &key, std::u8string_view utf8) {
+  key.append(reinterpret_cast<const char *>(utf8.data()), utf8.size());
+}
 
 void appendUtf8Key(std::string &key, std::u16string_view utf16) {
   // Key by UTF-8 so both entry points address the same cache slot.
-  std::string utf8(utf16.size() * 3, '\0');
+  const size_t keyStart = key.size();
+  key.resize(keyStart + utf16.size() * 3);
   UErrorCode status = U_ZERO_ERROR;
   int32_t written = 0;
-  u_strToUTF8(utf8.data(), static_cast<int32_t>(utf8.size()), &written,
+  u_strToUTF8(key.data() + keyStart,
+              static_cast<int32_t>(key.size() - keyStart), &written,
               reinterpret_cast<const UChar *>(utf16.data()),
               static_cast<int32_t>(utf16.size()), &status);
   if (U_SUCCESS(status))
-    key.append(utf8.data(), static_cast<size_t>(written));
+    key.resize(keyStart + static_cast<size_t>(written));
+  else
+    key.resize(keyStart);
 }
 
 } // namespace
@@ -46,8 +52,10 @@ Paragraph &SingleLineParagraphCache::paragraphForImpl(
   return paragraph->second;
 }
 
-Paragraph &SingleLineParagraphCache::paragraphFor(
-    std::string_view utf8, const sk_sp<SkTypeface> &typeface, float fontSize) {
+Paragraph &
+SingleLineParagraphCache::paragraphFor(std::u8string_view utf8,
+                                       const sk_sp<SkTypeface> &typeface,
+                                       float fontSize) {
   return paragraphForImpl(utf8, typeface, fontSize);
 }
 

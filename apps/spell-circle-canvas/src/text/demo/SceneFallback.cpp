@@ -23,14 +23,14 @@ namespace {
 
 struct Row {
   const char *languageTag;
-  const char *text; // Latin lead-in + a CJK clause requiring fallback
+  const char8_t *text; // Latin lead-in + a CJK clause requiring fallback
 };
 
 const Row kRows[] = {
-    {"ja", "Japanese falls back to 日本語のテキスト for this sentence."},
-    {"ko", "Korean falls back to 한국어 텍스트 for this sentence."},
-    {"zh-Hans", "Simplified Chinese falls back to 简体中文文本 here."},
-    {"zh-Hant", "Traditional Chinese falls back to 繁體中文文本 here."},
+    {"ja", u8"Japanese falls back to 日本語のテキスト for this sentence."},
+    {"ko", u8"Korean falls back to 한국어 텍스트 for this sentence."},
+    {"zh-Hans", u8"Simplified Chinese falls back to 简体中文文本 here."},
+    {"zh-Hant", u8"Traditional Chinese falls back to 繁體中文文本 here."},
 };
 
 struct CoverageCheck {
@@ -87,20 +87,19 @@ void sceneFallback(FontContext &fontContext,
   constexpr int kRowCount = sizeof(kRows) / sizeof(kRows[0]);
   constexpr float kColumnWidth = 460;
   constexpr float kRowHeight = 130;
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::MakeN32Premul(80 + 2 * kColumnWidth,
-                                 60 + kRowCount * kRowHeight));
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+      80 + 2 * kColumnWidth, 60 + kRowCount * kRowHeight));
   SkCanvas *canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
-  auto drawCaption = [&](const char *text, float left, float top) {
+  auto drawCaption = [&](const char8_t *text, float left, float top) {
     Paragraph caption;
     caption.appendText(text, style(13, kAccent));
     BlockFlow flow(SkRect::MakeXYWH(left, top, kColumnWidth, 18));
     layoutParagraph(fontContext, caption, flow).draw(canvas, caption);
   };
-  drawCaption("Noto Sans primary", 40, 16);
-  drawCaption("Noto Serif primary", 40 + kColumnWidth, 16);
+  drawCaption(u8"Noto Sans primary", 40, 16);
+  drawCaption(u8"Noto Serif primary", 40 + kColumnWidth, 16);
 
   bool allRowsResolved = true;
   for (int rowIndex = 0; rowIndex < kRowCount; ++rowIndex) {
@@ -111,7 +110,8 @@ void sceneFallback(FontContext &fontContext,
     sansStyle.shaping.typeface = sansTypeface;
     Paragraph sansParagraph;
     sansParagraph.appendText(row.text, sansStyle);
-    BlockFlow sansFlow(SkRect::MakeXYWH(40, top, kColumnWidth, kRowHeight - 12));
+    BlockFlow sansFlow(
+        SkRect::MakeXYWH(40, top, kColumnWidth, kRowHeight - 12));
     layoutParagraph(fontContext, sansParagraph, sansFlow)
         .draw(canvas, sansParagraph);
 

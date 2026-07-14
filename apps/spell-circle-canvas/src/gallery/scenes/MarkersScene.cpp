@@ -47,15 +47,17 @@ public:
                                    : textLength};
       m_queryWasScoped = scope.end < textLength;
       m_markers = MarkerSet(m_body.paragraph);
-      m_markers.setRanges("caps", findRegexMatches(m_body.paragraph,
-                                                   "\\b\\p{Lu}\\p{Ll}+", scope)
-                                      .value_or(std::vector<CharRange>{}));
+      m_markers.setRanges(
+          "caps",
+          findRegexMatches(m_body.paragraph, u8"\\b\\p{Lu}\\p{Ll}+", scope)
+              .value_or(std::vector<CharRange>{}));
     }
 
     // Scripted live edits: swap a word every ~2.5s; markers ride along.
-    static const char *cycle[] = {"watches", "guards ", "studies", "shadows"};
+    static const char8_t *cycle[] = {u8"watches", u8"guards ", u8"studies",
+                                     u8"shadows"};
     if (frameNumber > 0 && frameNumber % 150 == 0) {
-      for (const char *word : cycle) {
+      for (const char8_t *word : cycle) {
         const size_t textOffset = m_body.paragraph.text().find(
             std::u16string(word, word + 7).c_str());
         if (textOffset != std::u16string::npos) {
@@ -128,9 +130,9 @@ public:
 
     drawCaption(canvas, fontContext,
                 m_queryWasScoped
-                    ? "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; query scoped to "
+                    ? u8"regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; query scoped to "
                       "the placed window — overflow text is never scanned"
-                    : "regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; ranges follow "
+                    : u8"regex \\b\\p{Lu}\\p{Ll}+ → MarkerSet; ranges follow "
                       "the scripted edits",
                 {canvasWidth * 0.1f, canvasHeight - 30}, canvasWidth * 0.8f);
     return {layoutMicroseconds, static_cast<int>(m_layout.runs.size()), 0};

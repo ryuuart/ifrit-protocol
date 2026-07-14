@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontArguments.h>
 #include <include/core/SkFontParameters.h>
+#include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <include/ports/SkFontMgr_mac_ct.h>
@@ -20,8 +21,13 @@
 #include <QVariantMap>
 #include <rhi/qrhi.h>
 
+#include <algorithm>
 #include <chrono>
 #include <limits>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 using namespace gallery;
 
@@ -40,6 +46,105 @@ sk_sp<SkTypeface> resolveGalleryTypeface(SkFontMgr *fontManager,
   if (!fontManager || family.isEmpty())
     return nullptr;
   return textflowqt::toSkTypeface(fontManager, QFont(family));
+}
+
+constexpr std::string_view kNotoSerifPrefix = "Noto Serif";
+constexpr std::string_view kNotoCuneiformFamily = "Noto Sans Cuneiform";
+
+bool startsWith(std::string_view text, std::string_view prefix) {
+  return text.size() >= prefix.size() &&
+         text.compare(0, prefix.size(), prefix) == 0;
+}
+
+std::string typefaceFamily(const SkTypeface &typeface) {
+  SkString family;
+  typeface.getFamilyName(&family);
+  return {family.c_str(), family.size()};
+}
+
+std::string_view preferredCjkSerif(std::string_view languageTag) {
+  if (startsWith(languageTag, "ja"))
+    return "Noto Serif JP";
+  if (startsWith(languageTag, "ko"))
+    return "Noto Serif KR";
+  if (startsWith(languageTag, "zh-Hant") ||
+      startsWith(languageTag, "zh-TW"))
+    return "Noto Serif TC";
+  if (startsWith(languageTag, "zh-HK"))
+    return "Noto Serif HK";
+  if (startsWith(languageTag, "zh"))
+    return "Noto Serif SC";
+  return {};
+}
+
+sk_sp<SkTypeface> resolvePlatformFallback(SkFontMgr &fontManager,
+                                          const SkTypeface &primaryTypeface,
+                                          int32_t codePoint,
+                                          std::string_view languageTag) {
+  const std::string language(languageTag);
+  const char *languageTags[] = {language.c_str()};
+  return fontManager.matchFamilyStyleCharacter(
+      nullptr, primaryTypeface.fontStyle(),
+      language.empty() ? nullptr : languageTags, language.empty() ? 0 : 1,
+      codePoint);
+}
+
+textflow::FontContext::FallbackResolver
+makeGalleryFallbackResolver(SkFontMgr &fontManager) {
+  std::vector<std::string> serifFamilies;
+  bool hasCuneiformFamily = false;
+  const int familyCount = fontManager.countFamilies();
+  serifFamilies.reserve(static_cast<size_t>(std::max(0, familyCount)));
+  for (int familyIndex = 0; familyIndex < familyCount; ++familyIndex) {
+    SkString family;
+    fontManager.getFamilyName(familyIndex, &family);
+    const std::string_view familyName(family.c_str(), family.size());
+    if (startsWith(familyName, kNotoSerifPrefix))
+      serifFamilies.emplace_back(familyName);
+    else if (familyName == kNotoCuneiformFamily)
+      hasCuneiformFamily = true;
+  }
+  std::sort(serifFamilies.begin(), serifFamilies.end());
+  serifFamilies.erase(
+      std::unique(serifFamilies.begin(), serifFamilies.end()),
+      serifFamilies.end());
+
+  return [serifFamilies = std::move(serifFamilies), hasCuneiformFamily](
+             SkFontMgr &manager, const SkTypeface &primaryTypeface,
+             int32_t codePoint,
+             std::string_view languageTag) -> sk_sp<SkTypeface> {
+    const std::string primaryFamily = typefaceFamily(primaryTypeface);
+    if (!startsWith(primaryFamily, kNotoSerifPrefix))
+      return resolvePlatformFallback(manager, primaryTypeface, codePoint,
+                                     languageTag);
+
+    auto tryFamily = [&](std::string_view familyName) -> sk_sp<SkTypeface> {
+      if (familyName.empty() || familyName == primaryFamily)
+        return nullptr;
+      const std::string terminatedFamilyName(familyName);
+      sk_sp<SkTypeface> candidate = manager.matchFamilyStyle(
+          terminatedFamilyName.c_str(), primaryTypeface.fontStyle());
+      if (candidate && candidate->unicharToGlyph(codePoint) != 0)
+        return candidate;
+      return nullptr;
+    };
+
+    const std::string_view preferredFamily = preferredCjkSerif(languageTag);
+    if (sk_sp<SkTypeface> preferred = tryFamily(preferredFamily))
+      return preferred;
+    for (const std::string &family : serifFamilies) {
+      if (family != preferredFamily) {
+        if (sk_sp<SkTypeface> candidate = tryFamily(family))
+          return candidate;
+      }
+    }
+    if (hasCuneiformFamily) {
+      if (sk_sp<SkTypeface> cuneiform = tryFamily(kNotoCuneiformFamily))
+        return cuneiform;
+    }
+    return resolvePlatformFallback(manager, primaryTypeface, codePoint,
+                                   languageTag);
+  };
 }
 
 } // namespace
@@ -185,9 +290,11 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
 void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
                                       QSize logicalSize) {
   using Clock = std::chrono::steady_clock;
-  if (!m_fontContext)
+  if (!m_fontContext) {
+    sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
     m_fontContext = std::make_unique<textflow::FontContext>(
-        SkFontMgr_New_CoreText(nullptr));
+        fontManager, nullptr, makeGalleryFallbackResolver(*fontManager));
+  }
 
   if (m_sceneIndex != m_lastSceneIndex) {
     m_lastSceneIndex = m_sceneIndex;

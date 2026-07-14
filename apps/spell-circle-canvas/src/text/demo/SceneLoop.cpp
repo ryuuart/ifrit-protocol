@@ -39,11 +39,11 @@ void sceneLoop(FontContext &fontContext, int frames,
   const float loopLength = contour->length();
 
   Paragraph paragraph;
-  paragraph.appendText("and the words go round ", style(21, kInk));
-  paragraph.appendText("終わらない文字の環 ", style(21, kBlue, "ja"));
-  paragraph.appendText("끝나지 않는 글의 고리 ", style(21, kAccent, "ko"));
-  paragraph.appendText("文字環繞不息 ", style(21, kInk, "zh"));
-  paragraph.appendText("round and round again — ", style(21, kInk));
+  paragraph.appendText(u8"and the words go round ", style(21, kInk));
+  paragraph.appendText(u8"終わらない文字の環 ", style(21, kBlue, "ja"));
+  paragraph.appendText(u8"끝나지 않는 글의 고리 ", style(21, kAccent, "ko"));
+  paragraph.appendText(u8"文字環繞不息 ", style(21, kInk, "zh"));
+  paragraph.appendText(u8"round and round again — ", style(21, kInk));
 
   LineSetFlow flow;
   LineInterval interval;

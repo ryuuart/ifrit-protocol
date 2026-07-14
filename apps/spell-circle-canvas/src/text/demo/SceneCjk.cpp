@@ -88,18 +88,19 @@ void sceneCjk(FontContext &fontContext,
 
   // ── Vertical-rl block (right side of the page) ─────────────────────────
   Paragraph verticalParagraph;
-  verticalParagraph.appendText("縦組みの文章は、上から下へ、",
+  verticalParagraph.appendText(u8"縦組みの文章は、上から下へ、",
                                japaneseStyle(fontSize));
-  verticalParagraph.appendText("右から左へと流れる。平成",
+  verticalParagraph.appendText(u8"右から左へと流れる。平成",
                                japaneseStyle(fontSize));
   verticalParagraph.appendText(
-      "31", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
-  verticalParagraph.appendText("年", japaneseStyle(fontSize));
+      u8"31", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
+  verticalParagraph.appendText(u8"年", japaneseStyle(fontSize));
   verticalParagraph.appendText(
-      "12", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
-  verticalParagraph.appendText("月、", japaneseStyle(fontSize));
-  verticalParagraph.appendText("TextFlow", japaneseStyle(fontSize));
-  verticalParagraph.appendText("は縦書きに対応した。", japaneseStyle(fontSize));
+      u8"12", japaneseStyle(fontSize, VerticalForm::kTateChuYoko));
+  verticalParagraph.appendText(u8"月、", japaneseStyle(fontSize));
+  verticalParagraph.appendText(u8"TextFlow", japaneseStyle(fontSize));
+  verticalParagraph.appendText(u8"は縦書きに対応した。",
+                               japaneseStyle(fontSize));
   verticalParagraph.setWritingMode(WritingMode::kVerticalRL);
 
   const SkRect verticalBounds = SkRect::MakeXYWH(430, 80, 500, 540);
@@ -113,7 +114,7 @@ void sceneCjk(FontContext &fontContext,
   // Ruby (furigana): a small vertical paragraph laid along the base's
   // column, offset into the inter-column gap.
   auto drawVerticalRuby = [&](std::u16string_view baseText,
-                              const char *rubyText) {
+                              const char8_t *rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(verticalParagraph, baseText);
     if (matches.empty())
@@ -135,9 +136,9 @@ void sceneCjk(FontContext &fontContext,
         length + 1}});
     layoutParagraph(fontContext, ruby, flow).draw(canvas, ruby);
   };
-  drawVerticalRuby(u"縦組", "たてぐみ");
-  drawVerticalRuby(u"文章", "ぶんしょう");
-  drawVerticalRuby(u"対応", "たいおう");
+  drawVerticalRuby(u"縦組", u8"たてぐみ");
+  drawVerticalRuby(u"文章", u8"ぶんしょう");
+  drawVerticalRuby(u"対応", u8"たいおう");
 
   // Kenten (emphasis dots): one sesame dot beside each emphasized glyph.
   {
@@ -175,7 +176,7 @@ void sceneCjk(FontContext &fontContext,
   // ── Horizontal block with ruby + kenten (left side) ────────────────────
   Paragraph horizontalParagraph;
   horizontalParagraph.appendText(
-      "漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
+      u8"漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
       japaneseStyle(fontSize * 0.85f));
   const SkRect horizontalBounds = SkRect::MakeXYWH(50, 120, 330, 400);
   BlockFlow horizontalFlow(horizontalBounds);
@@ -186,7 +187,7 @@ void sceneCjk(FontContext &fontContext,
   horizontalLayout.draw(canvas, horizontalParagraph);
 
   auto drawHorizontalRuby = [&](std::u16string_view baseText,
-                                const char *rubyText) {
+                                const char8_t *rubyText) {
     const std::vector<CharRange> matches =
         findAllOccurrences(horizontalParagraph, baseText);
     if (matches.empty())
@@ -222,8 +223,8 @@ void sceneCjk(FontContext &fontContext,
                       width + 1}});
     layoutParagraph(fontContext, ruby, flow).draw(canvas, ruby);
   };
-  drawHorizontalRuby(u"漢字", "かんじ");
-  drawHorizontalRuby(u"圏点", "けんてん");
+  drawHorizontalRuby(u"漢字", u8"かんじ");
+  drawHorizontalRuby(u"圏点", u8"けんてん");
 
   {
     const std::vector<CharRange> matches =
@@ -255,7 +256,8 @@ void sceneCjk(FontContext &fontContext,
   }
 
   // Captions.
-  auto drawCaption = [&](const char *text, float positionX, float positionY) {
+  auto drawCaption = [&](const char8_t *text, float positionX,
+                         float positionY) {
     TextStyle captionStyle = style(13, kBlue);
     captionStyle.shaping.typeface = notoSansTypeface;
     Paragraph paragraph;
@@ -263,9 +265,10 @@ void sceneCjk(FontContext &fontContext,
     BlockFlow flow(SkRect::MakeXYWH(positionX, positionY, 400, 18));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   };
-  drawCaption("horizontal: ruby + kenten (external utilities)", 50, 90);
-  drawCaption("vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430, 630);
-  drawCaption("tate-chu-yoko digits, ruby + kenten in the column gap", 430,
+  drawCaption(u8"horizontal: ruby + kenten (external utilities)", 50, 90);
+  drawCaption(u8"vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430,
+              630);
+  drawCaption(u8"tate-chu-yoko digits, ruby + kenten in the column gap", 430,
               648);
 
   writePng(surface.get(), outputDirectory / "cjk.png");

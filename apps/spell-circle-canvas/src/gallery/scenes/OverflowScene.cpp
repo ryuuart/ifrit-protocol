@@ -49,9 +49,9 @@ public:
     const float paneWidth = canvasWidth * 0.4f;
 
     canvas->clear(kPaper);
-    drawCaption(canvas, fontContext, "clipped — no ellipsis",
+    drawCaption(canvas, fontContext, u8"clipped — no ellipsis",
                 {canvasWidth * 0.06f, 18});
-    drawCaption(canvas, fontContext, "options.overflow.ellipsis = \"…\"",
+    drawCaption(canvas, fontContext, u8"options.overflow.ellipsis = \"…\"",
                 {canvasWidth * 0.54f, 18});
 
     double layoutMicroseconds = 0;
@@ -99,9 +99,17 @@ public:
       }
     }
 
-    drawCaption(canvas, fontContext, status[0].toUtf8().constData(),
+    const QByteArray clippedStatus = status[0].toUtf8();
+    const QByteArray ellipsizedStatus = status[1].toUtf8();
+    drawCaption(canvas, fontContext,
+                std::u8string_view(
+                    reinterpret_cast<const char8_t *>(clippedStatus.data()),
+                    static_cast<size_t>(clippedStatus.size())),
                 {canvasWidth * 0.06f, 48 + boxHeight + 22}, paneWidth);
-    drawCaption(canvas, fontContext, status[1].toUtf8().constData(),
+    drawCaption(canvas, fontContext,
+                std::u8string_view(
+                    reinterpret_cast<const char8_t *>(ellipsizedStatus.data()),
+                    static_cast<size_t>(ellipsizedStatus.size())),
                 {canvasWidth * 0.54f, 48 + boxHeight + 22}, paneWidth);
 
     return {layoutMicroseconds, runCount, 0};

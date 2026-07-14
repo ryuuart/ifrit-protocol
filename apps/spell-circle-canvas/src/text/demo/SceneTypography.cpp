@@ -25,15 +25,15 @@ void sceneTypography(FontContext &fontContext,
   SkCanvas *canvas = surface->getCanvas();
   canvas->clear(kPaper);
 
-  const char *sample =
-      "The last line of a justified paragraph reveals the typographer's "
+  const char8_t *sample =
+      u8"The last line of a justified paragraph reveals the typographer's "
       "intent more than any other line in the whole measure.";
 
   // Justify with last line start / center / end / full (InDesign-style).
   const TextAlignment lastModes[] = {
       TextAlignment::kStart, TextAlignment::kCenter, TextAlignment::kEnd};
-  const char *labels[] = {"last: left", "last: center", "last: right",
-                          "last: full"};
+  const char8_t *labels[] = {u8"last: left", u8"last: center", u8"last: right",
+                             u8"last: full"};
   for (int exampleIndex = 0; exampleIndex < 4; ++exampleIndex) {
     const float exampleX =
         30.0f + static_cast<float>(exampleIndex % 2) * 260.0f;
@@ -61,12 +61,12 @@ void sceneTypography(FontContext &fontContext,
   // Narrow hyphenated Knuth-Plass column (soft hyphens marked with ­).
   {
     Paragraph caption;
-    caption.appendText("KP + soft hyphens, 130px", style(12, kAccent));
+    caption.appendText(u8"KP + soft hyphens, 130px", style(12, kAccent));
     BlockFlow capFlow(SkRect::MakeXYWH(570, 16, 220, 20));
     layoutParagraph(fontContext, caption, capFlow).draw(canvas, caption);
 
     Paragraph paragraph;
-    paragraph.appendText("In these as­ton­ish­ing­ly nar­row "
+    paragraph.appendText(u8"In these as­ton­ish­ing­ly nar­row "
                          "col­umns, dis­cre­tion­ary breaks keep "
                          "jus­ti­fi­ca­tion from tear­ing the "
                          "spac­ing apart, ex­act­ly as a book "
@@ -90,7 +90,7 @@ void sceneTypography(FontContext &fontContext,
     Paragraph paragraph;
     TextStyle title = style(40, SK_ColorWHITE);
     title.paint.shadows.push_back({0x99000000, {3, 4}, 3.0f});
-    paragraph.appendText("Shadowed ", title);
+    paragraph.appendText(u8"Shadowed ", title);
 
     TextStyle gradient = style(40);
     const SkPoint gradientPoints[2] = {{730, 40}, {1030, 240}};
@@ -101,12 +101,12 @@ void sceneTypography(FontContext &fontContext,
         SkGradient(SkGradient::Colors({colors, 2}, SkTileMode::kClamp),
                    SkGradient::Interpolation()));
     gradient.paint.shadows.push_back({0x44000000, {2, 2}, 2.0f});
-    paragraph.appendText("gradient ", gradient);
+    paragraph.appendText(u8"gradient ", gradient);
 
     TextStyle blurred = style(40, kInk);
     blurred.paint.maskFilter =
         SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 2.4f);
-    paragraph.appendText("blur", blurred);
+    paragraph.appendText(u8"blur", blurred);
 
     BlockFlow flow(SkRect::MakeXYWH(730, 40, 310, 400));
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
@@ -128,12 +128,12 @@ void sceneTypography(FontContext &fontContext,
         fontManager->matchFamilyStyle("Menlo", SkFontStyle());
 
     Paragraph paragraph;
-    paragraph.appendText("Serif voices carry the body, ", serif);
-    paragraph.appendText("a grotesque interjects, ", sans);
-    paragraph.appendText("code whispers in mono, ", mono);
-    paragraph.appendText("そして日本語がフォールバックで加わり、", sans);
-    paragraph.appendText("모든 서체가 한 단락 안에서 섞인다 ", serif);
-    paragraph.appendText("— one paragraph, many fonts, one shape cache.",
+    paragraph.appendText(u8"Serif voices carry the body, ", serif);
+    paragraph.appendText(u8"a grotesque interjects, ", sans);
+    paragraph.appendText(u8"code whispers in mono, ", mono);
+    paragraph.appendText(u8"そして日本語がフォールバックで加わり、", sans);
+    paragraph.appendText(u8"모든 서체가 한 단락 안에서 섞인다 ", serif);
+    paragraph.appendText(u8"— one paragraph, many fonts, one shape cache.",
                          serif);
 
     BlockFlow flow(SkRect::MakeXYWH(30, 470, 660, 320));

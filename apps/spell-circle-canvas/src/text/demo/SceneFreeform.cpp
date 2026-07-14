@@ -41,7 +41,7 @@ void sceneFreeform(FontContext &fontContext,
     const SkPath spiral = spiralBuilder.detach();
     Paragraph paragraph;
     paragraph.appendText(
-        "text can follow any path — 螺旋に沿って文字が流れ、 나선을 따라 "
+        u8"text can follow any path — 螺旋に沿って文字が流れ、 나선을 따라 "
         "글자가 흐르고, 文字沿着螺旋流动 — and every glyph stays tangent to "
         "the curve while the words keep their cached shapes",
         style(17));
@@ -71,14 +71,15 @@ void sceneFreeform(FontContext &fontContext,
           {500, baselineY}, {inverseLength, slope * inverseLength}, 350}});
     }
     Paragraph paragraph;
-    paragraph.appendText("lines need not be horizontal nor parallel; ",
+    paragraph.appendText(u8"lines need not be horizontal nor parallel; ",
                          style(18, kInk));
-    paragraph.appendText("각 행은 자유로운 방향을 갖고 ",
+    paragraph.appendText(u8"각 행은 자유로운 방향을 갖고 ",
                          style(18, kBlue, "ko"));
-    paragraph.appendText("每一行都有自己的方向 ", style(18, kAccent, "zh"));
-    paragraph.appendText("and the paragraph simply flows through whatever pen "
-                         "strokes you hand it.",
-                         style(18, kInk));
+    paragraph.appendText(u8"每一行都有自己的方向 ", style(18, kAccent, "zh"));
+    paragraph.appendText(
+        u8"and the paragraph simply flows through whatever pen "
+        "strokes you hand it.",
+        style(18, kInk));
     const auto coldStartTime = Clock::now();
     ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
     const auto coldEndTime = Clock::now();

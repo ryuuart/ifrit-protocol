@@ -17,13 +17,13 @@ using namespace textflow;
 
 void sceneBabel(FontContext &fontContext,
                 const std::filesystem::path &outputDirectory) {
-  const char *tokens[] = {"حرف",   "كلمة",   "अक्षर", "शब्द",   "אות",
-                          "מילה",  "ตัวอักษร", "字",   "글",    "λόγος",
-                          "буква", "🎉",     "👍🏽", "文字",  "ঢাকা",
-                          "கடல்",   "ᚱᚢᚾ",    "ainm", "słowo", "λέξη"};
+  const char8_t *tokens[] = {
+      u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
+      u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
+      u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
   std::mt19937 randomEngine(77);
   Paragraph paragraph;
-  std::string text;
+  std::u8string text;
   for (int tokenIndex = 0; tokenIndex < 2000; ++tokenIndex) {
     text += tokens[randomEngine() % 20];
     text += ' ';

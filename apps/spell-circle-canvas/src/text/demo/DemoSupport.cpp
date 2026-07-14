@@ -55,17 +55,19 @@ TextStyle style(float fontSize, SkColor color, const char *languageTag) {
 }
 
 Paragraph makeBigParagraph(int wordCount, float fontSize) {
-  const char *latin[] = {"the",     "letters", "fall",   "away",    "from",
-                         "their",   "lines",   "and",    "return",  "again",
-                         "layout",  "engine",  "words",  "measure", "glyph",
-                         "cascade", "gentle",  "steady", "rhythm",  "flowing"};
-  const char *cjk[] = {"文字", "雨",   "波紋", "字形", "빗물", "글자",
-                       "물결", "여울", "漣漪", "文雨", "字落", "縦横"};
+  const char8_t *latin[] = {u8"the",    u8"letters", u8"fall",   u8"away",
+                            u8"from",   u8"their",   u8"lines",  u8"and",
+                            u8"return", u8"again",   u8"layout", u8"engine",
+                            u8"words",  u8"measure", u8"glyph",  u8"cascade",
+                            u8"gentle", u8"steady",  u8"rhythm", u8"flowing"};
+  const char8_t *cjk[] = {u8"文字", u8"雨",   u8"波紋", u8"字形",
+                          u8"빗물", u8"글자", u8"물결", u8"여울",
+                          u8"漣漪", u8"文雨", u8"字落", u8"縦横"};
   const TextStyle styles[3] = {style(fontSize, kInk), style(fontSize, kBlue),
                                style(fontSize, kAccent)};
   std::mt19937 randomEngine(23);
   Paragraph paragraph;
-  std::string chunk;
+  std::u8string chunk;
   int chunkStyle = 0;
   for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
     if (wordIndex % 5 == 4)

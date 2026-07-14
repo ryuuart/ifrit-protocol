@@ -30,7 +30,7 @@ class FontContext;
 findAllOccurrences(const Paragraph &paragraph, std::u16string_view needle);
 /** Converts a UTF-8 needle and returns every non-overlapping occurrence. */
 [[nodiscard]] std::vector<CharRange>
-findAllOccurrences(const Paragraph &paragraph, std::string_view utf8Needle);
+findAllOccurrences(const Paragraph &paragraph, std::u8string_view utf8Needle);
 
 /** Returns every non-overlapping occurrence inside the clamped `scope`,
  * as if that window were the whole string — a match never extends past
@@ -46,7 +46,7 @@ findAllOccurrences(const Paragraph &paragraph, std::u16string_view needle,
                    CharRange scope);
 /** Searches for a UTF-8 needle only inside the clamped UTF-16 `scope`. */
 [[nodiscard]] std::vector<CharRange>
-findAllOccurrences(const Paragraph &paragraph, std::string_view utf8Needle,
+findAllOccurrences(const Paragraph &paragraph, std::u8string_view utf8Needle,
                    CharRange scope);
 
 /** Returns every match of an ICU regular expression (full Unicode
@@ -55,11 +55,11 @@ findAllOccurrences(const Paragraph &paragraph, std::string_view utf8Needle,
  */
 [[nodiscard("invalid regular expressions are reported as nullopt")]]
 std::optional<std::vector<CharRange>>
-findRegexMatches(const Paragraph &paragraph, std::string_view utf8Pattern);
+findRegexMatches(const Paragraph &paragraph, std::u8string_view utf8Pattern);
 /** Applies an ICU regular expression only inside the clamped `scope`. */
 [[nodiscard("invalid regular expressions are reported as nullopt")]]
 std::optional<std::vector<CharRange>>
-findRegexMatches(const Paragraph &paragraph, std::string_view utf8Pattern,
+findRegexMatches(const Paragraph &paragraph, std::u8string_view utf8Pattern,
                  CharRange scope);
 
 /** Returns content-only ranges for the paragraph's analyzed words — the

@@ -120,7 +120,8 @@ a standalone Qt Quick app with a scene switcher (exclusions & SkPath
 shapes — including a spiky ring that is a brand-new path every frame,
 its points and even-odd hole morphing live — greedy-vs-Knuth-Plass,
 infinite loop, letter rain, click-to-ripple pool, vertical CJK with
-ruby/kenten/tate-chu-yoko, a Unicode-singularity wall (`﷽`, `𒈙`, Zalgo,
+ruby/kenten/tate-chu-yoko, a Unicode-singularity wall (`﷽`, `𰻞`, `𒀱`,
+`ཧཱུྃ`, `꧅`, `᎙`, Zalgo,
 deep clusters, bidi, emoji ZWJ), regex markers, inline slots & pills), live text
 editing, and font/size/alignment/line-breaking controls plus a variable-font
 axis panel discovered from the selected family (`wght`, `wdth`, `opsz`, or
@@ -146,15 +147,18 @@ boundaries.
 
 ## API sketch
 
+UTF-8 entry points use `std::u8string_view`; use `u8` literals or
+`std::u8string` so the encoding contract is carried by the type.
+
 ```cpp
 FontContext fontContext(SkFontMgr_New_CoreText(nullptr)); // one per thread
 
 ParagraphBuilder builder(baseStyle);
-builder.addText("Glyphs flow ")
+builder.addText(u8"Glyphs flow ")
     .pushStyle(red)
-    .addText("around")
+    .addText(u8"around")
     .popStyle()
-    .addText(" obstacles… 日本語も 한국어도 中文也");
+    .addText(u8" obstacles… 日本語も 한국어도 中文也");
 Paragraph paragraph = builder.build();
 
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
@@ -176,7 +180,7 @@ layout.draw(canvas, paragraph);        // or walk layout.runs yourself
 layout.drawBatched(canvas, paragraph); // few drawGlyphs calls instead of
                                        // one drawTextBlob per word
 
-paragraph.replaceText(4, 9, "swift");
+paragraph.replaceText(4, 9, u8"swift");
 paragraph.setPaint(0, 6, {SK_ColorRED});
                                        // skips ICU re-analysis too (paint
                                        // edits only re-derive the shaped
@@ -184,12 +188,12 @@ paragraph.setPaint(0, 6, {SK_ColorRED});
 
 // Query layer (optional): HTML/JS-flavoured selection + styling.
 for (CharRange range :
-     findRegexMatches(paragraph, "\\p{Lu}\\w+").value_or({}))
+     findRegexMatches(paragraph, u8"\\p{Lu}\\w+").value_or({}))
   paragraph.setPaint(range.start, range.end, {accent});
 MarkerSet markers(paragraph);
 markers.setRanges("keywords",
-                  findAllOccurrences(paragraph, "glyph"));
-paragraph.replaceText(0, 0, "New intro. ");
+                  findAllOccurrences(paragraph, u8"glyph"));
+paragraph.replaceText(0, 0, u8"New intro. ");
 markers.applyPaint(paragraph, "keywords", {accent});
 
 // Large documents: scope queries to what the layout can actually place —
@@ -199,7 +203,7 @@ uint32_t placedTextEnd =
     layout.overflowed()
         ? paragraph.words()[layout.firstUnplacedWord].textBegin
         : uint32_t(paragraph.text().size());
-findRegexMatches(paragraph, "\\p{Lu}\\w+", {0, placedTextEnd});
+findRegexMatches(paragraph, u8"\\p{Lu}\\w+", {0, placedTextEnd});
 
 // Vertical CJK (書字方向): columns top-to-bottom, right-to-left.
 paragraph.setWritingMode(WritingMode::kVerticalRL);

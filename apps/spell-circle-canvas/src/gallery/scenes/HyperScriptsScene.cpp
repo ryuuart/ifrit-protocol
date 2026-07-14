@@ -1,8 +1,8 @@
 // Scene: deliberately pathological Unicode and complex-script shaping.
 // This is a typography stress wall, not a language specimen: it combines
 // Arabic joining/calligraphy, Cuneiform, deep combining-mark stacks, Indic
-// and Tibetan clusters, bidi reordering, emoji ZWJ sequences, and
-// supplementary-plane symbols in one cached layout.
+// and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
+// sequences, and supplementary-plane symbols in one cached layout.
 #include "SceneFactories.h"
 #include "SceneSupport.h"
 
@@ -37,7 +37,7 @@ void includeCoverage(const ParagraphLayout &layout, Coverage &coverage) {
 }
 
 void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext,
-                    const char *text, SkPoint origin, float width,
+                    std::u8string_view text, SkPoint origin, float width,
                     SkColor color = 0xFF86D7FF) {
   Paragraph paragraph;
   paragraph.appendText(text, makeStyle(12.0f, color, "en"));
@@ -48,7 +48,7 @@ void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext,
 class HyperScriptsScene final : public Scene {
 public:
   QString name() const override {
-    return QStringLiteral("Unicode singularity — ﷽ 𒈙 Z̴̓͝");
+    return QStringLiteral("Unicode singularity — 𒀱 ﷽ 𒈙 Z̴̓͝");
   }
   bool supportsTextEdit() const override { return false; }
 
@@ -81,8 +81,7 @@ public:
         SkRect::MakeXYWH(margin, top, columnWidth, topHeight),
         SkRect::MakeXYWH(margin + columnWidth + gap, top, columnWidth,
                          topHeight),
-        SkRect::MakeXYWH(margin, zalgoTop, width - margin * 2.0f,
-                         zalgoHeight),
+        SkRect::MakeXYWH(margin, zalgoTop, width - margin * 2.0f, zalgoHeight),
         SkRect::MakeXYWH(margin, lowerTop, columnWidth, bottomHeight),
         SkRect::MakeXYWH(margin + columnWidth + gap, lowerTop, columnWidth,
                          bottomHeight),
@@ -95,7 +94,7 @@ public:
 
     canvas->clear(0xFF0E1017);
     drawSceneLabel(canvas, fontContext,
-                   "UNICODE SINGULARITY  ·  fallback + itemization + "
+                   u8"UNICODE SINGULARITY  ·  fallback + itemization + "
                    "HarfBuzz + UAX#9 in one frame",
                    {margin, 10}, width - margin * 2.0f);
 
@@ -129,8 +128,8 @@ public:
           std::max(1.0f, panel.height() - 38));
       BlockFlow flow(textBox);
       ParagraphLayoutOptions options;
-      options.alignment = panelIndex <= 2 ? TextAlignment::kCenter
-                                          : TextAlignment::kStart;
+      options.alignment =
+          panelIndex <= 2 ? TextAlignment::kCenter : TextAlignment::kStart;
       options.lineMetrics.height = m_lineHeights[panelIndex];
       const auto layoutStart = Clock::now();
       ParagraphLayout layout =
@@ -146,10 +145,13 @@ public:
             .arg(coverage.glyphCount)
             .arg(coverage.typefaceIds.size())
             .arg(coverage.missingGlyphCount);
-    drawSceneLabel(canvas, fontContext, status.toUtf8().constData(),
+    const QByteArray statusUtf8 = status.toUtf8();
+    drawSceneLabel(canvas, fontContext,
+                   std::u8string_view(reinterpret_cast<const char8_t *>(
+                                          statusUtf8.constData()),
+                                      static_cast<size_t>(statusUtf8.size())),
                    {margin, height - 25}, width - margin * 2.0f,
-                   coverage.missingGlyphCount == 0 ? 0xFF86D7FF
-                                                   : 0xFFFF5B68);
+                   coverage.missingGlyphCount == 0 ? 0xFF86D7FF : 0xFFFF5B68);
 
     return {layoutMicroseconds, runCount, coverage.glyphCount};
   }
@@ -165,57 +167,68 @@ private:
       paragraph.clear();
 
     m_paragraphs[0].appendText(
-        "﷽  السَّلَامُ عَلَيْكُمْ",
+        u8"﷽  السَّلَامُ عَلَيْكُمْ",
         sampleStyle(baseSize * 2.45f, 0xFFFFD37A, "ar", typeface));
     m_lineHeights[0] = baseSize * 3.25f;
 
     m_paragraphs[1].appendText(
-        "𒀭𒂗𒆠  𒈙  𒀀𒁀𒄿𒅗",
+        u8"𒀱  𒀭𒂗𒆠  𒈙𒁀𒄿𒅗",
         sampleStyle(baseSize * 2.05f, 0xFF86D7FF, "akk", typeface));
     m_lineHeights[1] = baseSize * 2.65f;
 
     m_paragraphs[2].appendText(
-        "Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚  "
+        u8"Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚  "
         "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
         sampleStyle(baseSize * 1.75f, 0xFFFF66B3, "und", typeface));
     m_lineHeights[2] = baseSize * 3.2f;
 
     m_paragraphs[3].appendText(
-        "ٱلْعَرَبِيَّةُ  ﷽  لَا إِلٰهَ إِلَّا ٱللَّٰهُ",
+        u8"ٱلْعَرَبِيَّةُ  ﷽  لَا إِلٰهَ إِلَّا ٱللَّٰهُ",
         sampleStyle(baseSize * 1.35f, 0xFFFFD37A, "ar", typeface));
     m_lineHeights[3] = baseSize * 2.0f;
 
     m_paragraphs[4].appendText(
-        "क्ष्ण्य  स्त्रै  བསྒྲུབས་  မြန်မာ  ខ្មែរ  ශ්‍රී",
+        u8"क्ष्ण्य  स्त्रै  བསྒྲུབས་  မြန်မာ  ខ្មែរ  "
+        "ශ්‍රී",
         sampleStyle(baseSize * 1.28f, 0xFFA8E6A3, "und", typeface));
     m_lineHeights[4] = baseSize * 2.05f;
 
     m_paragraphs[5].appendText(
-        "RTL ← ", sampleStyle(baseSize * 1.12f, 0xFFAAB6CC, "en", typeface));
+        u8"RTL ← ", sampleStyle(baseSize * 1.12f, 0xFFAAB6CC, "en", typeface));
     m_paragraphs[5].appendText(
-        "﷽ السَّلَامُ ١٢٣",
+        u8"﷽ السَّلَامُ ١٢٣",
         sampleStyle(baseSize * 1.35f, 0xFFFFD37A, "ar", typeface));
     m_paragraphs[5].appendText(
-        " ⇄ EN 123 ⇄ ",
+        u8" ⇄ EN 123 ⇄ ",
         sampleStyle(baseSize * 1.12f, 0xFFAAB6CC, "en", typeface));
     m_paragraphs[5].appendText(
-        "𒈙 𒀭", sampleStyle(baseSize * 1.25f, 0xFF86D7FF, "akk", typeface));
+        u8"𒈙 𒀭", sampleStyle(baseSize * 1.25f, 0xFF86D7FF, "akk", typeface));
     m_lineHeights[5] = baseSize * 1.95f;
 
     m_paragraphs[6].appendText(
-        "👩🏽‍🚀  🧑🏿‍💻  👨‍👩‍👧‍👦  🏳️‍🌈  𝄞  𝕳𝖆𝖗𝖋  a̪̺̬̍̎̄͛",
-        sampleStyle(baseSize * 1.25f, 0xFFD7B5FF, "und", typeface));
+        u8"𒀱   𰻞   ཧཱུྃ   ꧅   ᎙\n",
+        sampleStyle(baseSize * 1.70f, 0xFFFFD37A, "und", typeface));
+    m_paragraphs[6].appendText(
+        u8"👩🏽‍🚀  🧑🏿‍💻  👨‍👩‍👧‍👦  "
+        "🏳️‍🌈 "
+        " "
+        "𝄞 "
+        " "
+        "𝕳𝖆𝖗𝖋 "
+        " "
+        "a̪̺̬̍̎̄͛",
+        sampleStyle(baseSize * 1.08f, 0xFFD7B5FF, "und", typeface));
     m_lineHeights[6] = baseSize * 2.05f;
   }
 
-  static constexpr std::array<const char *, 7> kLabels = {
-      "ARABIC PRESENTATION FORM + JOINING + VOWEL MARKS",
-      "CUNEIFORM · SUPPLEMENTARY PLANE · AKKADIAN",
-      "COMBINING-MARK STORM · ONE BASE, MANY ATTACHMENTS",
-      "FULLY VOCALIZED RTL · LIGATURES · MARK POSITIONING",
-      "DEEP CLUSTERS · DEVANAGARI · TIBETAN · MYANMAR · KHMER · SINHALA",
-      "UAX#9 BIDI COLLISION · RTL + LTR + NUMBERS + CUNEIFORM",
-      "ZWJ + MODIFIERS + FLAGS + MUSIC + FRAKTUR + STACKED MARKS",
+  static constexpr std::array<const char8_t *, 7> kLabels = {
+      u8"ARABIC PRESENTATION FORM + JOINING + VOWEL MARKS",
+      u8"CUNEIFORM · SUPPLEMENTARY PLANE · AKKADIAN",
+      u8"COMBINING-MARK STORM · ONE BASE, MANY ATTACHMENTS",
+      u8"FULLY VOCALIZED RTL · LIGATURES · MARK POSITIONING",
+      u8"DEEP CLUSTERS · DEVANAGARI · TIBETAN · MYANMAR · KHMER · SINHALA",
+      u8"UAX#9 BIDI COLLISION · RTL + LTR + NUMBERS + CUNEIFORM",
+      u8"RARE GLYPHS + DEEP CLUSTER · ZWJ + MODIFIERS + SYMBOLS",
   };
 
   std::array<Paragraph, 7> m_paragraphs;
