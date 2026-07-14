@@ -63,3 +63,8 @@ void sceneFallback(textflow::FontContext &fontContext,
 // complex clusters, bidi collisions, emoji ZWJ, and supplementary symbols.
 void sceneHyperScripts(textflow::FontContext &fontContext,
                        const std::filesystem::path &outputDirectory);
+
+// Scene L — ordered paint layers: preset shadows/glows/outlines, animated-
+// ready shaders, and arbitrary caller-configured SkPaint composition.
+void scenePaintEffects(textflow::FontContext &fontContext,
+                       const std::filesystem::path &outputDirectory);

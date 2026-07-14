@@ -89,23 +89,24 @@ void sceneTypography(FontContext &fontContext,
   {
     Paragraph paragraph;
     TextStyle title = style(40, SK_ColorWHITE);
-    title.paint.shadows.push_back({0x99000000, {3, 4}, 3.0f});
+    title.paint.addUnderlay(PaintLayer::dropShadow(0x99000000, {3, 4}, 3.0f));
     paragraph.appendText(u8"Shadowed ", title);
 
     TextStyle gradient = style(40);
     const SkPoint gradientPoints[2] = {{730, 40}, {1030, 240}};
     const SkColor4f colors[2] = {SkColor4f::FromColor(kAccent),
                                  SkColor4f::FromColor(kBlue)};
-    gradient.paint.shader = SkShaders::LinearGradient(
+    gradient.paint.foreground.setShader(SkShaders::LinearGradient(
         gradientPoints,
         SkGradient(SkGradient::Colors({colors, 2}, SkTileMode::kClamp),
-                   SkGradient::Interpolation()));
-    gradient.paint.shadows.push_back({0x44000000, {2, 2}, 2.0f});
+                   SkGradient::Interpolation())));
+    gradient.paint.addUnderlay(
+        PaintLayer::dropShadow(0x44000000, {2, 2}, 2.0f));
     paragraph.appendText(u8"gradient ", gradient);
 
     TextStyle blurred = style(40, kInk);
-    blurred.paint.maskFilter =
-        SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 2.4f);
+    blurred.paint.foreground.setMaskFilter(
+        SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 2.4f));
     paragraph.appendText(u8"blur", blurred);
 
     BlockFlow flow(SkRect::MakeXYWH(730, 40, 310, 400));

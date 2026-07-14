@@ -3,21 +3,17 @@
 #include "textflow/FontContext.h"
 #include "textflow/Shaper.h"
 
-#include <include/core/SkBlurTypes.h>
-#include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkTextBlob.h>
-
-#include <absl/container/flat_hash_map.h>
 
 #include <hb.h>
 #include <unicode/utf16.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <numbers>
+#include <span>
 
 namespace textflow {
 
@@ -615,22 +611,6 @@ ParagraphLayout layoutSingleLine(FontContext &fontContext, Paragraph &paragraph,
 
 namespace {
 
-// Blur mask filters are immutable and cheap to share; building one per run
-// per frame would churn allocations, so memoize by sigma.
-const sk_sp<SkMaskFilter> &blurFilter(float sigma) {
-  static thread_local absl::flat_hash_map<uint32_t, sk_sp<SkMaskFilter>> cache;
-  uint32_t sigmaBits;
-  std::memcpy(&sigmaBits, &sigma, sizeof sigmaBits);
-  auto [filterEntry, inserted] = cache.try_emplace(sigmaBits);
-  if (inserted)
-    filterEntry->second = SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma);
-  return filterEntry->second;
-}
-
-} // namespace
-
-namespace {
-
 const PaintStyle &resolvePaint(const std::vector<StyleSpan> &spans,
                                uint32_t styleIndex,
                                const PaintStyle *overridePaint) {
@@ -640,11 +620,16 @@ const PaintStyle &resolvePaint(const std::vector<StyleSpan> &spans,
   return styleIndex < spans.size() ? spans[styleIndex].style.paint : kFallback;
 }
 
-void applyPaint(SkPaint &paint, const PaintStyle &style) {
-  paint.setColor(style.color);
-  paint.setShader(style.shader);
-  paint.setMaskFilter(style.maskFilter);
-  paint.setBlendMode(style.blendMode);
+template <typename DrawPass>
+void drawPaintLayers(const PaintStyle &style, DrawPass &&drawPass) {
+  for (const PaintLayer &layer : style.underlays)
+    if (!layer.paint.nothingToDraw())
+      drawPass(layer.paint, layer.offset);
+  if (!style.foreground.nothingToDraw())
+    drawPass(style.foreground, SkVector{0, 0});
+  for (const PaintLayer &layer : style.overlays)
+    if (!layer.paint.nothingToDraw())
+      drawPass(layer.paint, layer.offset);
 }
 
 } // namespace
@@ -652,27 +637,16 @@ void applyPaint(SkPaint &paint, const PaintStyle &style) {
 void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            const PaintStyle *overridePaint) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
-  SkPaint paint;
-  paint.setAntiAlias(true);
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
     const PaintStyle &style =
         resolvePaint(spans, run.styleIndex, overridePaint);
 
-    // Shadow passes first (back to front), then the main fill.
-    for (const DropShadow &shadow : style.shadows) {
-      SkPaint shadowPaint;
-      shadowPaint.setAntiAlias(true);
-      shadowPaint.setColor(shadow.color);
-      if (shadow.blurSigma > 0)
-        shadowPaint.setMaskFilter(blurFilter(shadow.blurSigma));
-      canvas->drawTextBlob(run.blob.get(), run.origin.x() + shadow.offset.x(),
-                           run.origin.y() + shadow.offset.y(), shadowPaint);
-    }
-
-    applyPaint(paint, style);
-    canvas->drawTextBlob(run.blob.get(), run.origin.x(), run.origin.y(), paint);
+    drawPaintLayers(style, [&](const SkPaint &paint, SkVector offset) {
+      canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
+                           run.origin.y() + offset.y(), paint);
+    });
   }
 }
 
@@ -700,9 +674,9 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
   const std::vector<StyleSpan> &spans = paragraph.spans();
 
   // Buckets keyed by (typeface, font size, resolved paint). A frame's worth of
-  // horizontal runs collapses into one drawGlyphs call per bucket; scratch
-  // storage persists across frames (styles copied by value — span pointers
-  // would dangle between calls).
+  // horizontal runs collapses into one drawGlyphs call per bucket and layer;
+  // scratch storage persists across frames (styles copied by value — span
+  // pointers would dangle between calls).
   struct Bucket {
     sk_sp<SkTypeface> typeface;
     float fontSize = 0;
@@ -712,14 +686,8 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
   };
   static thread_local std::vector<Bucket> buckets;
   if (buckets.size() > 64)
-    buckets.clear(); // pathological style churn: don't grow forever
-  for (Bucket &bucket : buckets) {
-    bucket.glyphs.clear();
-    bucket.positions.clear();
-  }
-
-  SkPaint paint;
-  paint.setAntiAlias(true);
+    buckets.clear(); // release pathological one-frame style cardinality
+  size_t activeBucketCount = 0;
 
   for (const PositionedRun &run : runs) {
     if (!run.blob)
@@ -728,25 +696,19 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
         resolvePaint(spans, run.styleIndex, overridePaint);
 
     if (run.transformed || !run.shaped) {
-      // Positions are baked into the blob; draw it directly (with shadows).
-      for (const DropShadow &shadow : style.shadows) {
-        SkPaint shadowPaint;
-        shadowPaint.setAntiAlias(true);
-        shadowPaint.setColor(shadow.color);
-        if (shadow.blurSigma > 0)
-          shadowPaint.setMaskFilter(blurFilter(shadow.blurSigma));
-        canvas->drawTextBlob(run.blob.get(), run.origin.x() + shadow.offset.x(),
-                             run.origin.y() + shadow.offset.y(), shadowPaint);
-      }
-      applyPaint(paint, style);
-      canvas->drawTextBlob(run.blob.get(), run.origin.x(), run.origin.y(),
-                           paint);
+      // Positions are baked into the blob; draw every configured pass
+      // directly. Arbitrary SkPaint effects remain available on this path.
+      drawPaintLayers(style, [&](const SkPaint &paint, SkVector offset) {
+        canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
+                             run.origin.y() + offset.y(), paint);
+      });
       continue;
     }
 
     const ShapedWord &shapedWord = *run.shaped;
     Bucket *bucket = nullptr;
-    for (Bucket &candidate : buckets)
+    for (Bucket &candidate :
+         std::span<Bucket>(buckets.data(), activeBucketCount))
       if (candidate.typeface.get() == shapedWord.typeface.get() &&
           candidate.fontSize == shapedWord.fontSize &&
           candidate.style == style) {
@@ -754,9 +716,14 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
         break;
       }
     if (!bucket) {
-      buckets.push_back(
-          {shapedWord.typeface, shapedWord.fontSize, style, {}, {}});
-      bucket = &buckets.back();
+      if (activeBucketCount == buckets.size())
+        buckets.push_back({});
+      bucket = &buckets[activeBucketCount++];
+      bucket->typeface = shapedWord.typeface;
+      bucket->fontSize = shapedWord.fontSize;
+      bucket->style = style;
+      bucket->glyphs.clear();
+      bucket->positions.clear();
     }
     for (size_t glyphIndex = 0; glyphIndex < shapedWord.glyphs.size();
          ++glyphIndex) {
@@ -766,7 +733,8 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
     }
   }
 
-  for (const Bucket &bucket : buckets) {
+  for (const Bucket &bucket :
+       std::span<const Bucket>(buckets.data(), activeBucketCount)) {
     if (bucket.glyphs.empty())
       continue;
     const SkFont font = makeFont(bucket.typeface, bucket.fontSize);
@@ -774,18 +742,10 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
                                          bucket.glyphs.size());
     const SkSpan<const SkPoint> positions(bucket.positions.data(),
                                           bucket.positions.size());
-    for (const DropShadow &shadow : bucket.style.shadows) {
-      SkPaint shadowPaint;
-      shadowPaint.setAntiAlias(true);
-      shadowPaint.setColor(shadow.color);
-      if (shadow.blurSigma > 0)
-        shadowPaint.setMaskFilter(blurFilter(shadow.blurSigma));
-      canvas->drawGlyphs(glyphs, positions,
-                         {shadow.offset.x(), shadow.offset.y()}, font,
-                         shadowPaint);
-    }
-    applyPaint(paint, bucket.style);
-    canvas->drawGlyphs(glyphs, positions, {0, 0}, font, paint);
+    drawPaintLayers(bucket.style, [&](const SkPaint &paint, SkVector offset) {
+      canvas->drawGlyphs(glyphs, positions, {offset.x(), offset.y()}, font,
+                         paint);
+    });
   }
 }
 

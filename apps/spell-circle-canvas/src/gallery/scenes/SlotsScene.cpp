@@ -80,8 +80,7 @@ public:
             m_pillTexts[static_cast<size_t>(placed.index)], m_sansTypeface,
             fontSize * 0.68f);
         const float textWidth = label.naturalWidth(fontContext);
-        PaintStyle white;
-        white.color = SK_ColorWHITE;
+        PaintStyle white(SK_ColorWHITE);
         layoutSingleLine(
             fontContext, label,
             {placed.rect.centerX() - textWidth * 0.5f,

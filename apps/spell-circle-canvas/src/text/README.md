@@ -79,6 +79,11 @@ On top (all optional, none of it in the core pipeline):
   key) and `PaintStyle` (resolved at draw time), so recoloring words never
   reshapes and doesn't even require a relayout if span boundaries are
   unchanged.
+- **Language is shaping, not bidi.** ICU derives bidi levels from Unicode
+  properties separately. The BCP-47 `languageTag` stays in the shape key
+  because it can select a different fallback face and because HarfBuzz uses
+  it for OpenType language systems and localized (`locl`) substitutions; the
+  same typeface and codepoints can therefore emit different glyph IDs.
 - Zero-allocation cache probes (heterogeneous absl lookup), an ASCII
   direct-mapped fallback table, a memoized script-tag table, glue
   memoization, and inline word-segment storage keep warm re-analysis lean.
@@ -98,6 +103,10 @@ On top (all optional, none of it in the core pipeline):
 | Warm relayout, 500 words across 3 typefaces + CJK fallback | ~18 µs |
 | Replace the *entire* paragraph text (warm variants) | ~130 µs |
 | Replace the entire paragraph with never-seen text (true cold) | ~530 µs |
+| Batched CPU-raster draw, 300 mixed words, foreground only | ~206 µs |
+| Same draw with shadow + glow + outline + foreground (two blurs) | ~1.18 ms |
+| Fully placed 2000-word CPU-raster draw, foreground only | ~0.84 ms |
+| Same 2000 words, mesh shader + tiled stars + glow + outline | ~28 ms |
 | Cross-line span restyle (spans merge, steady state) | ~118 µs |
 | Knuth-Plass with soft hyphens, 300 words @180px | ~32 µs |
 | Live in SpellCircle: reflow around 12 streamed shapes @4K | ~170 µs/frame |
@@ -122,7 +131,9 @@ its points and even-odd hole morphing live — greedy-vs-Knuth-Plass,
 infinite loop, letter rain, click-to-ripple pool, vertical CJK with
 ruby/kenten/tate-chu-yoko, a Unicode-singularity wall (`﷽`, `𰻞`, `𒀱`,
 `ཧཱུྃ`, `꧅`, `᎙`, Zalgo,
-deep clusters, bidi, emoji ZWJ), regex markers, inline slots & pills), live text
+deep clusters, bidi, emoji ZWJ), animated paint layers, a fully placed
+2,000-word shader stress wall, regex markers, inline
+slots & pills), live text
 editing, and font/size/alignment/line-breaking controls plus a variable-font
 axis panel discovered from the selected family (`wght`, `wdth`, `opsz`, or
 whatever that font exposes). It renders through a QQuickRhiItem: **Skia Graphite on Qt's own
@@ -185,6 +196,25 @@ paragraph.setPaint(0, 6, {SK_ColorRED});
                                        // skips ICU re-analysis too (paint
                                        // edits only re-derive the shaped
                                        // prefix's segments, cache-hot)
+
+// Ordered paint composition. A default PaintStyle is one allocation-free
+// foreground SkPaint / one glyph draw. Each layer below adds one draw.
+PaintStyle effects(SK_ColorWHITE);
+effects
+    .addUnderlay(PaintLayer::dropShadow(0x77000000, {4, 5}, 3.0f))
+    .addUnderlay(PaintLayer::glow(0x6688AAFF, 6.0f))
+    .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 4.0f));
+effects.foreground.setShader(
+    PaintShaders::meshGradient(canvasBounds, elapsedSeconds));
+
+// Presets are ordinary layers: use any complete SkPaint for custom filters,
+// strokes, shaders, path effects, or composition/blend modes.
+SkPaint stars;
+stars.setAntiAlias(true);
+stars.setShader(PaintShaders::starField(canvasBounds, elapsedSeconds));
+stars.setBlendMode(SkBlendMode::kScreen);
+effects.addOverlay(PaintLayer(std::move(stars)));
+paragraph.setPaint(0, 6, effects); // existing ParagraphLayout sees it
 
 // Query layer (optional): HTML/JS-flavoured selection + styling.
 for (CharRange range :
@@ -267,11 +297,19 @@ care.
   rendered; Knuth-Plass charges `hyphenation.penalty` per hyphenated line. Feed
   text through any hyphenator (pattern dictionaries, ICU-based, manual) that
   inserts U+00AD — the engine handles the rest.
-- Paint effects are per-span and draw-time only: `PaintStyle` carries a
-  shader (gradients), a mask filter (glyph blur), a blend mode (e.g.
-  kDstOut punch-outs), and a list of drop shadows. None of them reshape or
-  relayout anything. `draw`/`drawBatched` take an optional paint override
-  for caller-colored labels.
+- Paint effects are per-span and draw-time only. `PaintStyle` owns one
+  foreground `SkPaint`, ordered underlays, and ordered overlays; every layer
+  is a complete `SkPaint` plus an optional offset. Preset drop shadow, glow,
+  blur, and outline layers coexist with caller-defined shaders, filters,
+  strokes, path effects, and blenders without special renderer cases. The
+  default remains one draw; every layer adds one glyph draw, while blur/image
+  filters may add backend-specific work. None of this reshapes or relayouts.
+  `PaintShaders` supplies code-native animated water and mesh-gradient
+  runtime shaders plus a cache-friendly tiled vector star field. Runtime
+  programs compile once; per-frame calls only replace uniform data/shaders.
+  See `paint_layers.png` and the fully placed 2,500-word `paint_stress.png`
+  from the demo, plus the gallery's **Paint layers** and **2,000-word shader
+  stress** scenes.
 - OpenType features are per-span (`ShapingStyle::fontFeatures`) and part of the
   shape-cache key: liga/dlig/smcp/lnum/frac variants of the same text
   coexist in the cache (see the demo's features panel).
@@ -347,6 +385,8 @@ Everything that trades fidelity against speed, in one place:
 | `advanceScale` | LineInterval | 1 | curvature compensation for offset baselines on contours |
 | `verticalForm` | ShapingStyle | auto | per-span upright / rotated / tate-chu-yoko override in vertical mode |
 | `letterSpacing` | ShapingStyle | 0 | tracking (JIS aki in vertical text); part of the shape key |
+| paint underlays / overlays | PaintStyle | none | ordered extra glyph passes; each layer adds one draw, filters may add backend work |
+| shader program / layer count | PaintStyle + PaintShaders | one solid foreground | runtime shader pixel cost and extra passes are independent; prefer `drawBatched`, and use the tiled star preset instead of per-pixel procedural noise on CPU |
 | subpixel gate | Shaper.cpp (`makeFont`) | <48px | subpixel positioning only where visible; above it every animated glyph would rasterize per-phase atlas entries |
 | shape-cache cap | FontContextImpl.h | ~130k entries | wholesale clear past the cap (one cold frame), no LRU bookkeeping |
 | `Paragraph` edit history | Paragraph.cpp | 256 ops | how far behind a MarkerSet may fall before it must re-query |

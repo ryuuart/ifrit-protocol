@@ -71,11 +71,10 @@ public:
 
     // Hue-cycling highlight over every marker range — paint-only restyle,
     // zero reshaping.
-    PaintStyle highlight;
     const SkScalar hueSaturationValue[3] = {
         std::fmod(static_cast<float>(elapsedSeconds) * 40.0f, 360.0f), 0.75f,
         0.72f};
-    highlight.color = SkHSVToColor(hueSaturationValue);
+    PaintStyle highlight(SkHSVToColor(hueSaturationValue));
     m_markers.applyPaint(m_body.paragraph, "caps", highlight);
 
     const float canvasWidth = size.width();

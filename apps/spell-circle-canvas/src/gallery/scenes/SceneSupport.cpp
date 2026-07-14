@@ -24,7 +24,7 @@ TextStyle makeStyle(float fontSize, SkColor color, const char *language,
   style.shaping.typeface = std::move(typeface);
   style.shaping.fontSize = fontSize;
   style.shaping.languageTag = language;
-  style.paint.color = color;
+  style.paint.foreground.setColor(color);
   return style;
 }
 

@@ -136,7 +136,7 @@ struct ParagraphLayout {
     return firstUnplacedWord != ~0u;
   }
 
-  /** Draws every run, resolving each run's paint from the paragraph's
+  /** Draws every run, resolving its ordered paint layers from the paragraph's
    * current spans — so paint-only tweaks show up without any relayout.
    * `overridePaint` replaces every span's paint (labels drawn in a
    * caller-chosen color without touching the paragraph).
@@ -145,10 +145,10 @@ struct ParagraphLayout {
             const PaintStyle *overridePaint = nullptr) const;
 
   /** Draws the same output with minimal draw calls: horizontal runs are
-   * merged into one SkCanvas::drawGlyphs per (font, paint) bucket instead
-   * of one drawTextBlob per word — the difference between hundreds of GPU
-   * text draws per frame and a handful. Transformed runs fall back to
-   * their baked blobs.
+   * merged into one SkCanvas::drawGlyphs per (font, PaintStyle) bucket and
+   * configured paint layer instead of one drawTextBlob per word and layer.
+   * A default style is one call per bucket; each underlay/overlay adds one.
+   * Transformed runs fall back to their baked blobs.
    */
   void drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
                    const PaintStyle *overridePaint = nullptr) const;

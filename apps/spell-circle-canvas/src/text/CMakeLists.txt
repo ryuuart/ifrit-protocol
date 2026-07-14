@@ -10,6 +10,7 @@ add_library(TextFlow STATIC
   Paragraph.cpp
   Flow.cpp
   ParagraphLayout.cpp
+  PaintShaders.cpp
   KnuthPlass.cpp
   Query.cpp
   SingleLineParagraphCache.cpp
@@ -21,6 +22,7 @@ add_library(TextFlow STATIC
   include/textflow/Paragraph.h
   include/textflow/Flow.h
   include/textflow/ParagraphLayout.h
+  include/textflow/PaintShaders.h
   include/textflow/Query.h
   include/textflow/SingleLineParagraphCache.h
   include/textflow/Choreograph.h
@@ -91,5 +93,6 @@ add_executable(textflow_demo
   demo/SceneShapes.cpp
   demo/SceneFallback.cpp
   demo/SceneHyperScripts.cpp
+  demo/ScenePaintEffects.cpp
 )
 target_link_libraries(textflow_demo PRIVATE TextFlow)

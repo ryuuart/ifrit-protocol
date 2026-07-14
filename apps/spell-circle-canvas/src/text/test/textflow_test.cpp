@@ -5,6 +5,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTileMode.h>
+#include <include/effects/SkGradient.h>
 #include <include/ports/SkFontMgr_mac_ct.h>
 
 #include <gtest/gtest.h>
@@ -289,18 +291,20 @@ TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph;
   TextStyle red = basicStyle();
-  red.paint.color = SK_ColorRED;
+  red.paint.foreground.setColor(SK_ColorRED);
   TextStyle blue = basicStyle();
-  blue.paint.color = SK_ColorBLUE;
+  blue.paint.foreground.setColor(SK_ColorBLUE);
   paragraph.appendText(u8"red ", red);
   paragraph.appendText(u8"blue", blue);
 
   paragraph.replaceText(4, 8, u8"teal"); // swap the blue word's text
   paragraph.ensureShaped(fontContext);
   ASSERT_GE(paragraph.spans().size(), 2u);
-  EXPECT_EQ(paragraph.spans().front().style.paint.color, SK_ColorRED);
+  EXPECT_EQ(paragraph.spans().front().style.paint.foreground.getColor(),
+            SK_ColorRED);
   // Inserted text inherits the style at the edit point (the blue span).
-  EXPECT_EQ(paragraph.spans().back().style.paint.color, SK_ColorBLUE);
+  EXPECT_EQ(paragraph.spans().back().style.paint.foreground.getColor(),
+            SK_ColorBLUE);
   EXPECT_EQ(paragraph.text(), u"red teal");
 }
 
@@ -976,7 +980,8 @@ TEST(Typography, SpanRestyleAcrossLines) {
   int firstRedLine = -1, lastRedLine = -1;
   for (const PositionedRun &run : after.runs) {
     if (run.styleIndex < spans.size() &&
-        spans[run.styleIndex].style.paint.color == SK_ColorRED) {
+        spans[run.styleIndex].style.paint.foreground.getColor() ==
+            SK_ColorRED) {
       if (firstRedLine < 0)
         firstRedLine = run.lineIndex;
       lastRedLine = run.lineIndex;
@@ -993,9 +998,15 @@ TEST(Typography, ShadowAndShaderDrawWithoutRelayout) {
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   fontContext.resetStats();
-  PaintStyle fancy;
-  fancy.color = SK_ColorWHITE;
-  fancy.shadows.push_back({0x80000000, {3, 3}, 2.5f});
+  PaintStyle fancy(SK_ColorWHITE);
+  fancy.addUnderlay(PaintLayer::dropShadow(0x80000000, {3, 3}, 2.5f));
+  const SkPoint gradientPoints[2] = {{0, 0}, {180, 0}};
+  const SkColor4f gradientColors[2] = {SkColor4f::FromColor(SK_ColorRED),
+                                       SkColor4f::FromColor(SK_ColorBLUE)};
+  fancy.foreground.setShader(SkShaders::LinearGradient(
+      gradientPoints,
+      SkGradient(SkGradient::Colors({gradientColors, 2}, SkTileMode::kClamp),
+                 SkGradient::Interpolation())));
   paragraph.setPaint(0, 7, fancy);
 
   sk_sp<SkSurface> surface =
@@ -1016,6 +1027,98 @@ TEST(Typography, ShadowAndShaderDrawWithoutRelayout) {
         sawShadowInk = true;
     }
   EXPECT_TRUE(sawShadowInk);
+}
+
+TEST(Typography, PaintLayersExposeCompletePaintAndExplicitOrder) {
+  PaintStyle style(SK_ColorWHITE);
+  style.addUnderlay(PaintLayer::dropShadow(0x66000000, {3, 4}, 2.0f))
+      .addUnderlay(PaintLayer::glow(0x550000FF, 5.0f))
+      .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 3.0f));
+
+  SkPaint customOverlay;
+  customOverlay.setAntiAlias(true);
+  customOverlay.setColor(SK_ColorGREEN);
+  customOverlay.setStyle(SkPaint::kStroke_Style);
+  customOverlay.setStrokeWidth(1.0f);
+  customOverlay.setBlendMode(SkBlendMode::kScreen);
+  style.addOverlay(PaintLayer(customOverlay, {-1, -1}));
+
+  ASSERT_EQ(style.underlays.size(), 3u);
+  EXPECT_EQ(style.underlays[0].offset, (SkVector{3, 4}));
+  EXPECT_NE(style.underlays[0].paint.getMaskFilter(), nullptr);
+  EXPECT_NE(style.underlays[1].paint.getMaskFilter(), nullptr);
+  EXPECT_EQ(style.underlays[2].paint.getStyle(), SkPaint::kStroke_Style);
+  EXPECT_FLOAT_EQ(style.underlays[2].paint.getStrokeWidth(), 3.0f);
+  ASSERT_EQ(style.overlays.size(), 1u);
+  EXPECT_EQ(style.overlays[0].paint.getBlendMode_or(SkBlendMode::kSrcOver),
+            SkBlendMode::kScreen);
+
+  PaintStyle identical = style;
+  EXPECT_EQ(identical, style);
+  identical.overlays[0].offset.set(0, 0);
+  EXPECT_FALSE(identical == style);
+}
+
+TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
+  constexpr int kWordCount = 2000;
+  const char8_t *words[] = {u8"letters", u8"water", u8"stars", u8"flow",
+                            u8"cached",  u8"paint", u8"文字",  u8"波紋",
+                            u8"글자",    u8"星光"};
+  std::u8string text;
+  for (int wordIndex = 0; wordIndex < kWordCount; ++wordIndex) {
+    text += words[(wordIndex * 7) % std::size(words)];
+    text += ' ';
+  }
+
+  const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
+  sk_sp<SkShader> water = PaintShaders::water(bounds, 1.25f);
+  sk_sp<SkShader> mesh = PaintShaders::meshGradient(bounds, 1.25f);
+  sk_sp<SkShader> stars = PaintShaders::starField(bounds, 1.25f);
+  ASSERT_NE(water, nullptr);
+  ASSERT_NE(mesh, nullptr);
+  ASSERT_NE(stars, nullptr);
+
+  TextStyle textStyle = basicStyle(8.0f);
+  textStyle.paint = PaintStyle(SK_ColorWHITE);
+  textStyle.paint
+      .addUnderlay(PaintLayer::glow(0x772A77FF, 1.8f))
+      .addUnderlay(PaintLayer::outline(0xFF061229, 0.7f));
+  textStyle.paint.foreground.setShader(std::move(mesh));
+  SkPaint starOverlay;
+  starOverlay.setAntiAlias(true);
+  starOverlay.setShader(std::move(stars));
+  starOverlay.setBlendMode(SkBlendMode::kScreen);
+  textStyle.paint.addOverlay(PaintLayer(std::move(starOverlay)));
+
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(text, textStyle);
+  BlockFlow flow(bounds);
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kJustify;
+  options.lineMetrics.height = 10.0f;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_FALSE(layout.overflowed()) << "the stress paragraph must be whole";
+
+  size_t glyphCount = 0;
+  for (const PositionedRun &run : layout.runs)
+    if (run.shaped)
+      glyphCount += run.shaped->glyphs.size();
+  EXPECT_GT(glyphCount, 7000u);
+
+  constexpr SkColor kBackground = 0xFF050A18;
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 900));
+  surface->getCanvas()->clear(kBackground);
+  layout.drawBatched(surface->getCanvas(), paragraph);
+  SkPixmap pixels;
+  ASSERT_TRUE(surface->peekPixels(&pixels));
+  bool sawInk = false;
+  for (int y = 0; y < pixels.height() && !sawInk; y += 3)
+    for (int x = 0; x < pixels.width() && !sawInk; x += 3)
+      sawInk = pixels.getColor(x, y) != kBackground;
+  EXPECT_TRUE(sawInk);
 }
 
 // ── Complex scripts & grapheme clusters ───────────────────────────────────
@@ -1601,8 +1704,7 @@ TEST(Query, MarkerSetStylesAcrossEdits) {
   marks.setRanges("flame", findAllOccurrences(paragraph, u8"flame"));
 
   paragraph.replaceText(0, 4, u8"guard"); // shifts the marker by +1
-  PaintStyle red;
-  red.color = 0xFFFF0000;
+  PaintStyle red(0xFFFF0000);
   marks.applyPaint(paragraph, "flame", red);
   paragraph.ensureShaped(fontContext);
 
@@ -1612,7 +1714,7 @@ TEST(Query, MarkerSetStylesAcrossEdits) {
   ASSERT_NE(flameOffset, std::u16string::npos);
   bool found = false;
   for (const StyleSpan &span : paragraph.spans())
-    if (span.style.paint.color == 0xFFFF0000) {
+    if (span.style.paint.foreground.getColor() == 0xFFFF0000) {
       EXPECT_EQ(span.start, static_cast<uint32_t>(flameOffset));
       EXPECT_EQ(span.end, static_cast<uint32_t>(flameOffset + 5));
       found = true;
@@ -1678,8 +1780,7 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
   const std::vector<CharRange> words =
       findAllOccurrences(sequential, u8"e"); // scattered
   ASSERT_GT(words.size(), 3u);
-  PaintStyle green;
-  green.color = 0xFF00AA00;
+  PaintStyle green(0xFF00AA00);
   for (const CharRange &wordRange : words)
     sequential.setPaint(wordRange.start, wordRange.end, green);
   batched.setPaint(words, green);
@@ -1690,8 +1791,8 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
               batched.spans()[spanIndex].start);
     EXPECT_EQ(sequential.spans()[spanIndex].end,
               batched.spans()[spanIndex].end);
-    EXPECT_EQ(sequential.spans()[spanIndex].style.paint.color,
-              batched.spans()[spanIndex].style.paint.color);
+    EXPECT_EQ(sequential.spans()[spanIndex].style.paint.foreground.getColor(),
+              batched.spans()[spanIndex].style.paint.foreground.getColor());
   }
 
   // Unsorted and overlapping input is sanitized, not trusted.
@@ -1701,7 +1802,7 @@ TEST(Query, BatchPaintMatchesSequentialPaint) {
   messy.setPaint(ranges, green);
   uint32_t painted = 0;
   for (const StyleSpan &span : messy.spans())
-    if (span.style.paint.color == green.color)
+    if (span.style.paint.foreground.getColor() == green.foreground.getColor())
       painted += span.end - span.start;
   EXPECT_EQ(painted, 3u + 9u); // [0,3) + merged [8,17)
 }
@@ -1718,8 +1819,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   // every segment re-derives from the shape cache — zero new shape calls.
   const std::vector<CharRange> marks = findAllOccurrences(paragraph, u8"again");
   ASSERT_EQ(marks.size(), 2u);
-  PaintStyle red;
-  red.color = 0xFFCC0000;
+  PaintStyle red(0xFFCC0000);
   const uint64_t callsBefore = fontContext.stats().shapeCalls;
   paragraph.setPaint(marks, red);
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
@@ -1737,20 +1837,21 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   // And the marked words resolve to the new paint through their runs.
   int redRuns = 0;
   for (const PositionedRun &run : after.runs)
-    if (paragraph.spans()[run.styleIndex].style.paint.color == red.color)
+    if (paragraph.spans()[run.styleIndex].style.paint.foreground.getColor() ==
+        red.foreground.getColor())
       redRuns++;
   EXPECT_EQ(redRuns, 2);
 
   // Steady state (hue cycling the same ranges): the span boundaries come
   // out identical, so nothing is even paint-dirty — the existing layout's
   // styleIndices already resolve to the new color, no relayout required.
-  PaintStyle blue;
-  blue.color = 0xFF0000CC;
+  PaintStyle blue(0xFF0000CC);
   paragraph.setPaint(marks, blue);
   EXPECT_FALSE(paragraph.needsShaping());
   int blueRuns = 0;
   for (const PositionedRun &run : after.runs)
-    if (paragraph.spans()[run.styleIndex].style.paint.color == blue.color)
+    if (paragraph.spans()[run.styleIndex].style.paint.foreground.getColor() ==
+        blue.foreground.getColor())
       blueRuns++;
   EXPECT_EQ(blueRuns, 2);
 }
@@ -1763,17 +1864,18 @@ TEST(Query, PaintBoundaryMidWordSplitsSegments) {
   ASSERT_EQ(paragraph.words()[0].segments.size(), 1u);
   const float whole = paragraph.words()[0].width;
 
-  PaintStyle blue;
-  blue.color = 0xFF0000CC;
+  PaintStyle blue(0xFF0000CC);
   paragraph.setPaint(0, 4, blue); // "high" | "light"
   paragraph.ensureShaped(fontContext);
 
   const Word &word = paragraph.words()[0];
   ASSERT_EQ(word.segments.size(), 2u);
-  EXPECT_EQ(paragraph.spans()[word.segments[0].styleIndex].style.paint.color,
-            blue.color);
-  EXPECT_NE(paragraph.spans()[word.segments[1].styleIndex].style.paint.color,
-            blue.color);
+  EXPECT_EQ(paragraph.spans()[word.segments[0].styleIndex]
+                .style.paint.foreground.getColor(),
+            blue.foreground.getColor());
+  EXPECT_NE(paragraph.spans()[word.segments[1].styleIndex]
+                .style.paint.foreground.getColor(),
+            blue.foreground.getColor());
   // Width comes back as the sum of the halves (kerning across the split
   // may drift a hair, nothing more).
   EXPECT_NEAR(word.width, whole, whole * 0.05f);
@@ -2128,8 +2230,7 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   const auto startTime = std::chrono::steady_clock::now();
   constexpr int kIterationCount = 20;
   for (int iteration = 0; iteration < kIterationCount; ++iteration) {
-    PaintStyle hue;
-    hue.color = 0xFF000000 | static_cast<uint32_t>(iteration * 1234567);
+    PaintStyle hue(0xFF000000 | static_cast<uint32_t>(iteration * 1234567));
     paragraph.setPaint(marks, hue);
     layout = layoutParagraph(fontContext, paragraph, flow);
   }

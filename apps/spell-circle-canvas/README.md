@@ -44,6 +44,7 @@ cd src/text && doxygen Doxyfile   # -> ../../build/docs/textflow/html/index.html
 |---|---|
 | [`TextFlow.h`](src/text/include/textflow/TextFlow.h) | Umbrella include + a map of every other header below |
 | [`Style.h`](src/text/include/textflow/Style.h) | `TextStyle` = `ShapingStyle` (cache key) + `PaintStyle` (draw-time) |
+| [`PaintShaders.h`](src/text/include/textflow/PaintShaders.h) | Animated water, mesh-gradient, and tiled star `SkShader` presets |
 | [`FontContext.h`](src/text/include/textflow/FontContext.h) | Per-thread service object: shape cache, HarfBuzz, ICU |
 | [`Paragraph.h`](src/text/include/textflow/Paragraph.h) | The document model: text + style spans + placeholders, live-editable |
 | [`Flow.h`](src/text/include/textflow/Flow.h) | The geometry text flows into: `BlockFlow`, `ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow`, `PathFlow` |
@@ -74,6 +75,8 @@ below in switcher order:
 | Ripple pool | [`RippleScene.cpp`](src/gallery/scenes/RippleScene.cpp) | Click-to-drop expanding rings displace placed glyphs |
 | Vertical CJK | [`VerticalScene.cpp`](src/gallery/scenes/VerticalScene.cpp) | `vertical-rl`, ruby, kenten, tate-chu-yoko |
 | Unicode singularity | [`HyperScriptsScene.cpp`](src/gallery/scenes/HyperScriptsScene.cpp) | `﷽`, `𰻞`, `𒀱`, `ཧཱུྃ`, `꧅`, `᎙`, Zalgo stacks, bidi collisions, and emoji ZWJ sequences |
+| Paint layers | [`EffectsScene.cpp`](src/gallery/scenes/EffectsScene.cpp) | Animated water and mesh shaders, tiled stars, gradient composition, presets, and visible draw counts |
+| 2,000-word shader stress | [`EffectsStressScene.cpp`](src/gallery/scenes/EffectsStressScene.cpp) | A fully placed huge paragraph with four animated paint passes and no steady-state relayout |
 | Query & markers | [`MarkersScene.cpp`](src/gallery/scenes/MarkersScene.cpp) | Regex-found `MarkerSet` ranges that follow live edits |
 | Inline slots & pills | [`SlotsScene.cpp`](src/gallery/scenes/SlotsScene.cpp) | `appendPlaceholder()` pills and figures woven into the flow |
 | Overflow & ellipsis | [`OverflowScene.cpp`](src/gallery/scenes/OverflowScene.cpp) | CSS `text-overflow`-style clipping vs. shaped ellipsis |
@@ -99,6 +102,7 @@ is just `main()` calling the scenes below in order.
 | I — Shapes | [`SceneShapes.cpp`](src/text/demo/SceneShapes.cpp) | Star/heart/donut `SkPath` exclusions |
 | J — CJK fallback | [`SceneFallback.cpp`](src/text/demo/SceneFallback.cpp) | Platform fallback resolves Japanese, Korean, and Chinese glyphs under two incomplete primary families |
 | K — Unicode singularity | [`SceneHyperScripts.cpp`](src/text/demo/SceneHyperScripts.cpp) | Arabic calligraphy, rare glyphs (`𰻞 𒀱 ཧཱུྃ ꧅ ᎙`), combining storms, bidi, and emoji in one torture wall |
+| L — Paint layers | [`ScenePaintEffects.cpp`](src/text/demo/ScenePaintEffects.cpp) | Water/mesh/star/gradient composition plus a fully placed 2,500-word, four-pass stress image (`paint_stress.png`) |
 
 ## Build & test
 

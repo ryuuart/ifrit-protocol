@@ -6,23 +6,25 @@
  *   - ShapingStyle — typeface, size, letter spacing, language, OpenType
  *     features, vertical form. Baked into the shape-cache key: change any
  *     field and the words it covers are re-shaped.
- *   - PaintStyle   — color, shader, mask filter, blend mode, drop shadows.
- *     Resolved at draw time only: recoloring or restyling paint never
- *     re-shapes and never relayouts.
+ *   - PaintStyle   — an SkPaint foreground plus ordered glyph-paint passes
+ *     behind and above it. Resolved at draw time only: recoloring, animating
+ *     a shader, or restyling effects never re-shapes and never relayouts.
  *
  * Attach styles to text through Paragraph / ParagraphBuilder (Paragraph.h).
  */
 
 #include <include/core/SkBlendMode.h>
+#include <include/core/SkBlurTypes.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkMaskFilter.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkShader.h>
 #include <include/core/SkTypeface.h>
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace textflow {
@@ -63,7 +65,12 @@ struct ShapingStyle {
   float fontSize = 16.0f;     ///< pixels in the target canvas coordinate space
   float letterSpacing = 0.0f; ///< px of tracking added after each cluster
                               ///< (in vertical text this is JIS "aki")
-  std::string languageTag;    ///< BCP-47 ("ja", "ko", ...); empty → untagged
+  /// BCP-47 language used both for language-sensitive font fallback and by
+  /// HarfBuzz to select OpenType language systems / localized (`locl`)
+  /// substitutions. It is deliberately part of the shape key: even when the
+  /// resolved typeface is unchanged, language can change its emitted glyphs.
+  /// Bidi direction is analyzed separately and does not come from this tag.
+  std::string languageTag; ///< e.g. "ja", "sr", "zh-Hant"; empty → default
   std::vector<FontFeature> fontFeatures;
   VerticalForm verticalForm = VerticalForm::kAuto;
 
@@ -77,37 +84,112 @@ struct ShapingStyle {
   }
 };
 
-/// A blurred, offset copy of the glyphs drawn beneath the main fill.
-struct DropShadow {
-  SkColor color = 0x66000000;
-  SkVector offset = {2, 2};
-  float blurSigma = 2.0f;
+/** One additional rendering of the positioned glyphs.
+ *
+ * `paint` is intentionally the complete SkPaint vocabulary rather than a
+ * TextFlow mirror of selected fields: callers may use colors, animated
+ * shaders, strokes, mask/image/color filters, path effects, and custom
+ * blenders. `offset` moves only this pass, which makes shadows and displaced
+ * highlights cheap without saveLayer().
+ */
+struct PaintLayer {
+  SkPaint paint;
+  SkVector offset = {0, 0};
 
-  /** Compares every shadow rendering property. */
-  bool operator==(const DropShadow &other) const {
-    return color == other.color && offset == other.offset &&
-           blurSigma == other.blurSigma;
+  /** Constructs an anti-aliased black fill pass. */
+  PaintLayer() { paint.setAntiAlias(true); }
+
+  /** Constructs an anti-aliased solid-color fill pass. */
+  explicit PaintLayer(SkColor color, SkVector layerOffset = {0, 0})
+      : offset(layerOffset) {
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+  }
+
+  /** Wraps a caller-configured SkPaint without changing any of its settings. */
+  explicit PaintLayer(SkPaint layerPaint, SkVector layerOffset = {0, 0})
+      : paint(std::move(layerPaint)), offset(layerOffset) {}
+
+  /** Returns an arbitrary paint with a normal blur mask attached. */
+  static PaintLayer blurred(SkPaint paint, float sigma,
+                            SkVector offset = {0, 0}) {
+    if (sigma > 0)
+      paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma));
+    return PaintLayer(std::move(paint), offset);
+  }
+
+  /** Preset: a blurred, offset solid copy, normally used as an underlay. */
+  static PaintLayer dropShadow(SkColor color = 0x66000000,
+                               SkVector offset = {2, 2},
+                               float blurSigma = 2.0f) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+    return blurred(std::move(paint), blurSigma, offset);
+  }
+
+  /** Preset: a zero-offset blurred copy, normally used as an underlay. */
+  static PaintLayer glow(SkColor color, float blurSigma) {
+    return dropShadow(color, {0, 0}, blurSigma);
+  }
+
+  /** Preset: a stroked glyph copy, normally placed beneath the foreground. */
+  static PaintLayer outline(SkColor color, float width,
+                            SkPaint::Join join = SkPaint::kRound_Join) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(width);
+    paint.setStrokeJoin(join);
+    return PaintLayer(std::move(paint));
+  }
+
+  /** SkPaint compares every scalar and effect-object identity. */
+  bool operator==(const PaintLayer &other) const {
+    return paint == other.paint && offset == other.offset;
   }
 };
 
-/// Everything here is resolved at draw time from the paragraph's current
-/// spans: changing any of it never reshapes, never relayouts, and shows up
-/// on the very next draw() of an existing ParagraphLayout.
+/** Draw-time glyph appearance with explicit composition order.
+ *
+ * Underlays are drawn in vector order (back-to-front), followed by
+ * `foreground`, then overlays in vector order. The default style owns no
+ * vectors and remains exactly one glyph draw. Every added layer costs one
+ * additional draw for its style/font bucket; blur and image filters may add
+ * backend-specific work beyond that. Updating any paint or shader through
+ * Paragraph::setPaint() is visible to an existing ParagraphLayout.
+ */
 struct PaintStyle {
-  SkColor color = SK_ColorBLACK;
-  sk_sp<SkShader> shader;          ///< gradient/pattern fill (overrides
-                                   ///< color's RGB; alpha still applies)
-  sk_sp<SkMaskFilter> maskFilter;  ///< e.g. blur on the glyphs themselves
-  std::vector<DropShadow> shadows; ///< drawn back-to-front before the fill
-  SkBlendMode blendMode = SkBlendMode::kSrcOver; ///< e.g. kDstOut punch-outs
+  SkPaint foreground;
+  std::vector<PaintLayer> underlays;
+  std::vector<PaintLayer> overlays;
 
-  /// Identity comparison for the ref-counted effects: enough for span
-  /// merging, where "same object" is the case that matters.
-  /** Compares values and effect-object identities used for span merging. */
+  /** Constructs a single anti-aliased black foreground. */
+  PaintStyle() { foreground.setAntiAlias(true); }
+
+  /** Preserves the convenient `PaintStyle{SK_ColorRED}` spelling. */
+  PaintStyle(SkColor color) : PaintStyle() { foreground.setColor(color); }
+
+  /** Uses a complete caller-configured SkPaint as the foreground. */
+  explicit PaintStyle(SkPaint paint) : foreground(std::move(paint)) {}
+
+  /** Appends a pass behind the foreground and returns this style. */
+  PaintStyle &addUnderlay(PaintLayer layer) {
+    underlays.push_back(std::move(layer));
+    return *this;
+  }
+
+  /** Appends a pass above the foreground and returns this style. */
+  PaintStyle &addOverlay(PaintLayer layer) {
+    overlays.push_back(std::move(layer));
+    return *this;
+  }
+
+  /** Compares complete paints, layer order, and layer offsets. */
   bool operator==(const PaintStyle &other) const {
-    return color == other.color && shader.get() == other.shader.get() &&
-           maskFilter.get() == other.maskFilter.get() &&
-           shadows == other.shadows && blendMode == other.blendMode;
+    return foreground == other.foreground && underlays == other.underlays &&
+           overlays == other.overlays;
   }
 };
 

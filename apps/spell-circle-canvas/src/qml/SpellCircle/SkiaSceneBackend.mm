@@ -160,8 +160,7 @@ public:
           labelOptions.alignment = textflow::TextAlignment::kCenter;
           textflow::ParagraphLayout labelLayout = textflow::layoutParagraph(
               *m_textContext, label, flow, labelOptions);
-          textflow::PaintStyle accentPaint;
-          accentPaint.color = accentColor;
+          textflow::PaintStyle accentPaint(accentColor);
           skCanvas->save();
           skCanvas->translate(centerX, centerY);
           labelLayout.draw(skCanvas, label, &accentPaint);
@@ -185,8 +184,7 @@ public:
           {static_cast<float>(center.x()) - textWidth * 0.5f,
            static_cast<float>(center.y()) +
                spellcircle::centeredBaselineOffset(fontMetrics)});
-      textflow::PaintStyle accentPaint;
-      accentPaint.color = accentColor;
+      textflow::PaintStyle accentPaint(accentColor);
       labelLayout.draw(skCanvas, label, &accentPaint);
     }
 
@@ -244,10 +242,10 @@ public:
       if (box.active > 0.0f) {
         // Punches the text out of the box fill instead of drawing it on top
         // — matches QCanvasPainter::CompositeOperation::DestinationOut.
-        textPaint.color = SK_ColorBLACK;
-        textPaint.blendMode = SkBlendMode::kDstOut;
+        textPaint.foreground.setColor(SK_ColorBLACK);
+        textPaint.foreground.setBlendMode(SkBlendMode::kDstOut);
       } else {
-        textPaint.color = accentColor;
+        textPaint.foreground.setColor(accentColor);
       }
       labelLayout.draw(skCanvas, label, &textPaint);
     };

@@ -55,7 +55,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout &layout,
     const WordSegment &segment =
         word.segments[segmentCounters[run.wordIndex]++ % word.segments.size()];
     const SkColor color =
-        paragraph.spans()[segment.styleIndex].style.paint.color;
+        paragraph.spans()[segment.styleIndex].style.paint.foreground.getColor();
     const ShapedWord *shapedWord = segment.shaped.get();
     for (size_t glyphIndex = 0; glyphIndex < shapedWord->glyphs.size();
          ++glyphIndex)

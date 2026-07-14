@@ -50,7 +50,7 @@ TextStyle style(float fontSize, SkColor color, const char *languageTag) {
   TextStyle textStyle;
   textStyle.shaping.fontSize = fontSize;
   textStyle.shaping.languageTag = languageTag;
-  textStyle.paint.color = color;
+  textStyle.paint.foreground.setColor(color);
   return textStyle;
 }
 

@@ -477,6 +477,103 @@ static void BM_Draw_Raster_300w(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Raster_300w)->Unit(benchmark::kMicrosecond);
 
+static void BM_DrawBatched_Raster_300w(benchmark::State &state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(300, /*mixed=*/true), style16());
+  BlockFlow flow(SkRect::MakeWH(700, 3000));
+  ParagraphLayout layout = layoutParagraph(fontContext(), paragraph, flow);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(720, 1400));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_300w)->Unit(benchmark::kMicrosecond);
+
+// Four ordered glyph passes: blurred shadow, blurred glow, outline, fill.
+// This intentionally exposes the cost users opt into: draw submission scales
+// with pass count, while blur-mask work is backend/font-size dependent.
+static void BM_DrawBatched_Raster_300w_4PassEffects(benchmark::State &state) {
+  TextStyle layered = style16();
+  layered.paint.addUnderlay(PaintLayer::dropShadow(0x66000000, {2, 2}, 2.0f))
+      .addUnderlay(PaintLayer::glow(0x440000FF, 3.0f))
+      .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 1.5f));
+  Paragraph paragraph;
+  paragraph.appendText(makeText(300, /*mixed=*/true), layered);
+  BlockFlow flow(SkRect::MakeWH(700, 3000));
+  ParagraphLayout layout = layoutParagraph(fontContext(), paragraph, flow);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(720, 1400));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_300w_4PassEffects)
+    ->Unit(benchmark::kMicrosecond);
+
+static Paragraph makeDrawStressParagraph(bool effects) {
+  TextStyle textStyle = style16();
+  textStyle.shaping.fontSize = 8.0f;
+  if (effects) {
+    const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
+    textStyle.paint
+        .addUnderlay(PaintLayer::glow(0x772A77FF, 1.8f))
+        .addUnderlay(PaintLayer::outline(0xFF061229, 0.7f));
+    textStyle.paint.foreground.setShader(
+        PaintShaders::meshGradient(bounds, 1.25f));
+    SkPaint stars;
+    stars.setAntiAlias(true);
+    stars.setShader(PaintShaders::starField(bounds, 1.25f));
+    stars.setBlendMode(SkBlendMode::kScreen);
+    textStyle.paint.addOverlay(PaintLayer(std::move(stars)));
+  }
+  Paragraph paragraph;
+  paragraph.appendText(makeText(2000, /*mixed=*/true), textStyle);
+  return paragraph;
+}
+
+static void BM_DrawBatched_Raster_2000w(benchmark::State &state) {
+  Paragraph paragraph = makeDrawStressParagraph(false);
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 1180, 880));
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kJustify;
+  options.lineMetrics.height = 10.0f;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext(), paragraph, flow, options);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 900));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(0xFF050A18);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_2000w)->Unit(benchmark::kMicrosecond);
+
+static void BM_DrawBatched_Raster_2000w_4PassShaderEffects(
+    benchmark::State &state) {
+  Paragraph paragraph = makeDrawStressParagraph(true);
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 1180, 880));
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kJustify;
+  options.lineMetrics.height = 10.0f;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext(), paragraph, flow, options);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 900));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(0xFF050A18);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_2000w_4PassShaderEffects)
+    ->Unit(benchmark::kMicrosecond);
+
 // 2000 multi-script tokens (Arabic, Devanagari, Hebrew, Thai, CJK, emoji,
 // Greek, Cyrillic, Tamil, runes) scattered over 2000 rotated intervals —
 // letter-confetti at paragraph scale. Warm: placement + per-glyph RSXform
