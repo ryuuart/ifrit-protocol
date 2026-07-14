@@ -43,6 +43,7 @@ qt_add_qml_module(TextFlowGallery
     scenes/HyperScriptsScene.cpp
     scenes/EffectsScene.cpp
     scenes/EffectsStressScene.cpp
+    scenes/LoudShadersScene.cpp
     scenes/MarkersScene.cpp
     scenes/SlotsScene.cpp
     scenes/OverflowScene.cpp

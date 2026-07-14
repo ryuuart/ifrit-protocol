@@ -26,6 +26,20 @@ struct SceneParams {
   textflow::TextAlignment alignment = textflow::TextAlignment::kJustify;
   textflow::LineBreakStrategy lineBreakStrategy =
       textflow::LineBreakStrategy::kGreedy;
+
+  // Per-layer shader/preset toggles, consulted only by scenes that report
+  // supportsEffectToggles().
+  bool effectGlow = true;
+  bool effectOutline = true;
+  bool effectShader = true;
+  bool effectStars = true;
+  // Glow shaping: spread dilates the glyph shape (stroke-and-fill) before
+  // the blur mask is applied, keeping a solid core under a wide blur.
+  // Intensity scales the glow color's alpha beyond its own hex value. Scenes
+  // at small font sizes should further scale spread down; a fixed pixel
+  // amount this size can otherwise merge adjacent glyphs and lines solid.
+  float glowSpread = 0.6f;
+  float glowIntensity = 1.3f;
 };
 
 /** Timing and output counts reported by one rendered gallery frame. */
@@ -44,6 +58,9 @@ public:
   virtual QString defaultText() const { return {}; }
   /** Returns whether the gallery should expose its text editor. */
   virtual bool supportsTextEdit() const { return true; }
+  /** Returns whether the gallery should expose the shader-layer toggles
+   *  (glow/outline/shader/stars) in SceneParams. */
+  virtual bool supportsEffectToggles() const { return false; }
 
   /** Renders one scene frame and returns its timing and content statistics.
    *  `elapsedSeconds` starts when this scene becomes active; `frameNumber`

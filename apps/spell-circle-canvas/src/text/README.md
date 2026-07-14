@@ -211,7 +211,7 @@ effects.foreground.setShader(
 // strokes, shaders, path effects, or composition/blend modes.
 SkPaint stars;
 stars.setAntiAlias(true);
-stars.setShader(PaintShaders::starField(canvasBounds, elapsedSeconds));
+stars.setShader(PaintShaders::sparkle(canvasBounds, elapsedSeconds));
 stars.setBlendMode(SkBlendMode::kScreen);
 effects.addOverlay(PaintLayer(std::move(stars)));
 paragraph.setPaint(0, 6, effects); // existing ParagraphLayout sees it

@@ -73,8 +73,7 @@ std::string_view preferredCjkSerif(std::string_view languageTag) {
     return "Noto Serif JP";
   if (startsWith(languageTag, "ko"))
     return "Noto Serif KR";
-  if (startsWith(languageTag, "zh-Hant") ||
-      startsWith(languageTag, "zh-TW"))
+  if (startsWith(languageTag, "zh-Hant") || startsWith(languageTag, "zh-TW"))
     return "Noto Serif TC";
   if (startsWith(languageTag, "zh-HK"))
     return "Noto Serif HK";
@@ -113,9 +112,8 @@ makeGalleryFallbackResolver(SkFontMgr &fontManager) {
           kNotoCuneiformFamily.data(), SkFontStyle());
   }
   std::sort(serifFamilies.begin(), serifFamilies.end());
-  serifFamilies.erase(
-      std::unique(serifFamilies.begin(), serifFamilies.end()),
-      serifFamilies.end());
+  serifFamilies.erase(std::unique(serifFamilies.begin(), serifFamilies.end()),
+                      serifFamilies.end());
 
   return [serifFamilies = std::move(serifFamilies),
           cuneiformTypeface = std::move(cuneiformTypeface)](
@@ -266,6 +264,12 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
   m_sceneParameters.lineBreakStrategy =
       static_cast<textflow::LineBreakStrategy>(
           std::clamp(view->m_lineBreakStrategyIndex, 0, 1));
+  m_sceneParameters.effectGlow = view->m_effectGlow;
+  m_sceneParameters.effectOutline = view->m_effectOutline;
+  m_sceneParameters.effectShader = view->m_effectShader;
+  m_sceneParameters.effectStars = view->m_effectStars;
+  m_sceneParameters.glowSpread = static_cast<float>(view->m_glowSpread);
+  m_sceneParameters.glowIntensity = static_cast<float>(view->m_glowIntensity);
   m_pendingClicks.insert(m_pendingClicks.end(), view->m_pendingClicks.begin(),
                          view->m_pendingClicks.end());
   view->m_pendingClicks.clear();
@@ -335,11 +339,10 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
     m_sceneParameters.typeface = nullptr;
   } else {
     if (m_typefaceDirty) {
-      sk_sp<SkTypeface> typeface = resolveGalleryTypeface(
-          m_fontContext->fontManager(), m_fontFamily);
+      sk_sp<SkTypeface> typeface =
+          resolveGalleryTypeface(m_fontContext->fontManager(), m_fontFamily);
       if (typeface && !m_fontCoordinates.empty()) {
-        std::vector<SkFontArguments::VariationPosition::Coordinate>
-            coordinates;
+        std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
         coordinates.reserve(m_fontCoordinates.size());
         for (const FontCoordinate &coordinate : m_fontCoordinates)
           coordinates.push_back({coordinate.tag, coordinate.value});
@@ -521,6 +524,64 @@ bool GalleryView::textEditable() const {
   return m_sceneMetadata[static_cast<size_t>(m_sceneIndex)]->supportsTextEdit();
 }
 
+bool GalleryView::effectTogglesSupported() const {
+  if (m_sceneIndex < 0 ||
+      m_sceneIndex >= static_cast<int>(m_sceneMetadata.size()))
+    return false;
+  return m_sceneMetadata[static_cast<size_t>(m_sceneIndex)]
+      ->supportsEffectToggles();
+}
+
+void GalleryView::setEffectGlow(bool enabled) {
+  if (enabled == m_effectGlow)
+    return;
+  m_effectGlow = enabled;
+  emit effectGlowChanged();
+  update();
+}
+
+void GalleryView::setEffectOutline(bool enabled) {
+  if (enabled == m_effectOutline)
+    return;
+  m_effectOutline = enabled;
+  emit effectOutlineChanged();
+  update();
+}
+
+void GalleryView::setEffectShader(bool enabled) {
+  if (enabled == m_effectShader)
+    return;
+  m_effectShader = enabled;
+  emit effectShaderChanged();
+  update();
+}
+
+void GalleryView::setEffectStars(bool enabled) {
+  if (enabled == m_effectStars)
+    return;
+  m_effectStars = enabled;
+  emit effectStarsChanged();
+  update();
+}
+
+void GalleryView::setGlowSpread(qreal spread) {
+  const qreal clampedSpread = std::clamp(spread, 0.0, 8.0);
+  if (clampedSpread == m_glowSpread)
+    return;
+  m_glowSpread = clampedSpread;
+  emit glowSpreadChanged();
+  update();
+}
+
+void GalleryView::setGlowIntensity(qreal intensity) {
+  const qreal clampedIntensity = std::clamp(intensity, 0.2, 3.0);
+  if (clampedIntensity == m_glowIntensity)
+    return;
+  m_glowIntensity = clampedIntensity;
+  emit glowIntensityChanged();
+  update();
+}
+
 void GalleryView::setSceneText(const QString &text) {
   if (text == m_sceneText)
     return;
@@ -539,7 +600,7 @@ void GalleryView::setFontFamily(const QString &family) {
 }
 
 void GalleryView::setFontSize(qreal size) {
-  const qreal clampedSize = std::clamp(size, 8.0, 64.0);
+  const qreal clampedSize = std::clamp(size, 8.0, 200.0);
   if (clampedSize == m_fontSize)
     return;
   m_fontSize = clampedSize;

@@ -15,6 +15,7 @@ std::vector<std::unique_ptr<Scene>> makeScenes() {
   scenes.push_back(makeHyperScriptsScene());
   scenes.push_back(makeEffectsScene());
   scenes.push_back(makeEffectsStressScene());
+  scenes.push_back(makeLoudShadersScene());
   scenes.push_back(makeMarkersScene());
   scenes.push_back(makeSlotsScene());
   scenes.push_back(makeOverflowScene());

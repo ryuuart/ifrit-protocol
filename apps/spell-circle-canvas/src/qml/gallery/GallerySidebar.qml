@@ -76,7 +76,7 @@ ColumnLayout {
             id: sizeSlider
             Layout.fillWidth: true
             from: 10
-            to: 40
+            to: 200
             value: root.view.fontSize
             onValueChanged: root.view.fontSize = value
         }
@@ -155,6 +155,80 @@ ColumnLayout {
         model: ["Greedy", "Knuth–Plass"]
         currentIndex: root.view.lineBreakStrategyIndex
         onActivated: index => root.view.lineBreakStrategyIndex = index
+    }
+
+    Label {
+        text: "Shader passes"
+        color: "#9aa3b2"
+        visible: root.view.effectTogglesSupported
+    }
+    RowLayout {
+        visible: root.view.effectTogglesSupported
+
+        Switch {
+            text: "Glow"
+            checked: root.view.effectGlow
+            onToggled: root.view.effectGlow = checked
+        }
+        Switch {
+            text: "Outline"
+            checked: root.view.effectOutline
+            onToggled: root.view.effectOutline = checked
+        }
+    }
+    RowLayout {
+        visible: root.view.effectTogglesSupported
+
+        Switch {
+            text: "Shader"
+            checked: root.view.effectShader
+            onToggled: root.view.effectShader = checked
+        }
+        Switch {
+            text: "Stars"
+            checked: root.view.effectStars
+            onToggled: root.view.effectStars = checked
+        }
+    }
+    RowLayout {
+        visible: root.view.effectTogglesSupported
+
+        Label {
+            text: "Glow spread"
+            color: "#9aa3b2"
+        }
+        Slider {
+            id: glowSpreadSlider
+            Layout.fillWidth: true
+            from: 0
+            to: 8
+            value: root.view.glowSpread
+            onValueChanged: root.view.glowSpread = value
+        }
+        Label {
+            text: glowSpreadSlider.value.toFixed(1) + "px"
+            color: "#9aa3b2"
+        }
+    }
+    RowLayout {
+        visible: root.view.effectTogglesSupported
+
+        Label {
+            text: "Glow intensity"
+            color: "#9aa3b2"
+        }
+        Slider {
+            id: glowIntensitySlider
+            Layout.fillWidth: true
+            from: 0.2
+            to: 3.0
+            value: root.view.glowIntensity
+            onValueChanged: root.view.glowIntensity = value
+        }
+        Label {
+            text: glowIntensitySlider.value.toFixed(1) + "×"
+            color: "#9aa3b2"
+        }
     }
 
     Label {

@@ -26,10 +26,9 @@ void scenePaintEffects(FontContext &fontContext,
   canvas->clear(kPaper);
 
   const SkPoint gradientPoints[2] = {{310, 0}, {980, 0}};
-  const SkColor4f gradientColors[3] = {
-      SkColor4f::FromColor(0x001A66FF),
-      SkColor4f::FromColor(0xAAFFFFFF),
-      SkColor4f::FromColor(0x00FFFFFF)};
+  const SkColor4f gradientColors[3] = {SkColor4f::FromColor(0x001A66FF),
+                                       SkColor4f::FromColor(0xAAFFFFFF),
+                                       SkColor4f::FromColor(0x00FFFFFF)};
   const sk_sp<SkShader> gradient = SkShaders::LinearGradient(
       gradientPoints,
       SkGradient(SkGradient::Colors({gradientColors, 3}, SkTileMode::kMirror),
@@ -64,8 +63,7 @@ void scenePaintEffects(FontContext &fontContext,
       .addUnderlay(PaintLayer::outline(kInk, 9.0f));
   SkPaint stars;
   stars.setAntiAlias(true);
-  stars.setShader(
-      PaintShaders::starField(SkRect::MakeWH(1160, 720), 1.7f));
+  stars.setShader(PaintShaders::sparkle(SkRect::MakeWH(1160, 720), 1.7f));
   stars.setBlendMode(SkBlendMode::kScreen);
   paints[4].addOverlay(PaintLayer(std::move(stars)));
   SkPaint sheen;
@@ -122,14 +120,12 @@ void scenePaintEffects(FontContext &fontContext,
   const SkRect stressBounds = SkRect::MakeXYWH(34, 56, 1532, 914);
 
   PaintStyle stressPaint(SK_ColorWHITE);
-  stressPaint
-      .addUnderlay(PaintLayer::glow(0x882A77FF, 2.4f))
-      .addUnderlay(PaintLayer::outline(0xFF061229, 0.9f));
-  stressPaint.foreground.setShader(
-      PaintShaders::water(stressBounds, 2.4f));
+  stressPaint.addUnderlay(PaintLayer::glow(0x882A77FF, 2.4f))
+      .addUnderlay(PaintLayer::outline(0xFF061229, 1.5f));
+  stressPaint.foreground.setShader(PaintShaders::water(stressBounds, 2.4f));
   SkPaint stressStars;
   stressStars.setAntiAlias(true);
-  stressStars.setShader(PaintShaders::starField(stressBounds, 2.4f));
+  stressStars.setShader(PaintShaders::sparkle(stressBounds, 2.4f));
   stressStars.setBlendMode(SkBlendMode::kScreen);
   stressPaint.addOverlay(PaintLayer(std::move(stressStars)));
 
@@ -140,8 +136,8 @@ void scenePaintEffects(FontContext &fontContext,
   ParagraphLayoutOptions stressOptions;
   stressOptions.alignment = TextAlignment::kJustify;
   stressOptions.lineMetrics.height = 15.0f;
-  ParagraphLayout stressLayout = layoutParagraph(
-      fontContext, stressParagraph, stressFlow, stressOptions);
+  ParagraphLayout stressLayout =
+      layoutParagraph(fontContext, stressParagraph, stressFlow, stressOptions);
   stressLayout.drawBatched(stressCanvas, stressParagraph);
 
   Paragraph stressCaption;

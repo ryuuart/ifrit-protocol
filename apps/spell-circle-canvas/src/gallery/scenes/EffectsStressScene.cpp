@@ -3,6 +3,7 @@
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
+#include <textflowqt/TextFlowQt.h>
 
 #include <include/core/SkBlendMode.h>
 
@@ -21,11 +22,10 @@ constexpr int kStressWordCount = 2000;
 
 std::u8string makeStressText() {
   constexpr std::array<std::u8string_view, 24> words = {
-      u8"letters", u8"flow",    u8"through", u8"water", u8"under",
-      u8"stars",   u8"shaping", u8"stays",   u8"cached", u8"while",
-      u8"paint",   u8"moves",   u8"across",  u8"every", u8"glyph",
-      u8"文字",    u8"波紋",    u8"星光",     u8"글자",  u8"물결",
-      u8"漣漪",    u8"字形",    u8"lumen",   u8"cascade"};
+      u8"letters", u8"flow",  u8"through", u8"water", u8"under", u8"stars",
+      u8"shaping", u8"stays", u8"cached",  u8"while", u8"paint", u8"moves",
+      u8"across",  u8"every", u8"glyph",   u8"文字",  u8"波紋",  u8"星光",
+      u8"글자",    u8"물결",  u8"漣漪",    u8"字形",  u8"lumen", u8"cascade"};
   std::u8string text;
   text.reserve(kStressWordCount * 7);
   for (int wordIndex = 0; wordIndex < kStressWordCount; ++wordIndex) {
@@ -43,6 +43,7 @@ public:
   }
 
   bool supportsTextEdit() const override { return false; }
+  bool supportsEffectToggles() const override { return true; }
 
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
@@ -55,15 +56,23 @@ public:
     const SkRect textBounds = SkRect::MakeLTRB(
         22.0f, 58.0f, std::max(23.0f, static_cast<float>(size.width()) - 22.0f),
         std::max(59.0f, static_cast<float>(size.height()) - 18.0f));
-    const float area = std::max(1.0f, textBounds.width() * textBounds.height());
-    const float fitSize = std::sqrt(area / (kStressWordCount * 5.2f));
+    // The panel's font size drives this directly rather than auto-fitting to
+    // the box, so the slider stays meaningful; large sizes simply overflow.
     const float stressFontSize =
-        std::clamp(std::min(params.fontSize * 0.62f, fitSize), 4.5f, 11.0f);
-    const bool rebuild = size != m_size || typeface.get() != m_typeface ||
-                         stressFontSize != m_fontSize;
+        std::clamp(params.fontSize * 0.6f, 4.0f, 40.0f);
+    // Reshaping/relayout only depends on text, typeface, and size; the paint
+    // stack (toggles, glow spread/intensity) is far cheaper to rebuild, so it
+    // gets its own dirty flag and never forces a relayout of 2,000 words.
+    const bool layoutDirty = size != m_size || typeface.get() != m_typeface ||
+                             stressFontSize != m_fontSize;
+    const bool effectDirty = layoutDirty || params.effectGlow != m_effectGlow ||
+                             params.effectOutline != m_effectOutline ||
+                             params.effectStars != m_effectStars ||
+                             params.glowSpread != m_glowSpread ||
+                             params.glowIntensity != m_glowIntensity;
 
     double layoutMicroseconds = 0;
-    if (rebuild) {
+    if (layoutDirty) {
       m_size = size;
       m_typeface = typeface.get();
       m_fontSize = stressFontSize;
@@ -72,18 +81,6 @@ public:
           makeStyle(stressFontSize, SK_ColorWHITE, "", typeface);
       m_paragraph.appendText(makeStressText(), textStyle);
       m_textLength = static_cast<uint32_t>(m_paragraph.text().size());
-
-      m_effect = PaintStyle(SK_ColorWHITE);
-      m_effect
-          .addUnderlay(PaintLayer::glow(0x882A77FF,
-                                        std::max(1.2f, stressFontSize * 0.28f)))
-          .addUnderlay(PaintLayer::outline(0xFF061229,
-                                           std::max(0.55f,
-                                                    stressFontSize * 0.10f)));
-      SkPaint stars;
-      stars.setAntiAlias(true);
-      stars.setBlendMode(SkBlendMode::kScreen);
-      m_effect.addOverlay(PaintLayer(std::move(stars)));
 
       ParagraphLayoutOptions options;
       options.alignment = TextAlignment::kJustify;
@@ -99,23 +96,66 @@ public:
           m_glyphCount += static_cast<int>(run.shaped->glyphs.size());
     }
 
+    if (effectDirty) {
+      m_effectGlow = params.effectGlow;
+      m_effectOutline = params.effectOutline;
+      m_effectStars = params.effectStars;
+      m_glowSpread = params.glowSpread;
+      m_glowIntensity = params.glowIntensity;
+
+      m_effect = PaintStyle(SK_ColorWHITE);
+      if (m_effectGlow) {
+        // Dilating the glyph shape before the blur flattens its falloff into
+        // a wider plateau rather than just a softer edge, so even a couple
+        // of pixels of spread reads as solid at this scene's small sizes and
+        // bridges neighboring glyphs and lines. Scale the cap tightly with
+        // the font so the slider stays gentle there and only opens up once
+        // the text is large enough to take it.
+        const float glowSpread = std::min(m_glowSpread, stressFontSize * 0.06f);
+        m_effect.addUnderlay(
+            PaintLayer::glow(0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
+                             glowSpread, m_glowIntensity));
+      }
+      if (m_effectOutline)
+        m_effect.addUnderlay(
+            PaintLayer::outline(SkColors::kBlue.toSkColor(),
+                                std::max(0.55f, stressFontSize * 0.03f)));
+      if (m_effectStars) {
+        SkPaint stars;
+        stars.setAntiAlias(true);
+        stars.setBlendMode(SkBlendMode::kScreen);
+        m_effect.addOverlay(PaintLayer(std::move(stars)));
+      }
+    }
+
     const float time = static_cast<float>(elapsedSeconds);
-    m_effect.foreground.setShader(
-        PaintShaders::meshGradient(textBounds, time));
-    m_effect.overlays[0].paint.setShader(
-        PaintShaders::starField(textBounds, time));
+    if (params.effectShader)
+      m_effect.foreground.setShader(
+          PaintShaders::meshGradient(textBounds, time));
+    else
+      m_effect.foreground.setShader(nullptr);
+    if (m_effectStars && !m_effect.overlays.empty())
+      m_effect.overlays[0].paint.setShader(
+          PaintShaders::sparkle(textBounds, time));
     m_paragraph.setPaint(0, m_textLength, m_effect);
 
     canvas->clear(0xFF050A18);
     m_layout.drawBatched(canvas, m_paragraph);
 
+    const int passCount = 1 + static_cast<int>(m_effectGlow) +
+                          static_cast<int>(m_effectOutline) +
+                          static_cast<int>(m_effectStars);
+    const QString captionText =
+        m_layout.overflowed()
+            ? QStringLiteral("2,000 words · overflowed (lower the font size "
+                             "to fit)")
+            : QStringLiteral("2,000 words · all placed · %1 %2 · no relayout")
+                  .arg(passCount)
+                  .arg(passCount == 1 ? QStringLiteral("pass")
+                                      : QStringLiteral("passes"));
     Paragraph caption;
     TextStyle captionStyle = makeStyle(12.0f, 0xFFD7E7FF);
-    caption.appendText(
-        m_layout.overflowed()
-            ? u8"2,000 words · overflowed (resize taller)"
-            : u8"2,000 words · all placed · 4 passes · mesh + stars · no relayout",
-        captionStyle);
+    textflowqt::appendText(caption, captionText, captionStyle);
     layoutSingleLine(fontContext, caption, {22, 30}).draw(canvas, caption);
 
     return {layoutMicroseconds, static_cast<int>(m_layout.runs.size()),
@@ -132,6 +172,11 @@ private:
   float m_fontSize = 0;
   uint32_t m_textLength = 0;
   int m_glyphCount = 0;
+  bool m_effectGlow = true;
+  bool m_effectOutline = true;
+  bool m_effectStars = true;
+  float m_glowSpread = 0;
+  float m_glowIntensity = 1;
 };
 
 } // namespace

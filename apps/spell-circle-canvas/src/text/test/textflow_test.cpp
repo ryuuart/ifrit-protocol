@@ -1073,7 +1073,7 @@ TEST(Stress, RuntimeShadersRenderEntire2000WordParagraph) {
   const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
   sk_sp<SkShader> water = PaintShaders::water(bounds, 1.25f);
   sk_sp<SkShader> mesh = PaintShaders::meshGradient(bounds, 1.25f);
-  sk_sp<SkShader> stars = PaintShaders::starField(bounds, 1.25f);
+  sk_sp<SkShader> stars = PaintShaders::sparkle(bounds, 1.25f);
   ASSERT_NE(water, nullptr);
   ASSERT_NE(mesh, nullptr);
   ASSERT_NE(stars, nullptr);

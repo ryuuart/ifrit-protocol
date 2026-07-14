@@ -527,7 +527,7 @@ static Paragraph makeDrawStressParagraph(bool effects) {
         PaintShaders::meshGradient(bounds, 1.25f));
     SkPaint stars;
     stars.setAntiAlias(true);
-    stars.setShader(PaintShaders::starField(bounds, 1.25f));
+    stars.setShader(PaintShaders::sparkle(bounds, 1.25f));
     stars.setBlendMode(SkBlendMode::kScreen);
     textStyle.paint.addOverlay(PaintLayer(std::move(stars)));
   }

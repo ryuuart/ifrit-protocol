@@ -22,6 +22,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -118,19 +119,38 @@ struct PaintLayer {
     return PaintLayer(std::move(paint), offset);
   }
 
-  /** Preset: a blurred, offset solid copy, normally used as an underlay. */
+  /** Preset: a blurred, offset solid copy, normally used as an underlay.
+   *
+   * `spread` dilates the source shape (stroke-and-fill) before the blur
+   * mask is applied, so a wide blur keeps a solid core instead of thinning
+   * a hairline glyph outline down to near-transparency. `intensity` scales
+   * `color`'s alpha, letting callers push a pass brighter without picking a
+   * new hex value; values above 1 are clamped to fully opaque.
+   */
   static PaintLayer dropShadow(SkColor color = 0x66000000,
                                SkVector offset = {2, 2},
-                               float blurSigma = 2.0f) {
+                               float blurSigma = 2.0f, float spread = 0.0f,
+                               float intensity = 1.0f) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setColor(color);
+    if (intensity != 1.0f) {
+      const float alpha =
+          std::clamp(SkColorGetA(color) * intensity, 0.0f, 255.0f);
+      paint.setAlphaf(alpha / 255.0f);
+    }
+    if (spread > 0) {
+      paint.setStyle(SkPaint::kStrokeAndFill_Style);
+      paint.setStrokeWidth(spread);
+    }
     return blurred(std::move(paint), blurSigma, offset);
   }
 
-  /** Preset: a zero-offset blurred copy, normally used as an underlay. */
-  static PaintLayer glow(SkColor color, float blurSigma) {
-    return dropShadow(color, {0, 0}, blurSigma);
+  /** Preset: a zero-offset blurred copy, normally used as an underlay. See
+   *  dropShadow() for what `spread` and `intensity` control. */
+  static PaintLayer glow(SkColor color, float blurSigma, float spread = 0.0f,
+                        float intensity = 1.0f) {
+    return dropShadow(color, {0, 0}, blurSigma, spread, intensity);
   }
 
   /** Preset: a stroked glyph copy, normally placed beneath the foreground. */

@@ -3,10 +3,9 @@
 /** @file
  * Reusable animated shader presets for PaintStyle foregrounds and layers.
  *
- * The water and mesh helpers compile their SkSL programs once per process;
- * the star helper records one reusable vector tile. Each call only creates a
- * small uniform block or local matrix plus an SkShader, so callers can replace
- * a paint's shader every frame without rebuilding text, shaping, or layout.
+ * Every helper compiles its SkSL program once per process; each call only
+ * creates a small uniform block plus an SkShader, so callers can replace a
+ * paint's shader every frame without rebuilding text, shaping, or layout.
  */
 
 #include <include/core/SkRect.h>
@@ -25,8 +24,28 @@ namespace textflow::PaintShaders {
 [[nodiscard]] sk_sp<SkShader> meshGradient(const SkRect &bounds,
                                            float timeSeconds);
 
-/** Transparent drifting star field, intended for a Screen/Plus overlay. */
-[[nodiscard]] sk_sp<SkShader> starField(const SkRect &bounds,
-                                        float timeSeconds);
+/** Transparent field of independently sized, tinted, twinkling points —
+ * brightness and phase vary per point, so unlike a uniform pulse, points
+ * fade in and out out of sync with their neighbors. Intended for a
+ * Screen/Plus overlay. */
+[[nodiscard]] sk_sp<SkShader> sparkle(const SkRect &bounds, float timeSeconds);
+
+/** Volumetric "star nest" raymarch: a deep, drifting field of glowing
+ * fractal dust. Heavier than the other presets (nested raymarch loop), but
+ * still cheap per glyph since only covered mask pixels evaluate it. Based on
+ * Pablo Roman Andrioli's "Star Nest" (MIT licensed).
+ */
+[[nodiscard]] sk_sp<SkShader> starNest(const SkRect &bounds,
+                                       float timeSeconds);
+
+/** Drifting painterly sky and clouds built from layered ridged/fbm value
+ * noise.
+ */
+[[nodiscard]] sk_sp<SkShader> clouds(const SkRect &bounds, float timeSeconds);
+
+/** Endless raymarched kaleidoscope tunnel, falling away from the camera.
+ * Based on a shader by @notargs.
+ */
+[[nodiscard]] sk_sp<SkShader> tunnel(const SkRect &bounds, float timeSeconds);
 
 } // namespace textflow::PaintShaders

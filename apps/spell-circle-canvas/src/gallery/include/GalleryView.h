@@ -32,6 +32,20 @@ class GalleryView : public QQuickRhiItem {
   Q_PROPERTY(
       bool animating READ animating WRITE setAnimating NOTIFY animatingChanged)
   Q_PROPERTY(bool textEditable READ textEditable NOTIFY sceneIndexChanged)
+  Q_PROPERTY(bool effectTogglesSupported READ effectTogglesSupported NOTIFY
+                 sceneIndexChanged)
+  Q_PROPERTY(bool effectGlow READ effectGlow WRITE setEffectGlow NOTIFY
+                 effectGlowChanged)
+  Q_PROPERTY(bool effectOutline READ effectOutline WRITE setEffectOutline
+                 NOTIFY effectOutlineChanged)
+  Q_PROPERTY(bool effectShader READ effectShader WRITE setEffectShader NOTIFY
+                 effectShaderChanged)
+  Q_PROPERTY(bool effectStars READ effectStars WRITE setEffectStars NOTIFY
+                 effectStarsChanged)
+  Q_PROPERTY(qreal glowSpread READ glowSpread WRITE setGlowSpread NOTIFY
+                 glowSpreadChanged)
+  Q_PROPERTY(qreal glowIntensity READ glowIntensity WRITE setGlowIntensity
+                 NOTIFY glowIntensityChanged)
   Q_PROPERTY(QString sceneText READ sceneText WRITE setSceneText NOTIFY
                  sceneTextChanged)
   Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY
@@ -68,6 +82,32 @@ public:
   void setAnimating(bool enabled);
   /** Returns whether the active scene accepts custom text. */
   bool textEditable() const;
+  /** Returns whether the active scene exposes shader-layer toggles. */
+  bool effectTogglesSupported() const;
+  /** Returns whether the glow underlay is enabled. */
+  bool effectGlow() const { return m_effectGlow; }
+  /** Enables or disables the glow underlay. */
+  void setEffectGlow(bool enabled);
+  /** Returns whether the outline underlay is enabled. */
+  bool effectOutline() const { return m_effectOutline; }
+  /** Enables or disables the outline underlay. */
+  void setEffectOutline(bool enabled);
+  /** Returns whether the animated foreground shader is enabled. */
+  bool effectShader() const { return m_effectShader; }
+  /** Enables or disables the animated foreground shader. */
+  void setEffectShader(bool enabled);
+  /** Returns whether the star-field overlay is enabled. */
+  bool effectStars() const { return m_effectStars; }
+  /** Enables or disables the star-field overlay. */
+  void setEffectStars(bool enabled);
+  /** Returns the glow underlay's pre-blur dilation, in pixels. */
+  qreal glowSpread() const { return m_glowSpread; }
+  /** Sets the glow underlay's pre-blur dilation, in pixels. */
+  void setGlowSpread(qreal spread);
+  /** Returns the glow underlay's alpha multiplier. */
+  qreal glowIntensity() const { return m_glowIntensity; }
+  /** Sets the glow underlay's alpha multiplier. */
+  void setGlowIntensity(qreal intensity);
   /** Returns the current scene text override. */
   QString sceneText() const { return m_sceneText; }
   /** Sets the current scene text override. */
@@ -113,6 +153,12 @@ signals:
   void fontAxisValuesChanged();
   void alignmentIndexChanged();
   void lineBreakStrategyIndexChanged();
+  void effectGlowChanged();
+  void effectOutlineChanged();
+  void effectShaderChanged();
+  void effectStarsChanged();
+  void glowSpreadChanged();
+  void glowIntensityChanged();
   void gpuChanged();
   void statsChanged();
 
@@ -148,6 +194,12 @@ private:
   uint64_t m_fontAxesRevision = 0;
   int m_alignmentIndex = 3; // kJustify
   int m_lineBreakStrategyIndex = 0; // kGreedy
+  bool m_effectGlow = true;
+  bool m_effectOutline = true;
+  bool m_effectShader = true;
+  bool m_effectStars = true;
+  qreal m_glowSpread = 0.6;
+  qreal m_glowIntensity = 1.3;
   bool m_gpu = true;                // Graphite when available
   std::vector<SkPoint> m_pendingClicks;
 
