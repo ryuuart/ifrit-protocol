@@ -4,17 +4,18 @@
 #include <QColor>
 #include <QPainterPath>
 
-QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer,
-                                                   QCanvasPainter *painter,
-                                                   QCanvasOffscreenCanvas &canvas,
-                                                   QSize) {
+QCanvasImage
+QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer,
+                                      QCanvasPainter *painter,
+                                      QCanvasOffscreenCanvas &canvas, QSize) {
   renderer.beginCanvasPainting(canvas);
 
   // All coordinates are in 0..canvasWidth / 0..canvasHeight scene space; the
   // offscreen canvas is already sized (and its transform set up) to match.
   const float strokeWidth =
       static_cast<float>(renderer.m_strokeWidth * renderer.m_scale);
-  const float boxWidth = static_cast<float>(renderer.m_boxWidth * renderer.m_scale);
+  const float boxWidth =
+      static_cast<float>(renderer.m_boxWidth * renderer.m_scale);
   const float boxHeight =
       static_cast<float>(renderer.m_boxHeight * renderer.m_scale);
   const float boxPadding =
@@ -48,12 +49,12 @@ QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer
     if (circle.radius <= 0.0f)
       continue;
 
-    const float r = circle.radius;
-    const float cx = static_cast<float>(circle.center.x());
-    const float cy = static_cast<float>(circle.center.y());
+    const float radius = circle.radius;
+    const float centerX = static_cast<float>(circle.center.x());
+    const float centerY = static_cast<float>(circle.center.y());
 
     QCanvasPath circlePath;
-    circlePath.circle(cx, cy, r);
+    circlePath.circle(centerX, centerY, radius);
 
     painter->beginPath();
     painter->addPath(circlePath);
@@ -71,14 +72,15 @@ QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer
     if (!circle.name.isEmpty()) {
       QPainterPath textPath;
       textPath.setCachingEnabled(true);
-      textPath.addEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f);
+      textPath.addEllipse(centerX - radius, centerY - radius, radius * 2.0f,
+                          radius * 2.0f);
 
-      renderer.m_textPathPainter.setPathOffset(circle.textStart);
-      renderer.m_textPathPainter.setPerpendicularOffset(
+      renderer.m_curvedTextPainter.setPathOffset(circle.textStart);
+      renderer.m_curvedTextPainter.setPerpendicularOffset(
           static_cast<float>(renderer.m_labelOffset * renderer.m_scale));
-      renderer.m_textPathPainter.setFont(scaledFont);
-      renderer.m_textPathPainter.setColor(renderer.m_accentColor);
-      renderer.m_textPathPainter.paint(painter, textPath, circle.name);
+      renderer.m_curvedTextPainter.setFont(scaledFont);
+      renderer.m_curvedTextPainter.setColor(renderer.m_accentColor);
+      renderer.m_curvedTextPainter.paint(painter, textPath, circle.name);
     }
   }
 
@@ -103,9 +105,10 @@ QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer
   painter->setTextBaseline(QCanvasPainter::TextBaseline::Top);
   auto drawBox = [&](const SpellCircleRenderer::ResolvedBox &box) {
     const QRectF bounds = painter->textBoundingBox(box.value, 0.0f, 0.0f);
-    const float textW = static_cast<float>(bounds.width());
-    const float bw = qMax(textW + boxPadding * 2.0f, boxWidth);
-    const float bh = boxHeight;
+    const float textWidth = static_cast<float>(bounds.width());
+    const float resolvedBoxWidth =
+        qMax(textWidth + boxPadding * 2.0f, boxWidth);
+    const float resolvedBoxHeight = boxHeight;
 
     // The box's center sits on the ray from the canvas center through the
     // point, pushed outward by boxDistance beyond the point — nothing more.
@@ -117,18 +120,18 @@ QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer
     // ray swept past a corner. Anchoring just the center avoids that: the box
     // rigidly translates along the ray with no edge-dependent correction.
     const QPointF boxCenter = box.anchor + box.direction * boxDistance;
-    const float hw = bw / 2.0f;
-    const float hh = bh / 2.0f;
-    const float bx = static_cast<float>(boxCenter.x()) - hw;
-    const float by = static_cast<float>(boxCenter.y()) - hh;
+    const float halfWidth = resolvedBoxWidth / 2.0f;
+    const float halfHeight = resolvedBoxHeight / 2.0f;
+    const float boxX = static_cast<float>(boxCenter.x()) - halfWidth;
+    const float boxY = static_cast<float>(boxCenter.y()) - halfHeight;
 
-    QCanvasPath rect;
-    QRectF boxGeom(bx, by, bw, bh);
-    rect.rect(boxGeom);
+    QCanvasPath rectanglePath;
+    QRectF boxBounds(boxX, boxY, resolvedBoxWidth, resolvedBoxHeight);
+    rectanglePath.rect(boxBounds);
 
-    painter->clearRect(boxGeom);
+    painter->clearRect(boxBounds);
     painter->beginPath();
-    painter->addPath(rect);
+    painter->addPath(rectanglePath);
     if (box.active > 0.0f) {
       painter->setGlobalAlpha(box.active);
       painter->setFillStyle(renderer.m_accentColor);
@@ -145,12 +148,12 @@ QCanvasImage QCanvasPainterSceneBackend::drawScene(SpellCircleRenderer &renderer
       painter->setGlobalCompositeOperation(
           QCanvasPainter::CompositeOperation::DestinationOut);
       painter->setFillStyle(QColorConstants::Black);
-      painter->fillText(box.value, bx + boxPadding, by + boxPadding);
+      painter->fillText(box.value, boxX + boxPadding, boxY + boxPadding);
       painter->setGlobalCompositeOperation(
           QCanvasPainter::CompositeOperation::SourceOver);
     } else {
       painter->setFillStyle(renderer.m_accentColor);
-      painter->fillText(box.value, bx + boxPadding, by + boxPadding);
+      painter->fillText(box.value, boxX + boxPadding, boxY + boxPadding);
     }
     painter->closePath();
   };

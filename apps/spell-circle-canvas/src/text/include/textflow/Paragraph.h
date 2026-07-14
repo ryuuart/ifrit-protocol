@@ -6,6 +6,7 @@
 #include <absl/container/inlined_vector.h>
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -28,7 +29,8 @@ struct StyleSpan {
 struct CharRange {
   uint32_t start = 0;
   uint32_t end = 0;
-  bool empty() const { return end <= start; }
+  /** Returns whether this half-open range contains no UTF-16 code units. */
+  [[nodiscard]] bool empty() const noexcept { return end <= start; }
   bool operator==(const CharRange &) const = default;
 };
 
@@ -47,7 +49,7 @@ enum class SegmentForm : uint8_t {
 struct WordSegment {
   ShapedWordRef shaped;
   uint32_t styleIndex = 0; // index into Paragraph::spans()
-  float xOffset = 0;       // pen offset from the word origin (for
+  float advanceOffset = 0; // pen offset from the word origin (for
                            // kTateChuYoko this lands on the run's baseline)
   SegmentForm form = SegmentForm::kFlow;
 };
@@ -72,7 +74,7 @@ struct Placeholder {
 struct Word {
   uint32_t textBegin = 0; // content range, whitespace excluded
   uint32_t textEnd = 0;
-  uint32_t wsEnd = 0; // end of trailing whitespace (== textEnd when none)
+  uint32_t whitespaceEnd = 0; // == textEnd when there is no trailing space
 
   // Inline storage: nearly every word is a single uniform run, so the
   // common case costs no allocation when the word list is rebuilt.
@@ -96,62 +98,77 @@ struct Word {
   int placeholderIndex = -1;
 };
 
-// Text + styles + the cached analysis pipeline (ICU line breaks, bidi,
-// script itemization, font fallback, word shaping). Mutations mark the
-// analysis dirty; ensureShaped() re-runs it, and the FontContext shape cache
-// makes that re-run a hash lookup for every word that didn't change — that
-// cache is the incremental-update mechanism, exactly like Chrome's
-// ShapeCache re-shaping only the edited word.
 // Flow direction the paragraph is shaped for. Vertical-RL is the CJK book
 // layout: characters run top to bottom, columns right to left. The layout
 // geometry must match (columns with dir=(0,1), e.g. VerticalBlockFlow).
 enum class WritingMode : uint8_t { kHorizontal, kVerticalRL };
 
+/**
+ * Owns styled UTF-16 text and its incremental analysis/shaping pipeline.
+ *
+ * Mutations invalidate only the necessary analysis. Re-analysis resolves
+ * unchanged words through FontContext's content-addressed shape cache, so an
+ * edit normally sends only the changed word back through HarfBuzz.
+ */
 class Paragraph {
 public:
   Paragraph() = default;
 
   // ── Building ──────────────────────────────────────────────────────────
+  /** Removes all text, styles, placeholders, and cached analysis. */
   void clear();
+  /** Appends UTF-8 text using `style`. */
   void appendText(std::string_view utf8, const TextStyle &style);
+  /** Appends UTF-16 text using `style`. */
   void appendText(std::u16string_view utf16, const TextStyle &style);
 
   // Vertical mode re-itemizes and re-shapes (once — both orientations are
   // separate shape-cache entries, so toggling back and forth is warm).
   void setWritingMode(WritingMode mode);
-  WritingMode writingMode() const { return m_writingMode; }
+  /** Returns the direction in which this paragraph is shaped. */
+  [[nodiscard]] WritingMode writingMode() const noexcept {
+    return m_writingMode;
+  }
 
   // ── Inline placeholders (pills, icons, images in the flow) ────────────
-  // Appends a slot at the end of the text (a U+FFFC character); `style`
-  // decides the surrounding glue/justification context. Slots are matched
-  // to records by occurrence order, so avoid replaceText edits that add or
-  // remove U+FFFC characters directly.
+  /** Appends a U+FFFC-backed inline slot using `style` for flow context.
+   *
+   * Slots map to records by occurrence order, so direct text edits should
+   * not add or remove object-replacement characters.
+   */
   void appendPlaceholder(const Placeholder &placeholder,
                          const TextStyle &style);
+  /** Returns inline object records in their text occurrence order. */
   const std::vector<Placeholder> &placeholders() const {
     return m_placeholders;
   }
-  // Resizing a slot re-runs analysis (cache-hot for all real words).
+  /** Resizes a slot and invalidates layout while leaving real words cache-hot.
+   */
   void setPlaceholder(size_t index, const Placeholder &placeholder);
 
   // ── Editing (UTF-16 ranges) ───────────────────────────────────────────
-  // Replaces [start, end) with `utf8`; spans shift/split to follow.
+  /** Replaces UTF-16 range `[start, end)` with UTF-8 and adjusts spans. */
   void replaceText(uint32_t start, uint32_t end, std::string_view utf8);
   // Restyles a range (splits spans as needed). Re-shapes only words whose
   // shaping inputs actually changed — the rest hit the cache.
+  /** Applies shaping and paint configuration to a UTF-16 range. */
   void setStyle(uint32_t start, uint32_t end, const TextStyle &style);
   // Paint-only restyle: same span surgery, but shaping keys are untouched
   // and the text didn't move, so the next ensure* skips ICU re-analysis
   // entirely — it only re-derives the already-shaped words' segments against
   // the new span list (pure shape-cache hits unless a boundary lands
   // mid-word). Cost is bounded by the shaped prefix, not the text.
+  /** Applies draw-time paint to one UTF-16 range without re-analyzing text. */
   void setPaint(uint32_t start, uint32_t end, const PaintStyle &paint);
   // Batch form: applies `paint` to every range in one span-list rebuild —
   // restyling N marker ranges costs one pass, not N quadratic rebuilds.
   // Ranges may arrive unsorted/overlapping; they are sanitized internally.
-  void setPaint(const std::vector<CharRange> &ranges, const PaintStyle &paint);
+  /** Applies one paint to sanitized ranges in a single span-list rebuild. */
+  void setPaint(std::span<const CharRange> ranges, const PaintStyle &paint);
 
+  /** Returns the paragraph's UTF-16 storage. */
   const std::u16string &text() const { return m_text; }
+  /** Returns normalized style spans covering `text()`. */
   const std::vector<StyleSpan> &spans() const { return m_spans; }
 
   // ── Edit history (external range tracking) ────────────────────────────
@@ -159,29 +176,39 @@ public:
   // revision, so external structures (e.g. Query.h's MarkerSet) can keep
   // UTF-16 ranges in sync without wrapping every edit call. History is
   // bounded; a consumer that falls too far behind must rebuild its ranges.
-  struct EditOp {
+  struct TextEdit {
     uint32_t start = 0;
     uint32_t removed = 0;  // UTF-16 units deleted at `start`
     uint32_t inserted = 0; // UTF-16 units inserted at `start`
   };
+  /** Returns the current monotonically increasing text revision. */
   uint64_t revision() const { return m_revision; }
   // Appends the ops after `sinceRevision`, oldest first. Returns false when
   // history no longer reaches back that far.
-  bool editsSince(uint64_t sinceRevision, std::vector<EditOp> &out) const;
+  /** Appends edits after `sinceRevision`, or returns false if history expired.
+   */
+  [[nodiscard("expired edit history requires rebuilding tracked ranges")]]
+  bool editsSince(uint64_t sinceRevision, std::vector<TextEdit> &edits) const;
 
   // ── Analysis ──────────────────────────────────────────────────────────
   // Runs segmentation + shaping if anything changed since the last call.
-  void ensureShaped(FontContext &ctx);
+  /** Ensures analysis and glyph data are available for the whole paragraph. */
+  void ensureShaped(FontContext &fontContext);
   // Segmentation only (ICU boundaries, bidi, scripts — no HarfBuzz work):
   // words() gets its break/direction structure but no glyphs or widths yet.
-  // Layout drives shaping lazily from here, so a paragraph that overflows
-  // its geometry only ever shapes the words that can actually land.
-  void ensureAnalyzed(FontContext &ctx);
+  // ParagraphLayout drives shaping lazily from here, so a paragraph that
+  // overflows its geometry only ever shapes the words that can actually land.
+  /** Ensures break, bidi, and script analysis without shaping glyphs. */
+  void ensureAnalyzed(FontContext &fontContext);
   // Shapes words [0, wordCount); ascending and idempotent — the breakers
   // call this just ahead of their frontier.
-  void ensureShapedTo(FontContext &ctx, uint32_t wordCount);
-  uint32_t shapedWordCount() const { return m_shapedWords; }
+  /** Lazily shapes words in `[0, wordCount)` in ascending order. */
+  void ensureShapedTo(FontContext &fontContext, uint32_t wordCount);
+  /** Returns the number of words whose glyph data is currently available. */
+  uint32_t shapedWordCount() const { return m_shapedWordCount; }
+  /** Returns whether analysis or paint reconciliation is pending. */
   bool needsShaping() const { return m_dirty || m_paintDirty; }
+  /** Returns the analyzed line-break units in logical text order. */
   const std::vector<Word> &words() const { return m_words; }
 
   // Line-height inputs from the first span's font (the "strut"): returns
@@ -190,11 +217,13 @@ public:
     float ascent = 0;
     float height = 0;
   };
-  Strut strut(FontContext &ctx) const;
+  /** Returns positive ascent and default line height from the first span. */
+  [[nodiscard]] Strut strut(FontContext &fontContext) const;
 
   // Unwrapped single-line width: content plus inter-word glue, the final
   // word's trailing whitespace excluded. Shapes on demand (cache-hot).
-  float naturalWidth(FontContext &ctx);
+  /** Returns cache-hot unwrapped width without final trailing whitespace. */
+  [[nodiscard]] float naturalWidth(FontContext &fontContext);
 
 private:
   void markDirty() { m_dirty = true; }
@@ -204,11 +233,12 @@ private:
     if (!m_dirty)
       m_paintDirty = true;
   }
-  void recordEdit(uint32_t start, uint32_t removed, uint32_t inserted);
+  void recordEdit(uint32_t start, uint32_t removedLength,
+                  uint32_t insertedLength);
   void normalizeSpans();
-  void analyze(FontContext &ctx);
-  void reshapeShapedPrefix(FontContext &ctx);
-  void shapeWordContent(FontContext &ctx, Word &word);
+  void analyze(FontContext &fontContext);
+  void reshapeShapedPrefix(FontContext &fontContext);
+  void shapeWordContent(FontContext &fontContext, Word &word);
 
   std::u16string m_text;
   std::vector<StyleSpan> m_spans;
@@ -225,44 +255,67 @@ private:
     uint32_t end = 0;
     int32_t script = 0;
   };
-  std::vector<ScriptRunEnd> m_scripts;
-  std::vector<uint8_t> m_levels; // per-unit bidi levels; empty when uniform
-  uint8_t m_uniformLevel = 0;
-  uint32_t m_shapedWords = 0; // words [0, m_shapedWords) carry glyphs
-  uint32_t m_shapeSpanCursor = 0, m_shapeScriptCursor = 0;
-  uint32_t m_glueMemoStyle = ~0u; // common-glue memo (" " in one style)
-  std::u16string m_glueMemoText;
-  float m_glueMemoWidth = 0;
+  std::vector<ScriptRunEnd> m_scriptRunEnds;
+  // Per-unit bidirectional levels; empty when every unit uses one level.
+  std::vector<uint8_t> m_bidirectionalLevels;
+  uint8_t m_uniformBidirectionalLevel = 0;
+  // Words [0, m_shapedWordCount) currently carry glyph data.
+  uint32_t m_shapedWordCount = 0;
+  uint32_t m_shapingSpanCursor = 0;
+  uint32_t m_shapingScriptCursor = 0;
+  uint32_t m_cachedWhitespaceStyleIndex = ~0u;
+  std::u16string m_cachedWhitespaceText;
+  float m_cachedWhitespaceWidth = 0;
 
   uint64_t m_revision = 0;
-  std::vector<EditOp> m_edits; // ops [m_editsBase, m_revision)
-  uint64_t m_editsBase = 0;
+  std::vector<TextEdit> m_editHistory;
+  uint64_t m_editHistoryBaseRevision = 0;
 };
 
 // SkParagraph-style builder for the push/pop idiom; thin sugar over
 // Paragraph::appendText.
 class ParagraphBuilder {
 public:
-  explicit ParagraphBuilder(const TextStyle &base) { m_stack.push_back(base); }
+  /** Starts a paragraph with `baseStyle` at the bottom of the style stack. */
+  explicit ParagraphBuilder(const TextStyle &baseStyle) {
+    m_styleStack.push_back(baseStyle);
+  }
 
+  /** Pushes a style used by subsequent text and placeholder additions. */
   ParagraphBuilder &pushStyle(const TextStyle &style) {
-    m_stack.push_back(style);
+    m_styleStack.push_back(style);
     return *this;
   }
-  ParagraphBuilder &pop() {
-    if (m_stack.size() > 1)
-      m_stack.pop_back();
+  /** Pops the active style while preserving the required base style. */
+  ParagraphBuilder &popStyle() {
+    if (m_styleStack.size() > 1)
+      m_styleStack.pop_back();
     return *this;
   }
+  /** Appends UTF-8 text using the active style. */
   ParagraphBuilder &addText(std::string_view utf8) {
-    m_paragraph.appendText(utf8, m_stack.back());
+    m_paragraph.appendText(utf8, m_styleStack.back());
     return *this;
   }
-  Paragraph build() { return std::move(m_paragraph); }
+  /** Appends UTF-16 text using the active style. */
+  ParagraphBuilder &addText(std::u16string_view utf16) {
+    m_paragraph.appendText(utf16, m_styleStack.back());
+    return *this;
+  }
+  /** Appends an inline object using the active style for surrounding glue. */
+  ParagraphBuilder &addPlaceholder(const Placeholder &placeholder) {
+    m_paragraph.appendPlaceholder(placeholder, m_styleStack.back());
+    return *this;
+  }
+  /** Transfers the completed paragraph out of this builder. */
+  [[nodiscard("the completed paragraph should be retained")]] Paragraph
+  build() {
+    return std::move(m_paragraph);
+  }
 
 private:
   Paragraph m_paragraph;
-  std::vector<TextStyle> m_stack;
+  std::vector<TextStyle> m_styleStack;
 };
 
 } // namespace textflow

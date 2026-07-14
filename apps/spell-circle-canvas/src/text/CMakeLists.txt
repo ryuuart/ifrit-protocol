@@ -9,10 +9,10 @@ add_library(TextFlow STATIC
   Shaper.cpp
   Paragraph.cpp
   Flow.cpp
-  Layout.cpp
+  ParagraphLayout.cpp
   KnuthPlass.cpp
   Query.cpp
-  Labels.cpp
+  SingleLineParagraphCache.cpp
 
   include/textflow/TextFlow.h
   include/textflow/Style.h
@@ -20,9 +20,9 @@ add_library(TextFlow STATIC
   include/textflow/Shaper.h
   include/textflow/Paragraph.h
   include/textflow/Flow.h
-  include/textflow/Layout.h
+  include/textflow/ParagraphLayout.h
   include/textflow/Query.h
-  include/textflow/Labels.h
+  include/textflow/SingleLineParagraphCache.h
   include/textflow/Choreograph.h
 )
 
@@ -36,9 +36,10 @@ target_link_libraries(TextFlow
   PUBLIC
     unofficial::skia::skia
     absl::inlined_vector  # Word::segments inline storage (public header)
-    absl::flat_hash_map   # ExclusionFlow / Labels caches (public headers)
-    absl::node_hash_map   # LabelCache (stable Paragraph& across inserts)
+    absl::flat_hash_map   # ExclusionFlow caches (public header)
+    absl::node_hash_map   # stable Paragraph& cache entries across inserts
   PRIVATE
+    absl::strings          # allocation-aware composite cache-key construction
     harfbuzz::harfbuzz
     ICU::i18n
     ICU::uc
@@ -62,7 +63,8 @@ target_link_libraries(TextFlowQt INTERFACE
 add_executable(textflow_test
   test/textflow_test.cpp
 )
-target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest_main)
+target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest_main
+  absl::flat_hash_set)
 add_test(NAME textflow_test COMMAND textflow_test)
 
 add_executable(textflow_bench

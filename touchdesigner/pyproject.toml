@@ -1,0 +1,25 @@
+[project]
+name = "ifrit-protocol"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ifrit-protocol-apps",
+]
+
+[tool.uv.sources]
+ifrit-protocol-apps = { path = "../apps/python"}
+
+[tool.touchdesigner.TDPyEnvManagerContext]
+contextVersion = 2
+createdByVersion = "1.4.1"
+active = true
+mode = "Python vEnv"
+envName = ".venv"
+installPath = "."
+pythonVersion = "3.11"
+autoSetup = false
+autoSetupReqs = []
+autoSetupSyncReqs = false
+extraPaths = []

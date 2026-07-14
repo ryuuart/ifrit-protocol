@@ -1,132 +1,144 @@
-"""
-Canvas-style recording API for authoring SpellCircle scenes in Python.
+"""Canvas-style recording API for authoring SpellCircle scenes.
 
-This module knows nothing about FlatBuffers or the network. It just records
-circles, points, edges, and boxes as plain Python objects — like a painter
-recording draw calls — and hands them to `SCBuilder` (the serialization
-layer, in `builder.py`) only when `to_bytes()` is called. Sending the
-result over the wire is `network.py`'s job. Scripts that author scenes
-should only ever import from here.
-
-Public API
-----------
-SCCanvas — records a scene and serializes it to FlatBuffer bytes on demand.
-PointRef — handle returned by `SCCanvas.point()`, passed to `edge()`/`box()`.
-
-Usage
------
-    canvas = SCCanvas(width=4000, height=4000)
-    sigil = canvas.circle("FLARE SIGIL", 2000, 2000, 1150, text_start=0.62)
-    p1 = canvas.point(sigil, 0.10)
-    p2 = canvas.point(sigil, 0.60)
-    canvas.edge(p1, p2)
-    canvas.box("ANGER", p1, active=0.4)
-
-    from SpellCircle.network import send_once
-    send_once(canvas.to_bytes(), host="127.0.0.1", port=27015)
+The canvas records plain Python values. It delegates wire-format details to
+``SceneBuilder`` only when ``to_bytes`` is called, and leaves transport to
+``network.py``.
 """
 
-from .builder import CircleSpec, SCBuilder
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .builder import CircleDefinition, FlatBufferOffset, SceneBuilder
 
 
-class PointRef:
-    """A recorded Point: a fractional `position` [0, 1] along `circle`'s
-    perimeter (or, for a radius-0 anchor circle, an arbitrary (x, y),
-    ignoring `position`). Returned by `SCCanvas.point()`; pass it to
-    `edge()`/`box()` to attach geometry to it."""
+@dataclass(frozen=True, slots=True)
+class PointReference:
+    """References a fractional position around a recorded circle."""
 
-    __slots__ = ("circle", "position", "value")
-
-    def __init__(self, circle, position, value):
-        self.circle = circle
-        self.position = position
-        self.value = value
+    circle: CircleDefinition
+    position: float = 0.0
+    value: str = ""
 
 
-class SCCanvas:
-    """Records a SpellCircle scene as plain Python objects and builds the
-    FlatBuffers `Scene` only when asked. See module docstring for usage."""
+class SpellCircleCanvas:
+    """Records scene primitives and serializes them on demand."""
 
-    def __init__(self, width=4000.0, height=4000.0):
+    def __init__(self, width: float = 4000.0, height: float = 4000.0) -> None:
+        """Creates an empty scene in the supplied authoring coordinate space."""
         self.width = float(width)
         self.height = float(height)
-        self._circles = []
-        self._edges = []
-        self._boxes = []
+        self._circles: list[CircleDefinition] = []
+        self._edges: list[tuple[PointReference, PointReference]] = []
+        self._boxes: list[tuple[str, PointReference, float]] = []
 
     @property
-    def circles(self):
+    def circles(self) -> tuple[CircleDefinition, ...]:
+        """Returns an immutable snapshot of visible circles."""
         return tuple(self._circles)
 
     @property
-    def edges(self):
+    def edges(self) -> tuple[tuple[PointReference, PointReference], ...]:
+        """Returns an immutable snapshot of recorded edges."""
         return tuple(self._edges)
 
     @property
-    def boxes(self):
+    def boxes(self) -> tuple[tuple[str, PointReference, float], ...]:
+        """Returns an immutable snapshot of recorded boxes."""
         return tuple(self._boxes)
 
-    def circle(self, name, x, y, radius, *, text_start=0.75, active=0.0):
-        """Add a visible circle to the scene and return a handle to it.
+    def circle(
+        self,
+        name: str,
+        center_x: float,
+        center_y: float,
+        radius: int,
+        *,
+        text_start: float = 0.75,
+        active: float = 0.0,
+    ) -> CircleDefinition:
+        """Adds a visible circle and returns its reusable definition."""
+        circle = CircleDefinition(
+            name=name,
+            center_x=float(center_x),
+            center_y=float(center_y),
+            radius=int(radius),
+            text_start=float(text_start),
+            active=float(active),
+        )
+        self._circles.append(circle)
+        return circle
 
-        `active` is the background fill alpha/intensity in [0, 1]; 0 draws
-        no fill. A `radius` of 0 makes it an invisible anchor — see `anchor()`.
-        """
-        spec = CircleSpec(name, x, y, radius, text_start=text_start, active=active)
-        self._circles.append(spec)
-        return spec
+    def anchor(self, x_position: float, y_position: float) -> CircleDefinition:
+        """Creates an invisible radius-zero anchor at an arbitrary position."""
+        return CircleDefinition(
+            name="",
+            center_x=float(x_position),
+            center_y=float(y_position),
+            radius=0,
+        )
 
-    def anchor(self, x, y):
-        """An invisible radius-0 circle for pinning a point/box at an
-        arbitrary (x, y) rather than along a visible circle's perimeter.
-        Unlike `circle()`, this is not added to the scene's rendered circle
-        list — it only exists to be passed to `point()`."""
-        return CircleSpec("", x, y, 0)
+    def point(
+        self,
+        circle: CircleDefinition,
+        position: float = 0.0,
+        value: str = "",
+    ) -> PointReference:
+        """Creates a point reference, optionally carrying its own text label."""
+        return PointReference(circle=circle, position=float(position), value=value)
 
-    def point(self, circle, position=0.0, value=""):
-        """A fractional position along `circle`'s perimeter, optionally
-        carrying its own `value` label (drawn like a box). Does nothing on
-        its own until passed to `edge()` or `box()`."""
-        return PointRef(circle, position, value)
-
-    def edge(self, first, second):
-        """Draw a line connecting two points."""
+    def edge(self, first: PointReference, second: PointReference) -> None:
+        """Records a line connecting two point references."""
         self._edges.append((first, second))
 
-    def box(self, value, point, *, active=0.0):
-        """Anchor a labelled box to a point.
+    def box(
+        self,
+        value: str,
+        point: PointReference,
+        *,
+        active: float = 0.0,
+    ) -> None:
+        """Records a labelled box anchored to ``point``."""
+        self._boxes.append((value, point, float(active)))
 
-        `active` is the background fill alpha/intensity in [0, 1]; 0 draws
-        no fill.
-        """
-        self._boxes.append((value, point, active))
+    def to_bytes(self) -> bytes:
+        """Serializes the current recording into a FlatBuffers Scene."""
+        scene_builder = SceneBuilder()
+        point_offsets_by_identity: dict[int, FlatBufferOffset] = {}
 
-    def to_bytes(self):
-        """Serialize everything recorded so far into a FlatBuffers `Scene`."""
-        builder = SCBuilder()
-        built_points = {}
+        def build_point(point: PointReference) -> FlatBufferOffset:
+            """Builds each shared PointReference exactly once per scene."""
+            identity = id(point)
+            point_offset = point_offsets_by_identity.get(identity)
+            if point_offset is None:
+                point_offset = scene_builder.build_point(
+                    point.circle, point.position, point.value
+                )
+                point_offsets_by_identity[identity] = point_offset
+            return point_offset
 
-        def build_point(ref):
-            # Memoize by identity so the same PointRef shared between e.g. an
-            # edge and a box (a box "riding" an edge's endpoint) resolves to
-            # one Point offset instead of a redundant duplicate.
-            off = built_points.get(id(ref))
-            if off is None:
-                off = builder.build_point(ref.circle, ref.position, ref.value)
-                built_points[id(ref)] = off
-            return off
-
-        circle_offsets = [builder.build_circle(c) for c in self._circles]
+        circle_offsets = [
+            scene_builder.build_circle(circle) for circle in self._circles
+        ]
         edge_offsets = [
-            builder.build_edge(build_point(a), build_point(b))
-            for a, b in self._edges
+            scene_builder.build_edge(build_point(first), build_point(second))
+            for first, second in self._edges
         ]
         box_offsets = [
-            builder.build_box(value, build_point(pt), active)
-            for value, pt, active in self._boxes
+            scene_builder.build_box(value, build_point(point), active)
+            for value, point, active in self._boxes
         ]
 
-        return builder.build_scene_bytes(
-            circle_offsets, edge_offsets, box_offsets,
-            self.width, self.height,
+        return scene_builder.build_scene_bytes(
+            circle_offsets,
+            edge_offsets,
+            box_offsets,
+            self.width,
+            self.height,
         )
+
+
+# Existing TouchDesigner projects import these names directly from this
+# module, so keep non-advertised aliases while the public API migrates.
+PointRef = PointReference
+SCCanvas = SpellCircleCanvas

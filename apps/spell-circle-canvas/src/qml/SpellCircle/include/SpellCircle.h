@@ -11,19 +11,23 @@
  */
 class SpellCircle : public QCanvasPainterItem {
 public:
-  SpellCircle(QQuickItem *parent = nullptr);
+  explicit SpellCircle(QQuickItem *parent = nullptr);
 
   /** Creates the render-thread renderer for this item. */
   QCanvasPainterItemRenderer *createItemRenderer() const override;
 
+  /** Returns the scene model currently observed by this item. */
   SpellCircleModel *model() const { return m_model; }
 
-  /** Accepts a plain QObject* for QML property compatibility; casts internally. */
+  /** Accepts a plain QObject* for QML property compatibility; casts internally.
+   */
   void setModel(QObject *model);
 
+  /** Returns the graphics configuration currently observed by this item. */
   GraphicsConfig *config() const { return m_config; }
 
-  /** Accepts a plain QObject* for QML property compatibility; casts internally. */
+  /** Accepts a plain QObject* for QML property compatibility; casts internally.
+   */
   void setConfig(QObject *config);
 
 signals:

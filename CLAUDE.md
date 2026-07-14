@@ -1,124 +1,89 @@
-# CLAUDE.md
+# Repository guide
 
-This file provides guidance to Claude Code when working with code in this repository.
-
-## Repository layout
+## Layout
 
 ```
-apps/spell-circle/   — Qt/C++ app (builds, renders, and publishes spell circles)
-apps/python/
-  SpellCircle/       — Python package (FlatBuffers bindings + canvas/network API)
-    test/            — Demo/test scripts that send scenes over UDP
-touchdesigner/        — TouchDesigner project (.toe) + its Python scripting workspace
-  scripts/            — Python env (uv-managed) used for TD DAT/CHOP scripting
+apps/spell-circle-canvas/  Qt/C++ receiver, renderer, gallery, and TextFlow
+apps/python/               Python scene-authoring and UDP transport package
+touchdesigner/             TouchDesigner project and editor tooling
 ```
 
-## Build (apps/spell-circle)
+Generated files are `apps/spell-circle-canvas/src/network/include/SpellCircle_generated.h`
+and the schema modules `apps/python/SpellCircle/{Box,Circle,Edge,Point,Scene,Vec2}.py`.
+Regenerate them after editing `SpellCircle.fbs`; do not hand-edit them.
 
-Configure (first time or after CMakeLists changes):
-```
-cd apps/spell-circle
-cmake --preset main
-```
+## Build and test
 
-Build (Debug by default):
-```
-cmake --build apps/spell-circle/build --config Debug
-```
+From `apps/spell-circle-canvas`:
 
-Run:
-```
-apps/spell-circle/build/bin/Debug/SpellCircle
+```sh
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
 ```
 
-The `main` preset (`CMakeUserPresets.json`) inherits `vcpkg` + `qt` + `ninja` presets. It assumes Qt 6.11.1 at `~/.local/opt/Qt/6.11.1/macos` and vcpkg at `~/.local/share/vcpkg`.
+The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
+`CMakeUserPresets.json`. The primary executables are `SpellCircle`,
+`TextFlowGallery`, `textflow_test`, `textflow_bench`, and `textflow_demo`.
 
-## FlatBuffers code generation
+## FlatBuffers generation
 
-After editing `apps/spell-circle/src/network/SpellCircle.fbs`, regenerate both the C++ header and the Python bindings:
+From the repository root:
+
+```sh
+flatc --cpp -o apps/spell-circle-canvas/src/network/include \
+  apps/spell-circle-canvas/src/network/SpellCircle.fbs
+flatc --python -o apps/python \
+  apps/spell-circle-canvas/src/network/SpellCircle.fbs
 ```
-flatc --cpp -o apps/spell-circle/src/network/include apps/spell-circle/src/network/SpellCircle.fbs
-flatc --python -o apps/python apps/spell-circle/src/network/SpellCircle.fbs
-```
-
-The Python bindings land in `apps/python/SpellCircle/` (the generated `Box.py`, `Circle.py`, etc.).
-
-## Testing with the Python scripts
-
-Send a single UDP test packet to the running app:
-```
-python apps/python/SpellCircle/test/send_spell_circles.py [--host 127.0.0.1] [--port 27015] [--seed N] [--canvas UNITS] [--circles N] [--boxes N]
-```
-
-Stream an animated scene at ~60 fps:
-```
-python apps/python/SpellCircle/test/animate_spell_circles.py [--host 127.0.0.1] [--port 27015] [--fps N]
-```
-
-`--canvas` sets the authoring coordinate space (default 4000); the app scales it to the native 4K texture automatically. `--seed` seeds the RNG for a reproducible layout (omit for random). Requires `pip install flatbuffers`.
-
-## Python SpellCircle package
-
-`apps/python/SpellCircle/` is the Python package for authoring and sending scenes:
-
-| Module | Purpose |
-|---|---|
-| `canvas.py` | `SCCanvas` — records circles, points, edges, boxes; serializes on demand |
-| `builder.py` | `SCBuilder` — encodes scene data into a FlatBuffers `Scene` |
-| `network.py` | `SCSender`, `send_once` — UDP transport |
-
-`__init__.py` re-exports the full public API, so scripts can do `from SpellCircle import SCCanvas, SCSender, send_once`.
 
 ## Architecture
 
-The app receives spell-circle scene data over UDP, renders it to an offscreen canvas using Qt CanvasPainter, and publishes the result to other apps via Syphon (macOS Metal texture sharing).
+Incoming UDP datagrams flow through `NetworkManager` verification into
+`SpellCircleModel`, which stores the decoded scene in an `entt::registry`.
+`SpellCircleRenderer` resolves model entities to native canvas coordinates and
+delegates drawing to one of two `CanvasSceneBackend` implementations:
 
-**Data flow:**
-```
-UDP packet (FlatBuffers Scene)
-  → NetworkManager         (verifies + emits signal)
-  → SpellCircleModel       (scales geometry to native coords, stores CircleGeometry, appends feed entries)
-  → SpellCircle (QML item) → SpellCircleRenderer (render thread)
-      → draws circles + text-along-path labels onto 4K offscreen canvas
-      → publishes Metal texture (with mipmaps) to Syphon server "SpellCircle"
-```
+- `SkiaSceneBackend` draws with Graphite on Qt's Metal device and uses TextFlow.
+- `QCanvasPainterSceneBackend` is the always-available fallback.
 
-**CMake targets / QML modules:**
+Both render to a native-size `QCanvasOffscreenCanvas`; `SyphonBridge` publishes
+that Metal texture. The visible QML item blits the registered image and handles
+zoom and pan independently of scene rerendering.
 
-| Target | QML URI | What it is |
-|---|---|---|
-| `SpellCircleNetwork` (shared lib) | — | `NetworkManager` + `SpellCircleModel` |
-| `SpellCircleModels` (QML module) | `SpellCircle.Models` | `Models` QML singleton (owns network + model) |
-| `SpellCircleCanvas` (QML module) | `SpellCircle.Canvas` | `SpellCircle` item + renderer + `TextPathPainter` + `SyphonBridge` |
-| `SpellCircle` (app executable) | `qtquick1` | `main.cpp`, `Main.qml`, `SquareButton.qml` |
+The main QML lives under `src/qml/app/`. Reusable controls live in its
+`components/` directory. The `SpellCircle.Canvas` module and its C++ backends
+live under `src/qml/SpellCircle/`.
 
-**Key classes:**
-- `Models` (`apps/spell-circle/src/network/include/Models.h`) — QML singleton (`Models.spellCircleModel`) that wires `NetworkManager` → `SpellCircleModel`.
-- `SpellCircleModel` (`apps/spell-circle/src/network/include/SpellCircleModel.h`) — parses FlatBuffers scenes, scales geometry from the author canvas (via `Scene.width`/`height`) to `canvasSize()` (set from `GraphicsConfig::canvasSize`, default 4000), stores resolved geometry, and exposes a timestamped log feed for the sidebar. Changing the canvas size discards existing geometry (it was scaled into the old size) but leaves the feed log intact.
-- `SpellCircleRenderer` (`apps/spell-circle/src/qml/SpellCircle/`) — render-thread object; `synchronize()` copies circle geometry and `GraphicsConfig` style values (including `canvasSize`) from the main thread; `prePaint()` draws to a `QCanvasOffscreenCanvas` sized to `canvasSize`, discarding and recreating it whenever that size changes; `paint()` blits it (with mipmaps) into the DPI-scaled preview; `render()` publishes the texture to Syphon.
-- `TextPathPainter` (`apps/spell-circle/src/qml/SpellCircle/include/TextPathPainter.h`) — places each glyph tangent to a `QPainterPath` at a fractional arc-length offset; caches per-character advance widths.
-- `SyphonBridge` (`apps/spell-circle/src/qml/SpellCircle/SyphonBridge.mm`) — ObjC++ wrapper around `SyphonMetalServer`; keep ObjC out of headers by using a pimpl (`SyphonBridgePrivate`).
-
-**UI (`apps/spell-circle/src/Main.qml`):**
-- Collapsible sidebar shows the `SpellCircleModel` log feed.
-- Main area is a zoomable/pannable viewport (sized to `Models.graphicsConfig.canvasSize`, default 4000×4000) with a checkerboard transparency background. Supports mouse-wheel zoom, two-finger trackpad scroll (pan) or ⌘/⌃ + scroll (zoom), and native macOS pinch-to-zoom.
-- The `SpellCircle` QML element is placed inside the canvas and sized to match it.
-- "Reset" button calls `Models.spellCircleModel.clear()`.
-
-## Network protocol
-
-UDP port **27015** (default). Each datagram is a FlatBuffers-encoded `SpellCircle.Scene` (defined in `apps/spell-circle/src/network/SpellCircle.fbs`). The verifier in `NetworkManager::onReadyRead` drops malformed packets before they reach the model.
-
-## TouchDesigner scripting workspace (`touchdesigner/`)
-
-`touchdesigner/scripts/` holds the Python project (`pyproject.toml`, `.python-version` pinned to 3.11, `uv`-managed `.venv/`) used for editing TouchDesigner DAT/CHOP scripts outside of TD itself. TD's Python Env Manager extension owns `touchdesigner/TDPyEnvManagerContext.yaml` (env name, install path) and auto-regenerates `touchdesigner/scripts/.vscode/touchdesigner.code-workspace`.
-
-VSCode's language-server config (interpreter path + extra analysis paths) is **generated, not committed** — it embeds this machine's absolute `TouchDesigner.app` path, which isn't portable across machines/users. Run:
+TextFlow is a Qt-independent library under `src/text/`. Its main pipeline is:
 
 ```
-python3 touchdesigner/scripts/configure_editors.py
+Paragraph -> ICU analysis -> cached HarfBuzz words -> FlowGeometry
+          -> LineBreakStrategy -> ParagraphLayout -> draw/drawBatched
 ```
 
-It locates TD's bundled interpreter under `/Applications/TouchDesigner.app/Contents/Frameworks/Python.framework/Versions/Current`, and if `scripts/.venv` doesn't exist yet, first creates it via `uv sync --python <that interpreter>`. It then writes `touchdesigner/.vscode/settings.json` — `python.defaultInterpreterPath` set to TD's bundled interpreter, plus `python.analysis.extraPaths`/`python.autoComplete.extraPaths` pointing at both TD's `site-packages` and `scripts/.venv/lib/python3.11/site-packages`.
+`ParagraphLayoutOptions` groups line metrics, hyphenation, justification,
+Knuth–Plass, overflow, and path-rendering concerns. SpellCircle-specific ring
+label geometry belongs in `src/qml/SpellCircle/SceneLabels.*`; the core exposes
+only reusable `SingleLineParagraphCache` and `layoutSingleLine()` support.
 
-The settings file is gitignored (`touchdesigner/.gitignore`) and scoped to the `touchdesigner/` folder root, so it only applies when that folder (not `scripts/`) is opened as the project root, and won't leak TD's interpreter onto `apps/python/`. Re-run the script whenever the venv is recreated or TD is reinstalled elsewhere; scripts run inside TD's embedded interpreter at runtime, the local `.venv` only exists for editor autocomplete/type-checking parity. (Zed's basedpyright integration didn't pick up this config reliably, so Zed isn't set up here.)
+## Python API
+
+`apps/python/SpellCircle` exposes:
+
+- `SpellCircleCanvas` and `PointReference` for scene authoring;
+- `CircleDefinition` and `SceneBuilder` for lower-level serialization;
+- `SceneSender` and `send_once` for UDP transport.
+
+Example scripts are under `apps/python/SpellCircle/test/`:
+
+```sh
+python3 apps/python/SpellCircle/test/send_spell_circles.py --seed 1
+python3 apps/python/SpellCircle/test/animate_spell_circles.py --fps 60
+```
+
+## TouchDesigner
+
+`touchdesigner/scripts/configure_editors.py` creates/synchronizes the local
+TouchDesigner-compatible virtual environment and writes machine-local VS Code
+settings. The generated environment and editor files are ignored by Git.

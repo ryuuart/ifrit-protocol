@@ -18,14 +18,14 @@ namespace textflow {
 // straight segments in any direction or spans of an SkPath contour.
 struct LineInterval {
   // Straight form: pen starts at `origin` (a baseline point) and travels
-  // along unit vector `dir` for at most `length`.
+  // along unit vector `direction` for at most `length`.
   SkPoint origin = {0, 0};
-  SkVector dir = {1, 0};
+  SkVector direction = {1, 0};
   float length = 0;
 
   // Path form: when `contour` is set, the pen instead travels the contour's
   // arc length starting at `contourStart`; glyphs are rotated to the local
-  // tangent (rendered with RSXform runs). `origin`/`dir` are ignored.
+  // tangent (rendered with RSXform runs). `origin`/`direction` are ignored.
   sk_sp<SkContourMeasure> contour;
   float contourStart = 0;
 
@@ -49,10 +49,10 @@ public:
 
   // Intervals for line `index` (0-based), given the line's height and the
   // baseline's offset below the line top. Returns false when the geometry is
-  // exhausted (no line `index` exists); an empty `out` with a true return
+  // exhausted (no line `index` exists); an empty `intervals` with a true return
   // means "this line has no room, try the next one".
   virtual bool lineIntervals(int index, float lineHeight, float ascent,
-                             std::vector<LineInterval> &out) = 0;
+                             std::vector<LineInterval> &intervals) = 0;
 
   // True when every line yields one interval of the same width (TeX's
   // model — BlockFlow and friends). Knuth-Plass uses this to merge paths
@@ -65,13 +65,16 @@ public:
 // Classic paragraph block: horizontal lines filling a rectangle.
 class BlockFlow : public FlowGeometry {
 public:
-  explicit BlockFlow(const SkRect &rect) : m_rect(rect) {}
+  /** Creates horizontal line bands inside `bounds`. */
+  explicit BlockFlow(const SkRect &bounds) : m_bounds(bounds) {}
+  /** Returns the interval for a horizontal line band when it fits. */
   bool lineIntervals(int index, float lineHeight, float ascent,
-                     std::vector<LineInterval> &out) override;
+                     std::vector<LineInterval> &intervals) override;
+  /** Reports that every produced interval has the block width. */
   bool uniformIntervals() const override { return true; }
 
 private:
-  SkRect m_rect;
+  SkRect m_bounds;
 };
 
 // A rectangle with exclusion shapes punched out (CSS float / shape-outside
@@ -94,39 +97,51 @@ public:
     SkPath path;
     SkPoint pathOffset = {0, 0};
 
-    static Shape Circle(const SkRect &bounds, float padding = 0) {
+    /** Creates a circular exclusion inscribed in `bounds`. */
+    [[nodiscard]] static Shape fromCircle(const SkRect &bounds,
+                                          float padding = 0) {
       return {kCircle, bounds, padding, {}, {0, 0}};
     }
-    static Shape Rect(const SkRect &bounds, float padding = 0) {
+    /** Creates an axis-aligned rectangular exclusion. */
+    [[nodiscard]] static Shape fromRectangle(const SkRect &bounds,
+                                             float padding = 0) {
       return {kRect, bounds, padding, {}, {0, 0}};
     }
-    static Shape Path(const SkPath &path, float padding = 0) {
+    /** Creates an exclusion from an arbitrary filled SkPath. */
+    [[nodiscard]] static Shape fromPath(const SkPath &path, float padding = 0) {
       return {kPath, SkRect::MakeEmpty(), padding, path, {0, 0}};
     }
   };
 
-  // Defined out of line: FlatPath is incomplete here.
-  explicit ExclusionFlow(const SkRect &rect);
+  /** Creates horizontal line bands in `bounds`, minus configured shapes. */
+  explicit ExclusionFlow(const SkRect &bounds);
+  /** Destroys private flattened-path cache entries. */
   ~ExclusionFlow() override;
 
+  /** Returns the mutable list of shapes subtracted from each line band. */
   std::vector<Shape> &shapes() { return m_shapes; }
-  const SkRect &rect() const { return m_rect; }
+  /** Returns the outer layout bounds. */
+  const SkRect &bounds() const { return m_bounds; }
 
   // Intervals narrower than this are dropped (slivers between shapes).
-  void setMinIntervalWidth(float w) { m_minIntervalWidth = w; }
+  /** Drops exclusion-created slivers narrower than `minimumWidth`. */
+  void setMinIntervalWidth(float minimumWidth) {
+    m_minIntervalWidth = minimumWidth;
+  }
 
+  /** Produces the remaining horizontal intervals for a line band. */
   bool lineIntervals(int index, float lineHeight, float ascent,
-                     std::vector<LineInterval> &out) override;
+                     std::vector<LineInterval> &intervals) override;
 
 private:
   struct FlatPath; // flattened-polygon cache entry (Flow.cpp)
-  const FlatPath &flattened(const SkPath &path);
+  const FlatPath &flattenedPathFor(const SkPath &path);
 
-  SkRect m_rect;
+  SkRect m_bounds;
   std::vector<Shape> m_shapes;
   float m_minIntervalWidth = 8;
   // unique_ptr values: FlatPath addresses stay stable across rehashes.
-  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> m_flatCache;
+  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> m_flattenedPathCache;
 };
 
 // Vertical-RL block (CJK book layout): each "line" is a top-to-bottom
@@ -136,27 +151,34 @@ private:
 // Pair with Paragraph::setWritingMode(WritingMode::kVerticalRL).
 class VerticalBlockFlow : public FlowGeometry {
 public:
-  explicit VerticalBlockFlow(const SkRect &rect) : m_rect(rect) {}
+  /** Creates top-to-bottom columns advancing right-to-left in `bounds`. */
+  explicit VerticalBlockFlow(const SkRect &bounds) : m_bounds(bounds) {}
+  /** Returns the interval for one vertical column when it fits. */
   bool lineIntervals(int index, float lineHeight, float ascent,
-                     std::vector<LineInterval> &out) override;
+                     std::vector<LineInterval> &intervals) override;
+  /** Reports that every produced column has the block height. */
   bool uniformIntervals() const override { return true; }
 
 private:
-  SkRect m_rect;
+  SkRect m_bounds;
 };
 
 // Fully explicit geometry: the caller supplies every line's intervals —
 // arbitrary positions, directions, and counts (the Pretext demos).
 class LineSetFlow : public FlowGeometry {
 public:
+  /** Creates an initially empty explicit geometry. */
   LineSetFlow() = default;
+  /** Takes ownership of every caller-specified line interval. */
   explicit LineSetFlow(std::vector<std::vector<LineInterval>> lines)
       : m_lines(std::move(lines)) {}
 
+  /** Returns the mutable explicit line collection. */
   std::vector<std::vector<LineInterval>> &lines() { return m_lines; }
 
+  /** Copies the requested explicit line into `intervals`. */
   bool lineIntervals(int index, float lineHeight, float ascent,
-                     std::vector<LineInterval> &out) override;
+                     std::vector<LineInterval> &intervals) override;
 
 private:
   std::vector<std::vector<LineInterval>> m_lines;
@@ -165,11 +187,14 @@ private:
 // Each contour of each path becomes one line; glyphs follow the curve.
 class PathFlow : public FlowGeometry {
 public:
+  /** Measures every contour of `path` as a separate line. */
   explicit PathFlow(const SkPath &path);
+  /** Appends every contour of another path as additional lines. */
   void addPath(const SkPath &path);
 
+  /** Returns the measured contour interval at `index`. */
   bool lineIntervals(int index, float lineHeight, float ascent,
-                     std::vector<LineInterval> &out) override;
+                     std::vector<LineInterval> &intervals) override;
 
 private:
   std::vector<sk_sp<SkContourMeasure>> m_contours;

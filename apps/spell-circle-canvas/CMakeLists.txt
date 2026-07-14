@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(qtquick1 VERSION 0.1 LANGUAGES CXX)
+project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
 set(QT_QML_GENERATE_QMLLS_INI ON) # QMLLS Language Server config
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Redirects final executables (.exe, ELF binaries)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -18,17 +20,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # Redirects QT modules
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
-# Whether SpellCircleRenderer is built with the Skia Graphite (Metal)
-# offscreen-canvas backend compiled in — a build-time swap between two
-# implementations of the same CanvasSceneBackend interface (see
-# src/qml/SpellCircle/include/CanvasSceneBackend.h and
-# src/qml/SpellCircle/CMakeLists.txt), not a user-facing runtime setting.
-# The generic Skia/Metal GPU interop plumbing lives under
-# src/platform/skia/, only added when this is ON. When ON,
-# SpellCircleRenderer always draws through the Skia backend in place of
-# QCanvasPainter (right now that means a handful of proof-of-concept
-# circles, not the real scene — this is a development flag for the Skia
-# backend itself, hence defaulting OFF).
+# Compiles the Skia Graphite (Metal) CanvasSceneBackend and its generic GPU
+# interop plumbing under src/platform/skia. At runtime the renderer uses it
+# when a compatible Graphite context can be created and otherwise falls back
+# to QCanvasPainter. Turning this off removes the Graphite implementation and
+# leaves the same renderer-facing factory backed by its always-null stub.
 option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal) offscreen-canvas backend" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts CanvasPainter Network GuiPrivate)

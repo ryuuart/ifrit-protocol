@@ -26,27 +26,29 @@ using namespace gallery;
 
 class GalleryViewRenderer : public QQuickRhiItemRenderer {
 public:
-  void initialize(QRhiCommandBuffer *cb) override;
+  void initialize(QRhiCommandBuffer *commandBuffer) override;
   void synchronize(QQuickRhiItem *item) override;
-  void render(QRhiCommandBuffer *cb) override;
+  void render(QRhiCommandBuffer *commandBuffer) override;
 
 private:
-  void renderScene(SkCanvas *canvas, float dpr, QSize logical);
+  /// Draws the selected scene in logical coordinates onto an Skia canvas.
+  void renderScene(SkCanvas *canvas, float devicePixelRatio, QSize logicalSize);
 
   std::vector<std::unique_ptr<Scene>> m_scenes;
-  std::unique_ptr<textflow::FontContext> m_ctx;
+  std::unique_ptr<textflow::FontContext> m_fontContext;
 #ifdef TEXTFLOW_GALLERY_GPU
-  std::unique_ptr<SkiaGraphiteContext> m_graphite;
-  bool m_graphiteTried = false;
+  std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
+  bool m_graphiteInitializationAttempted = false;
 #endif
-  std::vector<uint32_t> m_rasterPixels; // CPU fallback framebuffer
+  std::vector<uint32_t> m_rasterPixels; // CPU fallback framebuffer.
 
-  SceneParams m_params;
-  QString m_paramText, m_paramFamily;
-  int m_paramWeight = 0;
+  SceneParams m_sceneParameters;
+  QString m_sceneText;
+  QString m_fontFamily;
+  int m_fontWeight = 0;
   int m_sceneIndex = 0;
   bool m_animating = true;
-  bool m_useGpu = true;
+  bool m_useGpuBackend = true;
 
   // Resolved (family, weight) → typeface, cached: re-cloning a variable
   // instance every frame would mint fresh uniqueIDs and defeat the shape
@@ -54,31 +56,34 @@ private:
   QString m_resolvedFamily{QStringLiteral("\0")};
   int m_resolvedWeight = -1;
   sk_sp<SkTypeface> m_resolvedTypeface;
-  std::vector<SkPoint> m_clicks;
+  std::vector<SkPoint> m_pendingClicks;
   QSize m_logicalSize;
 
   QElapsedTimer m_clock;
-  double m_pausedAt = 0;
-  int m_frame = 0;
-  int m_lastScene = -1;
+  double m_pausedSeconds = 0;
+  int m_frameNumber = 0;
+  int m_lastSceneIndex = -1;
 
   // Stats accumulated in render(), copied back in the next synchronize().
-  double m_layoutUsEma = 0, m_recordUsEma = 0, m_submitUsEma = 0;
-  double m_fpsEma = 0;
-  uint64_t m_reshaped = 0;
-  int m_runs = 0, m_glyphs = 0;
-  QElapsedTimer m_interFrame;
-  int m_statFrames = 0;
+  double m_layoutMicrosecondsAverage = 0;
+  double m_recordMicrosecondsAverage = 0;
+  double m_submitMicrosecondsAverage = 0;
+  double m_framesPerSecondAverage = 0;
+  uint64_t m_reshapedWordCount = 0;
+  int m_runCount = 0;
+  int m_glyphCount = 0;
+  QElapsedTimer m_interFrameTimer;
+  int m_statisticsFrameCount = 0;
   bool m_statsDirty = false;
 };
 
-void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*cb*/) {
+void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
 #ifdef TEXTFLOW_GALLERY_GPU
-  if (!m_graphiteTried) {
-    m_graphiteTried = true;
+  if (!m_graphiteInitializationAttempted) {
+    m_graphiteInitializationAttempted = true;
     // Same pattern as the SpellCircle app: Graphite built on Qt's own Metal
     // device/queue, so its submissions order before Qt's scene-graph pass.
-    m_graphite = SkiaGraphiteContext::create(rhi());
+    m_graphiteContext = SkiaGraphiteContext::create(rhi());
   }
 #endif
 }
@@ -89,29 +94,35 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
     m_scenes = makeScenes();
 
   m_sceneIndex = view->m_sceneIndex;
-  m_animating = view->m_animating;
-  m_useGpu = view->m_gpu;
-  m_paramWeight = view->m_fontWeight;
-  m_paramText = view->m_sceneText;
-  m_paramFamily = view->m_fontFamily;
-  m_params.text = m_paramText;
-  m_params.fontSize = static_cast<float>(view->m_fontSize);
-  m_params.alignment =
-      static_cast<textflow::Alignment>(std::clamp(view->m_alignmentIndex, 0, 3));
-  m_params.breaker =
-      static_cast<textflow::Breaker>(std::clamp(view->m_breakerIndex, 0, 1));
-  m_clicks.insert(m_clicks.end(), view->m_pendingClicks.begin(),
-                  view->m_pendingClicks.end());
+  if (m_animating != view->m_animating) {
+    if (m_animating && m_clock.isValid())
+      m_pausedSeconds += m_clock.elapsed() / 1000.0;
+    m_clock.restart();
+    m_animating = view->m_animating;
+  }
+  m_useGpuBackend = view->m_gpu;
+  m_fontWeight = view->m_fontWeight;
+  m_sceneText = view->m_sceneText;
+  m_fontFamily = view->m_fontFamily;
+  m_sceneParameters.text = m_sceneText;
+  m_sceneParameters.fontSize = static_cast<float>(view->m_fontSize);
+  m_sceneParameters.alignment = static_cast<textflow::TextAlignment>(
+      std::clamp(view->m_alignmentIndex, 0, 3));
+  m_sceneParameters.lineBreakStrategy =
+      static_cast<textflow::LineBreakStrategy>(
+          std::clamp(view->m_lineBreakStrategyIndex, 0, 1));
+  m_pendingClicks.insert(m_pendingClicks.end(), view->m_pendingClicks.begin(),
+                         view->m_pendingClicks.end());
   view->m_pendingClicks.clear();
-  m_logicalSize = QSize(static_cast<int>(view->width()),
-                        static_cast<int>(view->height()));
+  m_logicalSize =
+      QSize(static_cast<int>(view->width()), static_cast<int>(view->height()));
 
   // Ship last frame's stats back (GUI thread is blocked right now).
   if (m_statsDirty) {
     m_statsDirty = false;
     const char *mode =
 #ifdef TEXTFLOW_GALLERY_GPU
-        (m_graphite && m_useGpu) ? "Graphite GPU" : "CPU raster";
+        (m_graphiteContext && m_useGpuBackend) ? "Graphite GPU" : "CPU raster";
 #else
         "CPU raster";
 #endif
@@ -120,146 +131,156 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
             "%1 · %2 fps · layout %3 µs · record %4 ms · submit %5 ms\n"
             "%6 runs · %7 reshaped/frame%8")
             .arg(QLatin1String(mode))
-            .arg(m_fpsEma, 0, 'f', 0)
-            .arg(m_layoutUsEma, 0, 'f', 0)
-            .arg(m_recordUsEma / 1000.0, 0, 'f', 2)
-            .arg(m_submitUsEma / 1000.0, 0, 'f', 2)
-            .arg(m_runs)
-            .arg(m_reshaped)
-            .arg(m_glyphs > 0
-                     ? QStringLiteral(" · %1 letters").arg(m_glyphs)
+            .arg(m_framesPerSecondAverage, 0, 'f', 0)
+            .arg(m_layoutMicrosecondsAverage, 0, 'f', 0)
+            .arg(m_recordMicrosecondsAverage / 1000.0, 0, 'f', 2)
+            .arg(m_submitMicrosecondsAverage / 1000.0, 0, 'f', 2)
+            .arg(m_runCount)
+            .arg(m_reshapedWordCount)
+            .arg(m_glyphCount > 0
+                     ? QStringLiteral(" · %1 letters").arg(m_glyphCount)
                      : QString());
     QMetaObject::invokeMethod(view, &GalleryView::statsChanged,
                               Qt::QueuedConnection);
   }
 }
 
-void GalleryViewRenderer::renderScene(SkCanvas *canvas, float dpr,
-                                      QSize logical) {
+void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
+                                      QSize logicalSize) {
   using Clock = std::chrono::steady_clock;
-  if (!m_ctx)
-    m_ctx = std::make_unique<textflow::FontContext>(
+  if (!m_fontContext)
+    m_fontContext = std::make_unique<textflow::FontContext>(
         SkFontMgr_New_CoreText(nullptr));
 
-  if (m_sceneIndex != m_lastScene) {
-    m_lastScene = m_sceneIndex;
+  if (m_sceneIndex != m_lastSceneIndex) {
+    m_lastSceneIndex = m_sceneIndex;
     m_clock.restart();
-    m_pausedAt = 0;
-    m_frame = 0;
+    m_pausedSeconds = 0;
+    m_frameNumber = 0;
   }
   if (!m_clock.isValid())
     m_clock.start();
 
-  Scene *scene = m_scenes[static_cast<size_t>(
-                              std::clamp<int>(m_sceneIndex, 0,
-                                              static_cast<int>(m_scenes.size()) - 1))]
-                     .get();
+  Scene *scene =
+      m_scenes[static_cast<size_t>(std::clamp<int>(
+                   m_sceneIndex, 0, static_cast<int>(m_scenes.size()) - 1))]
+          .get();
 
   // Font family resolves on this thread (owns the FontContext). A weight
   // is a variable-font `wght` design position cloned onto the family
-  // (Noto Sans when none is picked); shaping follows it because faceFor
-  // mirrors the clone's design position into HarfBuzz.
-  if (m_paramFamily.isEmpty() && m_paramWeight == 0) {
-    m_params.typeface = nullptr;
+  // (Noto Sans when none is picked); shaping follows it because
+  // recordForTypeface mirrors the clone's design position into HarfBuzz.
+  if (m_fontFamily.isEmpty() && m_fontWeight == 0) {
+    m_sceneParameters.typeface = nullptr;
   } else {
-    if (m_paramFamily != m_resolvedFamily || m_paramWeight != m_resolvedWeight) {
-      m_resolvedFamily = m_paramFamily;
-      m_resolvedWeight = m_paramWeight;
-      const QString family = m_paramFamily.isEmpty()
-                                 ? QStringLiteral("Noto Sans")
-                                 : m_paramFamily;
-      sk_sp<SkTypeface> tf =
-          textflowqt::toSkTypeface(m_ctx->fontMgr(), QFont(family));
-      if (tf && m_paramWeight > 0) {
-        const SkFontArguments::VariationPosition::Coordinate wght{
+    if (m_fontFamily != m_resolvedFamily || m_fontWeight != m_resolvedWeight) {
+      m_resolvedFamily = m_fontFamily;
+      m_resolvedWeight = m_fontWeight;
+      const QString family =
+          m_fontFamily.isEmpty() ? QStringLiteral("Noto Sans") : m_fontFamily;
+      sk_sp<SkTypeface> typeface =
+          textflowqt::toSkTypeface(m_fontContext->fontManager(), QFont(family));
+      if (typeface && m_fontWeight > 0) {
+        const SkFontArguments::VariationPosition::Coordinate weightCoordinate{
             SkSetFourByteTag('w', 'g', 'h', 't'),
-            static_cast<float>(m_paramWeight)};
-        SkFontArguments args;
-        args.setVariationDesignPosition({&wght, 1});
-        if (sk_sp<SkTypeface> varied = tf->makeClone(args))
-          tf = std::move(varied);
+            static_cast<float>(m_fontWeight)};
+        SkFontArguments fontArguments;
+        fontArguments.setVariationDesignPosition({&weightCoordinate, 1});
+        if (sk_sp<SkTypeface> variedTypeface =
+                typeface->makeClone(fontArguments))
+          typeface = std::move(variedTypeface);
       }
-      m_resolvedTypeface = std::move(tf);
+      m_resolvedTypeface = std::move(typeface);
     }
-    m_params.typeface = m_resolvedTypeface;
+    m_sceneParameters.typeface = m_resolvedTypeface;
   }
 
-  for (const SkPoint &click : m_clicks)
+  for (const SkPoint &click : m_pendingClicks)
     scene->pointerPress(click);
-  m_clicks.clear();
+  m_pendingClicks.clear();
 
   canvas->save();
-  canvas->scale(dpr, dpr);
-  const double t =
-      m_pausedAt + (m_animating ? m_clock.elapsed() / 1000.0 : 0.0);
+  canvas->scale(devicePixelRatio, devicePixelRatio);
+  const double elapsedSeconds =
+      m_pausedSeconds + (m_animating ? m_clock.elapsed() / 1000.0 : 0.0);
 
-  const uint64_t shapeCallsBefore = m_ctx->stats().shapeCalls;
-  const auto t0 = Clock::now();
-  const FrameStats frame = scene->render(
-      canvas, {logical.width(), logical.height()}, t, m_frame, m_params,
-      *m_ctx);
-  const double recordUs =
-      std::chrono::duration<double, std::micro>(Clock::now() - t0).count();
+  const uint64_t shapeCallsBefore = m_fontContext->stats().shapeCalls;
+  const auto recordingStartTime = Clock::now();
+  const FrameStats frameStatistics = scene->render(
+      canvas, {logicalSize.width(), logicalSize.height()}, elapsedSeconds,
+      m_frameNumber, m_sceneParameters, *m_fontContext);
+  const double recordMicroseconds = std::chrono::duration<double, std::micro>(
+                                        Clock::now() - recordingStartTime)
+                                        .count();
   canvas->restore();
 
   if (m_animating)
-    m_frame++;
+    m_frameNumber++;
 
-  m_reshaped = m_ctx->stats().shapeCalls - shapeCallsBefore;
-  m_runs = frame.runs;
-  m_glyphs = frame.glyphs;
-  m_layoutUsEma = m_layoutUsEma == 0
-                      ? frame.layoutUs
-                      : m_layoutUsEma * 0.95 + frame.layoutUs * 0.05;
-  m_recordUsEma =
-      m_recordUsEma == 0 ? recordUs : m_recordUsEma * 0.95 + recordUs * 0.05;
-  if (m_animating && m_interFrame.isValid()) {
-    const double dtMs =
-        static_cast<double>(m_interFrame.nsecsElapsed()) / 1e6;
-    if (dtMs > 0.1) {
-      const double fps = 1000.0 / dtMs;
-      m_fpsEma = m_fpsEma == 0 ? fps : m_fpsEma * 0.95 + fps * 0.05;
+  m_reshapedWordCount = m_fontContext->stats().shapeCalls - shapeCallsBefore;
+  m_runCount = frameStatistics.runCount;
+  m_glyphCount = frameStatistics.glyphCount;
+  m_layoutMicrosecondsAverage =
+      m_layoutMicrosecondsAverage == 0
+          ? frameStatistics.layoutMicroseconds
+          : m_layoutMicrosecondsAverage * 0.95 +
+                frameStatistics.layoutMicroseconds * 0.05;
+  m_recordMicrosecondsAverage =
+      m_recordMicrosecondsAverage == 0
+          ? recordMicroseconds
+          : m_recordMicrosecondsAverage * 0.95 + recordMicroseconds * 0.05;
+  if (m_animating && m_interFrameTimer.isValid()) {
+    const double elapsedMilliseconds =
+        static_cast<double>(m_interFrameTimer.nsecsElapsed()) / 1e6;
+    if (elapsedMilliseconds > 0.1) {
+      const double framesPerSecond = 1000.0 / elapsedMilliseconds;
+      m_framesPerSecondAverage =
+          m_framesPerSecondAverage == 0
+              ? framesPerSecond
+              : m_framesPerSecondAverage * 0.95 + framesPerSecond * 0.05;
     }
   }
-  m_interFrame.restart();
-  if (++m_statFrames % 15 == 0)
+  m_interFrameTimer.restart();
+  if (++m_statisticsFrameCount % 15 == 0)
     m_statsDirty = true;
 }
 
-void GalleryViewRenderer::render(QRhiCommandBuffer *cb) {
+void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
   using Clock = std::chrono::steady_clock;
   QRhiTexture *texture = colorTexture();
   if (!texture || m_scenes.empty() || m_logicalSize.width() < 8 ||
       m_logicalSize.height() < 8)
     return;
   const QSize pixelSize = texture->pixelSize();
-  const float dpr = static_cast<float>(pixelSize.width()) /
-                    static_cast<float>(m_logicalSize.width());
+  const float devicePixelRatio = static_cast<float>(pixelSize.width()) /
+                                 static_cast<float>(m_logicalSize.width());
 
 #ifdef TEXTFLOW_GALLERY_GPU
-  if (m_graphite && m_useGpu) {
+  if (m_graphiteContext && m_useGpuBackend) {
     // GPU: record straight into the item's texture, submit asynchronously —
     // Qt's scene-graph pass on the same Metal queue orders after it.
-    SkiaOffscreenSurface surface(*m_graphite, texture, pixelSize);
+    SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
     if (SkCanvas *canvas = surface.canvas()) {
-      renderScene(canvas, dpr, m_logicalSize);
-      const auto s0 = Clock::now();
+      renderScene(canvas, devicePixelRatio, m_logicalSize);
+      const auto submissionStartTime = Clock::now();
       surface.submit();
-      const double submitUs =
-          std::chrono::duration<double, std::micro>(Clock::now() - s0)
+      const double submitMicroseconds =
+          std::chrono::duration<double, std::micro>(Clock::now() -
+                                                    submissionStartTime)
               .count();
-      m_submitUsEma = m_submitUsEma == 0
-                          ? submitUs
-                          : m_submitUsEma * 0.95 + submitUs * 0.05;
-      // Nothing recorded on `cb` itself; the texture is ready for the
-      // scene graph once Graphite's work executes ahead of it in queue
-      // order. cb is still needed for the fallback path below.
+      m_submitMicrosecondsAverage =
+          m_submitMicrosecondsAverage == 0
+              ? submitMicroseconds
+              : m_submitMicrosecondsAverage * 0.95 + submitMicroseconds * 0.05;
+      // Nothing recorded on `commandBuffer` itself; the texture is ready for
+      // the scene graph once Graphite's work executes ahead of it in queue
+      // order. The command buffer is still needed for the fallback path below.
       return;
     }
   }
 #endif
 
-  // CPU fallback: raster into a pixel buffer, upload into the texture.
+  // CPU fallback: raster into a pixel buffer, then upload into the texture.
   m_rasterPixels.resize(static_cast<size_t>(pixelSize.width()) *
                         static_cast<size_t>(pixelSize.height()));
   sk_sp<SkSurface> surface = SkSurfaces::WrapPixels(
@@ -269,25 +290,27 @@ void GalleryViewRenderer::render(QRhiCommandBuffer *cb) {
       static_cast<size_t>(pixelSize.width()) * sizeof(uint32_t));
   if (!surface)
     return;
-  renderScene(surface->getCanvas(), dpr, m_logicalSize);
+  renderScene(surface->getCanvas(), devicePixelRatio, m_logicalSize);
 
-  const auto s0 = Clock::now();
+  const auto submissionStartTime = Clock::now();
   QRhiResourceUpdateBatch *batch = rhi()->nextResourceUpdateBatch();
   QRhiTextureSubresourceUploadDescription sub(
       m_rasterPixels.data(), m_rasterPixels.size() * sizeof(uint32_t));
-  batch->uploadTexture(texture,
-                       QRhiTextureUploadDescription({0, 0, sub}));
-  cb->resourceUpdate(batch);
-  const double submitUs =
-      std::chrono::duration<double, std::micro>(Clock::now() - s0).count();
-  m_submitUsEma = m_submitUsEma == 0 ? submitUs
-                                     : m_submitUsEma * 0.95 + submitUs * 0.05;
+  batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
+  commandBuffer->resourceUpdate(batch);
+  const double submitMicroseconds = std::chrono::duration<double, std::micro>(
+                                        Clock::now() - submissionStartTime)
+                                        .count();
+  m_submitMicrosecondsAverage =
+      m_submitMicrosecondsAverage == 0
+          ? submitMicroseconds
+          : m_submitMicrosecondsAverage * 0.95 + submitMicroseconds * 0.05;
 }
 
 // ── GUI-thread side ────────────────────────────────────────────────────────
 
 GalleryView::GalleryView(QQuickItem *parent) : QQuickRhiItem(parent) {
-  m_metaScenes = makeScenes();
+  m_sceneMetadata = makeScenes();
   setAcceptedMouseButtons(Qt::LeftButton);
   m_timer.setInterval(16);
   connect(&m_timer, &QTimer::timeout, this, [this] { update(); });
@@ -302,14 +325,14 @@ QQuickRhiItemRenderer *GalleryView::createRenderer() {
 
 QStringList GalleryView::sceneNames() const {
   QStringList names;
-  for (const auto &scene : m_metaScenes)
+  for (const auto &scene : m_sceneMetadata)
     names << scene->name();
   return names;
 }
 
 void GalleryView::setSceneIndex(int index) {
   if (index == m_sceneIndex || index < 0 ||
-      index >= static_cast<int>(m_metaScenes.size()))
+      index >= static_cast<int>(m_sceneMetadata.size()))
     return;
   m_sceneIndex = index;
   m_sceneText.clear();
@@ -318,11 +341,11 @@ void GalleryView::setSceneIndex(int index) {
   update();
 }
 
-void GalleryView::setAnimating(bool on) {
-  if (on == m_animating)
+void GalleryView::setAnimating(bool enabled) {
+  if (enabled == m_animating)
     return;
-  m_animating = on;
-  if (on)
+  m_animating = enabled;
+  if (enabled)
     m_timer.start();
   else
     m_timer.stop();
@@ -331,9 +354,10 @@ void GalleryView::setAnimating(bool on) {
 }
 
 bool GalleryView::textEditable() const {
-  if (m_sceneIndex < 0 || m_sceneIndex >= static_cast<int>(m_metaScenes.size()))
+  if (m_sceneIndex < 0 ||
+      m_sceneIndex >= static_cast<int>(m_sceneMetadata.size()))
     return false;
-  return m_metaScenes[static_cast<size_t>(m_sceneIndex)]->supportsTextEdit();
+  return m_sceneMetadata[static_cast<size_t>(m_sceneIndex)]->supportsTextEdit();
 }
 
 void GalleryView::setSceneText(const QString &text) {
@@ -353,19 +377,19 @@ void GalleryView::setFontFamily(const QString &family) {
 }
 
 void GalleryView::setFontSize(qreal size) {
-  const qreal s = std::clamp(size, 8.0, 64.0);
-  if (s == m_fontSize)
+  const qreal clampedSize = std::clamp(size, 8.0, 64.0);
+  if (clampedSize == m_fontSize)
     return;
-  m_fontSize = s;
+  m_fontSize = clampedSize;
   emit fontSizeChanged();
   update();
 }
 
 void GalleryView::setFontWeight(int weight) {
-  const int w = weight <= 0 ? 0 : std::clamp(weight, 100, 900);
-  if (w == m_fontWeight)
+  const int clampedWeight = weight <= 0 ? 0 : std::clamp(weight, 100, 900);
+  if (clampedWeight == m_fontWeight)
     return;
-  m_fontWeight = w;
+  m_fontWeight = clampedWeight;
   emit fontWeightChanged();
   update();
 }
@@ -379,12 +403,12 @@ void GalleryView::setAlignmentIndex(int index) {
   update();
 }
 
-void GalleryView::setBreakerIndex(int index) {
+void GalleryView::setLineBreakStrategyIndex(int index) {
   index = std::clamp(index, 0, 1);
-  if (index == m_breakerIndex)
+  if (index == m_lineBreakStrategyIndex)
     return;
-  m_breakerIndex = index;
-  emit breakerIndexChanged();
+  m_lineBreakStrategyIndex = index;
+  emit lineBreakStrategyIndexChanged();
   update();
 }
 
@@ -396,10 +420,10 @@ bool GalleryView::gpuAvailable() const {
 #endif
 }
 
-void GalleryView::setGpu(bool on) {
-  if (on == m_gpu)
+void GalleryView::setGpu(bool enabled) {
+  if (enabled == m_gpu)
     return;
-  m_gpu = on;
+  m_gpu = enabled;
   emit gpuChanged();
   update();
 }

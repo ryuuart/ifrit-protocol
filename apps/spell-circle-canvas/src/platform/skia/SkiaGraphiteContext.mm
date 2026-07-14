@@ -20,12 +20,14 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   if (!rhi || rhi->backend() != QRhi::Metal)
     return nullptr;
 
-  auto *h = static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
+  const auto *nativeHandles =
+      static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
   // qrhi_platform.h forward-declares MTLDevice/MTLCommandQueue as opaque C
   // structs; __bridge recasts without touching ARC ownership (matches
   // SyphonBridge::start()).
-  id<MTLDevice> device = (__bridge id<MTLDevice>)h->dev;
-  id<MTLCommandQueue> queue = (__bridge id<MTLCommandQueue>)h->cmdQueue;
+  id<MTLDevice> device = (__bridge id<MTLDevice>)nativeHandles->dev;
+  id<MTLCommandQueue> queue =
+      (__bridge id<MTLCommandQueue>)nativeHandles->cmdQueue;
 
   skgpu::graphite::MtlBackendContext backendContext;
   // sk_cfp adopts without retaining, but Qt still owns `device`/`queue` (no
@@ -33,10 +35,8 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
   // (see the __bridge_retained-has-no-effect warning otherwise), so retain
   // Skia its own +1 ref explicitly via CFRetain before adopting, or the
   // context would end up holding an under-retained reference.
-  backendContext.fDevice.reset(
-      CFRetain((__bridge CFTypeRef)device));
-  backendContext.fQueue.reset(
-      CFRetain((__bridge CFTypeRef)queue));
+  backendContext.fDevice.reset(CFRetain((__bridge CFTypeRef)device));
+  backendContext.fQueue.reset(CFRetain((__bridge CFTypeRef)queue));
 
   std::unique_ptr<skgpu::graphite::Context> context =
       skgpu::graphite::ContextFactory::MakeMetal(backendContext, {});

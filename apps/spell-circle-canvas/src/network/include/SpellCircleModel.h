@@ -19,11 +19,11 @@ struct FeedItem {
  *  all other positioning math is left to the renderer. */
 struct CircleComponent {
   QString name;
-  float x = 0.0f;
-  float y = 0.0f;
+  float centerX = 0.0f;
+  float centerY = 0.0f;
   uint32_t radius = 0;
   float textStart =
-      0.0f; // fraction [0, 1] where the label begins along the path
+      0.0f;            // fraction [0, 1] where the label begins along the path
   float active = 0.0f; // background fill alpha/intensity [0, 1]; 0 = no fill
 };
 
@@ -82,9 +82,12 @@ public:
 
   explicit SpellCircleModel(QObject *parent = nullptr);
 
+  /** Returns the number of activity-feed entries exposed to QML. */
   int rowCount(const QModelIndex &parent = {}) const override;
+  /** Returns feed data for `index` and a value from `Roles`. */
   QVariant data(const QModelIndex &index,
                 int role = Qt::DisplayRole) const override;
+  /** Returns the QML-facing name for each custom model role. */
   QHash<int, QByteArray> roleNames() const override;
 
   /** Scene entities decoded from the most recently parsed packet. */

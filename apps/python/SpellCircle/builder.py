@@ -1,130 +1,169 @@
-"""
-FlatBuffers serialization for SpellCircle scenes.
+"""FlatBuffers serialization for SpellCircle scenes.
 
 This is the only module that touches the generated FlatBuffers bindings.
-Scene authoring (`canvas.py`) and transport (`network.py`) both stay
-ignorant of the wire format; they hand plain data to `SCBuilder` and get
-bytes back.
-
-Public API
-----------
-CircleSpec — plain data describing a circle (position, label, style)
-SCBuilder  — encodes CircleSpecs/points/edges/boxes into a Scene FlatBuffer
+Scene authoring and transport work with ordinary Python values instead of
+depending on generated table functions.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+
 import flatbuffers
-from . import Box as Bx
-from . import Circle as Circ
-from . import Edge as Edg
-from . import Point as Pt
-from . import Scene as SC
+
+from . import Box as box_schema
+from . import Circle as circle_schema
+from . import Edge as edge_schema
+from . import Point as point_schema
+from . import Scene as scene_schema
 from .Vec2 import CreateVec2
 
-
-class CircleSpec:
-    """Plain data describing a circle: position, radius, label, style."""
-
-    def __init__(self, name, x, y, radius, *, text_start=0.75, active=0.0):
-        self.name = name
-        self.x = float(x)
-        self.y = float(y)
-        self.radius = int(radius)
-        self.text_start = float(text_start)
-        self.active = float(active)  # background fill alpha/intensity [0, 1]
+FlatBufferOffset = int
+VectorStartFunction = Callable[[flatbuffers.Builder, int], None]
 
 
-class SCBuilder:
-    """Encodes SpellCircle scene data into a single FlatBuffer.
+@dataclass(frozen=True, slots=True)
+class CircleDefinition:
+    """Describes one circle before it is encoded into the wire format."""
 
-    Wraps one `flatbuffers.Builder` and exposes a `build_*` method per
-    table in `SpellCircle.fbs`. Each `build_*` call appends to the same
-    underlying buffer and returns an offset to be passed into whichever
-    call assembles the next table up (Point -> Edge/Box -> Scene).
+    name: str
+    center_x: float
+    center_y: float
+    radius: int
+    text_start: float = 0.75
+    active: float = 0.0
 
-    Usage:
-        b = SCBuilder()
-        circle_off = b.build_circle(spec)
-        point_off = b.build_point(spec, position=0.25, value="foo")
-        edge_off = b.build_edge(point_a_off, point_b_off)
-        box_off = b.build_box("ANGER", point_off, active=0.4)
-        data = b.build_scene_bytes([circle_off], [edge_off], [box_off], width, height)
+    @property
+    def x(self) -> float:
+        """Compatibility view of ``center_x`` for older authoring scripts."""
+        return self.center_x
+
+    @property
+    def y(self) -> float:
+        """Compatibility view of ``center_y`` for older authoring scripts."""
+        return self.center_y
+
+
+class SceneBuilder:
+    """Encodes a SpellCircle scene into one FlatBuffer.
+
+    Each ``build_*`` method appends a table to the same builder and returns
+    its offset. ``build_scene_bytes`` assembles those offsets and finishes the
+    buffer; a SceneBuilder instance is therefore intended for one scene.
     """
 
-    def __init__(self, size=16384):
-        self._builder = flatbuffers.Builder(size)
+    def __init__(self, initial_size: int = 16_384) -> None:
+        """Creates a builder with ``initial_size`` bytes of initial capacity."""
+        self._builder = flatbuffers.Builder(initial_size)
 
-    def build_circle(self, spec):
-        """Encode a CircleSpec as a Circle table and return its offset."""
+    def build_circle(self, circle: CircleDefinition) -> FlatBufferOffset:
+        """Encodes ``circle`` and returns its FlatBuffers table offset."""
         builder = self._builder
-        name_off = builder.CreateString(spec.name)
-        Circ.CircleStart(builder)
-        Circ.CircleAddPos(builder, CreateVec2(builder, spec.x, spec.y))
-        Circ.CircleAddName(builder, name_off)
-        Circ.CircleAddRadius(builder, spec.radius)
-        Circ.CircleAddTextStart(builder, spec.text_start)
-        Circ.CircleAddActive(builder, spec.active)
-        return Circ.CircleEnd(builder)
+        name_offset = builder.CreateString(circle.name)
+        circle_schema.CircleStart(builder)
+        circle_schema.CircleAddPos(
+            builder, CreateVec2(builder, circle.center_x, circle.center_y)
+        )
+        circle_schema.CircleAddName(builder, name_offset)
+        circle_schema.CircleAddRadius(builder, circle.radius)
+        circle_schema.CircleAddTextStart(builder, circle.text_start)
+        circle_schema.CircleAddActive(builder, circle.active)
+        return circle_schema.CircleEnd(builder)
 
-    def build_point(self, spec, position, value=""):
-        """Embed a CircleSpec as a Point at fractional arc position [0, 1]."""
+    def build_point(
+        self,
+        circle: CircleDefinition,
+        position: float,
+        value: str = "",
+    ) -> FlatBufferOffset:
+        """Encodes a point at fractional ``position`` around ``circle``."""
         builder = self._builder
-        circle_off = self.build_circle(spec)
-        value_off = builder.CreateString(value)
-        Pt.PointStart(builder)
-        Pt.PointAddValue(builder, value_off)
-        Pt.PointAddCircle(builder, circle_off)
-        Pt.PointAddPosition(builder, float(position))
-        return Pt.PointEnd(builder)
+        circle_offset = self.build_circle(circle)
+        value_offset = builder.CreateString(value)
+        point_schema.PointStart(builder)
+        point_schema.PointAddValue(builder, value_offset)
+        point_schema.PointAddCircle(builder, circle_offset)
+        point_schema.PointAddPosition(builder, float(position))
+        return point_schema.PointEnd(builder)
 
-    def build_edge(self, first_off, second_off):
-        """Connect two pre-built Point offsets into an Edge."""
+    def build_edge(
+        self,
+        first_point_offset: FlatBufferOffset,
+        second_point_offset: FlatBufferOffset,
+    ) -> FlatBufferOffset:
+        """Connects two already-built point tables and returns an edge offset."""
         builder = self._builder
-        Edg.EdgeStart(builder)
-        Edg.EdgeAddFirst(builder, first_off)
-        Edg.EdgeAddSecond(builder, second_off)
-        return Edg.EdgeEnd(builder)
+        edge_schema.EdgeStart(builder)
+        edge_schema.EdgeAddFirst(builder, first_point_offset)
+        edge_schema.EdgeAddSecond(builder, second_point_offset)
+        return edge_schema.EdgeEnd(builder)
 
-    def build_box(self, value, point_off, active=0.0):
-        """Anchor a labelled box to a pre-built Point offset.
-
-        `active` is the background fill alpha/intensity in [0, 1]; 0 draws no fill.
-        """
+    def build_box(
+        self,
+        value: str,
+        point_offset: FlatBufferOffset,
+        active: float = 0.0,
+    ) -> FlatBufferOffset:
+        """Encodes a labelled box anchored to an already-built point."""
         builder = self._builder
-        value_off = builder.CreateString(value)
-        Bx.BoxStart(builder)
-        Bx.BoxAddValue(builder, value_off)
-        Bx.BoxAddPoint(builder, point_off)
-        Bx.BoxAddActive(builder, float(active))
-        return Bx.BoxEnd(builder)
+        value_offset = builder.CreateString(value)
+        box_schema.BoxStart(builder)
+        box_schema.BoxAddValue(builder, value_offset)
+        box_schema.BoxAddPoint(builder, point_offset)
+        box_schema.BoxAddActive(builder, float(active))
+        return box_schema.BoxEnd(builder)
 
-    def _build_vector(self, start_fn, offsets):
+    def _build_vector(
+        self,
+        start_vector: VectorStartFunction,
+        offsets: Sequence[FlatBufferOffset],
+    ) -> FlatBufferOffset:
+        """Encodes an offset vector in FlatBuffers' required reverse order."""
         builder = self._builder
-        start_fn(builder, len(offsets))
-        for off in reversed(offsets):
-            builder.PrependUOffsetTRelative(off)
+        start_vector(builder, len(offsets))
+        for offset in reversed(offsets):
+            builder.PrependUOffsetTRelative(offset)
         return builder.EndVector()
 
-    def build_scene_bytes(self, circle_offsets, edge_offsets, box_offsets,
-                           canvas_width=0.0, canvas_height=0.0):
-        """
-        Finish the builder and return the serialised scene as bytes.
+    def build_scene_bytes(
+        self,
+        circle_offsets: Sequence[FlatBufferOffset],
+        edge_offsets: Sequence[FlatBufferOffset],
+        box_offsets: Sequence[FlatBufferOffset],
+        canvas_width: float = 0.0,
+        canvas_height: float = 0.0,
+    ) -> bytes:
+        """Finishes the builder and returns the serialized scene.
 
-        canvas_width / canvas_height record the authoring coordinate space so the
-        app can scale geometry up to its native 4K texture. Pass 0 (default) if
-        coordinates are already in native texture space.
+        Positive canvas dimensions describe the authoring coordinate space so
+        the renderer can scale it to the native target. Zero means coordinates
+        are already expressed in native space.
         """
         builder = self._builder
-        edges_vec   = self._build_vector(SC.SceneStartEdgesVector,   edge_offsets)
-        boxes_vec   = self._build_vector(SC.SceneStartBoxesVector,   box_offsets)
-        circles_vec = self._build_vector(SC.SceneStartCirclesVector, circle_offsets)
+        edges_vector = self._build_vector(
+            scene_schema.SceneStartEdgesVector, edge_offsets
+        )
+        boxes_vector = self._build_vector(
+            scene_schema.SceneStartBoxesVector, box_offsets
+        )
+        circles_vector = self._build_vector(
+            scene_schema.SceneStartCirclesVector, circle_offsets
+        )
 
-        SC.SceneStart(builder)
-        SC.SceneAddCircles(builder, circles_vec)
-        SC.SceneAddEdges(builder, edges_vec)
-        SC.SceneAddBoxes(builder, boxes_vec)
+        scene_schema.SceneStart(builder)
+        scene_schema.SceneAddCircles(builder, circles_vector)
+        scene_schema.SceneAddEdges(builder, edges_vector)
+        scene_schema.SceneAddBoxes(builder, boxes_vector)
         if canvas_width > 0:
-            SC.SceneAddWidth(builder, float(canvas_width))
+            scene_schema.SceneAddWidth(builder, float(canvas_width))
         if canvas_height > 0:
-            SC.SceneAddHeight(builder, float(canvas_height))
-        builder.Finish(SC.SceneEnd(builder))
+            scene_schema.SceneAddHeight(builder, float(canvas_height))
+        builder.Finish(scene_schema.SceneEnd(builder))
         return bytes(builder.Output())
+
+
+# Compatibility names retained at the package boundary for existing scene
+# scripts. New code should use the descriptive names above.
+CircleSpec = CircleDefinition
+SCBuilder = SceneBuilder

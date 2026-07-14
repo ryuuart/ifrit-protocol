@@ -1,18 +1,26 @@
 # TextFlowGallery — a standalone Qt Quick executable that exercises the
 # TextFlow engine interactively: scene switcher, live text editing, font and
-# style controls. Renders with Skia's CPU raster backend into a
-# QQuickPaintedItem, so it needs none of the app's Metal/Graphite plumbing —
-# it exists to keep the SpellCircle scene backend clean while still having a
-# living showcase of the engine.
+# style controls. Its QQuickRhiItem renderer supports a Skia CPU raster path
+# everywhere and adds the shared Metal/Graphite plumbing when enabled.
 qt_add_executable(TextFlowGallery
   gallery_main.cpp
+)
+
+set_source_files_properties(
+  ../qml/gallery/Main.qml
+  PROPERTIES QT_RESOURCE_ALIAS Main.qml
+)
+set_source_files_properties(
+  ../qml/gallery/GallerySidebar.qml
+  PROPERTIES QT_RESOURCE_ALIAS GallerySidebar.qml
 )
 
 qt_add_qml_module(TextFlowGallery
   URI TextFlow.Gallery
   VERSION 1.0
   QML_FILES
-    Main.qml
+    ../qml/gallery/Main.qml
+    ../qml/gallery/GallerySidebar.qml
   SOURCES
     GalleryView.cpp include/GalleryView.h
     GalleryScenes.cpp include/GalleryScenes.h
@@ -25,8 +33,7 @@ target_link_libraries(TextFlowGallery
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
-    TextFlow
-    TextFlowQt
+    TextFlowQt # carries TextFlow transitively
 )
 
 # The Graphite GPU path reuses the app's generic Skia/Metal plumbing

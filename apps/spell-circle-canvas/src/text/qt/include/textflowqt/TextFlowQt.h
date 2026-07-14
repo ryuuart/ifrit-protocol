@@ -30,51 +30,60 @@ namespace textflowqt {
 
 // ── Text (zero-copy: QString is UTF-16, and so is Paragraph) ─────────────
 
-// Borrowed view of a QString's storage: valid only while `s` is alive and
+// Borrowed view of a QString's storage: valid only while `text` is alive and
 // unmodified.
-inline std::u16string_view toU16(const QString &s) {
-  return {reinterpret_cast<const char16_t *>(s.constData()),
-          static_cast<size_t>(s.size())};
+inline std::u16string_view toU16(const QString &text) {
+  return {reinterpret_cast<const char16_t *>(text.constData()),
+          static_cast<size_t>(text.size())};
 }
 
-inline QString toQString(std::u16string_view s) {
-  return QString::fromUtf16(s.data(), static_cast<qsizetype>(s.size()));
+/** Copies a UTF-16 view into a QString. */
+inline QString toQString(std::u16string_view text) {
+  return QString::fromUtf16(text.data(), static_cast<qsizetype>(text.size()));
 }
 
-inline void appendText(textflow::Paragraph &para, const QString &text,
+/** Appends QString text without transcoding its UTF-16 storage. */
+inline void appendText(textflow::Paragraph &paragraph, const QString &text,
                        const textflow::TextStyle &style) {
-  para.appendText(toU16(text), style);
+  paragraph.appendText(toU16(text), style);
 }
 
-inline void replaceText(textflow::Paragraph &para, uint32_t start,
+/** Replaces a paragraph range with QString text. */
+inline void replaceText(textflow::Paragraph &paragraph, uint32_t start,
                         uint32_t end, const QString &text) {
   // Paragraph::replaceText takes UTF-8; convert once, no extra copies.
   const QByteArray utf8 = text.toUtf8();
-  para.replaceText(start, end,
-                   std::string_view(utf8.constData(),
-                                    static_cast<size_t>(utf8.size())));
+  paragraph.replaceText(
+      start, end,
+      std::string_view(utf8.constData(), static_cast<size_t>(utf8.size())));
 }
 
-inline std::vector<textflow::CharRange> findAll(const textflow::Paragraph &para,
-                                                const QString &needle) {
-  return textflow::findAll(para, toU16(needle));
+/** Finds every occurrence of `needle` without transcoding it. */
+inline std::vector<textflow::CharRange>
+findAllOccurrences(const textflow::Paragraph &paragraph,
+                   const QString &needle) {
+  return textflow::findAllOccurrences(paragraph, toU16(needle));
 }
 
 // ── Geometry / color ─────────────────────────────────────────────────────
 
-inline SkColor toSkColor(const QColor &c) {
-  return SkColorSetARGB(c.alpha(), c.red(), c.green(), c.blue());
+/** Converts a QColor to its unpremultiplied Skia color value. */
+inline SkColor toSkColor(const QColor &color) {
+  return SkColorSetARGB(color.alpha(), color.red(), color.green(),
+                        color.blue());
 }
 
-inline SkPoint toSkPoint(const QPointF &p) {
-  return {static_cast<float>(p.x()), static_cast<float>(p.y())};
+/** Converts a QPointF to a float SkPoint. */
+inline SkPoint toSkPoint(const QPointF &point) {
+  return {static_cast<float>(point.x()), static_cast<float>(point.y())};
 }
 
-inline SkRect toSkRect(const QRectF &r) {
-  return SkRect::MakeXYWH(static_cast<float>(r.x()),
-                          static_cast<float>(r.y()),
-                          static_cast<float>(r.width()),
-                          static_cast<float>(r.height()));
+/** Converts a QRectF to a float SkRect. */
+inline SkRect toSkRect(const QRectF &rectangle) {
+  return SkRect::MakeXYWH(static_cast<float>(rectangle.x()),
+                          static_cast<float>(rectangle.y()),
+                          static_cast<float>(rectangle.width()),
+                          static_cast<float>(rectangle.height()));
 }
 
 // ── Fonts ────────────────────────────────────────────────────────────────
@@ -95,12 +104,13 @@ inline SkFontStyle toSkFontStyle(const QFont &font) {
 // An empty family yields the platform default. May return null when the
 // manager has no match at all — callers should fall back to their default
 // typeface (e.g. FontContext::defaultTypeface()).
-inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *mgr, const QFont &font) {
-  if (!mgr)
+inline sk_sp<SkTypeface> toSkTypeface(SkFontMgr *fontManager,
+                                      const QFont &font) {
+  if (!fontManager)
     return nullptr;
   const QByteArray family = font.family().toUtf8();
-  return mgr->matchFamilyStyle(family.isEmpty() ? nullptr : family.constData(),
-                               toSkFontStyle(font));
+  return fontManager->matchFamilyStyle(
+      family.isEmpty() ? nullptr : family.constData(), toSkFontStyle(font));
 }
 
 } // namespace textflowqt

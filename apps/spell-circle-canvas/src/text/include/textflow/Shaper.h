@@ -25,7 +25,7 @@ using ScriptTag = uint32_t;
 // a layout never mutates one, it only decides where to draw it.
 struct ShapedWord {
   sk_sp<SkTypeface> typeface;
-  float size = 0;
+  float fontSize = 0;
 
   std::vector<uint16_t> glyphs;
   std::vector<SkPoint> positions; // pen-relative glyph origins
@@ -49,19 +49,20 @@ using ShapedWordRef = std::shared_ptr<const ShapedWord>;
 
 // Shapes `text` with HarfBuzz, going through FontContext's shape cache.
 // `typeface` must already be fallback-resolved (see
-// FontContext::resolveTypeface); `rtl` selects the HarfBuzz direction and
-// `vertical` shapes top-to-bottom (mutually exclusive with rtl).
-ShapedWordRef shapeWord(FontContext &ctx, const ShapingStyle &style,
-                        const sk_sp<SkTypeface> &typeface,
-                        std::u16string_view text, ScriptTag script, bool rtl,
-                        bool vertical = false);
+// FontContext::resolveTypeface); `rightToLeft` selects the HarfBuzz direction
+// and `vertical` shapes top-to-bottom (mutually exclusive with rightToLeft).
+[[nodiscard]] ShapedWordRef
+shapeWord(FontContext &fontContext, const ShapingStyle &style,
+          const sk_sp<SkTypeface> &typeface, std::u16string_view text,
+          ScriptTag script, bool rightToLeft, bool vertical = false);
 
 // Returns the shared origin-relative SkTextBlob for `word`, building and
 // memoizing it on first use. Cheap on every call after the first.
-const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word);
+[[nodiscard]] const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word);
 
 // SkFont configured the way TextFlow shapes: unhinted, subpixel, linear
 // metrics — rendering must match shaping or positions drift.
-SkFont makeFont(const sk_sp<SkTypeface> &typeface, float size);
+[[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface> &typeface,
+                              float fontSize);
 
 } // namespace textflow

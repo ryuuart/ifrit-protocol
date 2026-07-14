@@ -16,19 +16,26 @@ class BoxStyleConfig : public QObject {
 public:
   explicit BoxStyleConfig(QObject *parent = nullptr) : QObject(parent) {}
 
+  /** Returns the configured box width in author-space pixels. */
   qreal width() const { return m_width; }
+  /** Sets the box width. */
   void setWidth(qreal width);
 
+  /** Returns the configured box height in author-space pixels. */
   qreal height() const { return m_height; }
+  /** Sets the box height. */
   void setHeight(qreal height);
 
+  /** Returns the padding between box content and its border. */
   qreal padding() const { return m_padding; }
+  /** Sets the box content padding. */
   void setPadding(qreal padding);
 
   /** Distance (px, pre-scale) the box's inner edge sits beyond its assigned
    *  point, measured outward along the ray from the canvas center through
    *  that point. */
   qreal distance() const { return m_distance; }
+  /** Sets the outward distance from an anchor point to the box edge. */
   void setDistance(qreal distance);
 
 signals:
@@ -53,10 +60,14 @@ class CanvasSizeConfig : public QObject {
 public:
   explicit CanvasSizeConfig(QObject *parent = nullptr) : QObject(parent) {}
 
+  /** Returns the native render-target width in pixels. */
   int width() const { return m_width; }
+  /** Sets the native render-target width. */
   void setWidth(int width);
 
+  /** Returns the native render-target height in pixels. */
   int height() const { return m_height; }
+  /** Sets the native render-target height. */
   void setHeight(int height);
 
 signals:
@@ -90,25 +101,31 @@ class GraphicsConfig : public QObject {
   Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
   Q_PROPERTY(BoxStyleConfig *box READ box CONSTANT)
   Q_PROPERTY(CanvasSizeConfig *canvas READ canvas CONSTANT)
-  Q_PROPERTY(
-      int generation READ generation NOTIFY generationChanged)
+  Q_PROPERTY(int generation READ generation NOTIFY generationChanged)
 
 public:
   explicit GraphicsConfig(QObject *parent = nullptr);
 
+  /** Returns the accent color used for scene geometry and labels. */
   QColor color() const { return m_color; }
+  /** Sets the scene accent color. */
   void setColor(const QColor &color);
 
+  /** Returns geometry stroke width in author-space pixels. */
   qreal strokeWidth() const { return m_strokeWidth; }
+  /** Sets geometry stroke width. */
   void setStrokeWidth(qreal strokeWidth);
 
+  /** Returns the global geometry and typography scale. */
   qreal scale() const { return m_scale; }
+  /** Sets the global geometry and typography scale. */
   void setScale(qreal scale);
 
   /** Perpendicular offset (px, pre-scale) applied to every circle's label
    *  along its text path — no longer authored per-circle over the wire, so
    *  this is the single knob for nudging all labels uniformly. */
   qreal labelOffset() const { return m_labelOffset; }
+  /** Sets the global circle-label path offset. */
   void setLabelOffset(qreal labelOffset);
 
   /** Distance (px, pre-scale) a Point's own value label sits beyond its
@@ -116,15 +133,21 @@ public:
    *  through that point — the same offset a Box uses (box.distance), but a
    *  separate knob since a point label isn't a box. */
   qreal pointDistance() const { return m_pointDistance; }
+  /** Sets the outward distance used for standalone point labels. */
   void setPointDistance(qreal pointDistance);
 
+  /** Returns the font shared by scene labels. */
   QFont font() const { return m_font; }
+  /** Sets the font shared by scene labels. */
   void setFont(const QFont &font);
 
+  /** Returns grouped box style configuration owned by this object. */
   BoxStyleConfig *box() const { return m_box; }
 
+  /** Returns grouped native canvas dimensions owned by this object. */
   CanvasSizeConfig *canvas() const { return m_canvas; }
 
+  /** Returns the revision used by renderers to detect configuration changes. */
   int generation() const { return m_generation; }
 
   /** Reads the JSON config file next to the executable, if present.
@@ -146,7 +169,9 @@ signals:
   void generationChanged();
 
 private:
+  /** Returns the platform-specific persistent configuration path. */
   static QString configFilePath();
+  /** Advances the revision and emits `generationChanged()`. */
   void bumpGeneration();
 
   QColor m_color{"#ff0000"};

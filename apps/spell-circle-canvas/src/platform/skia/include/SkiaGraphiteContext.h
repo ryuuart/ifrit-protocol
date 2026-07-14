@@ -22,7 +22,9 @@ public:
 
   ~SkiaGraphiteContext();
 
+  /** Returns the owned Graphite context. */
   skgpu::graphite::Context *context() const { return m_context.get(); }
+  /** Returns the recorder associated with `context()`. */
   skgpu::graphite::Recorder *recorder() const { return m_recorder.get(); }
 
 private:

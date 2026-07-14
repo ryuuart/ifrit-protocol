@@ -127,45 +127,45 @@ bool GraphicsConfig::load() {
     return false;
   }
 
-  const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-  if (!doc.isObject()) {
+  const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+  if (!document.isObject()) {
     spdlog::warn("GraphicsConfig: malformed config file at {}",
                  configFilePath().toStdString());
     return false;
   }
 
-  const QJsonObject obj = doc.object();
-  if (obj.contains("color"))
-    m_color = QColor(obj["color"].toString());
-  if (obj.contains("strokeWidth"))
-    m_strokeWidth = obj["strokeWidth"].toDouble(m_strokeWidth);
-  if (obj.contains("scale"))
-    m_scale = obj["scale"].toDouble(m_scale);
-  if (obj.contains("labelOffset"))
-    m_labelOffset = obj["labelOffset"].toDouble(m_labelOffset);
-  if (obj.contains("pointDistance"))
-    m_pointDistance = obj["pointDistance"].toDouble(m_pointDistance);
+  const QJsonObject rootObject = document.object();
+  if (rootObject.contains("color"))
+    m_color = QColor(rootObject["color"].toString());
+  if (rootObject.contains("strokeWidth"))
+    m_strokeWidth = rootObject["strokeWidth"].toDouble(m_strokeWidth);
+  if (rootObject.contains("scale"))
+    m_scale = rootObject["scale"].toDouble(m_scale);
+  if (rootObject.contains("labelOffset"))
+    m_labelOffset = rootObject["labelOffset"].toDouble(m_labelOffset);
+  if (rootObject.contains("pointDistance"))
+    m_pointDistance = rootObject["pointDistance"].toDouble(m_pointDistance);
 
-  if (obj.contains("box") && obj["box"].isObject()) {
-    const QJsonObject boxObj = obj["box"].toObject();
-    m_box->setWidth(boxObj.value("width").toDouble(m_box->width()));
-    m_box->setHeight(boxObj.value("height").toDouble(m_box->height()));
-    m_box->setPadding(boxObj.value("padding").toDouble(m_box->padding()));
-    m_box->setDistance(boxObj.value("distance").toDouble(m_box->distance()));
+  if (rootObject.contains("box") && rootObject["box"].isObject()) {
+    const QJsonObject boxObject = rootObject["box"].toObject();
+    m_box->setWidth(boxObject.value("width").toDouble(m_box->width()));
+    m_box->setHeight(boxObject.value("height").toDouble(m_box->height()));
+    m_box->setPadding(boxObject.value("padding").toDouble(m_box->padding()));
+    m_box->setDistance(boxObject.value("distance").toDouble(m_box->distance()));
   }
 
-  if (obj.contains("canvas") && obj["canvas"].isObject()) {
-    const QJsonObject canvasObj = obj["canvas"].toObject();
-    m_canvas->setWidth(canvasObj.value("width").toInt(m_canvas->width()));
-    m_canvas->setHeight(canvasObj.value("height").toInt(m_canvas->height()));
+  if (rootObject.contains("canvas") && rootObject["canvas"].isObject()) {
+    const QJsonObject canvasObject = rootObject["canvas"].toObject();
+    m_canvas->setWidth(canvasObject.value("width").toInt(m_canvas->width()));
+    m_canvas->setHeight(canvasObject.value("height").toInt(m_canvas->height()));
   }
 
-  if (obj.contains("font") && obj["font"].isObject()) {
-    const QJsonObject fontObj = obj["font"].toObject();
-    const QString family = fontObj.value("family").toString(m_font.family());
+  if (rootObject.contains("font") && rootObject["font"].isObject()) {
+    const QJsonObject fontObject = rootObject["font"].toObject();
+    const QString family = fontObject.value("family").toString(m_font.family());
     const qreal pointSize =
-        fontObj.value("pointSize").toDouble(m_font.pointSizeF());
-    const QString style = fontObj.value("style").toString();
+        fontObject.value("pointSize").toDouble(m_font.pointSizeF());
+    const QString style = fontObject.value("style").toString();
     m_font = style.isEmpty()
                  ? QFont(family, qRound(pointSize))
                  : QFontDatabase::font(family, style, qRound(pointSize));
@@ -182,30 +182,30 @@ bool GraphicsConfig::load() {
 }
 
 bool GraphicsConfig::save() const {
-  QJsonObject boxObj;
-  boxObj["width"] = m_box->width();
-  boxObj["height"] = m_box->height();
-  boxObj["padding"] = m_box->padding();
-  boxObj["distance"] = m_box->distance();
+  QJsonObject boxObject;
+  boxObject["width"] = m_box->width();
+  boxObject["height"] = m_box->height();
+  boxObject["padding"] = m_box->padding();
+  boxObject["distance"] = m_box->distance();
 
-  QJsonObject canvasObj;
-  canvasObj["width"] = m_canvas->width();
-  canvasObj["height"] = m_canvas->height();
+  QJsonObject canvasObject;
+  canvasObject["width"] = m_canvas->width();
+  canvasObject["height"] = m_canvas->height();
 
-  QJsonObject fontObj;
-  fontObj["family"] = m_font.family();
-  fontObj["pointSize"] = m_font.pointSize();
-  fontObj["style"] = QFontDatabase::styleString(m_font);
+  QJsonObject fontObject;
+  fontObject["family"] = m_font.family();
+  fontObject["pointSize"] = m_font.pointSize();
+  fontObject["style"] = QFontDatabase::styleString(m_font);
 
-  QJsonObject obj;
-  obj["color"] = m_color.name(QColor::HexRgb);
-  obj["strokeWidth"] = m_strokeWidth;
-  obj["scale"] = m_scale;
-  obj["labelOffset"] = m_labelOffset;
-  obj["pointDistance"] = m_pointDistance;
-  obj["box"] = boxObj;
-  obj["canvas"] = canvasObj;
-  obj["font"] = fontObj;
+  QJsonObject rootObject;
+  rootObject["color"] = m_color.name(QColor::HexRgb);
+  rootObject["strokeWidth"] = m_strokeWidth;
+  rootObject["scale"] = m_scale;
+  rootObject["labelOffset"] = m_labelOffset;
+  rootObject["pointDistance"] = m_pointDistance;
+  rootObject["box"] = boxObject;
+  rootObject["canvas"] = canvasObject;
+  rootObject["font"] = fontObject;
 
   QFile file(configFilePath());
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -213,6 +213,6 @@ bool GraphicsConfig::save() const {
                   configFilePath().toStdString());
     return false;
   }
-  file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+  file.write(QJsonDocument(rootObject).toJson(QJsonDocument::Indented));
   return true;
 }

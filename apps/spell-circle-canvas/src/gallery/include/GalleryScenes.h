@@ -18,39 +18,46 @@
 
 namespace gallery {
 
-// Live control state pushed down from the QML panel.
+/** Live control state pushed down from the QML panel. */
 struct SceneParams {
   QString text;               // body text; empty → scene default
   sk_sp<SkTypeface> typeface; // null → scene default
   float fontSize = 17.0f;
-  textflow::Alignment alignment = textflow::Alignment::kJustify;
-  textflow::Breaker breaker = textflow::Breaker::kGreedy;
+  textflow::TextAlignment alignment = textflow::TextAlignment::kJustify;
+  textflow::LineBreakStrategy lineBreakStrategy =
+      textflow::LineBreakStrategy::kGreedy;
 };
 
+/** Timing and output counts reported by one rendered gallery frame. */
 struct FrameStats {
-  double layoutUs = 0;
-  int runs = 0;
-  int glyphs = 0;
+  double layoutMicroseconds = 0;
+  int runCount = 0;
+  int glyphCount = 0;
 };
 
 class Scene {
 public:
   virtual ~Scene() = default;
+  /** Returns the user-facing scene name. */
   virtual QString name() const = 0;
+  /** Returns initial editable text, or an empty string for scene-owned text. */
   virtual QString defaultText() const { return {}; }
+  /** Returns whether the gallery should expose its text editor. */
   virtual bool supportsTextEdit() const { return true; }
 
-  // `t` is seconds since the scene became active; `frame` increments once
-  // per rendered frame (frozen while paused).
-  virtual FrameStats render(SkCanvas *canvas, SkISize size, double t,
-                            int frame, const SceneParams &params,
-                            textflow::FontContext &ctx) = 0;
+  /** Renders one scene frame and returns its timing and content statistics.
+   *  `elapsedSeconds` starts when this scene becomes active; `frameNumber`
+   *  increments once per rendered frame and freezes while paused. */
+  virtual FrameStats render(SkCanvas *canvas, SkISize size,
+                            double elapsedSeconds, int frameNumber,
+                            const SceneParams &params,
+                            textflow::FontContext &fontContext) = 0;
 
-  // Pointer interaction in scene coordinates (e.g. the ripple pool spawns
-  // a drop where you click).
-  virtual void pointerPress(SkPoint) {}
+  /** Handles a pointer press in scene coordinates. */
+  virtual void pointerPress(SkPoint position) { static_cast<void>(position); }
 };
 
+/** Constructs every gallery scene in display order. */
 std::vector<std::unique_ptr<Scene>> makeScenes();
 
 } // namespace gallery

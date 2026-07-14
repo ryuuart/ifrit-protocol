@@ -2,10 +2,9 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QQmlContext>
 
 int main(int argc, char *argv[]) {
-  QGuiApplication app(argc, argv);
+  QGuiApplication application(argc, argv);
 
   QCommandLineParser parser;
   parser.addHelpOption();
@@ -17,7 +16,7 @@ int main(int argc, char *argv[]) {
   const QCommandLineOption textOption(
       {"t", "text"}, "File whose contents replace the scene's text.", "file");
   parser.addOption(textOption);
-  parser.process(app);
+  parser.process(application);
 
   QString initialText;
   if (parser.isSet(textOption)) {
@@ -27,13 +26,14 @@ int main(int argc, char *argv[]) {
   }
 
   QQmlApplicationEngine engine;
-  engine.rootContext()->setContextProperty(
-      "initialScene", parser.value(sceneOption).toInt());
-  engine.rootContext()->setContextProperty("initialText", initialText);
+  engine.setInitialProperties({
+      {"initialScene", parser.value(sceneOption).toInt()},
+      {"initialText", initialText},
+  });
   QObject::connect(
-      &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+      &engine, &QQmlApplicationEngine::objectCreationFailed, &application,
       []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
   engine.loadFromModule("TextFlow.Gallery", "Main");
 
-  return app.exec();
+  return application.exec();
 }

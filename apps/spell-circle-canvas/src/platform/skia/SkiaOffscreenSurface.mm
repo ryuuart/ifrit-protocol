@@ -1,7 +1,7 @@
 #import <Metal/Metal.h>
 
-#include "SkiaOffscreenSurface.h"
 #include "SkiaGraphiteContext.h"
+#include "SkiaOffscreenSurface.h"
 #include <rhi/qrhi.h>
 
 #include <include/core/SkColorSpace.h>
@@ -14,25 +14,26 @@
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 
 SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context,
-                                          QRhiTexture *texture,
-                                          QSize pixelSize)
+                                           QRhiTexture *texture,
+                                           QSize pixelSize)
     : m_context(context) {
   if (!texture)
     return;
 
   // Qt packs the id<MTLTexture> pointer into a quint64 on Metal (same
   // pattern as SyphonBridge::publishFrame).
-  id<MTLTexture> mtlTex = (__bridge id<MTLTexture>)reinterpret_cast<void *>(
-      texture->nativeTexture().object);
+  id<MTLTexture> metalTexture =
+      (__bridge id<MTLTexture>)reinterpret_cast<void *>(
+          texture->nativeTexture().object);
 
   const skgpu::graphite::BackendTexture backendTexture =
       skgpu::graphite::BackendTextures::MakeMetal(
           SkISize::Make(pixelSize.width(), pixelSize.height()),
-          (__bridge CFTypeRef)mtlTex);
+          (__bridge CFTypeRef)metalTexture);
 
-  m_surface = SkSurfaces::WrapBackendTexture(
-      context.recorder(), backendTexture, /*colorSpace=*/nullptr,
-      /*props=*/nullptr);
+  m_surface = SkSurfaces::WrapBackendTexture(context.recorder(), backendTexture,
+                                             /*colorSpace=*/nullptr,
+                                             /*props=*/nullptr);
 }
 
 SkiaOffscreenSurface::~SkiaOffscreenSurface() = default;
@@ -51,9 +52,9 @@ void SkiaOffscreenSurface::submit() {
   if (!recording)
     return;
 
-  skgpu::graphite::InsertRecordingInfo info;
-  info.fRecording = recording.get();
-  context->insertRecording(info);
+  skgpu::graphite::InsertRecordingInfo recordingInfo;
+  recordingInfo.fRecording = recording.get();
+  context->insertRecording(recordingInfo);
   // Asynchronous submit: the Graphite context was built on Qt's own
   // MTLCommandQueue (see SkiaGraphiteContext::create), and Metal executes
   // command buffers on one queue in enqueue order — Qt's subsequent render

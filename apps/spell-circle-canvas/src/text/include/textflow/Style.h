@@ -9,7 +9,6 @@
 #include <include/core/SkTypeface.h>
 
 #include <cstdint>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -20,13 +19,14 @@ struct FontFeature {
   char tag[4] = {' ', ' ', ' ', ' '};
   uint32_t value = 1;
 
-  FontFeature() = default;
-  FontFeature(const char (&t)[5], uint32_t v) : value(v) {
-    std::memcpy(tag, t, 4);
-  }
-  bool operator==(const FontFeature &o) const {
-    return value == o.value && std::memcmp(tag, o.tag, 4) == 0;
-  }
+  /** Creates the default enabled feature with a blank tag. */
+  constexpr FontFeature() = default;
+  /** Creates a feature from a four-character OpenType tag and value. */
+  constexpr FontFeature(const char (&featureTag)[5], uint32_t featureValue)
+      : tag{featureTag[0], featureTag[1], featureTag[2], featureTag[3]},
+        value(featureValue) {}
+  /** Compares the tag and configured value. */
+  constexpr bool operator==(const FontFeature &) const = default;
 };
 
 // How a span behaves when its paragraph is laid out vertically
@@ -46,17 +46,20 @@ enum class VerticalForm : uint8_t {
 // are painted belongs in PaintStyle instead and never invalidates shaping.
 struct ShapingStyle {
   sk_sp<SkTypeface> typeface; // null → FontContext's default (+ fallback)
-  float size = 16.0f;
+  float fontSize = 16.0f;     // pixels in the target canvas coordinate space
   float letterSpacing = 0.0f; // px of tracking added after each cluster
                               // (in vertical text this is JIS "aki")
-  std::string language;       // BCP-47 tag ("ja", "ko", ...); empty → untagged
-  std::vector<FontFeature> features;
+  std::string languageTag;    // BCP-47 ("ja", "ko", ...); empty → untagged
+  std::vector<FontFeature> fontFeatures;
   VerticalForm verticalForm = VerticalForm::kAuto;
 
-  bool operator==(const ShapingStyle &o) const {
-    return typeface.get() == o.typeface.get() && size == o.size &&
-           letterSpacing == o.letterSpacing && language == o.language &&
-           features == o.features && verticalForm == o.verticalForm;
+  /** Compares every input that participates in the shape-cache key. */
+  bool operator==(const ShapingStyle &other) const {
+    return typeface.get() == other.typeface.get() &&
+           fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
+           languageTag == other.languageTag &&
+           fontFeatures == other.fontFeatures &&
+           verticalForm == other.verticalForm;
   }
 };
 
@@ -66,38 +69,42 @@ struct DropShadow {
   SkVector offset = {2, 2};
   float blurSigma = 2.0f;
 
-  bool operator==(const DropShadow &o) const {
-    return color == o.color && offset == o.offset &&
-           blurSigma == o.blurSigma;
+  /** Compares every shadow rendering property. */
+  bool operator==(const DropShadow &other) const {
+    return color == other.color && offset == other.offset &&
+           blurSigma == other.blurSigma;
   }
 };
 
 // Everything here is resolved at draw time from the paragraph's current
 // spans: changing any of it never reshapes, never relayouts, and shows up on
-// the very next draw() of an existing Layout.
+// the very next draw() of an existing ParagraphLayout.
 struct PaintStyle {
   SkColor color = SK_ColorBLACK;
-  sk_sp<SkShader> shader;         // gradient/pattern fill (overrides color's
-                                  // RGB; alpha still applies)
-  sk_sp<SkMaskFilter> maskFilter; // e.g. blur on the glyphs themselves
+  sk_sp<SkShader> shader;          // gradient/pattern fill (overrides color's
+                                   // RGB; alpha still applies)
+  sk_sp<SkMaskFilter> maskFilter;  // e.g. blur on the glyphs themselves
   std::vector<DropShadow> shadows; // drawn back-to-front before the fill
   SkBlendMode blendMode = SkBlendMode::kSrcOver; // e.g. kDstOut punch-outs
 
   // Identity comparison for the ref-counted effects: enough for span
   // merging, where "same object" is the case that matters.
-  bool operator==(const PaintStyle &o) const {
-    return color == o.color && shader.get() == o.shader.get() &&
-           maskFilter.get() == o.maskFilter.get() && shadows == o.shadows &&
-           blendMode == o.blendMode;
+  /** Compares values and effect-object identities used for span merging. */
+  bool operator==(const PaintStyle &other) const {
+    return color == other.color && shader.get() == other.shader.get() &&
+           maskFilter.get() == other.maskFilter.get() &&
+           shadows == other.shadows && blendMode == other.blendMode;
   }
 };
 
+/** Combines cache-affecting shaping state with draw-time paint state. */
 struct TextStyle {
   ShapingStyle shaping;
   PaintStyle paint;
 
-  bool operator==(const TextStyle &o) const {
-    return shaping == o.shaping && paint == o.paint;
+  /** Compares both shaping and paint configuration. */
+  bool operator==(const TextStyle &other) const {
+    return shaping == other.shaping && paint == other.paint;
   }
 };
 

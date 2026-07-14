@@ -12,101 +12,114 @@ namespace {
 
 constexpr float kEps = 0.01f;
 
-// Removes [lo, hi] from every interval in `avail` (sorted, disjoint).
-void subtractSpan(std::vector<std::pair<float, float>> &avail, float lo,
-                  float hi) {
-  std::vector<std::pair<float, float>> next;
-  next.reserve(avail.size() + 1);
-  for (const auto &[a, b] : avail) {
-    if (hi <= a || lo >= b) {
-      next.emplace_back(a, b);
+// Removes [excludedStart, excludedEnd] from every sorted, disjoint interval.
+void subtractSpan(std::vector<std::pair<float, float>> &availableSpans,
+                  float excludedStart, float excludedEnd) {
+  std::vector<std::pair<float, float>> remainingSpans;
+  remainingSpans.reserve(availableSpans.size() + 1);
+  for (const auto &[spanStart, spanEnd] : availableSpans) {
+    if (excludedEnd <= spanStart || excludedStart >= spanEnd) {
+      remainingSpans.emplace_back(spanStart, spanEnd);
       continue;
     }
-    if (lo > a)
-      next.emplace_back(a, lo);
-    if (hi < b)
-      next.emplace_back(hi, b);
+    if (excludedStart > spanStart)
+      remainingSpans.emplace_back(spanStart, excludedStart);
+    if (excludedEnd < spanEnd)
+      remainingSpans.emplace_back(excludedEnd, spanEnd);
   }
-  avail = std::move(next);
+  availableSpans = std::move(remainingSpans);
 }
 
 // Occupied x-intervals of a flattened polygon set within the band
 // [top, bottom]: fill intervals sampled at three scanlines (respecting the
 // fill rule, so holes and concave gaps stay open) unioned with every edge's
 // x-travel through the band (conservative — catches features that fall
-// between the samples, like a star tip). Appends to `occ` unmerged.
+// between the samples, like a star tip). Appends unmerged occupied spans.
 void bandOccupancy(const std::vector<std::vector<SkPoint>> &contours,
                    bool evenOdd, float top, float bottom,
-                   std::vector<std::pair<float, float>> &occ) {
+                   std::vector<std::pair<float, float>> &occupiedSpans) {
   static thread_local std::vector<std::pair<float, int>> crossings;
-  const float ys[3] = {top + kEps, (top + bottom) * 0.5f, bottom - kEps};
-  for (const float y : ys) {
+  const float scanlines[3] = {top + kEps, (top + bottom) * 0.5f, bottom - kEps};
+  for (const float scanlineY : scanlines) {
     crossings.clear();
-    for (const std::vector<SkPoint> &poly : contours) {
-      for (size_t i = 0; i < poly.size(); ++i) {
-        const SkPoint &p0 = poly[i];
-        const SkPoint &p1 = poly[(i + 1) % poly.size()];
-        const float y0 = p0.y(), y1 = p1.y();
-        if (y0 == y1)
+    for (const std::vector<SkPoint> &polygon : contours) {
+      for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
+        const SkPoint &startPoint = polygon[pointIndex];
+        const SkPoint &endPoint = polygon[(pointIndex + 1) % polygon.size()];
+        const float startY = startPoint.y();
+        const float endY = endPoint.y();
+        if (startY == endY)
           continue;
         // Half-open [min, max) so shared vertices count exactly once.
-        const bool up = y1 > y0;
-        if (up ? (y < y0 || y >= y1) : (y < y1 || y >= y0))
+        const bool travelsUp = endY > startY;
+        if (travelsUp ? (scanlineY < startY || scanlineY >= endY)
+                      : (scanlineY < endY || scanlineY >= startY))
           continue;
-        const float t = (y - y0) / (y1 - y0);
-        crossings.emplace_back(p0.x() + t * (p1.x() - p0.x()), up ? 1 : -1);
+        const float interpolation = (scanlineY - startY) / (endY - startY);
+        crossings.emplace_back(
+            startPoint.x() + interpolation * (endPoint.x() - startPoint.x()),
+            travelsUp ? 1 : -1);
       }
     }
     std::sort(crossings.begin(), crossings.end());
     int winding = 0, parity = 0;
     bool inside = false;
     float openX = 0;
-    for (const auto &[x, dir] : crossings) {
-      winding += dir;
+    for (const auto &[crossingX, windingDelta] : crossings) {
+      winding += windingDelta;
       parity ^= 1;
       const bool nowInside = evenOdd ? parity != 0 : winding != 0;
       if (nowInside && !inside) {
-        openX = x;
+        openX = crossingX;
         inside = true;
       } else if (!nowInside && inside) {
-        occ.emplace_back(openX, x);
+        occupiedSpans.emplace_back(openX, crossingX);
         inside = false;
       }
     }
   }
 
-  for (const std::vector<SkPoint> &poly : contours) {
-    for (size_t i = 0; i < poly.size(); ++i) {
-      const SkPoint &p0 = poly[i];
-      const SkPoint &p1 = poly[(i + 1) % poly.size()];
-      const float lo = std::min(p0.y(), p1.y());
-      const float hi = std::max(p0.y(), p1.y());
-      if (hi <= top || lo >= bottom)
+  for (const std::vector<SkPoint> &polygon : contours) {
+    for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
+      const SkPoint &startPoint = polygon[pointIndex];
+      const SkPoint &endPoint = polygon[(pointIndex + 1) % polygon.size()];
+      const float edgeTop = std::min(startPoint.y(), endPoint.y());
+      const float edgeBottom = std::max(startPoint.y(), endPoint.y());
+      if (edgeBottom <= top || edgeTop >= bottom)
         continue;
-      float t0 = 0, t1 = 1;
-      if (p0.y() != p1.y()) {
-        const float ta = (top - p0.y()) / (p1.y() - p0.y());
-        const float tb = (bottom - p0.y()) / (p1.y() - p0.y());
-        t0 = std::clamp(std::min(ta, tb), 0.0f, 1.0f);
-        t1 = std::clamp(std::max(ta, tb), 0.0f, 1.0f);
+      float startFraction = 0;
+      float endFraction = 1;
+      if (startPoint.y() != endPoint.y()) {
+        const float topFraction =
+            (top - startPoint.y()) / (endPoint.y() - startPoint.y());
+        const float bottomFraction =
+            (bottom - startPoint.y()) / (endPoint.y() - startPoint.y());
+        startFraction =
+            std::clamp(std::min(topFraction, bottomFraction), 0.0f, 1.0f);
+        endFraction =
+            std::clamp(std::max(topFraction, bottomFraction), 0.0f, 1.0f);
       }
-      const float xA = p0.x() + t0 * (p1.x() - p0.x());
-      const float xB = p0.x() + t1 * (p1.x() - p0.x());
-      occ.emplace_back(std::min(xA, xB), std::max(xA, xB));
+      const float startX =
+          startPoint.x() + startFraction * (endPoint.x() - startPoint.x());
+      const float endX =
+          startPoint.x() + endFraction * (endPoint.x() - startPoint.x());
+      occupiedSpans.emplace_back(std::min(startX, endX),
+                                 std::max(startX, endX));
     }
   }
 }
 
 void mergeSpans(std::vector<std::pair<float, float>> &spans) {
   std::sort(spans.begin(), spans.end());
-  size_t w = 0;
+  size_t mergedCount = 0;
   for (const auto &span : spans) {
-    if (w > 0 && span.first <= spans[w - 1].second)
-      spans[w - 1].second = std::max(spans[w - 1].second, span.second);
+    if (mergedCount > 0 && span.first <= spans[mergedCount - 1].second)
+      spans[mergedCount - 1].second =
+          std::max(spans[mergedCount - 1].second, span.second);
     else
-      spans[w++] = span;
+      spans[mergedCount++] = span;
   }
-  spans.resize(w);
+  spans.resize(mergedCount);
 }
 
 } // namespace
@@ -118,218 +131,242 @@ struct ExclusionFlow::FlatPath {
   bool evenOdd = false;
 };
 
-ExclusionFlow::ExclusionFlow(const SkRect &rect) : m_rect(rect) {}
+ExclusionFlow::ExclusionFlow(const SkRect &bounds) : m_bounds(bounds) {}
 ExclusionFlow::~ExclusionFlow() = default;
 
-const ExclusionFlow::FlatPath &ExclusionFlow::flattened(const SkPath &path) {
-  const uint32_t key = path.getGenerationID();
-  auto it = m_flatCache.find(key);
-  if (it != m_flatCache.end())
-    return *it->second;
-  if (m_flatCache.size() > 64)
-    m_flatCache.clear(); // paths churned every frame: don't grow forever
+const ExclusionFlow::FlatPath &
+ExclusionFlow::flattenedPathFor(const SkPath &path) {
+  const uint32_t generationId = path.getGenerationID();
+  auto cachedPath = m_flattenedPathCache.find(generationId);
+  if (cachedPath != m_flattenedPathCache.end())
+    return *cachedPath->second;
+  if (m_flattenedPathCache.size() > 64)
+    m_flattenedPathCache.clear(); // Bound animated path churn.
 
-  auto flat = std::make_unique<FlatPath>();
+  auto flattenedPath = std::make_unique<FlatPath>();
   const SkPathFillType fill = path.getFillType();
-  flat->evenOdd = fill == SkPathFillType::kEvenOdd ||
-                  fill == SkPathFillType::kInverseEvenOdd;
-  flat->bounds = path.computeTightBounds();
+  flattenedPath->evenOdd = fill == SkPathFillType::kEvenOdd ||
+                           fill == SkPathFillType::kInverseEvenOdd;
+  flattenedPath->bounds = path.computeTightBounds();
 
   // Fixed-count curve subdivision: layout avoidance needs a couple of pixels
   // of fidelity, not rendering accuracy.
   constexpr int kCurveSegs = 12;
-  std::vector<SkPoint> poly;
-  auto flush = [&] {
-    if (poly.size() >= 3)
-      flat->contours.push_back(std::move(poly));
-    poly.clear();
+  std::vector<SkPoint> polygon;
+  auto flushPolygon = [&] {
+    if (polygon.size() >= 3)
+      flattenedPath->contours.push_back(std::move(polygon));
+    polygon.clear();
   };
 
-  SkPath::Iter iter(path, /*forceClose=*/true);
-  SkPoint pts[4];
+  SkPath::Iter pathIterator(path, /*forceClose=*/true);
+  SkPoint controlPoints[4];
   for (;;) {
-    const SkPath::Verb verb = iter.next(pts);
+    const SkPath::Verb verb = pathIterator.next(controlPoints);
     if (verb == SkPath::kDone_Verb)
       break;
     switch (verb) {
     case SkPath::kMove_Verb:
-      flush();
-      poly.push_back(pts[0]);
+      flushPolygon();
+      polygon.push_back(controlPoints[0]);
       break;
     case SkPath::kLine_Verb:
-      poly.push_back(pts[1]);
+      polygon.push_back(controlPoints[1]);
       break;
     case SkPath::kQuad_Verb:
-      for (int i = 1; i <= kCurveSegs; ++i) {
-        const float t = static_cast<float>(i) / kCurveSegs, u = 1 - t;
-        poly.push_back(
-            {u * u * pts[0].x() + 2 * u * t * pts[1].x() + t * t * pts[2].x(),
-             u * u * pts[0].y() + 2 * u * t * pts[1].y() + t * t * pts[2].y()});
+      for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
+        const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
+        const float complement = 1 - fraction;
+        polygon.push_back(
+            {complement * complement * controlPoints[0].x() +
+                 2 * complement * fraction * controlPoints[1].x() +
+                 fraction * fraction * controlPoints[2].x(),
+             complement * complement * controlPoints[0].y() +
+                 2 * complement * fraction * controlPoints[1].y() +
+                 fraction * fraction * controlPoints[2].y()});
       }
       break;
     case SkPath::kConic_Verb: {
-      const float w = iter.conicWeight();
-      for (int i = 1; i <= kCurveSegs; ++i) {
-        const float t = static_cast<float>(i) / kCurveSegs, u = 1 - t;
-        const float denom = u * u + 2 * w * u * t + t * t;
-        poly.push_back({(u * u * pts[0].x() + 2 * w * u * t * pts[1].x() +
-                         t * t * pts[2].x()) /
-                            denom,
-                        (u * u * pts[0].y() + 2 * w * u * t * pts[1].y() +
-                         t * t * pts[2].y()) /
-                            denom});
+      const float conicWeight = pathIterator.conicWeight();
+      for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
+        const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
+        const float complement = 1 - fraction;
+        const float denominator = complement * complement +
+                                  2 * conicWeight * complement * fraction +
+                                  fraction * fraction;
+        polygon.push_back(
+            {(complement * complement * controlPoints[0].x() +
+              2 * conicWeight * complement * fraction * controlPoints[1].x() +
+              fraction * fraction * controlPoints[2].x()) /
+                 denominator,
+             (complement * complement * controlPoints[0].y() +
+              2 * conicWeight * complement * fraction * controlPoints[1].y() +
+              fraction * fraction * controlPoints[2].y()) /
+                 denominator});
       }
       break;
     }
     case SkPath::kCubic_Verb:
-      for (int i = 1; i <= kCurveSegs; ++i) {
-        const float t = static_cast<float>(i) / kCurveSegs, u = 1 - t;
-        poly.push_back({u * u * u * pts[0].x() + 3 * u * u * t * pts[1].x() +
-                            3 * u * t * t * pts[2].x() + t * t * t * pts[3].x(),
-                        u * u * u * pts[0].y() + 3 * u * u * t * pts[1].y() +
-                            3 * u * t * t * pts[2].y() +
-                            t * t * t * pts[3].y()});
+      for (int segmentIndex = 1; segmentIndex <= kCurveSegs; ++segmentIndex) {
+        const float fraction = static_cast<float>(segmentIndex) / kCurveSegs;
+        const float complement = 1 - fraction;
+        polygon.push_back(
+            {complement * complement * complement * controlPoints[0].x() +
+                 3 * complement * complement * fraction * controlPoints[1].x() +
+                 3 * complement * fraction * fraction * controlPoints[2].x() +
+                 fraction * fraction * fraction * controlPoints[3].x(),
+             complement * complement * complement * controlPoints[0].y() +
+                 3 * complement * complement * fraction * controlPoints[1].y() +
+                 3 * complement * fraction * fraction * controlPoints[2].y() +
+                 fraction * fraction * fraction * controlPoints[3].y()});
       }
       break;
     case SkPath::kClose_Verb:
-      flush();
+      flushPolygon();
       break;
     default:
       break;
     }
   }
-  flush();
+  flushPolygon();
 
-  auto [pos, inserted] = m_flatCache.emplace(key, std::move(flat));
-  return *pos->second;
+  auto cacheEntry =
+      m_flattenedPathCache.emplace(generationId, std::move(flattenedPath))
+          .first;
+  return *cacheEntry->second;
 }
 
 bool BlockFlow::lineIntervals(int index, float lineHeight, float ascent,
-                              std::vector<LineInterval> &out) {
-  out.clear();
-  const float top = m_rect.top() + static_cast<float>(index) * lineHeight;
-  if (top + lineHeight > m_rect.bottom() + kEps)
+                              std::vector<LineInterval> &intervals) {
+  intervals.clear();
+  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
+  if (top + lineHeight > m_bounds.bottom() + kEps)
     return false;
   LineInterval interval;
-  interval.origin = {m_rect.left(), top + ascent};
-  interval.dir = {1, 0};
-  interval.length = m_rect.width();
-  out.push_back(interval);
+  interval.origin = {m_bounds.left(), top + ascent};
+  interval.direction = {1, 0};
+  interval.length = m_bounds.width();
+  intervals.push_back(interval);
   return true;
 }
 
 bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
-                                  std::vector<LineInterval> &out) {
-  out.clear();
-  const float top = m_rect.top() + static_cast<float>(index) * lineHeight;
+                                  std::vector<LineInterval> &intervals) {
+  intervals.clear();
+  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
   const float bottom = top + lineHeight;
-  if (bottom > m_rect.bottom() + kEps)
+  if (bottom > m_bounds.bottom() + kEps)
     return false;
 
-  std::vector<std::pair<float, float>> avail = {
-      {m_rect.left(), m_rect.right()}};
+  std::vector<std::pair<float, float>> availableSpans = {
+      {m_bounds.left(), m_bounds.right()}};
 
-  static thread_local std::vector<std::pair<float, float>> occ;
+  static thread_local std::vector<std::pair<float, float>> occupiedSpans;
   for (const Shape &shape : m_shapes) {
     if (shape.kind == Shape::kPath) {
-      const FlatPath &flat = flattened(shape.path);
-      if (flat.contours.empty())
+      const FlatPath &flattenedPath = flattenedPathFor(shape.path);
+      if (flattenedPath.contours.empty())
         continue;
-      const float ox = shape.pathOffset.x(), oy = shape.pathOffset.y();
-      const float pad = shape.padding;
-      if (flat.bounds.bottom() + oy + pad <= top ||
-          flat.bounds.top() + oy - pad >= bottom)
+      const float offsetX = shape.pathOffset.x();
+      const float offsetY = shape.pathOffset.y();
+      const float padding = shape.padding;
+      if (flattenedPath.bounds.bottom() + offsetY + padding <= top ||
+          flattenedPath.bounds.top() + offsetY - padding >= bottom)
         continue;
       // Band and results are in path-local space (shifted by the offset);
       // padding expands the band vertically and each span horizontally.
-      occ.clear();
-      bandOccupancy(flat.contours, flat.evenOdd, top - oy - pad,
-                    bottom - oy + pad, occ);
-      mergeSpans(occ);
-      for (const auto &[a, b] : occ)
-        subtractSpan(avail, a + ox - pad, b + ox + pad);
+      occupiedSpans.clear();
+      bandOccupancy(flattenedPath.contours, flattenedPath.evenOdd,
+                    top - offsetY - padding, bottom - offsetY + padding,
+                    occupiedSpans);
+      mergeSpans(occupiedSpans);
+      for (const auto &[spanStart, spanEnd] : occupiedSpans)
+        subtractSpan(availableSpans, spanStart + offsetX - padding,
+                     spanEnd + offsetX + padding);
     } else if (shape.kind == Shape::kCircle) {
-      const float r =
+      const float radius =
           std::min(shape.bounds.width(), shape.bounds.height()) * 0.5f +
           shape.padding;
-      const float cx = shape.bounds.centerX();
-      const float cy = shape.bounds.centerY();
-      if (cy + r <= top || cy - r >= bottom)
+      const float centerX = shape.bounds.centerX();
+      const float centerY = shape.bounds.centerY();
+      if (centerY + radius <= top || centerY - radius >= bottom)
         continue;
-      // Widest chord of the circle within the band: at cy if the band
+      // Widest chord of the circle within the band: at centerY if the band
       // contains it, else at the nearest band edge.
-      const float dy = (cy < top) ? top - cy : (cy > bottom ? cy - bottom : 0);
-      if (dy >= r)
+      const float distanceFromCenter =
+          centerY < top ? top - centerY
+                        : (centerY > bottom ? centerY - bottom : 0);
+      if (distanceFromCenter >= radius)
         continue;
-      const float halfChord = std::sqrt(r * r - dy * dy);
-      subtractSpan(avail, cx - halfChord, cx + halfChord);
+      const float halfChord =
+          std::sqrt(radius * radius - distanceFromCenter * distanceFromCenter);
+      subtractSpan(availableSpans, centerX - halfChord, centerX + halfChord);
     } else {
-      SkRect b = shape.bounds.makeOutset(shape.padding, shape.padding);
-      if (b.bottom() <= top || b.top() >= bottom)
+      const SkRect paddedBounds =
+          shape.bounds.makeOutset(shape.padding, shape.padding);
+      if (paddedBounds.bottom() <= top || paddedBounds.top() >= bottom)
         continue;
-      subtractSpan(avail, b.left(), b.right());
+      subtractSpan(availableSpans, paddedBounds.left(), paddedBounds.right());
     }
-    if (avail.empty())
+    if (availableSpans.empty())
       break;
   }
 
-  for (const auto &[a, b] : avail) {
-    if (b - a < m_minIntervalWidth)
+  for (const auto &[spanStart, spanEnd] : availableSpans) {
+    if (spanEnd - spanStart < m_minIntervalWidth)
       continue;
     LineInterval interval;
-    interval.origin = {a, top + ascent};
-    interval.dir = {1, 0};
-    interval.length = b - a;
-    out.push_back(interval);
+    interval.origin = {spanStart, top + ascent};
+    interval.direction = {1, 0};
+    interval.length = spanEnd - spanStart;
+    intervals.push_back(interval);
   }
   return true;
 }
 
 bool VerticalBlockFlow::lineIntervals(int index, float lineHeight,
                                       float /*ascent*/,
-                                      std::vector<LineInterval> &out) {
-  out.clear();
-  const float right =
-      m_rect.right() - static_cast<float>(index) * lineHeight;
-  if (right - lineHeight < m_rect.left() - kEps)
+                                      std::vector<LineInterval> &intervals) {
+  intervals.clear();
+  const float right = m_bounds.right() - static_cast<float>(index) * lineHeight;
+  if (right - lineHeight < m_bounds.left() - kEps)
     return false;
   LineInterval interval;
-  interval.origin = {right - lineHeight * 0.5f, m_rect.top()};
-  interval.dir = {0, 1};
-  interval.length = m_rect.height();
-  out.push_back(interval);
+  interval.origin = {right - lineHeight * 0.5f, m_bounds.top()};
+  interval.direction = {0, 1};
+  interval.length = m_bounds.height();
+  intervals.push_back(interval);
   return true;
 }
 
 bool LineSetFlow::lineIntervals(int index, float /*lineHeight*/,
                                 float /*ascent*/,
-                                std::vector<LineInterval> &out) {
-  out.clear();
+                                std::vector<LineInterval> &intervals) {
+  intervals.clear();
   if (index < 0 || static_cast<size_t>(index) >= m_lines.size())
     return false;
-  out = m_lines[static_cast<size_t>(index)];
+  intervals = m_lines[static_cast<size_t>(index)];
   return true;
 }
 
 PathFlow::PathFlow(const SkPath &path) { addPath(path); }
 
 void PathFlow::addPath(const SkPath &path) {
-  SkContourMeasureIter iter(path, /*forceClosed=*/false);
-  while (sk_sp<SkContourMeasure> contour = iter.next())
+  SkContourMeasureIter contourIterator(path, /*forceClosed=*/false);
+  while (sk_sp<SkContourMeasure> contour = contourIterator.next())
     m_contours.push_back(std::move(contour));
 }
 
-bool PathFlow::lineIntervals(int index, float /*lineHeight*/,
-                             float /*ascent*/,
-                             std::vector<LineInterval> &out) {
-  out.clear();
+bool PathFlow::lineIntervals(int index, float /*lineHeight*/, float /*ascent*/,
+                             std::vector<LineInterval> &intervals) {
+  intervals.clear();
   if (index < 0 || static_cast<size_t>(index) >= m_contours.size())
     return false;
   LineInterval interval;
   interval.contour = m_contours[static_cast<size_t>(index)];
   interval.contourStart = 0;
   interval.length = interval.contour->length();
-  out.push_back(interval);
+  intervals.push_back(interval);
   return true;
 }
 

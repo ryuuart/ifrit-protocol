@@ -1,4 +1,5 @@
 #include "SkiaSceneBackend.h"
+#include "SceneLabels.h"
 #include "SkiaGraphiteContext.h"
 #include "SkiaOffscreenSurface.h"
 #include "SpellCircleRenderer.h"
@@ -64,8 +65,8 @@ public:
     skCanvas->clear(SK_ColorTRANSPARENT);
     // Created on first frame, on the render thread (its owner) — all label
     // and paragraph text below goes through it.
-    if (!m_textCtx)
-      m_textCtx = std::make_unique<textflow::FontContext>(
+    if (!m_textContext)
+      m_textContext = std::make_unique<textflow::FontContext>(
           SkFontMgr_New_CoreText(nullptr));
 
     const SkColor accentColor = toSkColor(renderer.m_accentColor);
@@ -92,7 +93,7 @@ public:
     // The FontContext's CoreText font manager is reused — recreating one
     // enumerates system fonts and is not per-frame cheap.
     sk_sp<SkTypeface> typeface =
-        textflowqt::toSkTypeface(m_textCtx->fontMgr(), renderer.m_font);
+        textflowqt::toSkTypeface(m_textContext->fontManager(), renderer.m_font);
     SkFont font(typeface, fontSize);
     font.setSubpixel(true);
     font.setEdging(SkFont::Edging::kAntiAlias);
@@ -121,16 +122,16 @@ public:
       if (circle.radius <= 0.0f)
         continue;
 
-      const float r = circle.radius;
-      const float cx = static_cast<float>(circle.center.x());
-      const float cy = static_cast<float>(circle.center.y());
+      const float radius = circle.radius;
+      const float centerX = static_cast<float>(circle.center.x());
+      const float centerY = static_cast<float>(circle.center.y());
 
       SkPaint strokePaint;
       strokePaint.setAntiAlias(true);
       strokePaint.setStyle(SkPaint::kStroke_Style);
       strokePaint.setStrokeWidth(strokeWidth);
       strokePaint.setColor(accentColor);
-      skCanvas->drawCircle(cx, cy, r, strokePaint);
+      skCanvas->drawCircle(centerX, centerY, radius, strokePaint);
 
       if (circle.active > 0.0f) {
         SkPaint fillPaint;
@@ -138,29 +139,31 @@ public:
         fillPaint.setStyle(SkPaint::kFill_Style);
         fillPaint.setColor(accentColor);
         fillPaint.setAlphaf(circle.active);
-        skCanvas->drawCircle(cx, cy, r, fillPaint);
+        skCanvas->drawCircle(centerX, centerY, radius, fillPaint);
       }
 
       if (!circle.name.isEmpty()) {
-        // Curved label: glyph middles ride (r + labelOffset), curvature-
+        // Curved label: glyph middles ride (radius + labelOffset), curvature-
         // compensated and centre-anchored on textStart (see
-        // textflow::makeRingLabel). Rings are origin-centred and cached, so
-        // a canvas translate puts the label on the actual circle.
-        const textflow::LineInterval interval = textflow::makeRingLabel(
-            m_rings, fontMetrics, r + labelOffset, circle.textStart);
+        // spellcircle::makeRingLabelInterval). Rings are origin-centred and
+        // cached, so a canvas translate puts the label on the actual circle.
+        const textflow::LineInterval interval =
+            spellcircle::makeRingLabelInterval(m_ringLabelGeometry, fontMetrics,
+                                               radius + labelOffset,
+                                               circle.textStart);
         if (interval.contour) {
-          textflow::Paragraph &label =
-              m_labels.get(toU16(circle.name), typeface, fontSize);
+          textflow::Paragraph &label = m_labelParagraphs.paragraphFor(
+              toU16(circle.name), typeface, fontSize);
           textflow::LineSetFlow flow;
           flow.lines().push_back({interval});
-          textflow::LayoutOptions labelOpts;
-          labelOpts.alignment = textflow::Alignment::kCenter;
-          textflow::Layout labelLayout =
-              textflow::layoutParagraph(*m_textCtx, label, flow, labelOpts);
+          textflow::ParagraphLayoutOptions labelOptions;
+          labelOptions.alignment = textflow::TextAlignment::kCenter;
+          textflow::ParagraphLayout labelLayout = textflow::layoutParagraph(
+              *m_textContext, label, flow, labelOptions);
           textflow::PaintStyle accentPaint;
           accentPaint.color = accentColor;
           skCanvas->save();
-          skCanvas->translate(cx, cy);
+          skCanvas->translate(centerX, centerY);
           labelLayout.draw(skCanvas, label, &accentPaint);
           skCanvas->restore();
         }
@@ -174,14 +177,14 @@ public:
     for (const auto &pointLabel : renderer.m_pointLabels) {
       const QPointF center =
           pointLabel.anchor + pointLabel.direction * pointDistance;
-      textflow::Paragraph &label =
-          m_labels.get(toU16(pointLabel.value), typeface, fontSize);
-      const float textW = label.naturalWidth(*m_textCtx);
-      textflow::Layout labelLayout = textflow::layoutLabel(
-          *m_textCtx, label,
-          {static_cast<float>(center.x()) - textW * 0.5f,
+      textflow::Paragraph &label = m_labelParagraphs.paragraphFor(
+          toU16(pointLabel.value), typeface, fontSize);
+      const float textWidth = label.naturalWidth(*m_textContext);
+      textflow::ParagraphLayout labelLayout = textflow::layoutSingleLine(
+          *m_textContext, label,
+          {static_cast<float>(center.x()) - textWidth * 0.5f,
            static_cast<float>(center.y()) +
-               textflow::middleBaselineOffset(fontMetrics)});
+               spellcircle::centeredBaselineOffset(fontMetrics)});
       textflow::PaintStyle accentPaint;
       accentPaint.color = accentColor;
       labelLayout.draw(skCanvas, label, &accentPaint);
@@ -190,29 +193,31 @@ public:
     // ── Boxes ────────────────────────────────────────────────────────────────
     auto drawBox = [&](const SpellCircleRenderer::ResolvedBox &box) {
       textflow::Paragraph &label =
-          m_labels.get(toU16(box.value), typeface, fontSize);
-      const float textW = label.naturalWidth(*m_textCtx);
-      const float bw = std::max(textW + boxPadding * 2.0f, boxWidth);
-      const float bh = boxHeight;
+          m_labelParagraphs.paragraphFor(toU16(box.value), typeface, fontSize);
+      const float textWidth = label.naturalWidth(*m_textContext);
+      const float resolvedBoxWidth =
+          std::max(textWidth + boxPadding * 2.0f, boxWidth);
+      const float resolvedBoxHeight = boxHeight;
 
       // The box's center sits on the ray from the canvas center through the
       // point, pushed outward by boxDistance beyond the point — nothing more
       // (see the equivalent comment in QCanvasPainterSceneBackend::drawScene
       // for why edge-dependent anchoring was rejected).
       const QPointF boxCenter = box.anchor + box.direction * boxDistance;
-      const float hw = bw / 2.0f;
-      const float hh = bh / 2.0f;
-      const float bx = static_cast<float>(boxCenter.x()) - hw;
-      const float by = static_cast<float>(boxCenter.y()) - hh;
+      const float halfWidth = resolvedBoxWidth / 2.0f;
+      const float halfHeight = resolvedBoxHeight / 2.0f;
+      const float boxX = static_cast<float>(boxCenter.x()) - halfWidth;
+      const float boxY = static_cast<float>(boxCenter.y()) - halfHeight;
 
-      const SkRect rect = SkRect::MakeXYWH(bx, by, bw, bh);
+      const SkRect boxBounds =
+          SkRect::MakeXYWH(boxX, boxY, resolvedBoxWidth, resolvedBoxHeight);
 
       // Punch a transparent hole first so whatever was drawn underneath
       // (edges, circles) doesn't show through the box — equivalent to
       // QCanvasPainter::clearRect().
       SkPaint clearPaint;
       clearPaint.setBlendMode(SkBlendMode::kClear);
-      skCanvas->drawRect(rect, clearPaint);
+      skCanvas->drawRect(boxBounds, clearPaint);
 
       if (box.active > 0.0f) {
         SkPaint fillPaint;
@@ -220,7 +225,7 @@ public:
         fillPaint.setStyle(SkPaint::kFill_Style);
         fillPaint.setColor(accentColor);
         fillPaint.setAlphaf(box.active);
-        skCanvas->drawRect(rect, fillPaint);
+        skCanvas->drawRect(boxBounds, fillPaint);
       }
 
       SkPaint strokePaint;
@@ -228,13 +233,13 @@ public:
       strokePaint.setStyle(SkPaint::kStroke_Style);
       strokePaint.setStrokeWidth(strokeWidth);
       strokePaint.setColor(accentColor);
-      skCanvas->drawRect(rect, strokePaint);
+      skCanvas->drawRect(boxBounds, strokePaint);
 
       // TextBaseline::Top: the top of the glyphs (not the alphabetic
-      // baseline) sits at (bx + boxPadding, by + boxPadding).
-      textflow::Layout labelLayout = textflow::layoutLabel(
-          *m_textCtx, label,
-          {bx + boxPadding, by + boxPadding - fontMetrics.fAscent});
+      // baseline) sits at (boxX + boxPadding, boxY + boxPadding).
+      textflow::ParagraphLayout labelLayout = textflow::layoutSingleLine(
+          *m_textContext, label,
+          {boxX + boxPadding, boxY + boxPadding - fontMetrics.fAscent});
       textflow::PaintStyle textPaint;
       if (box.active > 0.0f) {
         // Punches the text out of the box fill instead of drawing it on top
@@ -253,20 +258,25 @@ public:
     surface.submit();
     const auto submitEnd = std::chrono::steady_clock::now();
 
-    const double recordUs = std::chrono::duration<double, std::micro>(
-                                recordEnd - frameStart)
-                                .count();
-    const double submitUs =
+    const double recordMicroseconds =
+        std::chrono::duration<double, std::micro>(recordEnd - frameStart)
+            .count();
+    const double submitMicroseconds =
         std::chrono::duration<double, std::micro>(submitEnd - recordEnd)
             .count();
-    m_recordUsEma =
-        m_recordUsEma == 0 ? recordUs : m_recordUsEma * 0.98 + recordUs * 0.02;
-    m_submitUsEma =
-        m_submitUsEma == 0 ? submitUs : m_submitUsEma * 0.98 + submitUs * 0.02;
+    m_recordMicrosecondsAverage =
+        m_recordMicrosecondsAverage == 0
+            ? recordMicroseconds
+            : m_recordMicrosecondsAverage * 0.98 + recordMicroseconds * 0.02;
+    m_submitMicrosecondsAverage =
+        m_submitMicrosecondsAverage == 0
+            ? submitMicroseconds
+            : m_submitMicrosecondsAverage * 0.98 + submitMicroseconds * 0.02;
     if (m_sceneFrame++ % 600 == 0)
       spdlog::info("drawScene: record {:.0f} us (ema {:.0f}), submit {:.0f} "
                    "us (ema {:.0f})",
-                   recordUs, m_recordUsEma, submitUs, m_submitUsEma);
+                   recordMicroseconds, m_recordMicrosecondsAverage,
+                   submitMicroseconds, m_submitMicrosecondsAverage);
 
     // The offscreen canvas's blended output is premultiplied-alpha; without
     // this flag drawImage() re-applies alpha on top of already alpha-baked-in
@@ -279,12 +289,12 @@ public:
 private:
   std::unique_ptr<SkiaGraphiteContext> m_context;
 
-  std::unique_ptr<textflow::FontContext> m_textCtx; // render-thread only
-  textflow::LabelCache m_labels; // shaped once per unique (text, font, size)
-  textflow::RingCache m_rings;   // measured once per label radius
+  std::unique_ptr<textflow::FontContext> m_textContext; // render-thread only
+  textflow::SingleLineParagraphCache m_labelParagraphs;
+  spellcircle::RingLabelGeometryCache m_ringLabelGeometry;
   uint64_t m_sceneFrame = 0;
-  double m_recordUsEma = 0;
-  double m_submitUsEma = 0;
+  double m_recordMicrosecondsAverage = 0;
+  double m_submitMicrosecondsAverage = 0;
 };
 
 std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi *rhi) {

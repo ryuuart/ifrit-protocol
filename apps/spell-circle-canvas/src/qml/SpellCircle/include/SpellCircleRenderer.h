@@ -1,7 +1,7 @@
 #pragma once
 #include "CanvasSceneBackend.h"
+#include "QTextPathPainter.h"
 #include "SpellCircleModel.h"
-#include "TextPathPainter.h"
 #include <QColor>
 #include <QFont>
 #include <QPointF>
@@ -20,26 +20,31 @@ class SyphonBridge;
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
 public:
   SpellCircleRenderer();
-  virtual ~SpellCircleRenderer();
+  ~SpellCircleRenderer() override;
 
+  /** Copies GUI-thread model and configuration state into the renderer. */
   void synchronize(QCanvasPainterItem *item) override;
-  void initializeResources(QCanvasPainter *p) override;
-  void prePaint(QCanvasPainter *p) override;
-  void paint(QCanvasPainter *p) override;
+  /** Creates the offscreen backend and external publishing resources. */
+  void initializeResources(QCanvasPainter *painter) override;
+  /** Resolves dirty geometry and records the current offscreen image. */
+  void prePaint(QCanvasPainter *painter) override;
+  /** Blits the cached display image into the visible item. */
+  void paint(QCanvasPainter *painter) override;
 
 protected:
-  void render(QRhiCommandBuffer *cb) override;
+  /** Publishes the native offscreen texture after Qt records its frame. */
+  void render(QRhiCommandBuffer *commandBuffer) override;
 
 private:
   // Grants access to the resolved geometry (m_circles/m_edges/m_boxes/
-  // m_pointLabels), style fields, and m_textPathPainter below, plus the
+  // m_pointLabels), style fields, and m_curvedTextPainter below, plus the
   // inherited beginCanvasPainting()/endCanvasPainting() recording brackets —
   // QCanvasPainterSceneBackend draws directly from these rather than going
   // through a method on SpellCircleRenderer. SkiaSceneBackendImpl (defined at
   // global scope in SkiaSceneBackend.mm, not in an anonymous namespace, so
   // this forward-declaring friend actually names it) needs the same resolved
   // geometry and style fields to draw the equivalent scene via Skia, but
-  // never uses m_textPathPainter or the QCanvasPainter recording brackets —
+  // never uses m_curvedTextPainter or the QCanvasPainter recording brackets —
   // those are QCanvasPainter-specific.
   friend class QCanvasPainterSceneBackend;
   friend class SkiaSceneBackendImpl;
@@ -86,9 +91,9 @@ private:
   // but drawn as plain text with no surrounding rect/stroke/fill, since a
   // point isn't a box. `active` is unused here (Point has no fill concept).
   QList<ResolvedBox> m_pointLabels;
-  TextPathPainter m_textPathPainter;
-  // Display cache — rasterised at kDisplaySize for cheap blitting in paint().
-  QCanvasOffscreenCanvas m_displayCanvas;
+  QTextPathPainter m_curvedTextPainter;
+  // Registered image for blitting the latest native offscreen scene into the
+  // visible item without re-recording geometry during zoom or pan.
   QCanvasImage m_displayImage;
   // Syphon canvas — native size, published to other apps. Recreated
   // whenever m_canvasWidth/m_canvasHeight no longer match the dimensions

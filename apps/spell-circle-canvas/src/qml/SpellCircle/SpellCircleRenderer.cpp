@@ -16,32 +16,35 @@ namespace {
 // ringing the same big circle) resolve against one cached QPainterPath
 // instead of rebuilding + re-flattening an identical ellipse per point.
 struct CircleKey {
-  float x = 0.0f;
-  float y = 0.0f;
+  float centerX = 0.0f;
+  float centerY = 0.0f;
   uint32_t radius = 0;
 
   bool operator==(const CircleKey &other) const {
-    return x == other.x && y == other.y && radius == other.radius;
+    return centerX == other.centerX && centerY == other.centerY &&
+           radius == other.radius;
   }
 };
 
 size_t qHash(const CircleKey &key, size_t seed = 0) {
-  return qHashMulti(seed, key.x, key.y, key.radius);
+  return qHashMulti(seed, key.centerX, key.centerY, key.radius);
 }
 
 /** Builds a native-scaled ellipse path for `circle`, with caching enabled so
  *  repeated pointAtPercent() calls (one per point anchored to it) reuse
  *  QPainterPath's internal flattened-length cache instead of recomputing it
  *  each time. */
-QPainterPath circleEllipsePath(const CircleComponent &circle, float sx,
-                               float sy, float s) {
-  const float cx = circle.x * sx;
-  const float cy = circle.y * sy;
-  const float r = static_cast<float>(circle.radius) * s;
+QPainterPath circleEllipsePath(const CircleComponent &circle,
+                               float horizontalScale, float verticalScale,
+                               float radiusScale) {
+  const float centerX = circle.centerX * horizontalScale;
+  const float centerY = circle.centerY * verticalScale;
+  const float radius = static_cast<float>(circle.radius) * radiusScale;
 
   QPainterPath path;
   path.setCachingEnabled(true);
-  path.addEllipse(cx - r, cy - r, r * 2.0, r * 2.0);
+  path.addEllipse(centerX - radius, centerY - radius, radius * 2.0,
+                  radius * 2.0);
   return path;
 }
 
@@ -77,48 +80,51 @@ SpellCircleRenderer::SpellCircleRenderer()
   m_font.setBold(true);
   m_font.setPointSize(36);
   // addEllipse starts at 3 o'clock and goes CW, so 0.75 lands at 12 o'clock.
-  m_textPathPainter.setPathOffset(0.75f);
+  m_curvedTextPainter.setPathOffset(0.75f);
 }
 
 SpellCircleRenderer::~SpellCircleRenderer() { m_syphon->stop(); }
 
 void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
-  auto *sc = static_cast<SpellCircle *>(item);
+  auto *spellCircleItem = static_cast<SpellCircle *>(item);
 
   bool needsResolve = false;
 
-  const int modelGen = sc->model() ? sc->model()->generation() : 0;
-  if (modelGen != m_knownModelGeneration) {
-    m_knownModelGeneration = modelGen;
+  const int modelGeneration =
+      spellCircleItem->model() ? spellCircleItem->model()->generation() : 0;
+  if (modelGeneration != m_knownModelGeneration) {
+    m_knownModelGeneration = modelGeneration;
     m_geometryDirty = true;
     needsResolve = true;
   }
 
-  const int configGen = sc->config() ? sc->config()->generation() : 0;
-  if (configGen != m_knownConfigGeneration) {
-    m_knownConfigGeneration = configGen;
+  const int configGeneration =
+      spellCircleItem->config() ? spellCircleItem->config()->generation() : 0;
+  if (configGeneration != m_knownConfigGeneration) {
+    m_knownConfigGeneration = configGeneration;
     m_geometryDirty = true;
     needsResolve = true;
-    if (sc->config()) {
-      m_accentColor = sc->config()->color();
-      m_strokeWidth = sc->config()->strokeWidth();
-      m_scale = sc->config()->scale();
-      m_labelOffset = sc->config()->labelOffset();
-      m_pointDistance = sc->config()->pointDistance();
-      m_canvasWidth = sc->config()->canvas()->width();
-      m_canvasHeight = sc->config()->canvas()->height();
-      m_font = sc->config()->font();
-      m_boxWidth = sc->config()->box()->width();
-      m_boxHeight = sc->config()->box()->height();
-      m_boxPadding = sc->config()->box()->padding();
-      m_boxDistance = sc->config()->box()->distance();
+    if (spellCircleItem->config()) {
+      GraphicsConfig *config = spellCircleItem->config();
+      m_accentColor = config->color();
+      m_strokeWidth = config->strokeWidth();
+      m_scale = config->scale();
+      m_labelOffset = config->labelOffset();
+      m_pointDistance = config->pointDistance();
+      m_canvasWidth = config->canvas()->width();
+      m_canvasHeight = config->canvas()->height();
+      m_font = config->font();
+      m_boxWidth = config->box()->width();
+      m_boxHeight = config->box()->height();
+      m_boxPadding = config->box()->padding();
+      m_boxDistance = config->box()->distance();
     }
   }
 
   // Resolved positions depend on both the scene (model) and the native
   // canvas size (config), so either changing requires re-resolving.
   if (needsResolve)
-    resolveGeometry(sc->model());
+    resolveGeometry(spellCircleItem->model());
 }
 
 void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
@@ -133,15 +139,16 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
 
   // Scenes may be authored in a smaller coordinate space and scaled up to
   // the native canvas; width/height of 0 mean coordinates are already
-  // native. Radius/point math assumes a uniform scale, matching sx.
-  const float sx = model->sceneWidth() > 0.0f
-                       ? static_cast<float>(m_canvasWidth) / model->sceneWidth()
-                       : 1.0f;
-  const float sy =
+  // native. Radius/point math assumes a uniform horizontal scale.
+  const float horizontalScale =
+      model->sceneWidth() > 0.0f
+          ? static_cast<float>(m_canvasWidth) / model->sceneWidth()
+          : 1.0f;
+  const float verticalScale =
       model->sceneHeight() > 0.0f
           ? static_cast<float>(m_canvasHeight) / model->sceneHeight()
           : 1.0f;
-  const float s = sx;
+  const float radiusScale = horizontalScale;
 
   // Many points typically anchor to the same circle (e.g. a ring of points
   // around one big circle), so cache each circle's ellipse path by its raw
@@ -149,11 +156,13 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
   QHash<CircleKey, QPainterPath> circlePaths;
   auto pathForCircle =
       [&](const CircleComponent &circle) -> const QPainterPath & {
-    const CircleKey key{circle.x, circle.y, circle.radius};
-    auto it = circlePaths.find(key);
-    if (it == circlePaths.end())
-      it = circlePaths.insert(key, circleEllipsePath(circle, sx, sy, s));
-    return it.value();
+    const CircleKey key{circle.centerX, circle.centerY, circle.radius};
+    auto pathEntry = circlePaths.find(key);
+    if (pathEntry == circlePaths.end())
+      pathEntry = circlePaths.insert(
+          key, circleEllipsePath(circle, horizontalScale, verticalScale,
+                                 radiusScale));
+    return pathEntry.value();
   };
 
   auto pointPosition = [&](entt::entity pointEntity) -> QPointF {
@@ -163,21 +172,27 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
     if (!point)
       return {};
     if (isAnchorOnlyCircle(point->circle))
-      return QPointF(point->circle.x * sx, point->circle.y * sy);
+      return QPointF(point->circle.centerX * horizontalScale,
+                     point->circle.centerY * verticalScale);
     return pointAtPosition(pathForCircle(point->circle), point->position);
   };
 
-  for (auto [entity, circle] : registry.view<CircleComponent>().each()) {
+  const auto circles = registry.view<CircleComponent>();
+  for (const entt::entity circleEntity : circles) {
+    const CircleComponent &circle = circles.get<CircleComponent>(circleEntity);
     m_circles.append(ResolvedCircle{
         .name = circle.name,
-        .center = QPointF(circle.x * sx, circle.y * sy),
-        .radius = static_cast<float>(circle.radius) * s,
+        .center = QPointF(circle.centerX * horizontalScale,
+                          circle.centerY * verticalScale),
+        .radius = static_cast<float>(circle.radius) * radiusScale,
         .textStart = circle.textStart,
         .active = circle.active,
     });
   }
 
-  for (auto [entity, edge] : registry.view<EdgeComponent>().each()) {
+  const auto edges = registry.view<EdgeComponent>();
+  for (const entt::entity edgeEntity : edges) {
+    const EdgeComponent &edge = edges.get<EdgeComponent>(edgeEntity);
     m_edges.append(ResolvedEdge{
         .first = pointPosition(edge.first),
         .second = pointPosition(edge.second),
@@ -195,7 +210,9 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
     return length > 1e-6 ? direction / length : QPointF(0.0, -1.0);
   };
 
-  for (auto [entity, box] : registry.view<BoxComponent>().each()) {
+  const auto boxes = registry.view<BoxComponent>();
+  for (const entt::entity boxEntity : boxes) {
+    const BoxComponent &box = boxes.get<BoxComponent>(boxEntity);
     const QPointF anchor = pointPosition(box.point);
 
     m_boxes.append(ResolvedBox{
@@ -209,12 +226,15 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
   // Every Point carrying a non-empty value gets its own label, regardless of
   // whether it's also an Edge endpoint or a Box's anchor — e.g. an animation
   // script tracking a point's live position as it moves around a circle.
-  for (auto [entity, point] : registry.view<PointComponent>().each()) {
+  const auto points = registry.view<PointComponent>();
+  for (const entt::entity pointEntity : points) {
+    const PointComponent &point = points.get<PointComponent>(pointEntity);
     if (point.value.isEmpty())
       continue;
     const QPointF anchor =
         isAnchorOnlyCircle(point.circle)
-            ? QPointF(point.circle.x * sx, point.circle.y * sy)
+            ? QPointF(point.circle.centerX * horizontalScale,
+                      point.circle.centerY * verticalScale)
             : pointAtPosition(pathForCircle(point.circle), point.position);
 
     m_pointLabels.append(ResolvedBox{
@@ -226,20 +246,18 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
   }
 }
 
-void SpellCircleRenderer::initializeResources(QCanvasPainter *p) {
+void SpellCircleRenderer::initializeResources(QCanvasPainter *painter) {
+  static_cast<void>(painter);
   m_syphon->start(rhi());
   m_sceneBackend = createSkiaSceneBackend(rhi());
   if (!m_sceneBackend)
     m_sceneBackend = std::make_unique<QCanvasPainterSceneBackend>();
 }
 
-void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
+void SpellCircleRenderer::prePaint(QCanvasPainter *painter) {
   if (!m_geometryDirty)
     return;
   m_geometryDirty = false;
-
-  const float nw = static_cast<float>(m_canvasWidth);
-  const float nh = static_cast<float>(m_canvasHeight);
 
   // ── Syphon canvas ─────────────────────────────────────────────────────────
   // Full native resolution for external publishing; updated at the same rate
@@ -249,22 +267,23 @@ void SpellCircleRenderer::prePaint(QCanvasPainter *p) {
   // one at the new dimensions whenever canvasWidth/Height has changed.
   if (m_canvas.isNull() || m_allocatedCanvasWidth != m_canvasWidth ||
       m_allocatedCanvasHeight != m_canvasHeight) {
-    m_canvas = p->createCanvas(QSize(m_canvasWidth, m_canvasHeight));
+    m_canvas = painter->createCanvas(QSize(m_canvasWidth, m_canvasHeight));
     m_allocatedCanvasWidth = m_canvasWidth;
     m_allocatedCanvasHeight = m_canvasHeight;
   }
   m_displayImage = m_sceneBackend->drawScene(
-      *this, p, m_canvas, QSize(m_allocatedCanvasWidth, m_allocatedCanvasHeight));
+      *this, painter, m_canvas,
+      QSize(m_allocatedCanvasWidth, m_allocatedCanvasHeight));
 }
 
-void SpellCircleRenderer::paint(QCanvasPainter *p) {
+void SpellCircleRenderer::paint(QCanvasPainter *painter) {
   if (!m_displayImage.isNull())
-    p->drawImage(m_displayImage, 0, 0, width(), height());
+    painter->drawImage(m_displayImage, 0, 0, width(), height());
 }
 
-void SpellCircleRenderer::render(QRhiCommandBuffer *cb) {
-  QCanvasPainterItemRenderer::render(cb);
+void SpellCircleRenderer::render(QRhiCommandBuffer *commandBuffer) {
+  QCanvasPainterItemRenderer::render(commandBuffer);
   if (!m_canvas.isNull() && m_canvas.texture())
-    m_syphon->publishFrame(m_canvas.texture(), cb, m_allocatedCanvasWidth,
-                           m_allocatedCanvasHeight);
+    m_syphon->publishFrame(m_canvas.texture(), commandBuffer,
+                           m_allocatedCanvasWidth, m_allocatedCanvasHeight);
 }

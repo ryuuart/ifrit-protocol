@@ -7,6 +7,21 @@ lines are not rectangles). It shapes with HarfBuzz and analyzes with ICU
 directly — no SkShaper, no SkParagraph — so every intermediate result (words,
 glyph runs, blobs) is exposed and reusable.
 
+## C++ language baseline
+
+The application and every library target compile as standard C++20 with
+compiler extensions disabled. Public APIs use non-owning `std::span` views,
+concept-constrained callbacks, diagnostic `[[nodiscard("reason")]]`
+annotations, and the standard ranges and numeric facilities where they make
+intent clearer.
+
+C++ contracts are deliberately not enabled: they are a C++26 facility (see
+[P2900R14](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p2900r14.pdf)),
+not part of C++20, and compiler support is not yet a portable project
+baseline. Until that changes, TextFlow expresses API contracts with strong
+types, scoped enums, constrained templates, documented preconditions, and
+compiler-enforced discarded-result diagnostics.
+
 ```
 Paragraph (UTF-16 + style spans, horizontal or vertical-RL writing mode)
   │  ICU: line-break opportunities (UAX#14), bidi levels (skipped when
@@ -15,8 +30,8 @@ Paragraph (UTF-16 + style spans, horizontal or vertical-RL writing mode)
   ▼
 Word list          — break-delimited segments; content + trailing glue
   │  HarfBuzz via the ShapeCache: content-addressed by
-  │  (typeface, size, letter-spacing, script, dir, vertical, lang,
-  │   features, text)
+  │  (typeface, fontSize, letterSpacing, script, direction, vertical,
+  │   languageTag, fontFeatures, text)
   ▼
 ShapedWord (shared, immutable) — glyphs, advances, clusters,
   │                              + lazily built origin-relative SkTextBlob
@@ -25,9 +40,9 @@ FlowGeometry       — per line: ordered intervals (rect bands, bands minus
   │                  exclusion shapes — circles, rects, or any SkPath —
   │                  arbitrary segments, SkPath contours, vertical columns)
   ▼
-Breaker            — greedy or Knuth-Plass, both feeding one placement stage
+LineBreakStrategy  — greedy or Knuth-Plass, both feeding one placement stage
   ▼
-Layout             — PlacedRuns: shared word blob + origin (horizontal or
+ParagraphLayout    — PositionedRuns: shared word blob + origin (horizontal or
                      vertical columns), or RSXform-baked blob (rotated /
                      on-path); draw() resolves paint per span at draw time
 ```
@@ -37,11 +52,10 @@ On top (all optional, none of it in the core pipeline):
 - `Query.h` — find ranges by substring / ICU regex / word, and `MarkerSet`:
   named ranges that follow edits via the Paragraph's bounded revision log
   (DOM-Range style).
-- `Labels.h` — the boilerplate a renderer needs for lots of short cached
-  labels per frame: `LabelCache` (shaped once per unique text/font/size),
-  `RingCache` + `makeRingLabel` (curvature-compensated circular labels),
-  `layoutLabel` (single-line placement). Distilled from the SpellCircle
-  scene backend, which now consists of little else.
+- `SingleLineParagraphCache.h` + `layoutSingleLine()` — reusable support for
+  high-frequency labels and captions, shaped once per unique text/font/size.
+  SpellCircle-specific ring measurement and curvature compensation live with
+  that renderer in `src/qml/SpellCircle/SceneLabels.*`, not in this library.
 - `Choreograph.h` — per-glyph animation: `forEachPlacedGlyph` (walk a
   layout's glyphs with rest positions; stable order across relayouts) and
   `GlyphRSXformBatches` (thousands of animated letters → a handful of
@@ -107,7 +121,7 @@ shapes — including a spiky ring that is a brand-new path every frame,
 its points and even-odd hole morphing live — greedy-vs-Knuth-Plass,
 infinite loop, letter rain, click-to-ripple pool, vertical CJK with
 ruby/kenten/tate-chu-yoko, regex markers, inline slots & pills), live text
-editing, and font/size/alignment/breaker controls plus a variable-font
+editing, and font/size/alignment/line-breaking controls plus a variable-font
 Weight slider (`wght` 100–900, "auto" = the font's own position). It renders through a QQuickRhiItem: **Skia Graphite on Qt's own
 Metal queue** — the same GPU path as the SpellCircle app — with a CPU
 raster + texture-upload fallback, and a **GPU switch** in the panel that
@@ -131,65 +145,72 @@ boundaries.
 ## API sketch
 
 ```cpp
-FontContext ctx(SkFontMgr_New_CoreText(nullptr));   // one per thread
+FontContext fontContext(SkFontMgr_New_CoreText(nullptr)); // one per thread
 
-ParagraphBuilder b(baseStyle);
-b.addText("Glyphs flow ").pushStyle(red).addText("around").pop()
- .addText(" obstacles… 日本語も 한국어도 中文也");
-Paragraph para = b.build();
+ParagraphBuilder builder(baseStyle);
+builder.addText("Glyphs flow ")
+    .pushStyle(red)
+    .addText("around")
+    .popStyle()
+    .addText(" obstacles… 日本語も 한국어도 中文也");
+Paragraph paragraph = builder.build();
 
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
-flow.shapes().push_back(ExclusionFlow::Shape::Circle(circleBounds, 8));
-flow.shapes().push_back(ExclusionFlow::Shape::Path(anySkPath, 8));
+flow.shapes().push_back(ExclusionFlow::Shape::fromCircle(circleBounds, 8));
+flow.shapes().push_back(ExclusionFlow::Shape::fromPath(anySkPath, 8));
 // kPath honors the fill rule: even-odd holes and concave gaps stay open to
 // text. Animate with shape.pathOffset (free — the flattening is cached by
 // the path's generation ID); rebuilding the SkPath re-flattens.
 
-LayoutOptions opts;                    // greedy + justify, or:
-opts.breaker = Breaker::kKnuthPlass;   // optimal paragraph breaking
-opts.alignment = Alignment::kJustify;
+ParagraphLayoutOptions options;
+options.alignment = TextAlignment::kJustify;
+options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+options.justification.spaceStretch = 0.5f;
+options.knuthPlass.tolerance = 4000.0f;
 
-Layout layout = layoutParagraph(ctx, para, flow, opts);
-layout.draw(canvas, para);             // or walk layout.runs yourself
-layout.drawBatched(canvas, para);      // few drawGlyphs calls instead of
-                                       // one drawTextBlob per word — use on
-                                       // GPU canvases with many runs
+ParagraphLayout layout =
+    layoutParagraph(fontContext, paragraph, flow, options);
+layout.draw(canvas, paragraph);        // or walk layout.runs yourself
+layout.drawBatched(canvas, paragraph); // few drawGlyphs calls instead of
+                                       // one drawTextBlob per word
 
-para.replaceText(4, 9, "swift");       // edit: next layout re-shapes 1 word
-para.setPaint(0, 6, {SK_ColorRED});    // restyle: re-shapes 0 words — and
+paragraph.replaceText(4, 9, "swift");
+paragraph.setPaint(0, 6, {SK_ColorRED});
                                        // skips ICU re-analysis too (paint
                                        // edits only re-derive the shaped
                                        // prefix's segments, cache-hot)
 
 // Query layer (optional): HTML/JS-flavoured selection + styling.
-for (CharRange r : findRegex(para, "\\p{Lu}\\w+").value_or({}))
-  para.setPaint(r.start, r.end, {accent});
-MarkerSet marks(para);
-marks.set("keywords", findAll(para, "glyph"));
-para.replaceText(0, 0, "New intro. ");  // markers shift with the edit
-marks.applyPaint(para, "keywords", {accent}); // syncs, then restyles all
-                                              // ranges in ONE span rebuild
+for (CharRange range :
+     findRegexMatches(paragraph, "\\p{Lu}\\w+").value_or({}))
+  paragraph.setPaint(range.start, range.end, {accent});
+MarkerSet markers(paragraph);
+markers.setRanges("keywords",
+                  findAllOccurrences(paragraph, "glyph"));
+paragraph.replaceText(0, 0, "New intro. ");
+markers.applyPaint(paragraph, "keywords", {accent});
 
 // Large documents: scope queries to what the layout can actually place —
 // search cost follows the geometry, not the text (see the markers gallery
 // scene). Scoped matches never extend past the window's edges.
-uint32_t placed = layout.overflowed()
-                      ? para.words()[layout.firstUnplacedWord].textBegin
-                      : uint32_t(para.text().size());
-findRegex(para, "\\p{Lu}\\w+", {0, placed});
+uint32_t placedTextEnd =
+    layout.overflowed()
+        ? paragraph.words()[layout.firstUnplacedWord].textBegin
+        : uint32_t(paragraph.text().size());
+findRegexMatches(paragraph, "\\p{Lu}\\w+", {0, placedTextEnd});
 
 // Vertical CJK (書字方向): columns top-to-bottom, right-to-left.
-para.setWritingMode(WritingMode::kVerticalRL);
+paragraph.setWritingMode(WritingMode::kVerticalRL);
 VerticalBlockFlow columns(SkRect::MakeWH(600, 800));
 // Per-span overrides: VerticalForm::kUpright / kRotated / kTateChuYoko
 // (縦中横 — digits set horizontally across the column).
 
 // Inline placeholders: pills/icons/images woven into the flow. The breaker
 // treats each slot as an unbreakable word; the layout reports its rect.
-para.appendPlaceholder({90, 22, /*baselineDrop=*/5}, style);
-for (const auto &placed : layout.placeholderRects(para))
-  drawMyPill(canvas, placed.rect, placed.index);
-para.setPlaceholder(0, {120, 22, 5}); // live resize: relayout, 0 reshapes
+paragraph.appendPlaceholder({90, 22, /*baselineDrop=*/5}, style);
+for (const auto &placeholder : layout.placeholderRects(paragraph))
+  drawMyPill(canvas, placeholder.rect, placeholder.index);
+paragraph.setPlaceholder(0, {120, 22, 5});
 ```
 
 Geometries: `BlockFlow` (rect), `ExclusionFlow` (rect minus moving shapes —
@@ -230,12 +251,14 @@ care.
   opportunities) shaping is fully contextual.
 - Justification stretches spaces (shrink is clamped at the glue's shrink
   limit, TeX-style); for spaceless CJK it optionally expands inter-cluster
-  gaps (`ideographicJustify`, capped by `maxIdeographicExpansion`).
+  gaps (`justification.expandIdeographicGaps`, capped by
+  `justification.maxIdeographicExpansion`).
 - InDesign-style paragraph endings: `alignment = kJustify` plus
-  `lastLineAlignment` (left/center/right) or `justifyLastLine` for full.
+  `justification.lastLineAlignment` (left/center/right) or
+  `justification.justifyLastLine` for full.
 - Soft hyphens (U+00AD) are discretionary breaks in both breakers: invisible
   unless a line actually breaks there, in which case a styled hyphen is
-  rendered; Knuth-Plass charges `hyphenPenalty` per hyphenated line. Feed
+  rendered; Knuth-Plass charges `hyphenation.penalty` per hyphenated line. Feed
   text through any hyphenator (pattern dictionaries, ICU-based, manual) that
   inserts U+00AD — the engine handles the rest.
 - Paint effects are per-span and draw-time only: `PaintStyle` carries a
@@ -243,13 +266,13 @@ care.
   kDstOut punch-outs), and a list of drop shadows. None of them reshape or
   relayout anything. `draw`/`drawBatched` take an optional paint override
   for caller-colored labels.
-- OpenType features are per-span (`ShapingStyle::features`) and part of the
+- OpenType features are per-span (`ShapingStyle::fontFeatures`) and part of the
   shape-cache key: liga/dlig/smcp/lnum/frac variants of the same text
   coexist in the cache (see the demo's features panel).
 - Script coverage is fallback-driven and tested: Arabic joining and
   lam-alef ligation, Devanagari conjuncts, supplementary-plane Cuneiform,
   emoji ZWJ/modifier/flag sequences as single grapheme clusters.
-- Variable fonts shape at their design position: `faceFor` mirrors each
+- Variable fonts shape at their design position: `recordForTypeface` mirrors each
   SkTypeface's variation coordinates into HarfBuzz
   (`hb_font_set_variations`), so an instance made with
   `SkTypeface::makeClone(SkFontArguments)` shapes exactly what Skia
@@ -261,8 +284,8 @@ care.
   atlas keeps hitting while text moves; without both, animated 4K text
   re-rasterizes masks every frame.
 - Knuth-Plass consumes one interval per line slot and always places at least
-  one word per interval; filter slivers with `kpMinInterval` when combining
-  KP with exclusions.
+  one word per interval; filter slivers with
+  `knuthPlass.minimumIntervalWidth` when combining it with exclusions.
 - Knuth-Plass is linear in *placed* words on uniform-width flows
   (`FlowGeometry::uniformIntervals`, true for BlockFlow/VerticalBlockFlow):
   paths reaching the same breakpoint on different line numbers face
@@ -270,8 +293,8 @@ care.
   stays bounded by the line width. A fully-placed 10k-word paragraph
   relayouts in ~2 ms (`Stress.KnuthPlassFullyPlacedIsLinear`); variable
   geometry keeps the conservative one-node-per-interval dedup.
-- Layout cost is bounded by the *geometry*, not the text. Both breakers
-  stop dead when the flow runs out of intervals (`Layout::overflowed()` and
+- Layout cost is bounded by the *geometry*, not the text. Both strategies
+  stop dead when the flow runs out of intervals (`ParagraphLayout::overflowed()` and
   `firstUnplacedWord` report the cut), Knuth-Plass fills its prefix sums
   lazily behind the DP frontier, and **shaping itself is lazy**: analysis
   splits into whole-text itemization (ICU boundaries/bidi/scripts — cheap)
@@ -282,9 +305,10 @@ care.
   by `Stress.HugeOverflow…` / `Stress.OverflowShapesOnlyWhatFits`).
   `Paragraph::ensureShaped` still shapes everything for direct measurement
   (`naturalWidth`, queries); unchanged text never reshapes either way.
-- Overflow can be made visible: set `LayoutOptions::ellipsis` (e.g. `u"…"`)
+- Overflow can be made visible: set
+  `options.overflow.ellipsis` (e.g. `u"…"`)
   and the final placed line is trimmed until the marker fits at its end,
-  reported via `Layout::ellipsized` — CSS text-overflow semantics, shaped
+  reported via `ParagraphLayout::ellipsized` — CSS text-overflow semantics, shaped
   in the style of the line's tail. Straight horizontal flows only; curved
   and vertical intervals overflow without a marker.
 - Lines never render past the measure. The breakers only count shrink where
@@ -294,7 +318,7 @@ care.
   (each line's own width added to its stretchability) rather than force an
   overfull line — one is only ever forced when a single unbreakable box is
   wider than every interval. Justified CJK shrinks ideographic gaps by up to
-  0.03 em at render to mirror the breaker's model.
+  0.03 em at render to mirror the line-breaking model.
 
 ## Tuning knobs
 
@@ -302,12 +326,13 @@ Everything that trades fidelity against speed, in one place:
 
 | Knob | Where | Default | Effect |
 |---|---|---|---|
-| `breaker` | LayoutOptions | greedy | Knuth-Plass is optimal but O(n·active); greedy is the fast path |
-| `hyphenate`, `hyphenPenalty` | LayoutOptions | on, 50 | soft-hyphen breaks; raise the penalty to discourage them |
-| `ideographicJustify`, `maxIdeographicExpansion` | LayoutOptions | on, 0.5em | CJK inter-cluster expansion when justifying |
-| `glueStretch` / `glueShrink`, `kpTolerance` | LayoutOptions | 0.5/0.333, 4000 | TeX glue elasticity and badness tolerance |
-| `kpMinInterval` | LayoutOptions | 0 | drop sliver intervals before Knuth-Plass sees them |
-| `rotationSteps` | LayoutOptions | 512 | rotated/on-path glyph tangents snap to N directions so the glyph atlas hits during animation; 0 = exact rotations for static art |
+| `lineBreakStrategy` | ParagraphLayoutOptions | greedy | selects greedy or optimal Knuth-Plass breaking |
+| `hyphenation.enabled` / `.penalty` | ParagraphLayoutOptions | on / 50 | controls discretionary soft-hyphen breaks |
+| `justification.expandIdeographicGaps` / `.maxIdeographicExpansion` | ParagraphLayoutOptions | on / 0.5em | controls spaceless CJK justification |
+| `justification.spaceStretch` / `.spaceShrink` | ParagraphLayoutOptions | 0.5 / 0.333 | sets TeX-style space elasticity |
+| `knuthPlass.tolerance` | ParagraphLayoutOptions | 4000 | limits accepted line badness |
+| `knuthPlass.minimumIntervalWidth` | ParagraphLayoutOptions | 0 | drops sliver intervals before optimal breaking |
+| `pathText.tangentRotationSteps` | ParagraphLayoutOptions | 512 | quantizes animated path tangents; 0 preserves exact rotations |
 | `advanceScale` | LineInterval | 1 | curvature compensation for offset baselines on contours |
 | `verticalForm` | ShapingStyle | auto | per-span upright / rotated / tate-chu-yoko override in vertical mode |
 | `letterSpacing` | ShapingStyle | 0 | tracking (JIS aki in vertical text); part of the shape key |
@@ -315,7 +340,7 @@ Everything that trades fidelity against speed, in one place:
 | shape-cache cap | FontContextImpl.h | ~130k entries | wholesale clear past the cap (one cold frame), no LRU bookkeeping |
 | `Paragraph` edit history | Paragraph.cpp | 256 ops | how far behind a MarkerSet may fall before it must re-query |
 | bidi skip | automatic | — | the UBiDi pass runs only when a codepoint could be RTL |
-| `draw` vs `drawBatched` | Layout | — | per-word blobs vs one drawGlyphs per (font, paint) bucket — use batched on GPU canvases with many runs |
+| `draw` vs `drawBatched` | ParagraphLayout | — | per-word blobs vs one drawGlyphs per (font, paint) bucket |
 
 ## Threading model (and why there's no oneTBB)
 

@@ -22,21 +22,22 @@ namespace {
 std::u16string utf8ToUtf16(std::string_view utf8) {
   if (utf8.empty())
     return {};
-  std::u16string out;
-  out.resize(utf8.size()); // UTF-16 never has more units than UTF-8 bytes
+  std::u16string utf16;
+  utf16.resize(utf8.size()); // UTF-16 never has more units than UTF-8 bytes
   UErrorCode status = U_ZERO_ERROR;
-  int32_t written = 0;
-  u_strFromUTF8(reinterpret_cast<UChar *>(out.data()),
-                static_cast<int32_t>(out.size()), &written, utf8.data(),
-                static_cast<int32_t>(utf8.size()), &status);
+  int32_t codeUnitsWritten = 0;
+  u_strFromUTF8(reinterpret_cast<UChar *>(utf16.data()),
+                static_cast<int32_t>(utf16.size()), &codeUnitsWritten,
+                utf8.data(), static_cast<int32_t>(utf8.size()), &status);
   if (U_FAILURE(status))
     return {};
-  out.resize(written);
-  return out;
+  utf16.resize(codeUnitsWritten);
+  return utf16;
 }
 
-bool isHardBreakChar(char16_t c) {
-  return c == u'\n' || c == u'\r' || c == 0x0085 || c == 0x2028 || c == 0x2029;
+bool isHardLineBreakCharacter(char16_t character) {
+  return character == u'\n' || character == u'\r' || character == 0x0085 ||
+         character == 0x2028 || character == 0x2029;
 }
 
 // Scripts whose break opportunities carry no glue (no spaces between words).
@@ -57,54 +58,59 @@ bool isIdeographicScript(UScriptCode script) {
 
 // Codepoints that never trigger a font switch: they inherit the run's
 // typeface (marks, joiners, variation selectors, whitespace, controls).
-bool inheritsFont(UChar32 cp) {
-  if (cp == 0x200D /*ZWJ*/ || cp == 0x200C /*ZWNJ*/)
+bool codePointInheritsTypeface(UChar32 codePoint) {
+  if (codePoint == 0x200D /*ZWJ*/ || codePoint == 0x200C /*ZWNJ*/)
     return true;
-  if (cp >= 0xFE00 && cp <= 0xFE0F) // variation selectors
+  if (codePoint >= 0xFE00 && codePoint <= 0xFE0F) // variation selectors
     return true;
-  if (u_isUWhiteSpace(cp))
+  if (u_isUWhiteSpace(codePoint))
     return true;
-  const int8_t type = u_charType(cp);
+  const int8_t type = u_charType(codePoint);
   return type == U_NON_SPACING_MARK || type == U_ENCLOSING_MARK ||
          type == U_COMBINING_SPACING_MARK || type == U_CONTROL_CHAR ||
          type == U_FORMAT_CHAR;
 }
 
-ScriptTag hbScriptFor(UScriptCode script) {
+ScriptTag harfBuzzScriptFor(UScriptCode script) {
   if (script <= USCRIPT_INHERITED || script >= USCRIPT_CODE_LIMIT)
     return static_cast<ScriptTag>(HB_SCRIPT_COMMON); // hb falls back to DFLT
   // hb_script_from_string re-parses a 4-char tag every call; memoize the
   // whole (small, dense) UScriptCode space once.
-  static const auto table = [] {
-    std::array<ScriptTag, USCRIPT_CODE_LIMIT> t{};
-    for (int sc = 0; sc < USCRIPT_CODE_LIMIT; ++sc) {
-      const char *name = uscript_getShortName(static_cast<UScriptCode>(sc));
-      t[static_cast<size_t>(sc)] = static_cast<ScriptTag>(
+  static const auto scriptTable = [] {
+    std::array<ScriptTag, USCRIPT_CODE_LIMIT> scripts{};
+    for (int scriptIndex = 0; scriptIndex < USCRIPT_CODE_LIMIT; ++scriptIndex) {
+      const char *name =
+          uscript_getShortName(static_cast<UScriptCode>(scriptIndex));
+      scripts[static_cast<size_t>(scriptIndex)] = static_cast<ScriptTag>(
           name ? hb_script_from_string(name, -1) : HB_SCRIPT_COMMON);
     }
-    return t;
+    return scripts;
   }();
-  return table[static_cast<size_t>(script)];
+  return scriptTable[static_cast<size_t>(script)];
 }
 
 // Codepoints that can force right-to-left directionality: the RTL script
 // blocks plus the explicit RTL controls. When a paragraph has none, the
 // whole UBiDi pass is skipped.
-bool maybeRtl(UChar32 cp) {
-  if (cp < 0x0590)
+bool mayRequireBidirectionalAnalysis(UChar32 codePoint) {
+  if (codePoint < 0x0590)
     return false;
-  if (cp <= 0x08FF) // Hebrew, Arabic, Syriac, Thaana, NKo, Samaritan, ...
+  if (codePoint <= 0x08FF) // Hebrew, Arabic, Syriac, Thaana, NKo, ...
     return true;
-  if (cp == 0x200F || cp == 0x202B || cp == 0x202E || cp == 0x2067)
+  if (codePoint == 0x200F || codePoint == 0x202B || codePoint == 0x202E ||
+      codePoint == 0x2067)
     return true; // RLM / RLE / RLO / RLI
-  return (cp >= 0xFB1D && cp <= 0xFDFF) || (cp >= 0xFE70 && cp <= 0xFEFF) ||
-         (cp >= 0x10800 && cp <= 0x10FFF) || (cp >= 0x1E800 && cp <= 0x1EFFF);
+  return (codePoint >= 0xFB1D && codePoint <= 0xFDFF) ||
+         (codePoint >= 0xFE70 && codePoint <= 0xFEFF) ||
+         (codePoint >= 0x10800 && codePoint <= 0x10FFF) ||
+         (codePoint >= 0x1E800 && codePoint <= 0x1EFFF);
 }
 
 // Placement form of one codepoint in a vertical paragraph: the span's
 // explicit override, or UTR#50's per-character vertical orientation (CJK
 // upright, Latin rotated — the CSS text-orientation:mixed behaviour).
-SegmentForm resolveVerticalForm(const ShapingStyle &shaping, UChar32 cp) {
+SegmentForm resolveVerticalForm(const ShapingStyle &shaping,
+                                UChar32 codePoint) {
   switch (shaping.verticalForm) {
   case VerticalForm::kUpright:
     return SegmentForm::kUpright;
@@ -120,7 +126,7 @@ SegmentForm resolveVerticalForm(const ShapingStyle &shaping, UChar32 cp) {
   // supply the rotated forms — the browser behaviour for
   // text-orientation: mixed. Only plain R (Latin, etc.) physically rotates.
   const int32_t orientation =
-      u_getIntPropertyValue(cp, UCHAR_VERTICAL_ORIENTATION);
+      u_getIntPropertyValue(codePoint, UCHAR_VERTICAL_ORIENTATION);
   return orientation == U_VO_ROTATED ? SegmentForm::kRotated
                                      : SegmentForm::kUpright;
 }
@@ -135,54 +141,57 @@ struct ScriptRun {
 // Piggybacks RTL detection on the same codepoint walk so the (expensive)
 // UBiDi pass can be skipped for the overwhelmingly common LTR-only case.
 // Fills a caller-owned `runs` so per-analyze allocation amortizes away.
-void itemizeScripts(const std::u16string &text, bool &anyRtl,
-                    std::vector<ScriptRun> &runs) {
-  runs.clear();
-  const int32_t len = static_cast<int32_t>(text.size());
-  UScriptCode current = USCRIPT_COMMON;
-  anyRtl = false;
-  int32_t i = 0;
-  while (i < len) {
-    const int32_t cpStart = i;
-    UChar32 cp;
-    U16_NEXT(text.data(), i, len, cp);
-    anyRtl |= maybeRtl(cp);
+void itemizeScripts(const std::u16string &text, bool &hasRightToLeftText,
+                    std::vector<ScriptRun> &scriptRuns) {
+  scriptRuns.clear();
+  const int32_t textLength = static_cast<int32_t>(text.size());
+  UScriptCode currentScript = USCRIPT_COMMON;
+  hasRightToLeftText = false;
+  int32_t codeUnitOffset = 0;
+  while (codeUnitOffset < textLength) {
+    const int32_t codePointStart = codeUnitOffset;
+    UChar32 codePoint;
+    U16_NEXT(text.data(), codeUnitOffset, textLength, codePoint);
+    hasRightToLeftText |= mayRequireBidirectionalAnalysis(codePoint);
     UErrorCode status = U_ZERO_ERROR;
-    UScriptCode sc = uscript_getScript(cp, &status);
+    UScriptCode script = uscript_getScript(codePoint, &status);
     if (U_FAILURE(status))
-      sc = USCRIPT_COMMON;
-    if (sc <= USCRIPT_INHERITED)
+      script = USCRIPT_COMMON;
+    if (script <= USCRIPT_INHERITED)
       continue; // stays in the current run whatever it is
-    if (current <= USCRIPT_INHERITED) {
-      current = sc; // leading common text adopts the first real script
-    } else if (sc != current) {
-      runs.push_back({static_cast<uint32_t>(cpStart), current});
-      current = sc;
+    if (currentScript <= USCRIPT_INHERITED) {
+      currentScript = script; // leading common adopts the first real script
+    } else if (script != currentScript) {
+      scriptRuns.push_back(
+          {static_cast<uint32_t>(codePointStart), currentScript});
+      currentScript = script;
     }
   }
-  runs.push_back({static_cast<uint32_t>(len), current});
+  scriptRuns.push_back({static_cast<uint32_t>(textLength), currentScript});
 }
 
 } // namespace
 
-void Paragraph::recordEdit(uint32_t start, uint32_t removed,
-                           uint32_t inserted) {
+void Paragraph::recordEdit(uint32_t start, uint32_t removedLength,
+                           uint32_t insertedLength) {
   ++m_revision;
   constexpr size_t kMaxHistory = 256;
-  if (m_edits.size() >= kMaxHistory) {
-    m_edits.erase(m_edits.begin(),
-                  m_edits.begin() + static_cast<long>(kMaxHistory / 2));
-    m_editsBase += kMaxHistory / 2;
+  if (m_editHistory.size() >= kMaxHistory) {
+    m_editHistory.erase(m_editHistory.begin(),
+                        m_editHistory.begin() +
+                            static_cast<long>(kMaxHistory / 2));
+    m_editHistoryBaseRevision += kMaxHistory / 2;
   }
-  m_edits.push_back({start, removed, inserted});
+  m_editHistory.push_back({start, removedLength, insertedLength});
 }
 
 bool Paragraph::editsSince(uint64_t sinceRevision,
-                           std::vector<EditOp> &out) const {
-  if (sinceRevision > m_revision || sinceRevision < m_editsBase)
+                           std::vector<TextEdit> &edits) const {
+  if (sinceRevision > m_revision || sinceRevision < m_editHistoryBaseRevision)
     return false;
-  for (uint64_t r = sinceRevision; r < m_revision; ++r)
-    out.push_back(m_edits[static_cast<size_t>(r - m_editsBase)]);
+  for (uint64_t revision = sinceRevision; revision < m_revision; ++revision)
+    edits.push_back(m_editHistory[static_cast<size_t>(
+        revision - m_editHistoryBaseRevision)]);
   return true;
 }
 
@@ -235,24 +244,23 @@ void Paragraph::normalizeSpans() {
     m_spans.clear();
     return;
   }
-  std::stable_sort(m_spans.begin(), m_spans.end(),
-                   [](const StyleSpan &a, const StyleSpan &b) {
-                     return a.start < b.start;
-                   });
+  std::stable_sort(
+      m_spans.begin(), m_spans.end(),
+      [](const StyleSpan &a, const StyleSpan &b) { return a.start < b.start; });
   // Drop empties, clamp to text, and fill any gaps with the previous span's
   // style so every position resolves to exactly one span.
-  std::vector<StyleSpan> fixed;
-  const uint32_t len = static_cast<uint32_t>(m_text.size());
+  std::vector<StyleSpan> normalizedSpans;
+  const uint32_t textLength = static_cast<uint32_t>(m_text.size());
   uint32_t cursor = 0;
   for (StyleSpan &span : m_spans) {
-    span.start = std::min(span.start, len);
-    span.end = std::min(span.end, len);
+    span.start = std::min(span.start, textLength);
+    span.end = std::min(span.end, textLength);
     if (span.end <= span.start)
       continue;
     if (span.start > cursor) {
       const TextStyle &fillStyle =
-          fixed.empty() ? span.style : fixed.back().style;
-      fixed.push_back({cursor, span.start, fillStyle});
+          normalizedSpans.empty() ? span.style : normalizedSpans.back().style;
+      normalizedSpans.push_back({cursor, span.start, fillStyle});
     }
     if (span.start < cursor)
       span.start = cursor; // overlapping spans: later one yields
@@ -261,89 +269,90 @@ void Paragraph::normalizeSpans() {
     // Merge adjacent equal-styled spans, otherwise repeated restyling
     // fragments the span list without bound (and every span boundary splits
     // a word into separately shaped segments).
-    if (!fixed.empty() && fixed.back().end == span.start &&
-        fixed.back().style == span.style) {
-      fixed.back().end = span.end;
+    if (!normalizedSpans.empty() && normalizedSpans.back().end == span.start &&
+        normalizedSpans.back().style == span.style) {
+      normalizedSpans.back().end = span.end;
     } else {
-      fixed.push_back(span);
+      normalizedSpans.push_back(span);
     }
     cursor = span.end;
   }
-  if (cursor < len) {
-    const TextStyle fillStyle = fixed.empty() ? TextStyle{} : fixed.back().style;
-    if (!fixed.empty() && fixed.back().end == cursor &&
-        fixed.back().style == fillStyle)
-      fixed.back().end = len;
+  if (cursor < textLength) {
+    const TextStyle fillStyle =
+        normalizedSpans.empty() ? TextStyle{} : normalizedSpans.back().style;
+    if (!normalizedSpans.empty() && normalizedSpans.back().end == cursor &&
+        normalizedSpans.back().style == fillStyle)
+      normalizedSpans.back().end = textLength;
     else
-      fixed.push_back({cursor, len, fillStyle});
+      normalizedSpans.push_back({cursor, textLength, fillStyle});
   }
-  m_spans = std::move(fixed);
+  m_spans = std::move(normalizedSpans);
 }
 
 void Paragraph::replaceText(uint32_t start, uint32_t end,
                             std::string_view utf8) {
-  const uint32_t len = static_cast<uint32_t>(m_text.size());
-  start = std::min(start, len);
-  end = std::min(std::max(end, start), len);
-  const std::u16string ins = utf8ToUtf16(utf8);
-  const uint32_t insLen = static_cast<uint32_t>(ins.size());
+  const uint32_t textLength = static_cast<uint32_t>(m_text.size());
+  start = std::min(start, textLength);
+  end = std::min(std::max(end, start), textLength);
+  const std::u16string insertedText = utf8ToUtf16(utf8);
+  const uint32_t insertedLength = static_cast<uint32_t>(insertedText.size());
 
   // Style the inserted range like the text at the edit point.
-  TextStyle insStyle;
+  TextStyle insertedStyle;
   for (const StyleSpan &span : m_spans) {
-    if (span.start <= start && (start < span.end || span.end == len)) {
-      insStyle = span.style;
+    if (span.start <= start && (start < span.end || span.end == textLength)) {
+      insertedStyle = span.style;
       break;
     }
   }
   if (m_spans.empty())
-    insStyle = TextStyle{};
+    insertedStyle = TextStyle{};
 
-  m_text.replace(start, end - start, ins);
+  m_text.replace(start, end - start, insertedText);
 
-  const uint32_t delLen = end - start;
-  auto remap = [&](uint32_t x, bool isEnd) -> uint32_t {
+  const uint32_t deletedLength = end - start;
+  auto remapPosition = [&](uint32_t position, bool marksRangeEnd) -> uint32_t {
     // Delete [start, end) …
-    if (x > start)
-      x = (x >= end) ? x - delLen : start;
-    // … then open a gap of insLen at `start` (positions equal to start stay
-    // put as ends, shift as starts — the new span owns the gap).
-    if (x > start || (x == start && !isEnd))
-      x += insLen;
-    return x;
+    if (position > start)
+      position = position >= end ? position - deletedLength : start;
+    // Then open an insertedLength gap. Positions equal to start remain in
+    // place for range ends but shift for starts, so the new span owns it.
+    if (position > start || (position == start && !marksRangeEnd))
+      position += insertedLength;
+    return position;
   };
   for (StyleSpan &span : m_spans) {
-    span.start = remap(span.start, false);
-    span.end = remap(span.end, true);
+    span.start = remapPosition(span.start, false);
+    span.end = remapPosition(span.end, true);
   }
-  if (insLen > 0)
-    m_spans.push_back({start, start + insLen, insStyle});
-  recordEdit(start, delLen, insLen);
+  if (insertedLength > 0)
+    m_spans.push_back({start, start + insertedLength, insertedStyle});
+  recordEdit(start, deletedLength, insertedLength);
   normalizeSpans();
   markDirty();
 }
 
 void Paragraph::setStyle(uint32_t start, uint32_t end, const TextStyle &style) {
-  const uint32_t len = static_cast<uint32_t>(m_text.size());
-  start = std::min(start, len);
-  end = std::min(std::max(end, start), len);
+  const uint32_t textLength = static_cast<uint32_t>(m_text.size());
+  start = std::min(start, textLength);
+  end = std::min(std::max(end, start), textLength);
   if (start == end)
     return;
 
-  std::vector<StyleSpan> next;
-  next.reserve(m_spans.size() + 2);
+  std::vector<StyleSpan> updatedSpans;
+  updatedSpans.reserve(m_spans.size() + 2);
   for (const StyleSpan &span : m_spans) {
     if (span.end <= start || span.start >= end) {
-      next.push_back(span);
+      updatedSpans.push_back(span);
       continue;
     }
     if (span.start < start)
-      next.push_back({span.start, start, span.style});
+      updatedSpans.push_back({span.start, start, span.style});
     if (span.end > end)
-      next.push_back({end, span.end, span.style});
+      updatedSpans.push_back({end, span.end, span.style});
   }
-  next.push_back({start, end, style});
-  m_spans = std::move(next);
+  updatedSpans.push_back({start, end, style});
+  m_spans = std::move(updatedSpans);
   normalizeSpans();
   markDirty();
 }
@@ -355,19 +364,21 @@ namespace {
 // set every frame) needs no reconcile at all.
 std::vector<std::pair<uint32_t, uint32_t>>
 spanBoundaries(const std::vector<StyleSpan> &spans) {
-  std::vector<std::pair<uint32_t, uint32_t>> out;
-  out.reserve(spans.size());
+  std::vector<std::pair<uint32_t, uint32_t>> boundaries;
+  boundaries.reserve(spans.size());
   for (const StyleSpan &span : spans)
-    out.push_back({span.start, span.end});
-  return out;
+    boundaries.push_back({span.start, span.end});
+  return boundaries;
 }
 
-bool sameSpanBoundaries(const std::vector<std::pair<uint32_t, uint32_t>> &a,
-                        const std::vector<StyleSpan> &b) {
-  if (a.size() != b.size())
+bool sameSpanBoundaries(
+    const std::vector<std::pair<uint32_t, uint32_t>> &previousBoundaries,
+    const std::vector<StyleSpan> &spans) {
+  if (previousBoundaries.size() != spans.size())
     return false;
-  for (size_t i = 0; i < a.size(); ++i)
-    if (a[i].first != b[i].start || a[i].second != b[i].end)
+  for (size_t spanIndex = 0; spanIndex < previousBoundaries.size(); ++spanIndex)
+    if (previousBoundaries[spanIndex].first != spans[spanIndex].start ||
+        previousBoundaries[spanIndex].second != spans[spanIndex].end)
       return false;
   return true;
 }
@@ -376,109 +387,116 @@ bool sameSpanBoundaries(const std::vector<std::pair<uint32_t, uint32_t>> &a,
 
 void Paragraph::setPaint(uint32_t start, uint32_t end,
                          const PaintStyle &paint) {
-  const uint32_t len = static_cast<uint32_t>(m_text.size());
-  start = std::min(start, len);
-  end = std::min(std::max(end, start), len);
+  const uint32_t textLength = static_cast<uint32_t>(m_text.size());
+  start = std::min(start, textLength);
+  end = std::min(std::max(end, start), textLength);
   if (start == end)
     return;
 
-  const std::vector<std::pair<uint32_t, uint32_t>> before =
+  const std::vector<std::pair<uint32_t, uint32_t>> previousBoundaries =
       spanBoundaries(m_spans);
-  std::vector<StyleSpan> next;
-  next.reserve(m_spans.size() + 2);
+  std::vector<StyleSpan> updatedSpans;
+  updatedSpans.reserve(m_spans.size() + 2);
   for (const StyleSpan &span : m_spans) {
     if (span.end <= start || span.start >= end) {
-      next.push_back(span);
+      updatedSpans.push_back(span);
       continue;
     }
     if (span.start < start)
-      next.push_back({span.start, start, span.style});
-    StyleSpan mid{std::max(span.start, start), std::min(span.end, end),
-                  span.style};
-    mid.style.paint = paint;
-    next.push_back(mid);
+      updatedSpans.push_back({span.start, start, span.style});
+    StyleSpan paintedSpan{std::max(span.start, start), std::min(span.end, end),
+                          span.style};
+    paintedSpan.style.paint = paint;
+    updatedSpans.push_back(paintedSpan);
     if (span.end > end)
-      next.push_back({end, span.end, span.style});
+      updatedSpans.push_back({end, span.end, span.style});
   }
-  m_spans = std::move(next);
+  m_spans = std::move(updatedSpans);
   normalizeSpans();
   // Shaping keys and the text itself are untouched, so the words/scripts/
   // bidi analysis stands — at most the shaped prefix's span indices need
   // re-deriving (see reshapeShapedPrefix). When even the boundaries came
   // out unchanged (repainting the same ranges), the indices are already
   // right and nothing at all is dirty: draws just read the new paint.
-  if (!sameSpanBoundaries(before, m_spans))
+  if (!sameSpanBoundaries(previousBoundaries, m_spans))
     markPaintDirty();
 }
 
-void Paragraph::setPaint(const std::vector<CharRange> &ranges,
+void Paragraph::setPaint(std::span<const CharRange> ranges,
                          const PaintStyle &paint) {
-  const uint32_t len = static_cast<uint32_t>(m_text.size());
+  const uint32_t textLength = static_cast<uint32_t>(m_text.size());
 
   // Sanitize into sorted, clamped, non-overlapping ranges.
-  std::vector<CharRange> rs;
-  rs.reserve(ranges.size());
+  std::vector<CharRange> sanitizedRanges;
+  sanitizedRanges.reserve(ranges.size());
   for (const CharRange &range : ranges) {
-    CharRange r{std::min(range.start, len), std::min(range.end, len)};
-    if (!r.empty())
-      rs.push_back(r);
+    CharRange sanitizedRange{std::min(range.start, textLength),
+                             std::min(range.end, textLength)};
+    if (!sanitizedRange.empty())
+      sanitizedRanges.push_back(sanitizedRange);
   }
-  std::sort(rs.begin(), rs.end(),
-            [](const CharRange &a, const CharRange &b) {
-              return a.start < b.start;
-            });
-  size_t merged = 0;
-  for (size_t i = 1; i < rs.size(); ++i) {
-    if (rs[i].start <= rs[merged].end)
-      rs[merged].end = std::max(rs[merged].end, rs[i].end);
+  std::ranges::sort(sanitizedRanges, {}, &CharRange::start);
+  size_t mergedRangeIndex = 0;
+  for (size_t rangeIndex = 1; rangeIndex < sanitizedRanges.size();
+       ++rangeIndex) {
+    if (sanitizedRanges[rangeIndex].start <=
+        sanitizedRanges[mergedRangeIndex].end)
+      sanitizedRanges[mergedRangeIndex].end =
+          std::max(sanitizedRanges[mergedRangeIndex].end,
+                   sanitizedRanges[rangeIndex].end);
     else
-      rs[++merged] = rs[i];
+      sanitizedRanges[++mergedRangeIndex] = sanitizedRanges[rangeIndex];
   }
-  if (!rs.empty())
-    rs.resize(merged + 1);
-  if (rs.empty())
+  if (!sanitizedRanges.empty())
+    sanitizedRanges.resize(mergedRangeIndex + 1);
+  if (sanitizedRanges.empty())
     return;
 
-  const std::vector<std::pair<uint32_t, uint32_t>> before =
+  const std::vector<std::pair<uint32_t, uint32_t>> previousBoundaries =
       spanBoundaries(m_spans);
   // One pass over spans and ranges together: each output span is either an
   // untouched piece or a painted intersection, so the whole batch costs
   // O(spans + ranges) instead of one full rebuild per range.
-  std::vector<StyleSpan> next;
-  next.reserve(m_spans.size() + 2 * rs.size());
-  size_t ri = 0;
+  std::vector<StyleSpan> updatedSpans;
+  updatedSpans.reserve(m_spans.size() + 2 * sanitizedRanges.size());
+  size_t rangeIndex = 0;
   for (const StyleSpan &span : m_spans) {
-    uint32_t pos = span.start;
-    while (pos < span.end) {
-      while (ri < rs.size() && rs[ri].end <= pos)
-        ri++;
-      if (ri == rs.size() || rs[ri].start >= span.end) {
-        next.push_back({pos, span.end, span.style});
+    uint32_t position = span.start;
+    while (position < span.end) {
+      while (rangeIndex < sanitizedRanges.size() &&
+             sanitizedRanges[rangeIndex].end <= position)
+        ++rangeIndex;
+      if (rangeIndex == sanitizedRanges.size() ||
+          sanitizedRanges[rangeIndex].start >= span.end) {
+        updatedSpans.push_back({position, span.end, span.style});
         break;
       }
-      if (rs[ri].start > pos) {
-        next.push_back({pos, rs[ri].start, span.style});
-        pos = rs[ri].start;
+      if (sanitizedRanges[rangeIndex].start > position) {
+        updatedSpans.push_back(
+            {position, sanitizedRanges[rangeIndex].start, span.style});
+        position = sanitizedRanges[rangeIndex].start;
       }
-      StyleSpan mid{pos, std::min(span.end, rs[ri].end), span.style};
-      mid.style.paint = paint;
-      pos = mid.end;
-      next.push_back(std::move(mid));
+      StyleSpan paintedSpan{position,
+                            std::min(span.end, sanitizedRanges[rangeIndex].end),
+                            span.style};
+      paintedSpan.style.paint = paint;
+      position = paintedSpan.end;
+      updatedSpans.push_back(std::move(paintedSpan));
     }
   }
-  m_spans = std::move(next);
+  m_spans = std::move(updatedSpans);
   normalizeSpans();
-  if (!sameSpanBoundaries(before, m_spans))
+  if (!sameSpanBoundaries(previousBoundaries, m_spans))
     markPaintDirty();
 }
 
-Paragraph::Strut Paragraph::strut(FontContext &ctx) const {
+Paragraph::Strut Paragraph::strut(FontContext &fontContext) const {
   ShapingStyle shaping;
   if (!m_spans.empty())
     shaping = m_spans.front().style.shaping;
   sk_sp<SkTypeface> typeface =
-      shaping.typeface ? shaping.typeface : ctx.defaultTypeface();
-  const SkFont font = makeFont(typeface, shaping.size);
+      shaping.typeface ? shaping.typeface : fontContext.defaultTypeface();
+  const SkFont font = makeFont(typeface, shaping.fontSize);
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
   Strut strut;
@@ -487,28 +505,28 @@ Paragraph::Strut Paragraph::strut(FontContext &ctx) const {
   return strut;
 }
 
-float Paragraph::naturalWidth(FontContext &ctx) {
-  ensureShaped(ctx);
+float Paragraph::naturalWidth(FontContext &fontContext) {
+  ensureShaped(fontContext);
   float width = 0;
-  for (size_t i = 0; i < m_words.size(); ++i) {
-    width += m_words[i].width;
-    if (i + 1 < m_words.size())
-      width += m_words[i].spaceWidth;
+  for (size_t wordIndex = 0; wordIndex < m_words.size(); ++wordIndex) {
+    width += m_words[wordIndex].width;
+    if (wordIndex + 1 < m_words.size())
+      width += m_words[wordIndex].spaceWidth;
   }
   return width;
 }
 
-void Paragraph::ensureAnalyzed(FontContext &ctx) {
+void Paragraph::ensureAnalyzed(FontContext &fontContext) {
   if (m_dirty) {
     normalizeSpans();
-    analyze(ctx);
+    analyze(fontContext);
     m_dirty = false;
     m_paintDirty = false;
     return;
   }
   if (m_paintDirty) {
     m_paintDirty = false;
-    reshapeShapedPrefix(ctx);
+    reshapeShapedPrefix(fontContext);
   }
 }
 
@@ -517,98 +535,104 @@ void Paragraph::ensureAnalyzed(FontContext &ctx) {
 // re-derive segments for the words that were already shaped, against the
 // new span list. Unchanged words hit the shape cache; only a boundary
 // landing mid-word shapes new sub-segments.
-void Paragraph::reshapeShapedPrefix(FontContext &ctx) {
-  const uint32_t shaped = m_shapedWords;
-  m_shapedWords = 0;
-  m_shapeSpanCursor = 0;
-  m_shapeScriptCursor = 0;
-  m_glueMemoStyle = ~0u;
-  m_glueMemoText.clear();
-  for (; m_shapedWords < shaped; ++m_shapedWords) {
-    Word &word = m_words[m_shapedWords];
+void Paragraph::reshapeShapedPrefix(FontContext &fontContext) {
+  const uint32_t previouslyShapedWordCount = m_shapedWordCount;
+  m_shapedWordCount = 0;
+  m_shapingSpanCursor = 0;
+  m_shapingScriptCursor = 0;
+  m_cachedWhitespaceStyleIndex = ~0u;
+  m_cachedWhitespaceText.clear();
+  for (; m_shapedWordCount < previouslyShapedWordCount; ++m_shapedWordCount) {
+    Word &word = m_words[m_shapedWordCount];
     if (word.placeholderIndex >= 0)
       continue; // slots carry no glyphs; width comes from the record
     word.segments.clear();
     word.width = 0;
     word.spaceWidth = 0;
-    shapeWordContent(ctx, word);
+    shapeWordContent(fontContext, word);
   }
 }
 
-void Paragraph::ensureShapedTo(FontContext &ctx, uint32_t wordCount) {
-  ensureAnalyzed(ctx);
+void Paragraph::ensureShapedTo(FontContext &fontContext, uint32_t wordCount) {
+  ensureAnalyzed(fontContext);
   const uint32_t upTo =
       std::min(wordCount, static_cast<uint32_t>(m_words.size()));
-  for (; m_shapedWords < upTo; ++m_shapedWords)
-    shapeWordContent(ctx, m_words[m_shapedWords]);
+  for (; m_shapedWordCount < upTo; ++m_shapedWordCount)
+    shapeWordContent(fontContext, m_words[m_shapedWordCount]);
 }
 
-void Paragraph::ensureShaped(FontContext &ctx) {
-  ensureAnalyzed(ctx);
-  ensureShapedTo(ctx, static_cast<uint32_t>(m_words.size()));
+void Paragraph::ensureShaped(FontContext &fontContext) {
+  ensureAnalyzed(fontContext);
+  ensureShapedTo(fontContext, static_cast<uint32_t>(m_words.size()));
 }
 
-void Paragraph::analyze(FontContext &ctx) {
+void Paragraph::analyze(FontContext &fontContext) {
   m_words.clear();
   if (m_text.empty())
     return;
 
   const UChar *text = reinterpret_cast<const UChar *>(m_text.data());
-  const int32_t len = static_cast<int32_t>(m_text.size());
+  const int32_t textLength = static_cast<int32_t>(m_text.size());
   UErrorCode status = U_ZERO_ERROR;
 
   // ── Line-break opportunities (UAX #14 via ICU) ─────────────────────────
-  FontContext::Impl &impl = ctx.impl();
-  if (!impl.lineBreaker) {
-    impl.lineBreaker = ubrk_open(UBRK_LINE, "", text, len, &status);
+  FontContext::Impl &implementation = fontContext.impl();
+  if (!implementation.lineBreakIterator) {
+    implementation.lineBreakIterator =
+        ubrk_open(UBRK_LINE, "", text, textLength, &status);
   } else {
-    ubrk_setText(impl.lineBreaker, text, len, &status);
+    ubrk_setText(implementation.lineBreakIterator, text, textLength, &status);
   }
-  if (U_FAILURE(status) || !impl.lineBreaker)
+  if (U_FAILURE(status) || !implementation.lineBreakIterator)
     return;
 
   // Scratch buffers persist across analyses (one FontContext == one thread
   // by contract, so thread_local matches the ownership model).
   static thread_local std::vector<int32_t> boundaries;
   boundaries.clear();
-  for (int32_t b = ubrk_next(impl.lineBreaker); b != UBRK_DONE;
-       b = ubrk_next(impl.lineBreaker))
-    boundaries.push_back(b);
-  if (boundaries.empty() || boundaries.back() != len)
-    boundaries.push_back(len);
+  for (int32_t boundary = ubrk_next(implementation.lineBreakIterator);
+       boundary != UBRK_DONE;
+       boundary = ubrk_next(implementation.lineBreakIterator))
+    boundaries.push_back(boundary);
+  if (boundaries.empty() || boundaries.back() != textLength)
+    boundaries.push_back(textLength);
 
   // ── Script runs (also detects whether bidi is needed at all) ──────────
-  bool anyRtl = false;
-  static thread_local std::vector<ScriptRun> scripts;
-  itemizeScripts(m_text, anyRtl, scripts);
+  bool hasRightToLeftText = false;
+  static thread_local std::vector<ScriptRun> scriptRuns;
+  itemizeScripts(m_text, hasRightToLeftText, scriptRuns);
 
   // ── Bidi levels (skipped entirely for LTR-only text) ──────────────────
-  const UBiDiLevel *levels = nullptr;
+  const UBiDiLevel *bidiLevels = nullptr;
   uint8_t uniformLevel = 0; // used when the whole paragraph is one direction
-  if (anyRtl) {
-    if (!impl.bidi)
-      impl.bidi = ubidi_open(); // reused: setPara re-targets it per analyze
-    if (impl.bidi) {
+  if (hasRightToLeftText) {
+    if (!implementation.bidirectionalAnalyzer)
+      implementation.bidirectionalAnalyzer =
+          ubidi_open(); // reused: setPara re-targets it per analyze
+    if (implementation.bidirectionalAnalyzer) {
       status = U_ZERO_ERROR;
-      ubidi_setPara(impl.bidi, text, len, UBIDI_DEFAULT_LTR, nullptr, &status);
+      ubidi_setPara(implementation.bidirectionalAnalyzer, text, textLength,
+                    UBIDI_DEFAULT_LTR, nullptr, &status);
       if (U_SUCCESS(status)) {
-        const UBiDiDirection direction = ubidi_getDirection(impl.bidi);
+        const UBiDiDirection direction =
+            ubidi_getDirection(implementation.bidirectionalAnalyzer);
         if (direction == UBIDI_MIXED)
-          levels = ubidi_getLevels(impl.bidi, &status);
+          bidiLevels =
+              ubidi_getLevels(implementation.bidirectionalAnalyzer, &status);
         else if (direction == UBIDI_RTL)
           uniformLevel = 1;
       }
       if (U_FAILURE(status))
-        levels = nullptr;
+        bidiLevels = nullptr;
     }
   }
 
   // ── Words: one per break segment (segment/shape runs resolved lazily) ──
   m_words.reserve(boundaries.size());
-  int placeholderSeen = 0;
-  int32_t prev = 0;
+  int placeholdersSeen = 0;
+  int32_t segmentStart = 0;
   for (int32_t boundary : boundaries) {
-    if (boundary <= prev)
+    if (boundary <= segmentStart)
       continue;
 
     // Object-replacement characters are placeholder slots (see
@@ -616,217 +640,231 @@ void Paragraph::analyze(FontContext &ctx) {
     // UAX#14 usually isolates U+FFFC (class CB), but trailing punctuation
     // can glue to it (e.g. "￼." via LB13), so peel slots off the front of
     // the segment instead of requiring exact isolation.
-    while (prev < boundary &&
-           m_text[static_cast<size_t>(prev)] == 0xFFFC &&
-           static_cast<size_t>(placeholderSeen) < m_placeholders.size()) {
-      Word slot;
-      slot.textBegin = static_cast<uint32_t>(prev);
-      slot.textEnd = slot.wsEnd = static_cast<uint32_t>(prev + 1);
-      slot.bidiLevel = levels ? levels[prev] : uniformLevel;
-      slot.placeholderIndex = placeholderSeen++;
-      slot.width =
-          m_placeholders[static_cast<size_t>(slot.placeholderIndex)].width;
-      m_words.push_back(std::move(slot));
-      prev++;
+    while (segmentStart < boundary &&
+           m_text[static_cast<size_t>(segmentStart)] == 0xFFFC &&
+           static_cast<size_t>(placeholdersSeen) < m_placeholders.size()) {
+      Word placeholderWord;
+      placeholderWord.textBegin = static_cast<uint32_t>(segmentStart);
+      placeholderWord.textEnd = placeholderWord.whitespaceEnd =
+          static_cast<uint32_t>(segmentStart + 1);
+      placeholderWord.bidiLevel =
+          bidiLevels ? bidiLevels[segmentStart] : uniformLevel;
+      placeholderWord.placeholderIndex = placeholdersSeen++;
+      placeholderWord.width =
+          m_placeholders[static_cast<size_t>(placeholderWord.placeholderIndex)]
+              .width;
+      m_words.push_back(std::move(placeholderWord));
+      ++segmentStart;
     }
-    if (boundary <= prev)
+    if (boundary <= segmentStart)
       continue; // the segment was nothing but slots
 
     // Trailing whitespace (including any hard-break characters at the end).
-    int32_t wsStart = boundary;
+    int32_t whitespaceStart = boundary;
     bool hardBreak = false;
-    while (wsStart > prev) {
-      const char16_t c = m_text[wsStart - 1];
-      if (isHardBreakChar(c)) {
+    while (whitespaceStart > segmentStart) {
+      const char16_t character = m_text[whitespaceStart - 1];
+      if (isHardLineBreakCharacter(character)) {
         hardBreak = true;
-        wsStart--;
-      } else if (u_isWhitespace(c)) {
-        wsStart--;
+        --whitespaceStart;
+      } else if (u_isWhitespace(character)) {
+        --whitespaceStart;
       } else {
         break;
       }
     }
 
     Word word;
-    word.textBegin = static_cast<uint32_t>(prev);
-    word.wsEnd = static_cast<uint32_t>(boundary);
+    word.textBegin = static_cast<uint32_t>(segmentStart);
+    word.whitespaceEnd = static_cast<uint32_t>(boundary);
     word.mandatoryBreakAfter = hardBreak;
-    word.bidiLevel = levels ? levels[prev] : uniformLevel;
+    word.bidiLevel = bidiLevels ? bidiLevels[segmentStart] : uniformLevel;
 
     // A trailing soft hyphen (U+00AD) is a discretionary break: it never
     // shapes, but marks that a hyphen may be rendered if a breaker splits
     // here.
-    if (wsStart > prev && m_text[wsStart - 1] == 0x00AD) {
+    if (whitespaceStart > segmentStart &&
+        m_text[whitespaceStart - 1] == 0x00AD) {
       word.hyphenBreak = true;
-      wsStart--;
+      --whitespaceStart;
     }
-    word.textEnd = static_cast<uint32_t>(wsStart);
+    word.textEnd = static_cast<uint32_t>(whitespaceStart);
 
-    if (wsStart > prev) {
-      UChar32 firstCp;
-      int32_t tmp = prev;
-      U16_NEXT(text, tmp, len, firstCp);
-      UErrorCode scStatus = U_ZERO_ERROR;
+    if (whitespaceStart > segmentStart) {
+      UChar32 firstCodePoint;
+      int32_t codePointEnd = segmentStart;
+      U16_NEXT(text, codePointEnd, textLength, firstCodePoint);
+      UErrorCode scriptStatus = U_ZERO_ERROR;
       word.ideographic =
-          isIdeographicScript(uscript_getScript(firstCp, &scStatus));
+          isIdeographicScript(uscript_getScript(firstCodePoint, &scriptStatus));
     }
 
     // Glyphs, widths, and glue come later: shapeWordContent() fills them in
     // lazily (see ensureShapedTo), so text past the layout frontier never
     // pays for HarfBuzz.
     m_words.push_back(std::move(word));
-    prev = boundary;
+    segmentStart = boundary;
   }
 
   // Persist what lazy shaping needs: script runs (compact, ICU-free form)
   // and per-unit bidi levels (only when actually mixed).
-  m_scripts.clear();
-  m_scripts.reserve(scripts.size());
-  for (const ScriptRun &run : scripts)
-    m_scripts.push_back({run.end, static_cast<int32_t>(run.script)});
-  m_uniformLevel = uniformLevel;
-  if (levels)
-    m_levels.assign(levels, levels + len);
+  m_scriptRunEnds.clear();
+  m_scriptRunEnds.reserve(scriptRuns.size());
+  for (const ScriptRun &run : scriptRuns)
+    m_scriptRunEnds.push_back({run.end, static_cast<int32_t>(run.script)});
+  m_uniformBidirectionalLevel = uniformLevel;
+  if (bidiLevels)
+    m_bidirectionalLevels.assign(bidiLevels, bidiLevels + textLength);
   else
-    m_levels.clear();
-  m_shapedWords = 0;
-  m_shapeSpanCursor = 0;
-  m_shapeScriptCursor = 0;
-  m_glueMemoStyle = ~0u;
-  m_glueMemoText.clear();
+    m_bidirectionalLevels.clear();
+  m_shapedWordCount = 0;
+  m_shapingSpanCursor = 0;
+  m_shapingScriptCursor = 0;
+  m_cachedWhitespaceStyleIndex = ~0u;
+  m_cachedWhitespaceText.clear();
 }
 
 // Shapes one word's content: segment splitting (style / script / bidi /
 // fallback-typeface / vertical-form boundaries), the discretionary hyphen,
 // and trailing-whitespace glue. Called in ascending word order only — the
 // span/script cursors advance monotonically.
-void Paragraph::shapeWordContent(FontContext &ctx, Word &word) {
+void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
   if (word.placeholderIndex >= 0)
     return; // slots carry their size from the placeholder record
 
   const UChar *text = reinterpret_cast<const UChar *>(m_text.data());
-  const int32_t len = static_cast<int32_t>(m_text.size());
+  const int32_t textLength = static_cast<int32_t>(m_text.size());
 
-  auto styleIndexAt = [&](uint32_t pos) -> uint32_t {
-    while (m_shapeSpanCursor + 1 < m_spans.size() &&
-           m_spans[m_shapeSpanCursor].end <= pos)
-      m_shapeSpanCursor++;
-    return m_shapeSpanCursor;
+  auto styleIndexAt = [&](uint32_t position) -> uint32_t {
+    while (m_shapingSpanCursor + 1 < m_spans.size() &&
+           m_spans[m_shapingSpanCursor].end <= position)
+      ++m_shapingSpanCursor;
+    return m_shapingSpanCursor;
   };
-  auto scriptAt = [&](uint32_t pos) -> const ScriptRunEnd & {
-    while (m_shapeScriptCursor + 1 < m_scripts.size() &&
-           m_scripts[m_shapeScriptCursor].end <= pos)
-      m_shapeScriptCursor++;
-    return m_scripts[m_shapeScriptCursor];
+  auto scriptAt = [&](uint32_t position) -> const ScriptRunEnd & {
+    while (m_shapingScriptCursor + 1 < m_scriptRunEnds.size() &&
+           m_scriptRunEnds[m_shapingScriptCursor].end <= position)
+      ++m_shapingScriptCursor;
+    return m_scriptRunEnds[m_shapingScriptCursor];
   };
-  auto levelAt = [&](int32_t pos) -> uint8_t {
-    return m_levels.empty() ? m_uniformLevel
-                            : m_levels[static_cast<size_t>(pos)];
+  auto levelAt = [&](int32_t position) -> uint8_t {
+    return m_bidirectionalLevels.empty()
+               ? m_uniformBidirectionalLevel
+               : m_bidirectionalLevels[static_cast<size_t>(position)];
   };
 
   // Split [textBegin, textEnd) wherever style, script, bidi level, or the
   // fallback-resolved typeface changes; shape each piece via the cache.
-  const int32_t wsStart = static_cast<int32_t>(word.textEnd);
-  int32_t pos = static_cast<int32_t>(word.textBegin);
-  while (pos < wsStart) {
-    const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(pos));
+  const int32_t whitespaceStart = static_cast<int32_t>(word.textEnd);
+  int32_t segmentStart = static_cast<int32_t>(word.textBegin);
+  while (segmentStart < whitespaceStart) {
+    const uint32_t styleIndex =
+        styleIndexAt(static_cast<uint32_t>(segmentStart));
     const StyleSpan &span = m_spans[styleIndex];
-    const ScriptRunEnd &scriptRun = scriptAt(static_cast<uint32_t>(pos));
-    const uint8_t level = levelAt(pos);
+    const ScriptRunEnd &scriptRun =
+        scriptAt(static_cast<uint32_t>(segmentStart));
+    const uint8_t bidiLevel = levelAt(segmentStart);
 
-    int32_t limit = std::min<int32_t>(
-        {wsStart, static_cast<int32_t>(span.end),
-         static_cast<int32_t>(scriptRun.end)});
-    if (!m_levels.empty()) {
-      int32_t l = pos;
-      while (l < limit && m_levels[static_cast<size_t>(l)] == level)
-        l++;
-      limit = l;
+    int32_t segmentLimit =
+        std::min<int32_t>({whitespaceStart, static_cast<int32_t>(span.end),
+                           static_cast<int32_t>(scriptRun.end)});
+    if (!m_bidirectionalLevels.empty()) {
+      int32_t levelEnd = segmentStart;
+      while (levelEnd < segmentLimit &&
+             m_bidirectionalLevels[static_cast<size_t>(levelEnd)] == bidiLevel)
+        ++levelEnd;
+      segmentLimit = levelEnd;
     }
 
     // Extend while the resolved typeface (and, in vertical mode, the
     // per-character vertical form) stays put.
     const bool verticalMode = m_writingMode == WritingMode::kVerticalRL;
-    const char *lang = span.style.shaping.language.empty()
-                           ? nullptr
-                           : span.style.shaping.language.c_str();
-    sk_sp<SkTypeface> resolved;
-    SegmentForm segForm =
+    const char *languageTag = span.style.shaping.languageTag.empty()
+                                  ? nullptr
+                                  : span.style.shaping.languageTag.c_str();
+    sk_sp<SkTypeface> resolvedTypeface;
+    SegmentForm segmentForm =
         verticalMode ? SegmentForm::kUpright : SegmentForm::kFlow;
-    bool formSet = false;
-    int32_t segEnd = pos;
-    int32_t scan = pos;
-    while (scan < limit) {
-      const int32_t cpStart = scan;
-      UChar32 cp;
-      U16_NEXT(text, scan, limit, cp);
-      if (inheritsFont(cp)) {
-        segEnd = scan;
+    bool hasResolvedForm = false;
+    int32_t segmentEnd = segmentStart;
+    int32_t codeUnitOffset = segmentStart;
+    while (codeUnitOffset < segmentLimit) {
+      const int32_t codePointStart = codeUnitOffset;
+      UChar32 codePoint;
+      U16_NEXT(text, codeUnitOffset, segmentLimit, codePoint);
+      if (codePointInheritsTypeface(codePoint)) {
+        segmentEnd = codeUnitOffset;
         continue;
       }
       if (verticalMode) {
-        const SegmentForm form = resolveVerticalForm(span.style.shaping, cp);
-        if (!formSet) {
-          segForm = form;
-          formSet = true;
-        } else if (form != segForm) {
-          segEnd = cpStart;
+        const SegmentForm codePointForm =
+            resolveVerticalForm(span.style.shaping, codePoint);
+        if (!hasResolvedForm) {
+          segmentForm = codePointForm;
+          hasResolvedForm = true;
+        } else if (codePointForm != segmentForm) {
+          segmentEnd = codePointStart;
           break;
         }
       }
-      sk_sp<SkTypeface> t =
-          ctx.resolveTypeface(span.style.shaping.typeface, cp, lang);
-      if (!resolved) {
-        resolved = std::move(t);
-      } else if (t.get() != resolved.get()) {
-        segEnd = cpStart;
+      sk_sp<SkTypeface> codePointTypeface = fontContext.resolveTypeface(
+          span.style.shaping.typeface, codePoint, languageTag);
+      if (!resolvedTypeface) {
+        resolvedTypeface = std::move(codePointTypeface);
+      } else if (codePointTypeface.get() != resolvedTypeface.get()) {
+        segmentEnd = codePointStart;
         break;
       }
-      segEnd = scan;
+      segmentEnd = codeUnitOffset;
     }
-    if (!resolved)
-      resolved = span.style.shaping.typeface ? span.style.shaping.typeface
-                                             : ctx.defaultTypeface();
-    if (segEnd <= pos)
-      segEnd = limit > pos ? limit : pos + 1; // defensive: always progress
+    if (!resolvedTypeface)
+      resolvedTypeface = span.style.shaping.typeface
+                             ? span.style.shaping.typeface
+                             : fontContext.defaultTypeface();
+    if (segmentEnd <= segmentStart)
+      segmentEnd =
+          segmentLimit > segmentStart ? segmentLimit : segmentStart + 1;
 
     const bool shapeVertical =
-        verticalMode && segForm == SegmentForm::kUpright;
-    ShapedWordRef shaped = shapeWord(
-        ctx, span.style.shaping, resolved,
-        std::u16string_view(m_text).substr(static_cast<size_t>(pos),
-                                           static_cast<size_t>(segEnd - pos)),
-        hbScriptFor(static_cast<UScriptCode>(scriptRun.script)),
-        (level & 1) != 0 && !shapeVertical, shapeVertical);
-    if (verticalMode && segForm == SegmentForm::kTateChuYoko) {
-      // 縦中横 occupies its font height along the column; xOffset lands on
-      // the run's baseline inside that box so placement needs no metrics.
-      const SkFont font = makeFont(resolved, span.style.shaping.size);
-      SkFontMetrics fm;
-      font.getMetrics(&fm);
-      word.segments.push_back(
-          {shaped, styleIndex, word.width - fm.fAscent, segForm});
-      word.width += -fm.fAscent + fm.fDescent;
+        verticalMode && segmentForm == SegmentForm::kUpright;
+    ShapedWordRef shapedWord =
+        shapeWord(fontContext, span.style.shaping, resolvedTypeface,
+                  std::u16string_view(m_text).substr(
+                      static_cast<size_t>(segmentStart),
+                      static_cast<size_t>(segmentEnd - segmentStart)),
+                  harfBuzzScriptFor(static_cast<UScriptCode>(scriptRun.script)),
+                  (bidiLevel & 1) != 0 && !shapeVertical, shapeVertical);
+    if (verticalMode && segmentForm == SegmentForm::kTateChuYoko) {
+      // 縦中横 occupies its font height along the column; advanceOffset lands
+      // on the run's baseline inside that box so placement needs no metrics.
+      const SkFont font =
+          makeFont(resolvedTypeface, span.style.shaping.fontSize);
+      SkFontMetrics fontMetrics;
+      font.getMetrics(&fontMetrics);
+      word.segments.push_back({shapedWord, styleIndex,
+                               word.width - fontMetrics.fAscent, segmentForm});
+      word.width += -fontMetrics.fAscent + fontMetrics.fDescent;
     } else {
-      word.segments.push_back({shaped, styleIndex, word.width, segForm});
-      word.width += shaped->advance;
+      word.segments.push_back(
+          {shapedWord, styleIndex, word.width, segmentForm});
+      word.width += shapedWord->advance;
     }
-    pos = segEnd;
+    segmentStart = segmentEnd;
   }
 
   if (word.hyphenBreak) {
     // Shape the hyphen the breaker may render here, in the style of the
     // word's tail. Content-addressed like everything else: one entry per
     // style, shared by every hyphenatable word.
-    const uint32_t styleIndex =
-        word.segments.empty() ? styleIndexAt(word.textBegin)
-                              : word.segments.back().styleIndex;
+    const uint32_t styleIndex = word.segments.empty()
+                                    ? styleIndexAt(word.textBegin)
+                                    : word.segments.back().styleIndex;
     const StyleSpan &span = m_spans[styleIndex];
-    sk_sp<SkTypeface> face = span.style.shaping.typeface
-                                 ? span.style.shaping.typeface
-                                 : ctx.defaultTypeface();
+    sk_sp<SkTypeface> typeface = span.style.shaping.typeface
+                                     ? span.style.shaping.typeface
+                                     : fontContext.defaultTypeface();
     word.hyphenGlyph =
-        shapeWord(ctx, span.style.shaping, face, u"-",
+        shapeWord(fontContext, span.style.shaping, typeface, u"-",
                   static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
   }
 
@@ -834,49 +872,53 @@ void Paragraph::shapeWordContent(FontContext &ctx, Word &word) {
   // are zero-width; tabs measure as spaces (documented simplification).
   // The overwhelmingly common glue (" " in the same style as the previous
   // word) is memoized, skipping even the shape-cache probe.
-  const int32_t boundary = static_cast<int32_t>(word.wsEnd);
-  if (wsStart < boundary) {
-    static thread_local std::u16string wsScratch;
-    wsScratch.clear();
+  const int32_t whitespaceEnd = static_cast<int32_t>(word.whitespaceEnd);
+  if (whitespaceStart < whitespaceEnd) {
+    static thread_local std::u16string whitespaceScratch;
+    whitespaceScratch.clear();
     bool needsScratch = false;
-    for (int32_t k = wsStart; k < boundary; ++k) {
-      const char16_t c = m_text[static_cast<size_t>(k)];
-      if (isHardBreakChar(c) || c == u'\t') {
+    for (int32_t codeUnitIndex = whitespaceStart; codeUnitIndex < whitespaceEnd;
+         ++codeUnitIndex) {
+      const char16_t character = m_text[static_cast<size_t>(codeUnitIndex)];
+      if (isHardLineBreakCharacter(character) || character == u'\t') {
         needsScratch = true;
         break;
       }
     }
-    std::u16string_view ws;
+    std::u16string_view whitespace;
     if (needsScratch) {
-      for (int32_t k = wsStart; k < boundary; ++k) {
-        const char16_t c = m_text[static_cast<size_t>(k)];
-        if (isHardBreakChar(c))
+      for (int32_t codeUnitIndex = whitespaceStart;
+           codeUnitIndex < whitespaceEnd; ++codeUnitIndex) {
+        const char16_t character = m_text[static_cast<size_t>(codeUnitIndex)];
+        if (isHardLineBreakCharacter(character))
           continue;
-        wsScratch.push_back(c == u'\t' ? u' ' : c);
+        whitespaceScratch.push_back(character == u'\t' ? u' ' : character);
       }
-      ws = wsScratch;
+      whitespace = whitespaceScratch;
     } else {
-      ws = std::u16string_view(m_text).substr(
-          static_cast<size_t>(wsStart),
-          static_cast<size_t>(boundary - wsStart));
+      whitespace = std::u16string_view(m_text).substr(
+          static_cast<size_t>(whitespaceStart),
+          static_cast<size_t>(whitespaceEnd - whitespaceStart));
     }
-    if (!ws.empty()) {
-      const uint32_t styleIndex = styleIndexAt(static_cast<uint32_t>(wsStart));
-      if (styleIndex == m_glueMemoStyle && ws == m_glueMemoText) {
-        word.spaceWidth = m_glueMemoWidth;
+    if (!whitespace.empty()) {
+      const uint32_t styleIndex =
+          styleIndexAt(static_cast<uint32_t>(whitespaceStart));
+      if (styleIndex == m_cachedWhitespaceStyleIndex &&
+          whitespace == m_cachedWhitespaceText) {
+        word.spaceWidth = m_cachedWhitespaceWidth;
       } else {
         const StyleSpan &span = m_spans[styleIndex];
-        sk_sp<SkTypeface> spaceFace = span.style.shaping.typeface
-                                          ? span.style.shaping.typeface
-                                          : ctx.defaultTypeface();
-        ShapedWordRef shapedWs = shapeWord(
-            ctx, span.style.shaping, spaceFace, ws,
+        sk_sp<SkTypeface> whitespaceTypeface =
+            span.style.shaping.typeface ? span.style.shaping.typeface
+                                        : fontContext.defaultTypeface();
+        ShapedWordRef shapedWhitespace = shapeWord(
+            fontContext, span.style.shaping, whitespaceTypeface, whitespace,
             static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,
             /*vertical=*/m_writingMode == WritingMode::kVerticalRL);
-        word.spaceWidth = shapedWs->advance;
-        m_glueMemoStyle = styleIndex;
-        m_glueMemoText.assign(ws);
-        m_glueMemoWidth = word.spaceWidth;
+        word.spaceWidth = shapedWhitespace->advance;
+        m_cachedWhitespaceStyleIndex = styleIndex;
+        m_cachedWhitespaceText.assign(whitespace);
+        m_cachedWhitespaceWidth = word.spaceWidth;
       }
     }
   }

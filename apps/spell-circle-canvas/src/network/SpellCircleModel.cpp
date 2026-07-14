@@ -13,8 +13,8 @@ constexpr int kMaxFeedItems = 500;
 // instead of wiping it, so the sidebar list doesn't flash empty and refill.
 constexpr int kClearKeepItems = kMaxFeedItems - 450;
 
-QString utf8(const flatbuffers::String *s) {
-  return s ? QString::fromUtf8(s->c_str()) : QString();
+QString utf8(const flatbuffers::String *string) {
+  return string ? QString::fromUtf8(string->c_str()) : QString();
 }
 
 CircleComponent toCircleComponent(const SpellCircle::Circle *circle) {
@@ -22,8 +22,8 @@ CircleComponent toCircleComponent(const SpellCircle::Circle *circle) {
     return {};
   return CircleComponent{
       .name = utf8(circle->name()),
-      .x = circle->pos() ? circle->pos()->x() : 0.0f,
-      .y = circle->pos() ? circle->pos()->y() : 0.0f,
+      .centerX = circle->pos() ? circle->pos()->x() : 0.0f,
+      .centerY = circle->pos() ? circle->pos()->y() : 0.0f,
       .radius = circle->radius(),
       .textStart = circle->text_start(),
       .active = circle->active(),
@@ -52,8 +52,9 @@ entt::entity getOrCreatePointEntity(
   if (!point)
     return entt::null;
 
-  if (const auto it = pointCache.constFind(point); it != pointCache.constEnd())
-    return it.value();
+  if (const auto cachedPoint = pointCache.constFind(point);
+      cachedPoint != pointCache.constEnd())
+    return cachedPoint.value();
 
   const entt::entity entity = registry.create();
   registry.emplace<PointComponent>(
@@ -156,13 +157,12 @@ void SpellCircleModel::onSpellCircleReceived(const QString &source,
     for (const auto *edge : *scene->edges()) {
       const entt::entity entity = m_registry.create();
       m_registry.emplace<EdgeComponent>(
-          entity,
-          EdgeComponent{
-              .first = getOrCreatePointEntity(m_registry, pointCache,
-                                              edge->first()),
-              .second = getOrCreatePointEntity(m_registry, pointCache,
-                                               edge->second()),
-          });
+          entity, EdgeComponent{
+                      .first = getOrCreatePointEntity(m_registry, pointCache,
+                                                      edge->first()),
+                      .second = getOrCreatePointEntity(m_registry, pointCache,
+                                                       edge->second()),
+                  });
       ++edgeCount;
     }
   }
