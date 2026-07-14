@@ -16,6 +16,7 @@ std::unique_ptr<Scene> makeLoopScene();
 std::unique_ptr<Scene> makeRainScene();
 std::unique_ptr<Scene> makeRippleScene();
 std::unique_ptr<Scene> makeVerticalScene();
+std::unique_ptr<Scene> makeHyperScriptsScene();
 std::unique_ptr<Scene> makeMarkersScene();
 std::unique_ptr<Scene> makeSlotsScene();
 std::unique_ptr<Scene> makeOverflowScene();

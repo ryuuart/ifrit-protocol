@@ -120,7 +120,8 @@ a standalone Qt Quick app with a scene switcher (exclusions & SkPath
 shapes — including a spiky ring that is a brand-new path every frame,
 its points and even-odd hole morphing live — greedy-vs-Knuth-Plass,
 infinite loop, letter rain, click-to-ripple pool, vertical CJK with
-ruby/kenten/tate-chu-yoko, regex markers, inline slots & pills), live text
+ruby/kenten/tate-chu-yoko, a Unicode-singularity wall (`﷽`, `𒈙`, Zalgo,
+deep clusters, bidi, emoji ZWJ), regex markers, inline slots & pills), live text
 editing, and font/size/alignment/line-breaking controls plus a variable-font
 axis panel discovered from the selected family (`wght`, `wdth`, `opsz`, or
 whatever that font exposes). It renders through a QQuickRhiItem: **Skia Graphite on Qt's own

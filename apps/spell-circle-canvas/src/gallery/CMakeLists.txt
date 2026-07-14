@@ -32,6 +32,7 @@ qt_add_qml_module(TextFlowGallery
     scenes/RainScene.cpp
     scenes/RippleScene.cpp
     scenes/VerticalScene.cpp
+    scenes/HyperScriptsScene.cpp
     scenes/MarkersScene.cpp
     scenes/SlotsScene.cpp
     scenes/OverflowScene.cpp

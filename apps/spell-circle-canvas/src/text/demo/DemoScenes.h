@@ -58,3 +58,8 @@ void sceneShapes(textflow::FontContext &fontContext,
 // primary families.
 void sceneFallback(textflow::FontContext &fontContext,
                    const std::filesystem::path &outputDirectory);
+
+// Scene K — pathological Unicode: Arabic, Cuneiform, combining storms,
+// complex clusters, bidi collisions, emoji ZWJ, and supplementary symbols.
+void sceneHyperScripts(textflow::FontContext &fontContext,
+                       const std::filesystem::path &outputDirectory);

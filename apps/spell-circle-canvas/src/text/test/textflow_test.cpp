@@ -1289,6 +1289,31 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
   EXPECT_LE(unique.size(), 4u);
 }
 
+TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
+  FontContext &fontContext = sharedContext();
+  Paragraph plain = makeParagraph("ZALGO TEXT", 32.0f);
+  Paragraph stacked = makeParagraph(
+      "Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚ "
+      "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
+      32.0f);
+  plain.ensureShaped(fontContext);
+  stacked.ensureShaped(fontContext);
+  if (!allGlyphsResolved(stacked))
+    GTEST_SKIP() << "combining-mark fallback coverage unavailable";
+
+  auto glyphCount = [](const Paragraph &paragraph) {
+    size_t count = 0;
+    for (const Word &word : paragraph.words())
+      for (const WordSegment &segment : word.segments)
+        count += segment.shaped->glyphs.size();
+    return count;
+  };
+  EXPECT_GT(glyphCount(stacked), glyphCount(plain) + 50u);
+  const float plainWidth = plain.naturalWidth(fontContext);
+  EXPECT_NEAR(stacked.naturalWidth(fontContext), plainWidth, plainWidth * 0.03f)
+      << "attached mark stacks must add ink, not horizontal advance";
+}
+
 TEST(Correctness, KinsokuProhibitsLineInitialPunctuation) {
   FontContext &fontContext = sharedContext();
   Paragraph paragraph =

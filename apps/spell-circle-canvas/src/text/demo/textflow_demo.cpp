@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
   sceneShapes(fontContext, outputDirectory);
   scenePretext(fontContext, frames, outputDirectory);
   sceneFallback(fontContext, outputDirectory);
+  sceneHyperScripts(fontContext, outputDirectory);
 
   std::printf("PNGs written to %s\n",
               std::filesystem::absolute(outputDirectory).string().c_str());

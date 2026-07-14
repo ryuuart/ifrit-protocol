@@ -90,5 +90,6 @@ add_executable(textflow_demo
   demo/SceneCjk.cpp
   demo/SceneShapes.cpp
   demo/SceneFallback.cpp
+  demo/SceneHyperScripts.cpp
 )
 target_link_libraries(textflow_demo PRIVATE TextFlow)

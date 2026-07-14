@@ -12,6 +12,7 @@ std::vector<std::unique_ptr<Scene>> makeScenes() {
   scenes.push_back(makeRainScene());
   scenes.push_back(makeRippleScene());
   scenes.push_back(makeVerticalScene());
+  scenes.push_back(makeHyperScriptsScene());
   scenes.push_back(makeMarkersScene());
   scenes.push_back(makeSlotsScene());
   scenes.push_back(makeOverflowScene());

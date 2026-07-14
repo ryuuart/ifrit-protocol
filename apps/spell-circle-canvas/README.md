@@ -73,6 +73,7 @@ below in switcher order:
 | Letter rain | [`RainScene.cpp`](src/gallery/scenes/RainScene.cpp) | Full-paragraph relayout every frame while letters fall as particles |
 | Ripple pool | [`RippleScene.cpp`](src/gallery/scenes/RippleScene.cpp) | Click-to-drop expanding rings displace placed glyphs |
 | Vertical CJK | [`VerticalScene.cpp`](src/gallery/scenes/VerticalScene.cpp) | `vertical-rl`, ruby, kenten, tate-chu-yoko |
+| Unicode singularity | [`HyperScriptsScene.cpp`](src/gallery/scenes/HyperScriptsScene.cpp) | `﷽`, Cuneiform `𒈙`, Zalgo stacks, deep clusters, bidi collisions, and emoji ZWJ sequences |
 | Query & markers | [`MarkersScene.cpp`](src/gallery/scenes/MarkersScene.cpp) | Regex-found `MarkerSet` ranges that follow live edits |
 | Inline slots & pills | [`SlotsScene.cpp`](src/gallery/scenes/SlotsScene.cpp) | `appendPlaceholder()` pills and figures woven into the flow |
 | Overflow & ellipsis | [`OverflowScene.cpp`](src/gallery/scenes/OverflowScene.cpp) | CSS `text-overflow`-style clipping vs. shaped ellipsis |
@@ -97,6 +98,7 @@ is just `main()` calling the scenes below in order.
 | H — CJK | [`SceneCjk.cpp`](src/text/demo/SceneCjk.cpp) | Vertical-rl, ruby, kenten, tate-chu-yoko |
 | I — Shapes | [`SceneShapes.cpp`](src/text/demo/SceneShapes.cpp) | Star/heart/donut `SkPath` exclusions |
 | J — CJK fallback | [`SceneFallback.cpp`](src/text/demo/SceneFallback.cpp) | Platform fallback resolves Japanese, Korean, and Chinese glyphs under two incomplete primary families |
+| K — Unicode singularity | [`SceneHyperScripts.cpp`](src/text/demo/SceneHyperScripts.cpp) | Arabic calligraphy, Cuneiform, combining storms, complex clusters, bidi, and emoji in one torture wall |
 
 ## Build & test
 
