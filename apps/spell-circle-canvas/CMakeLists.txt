@@ -44,6 +44,7 @@ enable_testing()
 
 # MacOS Frameworks
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
 find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
 find_library(SYPHON_FRAMEWORK Syphon)
 

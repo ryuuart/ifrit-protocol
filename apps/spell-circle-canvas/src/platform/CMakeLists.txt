@@ -6,6 +6,8 @@ if(APPLE)
   target_link_libraries(SpellCircleAppNap
       PRIVATE
         ${FOUNDATION_FRAMEWORK}
+        ${APPKIT_FRAMEWORK}
+        Qt6::Gui
   )
 
   target_include_directories(SpellCircleAppNap PUBLIC
