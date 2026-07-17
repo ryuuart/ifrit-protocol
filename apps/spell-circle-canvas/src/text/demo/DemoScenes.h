@@ -7,18 +7,6 @@
 
 #include <filesystem>
 
-// Scene A — mixed-script paragraph reflowing around moving exclusion shapes.
-void sceneExclusions(textflow::FontContext &fontContext, int frames,
-                     const std::filesystem::path &outputDirectory);
-
-// Scene B — Knuth-Plass justified paragraph with live word updates.
-void sceneKnuthPlass(textflow::FontContext &fontContext, int frames,
-                     const std::filesystem::path &outputDirectory);
-
-// Scene C — freeform typography: a spiral path and a slanted line set.
-void sceneFreeform(textflow::FontContext &fontContext,
-                   const std::filesystem::path &outputDirectory);
-
 // Scene D — extreme geometries: zigzag, scribble, bumpy baselines, confetti.
 void sceneExtreme(textflow::FontContext &fontContext,
                   const std::filesystem::path &outputDirectory);
@@ -27,17 +15,6 @@ void sceneExtreme(textflow::FontContext &fontContext,
 // effects, mixed fonts.
 void sceneTypography(textflow::FontContext &fontContext,
                      const std::filesystem::path &outputDirectory);
-
-// Scene F — Pretext-style glyph choreography: dispatches rain, ripple, and
-// the infinite-loop marquee below.
-void scenePretext(textflow::FontContext &fontContext, int frames,
-                  const std::filesystem::path &outputDirectory);
-void sceneRain(textflow::FontContext &fontContext, int frames,
-               const std::filesystem::path &outputDirectory);
-void sceneRipple(textflow::FontContext &fontContext, int frames,
-                 const std::filesystem::path &outputDirectory);
-void sceneLoop(textflow::FontContext &fontContext, int frames,
-               const std::filesystem::path &outputDirectory);
 
 // Scene G — script coverage (babel confetti) + OpenType features panel.
 void sceneBabel(textflow::FontContext &fontContext,
@@ -59,12 +36,7 @@ void sceneShapes(textflow::FontContext &fontContext,
 void sceneFallback(textflow::FontContext &fontContext,
                    const std::filesystem::path &outputDirectory);
 
-// Scene K — pathological Unicode: Arabic, Cuneiform, combining storms,
-// complex clusters, bidi collisions, emoji ZWJ, and supplementary symbols.
-void sceneHyperScripts(textflow::FontContext &fontContext,
-                       const std::filesystem::path &outputDirectory);
-
-// Scene L — ordered paint layers: preset shadows/glows/outlines, animated-
-// ready shaders, and arbitrary caller-configured SkPaint composition.
-void scenePaintEffects(textflow::FontContext &fontContext,
-                       const std::filesystem::path &outputDirectory);
+// Scene K — the standalone-pass features panel: decorations,
+// text-transform, word spacing, variable axes, tab stops, and line clamp.
+void sceneNewFeatures(textflow::FontContext &fontContext,
+                      const std::filesystem::path &outputDirectory);
