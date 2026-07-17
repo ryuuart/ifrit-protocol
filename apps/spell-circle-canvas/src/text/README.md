@@ -108,15 +108,21 @@ templates, and documented preconditions.
 
 The Chrome-parity surface, and where each feature lives in the pipeline:
 
-- **Text decorations** — underline / strikethrough / overline on
-  `PaintStyle::decorations`. Thickness and position default to the font's
-  own metrics (1px floor when a face reports none); color defaults to the
-  foreground; underlines skip ink around descenders via blob intercepts.
-  **Decorations span the decorated range, not individual words**: contiguous
-  same-style runs on a line merge into one continuous band that covers the
-  glue between words, CSS-style — skip-ink breaks come only from glyph ink,
-  never from word gaps. Paint-side: adding or recoloring one never reshapes
-  or relayouts.
+- **Text decorations** — underline / strikethrough / overline / highlight
+  on `PaintStyle::decorations`. Thickness and position default to the
+  font's own metrics (1px floor when a face reports none); color defaults
+  to the foreground; underlines skip ink around descenders via blob
+  intercepts. **Span is a per-decoration choice**: the default
+  `Span::kDecoratedRange` merges contiguous same-style runs on a line into
+  one continuous band covering the glue between words (CSS-style — an
+  underlined sentence is one line; skip-ink breaks come only from glyph
+  ink), while `Span::kPerWord` draws one band per word (spell-check
+  squiggles, word chips). `Kind::kHighlight` is the background member: a
+  full-text-height band drawn beneath every glyph pass — with range
+  spanning it reads as one highlighter stroke across words *and* gaps
+  (default color: the foreground at ~25% alpha, so text stays legible).
+  All of it is paint-side: adding or recoloring never reshapes or
+  relayouts.
 - **Text transform** — `ShapingStyle::textTransform` (uppercase, lowercase,
   capitalize) applies locale-aware ICU case mapping just before shaping
   (Turkish dotless-i via `languageTag`, full ß→SS). The stored text, edit
@@ -338,7 +344,11 @@ effects
     .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 4.0f))
     .addDecoration({})   // metric underline, skip-ink, spans word gaps
     .addDecoration({.kind = Decoration::Kind::kStrikethrough,
-                    .color = SK_ColorRED});
+                    .color = SK_ColorRED})
+    .addDecoration({.kind = Decoration::Kind::kHighlight,   // marker stroke
+                    .color = 0x66FFD54A})                   // behind the text
+    .addDecoration({.span = Decoration::Span::kPerWord});   // squiggle-style
+                                                            // per-word bands
 // Shaders are canvas-space: one shader spans the whole paragraph.
 // (PaintShaders presets live in the separate TextFlowShaders library.)
 effects.foreground.setShader(
@@ -445,7 +455,7 @@ Everything that trades fidelity against speed, in one place:
 | `variations` | ShapingStyle | none | variable-font axes via the memoized clone cache |
 | `textTransform` | ShapingStyle | none | pre-shaping locale-aware case mapping |
 | `verticalForm` | ShapingStyle | auto | per-span upright / rotated / tate-chu-yoko in vertical mode |
-| paint layers / decorations | PaintStyle | none | ordered extra glyph passes and line-spanning bands; each layer adds one draw |
+| paint layers / decorations | PaintStyle | none | ordered extra glyph passes and decoration bands (range or per-word span; highlights beneath the glyphs); each layer adds one draw |
 | shader program / layer count | PaintStyle + TextFlowShaders | solid foreground | runtime shader pixel cost and pass count are independent; prefer `drawBatched` |
 | subpixel gate | Shaper.cpp (`makeFont`) | <48px | subpixel positioning only where visible |
 | shape-cache cap | FontContextImpl.h | ~130k entries | wholesale clear past the cap (one cold frame), no LRU |
@@ -474,10 +484,13 @@ shaping N paragraphs, then merging layouts — no library changes needed.
 ## Known limitations
 
 - **Decorations:** straight horizontal runs only — transformed (on-path /
-  rotated) and vertical runs skip them. Bands merge across word gaps within
-  a same-style, same-metrics group; a bidi reorder or fallback-font switch
-  mid-range starts a new band. Skip-ink intercepts are computed per draw
-  (uncached).
+  rotated) and vertical runs skip them. Range-spanning bands merge across
+  word gaps within a same-style, same-metrics group; a bidi reorder or
+  fallback-font switch mid-range starts a new band (per-word spans are
+  unaffected). Skip-ink intercepts are computed per draw (uncached).
+  Highlights are per-decorated-range bands, not full-line/selection
+  geometry — line backgrounds would be the line-metrics query mentioned
+  above.
 - **Tab stops:** greedy breaker, LTR, straight horizontal lines;
   Knuth-Plass treats tabs as ordinary glue. Alignments other than kStart
   may shift a tabbed line as a whole.

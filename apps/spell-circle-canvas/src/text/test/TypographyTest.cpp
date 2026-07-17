@@ -598,3 +598,121 @@ TEST(DecorationTest, UnderlineSpansAcrossWordGaps) {
   EXPECT_LT(SkColorGetR(pixmap.getColor(probeX, probeY)), 100u)
       << "skip-ink must only break at glyph ink, never at word gaps";
 }
+
+TEST(DecorationTest, PerWordSpanBreaksAtGaps) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  std::vector<const PositionedRun *> wordRuns;
+  for (const PositionedRun &run : layout.runs)
+    if (run.shaped)
+      wordRuns.push_back(&run);
+  ASSERT_GE(wordRuns.size(), 2u);
+  const float gapStart =
+      wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
+  const float gapEnd = wordRuns[1]->origin.x();
+  ASSERT_GT(gapEnd, gapStart);
+
+  PaintStyle underlined(SK_ColorBLACK);
+  Decoration perWord;
+  perWord.span = Decoration::Span::kPerWord;
+  perWord.thickness = 3.0f;
+  perWord.offset = 6.0f;
+  perWord.skipInk = false;
+  underlined.addDecoration(perWord);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     underlined);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  layout.draw(surface->getCanvas(), paragraph);
+
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
+  const int bandY = static_cast<int>(wordRuns[0]->origin.y() + 6.0f + 1.5f);
+  // The gap stays bare…
+  EXPECT_GT(SkColorGetR(pixmap.getColor(gapX, bandY)), 200u)
+      << "kPerWord must not underline the word gap";
+  // …while both words still carry their own bands.
+  const int firstWordX =
+      static_cast<int>(wordRuns[0]->origin.x() +
+                       wordRuns[0]->shaped->advance * 0.5f);
+  EXPECT_LT(SkColorGetR(pixmap.getColor(firstWordX, bandY)), 100u);
+}
+
+TEST(DecorationTest, HighlightSpansGapsBeneathGlyphs) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  std::vector<const PositionedRun *> wordRuns;
+  for (const PositionedRun &run : layout.runs)
+    if (run.shaped)
+      wordRuns.push_back(&run);
+  ASSERT_GE(wordRuns.size(), 2u);
+  const float gapStart =
+      wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
+  const float gapEnd = wordRuns[1]->origin.x();
+  ASSERT_GT(gapEnd, gapStart);
+
+  PaintStyle marked(SK_ColorBLACK);
+  Decoration highlight;
+  highlight.kind = Decoration::Kind::kHighlight;
+  highlight.color = 0x80FFE066; // translucent marker yellow
+  marked.addDecoration(highlight);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     marked);
+
+  for (const bool batched : {false, true}) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    if (batched)
+      layout.drawBatched(surface->getCanvas(), paragraph);
+    else
+      layout.draw(surface->getCanvas(), paragraph);
+
+    SkPixmap pixmap;
+    ASSERT_TRUE(surface->peekPixels(&pixmap));
+    // Mid-gap, mid-x-height: the marker stroke must cover the space
+    // between words (tinted, not white).
+    const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
+    const int xHeightY = static_cast<int>(wordRuns[0]->origin.y() - 8.0f);
+    const SkColor gapColor = pixmap.getColor(gapX, xHeightY);
+    EXPECT_NE(gapColor, SK_ColorWHITE)
+        << (batched ? "batched" : "immediate")
+        << ": highlight must cover the word gap";
+    EXPECT_GT(SkColorGetB(gapColor), 100u)
+        << "gap should be a tint, not glyph ink";
+
+    // The glyphs draw over the highlight: dark ink must survive somewhere
+    // inside the first word's extent at x-height.
+    bool sawInk = false;
+    const int wordStartX = static_cast<int>(wordRuns[0]->origin.x());
+    const int wordEndX = static_cast<int>(gapStart);
+    for (int x = wordStartX; x < wordEndX && !sawInk; ++x)
+      for (int y = xHeightY - 6; y <= xHeightY + 6 && !sawInk; ++y)
+        sawInk = SkColorGetR(pixmap.getColor(x, y)) < 80;
+    EXPECT_TRUE(sawInk) << "glyphs must draw above the highlight";
+  }
+}
+
+TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
+  SkFontMetrics metrics = {};
+  metrics.fAscent = -20.0f;
+  metrics.fDescent = 6.0f;
+  Decoration highlight;
+  highlight.kind = Decoration::Kind::kHighlight;
+  const detail::ResolvedDecorationBand band =
+      detail::resolveDecorationBand(highlight, metrics, SK_ColorBLUE);
+  EXPECT_EQ(SkColorGetB(band.color), 0xFFu) << "hue follows the foreground";
+  EXPECT_LT(SkColorGetA(band.color), 0x80u)
+      << "default highlight must not hide the text behind it";
+  EXPECT_FLOAT_EQ(band.position, -20.0f) << "band top at the ascent line";
+  EXPECT_FLOAT_EQ(band.thickness, 26.0f) << "ascent + descent tall";
+}

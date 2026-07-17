@@ -58,6 +58,29 @@ void sceneNewFeatures(FontContext &fontContext,
   }
   rowTop += 92;
 
+  // ── Decoration spans: range vs per-word, and highlight bands ──────────
+  drawLabel(fontContext, canvas,
+            u8"decoration spans — range (default) / kPerWord / kHighlight "
+            u8"behind the words",
+            rowTop);
+  {
+    Paragraph paragraph;
+    TextStyle range = style(24, kInk);
+    range.paint.addDecoration({.skipInk = false}); // one continuous line
+    paragraph.appendText(u8"spans the range ", range);
+    TextStyle perWord = style(24, kInk);
+    perWord.paint.addDecoration({.span = Decoration::Span::kPerWord,
+                                 .skipInk = false});
+    paragraph.appendText(u8"breaks per word ", perWord);
+    TextStyle marked = style(24, kInk);
+    marked.paint.addDecoration(
+        {.kind = Decoration::Kind::kHighlight, .color = 0x66FFD54A});
+    paragraph.appendText(u8"marker over words and gaps", marked);
+    BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 22, 900, 44));
+    layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
+  }
+  rowTop += 92;
+
   // ── Text transform: shaping-side case mapping, locale-aware ───────────
   drawLabel(fontContext, canvas,
             u8"text-transform — uppercase (full ß→SS mapping) / capitalize",

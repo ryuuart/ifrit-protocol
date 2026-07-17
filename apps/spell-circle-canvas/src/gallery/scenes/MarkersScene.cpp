@@ -83,6 +83,11 @@ public:
     case 2:
       highlight.addDecoration({.kind = Decoration::Kind::kStrikethrough});
       break;
+    case 3:
+      // Highlighter stroke behind the marked words (default translucent
+      // tint of the hue-cycling foreground), spanning word gaps.
+      highlight.addDecoration({.kind = Decoration::Kind::kHighlight});
+      break;
     default:
       break;
     }
@@ -168,9 +173,9 @@ SceneDescriptor makeMarkersDescriptor() {
   descriptor.displayOrder = 110;
   descriptor.parameters = {
       {QStringLiteral("decoration"), QStringLiteral("Decoration"),
-       SceneParameter::Type::kChoice, 1, 0, 2, {},
+       SceneParameter::Type::kChoice, 1, 0, 3, {},
        {QStringLiteral("None"), QStringLiteral("Underline"),
-        QStringLiteral("Strikethrough")}},
+        QStringLiteral("Strikethrough"), QStringLiteral("Highlight")}},
   };
   descriptor.make = [] { return std::make_unique<MarkersScene>(); };
   return descriptor;

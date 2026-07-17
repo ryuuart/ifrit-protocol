@@ -244,31 +244,54 @@ struct PaintLayer {
  * face reports none), so the zero-argument spelling
  * `PaintStyle{...}.addDecoration({})` is a correct underline.
  *
- * Decorations span the decorated range, not individual words: contiguous
- * same-style runs on a line merge into one continuous band that also covers
- * the glue between words (CSS behavior — an underlined sentence is one
- * line). Skip-ink breaks come only from glyph ink, never from word gaps.
+ * By default a decoration spans the decorated range, not individual words:
+ * contiguous same-style runs on a line merge into one continuous band that
+ * also covers the glue between words (CSS behavior — an underlined sentence
+ * is one line, a highlight reads like one marker stroke). Skip-ink breaks
+ * come only from glyph ink, never from word gaps. `span = Span::kPerWord`
+ * opts back into one band per word (spell-check squiggles, word chips).
+ *
+ * kHighlight is the background member of the family: a full-text-height
+ * band (ascent to descent by default) drawn *beneath* every glyph pass, so
+ * with the default range spanning it renders as a continuous highlighter
+ * stroke behind the words and their gaps.
  *
  * Scope: decorations render on straight horizontal runs only — transformed
  * (path/rotated) and vertical runs skip them.
  */
 struct Decoration {
-  /// Selects which font metric anchors the band by default.
-  enum class Kind : uint8_t { kUnderline, kStrikethrough, kOverline };
+  /// Selects which font metric anchors the band by default. kHighlight is
+  /// drawn beneath the glyph passes; the others above them.
+  enum class Kind : uint8_t {
+    kUnderline,
+    kStrikethrough,
+    kOverline,
+    kHighlight,
+  };
+  /// How far one band extends along the line.
+  enum class Span : uint8_t {
+    kDecoratedRange, ///< merge contiguous same-style runs, covering gaps
+    kPerWord,        ///< one band per word run; breaks at every gap
+  };
+
   Kind kind = Kind::kUnderline; ///< only underlines honor `skipInk`
-  /// SK_ColorTRANSPARENT → use the resolved foreground paint's color.
+  Span span = Span::kDecoratedRange; ///< continuous band vs one per word
+  /// SK_ColorTRANSPARENT → the resolved foreground paint's color — except
+  /// for kHighlight, where an opaque foreground would hide the text, so it
+  /// resolves to the foreground color at ~25% alpha instead.
   SkColor color = SK_ColorTRANSPARENT;
-  /// 0 → thickness from font metrics, floored at 1px.
+  /// 0 → thickness from font metrics (kHighlight: ascent + descent),
+  /// floored at 1px.
   float thickness = 0;
-  /// 0 → position from font metrics; otherwise the decoration band's top
-  /// edge in px relative to the baseline (positive below, Skia's
-  /// y-grows-down convention).
+  /// 0 → position from font metrics (kHighlight: the ascent line);
+  /// otherwise the band's top edge in px relative to the baseline
+  /// (positive below, Skia's y-grows-down convention).
   float offset = 0;
   /// Underlines only: interrupt the line where glyph ink (descenders)
   /// crosses the band, via SkTextBlob::getIntercepts.
   bool skipInk = true;
 
-  /** Compares kind, color, geometry overrides, and ink skipping. */
+  /** Compares kind, span, color, geometry overrides, and ink skipping. */
   bool operator==(const Decoration &) const = default;
 };
 
@@ -285,8 +308,9 @@ struct PaintStyle {
   SkPaint foreground; ///< the main glyph pass, drawn between the layer lists
   std::vector<PaintLayer> underlays; ///< drawn in order beneath `foreground`
   std::vector<PaintLayer> overlays;  ///< drawn in order above `foreground`
-  /// Drawn after this style's glyph passes, in vector order. See Decoration
-  /// for defaults and the straight-horizontal-runs-only scope.
+  /// Line decorations in vector order — highlights beneath every glyph
+  /// pass, the rest above them. See Decoration for band defaults, range
+  /// vs per-word spanning, and the straight-horizontal-runs-only scope.
   std::vector<Decoration> decorations;
 
   /** Constructs a single anti-aliased black foreground. */

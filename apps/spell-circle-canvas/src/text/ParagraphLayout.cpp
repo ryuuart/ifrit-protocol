@@ -711,11 +711,20 @@ bool decorableRun(const PositionedRun &run) {
 // an underlined sentence is one continuous line. Skip-ink intercepts still
 // come from each run's own blob; the inter-word gaps have no ink, so they
 // stay covered.
+/// Which decoration kinds an emission pass covers: highlights paint
+/// beneath every glyph pass, everything else above them.
+enum class DecorationPhase : uint8_t { kBelowGlyphs, kAboveGlyphs };
+
+bool decorationInPhase(const Decoration &decoration, DecorationPhase phase) {
+  const bool isHighlight = decoration.kind == Decoration::Kind::kHighlight;
+  return phase == DecorationPhase::kBelowGlyphs ? isHighlight : !isHighlight;
+}
+
 template <typename EmitRect>
 void forEachDecorationRect(const std::vector<PositionedRun> &runs,
                            const std::vector<StyleSpan> &spans,
                            const PaintStyle *overridePaint,
-                           EmitRect &&emitRect) {
+                           DecorationPhase phase, EmitRect &&emitRect) {
   for (size_t groupStart = 0; groupStart < runs.size();) {
     const PositionedRun &first = runs[groupStart];
     if (!decorableRun(first)) {
@@ -757,10 +766,23 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
     font.getMetrics(&metrics);
 
     for (const Decoration &decoration : style.decorations) {
+      if (!decorationInPhase(decoration, phase))
+        continue;
       const detail::ResolvedDecorationBand band =
           detail::resolveDecorationBand(decoration, metrics,
                                         style.foreground.getColor());
       const float top = first.origin.y() + band.position;
+      if (decoration.span == Decoration::Span::kPerWord) {
+        // One band per word run: reuse the single-run segment geometry so
+        // per-word skip-ink behaves exactly like the spanning form's.
+        for (size_t runIndex = groupStart; runIndex < groupEnd; ++runIndex)
+          for (const auto &[startX, endX] : detail::decorationSegments(
+                   runs[runIndex], decoration, band))
+            emitRect(SkRect::MakeLTRB(startX, top, endX,
+                                      top + band.thickness),
+                     band.color);
+        continue;
+      }
       const bool skipInk = decoration.skipInk &&
                            decoration.kind == Decoration::Kind::kUnderline;
       if (!skipInk) {
@@ -815,17 +837,29 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration &decoration,
                                              const SkFontMetrics &metrics,
                                              SkColor foregroundColor) {
   ResolvedDecorationBand band;
-  band.color = decoration.color == SK_ColorTRANSPARENT ? foregroundColor
-                                                       : decoration.color;
+  if (decoration.color != SK_ColorTRANSPARENT) {
+    band.color = decoration.color;
+  } else if (decoration.kind == Decoration::Kind::kHighlight) {
+    // An opaque foreground-colored highlight would hide the text it sits
+    // behind; default to a ~25%-alpha tint of the foreground instead.
+    band.color = SkColorSetA(foregroundColor, 0x40);
+  } else {
+    band.color = foregroundColor;
+  }
 
   band.thickness = decoration.thickness;
   if (band.thickness <= 0) {
-    SkScalar metricThickness = 0;
-    const bool hasMetric =
-        decoration.kind == Decoration::Kind::kStrikethrough
-            ? metrics.hasStrikeoutThickness(&metricThickness)
-            : metrics.hasUnderlineThickness(&metricThickness);
-    band.thickness = hasMetric && metricThickness > 0 ? metricThickness : 1.0f;
+    if (decoration.kind == Decoration::Kind::kHighlight) {
+      band.thickness = -metrics.fAscent + metrics.fDescent; // full text height
+    } else {
+      SkScalar metricThickness = 0;
+      const bool hasMetric =
+          decoration.kind == Decoration::Kind::kStrikethrough
+              ? metrics.hasStrikeoutThickness(&metricThickness)
+              : metrics.hasUnderlineThickness(&metricThickness);
+      band.thickness =
+          hasMetric && metricThickness > 0 ? metricThickness : 1.0f;
+    }
   }
   band.thickness = std::max(band.thickness, 1.0f);
 
@@ -850,6 +884,7 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration &decoration,
     break;
   }
   case Decoration::Kind::kOverline:
+  case Decoration::Kind::kHighlight:
     band.position = metrics.fAscent; // negative: the ascent line
     break;
   }
@@ -910,6 +945,15 @@ decorationSegments(const PositionedRun &run, const Decoration &decoration,
 void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            const PaintStyle *overridePaint) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
+  SkPaint decorationPaint;
+  decorationPaint.setAntiAlias(true);
+  const auto drawRect = [&](SkRect rect, SkColor color) {
+    decorationPaint.setColor(color);
+    canvas->drawRect(rect, decorationPaint);
+  };
+
+  forEachDecorationRect(runs, spans, overridePaint,
+                        DecorationPhase::kBelowGlyphs, drawRect);
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
@@ -921,13 +965,8 @@ void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            run.origin.y() + offset.y(), paint);
     });
   }
-  SkPaint decorationPaint;
-  decorationPaint.setAntiAlias(true);
   forEachDecorationRect(runs, spans, overridePaint,
-                        [&](SkRect rect, SkColor color) {
-                          decorationPaint.setColor(color);
-                          canvas->drawRect(rect, decorationPaint);
-                        });
+                        DecorationPhase::kAboveGlyphs, drawRect);
 }
 
 std::vector<ParagraphLayout::PlacedPlaceholder>
@@ -978,7 +1017,21 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
   static thread_local std::vector<DecorationRect> decorationRects;
   decorationRects.clear();
 
+  // Highlights go straight to the canvas: every glyph pass draws after
+  // them. The above-glyph decorations accumulate and flush past the
+  // buckets so strikethroughs land above the batched text.
+  {
+    SkPaint highlightPaint;
+    highlightPaint.setAntiAlias(true);
+    forEachDecorationRect(runs, spans, overridePaint,
+                          DecorationPhase::kBelowGlyphs,
+                          [&](SkRect rect, SkColor color) {
+                            highlightPaint.setColor(color);
+                            canvas->drawRect(rect, highlightPaint);
+                          });
+  }
   forEachDecorationRect(runs, spans, overridePaint,
+                        DecorationPhase::kAboveGlyphs,
                         [&](SkRect rect, SkColor color) {
                           decorationRects.push_back({rect, color});
                         });
