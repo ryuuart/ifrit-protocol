@@ -1,5 +1,5 @@
 // Scene: ripple pool (click to drop).
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -16,11 +16,6 @@ namespace {
 
 class RippleScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Ripple pool — click me");
-  }
-  bool supportsTextEdit() const override { return false; }
-
   void pointerPress(SkPoint position) override {
     m_pendingDrops.push_back(position);
   }
@@ -129,10 +124,17 @@ private:
   std::mt19937 m_randomEngine{31};
 };
 
+SceneDescriptor makeRippleDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Ripple pool — click me");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 50;
+  descriptor.make = [] { return std::make_unique<RippleScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeRippleScene() {
-  return std::make_unique<RippleScene>();
-}
+REGISTER_GALLERY_SCENE(makeRippleDescriptor())
 
 } // namespace gallery

@@ -1,5 +1,5 @@
 // Scene: query layer — regex markers that follow live edits.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <textflow/Query.h>
@@ -14,27 +14,26 @@ namespace gallery {
 
 namespace {
 
+QString markersDefaultText() {
+  return QStringLiteral(
+      "Captain Ada watches the Beacon while Turing recalibrates the "
+      "Lattice. Every capitalized Word in this paragraph was found once by "
+      "an ICU regex and registered as a named marker set; the highlights "
+      "you see are plain setPaint calls over those ranges. The paragraph "
+      "keeps editing itself — words swap in and out below the markers — "
+      "and the ranges follow the edits through the Paragraph's revision "
+      "log, exactly like DOM Range objects. Delete the Beacon and its "
+      "marker collapses; retype it and a fresh query picks it up again.");
+}
+
 class MarkersScene final : public Scene {
 public:
-  QString name() const override { return QStringLiteral("Query & markers"); }
-  QString defaultText() const override {
-    return QStringLiteral(
-        "Captain Ada watches the Beacon while Turing recalibrates the "
-        "Lattice. Every capitalized Word in this paragraph was found once by "
-        "an ICU regex and registered as a named marker set; the highlights "
-        "you see are plain setPaint calls over those ranges. The paragraph "
-        "keeps editing itself — words swap in and out below the markers — "
-        "and the ranges follow the edits through the Paragraph's revision "
-        "log, exactly like DOM Range objects. Delete the Beacon and its "
-        "marker collapses; retype it and a fresh query picks it up again.");
-  }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int frameNumber, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    if (m_body.ensure(params, defaultText(), m_serif)) {
+    if (m_body.ensure(params, markersDefaultText(), m_serif)) {
       // Scoped query: only search the window the box can actually place
       // (the frontier of the previous layout). Paste a novel and the regex
       // scans the visible text, not megabytes that will never land — and
@@ -150,10 +149,17 @@ private:
   bool m_queryWasScoped = false;
 };
 
+SceneDescriptor makeMarkersDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Query & markers");
+  descriptor.defaultText = markersDefaultText();
+  descriptor.displayOrder = 110;
+  descriptor.make = [] { return std::make_unique<MarkersScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeMarkersScene() {
-  return std::make_unique<MarkersScene>();
-}
+REGISTER_GALLERY_SCENE(makeMarkersDescriptor())
 
 } // namespace gallery

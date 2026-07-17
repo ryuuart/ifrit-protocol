@@ -1,5 +1,5 @@
 // Scene: Knuth-Plass vs greedy, hyphenation, last-line modes.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -13,31 +13,28 @@ namespace gallery {
 
 namespace {
 
+// Soft hyphens (U+00AD) give both breakers discretionary break points.
+QString knuthPlassDefaultText() {
+  return QString::fromUtf8(
+      "The para­graph breaker con­sid­ers every way to "
+      "break this text into lines and picks the one with the least "
+      "bad­ness, ex­act­ly like TeX. Greedy breaking "
+      "com­mits line by line and leaves rag­ged, "
+      "in­con­sis­tent spac­ing be­hind; "
+      "op­ti­mal breaking spreads the slack across the whole "
+      "para­graph in­stead, tak­ing dis­cre­tion"
+      "­ary hy­phens when they pay for them­selves. The "
+      "measure breathes to pose a fresh prob­lem every frame.");
+}
+
 class KnuthPlassScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Knuth–Plass & hyphens");
-  }
-  QString defaultText() const override {
-    // Soft hyphens (U+00AD) give both breakers discretionary break points.
-    return QString::fromUtf8(
-        "The para­graph breaker con­sid­ers every way to "
-        "break this text into lines and picks the one with the least "
-        "bad­ness, ex­act­ly like TeX. Greedy breaking "
-        "com­mits line by line and leaves rag­ged, "
-        "in­con­sis­tent spac­ing be­hind; "
-        "op­ti­mal breaking spreads the slack across the whole "
-        "para­graph in­stead, tak­ing dis­cre­tion"
-        "­ary hy­phens when they pay for them­selves. The "
-        "measure breathes to pose a fresh prob­lem every frame.");
-  }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    const bool rebuilt = m_body.ensure(params, defaultText(), m_serif);
+    const bool rebuilt = m_body.ensure(params, knuthPlassDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -108,10 +105,17 @@ private:
   TextAlignment m_lastAlignment = TextAlignment::kStart;
 };
 
+SceneDescriptor makeKnuthPlassDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Knuth–Plass & hyphens");
+  descriptor.defaultText = knuthPlassDefaultText();
+  descriptor.displayOrder = 20;
+  descriptor.make = [] { return std::make_unique<KnuthPlassScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeKnuthPlassScene() {
-  return std::make_unique<KnuthPlassScene>();
-}
+REGISTER_GALLERY_SCENE(makeKnuthPlassDescriptor())
 
 } // namespace gallery

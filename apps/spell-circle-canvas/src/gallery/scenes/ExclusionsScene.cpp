@@ -1,5 +1,5 @@
 // Scene: exclusions & SkPath shapes.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -14,13 +14,8 @@ namespace gallery {
 
 namespace {
 
-class ExclusionsScene final : public Scene {
-public:
-  QString name() const override {
-    return QStringLiteral("Exclusions & shapes");
-  }
-  QString defaultText() const override {
-    return QStringLiteral(
+QString exclusionsDefaultText() {
+  return QStringLiteral(
         "Typography is the craft of arranging type, and glyphs flow around "
         "obstacles the way water flows around stones. 日本語のテキストも同じ"
         "流れに乗って進み、한국어 단어들도 자연스럽게 흐르고, 中文字符同样围"
@@ -40,14 +35,16 @@ public:
         "만 성형되고 계속 재사용됩니다. The donut's hole is part of the same "
         "even-odd path, so with enough text the lines pour straight through "
         "its centre while avoiding the ring around it.");
-  }
+}
 
+class ExclusionsScene final : public Scene {
+public:
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, defaultText(), m_serif);
+    m_body.ensure(params, exclusionsDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -145,10 +142,17 @@ private:
   SkISize m_pathSize = {0, 0};
 };
 
+SceneDescriptor makeExclusionsDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Exclusions & shapes");
+  descriptor.defaultText = exclusionsDefaultText();
+  descriptor.displayOrder = 10;
+  descriptor.make = [] { return std::make_unique<ExclusionsScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeExclusionsScene() {
-  return std::make_unique<ExclusionsScene>();
-}
+REGISTER_GALLERY_SCENE(makeExclusionsDescriptor())
 
 } // namespace gallery

@@ -1,5 +1,5 @@
 // Scene: inline placeholders — pills and figures woven into the flow.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkFontMetrics.h>
@@ -17,11 +17,6 @@ namespace {
 
 class SlotsScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Inline slots & pills");
-  }
-  bool supportsTextEdit() const override { return false; }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
@@ -181,10 +176,17 @@ private:
   float m_builtFontSize = 0;
 };
 
+SceneDescriptor makeSlotsDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Inline slots & pills");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 120;
+  descriptor.make = [] { return std::make_unique<SlotsScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeSlotsScene() {
-  return std::make_unique<SlotsScene>();
-}
+REGISTER_GALLERY_SCENE(makeSlotsDescriptor())
 
 } // namespace gallery

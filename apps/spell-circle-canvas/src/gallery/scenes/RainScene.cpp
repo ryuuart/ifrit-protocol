@@ -1,5 +1,5 @@
 // Scene: letter rain on an umbrella (full-paragraph relayout).
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -16,11 +16,6 @@ namespace {
 
 class RainScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Letter rain — 700 words");
-  }
-  bool supportsTextEdit() const override { return false; }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double /*elapsedSeconds*/,
                     int frameNumber, const SceneParams & /*params*/,
                     FontContext &fontContext) override {
@@ -172,8 +167,17 @@ private:
   std::mt19937 m_randomEngine{9};
 };
 
+SceneDescriptor makeRainDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Letter rain — 700 words");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 40;
+  descriptor.make = [] { return std::make_unique<RainScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeRainScene() { return std::make_unique<RainScene>(); }
+REGISTER_GALLERY_SCENE(makeRainDescriptor())
 
 } // namespace gallery

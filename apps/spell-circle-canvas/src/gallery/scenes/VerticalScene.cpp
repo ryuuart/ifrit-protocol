@@ -1,5 +1,5 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <textflow/Query.h>
@@ -18,11 +18,6 @@ namespace {
 
 class VerticalScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Vertical CJK — ruby · kenten · 縦中横");
-  }
-  bool supportsTextEdit() const override { return false; }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams & /*params*/,
                     FontContext &fontContext) override {
@@ -242,10 +237,17 @@ private:
   float m_fontSize = 0;
 };
 
+SceneDescriptor makeVerticalDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Vertical CJK — ruby · kenten · 縦中横");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 60;
+  descriptor.make = [] { return std::make_unique<VerticalScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeVerticalScene() {
-  return std::make_unique<VerticalScene>();
-}
+REGISTER_GALLERY_SCENE(makeVerticalDescriptor())
 
 } // namespace gallery

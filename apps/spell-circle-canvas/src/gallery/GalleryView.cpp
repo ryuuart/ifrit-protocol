@@ -1,4 +1,5 @@
 #include "GalleryView.h"
+#include "SceneRegistry.h"
 
 #include <textflowqt/TextFlowQt.h>
 
@@ -187,6 +188,8 @@ private:
   std::vector<uint32_t> m_rasterPixels; // CPU fallback framebuffer.
 
   SceneParams m_sceneParameters;
+  uint64_t m_sceneParameterRevision = std::numeric_limits<uint64_t>::max();
+  int m_lastSyncedSceneIndex = -1;
   QString m_sceneText;
   QString m_fontFamily;
   std::vector<FontCoordinate> m_fontCoordinates;
@@ -233,8 +236,11 @@ void GalleryViewRenderer::initialize(QRhiCommandBuffer * /*commandBuffer*/) {
 
 void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
   auto *view = static_cast<GalleryView *>(item);
-  if (m_scenes.empty())
-    m_scenes = makeScenes();
+  if (m_scenes.empty()) {
+    m_scenes.reserve(sceneRegistry().size());
+    for (const SceneDescriptor &descriptor : sceneRegistry())
+      m_scenes.push_back(descriptor.make());
+  }
 
   m_sceneIndex = view->m_sceneIndex;
   if (m_animating != view->m_animating) {
@@ -264,12 +270,14 @@ void GalleryViewRenderer::synchronize(QQuickRhiItem *item) {
   m_sceneParameters.lineBreakStrategy =
       static_cast<textflow::LineBreakStrategy>(
           std::clamp(view->m_lineBreakStrategyIndex, 0, 1));
-  m_sceneParameters.effectGlow = view->m_effectGlow;
-  m_sceneParameters.effectOutline = view->m_effectOutline;
-  m_sceneParameters.effectShader = view->m_effectShader;
-  m_sceneParameters.effectStars = view->m_effectStars;
-  m_sceneParameters.glowSpread = static_cast<float>(view->m_glowSpread);
-  m_sceneParameters.glowIntensity = static_cast<float>(view->m_glowIntensity);
+  // Scene-declared parameter values: copied only when they actually changed
+  // (revision bumped by setSceneParameter / scene switch).
+  if (m_sceneParameterRevision != view->m_sceneParameterRevision ||
+      m_sceneIndex != m_lastSyncedSceneIndex) {
+    m_sceneParameterRevision = view->m_sceneParameterRevision;
+    m_lastSyncedSceneIndex = m_sceneIndex;
+    m_sceneParameters.values = view->parameterValuesForScene(m_sceneIndex);
+  }
   m_pendingClicks.insert(m_pendingClicks.end(), view->m_pendingClicks.begin(),
                          view->m_pendingClicks.end());
   view->m_pendingClicks.clear();
@@ -474,7 +482,6 @@ void GalleryViewRenderer::render(QRhiCommandBuffer *commandBuffer) {
 // ── GUI-thread side ────────────────────────────────────────────────────────
 
 GalleryView::GalleryView(QQuickItem *parent) : QQuickRhiItem(parent) {
-  m_sceneMetadata = makeScenes();
   setAcceptedMouseButtons(Qt::LeftButton);
   m_timer.setInterval(16);
   connect(&m_timer, &QTimer::timeout, this, [this] { update(); });
@@ -489,19 +496,21 @@ QQuickRhiItemRenderer *GalleryView::createRenderer() {
 
 QStringList GalleryView::sceneNames() const {
   QStringList names;
-  for (const auto &scene : m_sceneMetadata)
-    names << scene->name();
+  for (const SceneDescriptor &descriptor : sceneRegistry())
+    names << descriptor.name;
   return names;
 }
 
 void GalleryView::setSceneIndex(int index) {
   if (index == m_sceneIndex || index < 0 ||
-      index >= static_cast<int>(m_sceneMetadata.size()))
+      index >= static_cast<int>(sceneRegistry().size()))
     return;
   m_sceneIndex = index;
   m_sceneText.clear();
+  ++m_sceneParameterRevision; // renderer re-pulls the new scene's values
   emit sceneIndexChanged();
   emit sceneTextChanged();
+  emit sceneParameterValuesChanged();
   update();
 }
 
@@ -517,68 +526,118 @@ void GalleryView::setAnimating(bool enabled) {
   update();
 }
 
+namespace {
+
+const SceneDescriptor *descriptorAt(int sceneIndex) {
+  const auto &registry = sceneRegistry();
+  if (sceneIndex < 0 || sceneIndex >= static_cast<int>(registry.size()))
+    return nullptr;
+  return &registry[static_cast<size_t>(sceneIndex)];
+}
+
+QVariantMap defaultParameterValues(const SceneDescriptor &descriptor) {
+  QVariantMap values;
+  for (const SceneParameter &parameter : descriptor.parameters)
+    values.insert(parameter.id, parameter.defaultValue);
+  return values;
+}
+
+} // namespace
+
 bool GalleryView::textEditable() const {
-  if (m_sceneIndex < 0 ||
-      m_sceneIndex >= static_cast<int>(m_sceneMetadata.size()))
-    return false;
-  return m_sceneMetadata[static_cast<size_t>(m_sceneIndex)]->supportsTextEdit();
+  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  return descriptor && descriptor->textEditable;
 }
 
-bool GalleryView::effectTogglesSupported() const {
-  if (m_sceneIndex < 0 ||
-      m_sceneIndex >= static_cast<int>(m_sceneMetadata.size()))
-    return false;
-  return m_sceneMetadata[static_cast<size_t>(m_sceneIndex)]
-      ->supportsEffectToggles();
+QVariantList GalleryView::sceneParameters() const {
+  QVariantList parameters;
+  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  if (!descriptor)
+    return parameters;
+  parameters.reserve(descriptor->parameters.size());
+  for (const SceneParameter &parameter : descriptor->parameters) {
+    QVariantMap map;
+    map.insert(QStringLiteral("id"), parameter.id);
+    map.insert(QStringLiteral("label"), parameter.label);
+    map.insert(QStringLiteral("type"), [&] {
+      switch (parameter.type) {
+      case SceneParameter::Type::kBool:
+        return QStringLiteral("bool");
+      case SceneParameter::Type::kInt:
+        return QStringLiteral("int");
+      case SceneParameter::Type::kChoice:
+        return QStringLiteral("choice");
+      case SceneParameter::Type::kFloat:
+        break;
+      }
+      return QStringLiteral("float");
+    }());
+    map.insert(QStringLiteral("defaultValue"), parameter.defaultValue);
+    map.insert(QStringLiteral("minimum"), parameter.minimum);
+    map.insert(QStringLiteral("maximum"), parameter.maximum);
+    map.insert(QStringLiteral("suffix"), parameter.suffix);
+    map.insert(QStringLiteral("choices"), parameter.choices);
+    parameters.push_back(map);
+  }
+  return parameters;
 }
 
-void GalleryView::setEffectGlow(bool enabled) {
-  if (enabled == m_effectGlow)
+QUrl GalleryView::sceneControlsQml() const {
+  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  return descriptor ? descriptor->controlsQml : QUrl();
+}
+
+const QVariantMap &GalleryView::parameterValuesForScene(int sceneIndex) const {
+  auto values = m_sceneParameterValues.find(sceneIndex);
+  if (values == m_sceneParameterValues.end()) {
+    const SceneDescriptor *descriptor = descriptorAt(sceneIndex);
+    values = m_sceneParameterValues.insert(
+        sceneIndex,
+        descriptor ? defaultParameterValues(*descriptor) : QVariantMap());
+  }
+  return *values;
+}
+
+QVariantMap GalleryView::sceneParameterValues() const {
+  return parameterValuesForScene(m_sceneIndex);
+}
+
+void GalleryView::setSceneParameter(const QString &id, const QVariant &value) {
+  const SceneDescriptor *descriptor = descriptorAt(m_sceneIndex);
+  if (!descriptor)
     return;
-  m_effectGlow = enabled;
-  emit effectGlowChanged();
-  update();
-}
+  const auto parameter = std::find_if(
+      descriptor->parameters.cbegin(), descriptor->parameters.cend(),
+      [&](const SceneParameter &candidate) { return candidate.id == id; });
+  if (parameter == descriptor->parameters.cend())
+    return; // only declared parameters are stored
 
-void GalleryView::setEffectOutline(bool enabled) {
-  if (enabled == m_effectOutline)
-    return;
-  m_effectOutline = enabled;
-  emit effectOutlineChanged();
-  update();
-}
+  QVariant clampedValue = value;
+  switch (parameter->type) {
+  case SceneParameter::Type::kBool:
+    clampedValue = value.toBool();
+    break;
+  case SceneParameter::Type::kFloat:
+    clampedValue =
+        std::clamp(value.toDouble(), parameter->minimum, parameter->maximum);
+    break;
+  case SceneParameter::Type::kInt:
+    clampedValue = static_cast<int>(std::clamp<double>(
+        value.toInt(), parameter->minimum, parameter->maximum));
+    break;
+  case SceneParameter::Type::kChoice:
+    clampedValue = std::clamp(value.toInt(), 0,
+                              static_cast<int>(parameter->choices.size()) - 1);
+    break;
+  }
 
-void GalleryView::setEffectShader(bool enabled) {
-  if (enabled == m_effectShader)
+  QVariantMap &values = const_cast<QVariantMap &>(
+      parameterValuesForScene(m_sceneIndex));
+  if (values.value(id) == clampedValue)
     return;
-  m_effectShader = enabled;
-  emit effectShaderChanged();
-  update();
-}
-
-void GalleryView::setEffectStars(bool enabled) {
-  if (enabled == m_effectStars)
-    return;
-  m_effectStars = enabled;
-  emit effectStarsChanged();
-  update();
-}
-
-void GalleryView::setGlowSpread(qreal spread) {
-  const qreal clampedSpread = std::clamp(spread, 0.0, 8.0);
-  if (clampedSpread == m_glowSpread)
-    return;
-  m_glowSpread = clampedSpread;
-  emit glowSpreadChanged();
-  update();
-}
-
-void GalleryView::setGlowIntensity(qreal intensity) {
-  const qreal clampedIntensity = std::clamp(intensity, 0.2, 3.0);
-  if (clampedIntensity == m_glowIntensity)
-    return;
-  m_glowIntensity = clampedIntensity;
-  emit glowIntensityChanged();
+  values.insert(id, clampedValue);
+  ++m_sceneParameterRevision;
+  emit sceneParameterValuesChanged();
   update();
 }
 

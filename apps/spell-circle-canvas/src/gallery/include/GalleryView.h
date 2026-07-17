@@ -7,15 +7,18 @@
 // raster backend uploaded into the item's texture otherwise.
 //
 // Threading: the renderer (scenes, FontContext, Graphite) lives on the Qt
-// Quick render thread. The GUI-side item keeps its own scene instances
-// purely for metadata (names, default text, editability) and ships control
-// state across in synchronize(), which runs with the GUI thread blocked.
+// Quick render thread. The GUI-side item reads only SceneDescriptors from
+// the registry (names, editability, parameters — scenes are instantiated
+// exactly once, render-side) and ships control state across in
+// synchronize(), which runs with the GUI thread blocked.
 
 #include "GalleryScenes.h"
 
 #include <QElapsedTimer>
+#include <QHash>
 #include <QQuickRhiItem>
 #include <QTimer>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -32,20 +35,17 @@ class GalleryView : public QQuickRhiItem {
   Q_PROPERTY(
       bool animating READ animating WRITE setAnimating NOTIFY animatingChanged)
   Q_PROPERTY(bool textEditable READ textEditable NOTIFY sceneIndexChanged)
-  Q_PROPERTY(bool effectTogglesSupported READ effectTogglesSupported NOTIFY
+  // Scene-declared parameters (SceneRegistry.h): the descriptor list for
+  // the active scene, its optional custom-controls QML URL, and the live
+  // value map. The sidebar renders generic delegates from the list unless
+  // the scene names its own controls file — no scene-specific properties
+  // ever land on this view again.
+  Q_PROPERTY(QVariantList sceneParameters READ sceneParameters NOTIFY
                  sceneIndexChanged)
-  Q_PROPERTY(bool effectGlow READ effectGlow WRITE setEffectGlow NOTIFY
-                 effectGlowChanged)
-  Q_PROPERTY(bool effectOutline READ effectOutline WRITE setEffectOutline
-                 NOTIFY effectOutlineChanged)
-  Q_PROPERTY(bool effectShader READ effectShader WRITE setEffectShader NOTIFY
-                 effectShaderChanged)
-  Q_PROPERTY(bool effectStars READ effectStars WRITE setEffectStars NOTIFY
-                 effectStarsChanged)
-  Q_PROPERTY(qreal glowSpread READ glowSpread WRITE setGlowSpread NOTIFY
-                 glowSpreadChanged)
-  Q_PROPERTY(qreal glowIntensity READ glowIntensity WRITE setGlowIntensity
-                 NOTIFY glowIntensityChanged)
+  Q_PROPERTY(QUrl sceneControlsQml READ sceneControlsQml NOTIFY
+                 sceneIndexChanged)
+  Q_PROPERTY(QVariantMap sceneParameterValues READ sceneParameterValues NOTIFY
+                 sceneParameterValuesChanged)
   Q_PROPERTY(QString sceneText READ sceneText WRITE setSceneText NOTIFY
                  sceneTextChanged)
   Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY
@@ -82,32 +82,15 @@ public:
   void setAnimating(bool enabled);
   /** Returns whether the active scene accepts custom text. */
   bool textEditable() const;
-  /** Returns whether the active scene exposes shader-layer toggles. */
-  bool effectTogglesSupported() const;
-  /** Returns whether the glow underlay is enabled. */
-  bool effectGlow() const { return m_effectGlow; }
-  /** Enables or disables the glow underlay. */
-  void setEffectGlow(bool enabled);
-  /** Returns whether the outline underlay is enabled. */
-  bool effectOutline() const { return m_effectOutline; }
-  /** Enables or disables the outline underlay. */
-  void setEffectOutline(bool enabled);
-  /** Returns whether the animated foreground shader is enabled. */
-  bool effectShader() const { return m_effectShader; }
-  /** Enables or disables the animated foreground shader. */
-  void setEffectShader(bool enabled);
-  /** Returns whether the star-field overlay is enabled. */
-  bool effectStars() const { return m_effectStars; }
-  /** Enables or disables the star-field overlay. */
-  void setEffectStars(bool enabled);
-  /** Returns the glow underlay's pre-blur dilation, in pixels. */
-  qreal glowSpread() const { return m_glowSpread; }
-  /** Sets the glow underlay's pre-blur dilation, in pixels. */
-  void setGlowSpread(qreal spread);
-  /** Returns the glow underlay's alpha multiplier. */
-  qreal glowIntensity() const { return m_glowIntensity; }
-  /** Sets the glow underlay's alpha multiplier. */
-  void setGlowIntensity(qreal intensity);
+  /** Returns the active scene's declared parameters as QML-ready maps. */
+  QVariantList sceneParameters() const;
+  /** Returns the active scene's custom-controls QML URL (empty → generic). */
+  QUrl sceneControlsQml() const;
+  /** Returns the active scene's current parameter values by id. */
+  QVariantMap sceneParameterValues() const;
+  /** Sets one scene parameter, clamped to its declared range. Values are
+   *  kept per scene, so tweaks survive switching scenes and back. */
+  Q_INVOKABLE void setSceneParameter(const QString &id, const QVariant &value);
   /** Returns the current scene text override. */
   QString sceneText() const { return m_sceneText; }
   /** Sets the current scene text override. */
@@ -153,12 +136,7 @@ signals:
   void fontAxisValuesChanged();
   void alignmentIndexChanged();
   void lineBreakStrategyIndexChanged();
-  void effectGlowChanged();
-  void effectOutlineChanged();
-  void effectShaderChanged();
-  void effectStarsChanged();
-  void glowSpreadChanged();
-  void glowIntensityChanged();
+  void sceneParameterValuesChanged();
   void gpuChanged();
   void statsChanged();
 
@@ -181,9 +159,9 @@ private:
   };
 
   void refreshFontAxes();
-
-  // GUI-side scene instances: metadata only (never rendered with).
-  std::vector<std::unique_ptr<gallery::Scene>> m_sceneMetadata;
+  /** Returns the active scene's parameter values, seeding defaults on
+   *  first access. */
+  const QVariantMap &parameterValuesForScene(int sceneIndex) const;
 
   int m_sceneIndex = 0;
   bool m_animating = true;
@@ -194,12 +172,10 @@ private:
   uint64_t m_fontAxesRevision = 0;
   int m_alignmentIndex = 3; // kJustify
   int m_lineBreakStrategyIndex = 0; // kGreedy
-  bool m_effectGlow = true;
-  bool m_effectOutline = true;
-  bool m_effectShader = true;
-  bool m_effectStars = true;
-  qreal m_glowSpread = 0.6;
-  qreal m_glowIntensity = 1.3;
+  // Parameter values per scene index, seeded from descriptor defaults on
+  // first access; mutable because the seeding happens in const getters.
+  mutable QHash<int, QVariantMap> m_sceneParameterValues;
+  uint64_t m_sceneParameterRevision = 0;
   bool m_gpu = true;                // Graphite when available
   std::vector<SkPoint> m_pendingClicks;
 

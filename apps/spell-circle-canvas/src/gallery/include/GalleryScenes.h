@@ -12,6 +12,7 @@
 #include <include/core/SkSize.h>
 
 #include <QString>
+#include <QVariantMap>
 
 #include <memory>
 #include <vector>
@@ -27,19 +28,27 @@ struct SceneParams {
   textflow::LineBreakStrategy lineBreakStrategy =
       textflow::LineBreakStrategy::kGreedy;
 
-  // Per-layer shader/preset toggles, consulted only by scenes that report
-  // supportsEffectToggles().
-  bool effectGlow = true;
-  bool effectOutline = true;
-  bool effectShader = true;
-  bool effectStars = true;
-  // Glow shaping: spread dilates the glyph shape (stroke-and-fill) before
-  // the blur mask is applied, keeping a solid core under a wide blur.
-  // Intensity scales the glow color's alpha beyond its own hex value. Scenes
-  // at small font sizes should further scale spread down; a fixed pixel
-  // amount this size can otherwise merge adjacent glyphs and lines solid.
-  float glowSpread = 0.6f;
-  float glowIntensity = 1.3f;
+  /// Scene-declared parameter values, keyed by SceneParameter::id (see
+  /// SceneRegistry.h). Absent ids fall back through the typed getters, so a
+  /// scene renders correctly even before the GUI ships its first values.
+  QVariantMap values;
+
+  /** Returns the bool parameter `id`, or `fallback` when absent. */
+  [[nodiscard]] bool boolValue(const QString &id, bool fallback) const {
+    const auto value = values.constFind(id);
+    return value == values.constEnd() ? fallback : value->toBool();
+  }
+  /** Returns the float parameter `id`, or `fallback` when absent. */
+  [[nodiscard]] float floatValue(const QString &id, float fallback) const {
+    const auto value = values.constFind(id);
+    return value == values.constEnd() ? fallback
+                                      : static_cast<float>(value->toDouble());
+  }
+  /** Returns the int (or choice-index) parameter `id`, or `fallback`. */
+  [[nodiscard]] int intValue(const QString &id, int fallback) const {
+    const auto value = values.constFind(id);
+    return value == values.constEnd() ? fallback : value->toInt();
+  }
 };
 
 /** Timing and output counts reported by one rendered gallery frame. */
@@ -49,18 +58,13 @@ struct FrameStats {
   int glyphCount = 0;
 };
 
+/// A scene owns only its drawing and per-frame state; every piece of GUI
+/// metadata (name, default text, editability, parameters, optional custom
+/// controls QML) lives in the SceneDescriptor it registers via
+/// REGISTER_GALLERY_SCENE (SceneRegistry.h).
 class Scene {
 public:
   virtual ~Scene() = default;
-  /** Returns the user-facing scene name. */
-  virtual QString name() const = 0;
-  /** Returns initial editable text, or an empty string for scene-owned text. */
-  virtual QString defaultText() const { return {}; }
-  /** Returns whether the gallery should expose its text editor. */
-  virtual bool supportsTextEdit() const { return true; }
-  /** Returns whether the gallery should expose the shader-layer toggles
-   *  (glow/outline/shader/stars) in SceneParams. */
-  virtual bool supportsEffectToggles() const { return false; }
 
   /** Renders one scene frame and returns its timing and content statistics.
    *  `elapsedSeconds` starts when this scene becomes active; `frameNumber`
@@ -73,8 +77,5 @@ public:
   /** Handles a pointer press in scene coordinates. */
   virtual void pointerPress(SkPoint position) { static_cast<void>(position); }
 };
-
-/** Constructs every gallery scene in display order. */
-std::vector<std::unique_ptr<Scene>> makeScenes();
 
 } // namespace gallery

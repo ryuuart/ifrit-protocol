@@ -3,7 +3,7 @@
 // Arabic joining/calligraphy, Cuneiform, deep combining-mark stacks, Indic
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -47,11 +47,6 @@ void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext,
 
 class HyperScriptsScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Unicode singularity — 𒀱 ﷽ 𒈙 Z̴̓͝");
-  }
-  bool supportsTextEdit() const override { return false; }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
@@ -243,10 +238,17 @@ private:
   float m_builtSize = 0;
 };
 
+SceneDescriptor makeHyperScriptsDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Unicode singularity — 𒀱 ﷽ 𒈙 Z̴̓͝");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 70;
+  descriptor.make = [] { return std::make_unique<HyperScriptsScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeHyperScriptsScene() {
-  return std::make_unique<HyperScriptsScene>();
-}
+REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor())
 
 } // namespace gallery

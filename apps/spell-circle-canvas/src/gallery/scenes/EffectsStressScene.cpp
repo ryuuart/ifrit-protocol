@@ -1,5 +1,5 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
@@ -38,13 +38,6 @@ std::u8string makeStressText() {
 
 class EffectsStressScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("2,000-word shader stress");
-  }
-
-  bool supportsTextEdit() const override { return false; }
-  bool supportsEffectToggles() const override { return true; }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
@@ -63,13 +56,22 @@ public:
     // Reshaping/relayout only depends on text, typeface, and size; the paint
     // stack (toggles, glow spread/intensity) is far cheaper to rebuild, so it
     // gets its own dirty flag and never forces a relayout of 2,000 words.
+    const bool effectGlow = params.boolValue(QStringLiteral("glow"), true);
+    const bool effectOutline =
+        params.boolValue(QStringLiteral("outline"), true);
+    const bool effectShader = params.boolValue(QStringLiteral("shader"), true);
+    const bool effectStars = params.boolValue(QStringLiteral("stars"), true);
+    const float glowSpread =
+        params.floatValue(QStringLiteral("glowSpread"), 0.6f);
+    const float glowIntensity =
+        params.floatValue(QStringLiteral("glowIntensity"), 1.3f);
     const bool layoutDirty = size != m_size || typeface.get() != m_typeface ||
                              stressFontSize != m_fontSize;
-    const bool effectDirty = layoutDirty || params.effectGlow != m_effectGlow ||
-                             params.effectOutline != m_effectOutline ||
-                             params.effectStars != m_effectStars ||
-                             params.glowSpread != m_glowSpread ||
-                             params.glowIntensity != m_glowIntensity;
+    const bool effectDirty = layoutDirty || effectGlow != m_effectGlow ||
+                             effectOutline != m_effectOutline ||
+                             effectStars != m_effectStars ||
+                             glowSpread != m_glowSpread ||
+                             glowIntensity != m_glowIntensity;
 
     double layoutMicroseconds = 0;
     if (layoutDirty) {
@@ -97,11 +99,11 @@ public:
     }
 
     if (effectDirty) {
-      m_effectGlow = params.effectGlow;
-      m_effectOutline = params.effectOutline;
-      m_effectStars = params.effectStars;
-      m_glowSpread = params.glowSpread;
-      m_glowIntensity = params.glowIntensity;
+      m_effectGlow = effectGlow;
+      m_effectOutline = effectOutline;
+      m_effectStars = effectStars;
+      m_glowSpread = glowSpread;
+      m_glowIntensity = glowIntensity;
 
       m_effect = PaintStyle(SK_ColorWHITE);
       if (m_effectGlow) {
@@ -111,10 +113,11 @@ public:
         // bridges neighboring glyphs and lines. Scale the cap tightly with
         // the font so the slider stays gentle there and only opens up once
         // the text is large enough to take it.
-        const float glowSpread = std::min(m_glowSpread, stressFontSize * 0.06f);
+        const float cappedSpread =
+            std::min(m_glowSpread, stressFontSize * 0.06f);
         m_effect.addUnderlay(
             PaintLayer::glow(0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
-                             glowSpread, m_glowIntensity));
+                             cappedSpread, m_glowIntensity));
       }
       if (m_effectOutline)
         m_effect.addUnderlay(
@@ -129,7 +132,7 @@ public:
     }
 
     const float time = static_cast<float>(elapsedSeconds);
-    if (params.effectShader)
+    if (effectShader)
       m_effect.foreground.setShader(
           PaintShaders::meshGradient(textBounds, time));
     else
@@ -179,10 +182,31 @@ private:
   float m_glowIntensity = 1;
 };
 
+SceneDescriptor makeEffectsStressDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("2,000-word shader stress");
+  descriptor.textEditable = false;
+  descriptor.displayOrder = 90;
+  descriptor.parameters = {
+      {QStringLiteral("glow"), QStringLiteral("Glow"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("outline"), QStringLiteral("Outline"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("shader"), QStringLiteral("Shader"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("stars"), QStringLiteral("Stars"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("glowSpread"), QStringLiteral("Glow spread"),
+       SceneParameter::Type::kFloat, 0.6, 0.0, 8.0, QStringLiteral("px")},
+      {QStringLiteral("glowIntensity"), QStringLiteral("Glow intensity"),
+       SceneParameter::Type::kFloat, 1.3, 0.2, 3.0, QStringLiteral("\u00d7")},
+  };
+  descriptor.make = [] { return std::make_unique<EffectsStressScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeEffectsStressScene() {
-  return std::make_unique<EffectsStressScene>();
-}
+REGISTER_GALLERY_SCENE(makeEffectsStressDescriptor())
 
 } // namespace gallery

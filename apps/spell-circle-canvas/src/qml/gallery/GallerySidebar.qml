@@ -157,77 +157,33 @@ ColumnLayout {
         onActivated: index => root.view.lineBreakStrategyIndex = index
     }
 
+    // ── Scene-declared controls ─────────────────────────────────────────
+    // Scenes describe their parameters in their SceneDescriptor
+    // (SceneRegistry.h). A scene that names a custom controls file gets it
+    // loaded here; every other scene gets generic delegates auto-built
+    // from the declarations. No scene-specific code lives in this sidebar.
+    readonly property bool hasCustomControls: root.view.sceneControlsQml.toString() !== ""
+
     Label {
-        text: "Shader passes"
+        text: "Scene options"
         color: "#9aa3b2"
-        visible: root.view.effectTogglesSupported
+        visible: root.hasCustomControls || root.view.sceneParameters.length > 0
     }
-    RowLayout {
-        visible: root.view.effectTogglesSupported
-
-        Switch {
-            text: "Glow"
-            checked: root.view.effectGlow
-            onToggled: root.view.effectGlow = checked
-        }
-        Switch {
-            text: "Outline"
-            checked: root.view.effectOutline
-            onToggled: root.view.effectOutline = checked
-        }
+    Loader {
+        Layout.fillWidth: true
+        active: root.hasCustomControls
+        visible: active
+        source: root.view.sceneControlsQml
+        onLoaded: item.view = root.view
     }
-    RowLayout {
-        visible: root.view.effectTogglesSupported
+    Repeater {
+        model: root.hasCustomControls ? [] : root.view.sceneParameters
 
-        Switch {
-            text: "Shader"
-            checked: root.view.effectShader
-            onToggled: root.view.effectShader = checked
-        }
-        Switch {
-            text: "Stars"
-            checked: root.view.effectStars
-            onToggled: root.view.effectStars = checked
-        }
-    }
-    RowLayout {
-        visible: root.view.effectTogglesSupported
+        delegate: SceneParameterControl {
+            required property var modelData
 
-        Label {
-            text: "Glow spread"
-            color: "#9aa3b2"
-        }
-        Slider {
-            id: glowSpreadSlider
-            Layout.fillWidth: true
-            from: 0
-            to: 8
-            value: root.view.glowSpread
-            onValueChanged: root.view.glowSpread = value
-        }
-        Label {
-            text: glowSpreadSlider.value.toFixed(1) + "px"
-            color: "#9aa3b2"
-        }
-    }
-    RowLayout {
-        visible: root.view.effectTogglesSupported
-
-        Label {
-            text: "Glow intensity"
-            color: "#9aa3b2"
-        }
-        Slider {
-            id: glowIntensitySlider
-            Layout.fillWidth: true
-            from: 0.2
-            to: 3.0
-            value: root.view.glowIntensity
-            onValueChanged: root.view.glowIntensity = value
-        }
-        Label {
-            text: glowIntensitySlider.value.toFixed(1) + "×"
-            color: "#9aa3b2"
+            view: root.view
+            parameter: modelData
         }
     }
 

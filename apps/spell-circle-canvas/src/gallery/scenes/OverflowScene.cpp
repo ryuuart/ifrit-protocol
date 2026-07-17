@@ -1,5 +1,5 @@
 // Scene: overflow & ellipsis — CSS text-overflow semantics.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkPaint.h>
@@ -12,29 +12,26 @@ namespace gallery {
 
 namespace {
 
+QString overflowDefaultText() {
+  return QStringLiteral(
+      "The box below breathes between comfortably containing this "
+      "paragraph and cutting it well short. The left pane simply stops "
+      "wherever the last word happens to fit; the right pane trims its "
+      "final line until a shaped ellipsis lands cleanly at the edge — "
+      "CSS text-overflow semantics, except the marker is a real glyph run "
+      "instead of a string glued onto the end. Nothing here reshapes: the "
+      "same cached words are just placed into a shorter or taller measure "
+      "as the box resizes, frame after frame.");
+}
+
 class OverflowScene final : public Scene {
 public:
-  QString name() const override {
-    return QStringLiteral("Overflow & ellipsis");
-  }
-  QString defaultText() const override {
-    return QStringLiteral(
-        "The box below breathes between comfortably containing this "
-        "paragraph and cutting it well short. The left pane simply stops "
-        "wherever the last word happens to fit; the right pane trims its "
-        "final line until a shaped ellipsis lands cleanly at the edge — "
-        "CSS text-overflow semantics, except the marker is a real glyph run "
-        "instead of a string glued onto the end. Nothing here reshapes: the "
-        "same cached words are just placed into a shorter or taller measure "
-        "as the box resizes, frame after frame.");
-  }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, defaultText(), m_serif);
+    m_body.ensure(params, overflowDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -120,10 +117,17 @@ private:
   sk_sp<SkTypeface> m_serif;
 };
 
+SceneDescriptor makeOverflowDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Overflow & ellipsis");
+  descriptor.defaultText = overflowDefaultText();
+  descriptor.displayOrder = 130;
+  descriptor.make = [] { return std::make_unique<OverflowScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeOverflowScene() {
-  return std::make_unique<OverflowScene>();
-}
+REGISTER_GALLERY_SCENE(makeOverflowDescriptor())
 
 } // namespace gallery

@@ -22,6 +22,10 @@ set_source_files_properties(
   ../qml/gallery/GallerySidebar.qml
   PROPERTIES QT_RESOURCE_ALIAS GallerySidebar.qml
 )
+set_source_files_properties(
+  ../qml/gallery/SceneParameterControl.qml
+  PROPERTIES QT_RESOURCE_ALIAS SceneParameterControl.qml
+)
 
 qt_add_qml_module(TextFlowGallery
   URI TextFlow.Gallery
@@ -29,11 +33,12 @@ qt_add_qml_module(TextFlowGallery
   QML_FILES
     ../qml/gallery/Main.qml
     ../qml/gallery/GallerySidebar.qml
+    ../qml/gallery/SceneParameterControl.qml
   SOURCES
     GalleryView.cpp include/GalleryView.h
-    GalleryScenes.cpp include/GalleryScenes.h
+    include/GalleryScenes.h
+    SceneRegistry.cpp include/SceneRegistry.h
     scenes/SceneSupport.cpp scenes/SceneSupport.h
-    scenes/SceneFactories.h
     scenes/ExclusionsScene.cpp
     scenes/KnuthPlassScene.cpp
     scenes/LoopScene.cpp

@@ -1,5 +1,5 @@
 // Scene: infinite loop marquee on a closed figure-eight.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkContourMeasure.h>
@@ -15,22 +15,21 @@ namespace gallery {
 
 namespace {
 
+QString loopDefaultText() {
+  return QStringLiteral("and the words go round 終わらない文字の環 끝나지 "
+                        "않는 글의 고리 文字環繞不息 round and round again "
+                        "— ")
+      .repeated(4);
+}
+
 class LoopScene final : public Scene {
 public:
-  QString name() const override { return QStringLiteral("Infinite loop"); }
-  QString defaultText() const override {
-    return QStringLiteral("and the words go round 終わらない文字の環 끝나지 "
-                          "않는 글의 고리 文字環繞不息 round and round again "
-                          "— ")
-        .repeated(4);
-  }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    m_body.ensure(params, defaultText(), m_serif);
+    m_body.ensure(params, loopDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -93,8 +92,17 @@ private:
   SkISize m_size = {0, 0};
 };
 
+SceneDescriptor makeLoopDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Infinite loop");
+  descriptor.defaultText = loopDefaultText();
+  descriptor.displayOrder = 30;
+  descriptor.make = [] { return std::make_unique<LoopScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeLoopScene() { return std::make_unique<LoopScene>(); }
+REGISTER_GALLERY_SCENE(makeLoopDescriptor())
 
 } // namespace gallery

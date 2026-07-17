@@ -1,5 +1,5 @@
 // Scene: ordered SkPaint glyph layers, presets, and animated custom paints.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
@@ -36,21 +36,18 @@ constexpr std::array<std::u8string_view, 5> kParagraphClauses = {
     u8"mesh-gradient foreground, then stars and a traveling sheen on top "
     u8"— six draws, one paragraph, five separate setPaint ranges."};
 
+QString effectsDefaultText() { return QStringLiteral("Layered glyphs"); }
+
 class EffectsScene final : public Scene {
 public:
-  QString name() const override { return QStringLiteral("Paint layers"); }
-
-  QString defaultText() const override {
-    return QStringLiteral("Layered glyphs");
-  }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
 
-    const QString text = params.text.isEmpty() ? defaultText() : params.text;
+    const QString text =
+        params.text.isEmpty() ? effectsDefaultText() : params.text;
     const sk_sp<SkTypeface> &typeface =
         params.typeface ? params.typeface : m_serif;
     const float fontSize = std::clamp(params.fontSize * 2.5f, 30.0f, 68.0f);
@@ -294,10 +291,17 @@ private:
   SkISize m_size = {0, 0};
 };
 
+SceneDescriptor makeEffectsDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Paint layers");
+  descriptor.defaultText = effectsDefaultText();
+  descriptor.displayOrder = 80;
+  descriptor.make = [] { return std::make_unique<EffectsScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeEffectsScene() {
-  return std::make_unique<EffectsScene>();
-}
+REGISTER_GALLERY_SCENE(makeEffectsDescriptor())
 
 } // namespace gallery

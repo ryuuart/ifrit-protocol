@@ -1,6 +1,6 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
-#include "SceneFactories.h"
+#include "SceneRegistry.h"
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
@@ -17,19 +17,18 @@ namespace gallery {
 
 namespace {
 
+QString loudShadersDefaultText() { return QStringLiteral("SHADER"); }
+
 class LoudShadersScene final : public Scene {
 public:
-  QString name() const override { return QStringLiteral("Loud shaders"); }
-
-  QString defaultText() const override { return QStringLiteral("SHADER"); }
-
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
 
-    const QString text = params.text.isEmpty() ? defaultText() : params.text;
+    const QString text =
+        params.text.isEmpty() ? loudShadersDefaultText() : params.text;
     const sk_sp<SkTypeface> &typeface =
         params.typeface ? params.typeface : m_serif;
     const float fontSize = std::clamp(params.fontSize * 3.4f, 46.0f, 200.0f);
@@ -136,10 +135,17 @@ private:
   SkISize m_size = {0, 0};
 };
 
+SceneDescriptor makeLoudShadersDescriptor() {
+  SceneDescriptor descriptor;
+  descriptor.name = QStringLiteral("Loud shaders");
+  descriptor.defaultText = loudShadersDefaultText();
+  descriptor.displayOrder = 100;
+  descriptor.make = [] { return std::make_unique<LoudShadersScene>(); };
+  return descriptor;
+}
+
 } // namespace
 
-std::unique_ptr<Scene> makeLoudShadersScene() {
-  return std::make_unique<LoudShadersScene>();
-}
+REGISTER_GALLERY_SCENE(makeLoudShadersDescriptor())
 
 } // namespace gallery
