@@ -8,6 +8,7 @@
 //   - a one-word edit or restyle costs barely more than a warm relayout
 //     (the shape cache absorbs everything else).
 
+#include <textflow/PaintShaders.h>
 #include <textflow/TextFlow.h>
 
 #include <include/core/SkCanvas.h>

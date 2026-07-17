@@ -57,6 +57,7 @@ target_link_libraries(TextFlowGallery
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
     TextFlowQt # carries TextFlow transitively
+    TextFlowShaders # PaintShaders presets used by the effect scenes
     TextFlowPorts # systemFontManager()
 )
 

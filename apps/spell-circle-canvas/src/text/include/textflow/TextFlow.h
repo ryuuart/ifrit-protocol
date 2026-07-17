@@ -36,10 +36,15 @@
  *                                edit-following `MarkerSet`s.
  *   - Choreograph.h              per-glyph animation (rain / ripple /
  *                                marquee).
- *   - PaintShaders.h             animated water, mesh-gradient, and star
- *                                SkShader presets for PaintStyle layers.
  *   - SingleLineParagraphCache.h fast path for high-frequency labels &
  *                                captions.
+ *
+ * Separate library (link TextFlowShaders and include it directly):
+ *   - PaintShaders.h             animated water, mesh-gradient, and star
+ *                                SkShader presets for PaintStyle layers.
+ *                                Lives outside this umbrella so the core
+ *                                library carries no SkRuntimeEffect/SkSL
+ *                                code — presets are content, not engine.
  */
 
 #include "Choreograph.h"
@@ -47,7 +52,6 @@
 #include "FontContext.h"
 #include "Paragraph.h"
 #include "ParagraphLayout.h"
-#include "PaintShaders.h"
 #include "Query.h"
 #include "Shaper.h"
 #include "SingleLineParagraphCache.h"

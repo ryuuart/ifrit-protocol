@@ -10,7 +10,6 @@ add_library(TextFlow STATIC
   Paragraph.cpp
   Flow.cpp
   ParagraphLayout.cpp
-  PaintShaders.cpp
   KnuthPlass.cpp
   Query.cpp
   SingleLineParagraphCache.cpp
@@ -23,7 +22,6 @@ add_library(TextFlow STATIC
   include/textflow/Paragraph.h
   include/textflow/Flow.h
   include/textflow/ParagraphLayout.h
-  include/textflow/PaintShaders.h
   include/textflow/Query.h
   include/textflow/SingleLineParagraphCache.h
   include/textflow/Choreograph.h
@@ -52,6 +50,21 @@ target_link_libraries(TextFlow
     ICU::uc
     ICU::data
 )
+
+# Preset SkSL shaders (water, mesh gradient, sparkle, …) for PaintStyle
+# layers. A separate library so the core engine carries no
+# SkRuntimeEffect/SkSL code: presets are content, not engine, and consumers
+# that never use them shouldn't link them. Shares the core include dir so
+# the header keeps its <textflow/PaintShaders.h> spelling.
+add_library(TextFlowShaders STATIC
+  shaders/PaintShaders.cpp
+  include/textflow/PaintShaders.h
+)
+target_compile_features(TextFlowShaders PUBLIC cxx_std_20)
+target_include_directories(TextFlowShaders PUBLIC
+  ${CMAKE_CURRENT_LIST_DIR}/include
+)
+target_link_libraries(TextFlowShaders PUBLIC unofficial::skia::skia)
 
 # Platform glue kept out of the core: the system-font-manager factory
 # (CoreText today; DirectWrite/Fontconfig slot into SystemFontManager.cpp
@@ -97,15 +110,15 @@ add_executable(textflow_test
   test/StressTest.cpp
   test/InlineVectorTest.cpp
 )
-target_link_libraries(textflow_test PRIVATE TextFlow TextFlowPorts
-  GTest::gtest_main absl::flat_hash_set)
+target_link_libraries(textflow_test PRIVATE TextFlow TextFlowShaders
+  TextFlowPorts GTest::gtest_main absl::flat_hash_set)
 add_test(NAME textflow_test COMMAND textflow_test)
 
 add_executable(textflow_bench
   bench/textflow_bench.cpp
 )
-target_link_libraries(textflow_bench PRIVATE TextFlow TextFlowPorts
-  benchmark::benchmark)
+target_link_libraries(textflow_bench PRIVATE TextFlow TextFlowShaders
+  TextFlowPorts benchmark::benchmark)
 
 add_executable(textflow_demo
   demo/textflow_demo.cpp
@@ -128,4 +141,5 @@ add_executable(textflow_demo
   demo/SceneHyperScripts.cpp
   demo/ScenePaintEffects.cpp
 )
-target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowPorts)
+target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
+  TextFlowPorts)
