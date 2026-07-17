@@ -496,7 +496,7 @@ Paragraph::Strut Paragraph::strut(FontContext &fontContext) const {
   if (!m_spans.empty())
     shaping = m_spans.front().style.shaping;
   sk_sp<SkTypeface> typeface =
-      shaping.typeface ? shaping.typeface : fontContext.defaultTypeface();
+      fontContext.variedTypeface(shaping.typeface, shaping.variations);
   const SkFont font = makeFont(typeface, shaping.fontSize);
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
@@ -783,6 +783,11 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
     const char *languageTag = span.style.shaping.languageTag.empty()
                                   ? nullptr
                                   : span.style.shaping.languageTag.c_str();
+    // Variations resolve once per segment: the varied clone (memoized in
+    // the FontContext) becomes the primary for per-codepoint fallback, so
+    // its uniqueID — not the base's — keys every shape-cache entry.
+    const sk_sp<SkTypeface> primaryTypeface = fontContext.variedTypeface(
+        span.style.shaping.typeface, span.style.shaping.variations);
     sk_sp<SkTypeface> resolvedTypeface;
     SegmentForm segmentForm =
         verticalMode ? SegmentForm::kUpright : SegmentForm::kFlow;
@@ -808,8 +813,8 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
           break;
         }
       }
-      sk_sp<SkTypeface> codePointTypeface = fontContext.resolveTypeface(
-          span.style.shaping.typeface, codePoint, languageTag);
+      sk_sp<SkTypeface> codePointTypeface =
+          fontContext.resolveTypeface(primaryTypeface, codePoint, languageTag);
       if (!resolvedTypeface) {
         resolvedTypeface = std::move(codePointTypeface);
       } else if (codePointTypeface.get() != resolvedTypeface.get()) {
@@ -819,9 +824,8 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
       segmentEnd = codeUnitOffset;
     }
     if (!resolvedTypeface)
-      resolvedTypeface = span.style.shaping.typeface
-                             ? span.style.shaping.typeface
-                             : fontContext.defaultTypeface();
+      resolvedTypeface =
+          primaryTypeface ? primaryTypeface : fontContext.defaultTypeface();
     if (segmentEnd <= segmentStart)
       segmentEnd =
           segmentLimit > segmentStart ? segmentLimit : segmentStart + 1;
@@ -861,9 +865,8 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
                                     ? styleIndexAt(word.textBegin)
                                     : word.segments.back().styleIndex;
     const StyleSpan &span = m_spans[styleIndex];
-    sk_sp<SkTypeface> typeface = span.style.shaping.typeface
-                                     ? span.style.shaping.typeface
-                                     : fontContext.defaultTypeface();
+    sk_sp<SkTypeface> typeface = fontContext.variedTypeface(
+        span.style.shaping.typeface, span.style.shaping.variations);
     word.hyphenGlyph =
         shapeWord(fontContext, span.style.shaping, typeface, u"-",
                   static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
@@ -909,9 +912,8 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
         word.spaceWidth = m_cachedWhitespaceWidth;
       } else {
         const StyleSpan &span = m_spans[styleIndex];
-        sk_sp<SkTypeface> whitespaceTypeface =
-            span.style.shaping.typeface ? span.style.shaping.typeface
-                                        : fontContext.defaultTypeface();
+        sk_sp<SkTypeface> whitespaceTypeface = fontContext.variedTypeface(
+            span.style.shaping.typeface, span.style.shaping.variations);
         ShapedWordRef shapedWhitespace = shapeWord(
             fontContext, span.style.shaping, whitespaceTypeface, whitespace,
             static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,

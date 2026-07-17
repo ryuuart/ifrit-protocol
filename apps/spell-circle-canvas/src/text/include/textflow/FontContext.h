@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string_view>
 
 namespace textflow {
@@ -65,6 +66,21 @@ public:
   [[nodiscard]] sk_sp<SkTypeface>
   resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface, int32_t codePoint,
                   const char *languageTag);
+
+  /** Returns the memoized varied clone of `base` for `variations` — `base`
+   * itself (or the context default when `base` is null) when `variations`
+   * is empty or cloning fails.
+   *
+   * Memoization is the correctness mechanism, not just a speed-up: repeated
+   * identical requests return the *same* SkTypeface object, so its uniqueID
+   * is a stable shape-cache identity — a fresh makeClone per shape would
+   * mint a new id every time and defeat the cache. The pipeline calls this
+   * for every ShapingStyle with a non-empty `variations`; applications only
+   * need it to inspect the resolved face themselves.
+   */
+  [[nodiscard]] sk_sp<SkTypeface>
+  variedTypeface(const sk_sp<SkTypeface> &base,
+                 std::span<const FontVariation> variations);
 
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
   void purgeShapeCache();

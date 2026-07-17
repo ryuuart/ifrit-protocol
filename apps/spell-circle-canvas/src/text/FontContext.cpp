@@ -184,12 +184,47 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
   return resolvedTypeface;
 }
 
+sk_sp<SkTypeface>
+FontContext::variedTypeface(const sk_sp<SkTypeface> &base,
+                            std::span<const FontVariation> variations) {
+  const sk_sp<SkTypeface> &resolvedBase = base ? base : defaultTypeface();
+  if (variations.empty() || !resolvedBase)
+    return resolvedBase;
+
+  VariedTypefaceKey key;
+  key.baseTypefaceId = resolvedBase->uniqueID();
+  key.variationBytes.assign(reinterpret_cast<const char *>(variations.data()),
+                            variations.size() * sizeof(FontVariation));
+  auto cachedClone = m_impl->variedTypefaces.find(key);
+  if (cachedClone != m_impl->variedTypefaces.end())
+    return cachedClone->second;
+
+  std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
+  coordinates.reserve(variations.size());
+  for (const FontVariation &variation : variations)
+    coordinates.push_back(
+        {SkSetFourByteTag(variation.tag[0], variation.tag[1], variation.tag[2],
+                          variation.tag[3]),
+         variation.value});
+  SkFontArguments fontArguments;
+  fontArguments.setVariationDesignPosition(
+      {coordinates.data(), static_cast<int>(coordinates.size())});
+  sk_sp<SkTypeface> clone = resolvedBase->makeClone(fontArguments);
+  // Non-variable faces (or failed clones) resolve to the base: the axes are
+  // simply inert, matching CSS font-variation-settings behavior.
+  if (!clone)
+    clone = resolvedBase;
+  m_impl->variedTypefaces.emplace(std::move(key), clone);
+  return clone;
+}
+
 void FontContext::purgeShapeCache() { m_impl->shapeCache.clear(); }
 
 void FontContext::purgeAllCaches() {
   m_impl->shapeCache.clear();
   m_impl->destroyTypefaceRecords();
   m_impl->fallbackTypefaces.clear();
+  m_impl->variedTypefaces.clear();
   m_impl->fallbackLanguageIds.clear();
   m_impl->asciiFallbackTypefaces.clear();
   // Every memo below borrows from a map cleared above; leaving any of them

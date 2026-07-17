@@ -45,6 +45,23 @@ struct FontFeature {
   constexpr bool operator==(const FontFeature &) const = default;
 };
 
+/// One variable-font axis override, e.g. {"wght", 650}. Applied to a
+/// style's typeface through FontContext::variedTypeface(), which memoizes
+/// the varied SkTypeface clone so identical (typeface, variations) pairs
+/// share one instance — and therefore one shape-cache identity.
+struct FontVariation {
+  char tag[4] = {' ', ' ', ' ', ' '};
+  float value = 0;
+
+  /** Creates a blank axis setting. */
+  constexpr FontVariation() = default;
+  /** Creates an axis setting from a four-character OpenType axis tag. */
+  constexpr FontVariation(const char (&axisTag)[5], float axisValue)
+      : tag{axisTag[0], axisTag[1], axisTag[2], axisTag[3]}, value(axisValue) {}
+  /** Compares the axis tag and design-space value. */
+  constexpr bool operator==(const FontVariation &) const = default;
+};
+
 /// How a span behaves when its paragraph is laid out vertically
 /// (Paragraph::setWritingMode(WritingMode::kVerticalRL)). Ignored in
 /// horizontal paragraphs.
@@ -73,14 +90,24 @@ struct ShapingStyle {
   /// Bidi direction is analyzed separately and does not come from this tag.
   std::string languageTag; ///< e.g. "ja", "sr", "zh-Hant"; empty → default
   std::vector<FontFeature> fontFeatures;
+  /// Design-space overrides applied to `typeface` (or the context default)
+  /// before shaping — the ergonomic alternative to pre-building a varied
+  /// SkTypeface via SkFontArguments yourself. Resolution goes through
+  /// FontContext's memoized clone cache, so the varied face's uniqueID is a
+  /// stable shape-cache identity and HarfBuzz mirrors the same design
+  /// position Skia rasterizes. Order-sensitive: [{"wght",700},{"wdth",80}]
+  /// and its permutation resolve to equivalent faces but occupy two memo
+  /// entries — keep a consistent order at call sites.
+  std::vector<FontVariation> variations;
   VerticalForm verticalForm = VerticalForm::kAuto;
 
-  /** Compares every input that participates in the shape-cache key. */
+  /** Compares every input that participates in shaping identity. */
   bool operator==(const ShapingStyle &other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&
+           variations == other.variations &&
            verticalForm == other.verticalForm;
   }
 };

@@ -136,6 +136,26 @@ template <typename H> H AbslHashValue(H hashState, const FallbackKey &key) {
                     key.languageId);
 }
 
+// FontVariation is 8 padding-free bytes ({char[4], float}), so a variation
+// list memoizes by its raw bytes (bit equality; -0.0/0.0 would be distinct
+// entries, which is harmless for a memo). Floats have no unique object
+// representation, so this bypasses objectBytes()'s concept on purpose.
+static_assert(sizeof(FontVariation) == 8);
+static_assert(std::is_trivially_copyable_v<FontVariation>);
+
+// (base typefaceId, variation bytes) -> memoized varied SkTypeface clone.
+struct VariedTypefaceKey {
+  uint32_t baseTypefaceId = 0;
+  std::string variationBytes;
+  bool operator==(const VariedTypefaceKey &) const = default;
+};
+
+template <typename H>
+H AbslHashValue(H hashState, const VariedTypefaceKey &key) {
+  return H::combine(std::move(hashState), key.baseTypefaceId,
+                    key.variationBytes);
+}
+
 struct FontContext::Impl {
   // One hb_face/hb_font pair per SkTypeface, scaled to the face's unitsPerEm so
   // shaped positions convert to pixels with a single multiply
@@ -153,6 +173,7 @@ struct FontContext::Impl {
 
   absl::flat_hash_map<uint32_t, TypefaceRecord> typefaceRecords;
   absl::flat_hash_map<FallbackKey, sk_sp<SkTypeface>> fallbackTypefaces;
+  absl::flat_hash_map<VariedTypefaceKey, sk_sp<SkTypeface>> variedTypefaces;
   absl::flat_hash_map<std::string, uint32_t> fallbackLanguageIds;
   std::string lastFallbackLanguageTag;
   uint32_t lastFallbackLanguageId = 0;

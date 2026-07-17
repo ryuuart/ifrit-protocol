@@ -404,3 +404,78 @@ TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
   fontContext.purgeAllCaches();
   EXPECT_TRUE(fontContext.resolveTypeface(nullptr, U'b', nullptr));
 }
+
+// ── Variable-font axis ergonomics (ShapingStyle::variations) ─────────────
+
+TEST(Shaper, VariationsChangeShapingViaStyle) {
+  FontContext &fontContext = sharedContext();
+  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
+      "Noto Sans", SkFontStyle::Normal());
+  if (!base || base->getVariationDesignPosition({}) < 1)
+    GTEST_SKIP() << "no variable Noto Sans installed";
+
+  auto totalWidth = [&](std::vector<FontVariation> variations) {
+    TextStyle style = basicStyle(32.0f);
+    style.shaping.typeface = base;
+    style.shaping.variations = std::move(variations);
+    Paragraph paragraph;
+    paragraph.appendText(u8"hamburgefonstiv", style);
+    paragraph.ensureShaped(fontContext);
+    float width = 0;
+    for (const Word &word : paragraph.words())
+      width += word.width;
+    return width;
+  };
+
+  const float regular = totalWidth({});
+  const float heavy = totalWidth({{"wght", 900.0f}});
+  EXPECT_GT(std::abs(heavy - regular), regular * 0.01f)
+      << "wght must reach shaping through ShapingStyle::variations";
+  // An unknown axis is inert (clone clamps or ignores it), never an error.
+  const float bogus = totalWidth({{"zzzz", 42.0f}});
+  EXPECT_GT(bogus, 0.0f);
+}
+
+TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
+  FontContext fontContext(ports::systemFontManager());
+  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
+      "Noto Sans", SkFontStyle::Normal());
+  if (!base || base->getVariationDesignPosition({}) < 1)
+    GTEST_SKIP() << "no variable Noto Sans installed";
+
+  const std::vector<FontVariation> axes = {{"wght", 700.0f}};
+  sk_sp<SkTypeface> first = fontContext.variedTypeface(base, axes);
+  sk_sp<SkTypeface> second = fontContext.variedTypeface(base, axes);
+  ASSERT_TRUE(first);
+  EXPECT_EQ(first.get(), second.get())
+      << "identical variations must return the same clone instance";
+  EXPECT_NE(first.get(), base.get());
+
+  // Empty variations pass the base straight through.
+  EXPECT_EQ(fontContext.variedTypeface(base, {}).get(), base.get());
+
+  // The memo survives a purge as a *contract*, not as storage: after
+  // purgeAllCaches the next request re-resolves (possibly to the same
+  // object — Skia's own typeface cache may satisfy the clone) and repeats
+  // are stable again.
+  fontContext.purgeAllCaches();
+  sk_sp<SkTypeface> afterPurge = fontContext.variedTypeface(base, axes);
+  ASSERT_TRUE(afterPurge);
+  EXPECT_EQ(afterPurge.get(), fontContext.variedTypeface(base, axes).get());
+
+  // Two paragraphs styled with the same variations share shape-cache
+  // entries (the memoized clone's uniqueID keys them identically).
+  auto shapeOnce = [&] {
+    TextStyle style;
+    style.shaping.typeface = base;
+    style.shaping.variations = axes;
+    Paragraph paragraph;
+    paragraph.appendText(u8"stable", style);
+    paragraph.ensureShaped(fontContext);
+  };
+  shapeOnce();
+  fontContext.resetStats();
+  shapeOnce();
+  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
+      << "repeated variations must hit the shape cache";
+}
