@@ -15,6 +15,7 @@ add_library(TextFlow STATIC
   SingleLineParagraphCache.cpp
 
   include/textflow/TextFlow.h
+  include/textflow/Features.h
   include/textflow/InlineVector.h
   include/textflow/Style.h
   include/textflow/FontContext.h

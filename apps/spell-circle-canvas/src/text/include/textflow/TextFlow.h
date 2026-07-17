@@ -48,6 +48,7 @@
  */
 
 #include "Choreograph.h"
+#include "Features.h"
 #include "Flow.h"
 #include "FontContext.h"
 #include "Paragraph.h"

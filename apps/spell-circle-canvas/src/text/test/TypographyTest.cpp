@@ -491,3 +491,49 @@ TEST(DecorationTest, RestyleDrawsWithoutReshaping) {
     }
   EXPECT_TRUE(sawRed);
 }
+
+// ── Features:: presets (Features.h) ──────────────────────────────────────
+
+TEST(FeaturePresets, TagsAreConstexprAndWellFormed) {
+  static_assert(Features::tabularNumbers == FontFeature{"tnum", 1});
+  static_assert(Features::standardLigaturesOff == FontFeature{"liga", 0});
+  static_assert(Features::smallCaps == FontFeature{"smcp", 1});
+  static_assert(Features::stylisticSet(1) == FontFeature{"ss01", 1});
+  static_assert(Features::stylisticSet(20) == FontFeature{"ss20", 1});
+  static_assert(Features::stylisticSet(7) == FontFeature{"ss07", 1});
+  // Out-of-range indices clamp instead of producing bogus tags.
+  static_assert(Features::stylisticSet(0) == FontFeature{"ss01", 1});
+  static_assert(Features::stylisticSet(99) == FontFeature{"ss20", 1});
+  SUCCEED();
+}
+
+TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
+  FontContext &fontContext = sharedContext();
+  // SF Pro (macOS system font) ships proportional figures by default and a
+  // tnum feature; fall back to skipping when neither is measurable.
+  auto digitWidths = [&](std::vector<FontFeature> features) {
+    TextStyle style = basicStyle(32.0f);
+    style.shaping.fontFeatures = std::move(features);
+    std::vector<float> widths;
+    for (const char8_t *digit : {u8"1", u8"0", u8"7", u8"9"}) {
+      Paragraph paragraph;
+      paragraph.appendText(digit, style);
+      paragraph.ensureShaped(fontContext);
+      widths.push_back(paragraph.words()[0].width);
+    }
+    return widths;
+  };
+
+  const std::vector<float> proportional = digitWidths({});
+  const std::vector<float> tabular = digitWidths({Features::tabularNumbers});
+
+  const auto spread = [](const std::vector<float> &widths) {
+    const auto [minimum, maximum] =
+        std::minmax_element(widths.begin(), widths.end());
+    return *maximum - *minimum;
+  };
+  if (spread(proportional) < 0.01f)
+    GTEST_SKIP() << "default face already has uniform digits; tnum unprovable";
+  EXPECT_LT(spread(tabular), 0.01f)
+      << "tabular figures must share one advance";
+}
