@@ -1,4 +1,5 @@
 // Scene: ordered SkPaint glyph layers, presets, and animated custom paints.
+#include "EffectsParts.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -38,7 +39,7 @@ constexpr std::array<std::u8string_view, 5> kParagraphClauses = {
 
 QString effectsDefaultText() { return QStringLiteral("Layered glyphs"); }
 
-class EffectsScene final : public Scene {
+class LayerShowcasePart final : public Scene {
 public:
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
@@ -291,16 +292,73 @@ private:
   SkISize m_size = {0, 0};
 };
 
+/// The merged effects scene: three former scenes as switchable modes. Each
+/// part keeps its own cached paragraphs/layouts, so flipping modes is
+/// instant and returning to a mode picks up exactly where it left off.
+class EffectsScene final : public Scene {
+public:
+  FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
+                    int frameNumber, const SceneParams &params,
+                    FontContext &fontContext) override {
+    const int mode =
+        std::clamp(params.intValue(QStringLiteral("mode"), 0), 0, 2);
+    if (!m_parts[static_cast<size_t>(mode)]) {
+      switch (mode) {
+      case 1:
+        m_parts[1] = makeLoudShadersPart();
+        break;
+      case 2:
+        m_parts[2] = makeStressPart();
+        break;
+      default:
+        m_parts[0] = makeLayerShowcasePart();
+        break;
+      }
+    }
+    return m_parts[static_cast<size_t>(mode)]->render(
+        canvas, size, elapsedSeconds, frameNumber, params, fontContext);
+  }
+
+private:
+  std::array<std::unique_ptr<Scene>, 3> m_parts;
+};
+
 SceneDescriptor makeEffectsDescriptor() {
   SceneDescriptor descriptor;
-  descriptor.name = QStringLiteral("Paint layers");
+  descriptor.name = QStringLiteral("Effects & shaders");
   descriptor.defaultText = effectsDefaultText();
   descriptor.displayOrder = 80;
+  descriptor.parameters = {
+      {QStringLiteral("mode"), QStringLiteral("Mode"),
+       SceneParameter::Type::kChoice, 0, 0, 2, {},
+       {QStringLiteral("Layer showcase"), QStringLiteral("Loud shaders"),
+        QStringLiteral("2,000-word stress")}},
+      {QStringLiteral("glow"), QStringLiteral("Glow"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("outline"), QStringLiteral("Outline"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("shader"), QStringLiteral("Shader"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("stars"), QStringLiteral("Stars"),
+       SceneParameter::Type::kBool, true},
+      {QStringLiteral("glowSpread"), QStringLiteral("Glow spread"),
+       SceneParameter::Type::kFloat, 0.6, 0.0, 8.0, QStringLiteral("px")},
+      {QStringLiteral("glowIntensity"), QStringLiteral("Glow intensity"),
+       SceneParameter::Type::kFloat, 1.3, 0.2, 3.0, QStringLiteral("\u00d7")},
+  };
+  // The convention showcase: this scene ships its own controls file, so the
+  // sidebar loads it instead of auto-building generic delegates.
+  descriptor.controlsQml =
+      QUrl(QStringLiteral("qrc:/qt/qml/TextFlow/Gallery/EffectsControls.qml"));
   descriptor.make = [] { return std::make_unique<EffectsScene>(); };
   return descriptor;
 }
 
 } // namespace
+
+std::unique_ptr<Scene> makeLayerShowcasePart() {
+  return std::make_unique<LayerShowcasePart>();
+}
 
 REGISTER_GALLERY_SCENE(makeEffectsDescriptor())
 

@@ -65,6 +65,10 @@ public:
       options.lineMetrics.height = fontSize * 1.5f;
       if (pass == 1)
         options.overflow.ellipsis = u"…";
+      // 0 = unlimited; anything else exercises OverflowOptions::maxLines
+      // (the CSS line-clamp path) on top of the breathing geometry.
+      options.overflow.maxLines =
+          params.intValue(QStringLiteral("maxLines"), 0);
 
       const auto layoutStartTime = Clock::now();
       ParagraphLayout layout =
@@ -122,6 +126,10 @@ SceneDescriptor makeOverflowDescriptor() {
   descriptor.name = QStringLiteral("Overflow & ellipsis");
   descriptor.defaultText = overflowDefaultText();
   descriptor.displayOrder = 130;
+  descriptor.parameters = {
+      {QStringLiteral("maxLines"), QStringLiteral("Max lines (0 = off)"),
+       SceneParameter::Type::kInt, 0, 0, 12},
+  };
   descriptor.make = [] { return std::make_unique<OverflowScene>(); };
   return descriptor;
 }

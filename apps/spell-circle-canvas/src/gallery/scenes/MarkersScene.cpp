@@ -69,11 +69,23 @@ public:
     }
 
     // Hue-cycling highlight over every marker range — paint-only restyle,
-    // zero reshaping.
+    // zero reshaping. The decoration choice rides the same PaintStyle:
+    // underline/strikethrough are paint-side too (P8), so toggling them
+    // never relayouts either.
     const SkScalar hueSaturationValue[3] = {
         std::fmod(static_cast<float>(elapsedSeconds) * 40.0f, 360.0f), 0.75f,
         0.72f};
     PaintStyle highlight(SkHSVToColor(hueSaturationValue));
+    switch (params.intValue(QStringLiteral("decoration"), 1)) {
+    case 1:
+      highlight.addDecoration({}); // metric underline, ink-skipping
+      break;
+    case 2:
+      highlight.addDecoration({.kind = Decoration::Kind::kStrikethrough});
+      break;
+    default:
+      break;
+    }
     m_markers.applyPaint(m_body.paragraph, "caps", highlight);
 
     const float canvasWidth = size.width();
@@ -154,6 +166,12 @@ SceneDescriptor makeMarkersDescriptor() {
   descriptor.name = QStringLiteral("Query & markers");
   descriptor.defaultText = markersDefaultText();
   descriptor.displayOrder = 110;
+  descriptor.parameters = {
+      {QStringLiteral("decoration"), QStringLiteral("Decoration"),
+       SceneParameter::Type::kChoice, 1, 0, 2, {},
+       {QStringLiteral("None"), QStringLiteral("Underline"),
+        QStringLiteral("Strikethrough")}},
+  };
   descriptor.make = [] { return std::make_unique<MarkersScene>(); };
   return descriptor;
 }

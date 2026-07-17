@@ -350,16 +350,23 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
       sk_sp<SkTypeface> typeface =
           resolveGalleryTypeface(m_fontContext->fontManager(), m_fontFamily);
       if (typeface && !m_fontCoordinates.empty()) {
-        std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
-        coordinates.reserve(m_fontCoordinates.size());
-        for (const FontCoordinate &coordinate : m_fontCoordinates)
-          coordinates.push_back({coordinate.tag, coordinate.value});
-        SkFontArguments fontArguments;
-        fontArguments.setVariationDesignPosition(
-            {coordinates.data(), static_cast<int>(coordinates.size())});
-        if (sk_sp<SkTypeface> variedTypeface =
-                typeface->makeClone(fontArguments))
-          typeface = std::move(variedTypeface);
+        // Axis application goes through the FontContext's memoized varied
+        // clone (ShapingStyle::variations machinery) instead of a raw
+        // makeClone: repeated identical axis positions resolve to the same
+        // SkTypeface object, so the shape cache stays warm across the
+        // dirty/rebuild cycle.
+        std::vector<textflow::FontVariation> variations;
+        variations.reserve(m_fontCoordinates.size());
+        for (const FontCoordinate &coordinate : m_fontCoordinates) {
+          textflow::FontVariation variation;
+          variation.tag[0] = static_cast<char>(coordinate.tag >> 24);
+          variation.tag[1] = static_cast<char>(coordinate.tag >> 16);
+          variation.tag[2] = static_cast<char>(coordinate.tag >> 8);
+          variation.tag[3] = static_cast<char>(coordinate.tag);
+          variation.value = coordinate.value;
+          variations.push_back(variation);
+        }
+        typeface = m_fontContext->variedTypeface(typeface, variations);
       }
       m_resolvedTypeface = std::move(typeface);
       m_typefaceDirty = false;

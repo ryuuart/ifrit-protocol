@@ -1,6 +1,6 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
-#include "SceneRegistry.h"
+#include "EffectsParts.h"
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
@@ -19,7 +19,7 @@ namespace {
 
 QString loudShadersDefaultText() { return QStringLiteral("SHADER"); }
 
-class LoudShadersScene final : public Scene {
+class LoudShadersPart final : public Scene {
 public:
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
@@ -135,17 +135,10 @@ private:
   SkISize m_size = {0, 0};
 };
 
-SceneDescriptor makeLoudShadersDescriptor() {
-  SceneDescriptor descriptor;
-  descriptor.name = QStringLiteral("Loud shaders");
-  descriptor.defaultText = loudShadersDefaultText();
-  descriptor.displayOrder = 100;
-  descriptor.make = [] { return std::make_unique<LoudShadersScene>(); };
-  return descriptor;
-}
-
 } // namespace
 
-REGISTER_GALLERY_SCENE(makeLoudShadersDescriptor())
+std::unique_ptr<Scene> makeLoudShadersPart() {
+  return std::make_unique<LoudShadersPart>();
+}
 
 } // namespace gallery

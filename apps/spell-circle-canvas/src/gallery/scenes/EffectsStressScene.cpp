@@ -1,5 +1,5 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
-#include "SceneRegistry.h"
+#include "EffectsParts.h"
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
@@ -36,7 +36,7 @@ std::u8string makeStressText() {
   return text;
 }
 
-class EffectsStressScene final : public Scene {
+class StressPart final : public Scene {
 public:
   FrameStats render(SkCanvas *canvas, SkISize size, double elapsedSeconds,
                     int /*frameNumber*/, const SceneParams &params,
@@ -182,31 +182,10 @@ private:
   float m_glowIntensity = 1;
 };
 
-SceneDescriptor makeEffectsStressDescriptor() {
-  SceneDescriptor descriptor;
-  descriptor.name = QStringLiteral("2,000-word shader stress");
-  descriptor.textEditable = false;
-  descriptor.displayOrder = 90;
-  descriptor.parameters = {
-      {QStringLiteral("glow"), QStringLiteral("Glow"),
-       SceneParameter::Type::kBool, true},
-      {QStringLiteral("outline"), QStringLiteral("Outline"),
-       SceneParameter::Type::kBool, true},
-      {QStringLiteral("shader"), QStringLiteral("Shader"),
-       SceneParameter::Type::kBool, true},
-      {QStringLiteral("stars"), QStringLiteral("Stars"),
-       SceneParameter::Type::kBool, true},
-      {QStringLiteral("glowSpread"), QStringLiteral("Glow spread"),
-       SceneParameter::Type::kFloat, 0.6, 0.0, 8.0, QStringLiteral("px")},
-      {QStringLiteral("glowIntensity"), QStringLiteral("Glow intensity"),
-       SceneParameter::Type::kFloat, 1.3, 0.2, 3.0, QStringLiteral("\u00d7")},
-  };
-  descriptor.make = [] { return std::make_unique<EffectsStressScene>(); };
-  return descriptor;
-}
-
 } // namespace
 
-REGISTER_GALLERY_SCENE(makeEffectsStressDescriptor())
+std::unique_ptr<Scene> makeStressPart() {
+  return std::make_unique<StressPart>();
+}
 
 } // namespace gallery
