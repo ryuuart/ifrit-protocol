@@ -11,10 +11,9 @@
  * range-query and marker conveniences live in the optional Query.h.
  */
 
+#include "InlineVector.h"
 #include "Shaper.h"
 #include "Style.h"
-
-#include <absl/container/inlined_vector.h>
 
 #include <cstdint>
 #include <span>
@@ -90,7 +89,7 @@ struct Word {
 
   /// Inline storage: nearly every word is a single uniform run, so the
   /// common case costs no allocation when the word list is rebuilt.
-  absl::InlinedVector<WordSegment, 1> segments;
+  InlineVector<WordSegment, 1> segments;
   float width = 0;      ///< content advance
   float spaceWidth = 0; ///< trailing-whitespace advance (justification glue)
 

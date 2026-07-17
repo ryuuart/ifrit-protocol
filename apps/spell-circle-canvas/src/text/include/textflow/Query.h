@@ -11,11 +11,10 @@
 
 #include "Paragraph.h"
 
-#include <absl/container/flat_hash_map.h>
-
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace textflow {
@@ -110,7 +109,10 @@ public:
 
 private:
   uint64_t m_revision = 0;
-  absl::flat_hash_map<std::string, std::vector<CharRange>> m_markers;
+  /// Linear scan by design: marker sets hold a handful of named collections
+  /// (selection, search hits, spell errors, …), where a flat vector beats a
+  /// hash map and keeps third-party containers out of the public headers.
+  std::vector<std::pair<std::string, std::vector<CharRange>>> m_markers;
 };
 
 } // namespace textflow

@@ -8,11 +8,9 @@
 
 #include "Paragraph.h"
 
-#include <absl/container/node_hash_map.h>
-
 #include <concepts>
 #include <cstddef>
-#include <string>
+#include <memory>
 #include <string_view>
 #include <type_traits>
 
@@ -37,8 +35,16 @@ concept CacheableTextView =
  */
 class SingleLineParagraphCache {
 public:
-  explicit SingleLineParagraphCache(size_t maximumEntries = 1024)
-      : m_maximumEntries(maximumEntries) {}
+  explicit SingleLineParagraphCache(size_t maximumEntries = 1024);
+  ~SingleLineParagraphCache();
+
+  // Move-only: the pimpl owns node-map storage whose entry addresses are
+  // part of the API contract (returned references stay valid), so copying
+  // a cache would silently duplicate paragraphs without their guarantees.
+  SingleLineParagraphCache(SingleLineParagraphCache &&) noexcept;
+  SingleLineParagraphCache &operator=(SingleLineParagraphCache &&) noexcept;
+  SingleLineParagraphCache(const SingleLineParagraphCache &) = delete;
+  SingleLineParagraphCache &operator=(const SingleLineParagraphCache &) = delete;
 
   /** Returns the cached paragraph for UTF-8 text, creating it when absent. */
   [[nodiscard]] Paragraph &paragraphFor(std::u8string_view utf8,
@@ -51,15 +57,15 @@ public:
                                         float fontSize);
 
   /** Removes every cached paragraph and invalidates returned references. */
-  void clear() { m_paragraphs.clear(); }
+  void clear();
 
 private:
   template <detail::CacheableTextView View>
   Paragraph &paragraphForImpl(View text, const sk_sp<SkTypeface> &typeface,
                               float fontSize);
 
-  absl::node_hash_map<std::string, Paragraph> m_paragraphs;
-  size_t m_maximumEntries;
+  struct Impl; ///< node-based map storage; keeps hash-map deps in the .cpp
+  std::unique_ptr<Impl> m_impl;
 };
 
 } // namespace textflow

@@ -47,9 +47,10 @@ target_link_libraries(SpellCircleCanvas
 # provides the animated text layer drawn by SkiaSceneBackend.mm.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   # TextFlowQt carries TextFlow transitively; TextFlowPorts provides the
-  # system font manager used by the render-thread FontContext.
+  # system font manager used by the render-thread FontContext. (No direct
+  # absl links: TextFlow's public headers no longer expose abseil types.)
   target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkia TextFlowQt
-    TextFlowPorts absl::flat_hash_map absl::node_hash_map)
+    TextFlowPorts)
 endif()
 
 target_include_directories(SpellCircleCanvas PUBLIC

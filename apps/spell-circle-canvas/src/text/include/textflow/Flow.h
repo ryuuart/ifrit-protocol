@@ -24,8 +24,6 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 
-#include <absl/container/flat_hash_map.h>
-
 #include <memory>
 #include <vector>
 
@@ -159,14 +157,14 @@ public:
                      std::vector<LineInterval> &intervals) override;
 
 private:
-  struct FlatPath; ///< flattened-polygon cache entry (Flow.cpp)
+  struct FlatPath;  ///< flattened-polygon cache entry (Flow.cpp)
+  struct PathCache; ///< private container type; keeps hash-map deps in Flow.cpp
   const FlatPath &flattenedPathFor(const SkPath &path);
 
   SkRect m_bounds;
   std::vector<Shape> m_shapes;
   float m_minIntervalWidth = 8;
-  /// unique_ptr values: FlatPath addresses stay stable across rehashes.
-  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> m_flattenedPathCache;
+  std::unique_ptr<PathCache> m_pathCache;
 };
 
 /// Vertical-RL block (CJK book layout): each "line" is a top-to-bottom

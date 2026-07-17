@@ -1,10 +1,31 @@
 #include "textflow/SingleLineParagraphCache.h"
 
+#include <absl/container/node_hash_map.h>
 #include <absl/strings/str_cat.h>
 
 #include <unicode/ustring.h>
 
+#include <string>
+
 namespace textflow {
+
+/// Private storage: a node-based map so returned Paragraph& stay valid
+/// while other entries are inserted (the header's documented contract).
+struct SingleLineParagraphCache::Impl {
+  explicit Impl(size_t maximumEntryCount) : maximumEntries(maximumEntryCount) {}
+  absl::node_hash_map<std::string, Paragraph> paragraphs;
+  size_t maximumEntries;
+};
+
+SingleLineParagraphCache::SingleLineParagraphCache(size_t maximumEntries)
+    : m_impl(std::make_unique<Impl>(maximumEntries)) {}
+SingleLineParagraphCache::~SingleLineParagraphCache() = default;
+SingleLineParagraphCache::SingleLineParagraphCache(
+    SingleLineParagraphCache &&) noexcept = default;
+SingleLineParagraphCache &SingleLineParagraphCache::operator=(
+    SingleLineParagraphCache &&) noexcept = default;
+
+void SingleLineParagraphCache::clear() { m_impl->paragraphs.clear(); }
 
 namespace {
 
@@ -37,17 +58,18 @@ Paragraph &SingleLineParagraphCache::paragraphForImpl(
   appendUtf8Key(key, text);
   absl::StrAppend(&key, "\x1f", typeface ? typeface->uniqueID() : 0, "\x1f",
                   static_cast<int>(fontSize * 16.0f));
-  auto paragraph = m_paragraphs.find(key);
-  if (paragraph == m_paragraphs.end()) {
-    if (m_paragraphs.size() >= m_maximumEntries)
-      m_paragraphs.clear(); // scenes cycle labels; don't grow without bound
+  auto &paragraphs = m_impl->paragraphs;
+  auto paragraph = paragraphs.find(key);
+  if (paragraph == paragraphs.end()) {
+    if (paragraphs.size() >= m_impl->maximumEntries)
+      paragraphs.clear(); // scenes cycle labels; don't grow without bound
     TextStyle style;
     style.shaping.typeface = typeface;
     style.shaping.fontSize = fontSize;
     Paragraph newParagraph;
     newParagraph.appendText(text, style);
     paragraph =
-        m_paragraphs.emplace(std::move(key), std::move(newParagraph)).first;
+        paragraphs.emplace(std::move(key), std::move(newParagraph)).first;
   }
   return paragraph->second;
 }

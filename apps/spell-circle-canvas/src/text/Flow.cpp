@@ -2,6 +2,8 @@
 
 #include <include/core/SkPathTypes.h>
 
+#include <absl/container/flat_hash_map.h>
+
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -131,17 +133,28 @@ struct ExclusionFlow::FlatPath {
   bool evenOdd = false;
 };
 
-ExclusionFlow::ExclusionFlow(const SkRect &bounds) : m_bounds(bounds) {}
+// Private container definition: keeps the hash-map dependency out of the
+// public Flow.h. unique_ptr values keep FlatPath addresses stable across
+// rehashes.
+struct ExclusionFlow::PathCache {
+  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> entries;
+};
+
+ExclusionFlow::ExclusionFlow(const SkRect &bounds)
+    : m_bounds(bounds), m_pathCache(std::make_unique<PathCache>()) {}
 ExclusionFlow::~ExclusionFlow() = default;
 
 const ExclusionFlow::FlatPath &
 ExclusionFlow::flattenedPathFor(const SkPath &path) {
+  if (!m_pathCache) // re-arm a moved-from flow instead of dereferencing null
+    m_pathCache = std::make_unique<PathCache>();
+  auto &cache = m_pathCache->entries;
   const uint32_t generationId = path.getGenerationID();
-  auto cachedPath = m_flattenedPathCache.find(generationId);
-  if (cachedPath != m_flattenedPathCache.end())
+  auto cachedPath = cache.find(generationId);
+  if (cachedPath != cache.end())
     return *cachedPath->second;
-  if (m_flattenedPathCache.size() > 64)
-    m_flattenedPathCache.clear(); // Bound animated path churn.
+  if (cache.size() > 64)
+    cache.clear(); // Bound animated path churn.
 
   auto flattenedPath = std::make_unique<FlatPath>();
   const SkPathFillType fill = path.getFillType();
@@ -231,8 +244,7 @@ ExclusionFlow::flattenedPathFor(const SkPath &path) {
   flushPolygon();
 
   auto cacheEntry =
-      m_flattenedPathCache.emplace(generationId, std::move(flattenedPath))
-          .first;
+      cache.emplace(generationId, std::move(flattenedPath)).first;
   return *cacheEntry->second;
 }
 

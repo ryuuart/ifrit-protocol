@@ -16,6 +16,7 @@ add_library(TextFlow STATIC
   SingleLineParagraphCache.cpp
 
   include/textflow/TextFlow.h
+  include/textflow/InlineVector.h
   include/textflow/Style.h
   include/textflow/FontContext.h
   include/textflow/Shaper.h
@@ -34,14 +35,18 @@ target_include_directories(TextFlow PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
+# Abseil is an implementation detail: no absl type appears in any public
+# header (Word::segments uses textflow::InlineVector; the ExclusionFlow and
+# SingleLineParagraphCache maps hide behind pimpls), so consumers of an
+# installed TextFlow never include abseil headers — the archives still need
+# linking, which the future package config expresses via find_dependency.
 target_link_libraries(TextFlow
   PUBLIC
     unofficial::skia::skia
-    absl::inlined_vector  # Word::segments inline storage (public header)
-    absl::flat_hash_map   # ExclusionFlow caches (public header)
-    absl::node_hash_map   # stable Paragraph& cache entries across inserts
   PRIVATE
-    absl::strings          # allocation-aware composite cache-key construction
+    absl::flat_hash_map   # FontContextImpl + ExclusionFlow::PathCache
+    absl::node_hash_map   # stable Paragraph& cache entries across inserts
+    absl::strings         # allocation-aware composite cache-key construction
     harfbuzz::harfbuzz
     ICU::i18n
     ICU::uc
@@ -90,6 +95,7 @@ add_executable(textflow_test
   test/QueryTest.cpp
   test/VerticalTest.cpp
   test/StressTest.cpp
+  test/InlineVectorTest.cpp
 )
 target_link_libraries(textflow_test PRIVATE TextFlow TextFlowPorts
   GTest::gtest_main absl::flat_hash_set)

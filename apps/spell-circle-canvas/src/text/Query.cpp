@@ -138,19 +138,25 @@ std::vector<CharRange> wordRanges(Paragraph &paragraph,
 }
 
 void MarkerSet::setRanges(std::string name, std::vector<CharRange> ranges) {
-  m_markers[std::move(name)] = std::move(ranges);
+  for (auto &marker : m_markers)
+    if (marker.first == name) {
+      marker.second = std::move(ranges);
+      return;
+    }
+  m_markers.emplace_back(std::move(name), std::move(ranges));
 }
 
 const std::vector<CharRange> *
 MarkerSet::rangesFor(std::string_view name) const {
-  const auto marker = m_markers.find(name);
-  return marker == m_markers.end() ? nullptr : &marker->second;
+  for (const auto &marker : m_markers)
+    if (marker.first == name)
+      return &marker.second;
+  return nullptr;
 }
 
 void MarkerSet::remove(std::string_view name) {
-  const auto marker = m_markers.find(name);
-  if (marker != m_markers.end())
-    m_markers.erase(marker);
+  std::erase_if(m_markers,
+                [name](const auto &marker) { return marker.first == name; });
 }
 
 bool MarkerSet::synchronize(const Paragraph &paragraph) {
