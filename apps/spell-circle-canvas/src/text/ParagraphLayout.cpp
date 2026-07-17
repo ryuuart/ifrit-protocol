@@ -695,26 +695,115 @@ void drawPaintLayers(const PaintStyle &style, DrawPass &&drawPass) {
       drawPass(layer.paint, layer.offset);
 }
 
-// Emits every decoration rect for one run through `emitRect(SkRect,
+/// A run that can carry a decoration band: straight horizontal glyphs.
+bool decorableRun(const PositionedRun &run) {
+  return !run.transformed && run.shaped && !run.shaped->vertical &&
+         run.placeholderIndex < 0 && run.blob;
+}
+
+// Emits every decoration rect for a layout through `emitRect(SkRect,
 // SkColor)`. Shared by draw() (immediate) and drawBatched() (deferred past
 // the glyph buckets so strikethroughs land above the batched glyphs).
+//
+// Decorations span the *decorated range*, not individual words: contiguous
+// runs on one line sharing a style (and metrics identity) merge into one
+// group whose band also covers the glue between words — CSS behavior, where
+// an underlined sentence is one continuous line. Skip-ink intercepts still
+// come from each run's own blob; the inter-word gaps have no ink, so they
+// stay covered.
 template <typename EmitRect>
-void forEachDecorationRect(const PositionedRun &run, const PaintStyle &style,
+void forEachDecorationRect(const std::vector<PositionedRun> &runs,
+                           const std::vector<StyleSpan> &spans,
+                           const PaintStyle *overridePaint,
                            EmitRect &&emitRect) {
-  if (style.decorations.empty() || run.transformed || !run.shaped ||
-      run.shaped->vertical || run.placeholderIndex >= 0)
-    return;
-  const SkFont font = makeFont(run.shaped->typeface, run.shaped->fontSize);
-  SkFontMetrics metrics;
-  font.getMetrics(&metrics);
-  for (const Decoration &decoration : style.decorations) {
-    const detail::ResolvedDecorationBand band = detail::resolveDecorationBand(
-        decoration, metrics, style.foreground.getColor());
-    const float top = run.origin.y() + band.position;
-    for (const auto &[startX, endX] :
-         detail::decorationSegments(run, decoration, band))
-      emitRect(SkRect::MakeLTRB(startX, top, endX, top + band.thickness),
-               band.color);
+  for (size_t groupStart = 0; groupStart < runs.size();) {
+    const PositionedRun &first = runs[groupStart];
+    if (!decorableRun(first)) {
+      ++groupStart;
+      continue;
+    }
+    const PaintStyle &style =
+        resolvePaint(spans, first.styleIndex, overridePaint);
+    if (style.decorations.empty()) {
+      ++groupStart;
+      continue;
+    }
+
+    // Extend the group while runs stay visually contiguous left-to-right on
+    // the same line with identical style and metrics identity (same
+    // typeface + size ⇒ same band geometry). Bidi-reordered or
+    // fallback-split neighbors simply start a new group.
+    size_t groupEnd = groupStart + 1;
+    while (groupEnd < runs.size()) {
+      const PositionedRun &candidate = runs[groupEnd];
+      const PositionedRun &previous = runs[groupEnd - 1];
+      if (!decorableRun(candidate) ||
+          candidate.lineIndex != first.lineIndex ||
+          candidate.styleIndex != first.styleIndex ||
+          candidate.shaped->typeface.get() != first.shaped->typeface.get() ||
+          candidate.shaped->fontSize != first.shaped->fontSize ||
+          candidate.origin.y() != first.origin.y() ||
+          candidate.origin.x() < previous.origin.x())
+        break;
+      ++groupEnd;
+    }
+
+    const float groupStartX = first.origin.x();
+    const float groupEndX = runs[groupEnd - 1].origin.x() +
+                            runs[groupEnd - 1].shaped->advance;
+    const SkFont font = makeFont(first.shaped->typeface,
+                                 first.shaped->fontSize);
+    SkFontMetrics metrics;
+    font.getMetrics(&metrics);
+
+    for (const Decoration &decoration : style.decorations) {
+      const detail::ResolvedDecorationBand band =
+          detail::resolveDecorationBand(decoration, metrics,
+                                        style.foreground.getColor());
+      const float top = first.origin.y() + band.position;
+      const bool skipInk = decoration.skipInk &&
+                           decoration.kind == Decoration::Kind::kUnderline;
+      if (!skipInk) {
+        emitRect(SkRect::MakeLTRB(groupStartX, top, groupEndX,
+                                  top + band.thickness),
+                 band.color);
+        continue;
+      }
+      // One continuous band minus every member run's ink intercepts. Glue
+      // between runs carries no ink, so it never interrupts the band.
+      const SkScalar bounds[2] = {band.position,
+                                  band.position + band.thickness};
+      const float standoff = band.thickness;
+      static thread_local std::vector<SkScalar> interceptScratch;
+      float cursor = groupStartX;
+      for (size_t runIndex = groupStart; runIndex < groupEnd; ++runIndex) {
+        const PositionedRun &run = runs[runIndex];
+        const int interceptCount = run.blob->getIntercepts(bounds, nullptr);
+        if (interceptCount < 2)
+          continue;
+        interceptScratch.resize(static_cast<size_t>(interceptCount));
+        run.blob->getIntercepts(bounds, interceptScratch.data());
+        for (int pair = 0; pair + 1 < interceptCount; pair += 2) {
+          const float inkStart = run.origin.x() +
+                                 interceptScratch[static_cast<size_t>(pair)] -
+                                 standoff;
+          const float inkEnd =
+              run.origin.x() +
+              interceptScratch[static_cast<size_t>(pair + 1)] + standoff;
+          if (inkStart > cursor)
+            emitRect(SkRect::MakeLTRB(cursor, top,
+                                      std::min(inkStart, groupEndX),
+                                      top + band.thickness),
+                     band.color);
+          cursor = std::max(cursor, inkEnd);
+        }
+      }
+      if (cursor < groupEndX)
+        emitRect(SkRect::MakeLTRB(cursor, top, groupEndX,
+                                  top + band.thickness),
+                 band.color);
+    }
+    groupStart = groupEnd;
   }
 }
 
@@ -821,8 +910,6 @@ decorationSegments(const PositionedRun &run, const Decoration &decoration,
 void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            const PaintStyle *overridePaint) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
-  SkPaint decorationPaint;
-  decorationPaint.setAntiAlias(true);
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
@@ -833,11 +920,14 @@ void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
       canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
                            run.origin.y() + offset.y(), paint);
     });
-    forEachDecorationRect(run, style, [&](SkRect rect, SkColor color) {
-      decorationPaint.setColor(color);
-      canvas->drawRect(rect, decorationPaint);
-    });
   }
+  SkPaint decorationPaint;
+  decorationPaint.setAntiAlias(true);
+  forEachDecorationRect(runs, spans, overridePaint,
+                        [&](SkRect rect, SkColor color) {
+                          decorationPaint.setColor(color);
+                          canvas->drawRect(rect, decorationPaint);
+                        });
 }
 
 std::vector<ParagraphLayout::PlacedPlaceholder>
@@ -888,14 +978,16 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
   static thread_local std::vector<DecorationRect> decorationRects;
   decorationRects.clear();
 
+  forEachDecorationRect(runs, spans, overridePaint,
+                        [&](SkRect rect, SkColor color) {
+                          decorationRects.push_back({rect, color});
+                        });
+
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
     const PaintStyle &style =
         resolvePaint(spans, run.styleIndex, overridePaint);
-    forEachDecorationRect(run, style, [&](SkRect rect, SkColor color) {
-      decorationRects.push_back({rect, color});
-    });
 
     if (run.transformed || !run.shaped) {
       // Positions are baked into the blob; draw every configured pass

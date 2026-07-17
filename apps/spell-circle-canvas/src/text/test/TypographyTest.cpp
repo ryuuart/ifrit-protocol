@@ -537,3 +537,64 @@ TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   EXPECT_LT(spread(tabular), 0.01f)
       << "tabular figures must share one advance";
 }
+
+TEST(DecorationTest, UnderlineSpansAcrossWordGaps) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  // Two words → (at least) two runs on one line with a glue gap between.
+  std::vector<const PositionedRun *> wordRuns;
+  for (const PositionedRun &run : layout.runs)
+    if (run.shaped)
+      wordRuns.push_back(&run);
+  ASSERT_GE(wordRuns.size(), 2u);
+  const float gapStart =
+      wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
+  const float gapEnd = wordRuns[1]->origin.x();
+  ASSERT_GT(gapEnd, gapStart) << "expected inter-word glue";
+
+  PaintStyle underlined(SK_ColorBLACK);
+  Decoration underline;
+  underline.thickness = 3.0f;
+  underline.offset = 6.0f; // clear of any glyph ink
+  underline.skipInk = false;
+  underlined.addDecoration(underline);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     underlined);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  layout.draw(surface->getCanvas(), paragraph);
+
+  // The decorated range is one continuous band: the middle of the glue gap
+  // must be inked, not white (pre-spanning behavior drew per-word bands
+  // that skipped the space).
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  const int probeX = static_cast<int>((gapStart + gapEnd) * 0.5f);
+  const int probeY =
+      static_cast<int>(wordRuns[0]->origin.y() + 6.0f + 1.5f);
+  ASSERT_LT(probeX, pixmap.width());
+  ASSERT_LT(probeY, pixmap.height());
+  const SkColor gapColor = pixmap.getColor(probeX, probeY);
+  EXPECT_LT(SkColorGetR(gapColor), 100u)
+      << "underline must cover the word gap (got "
+      << std::hex << gapColor << ")";
+
+  // Same probe with skip-ink on: gaps still covered (no ink there).
+  PaintStyle skipInked(SK_ColorBLACK);
+  Decoration inkAware;
+  inkAware.thickness = 3.0f;
+  inkAware.offset = 6.0f;
+  skipInked.addDecoration(inkAware);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     skipInked);
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  layout.draw(surface->getCanvas(), paragraph);
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  EXPECT_LT(SkColorGetR(pixmap.getColor(probeX, probeY)), 100u)
+      << "skip-ink must only break at glyph ink, never at word gaps";
+}

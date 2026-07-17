@@ -11,6 +11,9 @@ PROJECT_BRIEF          = "A cache-first Skia text layout engine (HarfBuzz + ICU,
 OUTPUT_DIRECTORY       = ../../build/docs/textflow
 
 INPUT                  = include qt/include README.md
+# README.md is the docs mainpage and uses GitHub-flavoured heading anchors
+# for its table of contents; generate matching ids so the links resolve.
+MARKDOWN_ID_STYLE      = GITHUB
 FILE_PATTERNS          = *.h
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = README.md

@@ -244,10 +244,13 @@ struct PaintLayer {
  * face reports none), so the zero-argument spelling
  * `PaintStyle{...}.addDecoration({})` is a correct underline.
  *
- * Scope (v1): decorations render on straight horizontal runs only —
- * transformed (path/rotated) and vertical runs skip them. Each word draws
- * its own span of decoration, so at word gaps the line is per-word (visible
- * only with skipInk = false).
+ * Decorations span the decorated range, not individual words: contiguous
+ * same-style runs on a line merge into one continuous band that also covers
+ * the glue between words (CSS behavior — an underlined sentence is one
+ * line). Skip-ink breaks come only from glyph ink, never from word gaps.
+ *
+ * Scope: decorations render on straight horizontal runs only — transformed
+ * (path/rotated) and vertical runs skip them.
  */
 struct Decoration {
   /// Selects which font metric anchors the band by default.
