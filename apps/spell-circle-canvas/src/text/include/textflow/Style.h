@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup shaping
+ *
  * The style vocabulary every other TextFlow header speaks. A TextStyle splits
  * into two halves on purpose:
  *   - ShapingStyle — typeface, size, letter spacing, language, OpenType
@@ -32,8 +34,8 @@ namespace textflow {
 
 /// One OpenType feature setting, e.g. {"liga", 0} to disable ligatures.
 struct FontFeature {
-  char tag[4] = {' ', ' ', ' ', ' '};
-  uint32_t value = 1;
+  char tag[4] = {' ', ' ', ' ', ' '}; ///< OpenType feature tag, unterminated
+  uint32_t value = 1; ///< 0 disables, 1 enables, higher selects alternates
 
   /** Creates the default enabled feature with a blank tag. */
   constexpr FontFeature() = default;
@@ -50,8 +52,8 @@ struct FontFeature {
 /// the varied SkTypeface clone so identical (typeface, variations) pairs
 /// share one instance — and therefore one shape-cache identity.
 struct FontVariation {
-  char tag[4] = {' ', ' ', ' ', ' '};
-  float value = 0;
+  char tag[4] = {' ', ' ', ' ', ' '}; ///< OpenType axis tag, unterminated
+  float value = 0;                    ///< design-space coordinate on the axis
 
   /** Creates a blank axis setting. */
   constexpr FontVariation() = default;
@@ -117,7 +119,7 @@ struct ShapingStyle {
   /// resolved typeface is unchanged, language can change its emitted glyphs.
   /// Bidi direction is analyzed separately and does not come from this tag.
   std::string languageTag; ///< e.g. "ja", "sr", "zh-Hant"; empty → default
-  std::vector<FontFeature> fontFeatures;
+  std::vector<FontFeature> fontFeatures; ///< passed to HarfBuzz verbatim
   /// Design-space overrides applied to `typeface` (or the context default)
   /// before shaping — the ergonomic alternative to pre-building a varied
   /// SkTypeface via SkFontArguments yourself. Resolution goes through
@@ -130,7 +132,8 @@ struct ShapingStyle {
   /// Case transformation applied before shaping; see TextTransform for the
   /// cache and hit-testing story.
   TextTransform textTransform = TextTransform::kNone;
-  VerticalForm verticalForm = VerticalForm::kAuto;
+  VerticalForm verticalForm = VerticalForm::kAuto; ///< ignored in horizontal
+                                                   ///< paragraphs
 
   /** Compares every input that participates in shaping identity. */
   bool operator==(const ShapingStyle &other) const {
@@ -154,8 +157,8 @@ struct ShapingStyle {
  * highlights cheap without saveLayer().
  */
 struct PaintLayer {
-  SkPaint paint;
-  SkVector offset = {0, 0};
+  SkPaint paint;            ///< applied as configured — nothing is overridden
+  SkVector offset = {0, 0}; ///< px translation of this pass only
 
   /** Constructs an anti-aliased black fill pass. */
   PaintLayer() { paint.setAntiAlias(true); }
@@ -247,8 +250,9 @@ struct PaintLayer {
  * only with skipInk = false).
  */
 struct Decoration {
+  /// Selects which font metric anchors the band by default.
   enum class Kind : uint8_t { kUnderline, kStrikethrough, kOverline };
-  Kind kind = Kind::kUnderline;
+  Kind kind = Kind::kUnderline; ///< only underlines honor `skipInk`
   /// SK_ColorTRANSPARENT → use the resolved foreground paint's color.
   SkColor color = SK_ColorTRANSPARENT;
   /// 0 → thickness from font metrics, floored at 1px.
@@ -275,9 +279,9 @@ struct Decoration {
  * Paragraph::setPaint() is visible to an existing ParagraphLayout.
  */
 struct PaintStyle {
-  SkPaint foreground;
-  std::vector<PaintLayer> underlays;
-  std::vector<PaintLayer> overlays;
+  SkPaint foreground; ///< the main glyph pass, drawn between the layer lists
+  std::vector<PaintLayer> underlays; ///< drawn in order beneath `foreground`
+  std::vector<PaintLayer> overlays;  ///< drawn in order above `foreground`
   /// Drawn after this style's glyph passes, in vector order. See Decoration
   /// for defaults and the straight-horizontal-runs-only scope.
   std::vector<Decoration> decorations;
@@ -318,8 +322,8 @@ struct PaintStyle {
 
 /** Combines cache-affecting shaping state with draw-time paint state. */
 struct TextStyle {
-  ShapingStyle shaping;
-  PaintStyle paint;
+  ShapingStyle shaping; ///< changes re-shape the covered words
+  PaintStyle paint;     ///< changes never re-shape or relayout
 
   /** Compares both shaping and paint configuration. */
   bool operator==(const TextStyle &other) const {

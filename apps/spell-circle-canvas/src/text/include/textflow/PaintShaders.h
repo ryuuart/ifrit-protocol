@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup paint
+ *
  * Reusable animated shader presets for PaintStyle foregrounds and layers.
  *
  * Every helper compiles its SkSL program once per process; each call only
@@ -44,7 +46,7 @@ namespace textflow::PaintShaders {
 [[nodiscard]] sk_sp<SkShader> clouds(const SkRect &bounds, float timeSeconds);
 
 /** Endless raymarched kaleidoscope tunnel, falling away from the camera.
- * Based on a shader by @notargs.
+ * Based on a shader by \@notargs.
  */
 [[nodiscard]] sk_sp<SkShader> tunnel(const SkRect &bounds, float timeSeconds);
 

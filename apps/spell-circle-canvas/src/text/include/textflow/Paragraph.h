@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup document
+ *
  * The document model: UTF-16 text carrying normalized style spans, optional
  * inline placeholders, and a horizontal or vertical-RL writing mode. Build
  * one with ParagraphBuilder (fluent addText / pushStyle) or append directly,
@@ -28,19 +30,20 @@ class FontContext;
 /// Style applied to a contiguous UTF-16 range. Spans are kept normalized:
 /// sorted, non-overlapping, covering the whole text.
 struct StyleSpan {
-  uint32_t start = 0;
-  uint32_t end = 0;
-  TextStyle style;
+  uint32_t start = 0; ///< inclusive start, UTF-16 code units
+  uint32_t end = 0;   ///< exclusive end, UTF-16 code units
+  TextStyle style;    ///< applies to every code unit in [start, end)
 };
 
 /// UTF-16 code-unit range into a Paragraph's text, end exclusive. The common
 /// currency between the query layer (Query.h), scoped searches, and batch
 /// restyling.
 struct CharRange {
-  uint32_t start = 0;
-  uint32_t end = 0;
+  uint32_t start = 0; ///< inclusive start, UTF-16 code units
+  uint32_t end = 0;   ///< exclusive end, UTF-16 code units
   /** Returns whether this half-open range contains no UTF-16 code units. */
   [[nodiscard]] bool empty() const noexcept { return end <= start; }
+  /** Compares both endpoints. */
   bool operator==(const CharRange &) const = default;
 };
 
@@ -57,11 +60,12 @@ enum class SegmentForm : uint8_t {
 /// One shaped run inside a Word (usually the only one; more when a style
 /// boundary, script change, or font fallback splits the word).
 struct WordSegment {
-  ShapedWordRef shaped;
+  ShapedWordRef shaped; ///< cache-shared glyph run this segment draws
   uint32_t styleIndex = 0; ///< index into Paragraph::spans()
   float advanceOffset = 0; ///< pen offset from the word origin (for
                            ///< kTateChuYoko this lands on the run's baseline)
-  SegmentForm form = SegmentForm::kFlow;
+  SegmentForm form = SegmentForm::kFlow; ///< vertical-text placement; always
+                                         ///< kFlow in horizontal paragraphs
 };
 
 /// An inline object slot woven into the flow (SkParagraph's placeholder
@@ -71,8 +75,8 @@ struct WordSegment {
 /// object-replacement character (U+FFFC), matched to its record by
 /// occurrence order.
 struct Placeholder {
-  float width = 0;
-  float height = 0;
+  float width = 0;  ///< advance the breakers reserve, px
+  float height = 0; ///< box height the line must accommodate, px
   /// The box's bottom edge sits this far below the baseline (0 = bottom on
   /// the baseline, like an inline image; ~descent centres a pill on
   /// x-height).
@@ -84,7 +88,7 @@ struct Placeholder {
 /// can treat the whitespace as stretchable glue.
 struct Word {
   uint32_t textBegin = 0; ///< content range, whitespace excluded
-  uint32_t textEnd = 0;
+  uint32_t textEnd = 0;   ///< exclusive end of the content range
   uint32_t whitespaceEnd = 0; ///< == textEnd when there is no trailing space
 
   /// Inline storage: nearly every word is a single uniform run, so the
@@ -93,7 +97,7 @@ struct Word {
   float width = 0;      ///< content advance
   float spaceWidth = 0; ///< trailing-whitespace advance (justification glue)
 
-  uint8_t bidiLevel = 0;
+  uint8_t bidiLevel = 0; ///< UBA embedding level; odd means right-to-left
   bool mandatoryBreakAfter = false; ///< '\n' and friends
   /// Trailing whitespace contains a tab (U+0009). With
   /// ParagraphLayoutOptions::tabStops configured, the greedy breaker
@@ -107,7 +111,7 @@ struct Word {
   /// discretionary break. `hyphenGlyph` is the cached shaped "-" to render
   /// when a breaker actually breaks here.
   bool hyphenBreak = false;
-  ShapedWordRef hyphenGlyph;
+  ShapedWordRef hyphenGlyph; ///< only set alongside `hyphenBreak`
 
   /// \>= 0: this word is Paragraph::placeholders()[placeholderIndex] — no
   /// glyphs, `width` comes from the placeholder record.
@@ -199,7 +203,7 @@ public:
   /// UTF-16 ranges in sync without wrapping every edit call. History is
   /// bounded; a consumer that falls too far behind must rebuild its ranges.
   struct TextEdit {
-    uint32_t start = 0;
+    uint32_t start = 0;    ///< UTF-16 position where the edit applied
     uint32_t removed = 0;  ///< UTF-16 units deleted at `start`
     uint32_t inserted = 0; ///< UTF-16 units inserted at `start`
   };
@@ -240,8 +244,8 @@ public:
   /// Line-height inputs from the first span's font (the "strut"): returns
   /// {ascent (positive), height} for a default single-spaced line.
   struct Strut {
-    float ascent = 0;
-    float height = 0;
+    float ascent = 0; ///< baseline distance below the line top, px (positive)
+    float height = 0; ///< default single-spaced line height, px
   };
   /** Returns positive ascent and default line height from the first span. */
   [[nodiscard]] Strut strut(FontContext &fontContext) const;

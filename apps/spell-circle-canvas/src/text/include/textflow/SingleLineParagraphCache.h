@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup layout
+ *
  * Optional cache for high-frequency labels, captions, and other short text.
  * It complements layoutSingleLine() while keeping application-specific path
  * geometry out of the core TextFlow library.
@@ -35,13 +37,17 @@ concept CacheableTextView =
  */
 class SingleLineParagraphCache {
 public:
+  /** Creates a cache that empties itself rather than exceed
+   *  `maximumEntries`, invalidating previously returned references. */
   explicit SingleLineParagraphCache(size_t maximumEntries = 1024);
   ~SingleLineParagraphCache();
 
   // Move-only: the pimpl owns node-map storage whose entry addresses are
   // part of the API contract (returned references stay valid), so copying
   // a cache would silently duplicate paragraphs without their guarantees.
+  /** Transfers the cache; references into it stay valid. */
   SingleLineParagraphCache(SingleLineParagraphCache &&) noexcept;
+  /** Replaces this cache with the source's entries, dropping its own. */
   SingleLineParagraphCache &operator=(SingleLineParagraphCache &&) noexcept;
   SingleLineParagraphCache(const SingleLineParagraphCache &) = delete;
   SingleLineParagraphCache &operator=(const SingleLineParagraphCache &) = delete;

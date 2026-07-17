@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup document
+ *
  * Minimal inline-storage vector used by TextFlow's public value types
  * (Word::segments). The first `InlineCapacity` elements live inside the
  * object; growth beyond that moves to the heap. Deliberately tiny — only
@@ -31,13 +33,17 @@ template <typename T, size_t InlineCapacity> class InlineVector {
 public:
   InlineVector() = default;
 
+  /** Copies `other`'s elements; small counts land in inline storage. */
   InlineVector(const InlineVector &other) { appendCopyOf(other); }
 
+  /** Steals heap storage, or moves elements when `other` is inline; the
+   *  source is left empty with inline capacity. */
   InlineVector(InlineVector &&other) noexcept(
       std::is_nothrow_move_constructible_v<T>) {
     stealFrom(std::move(other));
   }
 
+  /** Replaces the contents with a copy of `other`'s elements. */
   InlineVector &operator=(const InlineVector &other) {
     if (this != &other) {
       reset();
@@ -46,6 +52,8 @@ public:
     return *this;
   }
 
+  /** Replaces the contents by stealing from `other`, which is left empty
+   *  with inline capacity. */
   InlineVector &
   operator=(InlineVector &&other) noexcept(std::is_nothrow_move_constructible_v<T>) {
     if (this != &other) {
@@ -59,11 +67,16 @@ public:
 
   /** Returns a pointer to the first element of the contiguous storage. */
   T *data() noexcept { return m_heap ? m_heap : inlineData(); }
+  /** Returns a const pointer to the first element of the storage. */
   const T *data() const noexcept { return m_heap ? m_heap : inlineData(); }
 
+  /** Returns an iterator (plain pointer) to the first element. */
   T *begin() noexcept { return data(); }
+  /** Returns the past-the-end iterator. */
   T *end() noexcept { return data() + m_size; }
+  /** Returns a const iterator to the first element. */
   const T *begin() const noexcept { return data(); }
+  /** Returns the past-the-end const iterator. */
   const T *end() const noexcept { return data() + m_size; }
 
   /** Returns the number of live elements. */
@@ -73,11 +86,17 @@ public:
   /** Returns the element count storable without another allocation. */
   [[nodiscard]] size_t capacity() const noexcept { return m_capacity; }
 
+  /** Returns the element at `index`; no bounds checking. */
   T &operator[](size_t index) noexcept { return data()[index]; }
+  /** Returns the element at `index` (const); no bounds checking. */
   const T &operator[](size_t index) const noexcept { return data()[index]; }
+  /** Returns the first element; undefined when empty. */
   T &front() noexcept { return data()[0]; }
+  /** Returns the first element (const); undefined when empty. */
   const T &front() const noexcept { return data()[0]; }
+  /** Returns the last element; undefined when empty. */
   T &back() noexcept { return data()[m_size - 1]; }
+  /** Returns the last element (const); undefined when empty. */
   const T &back() const noexcept { return data()[m_size - 1]; }
 
   /** Destroys every element but keeps the current storage, so refill loops
@@ -94,7 +113,9 @@ public:
       grow(requestedCapacity);
   }
 
+  /** Appends a copy of `value`, growing storage when full. */
   void push_back(const T &value) { emplace_back(value); }
+  /** Appends by moving `value`, growing storage when full. */
   void push_back(T &&value) { emplace_back(std::move(value)); }
 
   /** Constructs an element in place at the end and returns it. */

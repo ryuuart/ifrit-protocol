@@ -1,5 +1,15 @@
 #pragma once
 
+/** @file
+ * @ingroup shaping
+ *
+ * The per-thread service object at the center of the pipeline: font
+ * management (HarfBuzz faces, variable-font clones, fallback resolution)
+ * and the content-addressed word shape cache, with observable Stats for
+ * tests and benchmarks. Create one FontContext per layout thread and hand
+ * it to every Paragraph / layoutParagraph call.
+ */
+
 #include "Style.h"
 
 #include <include/core/SkFontMgr.h>

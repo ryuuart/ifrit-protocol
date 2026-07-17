@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup shaping
+ *
  * Umbrella header for the TextFlow layout engine — a cache-first Skia text
  * layout library built directly on HarfBuzz and ICU (no
  * SkParagraph/SkShaper). Include this to pull in everything, or the
@@ -46,6 +48,28 @@
  *                                library carries no SkRuntimeEffect/SkSL
  *                                code — presets are content, not engine.
  */
+
+/** @defgroup shaping Shaping & fonts
+ *  Word shaping, the shape cache, font management, fallback, and the style
+ *  vocabulary that keys it all (Style.h, FontContext.h, Shaper.h,
+ *  Features.h). */
+/** @defgroup document Document model
+ *  Styled UTF-16 text with incremental analysis: Paragraph, spans,
+ *  placeholders, and the edit history (Paragraph.h). */
+/** @defgroup geometry Flow geometry
+ *  The shapes text flows into: blocks, exclusions, vertical columns,
+ *  explicit line sets, and paths (Flow.h). */
+/** @defgroup layout Layout
+ *  Line breaking and placement: layoutParagraph, options, positioned runs,
+ *  and the label fast path (ParagraphLayout.h,
+ *  SingleLineParagraphCache.h). */
+/** @defgroup paint Painting & effects
+ *  Draw-time appearance: paint layers, decorations, and the preset shader
+ *  library (the PaintStyle half of Style.h; PaintShaders.h). */
+/** @defgroup query Query & markers
+ *  Range search and edit-following marker sets (Query.h). */
+/** @defgroup animation Animation
+ *  Per-glyph choreography over finished layouts (Choreograph.h). */
 
 #include "Choreograph.h"
 #include "Features.h"

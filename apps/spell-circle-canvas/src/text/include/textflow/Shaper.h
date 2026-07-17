@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup shaping
+ *
  * Lower-level shaping types the pipeline is built on. A ShapedWord is the
  * immutable, cache-shared result of shaping one word-sized segment with one
  * resolved typeface / script / direction (glyphs, advances, clusters, and a
@@ -33,10 +35,10 @@ using ScriptTag = uint32_t;
 /// typeface / script / direction. Instances are shared out of the shape
 /// cache; a layout never mutates one, it only decides where to draw it.
 struct ShapedWord {
-  sk_sp<SkTypeface> typeface;
-  float fontSize = 0;
+  sk_sp<SkTypeface> typeface; ///< resolved face the glyph IDs index into
+  float fontSize = 0;         ///< px size every metric below is scaled to
 
-  std::vector<uint16_t> glyphs;
+  std::vector<uint16_t> glyphs;   ///< glyph IDs in `typeface`
   std::vector<SkPoint> positions; ///< pen-relative glyph origins
   std::vector<float> advances;    ///< per-glyph advance (letter spacing baked
                                   ///< in) — pen travel, used for curved lines
@@ -54,6 +56,8 @@ struct ShapedWord {
   mutable sk_sp<SkTextBlob> blobCache;
 };
 
+/// Shared handle to a cache-owned, immutable ShapedWord — cheap to copy and
+/// safe to hold across layouts.
 using ShapedWordRef = std::shared_ptr<const ShapedWord>;
 
 /** Shapes `text` with HarfBuzz, going through FontContext's shape cache.

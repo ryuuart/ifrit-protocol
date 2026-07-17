@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup geometry
+ *
  * The geometry a paragraph flows into. Text is never bound to a rectangle: a
  * "line" is an ordered list of LineIntervals — straight segments in any
  * direction, or spans of an SkPath contour — supplied one line at a time by
@@ -36,15 +38,15 @@ struct LineInterval {
   /// Straight form: pen starts at `origin` (a baseline point) and travels
   /// along unit vector `direction` for at most `length`.
   SkPoint origin = {0, 0};
-  SkVector direction = {1, 0};
-  float length = 0;
+  SkVector direction = {1, 0}; ///< unit vector of pen travel
+  float length = 0;            ///< maximum pen travel, px
 
   /// Path form: when `contour` is set, the pen instead travels the
   /// contour's arc length starting at `contourStart`; glyphs are rotated to
   /// the local tangent (rendered with RSXform runs). `origin`/`direction`
   /// are ignored.
   sk_sp<SkContourMeasure> contour;
-  float contourStart = 0;
+  float contourStart = 0; ///< arc length where the pen enters the contour
 
   /// Contour intervals only: arc length consumed per unit of glyph advance.
   /// Compensates curvature when the glyphs' optical centers ride at a
@@ -104,8 +106,11 @@ private:
 /// are cheap to move: geometry is re-evaluated per layout pass.
 class ExclusionFlow : public FlowGeometry {
 public:
+  /// One area text must flow around, in the same coordinate space as the
+  /// line bands. Build with the fromCircle/fromRectangle/fromPath factories.
   struct Shape {
-    enum Kind { kCircle, kRect, kPath } kind = kRect;
+    /// Selects which of the geometry fields below are meaningful.
+    enum Kind { kCircle, kRect, kPath } kind = kRect; ///< active geometry form
     /// kCircle uses the inscribed circle of `bounds`; kPath ignores
     /// `bounds`.
     SkRect bounds = SkRect::MakeEmpty();
@@ -117,7 +122,7 @@ public:
     /// setting `pathOffset` (free) rather than rebuilding the SkPath every
     /// frame (a re-flatten per frame — still cheap, but not free).
     SkPath path;
-    SkPoint pathOffset = {0, 0};
+    SkPoint pathOffset = {0, 0}; ///< translation applied to `path` per pass
 
     /** Creates a circular exclusion inscribed in `bounds`. */
     [[nodiscard]] static Shape fromCircle(const SkRect &bounds,

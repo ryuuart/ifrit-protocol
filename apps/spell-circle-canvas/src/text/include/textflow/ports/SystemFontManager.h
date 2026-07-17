@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup shaping
+ *
  * Platform system-font-manager factory — the one place TextFlow's tools,
  * tests, and consumers obtain an SkFontMgr wired to the host operating
  * system. Every platform port hides behind the same call, so adding

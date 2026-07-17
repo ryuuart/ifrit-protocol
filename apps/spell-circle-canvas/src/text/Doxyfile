@@ -21,9 +21,9 @@ STRIP_FROM_PATH        = include qt/include
 JAVADOC_AUTOBRIEF      = YES
 QT_AUTOBRIEF           = YES
 
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 EXTRACT_STATIC         = YES
-WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_UNDOCUMENTED   = YES
 WARN_NO_PARAMDOC       = NO
 
 GENERATE_HTML          = YES

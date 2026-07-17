@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup shaping
+ *
  * Named OpenType feature presets — CSS font-variant-* vocabulary as
  * ready-made FontFeature values, so styles read
  * `style.shaping.fontFeatures = {Features::tabularNumbers}` instead of

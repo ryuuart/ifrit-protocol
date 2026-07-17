@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup animation
+ *
  * Per-glyph choreography utilities — the "letters leave their lines"
  * pattern (rain, ripples, marquees) distilled from the demos and the
  * gallery. Optional layer: nothing in the core pipeline includes this.
@@ -94,13 +96,15 @@ inline void quantizeAngle(float angle, float &cosine, float &sine) {
 /// letters collapses into a handful of drawGlyphsRSXform calls. Reuse one
 /// instance across frames — clear() keeps the allocations.
 struct GlyphRSXformBatches {
+  /// One (font source, color) bucket: parallel glyph/transform arrays that
+  /// feed a single drawGlyphsRSXform call.
   struct Batch {
-    const ShapedWord *font = nullptr;
-    SkColor color = 0;
-    std::vector<SkGlyphID> glyphs;
-    std::vector<SkRSXform> transforms;
+    const ShapedWord *font = nullptr;  ///< bucket key: supplies the SkFont
+    SkColor color = 0;                 ///< bucket key: flat draw color
+    std::vector<SkGlyphID> glyphs;     ///< parallel to `transforms`
+    std::vector<SkRSXform> transforms; ///< per-glyph scale/rotate/translate
   };
-  std::vector<Batch> batches;
+  std::vector<Batch> batches; ///< one entry per distinct (font, color) pair
 
   /** Returns the batch for a shaped font source and color. */
   [[nodiscard]] Batch &batchForStyle(const ShapedWord *font, SkColor color) {

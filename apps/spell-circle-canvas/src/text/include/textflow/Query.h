@@ -1,6 +1,8 @@
 #pragma once
 
 /** @file
+ * @ingroup query
+ *
  * Optional convenience layer over Paragraph — nothing in the core pipeline
  * depends on it, and applications with their own selection/annotation
  * systems can ignore it entirely. It exists for the HTML/JS-flavoured
