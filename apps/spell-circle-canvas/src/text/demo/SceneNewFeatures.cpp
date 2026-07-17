@@ -1,16 +1,20 @@
 // Scene K — the typographic features added in the standalone-polish pass,
 // one panel each: text decorations (metric underline with ink skipping,
-// strikethrough, overline), locale-aware text-transform, word spacing,
-// variable-font axes through ShapingStyle::variations, tab stops, and line
-// clamp. Doubles as the visual-regression PNG for those features.
+// strikethrough, overline), shaded decoration fills, locale-aware
+// text-transform, word spacing, variable-font axes through
+// ShapingStyle::variations, tab stops, and line clamp. Doubles as the
+// visual-regression PNG for those features.
 #include "DemoScenes.h"
 #include "DemoSupport.h"
 
 #include <textflow/Features.h>
+#include <textflow/PaintShaders.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTileMode.h>
+#include <include/effects/SkGradient.h>
 
 #include <cstdio>
 
@@ -77,6 +81,52 @@ void sceneNewFeatures(FontContext &fontContext,
         {.kind = Decoration::Kind::kHighlight, .color = 0x66FFD54A});
     paragraph.appendText(u8"marker over words and gaps", marked);
     BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 22, 900, 44));
+    layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
+  }
+  rowTop += 92;
+
+  // ── Decoration fills: full-paint bands, shaded independently ──────────
+  drawLabel(fontContext, canvas,
+            u8"decoration fills — Decoration::paint shades the band, not the "
+            u8"glyphs",
+            rowTop);
+  {
+    const SkRect bandBounds = SkRect::MakeXYWH(40, rowTop + 22, 900, 44);
+    Paragraph paragraph;
+
+    // A PaintShaders preset behind plain ink: only the marker is shaded.
+    TextStyle meshMarked = style(26, kInk);
+    Decoration meshHighlight;
+    meshHighlight.kind = Decoration::Kind::kHighlight;
+    SkPaint meshPaint;
+    meshPaint.setAntiAlias(true);
+    meshPaint.setAlphaf(0.55f); // keep the ink readable through the band
+    meshPaint.setShader(PaintShaders::meshGradient(bandBounds, 1.5f));
+    meshHighlight.paint = meshPaint;
+    meshMarked.paint.addDecoration(meshHighlight);
+    paragraph.appendText(u8"a mesh-gradient marker ", meshMarked);
+
+    // A gradient underline under equally plain ink.
+    TextStyle gradientRuled = style(26, kInk);
+    Decoration gradientUnderline;
+    gradientUnderline.thickness = 4.0f;
+    gradientUnderline.skipInk = false;
+    SkPaint underlinePaint;
+    underlinePaint.setAntiAlias(true);
+    const SkPoint gradientPoints[2] = {{bandBounds.left(), 0},
+                                       {bandBounds.right(), 0}};
+    const SkColor4f gradientColors[2] = {SkColor4f::FromColor(kAccent),
+                                         SkColor4f::FromColor(kBlue)};
+    underlinePaint.setShader(SkShaders::LinearGradient(
+        gradientPoints,
+        SkGradient(SkGradient::Colors({gradientColors, 2}, SkTileMode::kClamp),
+                   SkGradient::Interpolation())));
+    gradientUnderline.paint = underlinePaint;
+    gradientRuled.paint.addDecoration(gradientUnderline);
+    paragraph.appendText(u8"and a gradient rule under plain glyphs",
+                         gradientRuled);
+
+    BlockFlow flow(bandBounds);
     layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
   }
   rowTop += 92;

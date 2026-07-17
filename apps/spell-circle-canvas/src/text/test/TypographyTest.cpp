@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <include/core/SkPixmap.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
@@ -699,6 +700,100 @@ TEST(DecorationTest, HighlightSpansGapsBeneathGlyphs) {
       for (int y = xHeightY - 6; y <= xHeightY + 6 && !sawInk; ++y)
         sawInk = SkColorGetR(pixmap.getColor(x, y)) < 80;
     EXPECT_TRUE(sawInk) << "glyphs must draw above the highlight";
+  }
+}
+
+TEST(DecorationTest, BandPaintOverrideAppliesVerbatim) {
+  SkFontMetrics metrics = {};
+  metrics.fAscent = -20.0f;
+  metrics.fDescent = 6.0f;
+
+  // Default fill: an anti-aliased solid of the band's resolved color.
+  Decoration plain;
+  plain.color = SK_ColorBLUE;
+  const SkPaint fallback = detail::decorationBandPaint(
+      plain, detail::resolveDecorationBand(plain, metrics, SK_ColorRED));
+  EXPECT_TRUE(fallback.isAntiAlias());
+  EXPECT_EQ(fallback.getColor(), SK_ColorBLUE);
+  EXPECT_EQ(fallback.getShader(), nullptr);
+
+  // Override fill: the caller's paint verbatim — shader, blend mode,
+  // alpha — taking precedence over `color`.
+  Decoration shaded;
+  shaded.color = SK_ColorBLUE; // ignored once `paint` is set
+  SkPaint bandPaint;
+  bandPaint.setShader(SkShaders::Color(SK_ColorGREEN));
+  bandPaint.setBlendMode(SkBlendMode::kScreen);
+  bandPaint.setAlphaf(0.5f);
+  shaded.paint = bandPaint;
+  EXPECT_EQ(detail::decorationBandPaint(
+                shaded,
+                detail::resolveDecorationBand(shaded, metrics, SK_ColorRED)),
+            bandPaint);
+}
+
+TEST(DecorationTest, ShadedBandDrawsIndependentlyOfGlyphPaint) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
+  BlockFlow flow(SkRect::MakeWH(400, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  std::vector<const PositionedRun *> wordRuns;
+  for (const PositionedRun &run : layout.runs)
+    if (run.shaped)
+      wordRuns.push_back(&run);
+  ASSERT_GE(wordRuns.size(), 2u);
+  const float gapStart =
+      wordRuns[0]->origin.x() + wordRuns[0]->shaped->advance;
+  const float gapEnd = wordRuns[1]->origin.x();
+  ASSERT_GT(gapEnd, gapStart);
+
+  // Glyphs keep a plain black fill; only the highlight band gets a shader.
+  // A solid green color shader stands in for the animated presets: green
+  // can only reach the surface through the band's paint override.
+  PaintStyle marked(SK_ColorBLACK);
+  Decoration highlight;
+  highlight.kind = Decoration::Kind::kHighlight;
+  SkPaint bandPaint;
+  bandPaint.setAntiAlias(true);
+  bandPaint.setShader(SkShaders::Color(SK_ColorGREEN));
+  highlight.paint = bandPaint;
+  marked.addDecoration(highlight);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     marked);
+
+  for (const bool batched : {false, true}) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 80));
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    if (batched)
+      layout.drawBatched(surface->getCanvas(), paragraph);
+    else
+      layout.draw(surface->getCanvas(), paragraph);
+
+    SkPixmap pixmap;
+    ASSERT_TRUE(surface->peekPixels(&pixmap));
+    // Mid-gap, mid-x-height sits inside the band and clear of glyph ink:
+    // the shader must have filled it.
+    const int gapX = static_cast<int>((gapStart + gapEnd) * 0.5f);
+    const int xHeightY = static_cast<int>(wordRuns[0]->origin.y() - 8.0f);
+    const SkColor gapColor = pixmap.getColor(gapX, xHeightY);
+    EXPECT_GT(SkColorGetG(gapColor), 200u)
+        << (batched ? "batched" : "immediate")
+        << ": band shader must fill the gap";
+    EXPECT_LT(SkColorGetR(gapColor), 100u);
+
+    // The glyph fill stays plain black above the shaded band — the two
+    // pipelines resolve independently.
+    bool sawInk = false;
+    const int wordStartX = static_cast<int>(wordRuns[0]->origin.x());
+    const int wordEndX = static_cast<int>(gapStart);
+    for (int x = wordStartX; x < wordEndX && !sawInk; ++x)
+      for (int y = xHeightY - 6; y <= xHeightY + 6 && !sawInk; ++y) {
+        const SkColor color = pixmap.getColor(x, y);
+        sawInk = SkColorGetR(color) < 80 && SkColorGetG(color) < 80;
+      }
+    EXPECT_TRUE(sawInk) << "glyphs must keep their own paint";
   }
 }
 

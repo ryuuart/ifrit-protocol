@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -256,6 +257,17 @@ struct PaintLayer {
  * with the default range spanning it renders as a continuous highlighter
  * stroke behind the words and their gaps.
  *
+ * A decoration separates two concerns: *band geometry* (kind, span,
+ * thickness, offset, skipInk) and *band fill*. The fill has two spellings:
+ * `color` is the lightweight one, and `paint` is the full SkPaint
+ * vocabulary — shaders (PaintShaders.h presets animate per frame through
+ * Paragraph::setPaint() without relayout, exactly like glyph paint), blend
+ * modes, mask filters. Glyphs and decorations resolve their fills
+ * independently, so a shaded highlight under plain-colored text — or the
+ * reverse — needs no coordination between the two. Multi-pass band effects
+ * compose the same way glyph passes do: stack several decorations with the
+ * same geometry and different fills.
+ *
  * Scope: decorations render on straight horizontal runs only — transformed
  * (path/rotated) and vertical runs skip them.
  */
@@ -290,8 +302,17 @@ struct Decoration {
   /// Underlines only: interrupt the line where glyph ink (descenders)
   /// crosses the band, via SkTextBlob::getIntercepts.
   bool skipInk = true;
+  /// Full-vocabulary band fill. When set it is applied verbatim — nothing
+  /// is overridden, exactly like a PaintLayer wrapping a caller-configured
+  /// SkPaint — and it takes precedence over `color`, whose resolution rules
+  /// (including the translucent kHighlight default) no longer apply: alpha,
+  /// anti-aliasing, and everything else are the caller's. Band geometry is
+  /// untouched — the paint fills the same rect segments a plain color
+  /// would, ink skipping included.
+  std::optional<SkPaint> paint;
 
-  /** Compares kind, span, color, geometry overrides, and ink skipping. */
+  /** Compares kind, span, fill (color and paint override), geometry
+   * overrides, and ink skipping. */
   bool operator==(const Decoration &) const = default;
 };
 
@@ -336,7 +357,7 @@ struct PaintStyle {
 
   /** Appends a line decoration and returns this style. */
   PaintStyle &addDecoration(Decoration decoration) {
-    decorations.push_back(decoration);
+    decorations.push_back(std::move(decoration));
     return *this;
   }
 

@@ -251,6 +251,13 @@ struct ResolvedDecorationBand {
 resolveDecorationBand(const Decoration &decoration,
                       const SkFontMetrics &metrics, SkColor foregroundColor);
 
+/** Resolves the paint a decoration band draws with — the fill concern,
+ * separate from the band geometry above: the decoration's `paint` override
+ * verbatim when present, otherwise an anti-aliased fill of the band's
+ * resolved color. */
+[[nodiscard]] SkPaint decorationBandPaint(const Decoration &decoration,
+                                          const ResolvedDecorationBand &band);
+
 /** Returns the absolute x spans the decoration actually draws for `run` —
  * one span covering the run's advance, minus glyph-ink intercepts (grown by
  * one thickness of standoff) when the decoration skips ink. Empty for

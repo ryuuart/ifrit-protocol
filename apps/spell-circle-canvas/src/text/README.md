@@ -121,7 +121,13 @@ The Chrome-parity surface, and where each feature lives in the pipeline:
   full-text-height band drawn beneath every glyph pass — with range
   spanning it reads as one highlighter stroke across words *and* gaps
   (default color: the foreground at ~25% alpha, so text stays legible).
-  All of it is paint-side: adding or recoloring never reshapes or
+  Band *fill* is a separate concern from band geometry: `color` is the
+  lightweight spelling, and `Decoration::paint` is a full-`SkPaint`
+  override applied verbatim — shaders (including the `PaintShaders`
+  presets), blend modes, mask filters — resolved independently of the
+  glyph paint, so a shaded marker can sit under plain ink or vice versa;
+  stack same-geometry decorations for multi-pass band effects. All of it
+  is paint-side: adding, recoloring, or re-shading never reshapes or
   relayouts.
 - **Text transform** — `ShapingStyle::textTransform` (uppercase, lowercase,
   capitalize) applies locale-aware ICU case mapping just before shaping
@@ -357,6 +363,13 @@ effects
                     .color = 0x66FFD54A})                   // behind the text
     .addDecoration({.span = Decoration::Span::kPerWord});   // squiggle-style
                                                             // per-word bands
+// Decoration bands take a full SkPaint of their own, shaded
+// independently of the glyphs (same geometry, caller's fill verbatim):
+SkPaint bandPaint;
+bandPaint.setAlphaf(0.5f);
+bandPaint.setShader(PaintShaders::water(canvasBounds, elapsedSeconds));
+effects.addDecoration(
+    {.kind = Decoration::Kind::kHighlight, .paint = bandPaint});
 // Shaders are canvas-space: one shader spans the whole paragraph.
 // (PaintShaders presets live in the separate TextFlowShaders library.)
 effects.foreground.setShader(
@@ -469,7 +482,7 @@ Everything that trades fidelity against speed, in one place:
 | `variations` | ShapingStyle | none | variable-font axes via the memoized clone cache |
 | `textTransform` | ShapingStyle | none | pre-shaping locale-aware case mapping |
 | `verticalForm` | ShapingStyle | auto | per-span upright / rotated / tate-chu-yoko in vertical mode |
-| paint layers / decorations | PaintStyle | none | ordered extra glyph passes and decoration bands (range or per-word span; highlights beneath the glyphs); each layer adds one draw |
+| paint layers / decorations | PaintStyle | none | ordered extra glyph passes and decoration bands (range or per-word span; highlights beneath the glyphs; band fill via `color` or a verbatim full-`SkPaint` override); each layer adds one draw |
 | shader program / layer count | PaintStyle + TextFlowShaders | solid foreground | runtime shader pixel cost and pass count are independent; prefer `drawBatched` |
 | subpixel gate | Shaper.cpp (`makeFont`) | <48px | subpixel positioning only where visible |
 | shape-cache cap | FontContextImpl.h | ~130k entries | wholesale clear past the cap (one cold frame), no LRU |

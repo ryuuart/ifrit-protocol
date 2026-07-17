@@ -702,8 +702,10 @@ bool decorableRun(const PositionedRun &run) {
 }
 
 // Emits every decoration rect for a layout through `emitRect(SkRect,
-// SkColor)`. Shared by draw() (immediate) and drawBatched() (deferred past
-// the glyph buckets so strikethroughs land above the batched glyphs).
+// const SkPaint &)` — the paint already resolved by decorationBandPaint(),
+// so callers just draw. Shared by draw() (immediate) and drawBatched()
+// (deferred past the glyph buckets so strikethroughs land above the
+// batched glyphs).
 //
 // Decorations span the *decorated range*, not individual words: contiguous
 // runs on one line sharing a style (and metrics identity) merge into one
@@ -771,6 +773,7 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
       const detail::ResolvedDecorationBand band =
           detail::resolveDecorationBand(decoration, metrics,
                                         style.foreground.getColor());
+      const SkPaint bandPaint = detail::decorationBandPaint(decoration, band);
       const float top = first.origin.y() + band.position;
       if (decoration.span == Decoration::Span::kPerWord) {
         // One band per word run: reuse the single-run segment geometry so
@@ -780,7 +783,7 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
                    runs[runIndex], decoration, band))
             emitRect(SkRect::MakeLTRB(startX, top, endX,
                                       top + band.thickness),
-                     band.color);
+                     bandPaint);
         continue;
       }
       const bool skipInk = decoration.skipInk &&
@@ -788,7 +791,7 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
       if (!skipInk) {
         emitRect(SkRect::MakeLTRB(groupStartX, top, groupEndX,
                                   top + band.thickness),
-                 band.color);
+                 bandPaint);
         continue;
       }
       // One continuous band minus every member run's ink intercepts. Glue
@@ -816,14 +819,14 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
             emitRect(SkRect::MakeLTRB(cursor, top,
                                       std::min(inkStart, groupEndX),
                                       top + band.thickness),
-                     band.color);
+                     bandPaint);
           cursor = std::max(cursor, inkEnd);
         }
       }
       if (cursor < groupEndX)
         emitRect(SkRect::MakeLTRB(cursor, top, groupEndX,
                                   top + band.thickness),
-                 band.color);
+                 bandPaint);
     }
     groupStart = groupEnd;
   }
@@ -891,6 +894,16 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration &decoration,
   return band;
 }
 
+SkPaint decorationBandPaint(const Decoration &decoration,
+                            const ResolvedDecorationBand &band) {
+  if (decoration.paint)
+    return *decoration.paint;
+  SkPaint fill;
+  fill.setAntiAlias(true);
+  fill.setColor(band.color);
+  return fill;
+}
+
 std::vector<std::pair<float, float>>
 decorationSegments(const PositionedRun &run, const Decoration &decoration,
                    const ResolvedDecorationBand &band) {
@@ -945,11 +958,8 @@ decorationSegments(const PositionedRun &run, const Decoration &decoration,
 void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            const PaintStyle *overridePaint) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
-  SkPaint decorationPaint;
-  decorationPaint.setAntiAlias(true);
-  const auto drawRect = [&](SkRect rect, SkColor color) {
-    decorationPaint.setColor(color);
-    canvas->drawRect(rect, decorationPaint);
+  const auto drawRect = [&](SkRect rect, const SkPaint &paint) {
+    canvas->drawRect(rect, paint);
   };
 
   forEachDecorationRect(runs, spans, overridePaint,
@@ -1083,9 +1093,11 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
 
   // Decoration rects accumulate during the run walk and flush after the
   // glyph buckets, so strikethroughs/overlines land above the batched text.
+  // Paints are copied by value: the resolved band paint lives on the
+  // emitter's stack.
   struct DecorationRect {
     SkRect rect;
-    SkColor color;
+    SkPaint paint;
   };
   static thread_local std::vector<DecorationRect> decorationRects;
   decorationRects.clear();
@@ -1093,20 +1105,15 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
   // Highlights go straight to the canvas: every glyph pass draws after
   // them. The above-glyph decorations accumulate and flush past the
   // buckets so strikethroughs land above the batched text.
-  {
-    SkPaint highlightPaint;
-    highlightPaint.setAntiAlias(true);
-    forEachDecorationRect(runs, spans, overridePaint,
-                          DecorationPhase::kBelowGlyphs,
-                          [&](SkRect rect, SkColor color) {
-                            highlightPaint.setColor(color);
-                            canvas->drawRect(rect, highlightPaint);
-                          });
-  }
+  forEachDecorationRect(runs, spans, overridePaint,
+                        DecorationPhase::kBelowGlyphs,
+                        [&](SkRect rect, const SkPaint &paint) {
+                          canvas->drawRect(rect, paint);
+                        });
   forEachDecorationRect(runs, spans, overridePaint,
                         DecorationPhase::kAboveGlyphs,
-                        [&](SkRect rect, SkColor color) {
-                          decorationRects.push_back({rect, color});
+                        [&](SkRect rect, const SkPaint &paint) {
+                          decorationRects.push_back({rect, paint});
                         });
 
   for (const PositionedRun &run : runs) {
@@ -1168,14 +1175,9 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
     });
   }
 
-  if (!decorationRects.empty()) {
-    SkPaint decorationPaint;
-    decorationPaint.setAntiAlias(true);
-    for (const DecorationRect &decorationRect : decorationRects) {
-      decorationPaint.setColor(decorationRect.color);
-      canvas->drawRect(decorationRect.rect, decorationPaint);
-    }
-  }
+  for (const DecorationRect &decorationRect : decorationRects)
+    canvas->drawRect(decorationRect.rect, decorationRect.paint);
+  decorationRects.clear(); // paints hold shader refs; don't pin past the frame
 }
 
 } // namespace textflow

@@ -149,7 +149,8 @@ add_executable(textflow_demo
   demo/SceneFallback.cpp
   demo/SceneNewFeatures.cpp
 )
-target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowPorts)
+target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
+                                            TextFlowPorts)
 
 # ── Install / export (find_package(TextFlow) from an install tree) ───────
 # The eventual private vcpkg registry port drives exactly these rules; the
