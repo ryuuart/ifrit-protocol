@@ -13,7 +13,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
-#include <include/ports/SkFontMgr_mac_ct.h>
+#include <textflow/ports/SystemFontManager.h>
 
 #include <QFont>
 #include <QMouseEvent>
@@ -308,7 +308,7 @@ void GalleryViewRenderer::renderScene(SkCanvas *canvas, float devicePixelRatio,
                                       QSize logicalSize) {
   using Clock = std::chrono::steady_clock;
   if (!m_fontContext) {
-    sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+    sk_sp<SkFontMgr> fontManager = textflow::ports::systemFontManager();
     m_fontContext = std::make_unique<textflow::FontContext>(
         fontManager, nullptr, makeGalleryFallbackResolver(*fontManager));
   }
@@ -651,7 +651,7 @@ void GalleryView::refreshFontAxes() {
   if (!m_fontFamily.isEmpty()) {
     // Axis discovery is GUI-side so QML updates as soon as the family changes.
     // Rendering resolves the same family independently on the render thread.
-    static sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+    const sk_sp<SkFontMgr> fontManager = textflow::ports::systemFontManager();
     sk_sp<SkTypeface> typeface =
         resolveGalleryTypeface(fontManager.get(), m_fontFamily);
     const int axisCount =

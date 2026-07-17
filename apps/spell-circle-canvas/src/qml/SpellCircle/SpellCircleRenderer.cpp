@@ -2,7 +2,7 @@
 #include "QCanvasPainterSceneBackend.h"
 #include "SkiaSceneBackend.h"
 #include "SpellCircle.h"
-#include "SyphonBridge.h"
+#include "TexturePublisher.h"
 #include <QColor>
 #include <QHash>
 #include <QPainterPath>
@@ -75,15 +75,14 @@ bool isAnchorOnlyCircle(const CircleComponent &circle) {
 
 } // namespace
 
-SpellCircleRenderer::SpellCircleRenderer()
-    : m_syphon(std::make_unique<SyphonBridge>("SpellCircle")) {
+SpellCircleRenderer::SpellCircleRenderer() {
   m_font.setBold(true);
   m_font.setPointSize(36);
   // addEllipse starts at 3 o'clock and goes CW, so 0.75 lands at 12 o'clock.
   m_curvedTextPainter.setPathOffset(0.75f);
 }
 
-SpellCircleRenderer::~SpellCircleRenderer() { m_syphon->stop(); }
+SpellCircleRenderer::~SpellCircleRenderer() = default;
 
 void SpellCircleRenderer::synchronize(QCanvasPainterItem *item) {
   auto *spellCircleItem = static_cast<SpellCircle *>(item);
@@ -248,7 +247,11 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
 
 void SpellCircleRenderer::initializeResources(QCanvasPainter *painter) {
   static_cast<void>(painter);
-  m_syphon->start(rhi());
+  // Both factories inspect the active QRhi backend themselves and return
+  // null when they have no implementation for it, so this method stays
+  // backend-agnostic: publishing is optional, drawing falls back to the
+  // always-available QCanvasPainter backend.
+  m_publisher = createTexturePublisher(rhi(), "SpellCircle");
   m_sceneBackend = createSkiaSceneBackend(rhi());
   if (!m_sceneBackend)
     m_sceneBackend = std::make_unique<QCanvasPainterSceneBackend>();
@@ -283,7 +286,7 @@ void SpellCircleRenderer::paint(QCanvasPainter *painter) {
 
 void SpellCircleRenderer::render(QRhiCommandBuffer *commandBuffer) {
   QCanvasPainterItemRenderer::render(commandBuffer);
-  if (!m_canvas.isNull() && m_canvas.texture())
-    m_syphon->publishFrame(m_canvas.texture(), commandBuffer,
-                           m_allocatedCanvasWidth, m_allocatedCanvasHeight);
+  if (m_publisher && !m_canvas.isNull() && m_canvas.texture())
+    m_publisher->publishFrame(m_canvas.texture(), commandBuffer,
+                              m_allocatedCanvasWidth, m_allocatedCanvasHeight);
 }

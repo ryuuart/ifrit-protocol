@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <include/core/SkFontMgr.h>
-#include <include/ports/SkFontMgr_mac_ct.h>
+#include <textflow/ports/SystemFontManager.h>
 
 #include <absl/container/flat_hash_set.h>
 
@@ -146,7 +146,7 @@ TEST(Itemization, FallbackResolvesCjkGlyphs) {
 }
 
 TEST(Itemization, CustomFallbackResolverControlsSelection) {
-  sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+  sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
   sk_sp<SkTypeface> primary =
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
   sk_sp<SkTypeface> preferred =
@@ -184,7 +184,7 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
 }
 
 TEST(Itemization, FallbackCacheIncludesLanguage) {
-  sk_sp<SkFontMgr> fontManager = SkFontMgr_New_CoreText(nullptr);
+  sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
   sk_sp<SkTypeface> primary =
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
   sk_sp<SkTypeface> simplified =

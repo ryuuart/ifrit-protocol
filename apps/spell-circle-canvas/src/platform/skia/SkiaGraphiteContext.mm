@@ -17,6 +17,12 @@ SkiaGraphiteContext::SkiaGraphiteContext(
 SkiaGraphiteContext::~SkiaGraphiteContext() = default;
 
 std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
+  // This factory is the single Graphite bring-up point: it inspects the
+  // QRhi backend and returns null for anything it cannot serve, so callers
+  // never assume Metal. A Vulkan/Dawn port adds a branch here (Vulkan:
+  // QRhiVulkanNativeHandles → skgpu::graphite::VulkanBackendContext →
+  // ContextFactory::MakeVulkan) plus the matching texture-wrap branch in
+  // SkiaOffscreenSurface — nothing outside src/platform/skia changes.
   if (!rhi || rhi->backend() != QRhi::Metal)
     return nullptr;
 

@@ -14,7 +14,7 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <include/ports/SkFontMgr_mac_ct.h>
+#include <textflow/ports/SystemFontManager.h>
 
 #include <benchmark/benchmark.h>
 
@@ -29,7 +29,7 @@ using namespace textflow;
 namespace {
 
 FontContext &fontContext() {
-  static auto *instance = new FontContext(SkFontMgr_New_CoreText(nullptr));
+  static auto *instance = new FontContext(ports::systemFontManager());
   return *instance;
 }
 

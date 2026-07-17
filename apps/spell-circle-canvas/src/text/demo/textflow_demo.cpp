@@ -20,7 +20,7 @@
 
 #include <textflow/FontContext.h>
 
-#include <include/ports/SkFontMgr_mac_ct.h>
+#include <textflow/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
   const std::filesystem::path outputDirectory = "textflow_demo_out";
   std::filesystem::create_directories(outputDirectory);
 
-  textflow::FontContext fontContext(SkFontMgr_New_CoreText(nullptr));
+  textflow::FontContext fontContext(textflow::ports::systemFontManager());
 
   sceneExclusions(fontContext, frames, outputDirectory);
   sceneKnuthPlass(fontContext, frames, outputDirectory);

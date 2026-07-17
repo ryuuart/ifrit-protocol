@@ -1,7 +1,7 @@
 #include "TestSupport.h"
 
 #include <include/core/SkFontMgr.h>
-#include <include/ports/SkFontMgr_mac_ct.h>
+#include <textflow/ports/SystemFontManager.h>
 
 #include <absl/container/flat_hash_set.h>
 
@@ -10,8 +10,8 @@
 namespace textflow::test {
 
 FontContext &sharedContext() {
-  // CoreText font-manager construction enumerates system fonts; do it once.
-  static auto *fontContext = new FontContext(SkFontMgr_New_CoreText(nullptr));
+  // systemFontManager() shares one enumerated font set process-wide.
+  static auto *fontContext = new FontContext(ports::systemFontManager());
   return *fontContext;
 }
 

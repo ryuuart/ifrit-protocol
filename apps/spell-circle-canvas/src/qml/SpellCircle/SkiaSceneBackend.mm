@@ -15,9 +15,9 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
-#include <include/ports/SkFontMgr_mac_ct.h>
 
 #include <textflow/TextFlow.h>
+#include <textflow/ports/SystemFontManager.h>
 #include <textflowqt/TextFlowQt.h>
 
 #include <QByteArray>
@@ -67,7 +67,7 @@ public:
     // and paragraph text below goes through it.
     if (!m_textContext)
       m_textContext = std::make_unique<textflow::FontContext>(
-          SkFontMgr_New_CoreText(nullptr));
+          textflow::ports::systemFontManager());
 
     const SkColor accentColor = toSkColor(renderer.m_accentColor);
     const float strokeWidth =
@@ -115,6 +115,17 @@ public:
     }
 
     // ── Circles ──────────────────────────────────────────────────────────────
+    // Paints hoisted out of the loop (like edgePaint above): only the fill
+    // alpha varies per circle.
+    SkPaint circleStrokePaint;
+    circleStrokePaint.setAntiAlias(true);
+    circleStrokePaint.setStyle(SkPaint::kStroke_Style);
+    circleStrokePaint.setStrokeWidth(strokeWidth);
+    circleStrokePaint.setColor(accentColor);
+    SkPaint circleFillPaint;
+    circleFillPaint.setAntiAlias(true);
+    circleFillPaint.setStyle(SkPaint::kFill_Style);
+    circleFillPaint.setColor(accentColor);
     for (const auto &circle : renderer.m_circles) {
       // A radius-0 circle is an invisible anchor (see isAnchorOnlyCircle in
       // SpellCircleRenderer.cpp) used only to position points/boxes/edges —
@@ -126,20 +137,11 @@ public:
       const float centerX = static_cast<float>(circle.center.x());
       const float centerY = static_cast<float>(circle.center.y());
 
-      SkPaint strokePaint;
-      strokePaint.setAntiAlias(true);
-      strokePaint.setStyle(SkPaint::kStroke_Style);
-      strokePaint.setStrokeWidth(strokeWidth);
-      strokePaint.setColor(accentColor);
-      skCanvas->drawCircle(centerX, centerY, radius, strokePaint);
+      skCanvas->drawCircle(centerX, centerY, radius, circleStrokePaint);
 
       if (circle.active > 0.0f) {
-        SkPaint fillPaint;
-        fillPaint.setAntiAlias(true);
-        fillPaint.setStyle(SkPaint::kFill_Style);
-        fillPaint.setColor(accentColor);
-        fillPaint.setAlphaf(circle.active);
-        skCanvas->drawCircle(centerX, centerY, radius, fillPaint);
+        circleFillPaint.setAlphaf(circle.active);
+        skCanvas->drawCircle(centerX, centerY, radius, circleFillPaint);
       }
 
       if (!circle.name.isEmpty()) {
@@ -189,6 +191,18 @@ public:
     }
 
     // ── Boxes ────────────────────────────────────────────────────────────────
+    // Box paints hoisted like the circle paints; only fill alpha varies.
+    SkPaint boxClearPaint;
+    boxClearPaint.setBlendMode(SkBlendMode::kClear);
+    SkPaint boxFillPaint;
+    boxFillPaint.setAntiAlias(true);
+    boxFillPaint.setStyle(SkPaint::kFill_Style);
+    boxFillPaint.setColor(accentColor);
+    SkPaint boxStrokePaint;
+    boxStrokePaint.setAntiAlias(true);
+    boxStrokePaint.setStyle(SkPaint::kStroke_Style);
+    boxStrokePaint.setStrokeWidth(strokeWidth);
+    boxStrokePaint.setColor(accentColor);
     auto drawBox = [&](const SpellCircleRenderer::ResolvedBox &box) {
       textflow::Paragraph &label =
           m_labelParagraphs.paragraphFor(toU16(box.value), typeface, fontSize);
@@ -213,25 +227,14 @@ public:
       // Punch a transparent hole first so whatever was drawn underneath
       // (edges, circles) doesn't show through the box — equivalent to
       // QCanvasPainter::clearRect().
-      SkPaint clearPaint;
-      clearPaint.setBlendMode(SkBlendMode::kClear);
-      skCanvas->drawRect(boxBounds, clearPaint);
+      skCanvas->drawRect(boxBounds, boxClearPaint);
 
       if (box.active > 0.0f) {
-        SkPaint fillPaint;
-        fillPaint.setAntiAlias(true);
-        fillPaint.setStyle(SkPaint::kFill_Style);
-        fillPaint.setColor(accentColor);
-        fillPaint.setAlphaf(box.active);
-        skCanvas->drawRect(boxBounds, fillPaint);
+        boxFillPaint.setAlphaf(box.active);
+        skCanvas->drawRect(boxBounds, boxFillPaint);
       }
 
-      SkPaint strokePaint;
-      strokePaint.setAntiAlias(true);
-      strokePaint.setStyle(SkPaint::kStroke_Style);
-      strokePaint.setStrokeWidth(strokeWidth);
-      strokePaint.setColor(accentColor);
-      skCanvas->drawRect(boxBounds, strokePaint);
+      skCanvas->drawRect(boxBounds, boxStrokePaint);
 
       // TextBaseline::Top: the top of the glyphs (not the alphabetic
       // baseline) sits at (boxX + boxPadding, boxY + boxPadding).

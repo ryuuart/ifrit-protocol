@@ -16,6 +16,10 @@ SyphonBridge::SyphonBridge(std::string name)
 SyphonBridge::~SyphonBridge() { stop(); }
 
 void SyphonBridge::start(QRhi *rhi) {
+  if (!rhi || rhi->backend() != QRhi::Metal)
+    return;
+  stop(); // restarting: never orphan a previous server
+
   const auto *nativeHandles =
       static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
   // QRhi declares MTLDevice as opaque; __bridge recasts it without changing
@@ -53,6 +57,19 @@ void SyphonBridge::publishFrame(QRhiTexture *texture,
 }
 
 void SyphonBridge::stop() {
+  // This file compiles without ARC: alloc/init in start() left us a +1
+  // reference, so a plain `= nil` here would leak the server on every
+  // stop/restart cycle. Release explicitly.
   [m_private->server stop];
+  [m_private->server release];
   m_private->server = nil;
+}
+
+std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi *rhi,
+                                                         std::string name) {
+  if (!rhi || rhi->backend() != QRhi::Metal)
+    return nullptr;
+  auto bridge = std::make_unique<SyphonBridge>(std::move(name));
+  bridge->start(rhi);
+  return bridge;
 }

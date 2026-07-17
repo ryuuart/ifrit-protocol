@@ -8,13 +8,14 @@
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
 #include <memory>
 
-class SyphonBridge;
+class TexturePublisher;
 
 /**
  * Render-thread renderer for SpellCircle. Resolves scene entities queried
  * from the model's entt::registry into absolute, native-scaled positions
  * (via QPainterPath), draws the resulting geometry and labels onto an
- * offscreen canvas each frame, and publishes the Metal texture to Syphon for
+ * offscreen canvas each frame, and (when the active graphics backend has a
+ * TexturePublisher — Syphon on Metal) publishes that texture for
  * inter-application sharing.
  */
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
@@ -104,7 +105,9 @@ private:
   int m_knownModelGeneration = -1;
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
-  std::unique_ptr<SyphonBridge> m_syphon;
+  // Null when the active QRhi backend has no publisher implementation (see
+  // createTexturePublisher()); render() skips publishing in that case.
+  std::unique_ptr<TexturePublisher> m_publisher;
 
   // The active offscreen-canvas backend, chosen once in
   // initializeResources() and used for every draw in prePaint(). Defaults to

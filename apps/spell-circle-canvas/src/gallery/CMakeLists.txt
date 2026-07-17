@@ -57,6 +57,7 @@ target_link_libraries(TextFlowGallery
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
     TextFlowQt # carries TextFlow transitively
+    TextFlowPorts # systemFontManager()
 )
 
 # The Graphite GPU path reuses the app's generic Skia/Metal plumbing

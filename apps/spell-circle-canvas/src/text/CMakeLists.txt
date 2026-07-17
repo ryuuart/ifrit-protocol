@@ -48,6 +48,20 @@ target_link_libraries(TextFlow
     ICU::data
 )
 
+# Platform glue kept out of the core: the system-font-manager factory
+# (CoreText today; DirectWrite/Fontconfig slot into SystemFontManager.cpp
+# later). Core TextFlow accepts any SkFontMgr and never links this; only
+# tools and apps that want "the OS fonts" do.
+add_library(TextFlowPorts STATIC
+  ports/SystemFontManager.cpp
+  include/textflow/ports/SystemFontManager.h
+)
+target_compile_features(TextFlowPorts PUBLIC cxx_std_20)
+target_include_directories(TextFlowPorts PUBLIC
+  ${CMAKE_CURRENT_LIST_DIR}/include
+)
+target_link_libraries(TextFlowPorts PUBLIC unofficial::skia::skia)
+
 # Qt ↔ Skia bridging helpers (header-only). Separate target so the core
 # TextFlow library stays Qt-free; only Qt consumers link this.
 add_library(TextFlowQt INTERFACE
@@ -77,14 +91,15 @@ add_executable(textflow_test
   test/VerticalTest.cpp
   test/StressTest.cpp
 )
-target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest_main
-  absl::flat_hash_set)
+target_link_libraries(textflow_test PRIVATE TextFlow TextFlowPorts
+  GTest::gtest_main absl::flat_hash_set)
 add_test(NAME textflow_test COMMAND textflow_test)
 
 add_executable(textflow_bench
   bench/textflow_bench.cpp
 )
-target_link_libraries(textflow_bench PRIVATE TextFlow benchmark::benchmark)
+target_link_libraries(textflow_bench PRIVATE TextFlow TextFlowPorts
+  benchmark::benchmark)
 
 add_executable(textflow_demo
   demo/textflow_demo.cpp
@@ -107,4 +122,4 @@ add_executable(textflow_demo
   demo/SceneHyperScripts.cpp
   demo/ScenePaintEffects.cpp
 )
-target_link_libraries(textflow_demo PRIVATE TextFlow)
+target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowPorts)

@@ -17,6 +17,7 @@ qt_add_qml_module(SpellCircleCanvas
     VERSION 1.0
     SOURCES
       SyphonBridge.mm include/SyphonBridge.h
+      include/TexturePublisher.h
       SpellCircle.cpp include/SpellCircle.h
       SpellCircleRenderer.cpp include/SpellCircleRenderer.h
       QCanvasPainterSceneBackend.cpp include/QCanvasPainterSceneBackend.h
@@ -45,9 +46,10 @@ target_link_libraries(SpellCircleCanvas
 # only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. TextFlow (src/text)
 # provides the animated text layer drawn by SkiaSceneBackend.mm.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  # TextFlowQt carries TextFlow transitively.
+  # TextFlowQt carries TextFlow transitively; TextFlowPorts provides the
+  # system font manager used by the render-thread FontContext.
   target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkia TextFlowQt
-    absl::flat_hash_map absl::node_hash_map)
+    TextFlowPorts absl::flat_hash_map absl::node_hash_map)
 endif()
 
 target_include_directories(SpellCircleCanvas PUBLIC
