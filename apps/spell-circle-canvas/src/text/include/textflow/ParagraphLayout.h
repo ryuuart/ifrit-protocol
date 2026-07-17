@@ -154,6 +154,27 @@ struct PositionedRun {
   int placeholderIndex = -1; ///< \>= 0: index into Paragraph::placeholders()
 };
 
+/// Geometry of one laid-out line, derived on demand from its placed runs
+/// (ParagraphLayout::lineMetrics). The extent is the advance extent of what
+/// actually landed — selection bands, line backgrounds, and line hit-testing
+/// live here — not the flow interval's full measure (query the FlowGeometry
+/// itself for raw interval geometry).
+struct LineMetrics {
+  int lineIndex = 0;  ///< matches PositionedRun::lineIndex
+  float baseline = 0; ///< baseline y shared by the line's runs
+  float ascent = 0;   ///< tallest ascent above the baseline (positive)
+  float descent = 0;  ///< deepest descent below the baseline (positive)
+  float left = 0;     ///< leftmost run origin
+  float right = 0;    ///< rightmost run end (advance extent)
+  uint32_t textBegin = 0; ///< first UTF-16 unit placed on the line
+  uint32_t textEnd = 0;   ///< one past the last unit, trailing glue included
+
+  /** Returns the line's bounding band (ascent above to descent below). */
+  [[nodiscard]] SkRect rect() const {
+    return SkRect::MakeLTRB(left, baseline - ascent, right, baseline + descent);
+  }
+};
+
 /** Positioned output of one paragraph layout pass. */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs; ///< in logical word order, ready to draw
@@ -195,6 +216,20 @@ struct ParagraphLayout {
   /** Returns rectangles for inline objects in the paragraph. */
   [[nodiscard]] std::vector<PlacedPlaceholder>
   placeholderRects(const Paragraph &paragraph) const;
+
+  /** Returns per-line geometry derived from the placed runs, ascending by
+   * line index — the building block for selection bands, line backgrounds,
+   * and point-to-line hit-testing that per-span decorations don't cover.
+   *
+   * Derived, not stored: nothing is recorded during layout and calling this
+   * costs one pass over `runs` (metrics resolved per font change). Mixed
+   * fonts on a line report the tallest ascent/deepest descent, matching how
+   * a line box grows. Straight horizontal lines only: transformed (path /
+   * rotated) and vertical runs are skipped, and lines whose geometry placed
+   * nothing do not appear.
+   */
+  [[nodiscard]] std::vector<LineMetrics>
+  lineMetrics(const Paragraph &paragraph) const;
 };
 
 namespace detail {

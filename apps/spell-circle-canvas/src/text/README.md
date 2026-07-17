@@ -156,6 +156,10 @@ The Chrome-parity surface, and where each feature lives in the pipeline:
 - **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
   orientation, 'vert' forms, and per-span `VerticalForm` overrides
   (upright / rotated / tate-chu-yoko).
+- **Line metrics** — `ParagraphLayout::lineMetrics()` reports per-line
+  baseline, ascent/descent band, advance extent, and character range,
+  derived on demand from the placed runs (see the effects section for the
+  design rationale).
 - **Font fallback** — per-codepoint, per-language, memoized. The default
   resolver uses the supplied `SkFontMgr`'s platform cascade; pass a
   `FontContext::FallbackResolver` to encode an application-owned family
@@ -188,10 +192,14 @@ A deliberate split, worth knowing before reaching for a feature request:
   glyph's rest position; rain/ripple/marquee effects rebuild RSXform
   batches per frame while the layout itself stays untouched.
 
-If a future need genuinely requires line geometry the library doesn't
-expose (per-line background rects, selection bands), the right move is a
-small line-metrics query on `ParagraphLayout` — not a paragraph effect
-system.
+- **Line geometry is a query, not an effect system.**
+  `ParagraphLayout::lineMetrics(paragraph)` derives per-line geometry from
+  the placed runs on demand — baseline, tallest ascent / deepest descent
+  (mixed fonts grow the band, placeholders too), advance extent, and the
+  line's character range. Selection bands, line backgrounds, and
+  point-to-line hit-testing are `lineMetrics()[i].rect()` plus ordinary
+  canvas drawing; nothing is stored during layout and callers who never
+  ask pay nothing.
 
 ## Why it's fast
 
@@ -383,6 +391,12 @@ VerticalBlockFlow columns(SkRect::MakeWH(600, 800));
 paragraph.appendPlaceholder({90, 22, /*baselineDrop=*/5}, style);
 for (const auto &placeholder : layout.placeholderRects(paragraph))
   drawMyPill(canvas, placeholder.rect, placeholder.index);
+
+// Line metrics (derived on demand): selection bands, line backgrounds,
+// point-to-line hit tests.
+for (const LineMetrics &line : layout.lineMetrics(paragraph))
+  if (selection.intersects(line.textBegin, line.textEnd))
+    canvas->drawRect(line.rect(), selectionPaint);  // then layout.draw(...)
 ```
 
 Geometries: `BlockFlow` (rect), `ExclusionFlow` (rect minus moving shapes),
@@ -488,9 +502,11 @@ shaping N paragraphs, then merging layouts — no library changes needed.
   word gaps within a same-style, same-metrics group; a bidi reorder or
   fallback-font switch mid-range starts a new band (per-word spans are
   unaffected). Skip-ink intercepts are computed per draw (uncached).
-  Highlights are per-decorated-range bands, not full-line/selection
-  geometry — line backgrounds would be the line-metrics query mentioned
-  above.
+  Highlights are per-decorated-range bands; for full-line/selection
+  geometry use `ParagraphLayout::lineMetrics()`, which reports the advance
+  extent of what actually placed (lines whose geometry placed nothing do
+  not appear, and straight horizontal lines only — query the FlowGeometry
+  itself for raw interval geometry).
 - **Tab stops:** greedy breaker, LTR, straight horizontal lines;
   Knuth-Plass treats tabs as ordinary glue. Alignments other than kStart
   may shift a tabbed line as a whole.

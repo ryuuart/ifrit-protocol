@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>
 
 #include <include/core/SkFontMetrics.h>
+#include <include/core/SkPixmap.h>
+#include <include/core/SkSurface.h>
 
 #include <absl/container/flat_hash_set.h>
 
@@ -510,4 +512,109 @@ TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
       layoutParagraph(fontContext, paragraph,
                       *std::make_unique<BlockFlow>(SkRect::MakeWH(400, 100)));
   EXPECT_FALSE(layout.runs.empty());
+}
+
+// ── Line metrics (ParagraphLayout::lineMetrics) ──────────────────────────
+
+TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(
+      u8"enough words to wrap this paragraph across a handful of lines in "
+      "a narrow measure so every line has real geometry to report");
+  BlockFlow flow(SkRect::MakeXYWH(10, 20, 220, 600));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 24;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_GT(layout.lineCount, 2);
+
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), static_cast<size_t>(layout.lineCount));
+
+  for (size_t lineNumber = 0; lineNumber < lines.size(); ++lineNumber) {
+    const LineMetrics &line = lines[lineNumber];
+    EXPECT_EQ(line.lineIndex, static_cast<int>(lineNumber));
+    EXPECT_GT(line.ascent, 0.0f);
+    EXPECT_GT(line.descent, 0.0f);
+    EXPECT_GT(line.right, line.left);
+    EXPECT_GE(line.left, 10.0f); // inside the flow bounds
+    if (lineNumber > 0) {
+      // Baselines descend by the configured line pitch.
+      EXPECT_NEAR(line.baseline - lines[lineNumber - 1].baseline, 24.0f, 0.5f);
+      // Character ranges advance monotonically and stay contiguous-ish
+      // (each line starts where the previous one's glue ended).
+      EXPECT_EQ(line.textBegin, lines[lineNumber - 1].textEnd);
+    }
+    // rect() is the ascent/descent band around the baseline.
+    const SkRect band = line.rect();
+    EXPECT_FLOAT_EQ(band.top(), line.baseline - line.ascent);
+    EXPECT_FLOAT_EQ(band.bottom(), line.baseline + line.descent);
+  }
+  EXPECT_EQ(lines.front().textBegin, 0u);
+  EXPECT_EQ(lines.back().textEnd,
+            static_cast<uint32_t>(paragraph.text().size()));
+
+  // Every run's geometry sits inside its line's band.
+  for (const PositionedRun &run : layout.runs) {
+    if (!run.shaped)
+      continue;
+    const LineMetrics &line = lines[static_cast<size_t>(run.lineIndex)];
+    EXPECT_GE(run.origin.x(), line.left);
+    EXPECT_LE(run.origin.x() + run.shaped->advance, line.right + 0.01f);
+    EXPECT_FLOAT_EQ(run.origin.y(), line.baseline);
+  }
+}
+
+TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(u8"small ", basicStyle(14.0f));
+  paragraph.appendText(u8"HUGE", basicStyle(40.0f));
+  BlockFlow flow(SkRect::MakeWH(600, 100)); // one line
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), 1u);
+
+  Paragraph smallOnly = makeParagraph(u8"small", 14.0f);
+  BlockFlow smallFlow(SkRect::MakeWH(600, 100));
+  const std::vector<LineMetrics> smallLines =
+      layoutParagraph(fontContext, smallOnly, smallFlow)
+          .lineMetrics(smallOnly);
+  ASSERT_EQ(smallLines.size(), 1u);
+  EXPECT_GT(lines[0].ascent, smallLines[0].ascent)
+      << "the 40px span must raise the mixed line's ascent";
+}
+
+TEST(LineMetricsQuery, PlaceholdersAndSelectionBands) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(u8"pill ", basicStyle(14.0f));
+  paragraph.appendPlaceholder({60, 50, /*baselineDrop=*/10}, basicStyle(14.0f));
+  BlockFlow flow(SkRect::MakeWH(600, 120));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), 1u);
+  // The 50px-tall slot dropped 10px below baseline stretches the band on
+  // both sides beyond the 14px text metrics.
+  EXPECT_GE(lines[0].ascent, 40.0f);
+  EXPECT_GE(lines[0].descent, 10.0f);
+
+  // The headline use case: a selection band behind a whole line is just
+  // rect() painted before draw() — verify it covers the placed content.
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(600, 120));
+  SkCanvas *canvas = surface->getCanvas();
+  canvas->clear(SK_ColorWHITE);
+  SkPaint selection;
+  selection.setColor(0x5533AAFF);
+  canvas->drawRect(lines[0].rect(), selection);
+  layout.draw(canvas, paragraph);
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  const int probeX = static_cast<int>((lines[0].left + lines[0].right) / 2);
+  const int probeY = static_cast<int>(lines[0].baseline - 2);
+  EXPECT_NE(pixmap.getColor(probeX, probeY), SK_ColorWHITE)
+      << "selection band must cover the line interior";
 }

@@ -969,6 +969,79 @@ void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                         DecorationPhase::kAboveGlyphs, drawRect);
 }
 
+std::vector<LineMetrics>
+ParagraphLayout::lineMetrics(const Paragraph &paragraph) const {
+  std::vector<LineMetrics> lines;
+  // Memoized per font change: lines overwhelmingly share one (typeface,
+  // size), so metric resolution runs once per style stretch, not per run.
+  const SkTypeface *lastTypeface = nullptr;
+  float lastFontSize = 0;
+  SkFontMetrics fontMetrics{};
+
+  for (const PositionedRun &run : runs) {
+    if (run.transformed || (run.shaped && run.shaped->vertical))
+      continue;
+
+    float runAscent = 0;
+    float runDescent = 0;
+    float runLeft = run.origin.x();
+    float runRight = runLeft;
+    if (run.shaped) {
+      if (run.shaped->typeface.get() != lastTypeface ||
+          run.shaped->fontSize != lastFontSize) {
+        lastTypeface = run.shaped->typeface.get();
+        lastFontSize = run.shaped->fontSize;
+        makeFont(run.shaped->typeface, run.shaped->fontSize)
+            .getMetrics(&fontMetrics);
+      }
+      runAscent = -fontMetrics.fAscent;
+      runDescent = fontMetrics.fDescent;
+      runRight += run.shaped->advance;
+    } else if (run.placeholderIndex >= 0) {
+      const Placeholder &placeholder =
+          paragraph.placeholders()[static_cast<size_t>(run.placeholderIndex)];
+      runAscent = std::max(0.0f, placeholder.height - placeholder.baselineDrop);
+      runDescent = std::max(0.0f, placeholder.baselineDrop);
+      runRight += placeholder.width;
+    } else {
+      continue;
+    }
+
+    // Runs arrive line by line, so the active line is nearly always the
+    // last entry; fall back to a linear probe for safety (ellipsis trims
+    // and bidi never break this in practice, but the contract shouldn't
+    // depend on emission order).
+    LineMetrics *line = nullptr;
+    if (!lines.empty() && lines.back().lineIndex == run.lineIndex) {
+      line = &lines.back();
+    } else {
+      for (LineMetrics &candidate : lines)
+        if (candidate.lineIndex == run.lineIndex) {
+          line = &candidate;
+          break;
+        }
+    }
+    const Word &word = paragraph.words()[run.wordIndex];
+    if (!line) {
+      lines.push_back({run.lineIndex, run.origin.y(), runAscent, runDescent,
+                       runLeft, runRight, word.textBegin, word.whitespaceEnd});
+      continue;
+    }
+    line->ascent = std::max(line->ascent, runAscent);
+    line->descent = std::max(line->descent, runDescent);
+    line->left = std::min(line->left, runLeft);
+    line->right = std::max(line->right, runRight);
+    line->textBegin = std::min(line->textBegin, word.textBegin);
+    line->textEnd = std::max(line->textEnd, word.whitespaceEnd);
+  }
+
+  std::sort(lines.begin(), lines.end(),
+            [](const LineMetrics &left, const LineMetrics &right) {
+              return left.lineIndex < right.lineIndex;
+            });
+  return lines;
+}
+
 std::vector<ParagraphLayout::PlacedPlaceholder>
 ParagraphLayout::placeholderRects(const Paragraph &paragraph) const {
   std::vector<PlacedPlaceholder> placedPlaceholders;
