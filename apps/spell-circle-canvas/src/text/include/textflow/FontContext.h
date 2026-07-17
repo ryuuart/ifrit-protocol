@@ -29,6 +29,11 @@ public:
    * SkFontMgr::matchFamilyStyleCharacter; applications can instead encode
    * their own family lists, script preferences, or platform cascade policy.
    * The resolver is called only on a fallback-cache miss.
+   *
+   * `languageTag` is a borrowed view valid only for the duration of the
+   * call, and it is NOT guaranteed to be NUL-terminated — copy it before
+   * handing it to any C API that expects a C string (never pass `.data()`
+   * through directly).
    */
   using FallbackResolver = std::function<sk_sp<SkTypeface>(
       SkFontMgr &fontManager, const SkTypeface &primaryTypeface,
@@ -63,6 +68,17 @@ public:
 
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
   void purgeShapeCache();
+
+  /** Drops every cache this context owns: shape results, the per-typeface
+   * HarfBuzz faces/fonts, glyph-coverage/fallback memos, and interned
+   * language ids.
+   *
+   * For long-lived processes whose typeface population changes over time —
+   * the per-typeface and per-(typeface, codepoint) maps are otherwise never
+   * pruned. Safe while ShapedWords are outstanding (they own their data);
+   * the next analysis simply re-fills at first-use cost.
+   */
+  void purgeAllCaches();
 
   /// Cache observability for tests and benchmarks.
   struct Stats {

@@ -347,3 +347,60 @@ TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
   EXPECT_GE(faces.size(), 2u) << "emoji must resolve to its own typeface";
   EXPECT_TRUE(allGlyphsResolved(paragraph));
 }
+
+// ── Cache purge (FontContext::purgeAllCaches) ────────────────────────────
+
+TEST(Shaper, PurgeAllCachesRefillsIdentically) {
+  // A dedicated context: purging the shared one would slow sibling tests.
+  FontContext fontContext(ports::systemFontManager());
+  const char8_t *text = u8"warm caches shape 漢字 and ascii alike";
+
+  auto shapeFresh = [&] {
+    Paragraph paragraph;
+    paragraph.appendText(text, basicStyle());
+    paragraph.ensureShaped(fontContext);
+    std::vector<float> widths;
+    for (const Word &word : paragraph.words())
+      widths.push_back(word.width);
+    return widths;
+  };
+
+  const std::vector<float> before = shapeFresh();
+  fontContext.resetStats();
+  fontContext.purgeAllCaches();
+
+  // Everything must re-shape from cold (the purge really emptied the shape
+  // cache and HarfBuzz records) and land on identical metrics.
+  const std::vector<float> after = shapeFresh();
+  EXPECT_GT(fontContext.stats().shapeCalls, 0u);
+  EXPECT_EQ(fontContext.stats().shapeCacheHits, 0u);
+  ASSERT_EQ(after.size(), before.size());
+  for (size_t index = 0; index < before.size(); ++index)
+    EXPECT_FLOAT_EQ(after[index], before[index]);
+}
+
+TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
+  FontContext fontContext(ports::systemFontManager());
+  // Warm the ASCII fast path (per-primary direct-mapped table + last-table
+  // memo) and the language-id intern memo.
+  Paragraph warm;
+  warm.appendText(u8"ascii text", basicStyle());
+  warm.ensureShaped(fontContext);
+  (void)fontContext.resolveTypeface(nullptr, U'a', "zh-Hans");
+
+  fontContext.purgeAllCaches();
+
+  // The memoized AsciiTable pointer and interned language id both borrowed
+  // from maps the purge cleared; resolving again must rebuild them instead
+  // of dereferencing stale entries.
+  sk_sp<SkTypeface> ascii = fontContext.resolveTypeface(nullptr, U'a', nullptr);
+  ASSERT_TRUE(ascii);
+  sk_sp<SkTypeface> han =
+      fontContext.resolveTypeface(nullptr, 0x4E2D, "zh-Hans");
+  ASSERT_TRUE(han);
+  EXPECT_NE(han->unicharToGlyph(0x4E2D), 0);
+
+  // Purging twice in a row must also be safe.
+  fontContext.purgeAllCaches();
+  EXPECT_TRUE(fontContext.resolveTypeface(nullptr, U'b', nullptr));
+}

@@ -27,7 +27,13 @@ sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr &fontManager,
                                         const SkTypeface &primaryTypeface,
                                         int32_t codePoint,
                                         std::string_view languageTag) {
-  const char *languageTags[] = {languageTag.data()};
+  // matchFamilyStyleCharacter wants C strings but the resolver contract
+  // passes a string_view with no NUL-termination guarantee (see
+  // FallbackResolver in FontContext.h) — copy to a local first rather than
+  // reading past languageTag.data()'s end. This runs only on a
+  // fallback-cache miss, so the allocation is off the hot path.
+  const std::string terminatedLanguageTag(languageTag);
+  const char *languageTags[] = {terminatedLanguageTag.c_str()};
   return fontManager.matchFamilyStyleCharacter(
       nullptr, primaryTypeface.fontStyle(),
       languageTag.empty() ? nullptr : languageTags,
@@ -76,7 +82,7 @@ FontContext::Impl::recordForTypeface(const sk_sp<SkTypeface> &typeface) {
   return record;
 }
 
-FontContext::Impl::~Impl() {
+void FontContext::Impl::destroyTypefaceRecords() {
   for (auto &typefaceEntry : typefaceRecords) {
     TypefaceRecord &record = typefaceEntry.second;
     if (record.harfBuzzFont)
@@ -84,6 +90,11 @@ FontContext::Impl::~Impl() {
     if (record.harfBuzzFace)
       hb_face_destroy(record.harfBuzzFace);
   }
+  typefaceRecords.clear();
+}
+
+FontContext::Impl::~Impl() {
+  destroyTypefaceRecords();
   if (shapingBuffer)
     hb_buffer_destroy(shapingBuffer);
   if (lineBreakIterator)
@@ -174,6 +185,22 @@ FontContext::resolveTypeface(const sk_sp<SkTypeface> &primaryTypeface,
 }
 
 void FontContext::purgeShapeCache() { m_impl->shapeCache.clear(); }
+
+void FontContext::purgeAllCaches() {
+  m_impl->shapeCache.clear();
+  m_impl->destroyTypefaceRecords();
+  m_impl->fallbackTypefaces.clear();
+  m_impl->fallbackLanguageIds.clear();
+  m_impl->asciiFallbackTypefaces.clear();
+  // Every memo below borrows from a map cleared above; leaving any of them
+  // set would hand out a dangling pointer (lastAsciiFallbackTable) or a
+  // stale interned id on the next lookup.
+  m_impl->lastAsciiTypefaceId = 0;
+  m_impl->lastAsciiFallbackTable = nullptr;
+  m_impl->lastFallbackLanguageTag.clear();
+  m_impl->lastFallbackLanguageId = 0;
+  m_impl->nextFallbackLanguageId = 1;
+}
 
 const FontContext::Stats &FontContext::stats() const { return m_impl->stats; }
 

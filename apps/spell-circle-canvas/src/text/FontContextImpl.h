@@ -194,6 +194,8 @@ struct FontContext::Impl {
   }
 
   TypefaceRecord &recordForTypeface(const sk_sp<SkTypeface> &typeface);
+  /** Destroys every HarfBuzz face/font and clears the record map. */
+  void destroyTypefaceRecords();
   ~Impl();
 };
 
