@@ -237,3 +237,93 @@ TEST(Features, LigatureToggleChangesGlyphCount) {
   EXPECT_NE(ligaturesEnabledParagraph.words()[0].segments[0].shaped.get(),
             ligaturesDisabledParagraph.words()[0].segments[0].shaped.get());
 }
+
+// ── Text transform (ShapingStyle::textTransform) ─────────────────────────
+
+namespace {
+
+Paragraph transformedParagraph(std::u8string_view text,
+                               TextTransform transform,
+                               std::string languageTag = {}) {
+  TextStyle style = basicStyle();
+  style.shaping.textTransform = transform;
+  style.shaping.languageTag = std::move(languageTag);
+  Paragraph paragraph;
+  paragraph.appendText(text, style);
+  return paragraph;
+}
+
+float paragraphWidth(Paragraph &paragraph) {
+  return paragraph.naturalWidth(sharedContext());
+}
+
+} // namespace
+
+TEST(TextTransformTest, UppercaseShapesUppercaseGlyphs) {
+  Paragraph transformed =
+      transformedParagraph(u8"hello", TextTransform::kUppercase);
+  Paragraph reference = makeParagraph(u8"HELLO");
+  // Identical shaped output — and, per the documented contract, the same
+  // shape-cache entry, since the transformed text is itself the key text.
+  transformed.ensureShaped(sharedContext());
+  reference.ensureShaped(sharedContext());
+  EXPECT_EQ(transformed.words()[0].segments[0].shaped.get(),
+            reference.words()[0].segments[0].shaped.get());
+  // The stored document text stays untransformed.
+  EXPECT_EQ(transformed.text(), u"hello");
+}
+
+TEST(TextTransformTest, GermanSharpSExpandsUnderUppercase) {
+  Paragraph transformed =
+      transformedParagraph(u8"straße", TextTransform::kUppercase);
+  Paragraph reference = makeParagraph(u8"STRASSE");
+  EXPECT_NEAR(paragraphWidth(transformed), paragraphWidth(reference), 0.5f)
+      << "ß must full-map to SS, not simple-map";
+}
+
+TEST(TextTransformTest, TurkishDotlessIRespectsLocale) {
+  Paragraph turkish =
+      transformedParagraph(u8"istanbul", TextTransform::kUppercase, "tr");
+  Paragraph plain = transformedParagraph(u8"istanbul",
+                                         TextTransform::kUppercase);
+  turkish.ensureShaped(sharedContext());
+  plain.ensureShaped(sharedContext());
+  // tr maps i → İ (dotted capital); the root locale maps i → I. Different
+  // glyph streams must come back.
+  EXPECT_NE(turkish.words()[0].segments[0].shaped->glyphs,
+            plain.words()[0].segments[0].shaped->glyphs);
+}
+
+TEST(TextTransformTest, CapitalizeTitlecasesFirstLetterOnly) {
+  Paragraph transformed =
+      transformedParagraph(u8"mixedCase words here", TextTransform::kCapitalize);
+  Paragraph reference = makeParagraph(u8"MixedCase Words Here");
+  transformed.ensureShaped(sharedContext());
+  reference.ensureShaped(sharedContext());
+  ASSERT_EQ(transformed.words().size(), reference.words().size());
+  for (size_t wordIndex = 0; wordIndex < reference.words().size(); ++wordIndex)
+    EXPECT_EQ(
+        transformed.words()[wordIndex].segments[0].shaped.get(),
+        reference.words()[wordIndex].segments[0].shaped.get())
+        << "word " << wordIndex
+        << ": capitalize must uppercase the first letter and leave the rest";
+}
+
+TEST(TextTransformTest, ToggleReshapesButQueriesStayUntransformed) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"query my text");
+  paragraph.ensureShaped(fontContext);
+
+  fontContext.resetStats();
+  TextStyle upper = basicStyle();
+  upper.shaping.textTransform = TextTransform::kUppercase;
+  paragraph.setStyle(0, 5, upper); // "query"
+  paragraph.ensureShaped(fontContext);
+  EXPECT_GT(fontContext.stats().shapeCalls, 0u)
+      << "changing the transform must re-shape the covered words";
+
+  // Query addresses the stored (untransformed) text.
+  const std::vector<CharRange> hits = findAllOccurrences(paragraph, u8"query");
+  ASSERT_EQ(hits.size(), 1u);
+  EXPECT_EQ(hits[0], (CharRange{0, 5}));
+}

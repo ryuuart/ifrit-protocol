@@ -62,6 +62,28 @@ struct FontVariation {
   constexpr bool operator==(const FontVariation &) const = default;
 };
 
+/// Case transformation applied to a span's text just before shaping (CSS
+/// text-transform). The shaped glyphs come from the transformed text while
+/// the Paragraph's stored text, edit ranges, and query results all remain
+/// untransformed — matching how browser engines treat the property as a
+/// rendering effect, not an edit. Because the transformed text is itself
+/// the shape-cache key text, "HELLO" typed directly and "hello" with
+/// kUppercase share one cache entry. Case mapping is locale-sensitive via
+/// ShapingStyle::languageTag (Turkish dotless-i works unprompted).
+///
+/// Caveat: length-changing mappings (German ß → SS) make per-character
+/// cluster indices within such a word approximate for hit-testing; line
+/// breaking runs on the untransformed text.
+enum class TextTransform : uint8_t {
+  kNone,
+  kUppercase,
+  kLowercase,
+  /// Titlecases only the first letter of each word; the rest of the word is
+  /// left untouched (CSS semantics — not ICU's lowercase-the-remainder
+  /// title mapping).
+  kCapitalize,
+};
+
 /// How a span behaves when its paragraph is laid out vertically
 /// (Paragraph::setWritingMode(WritingMode::kVerticalRL)). Ignored in
 /// horizontal paragraphs.
@@ -99,6 +121,9 @@ struct ShapingStyle {
   /// and its permutation resolve to equivalent faces but occupy two memo
   /// entries — keep a consistent order at call sites.
   std::vector<FontVariation> variations;
+  /// Case transformation applied before shaping; see TextTransform for the
+  /// cache and hit-testing story.
+  TextTransform textTransform = TextTransform::kNone;
   VerticalForm verticalForm = VerticalForm::kAuto;
 
   /** Compares every input that participates in shaping identity. */
@@ -108,6 +133,7 @@ struct ShapingStyle {
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&
            variations == other.variations &&
+           textTransform == other.textTransform &&
            verticalForm == other.verticalForm;
   }
 };

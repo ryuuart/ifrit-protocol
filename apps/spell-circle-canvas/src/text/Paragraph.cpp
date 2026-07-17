@@ -36,6 +36,79 @@ std::u16string utf8ToUtf16(std::u8string_view utf8) {
   return utf16;
 }
 
+/** Applies the style's TextTransform to one segment slice, returning either
+ *  `text` untouched or a view of `scratch` holding the mapped form. ICU case
+ *  mapping is locale-sensitive through the style's languageTag. kCapitalize
+ *  titlecases only the first code point of a word (CSS semantics), so it
+ *  applies just to the segment that starts the word. */
+std::u16string_view applyTextTransform(const ShapingStyle &shaping,
+                                       std::u16string_view text,
+                                       bool segmentStartsWord,
+                                       std::u16string &scratch) {
+  if (shaping.textTransform == TextTransform::kNone || text.empty())
+    return text;
+  const char *locale =
+      shaping.languageTag.empty() ? nullptr : shaping.languageTag.c_str();
+
+  // Runs the double-call ICU pattern into `scratch` for the given mapper.
+  auto caseMap = [&](std::u16string_view source, auto &&mapFunction,
+                     size_t scratchOffset) -> bool {
+    UErrorCode status = U_ZERO_ERROR;
+    scratch.resize(scratchOffset + source.size() + 8);
+    int32_t written = mapFunction(
+        reinterpret_cast<UChar *>(scratch.data() + scratchOffset),
+        static_cast<int32_t>(scratch.size() - scratchOffset),
+        reinterpret_cast<const UChar *>(source.data()),
+        static_cast<int32_t>(source.size()), locale, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+      status = U_ZERO_ERROR;
+      scratch.resize(scratchOffset + static_cast<size_t>(written));
+      written = mapFunction(
+          reinterpret_cast<UChar *>(scratch.data() + scratchOffset),
+          static_cast<int32_t>(scratch.size() - scratchOffset),
+          reinterpret_cast<const UChar *>(source.data()),
+          static_cast<int32_t>(source.size()), locale, &status);
+    }
+    if (U_FAILURE(status))
+      return false;
+    scratch.resize(scratchOffset + static_cast<size_t>(written));
+    return true;
+  };
+
+  switch (shaping.textTransform) {
+  case TextTransform::kUppercase:
+    return caseMap(text, u_strToUpper, 0) ? std::u16string_view(scratch)
+                                          : text;
+  case TextTransform::kLowercase:
+    return caseMap(text, u_strToLower, 0) ? std::u16string_view(scratch)
+                                          : text;
+  case TextTransform::kCapitalize: {
+    if (!segmentStartsWord)
+      return text;
+    // Titlecase exactly the first code point; the remainder is untouched
+    // (u_strToTitle over the whole slice would lowercase it).
+    int32_t firstEnd = 0;
+    UChar32 firstCodePoint;
+    U16_NEXT(text.data(), firstEnd, static_cast<int32_t>(text.size()),
+             firstCodePoint);
+    static_cast<void>(firstCodePoint);
+    auto titleFirst = [](UChar *dest, int32_t destCapacity, const UChar *src,
+                         int32_t srcLength, const char *mapLocale,
+                         UErrorCode *status) {
+      return u_strToTitle(dest, destCapacity, src, srcLength,
+                          /*titleIter=*/nullptr, mapLocale, status);
+    };
+    if (!caseMap(text.substr(0, static_cast<size_t>(firstEnd)), titleFirst, 0))
+      return text;
+    scratch.append(text.substr(static_cast<size_t>(firstEnd)));
+    return scratch;
+  }
+  case TextTransform::kNone:
+    break;
+  }
+  return text;
+}
+
 bool isHardLineBreakCharacter(char16_t character) {
   return character == u'\n' || character == u'\r' || character == 0x0085 ||
          character == 0x2028 || character == 0x2029;
@@ -832,11 +905,19 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
 
     const bool shapeVertical =
         verticalMode && segmentForm == SegmentForm::kUpright;
+    // The transformed slice is what gets shaped AND what keys the cache, so
+    // "HELLO" and "hello"+kUppercase share one entry (see TextTransform).
+    static thread_local std::u16string transformScratch;
+    const std::u16string_view segmentText =
+        applyTextTransform(span.style.shaping,
+                           std::u16string_view(m_text).substr(
+                               static_cast<size_t>(segmentStart),
+                               static_cast<size_t>(segmentEnd - segmentStart)),
+                           segmentStart == static_cast<int32_t>(word.textBegin),
+                           transformScratch);
     ShapedWordRef shapedWord =
         shapeWord(fontContext, span.style.shaping, resolvedTypeface,
-                  std::u16string_view(m_text).substr(
-                      static_cast<size_t>(segmentStart),
-                      static_cast<size_t>(segmentEnd - segmentStart)),
+                  segmentText,
                   harfBuzzScriptFor(static_cast<UScriptCode>(scriptRun.script)),
                   (bidiLevel & 1) != 0 && !shapeVertical, shapeVertical);
     if (verticalMode && segmentForm == SegmentForm::kTateChuYoko) {
