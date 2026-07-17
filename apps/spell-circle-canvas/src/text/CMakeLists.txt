@@ -62,8 +62,20 @@ target_link_libraries(TextFlowQt INTERFACE
   TextFlow # bridges Paragraph/Query types directly
 )
 
+# One TU per module (mirroring the library's own structure) linked into a
+# single test binary; shared fixtures live in TestSupport.
 add_executable(textflow_test
-  test/textflow_test.cpp
+  test/TestSupport.cpp test/TestSupport.h
+  test/ShaperTest.cpp
+  test/ParagraphTest.cpp
+  test/FlowTest.cpp
+  test/LayoutTest.cpp
+  test/KnuthPlassTest.cpp
+  test/TypographyTest.cpp
+  test/OverflowTest.cpp
+  test/QueryTest.cpp
+  test/VerticalTest.cpp
+  test/StressTest.cpp
 )
 target_link_libraries(textflow_test PRIVATE TextFlow GTest::gtest_main
   absl::flat_hash_set)
