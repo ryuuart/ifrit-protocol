@@ -79,6 +79,29 @@ struct OverflowOptions {
   /// Empty disables the marker. Only straight horizontal flows can render
   /// an ellipsis; curved and vertical flows still report overflow normally.
   std::u16string ellipsis;
+  /// > 0: the layout uses at most this many of the geometry's lines
+  /// (CSS line-clamp); remaining text reports as overflow and `ellipsis`
+  /// (when set) lands on the clamped line. Works with every breaker and
+  /// geometry — the limit wraps the FlowGeometry, so exclusion flows and
+  /// Knuth-Plass need no special handling.
+  int maxLines = 0;
+};
+
+/** Tab-character handling for straight horizontal flows (greedy breaker).
+ *
+ * A word whose trailing whitespace contains a tab advances the pen to the
+ * next stop instead of its measured glue: first through `positions`
+ * (ascending, px from each line interval's start), then repeating every
+ * `interval` px past the last explicit stop. With no stop ahead (or no
+ * configuration at all — the default) tabs keep their shaped
+ * space-equivalent width. Tab gaps are rigid under justification.
+ * v1 scope: greedy breaker, straight horizontal intervals, LTR lines;
+ * Knuth-Plass treats tabs as ordinary glue. Alignment other than kStart
+ * may shift a tabbed line as a whole (width estimation uses natural glue).
+ */
+struct TabStopOptions {
+  std::vector<float> positions;
+  float interval = 0;
 };
 
 /** Rendering-only controls that do not affect line breaking. */
@@ -104,6 +127,7 @@ struct ParagraphLayoutOptions {
   JustificationOptions justification;
   KnuthPlassOptions knuthPlass;
   OverflowOptions overflow;
+  TabStopOptions tabStops;
   PathTextOptions pathText;
 };
 

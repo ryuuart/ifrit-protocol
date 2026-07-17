@@ -764,6 +764,12 @@ void Paragraph::analyze(FontContext &fontContext) {
     }
     word.textEnd = static_cast<uint32_t>(whitespaceStart);
 
+    // Tab-aware layouts (ParagraphLayoutOptions::tabStops) treat the glue
+    // after this word as an advance-to-stop instead of measured whitespace.
+    for (int32_t codeUnitIndex = whitespaceStart;
+         codeUnitIndex < boundary && !word.tabAfter; ++codeUnitIndex)
+      word.tabAfter = m_text[static_cast<size_t>(codeUnitIndex)] == u'\t';
+
     if (whitespaceStart > segmentStart) {
       UChar32 firstCodePoint;
       int32_t codePointEnd = segmentStart;

@@ -95,6 +95,11 @@ struct Word {
 
   uint8_t bidiLevel = 0;
   bool mandatoryBreakAfter = false; ///< '\n' and friends
+  /// Trailing whitespace contains a tab (U+0009). With
+  /// ParagraphLayoutOptions::tabStops configured, the greedy breaker
+  /// replaces this word's glue with an advance to the next stop; without
+  /// tab stops (and always under Knuth-Plass) tabs measure as spaces.
+  bool tabAfter = false;
   /// Break opportunity with zero glue (CJK): justification may expand here
   /// even though there is no space.
   bool ideographic = false;

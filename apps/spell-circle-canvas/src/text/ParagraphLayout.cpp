@@ -29,15 +29,49 @@ constexpr int kMaxIntervalSkips = 12;
 
 enum class GapKind : uint8_t { kRigid, kSpace, kIdeographic };
 
+/** Returns whether tab stops are configured at all. */
+bool tabStopsActive(const ParagraphLayoutOptions &options) {
+  return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
+}
+
 /** Classifies the gap after one logical word for justification. */
 GapKind gapKind(const std::vector<Word> &words, uint32_t wordIndex,
                 const ParagraphLayoutOptions &options) {
+  if (words[wordIndex].tabAfter && tabStopsActive(options))
+    return GapKind::kRigid; // tab gaps never stretch or shrink
   if (words[wordIndex].spaceWidth > 0)
     return GapKind::kSpace;
   if (options.justification.expandIdeographicGaps &&
       (words[wordIndex].ideographic || words[wordIndex + 1].ideographic))
     return GapKind::kIdeographic;
   return GapKind::kRigid;
+}
+
+/** Returns the glue width after `word` with the pen at `penPosition`
+ * (relative to the line interval's start): the distance to the next tab
+ * stop for tab gaps, the measured whitespace otherwise. */
+float glueAfter(const Word &word, float penPosition,
+                const ParagraphLayoutOptions &options) {
+  if (!word.tabAfter || !tabStopsActive(options))
+    return word.spaceWidth;
+  constexpr float kMinTabAdvance = 0.5f; // a stop the pen already reached
+                                         // is not "the next" stop
+  for (const float stop : options.tabStops.positions)
+    if (stop >= penPosition + kMinTabAdvance)
+      return stop - penPosition;
+  if (options.tabStops.interval > 0) {
+    const float base = options.tabStops.positions.empty()
+                           ? 0.0f
+                           : options.tabStops.positions.back();
+    const float distance = std::max(penPosition - base, 0.0f);
+    const float repeats =
+        std::floor(distance / options.tabStops.interval) + 1.0f;
+    const float stop = base + repeats * options.tabStops.interval;
+    if (stop >= penPosition + kMinTabAdvance)
+      return stop - penPosition;
+    return stop + options.tabStops.interval - penPosition;
+  }
+  return word.spaceWidth; // stops exhausted: tab degrades to a space
 }
 
 /** Returns a word's em size, including a safe default for placeholders. */
@@ -356,7 +390,8 @@ void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
     }
     if (visualIndex + 1 < visualWordOrder.size()) {
       // Glue between visual neighbors; logical == visual for LTR text.
-      penPosition += word.spaceWidth;
+      // (glueAfter == spaceWidth unless the gap is a configured tab stop.)
+      penPosition += glueAfter(word, penPosition, options);
       switch (gapKind(words,
                       std::min(wordIndex, visualWordOrder[visualIndex + 1]),
                       options)) {
@@ -463,12 +498,38 @@ void applyEllipsis(FontContext &fontContext, Paragraph &paragraph,
   result.ellipsized = true;
 }
 
+/// Clamps any FlowGeometry to its first `maxLines` lines
+/// (OverflowOptions::maxLines): geometry "exhausts" at the limit, so the
+/// existing overflow reporting and ellipsis machinery handle the rest with
+/// zero breaker changes, for greedy and Knuth-Plass alike.
+class LineLimitedGeometry final : public FlowGeometry {
+public:
+  LineLimitedGeometry(FlowGeometry &inner, int maxLines)
+      : m_inner(inner), m_maxLines(maxLines) {}
+
+  bool lineIntervals(int index, float lineHeight, float ascent,
+                     std::vector<LineInterval> &intervals) override {
+    return index < m_maxLines &&
+           m_inner.lineIntervals(index, lineHeight, ascent, intervals);
+  }
+  bool uniformIntervals() const override { return m_inner.uniformIntervals(); }
+
+private:
+  FlowGeometry &m_inner;
+  int m_maxLines;
+};
+
 } // namespace detail
 
 ParagraphLayout layoutParagraph(FontContext &fontContext, Paragraph &paragraph,
                                 FlowGeometry &geometry,
                                 const ParagraphLayoutOptions &options) {
   using namespace detail;
+
+  LineLimitedGeometry clampedGeometry(geometry, options.overflow.maxLines);
+  FlowGeometry &effectiveGeometry =
+      options.overflow.maxLines > 0 ? static_cast<FlowGeometry &>(clampedGeometry)
+                                    : geometry;
 
   // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
   // their own frontier, so text past the geometry never shapes at all.
@@ -488,7 +549,7 @@ ParagraphLayout layoutParagraph(FontContext &fontContext, Paragraph &paragraph,
     return result;
 
   IntervalSequence intervalSequence(
-      geometry, lineHeight, ascent,
+      effectiveGeometry, lineHeight, ascent,
       options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass
           ? options.knuthPlass.minimumIntervalWidth
           : 0.0f);
@@ -536,7 +597,9 @@ ParagraphLayout layoutParagraph(FontContext &fontContext, Paragraph &paragraph,
     paragraph.ensureShapedTo(fontContext, wordIndex + 1);
     const Word &word = words[wordIndex];
     const float glue =
-        wordIndex > firstWordIndex ? words[wordIndex - 1].spaceWidth : 0;
+        wordIndex > firstWordIndex
+            ? glueAfter(words[wordIndex - 1], penPosition, options)
+            : 0;
     // Soft-hyphen words reserve room for the hyphen so a break taken right
     // after them always fits.
     const float hyphenReserve =
