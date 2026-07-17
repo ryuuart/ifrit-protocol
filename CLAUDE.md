@@ -28,7 +28,8 @@ The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
 
 ## FlatBuffers generation
 
-From the repository root:
+Run `apps/spell-circle-canvas/scripts/regen_flatbuffers.sh` (from anywhere)
+after editing `SpellCircle.fbs`, then commit the regenerated files. It wraps:
 
 ```sh
 flatc --cpp -o apps/spell-circle-canvas/src/network/include \

@@ -33,7 +33,7 @@ target_link_libraries(SpellCircleCanvas
       Qt6::CanvasPainter
     PRIVATE
       spdlog::spdlog
-      SpellCircleNetwork
+      SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
       QtCanvasTextPath
       EnTT::EnTT
       Qt::GuiPrivate
