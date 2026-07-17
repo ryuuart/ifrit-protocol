@@ -4,6 +4,14 @@
 # produces positioned SkTextBlobs, so it can be reused from the renderer, the
 # benchmarks, and standalone tools alike. See README.md in this directory for
 # the architecture (itemization → word shape cache → flow placement).
+
+# Library version, independent of the host application: bump when the API
+# changes so an eventual vcpkg registry port can pin releases.
+set(TEXTFLOW_VERSION 0.1.0)
+option(TEXTFLOW_ENABLE_INSTALL
+  "Generate install/export rules so find_package(TextFlow) works from an install tree"
+  ON)
+
 add_library(TextFlow STATIC
   FontContext.cpp
   Shaper.cpp
@@ -31,7 +39,8 @@ add_library(TextFlow STATIC
 target_compile_features(TextFlow PUBLIC cxx_std_20)
 
 target_include_directories(TextFlow PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
 # Abseil is an implementation detail: no absl type appears in any public
@@ -63,7 +72,8 @@ add_library(TextFlowShaders STATIC
 )
 target_compile_features(TextFlowShaders PUBLIC cxx_std_20)
 target_include_directories(TextFlowShaders PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(TextFlowShaders PUBLIC unofficial::skia::skia)
 
@@ -77,7 +87,8 @@ add_library(TextFlowPorts STATIC
 )
 target_compile_features(TextFlowPorts PUBLIC cxx_std_20)
 target_include_directories(TextFlowPorts PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(TextFlowPorts PUBLIC unofficial::skia::skia)
 
@@ -87,7 +98,8 @@ add_library(TextFlowQt INTERFACE
   qt/include/textflowqt/TextFlowQt.h
 )
 target_include_directories(TextFlowQt INTERFACE
-  ${CMAKE_CURRENT_LIST_DIR}/qt/include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/qt/include>
+  $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(TextFlowQt INTERFACE
   Qt6::Gui
@@ -144,3 +156,44 @@ add_executable(textflow_demo
 )
 target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
   TextFlowPorts)
+
+# ── Install / export (find_package(TextFlow) from an install tree) ───────
+# The eventual private vcpkg registry port drives exactly these rules; the
+# generated TextFlowConfig.cmake re-finds the dependencies (the libraries
+# are static archives, so even PRIVATE deps must be resolvable at consumer
+# link time) and exposes the Qt bridge behind an optional "Qt" component:
+#   find_package(TextFlow CONFIG REQUIRED)                # core, Qt-free
+#   find_package(TextFlow CONFIG REQUIRED COMPONENTS Qt)  # + textflow::TextFlowQt
+if(TEXTFLOW_ENABLE_INSTALL)
+  include(CMakePackageConfigHelpers)
+
+  install(TARGETS TextFlow TextFlowShaders TextFlowPorts TextFlowQt
+    EXPORT TextFlowTargets
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+  )
+  install(DIRECTORY include/textflow DESTINATION include)
+  install(DIRECTORY qt/include/textflowqt DESTINATION include)
+
+  install(EXPORT TextFlowTargets
+    NAMESPACE textflow::
+    DESTINATION share/textflow
+  )
+
+  configure_package_config_file(
+    cmake/TextFlowConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/TextFlowConfig.cmake
+    INSTALL_DESTINATION share/textflow
+  )
+  write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/TextFlowConfigVersion.cmake
+    VERSION ${TEXTFLOW_VERSION}
+    COMPATIBILITY SameMinorVersion
+  )
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/TextFlowConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/TextFlowConfigVersion.cmake
+    DESTINATION share/textflow
+  )
+endif()

@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+# TextFlow static archives carry undefined symbols from every dependency
+# (even the PRIVATE ones), so consumers must be able to resolve them all.
+include(CMakeFindDependencyMacro)
+find_dependency(unofficial-skia CONFIG)
+find_dependency(harfbuzz CONFIG)
+find_dependency(ICU COMPONENTS i18n uc data)
+find_dependency(absl CONFIG)
+
+# The Qt bridge (textflow::TextFlowQt) is opt-in: only consumers that ask
+# for the Qt component pull a Qt6 requirement.
+if("Qt" IN_LIST TextFlow_FIND_COMPONENTS)
+  find_dependency(Qt6 COMPONENTS Gui)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/TextFlowTargets.cmake")
+check_required_components(TextFlow)
