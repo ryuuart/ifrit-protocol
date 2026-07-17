@@ -105,6 +105,12 @@ struct ShapingStyle {
   float fontSize = 16.0f;     ///< pixels in the target canvas coordinate space
   float letterSpacing = 0.0f; ///< px of tracking added after each cluster
                               ///< (in vertical text this is JIS "aki")
+  /// Extra px added to each word's trailing-whitespace glue (CSS
+  /// word-spacing). Applied after the whitespace is measured, so changing
+  /// it re-derives words at pure shape-cache-hit cost — it is compared for
+  /// restyle detection but is NOT part of the shape-cache key. Negative
+  /// values shrink gaps; the glue is floored at zero.
+  float wordSpacing = 0.0f;
   /// BCP-47 language used both for language-sensitive font fallback and by
   /// HarfBuzz to select OpenType language systems / localized (`locl`)
   /// substitutions. It is deliberately part of the shape key: even when the
@@ -130,6 +136,7 @@ struct ShapingStyle {
   bool operator==(const ShapingStyle &other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
+           wordSpacing == other.wordSpacing &&
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&
            variations == other.variations &&
@@ -224,6 +231,40 @@ struct PaintLayer {
   }
 };
 
+/** One line decoration (underline / strikethrough / overline) drawn with a
+ * run's resolved paint at draw time.
+ *
+ * Decorations live on the paint side on purpose: adding, removing, or
+ * recoloring one never re-shapes and never relayouts, exactly like paint
+ * layers. Thickness and position default to the font's own metrics
+ * (SkFontMetrics underline/strikeout values, with sensible fallbacks when a
+ * face reports none), so the zero-argument spelling
+ * `PaintStyle{...}.addDecoration({})` is a correct underline.
+ *
+ * Scope (v1): decorations render on straight horizontal runs only —
+ * transformed (path/rotated) and vertical runs skip them. Each word draws
+ * its own span of decoration, so at word gaps the line is per-word (visible
+ * only with skipInk = false).
+ */
+struct Decoration {
+  enum class Kind : uint8_t { kUnderline, kStrikethrough, kOverline };
+  Kind kind = Kind::kUnderline;
+  /// SK_ColorTRANSPARENT → use the resolved foreground paint's color.
+  SkColor color = SK_ColorTRANSPARENT;
+  /// 0 → thickness from font metrics, floored at 1px.
+  float thickness = 0;
+  /// 0 → position from font metrics; otherwise the decoration band's top
+  /// edge in px relative to the baseline (positive below, Skia's
+  /// y-grows-down convention).
+  float offset = 0;
+  /// Underlines only: interrupt the line where glyph ink (descenders)
+  /// crosses the band, via SkTextBlob::getIntercepts.
+  bool skipInk = true;
+
+  /** Compares kind, color, geometry overrides, and ink skipping. */
+  bool operator==(const Decoration &) const = default;
+};
+
 /** Draw-time glyph appearance with explicit composition order.
  *
  * Underlays are drawn in vector order (back-to-front), followed by
@@ -237,6 +278,9 @@ struct PaintStyle {
   SkPaint foreground;
   std::vector<PaintLayer> underlays;
   std::vector<PaintLayer> overlays;
+  /// Drawn after this style's glyph passes, in vector order. See Decoration
+  /// for defaults and the straight-horizontal-runs-only scope.
+  std::vector<Decoration> decorations;
 
   /** Constructs a single anti-aliased black foreground. */
   PaintStyle() { foreground.setAntiAlias(true); }
@@ -259,10 +303,16 @@ struct PaintStyle {
     return *this;
   }
 
-  /** Compares complete paints, layer order, and layer offsets. */
+  /** Appends a line decoration and returns this style. */
+  PaintStyle &addDecoration(Decoration decoration) {
+    decorations.push_back(decoration);
+    return *this;
+  }
+
+  /** Compares complete paints, layer order, offsets, and decorations. */
   bool operator==(const PaintStyle &other) const {
     return foreground == other.foreground && underlays == other.underlays &&
-           overlays == other.overlays;
+           overlays == other.overlays && decorations == other.decorations;
   }
 };
 

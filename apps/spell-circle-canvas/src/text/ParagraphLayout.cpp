@@ -632,11 +632,134 @@ void drawPaintLayers(const PaintStyle &style, DrawPass &&drawPass) {
       drawPass(layer.paint, layer.offset);
 }
 
+// Emits every decoration rect for one run through `emitRect(SkRect,
+// SkColor)`. Shared by draw() (immediate) and drawBatched() (deferred past
+// the glyph buckets so strikethroughs land above the batched glyphs).
+template <typename EmitRect>
+void forEachDecorationRect(const PositionedRun &run, const PaintStyle &style,
+                           EmitRect &&emitRect) {
+  if (style.decorations.empty() || run.transformed || !run.shaped ||
+      run.shaped->vertical || run.placeholderIndex >= 0)
+    return;
+  const SkFont font = makeFont(run.shaped->typeface, run.shaped->fontSize);
+  SkFontMetrics metrics;
+  font.getMetrics(&metrics);
+  for (const Decoration &decoration : style.decorations) {
+    const detail::ResolvedDecorationBand band = detail::resolveDecorationBand(
+        decoration, metrics, style.foreground.getColor());
+    const float top = run.origin.y() + band.position;
+    for (const auto &[startX, endX] :
+         detail::decorationSegments(run, decoration, band))
+      emitRect(SkRect::MakeLTRB(startX, top, endX, top + band.thickness),
+               band.color);
+  }
+}
+
 } // namespace
+
+namespace detail {
+
+ResolvedDecorationBand resolveDecorationBand(const Decoration &decoration,
+                                             const SkFontMetrics &metrics,
+                                             SkColor foregroundColor) {
+  ResolvedDecorationBand band;
+  band.color = decoration.color == SK_ColorTRANSPARENT ? foregroundColor
+                                                       : decoration.color;
+
+  band.thickness = decoration.thickness;
+  if (band.thickness <= 0) {
+    SkScalar metricThickness = 0;
+    const bool hasMetric =
+        decoration.kind == Decoration::Kind::kStrikethrough
+            ? metrics.hasStrikeoutThickness(&metricThickness)
+            : metrics.hasUnderlineThickness(&metricThickness);
+    band.thickness = hasMetric && metricThickness > 0 ? metricThickness : 1.0f;
+  }
+  band.thickness = std::max(band.thickness, 1.0f);
+
+  if (decoration.offset != 0) {
+    band.position = decoration.offset;
+    return band;
+  }
+  switch (decoration.kind) {
+  case Decoration::Kind::kUnderline: {
+    SkScalar underlinePosition = 0; // metric = distance baseline → band top
+    band.position = metrics.hasUnderlinePosition(&underlinePosition)
+                        ? underlinePosition
+                        : band.thickness;
+    break;
+  }
+  case Decoration::Kind::kStrikethrough: {
+    SkScalar strikeoutPosition = 0; // metric = baseline → band bottom (< 0)
+    if (metrics.hasStrikeoutPosition(&strikeoutPosition))
+      band.position = strikeoutPosition;
+    else
+      band.position = -metrics.fXHeight * 0.5f - band.thickness * 0.5f;
+    break;
+  }
+  case Decoration::Kind::kOverline:
+    band.position = metrics.fAscent; // negative: the ascent line
+    break;
+  }
+  return band;
+}
+
+std::vector<std::pair<float, float>>
+decorationSegments(const PositionedRun &run, const Decoration &decoration,
+                   const ResolvedDecorationBand &band) {
+  std::vector<std::pair<float, float>> segments;
+  if (run.transformed || !run.shaped || run.shaped->vertical ||
+      run.placeholderIndex >= 0)
+    return segments;
+  const float startX = run.origin.x();
+  const float endX = startX + run.shaped->advance;
+  if (endX <= startX)
+    return segments;
+
+  const bool skipInk = decoration.skipInk &&
+                       decoration.kind == Decoration::Kind::kUnderline &&
+                       run.blob;
+  if (!skipInk) {
+    segments.emplace_back(startX, endX);
+    return segments;
+  }
+
+  // Blob-local intercepts of glyph ink with the band; grown by one
+  // thickness so the line stands off the descender instead of touching it.
+  const SkScalar bounds[2] = {band.position, band.position + band.thickness};
+  const int interceptCount = run.blob->getIntercepts(bounds, nullptr);
+  if (interceptCount < 2) {
+    segments.emplace_back(startX, endX);
+    return segments;
+  }
+  std::vector<SkScalar> intercepts(static_cast<size_t>(interceptCount));
+  run.blob->getIntercepts(bounds, intercepts.data());
+
+  const float standoff = band.thickness;
+  float cursor = startX;
+  for (int interceptIndex = 0; interceptIndex + 1 < interceptCount;
+       interceptIndex += 2) {
+    const float inkStart =
+        startX + intercepts[static_cast<size_t>(interceptIndex)] - standoff;
+    const float inkEnd =
+        startX + intercepts[static_cast<size_t>(interceptIndex + 1)] +
+        standoff;
+    if (inkStart > cursor)
+      segments.emplace_back(cursor, std::min(inkStart, endX));
+    cursor = std::max(cursor, inkEnd);
+  }
+  if (cursor < endX)
+    segments.emplace_back(cursor, endX);
+  return segments;
+}
+
+} // namespace detail
 
 void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
                            const PaintStyle *overridePaint) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
+  SkPaint decorationPaint;
+  decorationPaint.setAntiAlias(true);
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
@@ -646,6 +769,10 @@ void ParagraphLayout::draw(SkCanvas *canvas, const Paragraph &paragraph,
     drawPaintLayers(style, [&](const SkPaint &paint, SkVector offset) {
       canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
                            run.origin.y() + offset.y(), paint);
+    });
+    forEachDecorationRect(run, style, [&](SkRect rect, SkColor color) {
+      decorationPaint.setColor(color);
+      canvas->drawRect(rect, decorationPaint);
     });
   }
 }
@@ -689,11 +816,23 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
     buckets.clear(); // release pathological one-frame style cardinality
   size_t activeBucketCount = 0;
 
+  // Decoration rects accumulate during the run walk and flush after the
+  // glyph buckets, so strikethroughs/overlines land above the batched text.
+  struct DecorationRect {
+    SkRect rect;
+    SkColor color;
+  };
+  static thread_local std::vector<DecorationRect> decorationRects;
+  decorationRects.clear();
+
   for (const PositionedRun &run : runs) {
     if (!run.blob)
       continue;
     const PaintStyle &style =
         resolvePaint(spans, run.styleIndex, overridePaint);
+    forEachDecorationRect(run, style, [&](SkRect rect, SkColor color) {
+      decorationRects.push_back({rect, color});
+    });
 
     if (run.transformed || !run.shaped) {
       // Positions are baked into the blob; draw every configured pass
@@ -746,6 +885,15 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
       canvas->drawGlyphs(glyphs, positions, {offset.x(), offset.y()}, font,
                          paint);
     });
+  }
+
+  if (!decorationRects.empty()) {
+    SkPaint decorationPaint;
+    decorationPaint.setAntiAlias(true);
+    for (const DecorationRect &decorationRect : decorationRects) {
+      decorationPaint.setColor(decorationRect.color);
+      canvas->drawRect(decorationRect.rect, decorationPaint);
+    }
   }
 }
 

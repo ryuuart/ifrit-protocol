@@ -327,3 +327,167 @@ TEST(TextTransformTest, ToggleReshapesButQueriesStayUntransformed) {
   ASSERT_EQ(hits.size(), 1u);
   EXPECT_EQ(hits[0], (CharRange{0, 5}));
 }
+
+// ── Word spacing (ShapingStyle::wordSpacing) ─────────────────────────────
+
+TEST(WordSpacingTest, WidensGlueWithoutReshaping) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"alpha beta gamma");
+  paragraph.ensureShaped(fontContext);
+  const float baseGlue = paragraph.words()[0].spaceWidth;
+  ASSERT_GT(baseGlue, 0.0f);
+
+  fontContext.resetStats();
+  TextStyle spaced = basicStyle();
+  spaced.shaping.wordSpacing = 12.0f;
+  paragraph.setStyle(0, static_cast<uint32_t>(paragraph.text().size()), spaced);
+  paragraph.ensureShaped(fontContext);
+  EXPECT_FLOAT_EQ(paragraph.words()[0].spaceWidth, baseGlue + 12.0f);
+  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
+      << "word spacing must not enter the shape-cache key";
+
+  // Negative spacing shrinks but never below zero.
+  TextStyle crushed = basicStyle();
+  crushed.shaping.wordSpacing = -1000.0f;
+  paragraph.setStyle(0, static_cast<uint32_t>(paragraph.text().size()),
+                     crushed);
+  paragraph.ensureShaped(fontContext);
+  EXPECT_FLOAT_EQ(paragraph.words()[0].spaceWidth, 0.0f);
+}
+
+TEST(WordSpacingTest, BreakerAndNaturalWidthConsumeIt) {
+  FontContext &fontContext = sharedContext();
+  TextStyle spaced = basicStyle();
+  spaced.shaping.wordSpacing = 40.0f;
+  Paragraph wide;
+  wide.appendText(u8"one two three four five", spaced);
+  Paragraph normal = makeParagraph(u8"one two three four five");
+  // Natural width grows by exactly 4 gaps × 40px.
+  EXPECT_NEAR(wide.naturalWidth(fontContext),
+              normal.naturalWidth(fontContext) + 4 * 40.0f, 0.01f);
+  // A measure that fits the normal text on one line wraps the spaced one.
+  const float measure = normal.naturalWidth(fontContext) + 20.0f;
+  BlockFlow flowNormal(SkRect::MakeWH(measure, 400));
+  BlockFlow flowWide(SkRect::MakeWH(measure, 400));
+  EXPECT_EQ(layoutParagraph(fontContext, normal, flowNormal).lineCount, 1);
+  EXPECT_GT(layoutParagraph(fontContext, wide, flowWide).lineCount, 1);
+}
+
+// ── Text decorations (PaintStyle::decorations) ───────────────────────────
+
+TEST(DecorationTest, BandResolvesFromMetricsWithFloors) {
+  SkFontMetrics metrics = {};
+  metrics.fFlags = 0; // face reports no underline/strikeout metrics
+  metrics.fAscent = -20.0f;
+  metrics.fXHeight = 10.0f;
+
+  const detail::ResolvedDecorationBand underline =
+      detail::resolveDecorationBand({}, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(underline.thickness, 1.0f) << "1px floor without metrics";
+  EXPECT_GT(underline.position, 0.0f) << "underline sits below the baseline";
+  EXPECT_EQ(underline.color, SK_ColorRED) << "transparent → foreground color";
+
+  Decoration strike;
+  strike.kind = Decoration::Kind::kStrikethrough;
+  const detail::ResolvedDecorationBand strikeBand =
+      detail::resolveDecorationBand(strike, metrics, SK_ColorRED);
+  EXPECT_LT(strikeBand.position, 0.0f) << "strikethrough sits above baseline";
+
+  Decoration overline;
+  overline.kind = Decoration::Kind::kOverline;
+  overline.color = SK_ColorBLUE;
+  const detail::ResolvedDecorationBand overBand =
+      detail::resolveDecorationBand(overline, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(overBand.position, -20.0f) << "overline rides the ascent";
+  EXPECT_EQ(overBand.color, SK_ColorBLUE) << "explicit color wins";
+
+  // Explicit thickness/offset override the metrics entirely.
+  Decoration custom;
+  custom.thickness = 3.5f;
+  custom.offset = 7.0f;
+  const detail::ResolvedDecorationBand customBand =
+      detail::resolveDecorationBand(custom, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(customBand.thickness, 3.5f);
+  EXPECT_FLOAT_EQ(customBand.position, 7.0f);
+
+  // When the face DOES report metrics, they win over the floor.
+  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
+                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
+  metrics.fUnderlineThickness = 2.25f;
+  metrics.fUnderlinePosition = 4.0f;
+  const detail::ResolvedDecorationBand metricBand =
+      detail::resolveDecorationBand({}, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(metricBand.thickness, 2.25f);
+  EXPECT_FLOAT_EQ(metricBand.position, 4.0f);
+}
+
+TEST(DecorationTest, SkipInkBreaksAroundDescenders) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"gjpqy", 48.0f);
+  ParagraphLayout layout =
+      layoutSingleLine(fontContext, paragraph, {10, 100});
+  ASSERT_FALSE(layout.runs.empty());
+  const PositionedRun &run = layout.runs.front();
+
+  const SkFont font = makeFont(run.shaped->typeface, run.shaped->fontSize);
+  SkFontMetrics metrics;
+  font.getMetrics(&metrics);
+
+  Decoration skipping; // default underline, skipInk = true
+  const detail::ResolvedDecorationBand band =
+      detail::resolveDecorationBand(skipping, metrics, SK_ColorBLACK);
+  const auto skippedSegments =
+      detail::decorationSegments(run, skipping, band);
+  EXPECT_GT(skippedSegments.size(), 1u)
+      << "five descenders must interrupt the underline";
+
+  Decoration solid;
+  solid.skipInk = false;
+  const auto solidSegments = detail::decorationSegments(run, solid, band);
+  ASSERT_EQ(solidSegments.size(), 1u);
+  EXPECT_FLOAT_EQ(solidSegments[0].first, run.origin.x());
+  EXPECT_FLOAT_EQ(solidSegments[0].second,
+                  run.origin.x() + run.shaped->advance);
+
+  // Total skipped coverage is strictly less than the solid line.
+  float skippedLength = 0;
+  for (const auto &[start, end] : skippedSegments)
+    skippedLength += end - start;
+  EXPECT_LT(skippedLength, solidSegments[0].second - solidSegments[0].first);
+}
+
+TEST(DecorationTest, RestyleDrawsWithoutReshaping) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"decorate me");
+  BlockFlow flow(SkRect::MakeWH(400, 60));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  fontContext.resetStats();
+  PaintStyle decorated(SK_ColorBLACK);
+  decorated.addDecoration({})
+      .addDecoration({.kind = Decoration::Kind::kStrikethrough,
+                      .color = SK_ColorRED});
+  paragraph.setPaint(0, 8, decorated);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 60));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  layout.draw(surface->getCanvas(), paragraph);
+  layout.drawBatched(surface->getCanvas(), paragraph);
+  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
+      << "decorations are paint-side: no reshape, no relayout";
+
+  // The red strikethrough must have put red ink on the surface. The band
+  // may be 1px tall on a fractional baseline offset, so anti-aliasing can
+  // blend every pixel — accept dominantly-red rather than exact SK_ColorRED.
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  bool sawRed = false;
+  for (int y = 0; y < pixmap.height() && !sawRed; ++y)
+    for (int x = 0; x < pixmap.width() && !sawRed; ++x) {
+      const SkColor color = pixmap.getColor(x, y);
+      sawRed = SkColorGetR(color) > 200 && SkColorGetG(color) < 128 &&
+               SkColorGetB(color) < 128;
+    }
+  EXPECT_TRUE(sawRed);
+}

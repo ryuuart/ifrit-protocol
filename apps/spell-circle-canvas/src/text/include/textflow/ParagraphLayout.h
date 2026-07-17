@@ -17,9 +17,11 @@
 #include "Paragraph.h"
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkTextBlob.h>
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace textflow {
@@ -163,6 +165,35 @@ struct ParagraphLayout {
   [[nodiscard]] std::vector<PlacedPlaceholder>
   placeholderRects(const Paragraph &paragraph) const;
 };
+
+namespace detail {
+
+/// A Decoration resolved against one run's font metrics: concrete band
+/// geometry (top edge relative to the baseline, px, y-down) and color.
+struct ResolvedDecorationBand {
+  float position = 0; ///< band top, relative to the baseline
+  float thickness = 1;
+  SkColor color = SK_ColorBLACK;
+};
+
+/** Resolves a decoration's thickness, position, and color against font
+ * metrics (deterministic geometry, exposed for tests): explicit values win;
+ * zeros fall back to the face's underline/strikeout metrics, a mid-x-height
+ * strikethrough, or the ascent line for overlines, with a 1px thickness
+ * floor throughout. */
+[[nodiscard]] ResolvedDecorationBand
+resolveDecorationBand(const Decoration &decoration,
+                      const SkFontMetrics &metrics, SkColor foregroundColor);
+
+/** Returns the absolute x spans the decoration actually draws for `run` —
+ * one span covering the run's advance, minus glyph-ink intercepts (grown by
+ * one thickness of standoff) when the decoration skips ink. Empty for
+ * transformed, vertical, and placeholder runs. */
+[[nodiscard]] std::vector<std::pair<float, float>>
+decorationSegments(const PositionedRun &run, const Decoration &decoration,
+                   const ResolvedDecorationBand &band);
+
+} // namespace detail
 
 /** Lays `paragraph` out into `geometry`. Ensures the paragraph is shaped
  * (cache-hot when little changed), breaks it into lines with the configured

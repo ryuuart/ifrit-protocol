@@ -1004,6 +1004,13 @@ void Paragraph::shapeWordContent(FontContext &fontContext, Word &word) {
         m_cachedWhitespaceText.assign(whitespace);
         m_cachedWhitespaceWidth = word.spaceWidth;
       }
+      // Word spacing adds to the glue after measuring (and after the memo,
+      // which stores the shaped base width): the breakers and justification
+      // consume spaceWidth, so they pick the extra up with no other change.
+      // Not part of the shape-cache key — the glyphs are unchanged.
+      const float wordSpacing = m_spans[styleIndex].style.shaping.wordSpacing;
+      if (wordSpacing != 0)
+        word.spaceWidth = std::max(0.0f, word.spaceWidth + wordSpacing);
     }
   }
 }
