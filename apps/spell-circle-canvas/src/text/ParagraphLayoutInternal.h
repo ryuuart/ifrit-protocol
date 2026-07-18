@@ -7,6 +7,8 @@
 #include "textflow/Paragraph.h"
 #include "textflow/ParagraphLayout.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -71,14 +73,40 @@ float naturalWidth(const std::vector<Word> &words, uint32_t firstWordIndex,
                    uint32_t endWordIndex);
 
 // Whether tab stops are configured at all (ParagraphLayoutOptions::tabStops).
-bool tabStopsActive(const ParagraphLayoutOptions &options);
+// Inline (as is glueAfter below): both sit on the breakers' hot loops, and
+// keeping them header-defined preserves the inlining they had as
+// TU-local functions.
+inline bool tabStopsActive(const ParagraphLayoutOptions &options) {
+  return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
+}
 
 // The glue width after one word with the pen at `penPosition` (relative to
 // the line interval's start): the distance to the next tab stop for tab
 // gaps, the measured whitespace otherwise. Both breakers and placement
 // resolve stops through this one function so they always agree on widths.
-float glueAfter(const Word &word, float penPosition,
-                const ParagraphLayoutOptions &options);
+inline float glueAfter(const Word &word, float penPosition,
+                       const ParagraphLayoutOptions &options) {
+  if (!word.tabAfter || !tabStopsActive(options))
+    return word.spaceWidth;
+  constexpr float kMinTabAdvance = 0.5f; // a stop the pen already reached
+                                         // is not "the next" stop
+  for (const float stop : options.tabStops.positions)
+    if (stop >= penPosition + kMinTabAdvance)
+      return stop - penPosition;
+  if (options.tabStops.interval > 0) {
+    const float base = options.tabStops.positions.empty()
+                           ? 0.0f
+                           : options.tabStops.positions.back();
+    const float distance = std::max(penPosition - base, 0.0f);
+    const float repeats =
+        std::floor(distance / options.tabStops.interval) + 1.0f;
+    const float stop = base + repeats * options.tabStops.interval;
+    if (stop >= penPosition + kMinTabAdvance)
+      return stop - penPosition;
+    return stop + options.tabStops.interval - penPosition;
+  }
+  return word.spaceWidth; // stops exhausted: tab degrades to a space
+}
 
 // Places a half-open word range into `interval` with the given alignment,
 // appending PositionedRuns to `out`. Pure arithmetic over cached ShapedWords:

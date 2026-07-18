@@ -19,33 +19,8 @@ namespace textflow {
 
 namespace detail {
 
-bool tabStopsActive(const ParagraphLayoutOptions &options) {
-  return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
-}
-
-float glueAfter(const Word &word, float penPosition,
-                const ParagraphLayoutOptions &options) {
-  if (!word.tabAfter || !tabStopsActive(options))
-    return word.spaceWidth;
-  constexpr float kMinTabAdvance = 0.5f; // a stop the pen already reached
-                                         // is not "the next" stop
-  for (const float stop : options.tabStops.positions)
-    if (stop >= penPosition + kMinTabAdvance)
-      return stop - penPosition;
-  if (options.tabStops.interval > 0) {
-    const float base = options.tabStops.positions.empty()
-                           ? 0.0f
-                           : options.tabStops.positions.back();
-    const float distance = std::max(penPosition - base, 0.0f);
-    const float repeats =
-        std::floor(distance / options.tabStops.interval) + 1.0f;
-    const float stop = base + repeats * options.tabStops.interval;
-    if (stop >= penPosition + kMinTabAdvance)
-      return stop - penPosition;
-    return stop + options.tabStops.interval - penPosition;
-  }
-  return word.spaceWidth; // stops exhausted: tab degrades to a space
-}
+// tabStopsActive() and glueAfter() are inline in ParagraphLayoutInternal.h:
+// shared with KnuthPlass.cpp, hot in both breakers.
 
 namespace {
 

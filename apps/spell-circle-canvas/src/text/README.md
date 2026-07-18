@@ -242,32 +242,35 @@ A deliberate split, worth knowing before reaching for a feature request:
 
 ## Measured performance
 
-M-series Mac, Release, google benchmark / demo:
+M-series Mac, Release, google benchmark / demo (re-baselined 2026-07 after
+the polish pass — decorations, tab-aware breakers, and friends are priced
+in; the SpellCircle/rain/ripple/marquee rows are gallery-HUD readings):
 
 | Scenario | Time |
 |---|---|
-| Warm relayout, 500 mixed Latin/CJK words | ~16 µs |
-| Warm relayout, 2000 words | ~69 µs |
-| Moving exclusion shapes through 300 words, per frame | ~10 µs |
-| Same sweep with SkPath exclusions (star + holed donut) | ~17 µs |
-| One-word edit in 500-word paragraph (full pipeline) | ~110 µs |
-| Paint-only or size restyle of a word, 500 words | ~112 µs |
-| Knuth-Plass justify, 500 words, warm | ~120 µs |
-| Cold shape of 100 mixed words (empty cache) | ~50 µs |
-| Warm relayout, 500 words across 3 typefaces + CJK fallback | ~18 µs |
-| Replace the *entire* paragraph text (warm variants) | ~130 µs |
+| Warm relayout, 500 mixed Latin/CJK words | ~30 µs |
+| Warm relayout, 2000 words | ~119 µs |
+| Moving exclusion shapes through 300 words, per frame | ~18 µs |
+| Same sweep with SkPath exclusions (star + holed donut) | ~18 µs |
+| One-word edit in 500-word paragraph (full pipeline) | ~135 µs |
+| Paint-only restyle of a word, 500 words | ~30 µs |
+| Size restyle of a word, 500 words (reshape + relayout) | ~138 µs |
+| Knuth-Plass justify, 500 words, warm | ~85 µs |
+| Cold shape of 100 mixed words (empty cache) | ~51 µs |
+| Warm relayout, 500 words across 3 typefaces + CJK fallback | ~30 µs |
+| Replace the *entire* paragraph text (warm variants) | ~145 µs |
 | Replace the entire paragraph with never-seen text (true cold) | ~530 µs |
-| Batched CPU-raster draw, 300 mixed words, foreground only | ~206 µs |
-| Same draw with shadow + glow + outline + foreground (two blurs) | ~1.18 ms |
-| Fully placed 2000-word CPU-raster draw, foreground only | ~0.84 ms |
-| Same 2000 words, mesh shader + tiled stars + glow + outline | ~28 ms |
-| Cross-line span restyle (spans merge, steady state) | ~118 µs |
-| Knuth-Plass with soft hyphens, 300 words @180px | ~32 µs |
+| Batched CPU-raster draw, 300 mixed words, foreground only | ~200 µs |
+| Same draw with shadow + glow + outline + foreground (two blurs) | ~1.14 ms |
+| Fully placed 2000-word CPU-raster draw, foreground only | ~0.83 ms |
+| Same 2000 words, mesh shader + tiled stars + glow + outline | ~58 ms |
+| Cross-line span restyle (spans merge, steady state) | ~30 µs |
+| Knuth-Plass with soft hyphens, 300 words @180px | ~96 µs |
 | Live in SpellCircle: reflow around 12 streamed shapes @4K | ~170 µs/frame |
 | Letter rain: 1000-word paragraph, breathing measure, 4657 letters | 41 µs relayout + 180 µs letters/frame |
 | Pool ripple: 1000-word paragraph, rings displacing every letter | 37 µs relayout + 228 µs wave/frame |
 | Infinite-loop path marquee (relayout around a closed contour) | ~15 µs/frame |
-| Babel confetti: 2000 tokens across ~12 scripts, rotated intervals | ~540 µs/frame |
+| Babel confetti: 2000 tokens across ~12 scripts, rotated intervals | ~555 µs/frame |
 
 Run them yourself:
 
@@ -300,7 +303,7 @@ everything moves: that's the shape cache doing its job). Judge performance
 on the Release build; Skia's Debug recording path alone is ~20× slower on
 glyph-heavy scenes.
 
-The test suite (123 cases across per-module TUs) includes a Blink-inspired
+The test suite (145 cases across per-module TUs) includes a Blink-inspired
 typographic-correctness section: complete cluster coverage across scripts,
 ZWNJ joining control, combining-mark attachment (NFC ≡ NFD widths), kinsoku
 prohibitions, NBSP no-break, justification shrink limits, UAX#9 visual

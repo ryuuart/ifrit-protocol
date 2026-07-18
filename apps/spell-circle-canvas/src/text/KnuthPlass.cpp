@@ -123,48 +123,39 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   };
 
   // Natural width and elasticity of a line holding a half-open word range.
+  // These are the DP loop's hottest calls, so they stay slim enough to
+  // inline; the tab corrections live in one flat, `tabAware`-guarded block
+  // at their call site instead (nesting them here measurably de-inlined
+  // the lot and cost ~10% on tab-free Knuth-Plass layouts).
   auto lineNatural = [&](uint32_t lineStart, uint32_t lineEnd) {
-    float natural = (prefixWidth[lineEnd] - prefixWidth[lineStart]) +
-                    (prefixGlue[lineEnd - 1] - prefixGlue[lineStart]);
-    if (!tabGapIndices.empty()) {
-      // Tab-separated segments accumulate from the prefix sums (tab gaps
-      // contributed zero there); each tab then jumps the pen to its stop
-      // through the same glueAfter placement will use, so the breaker's
-      // width for a candidate line is exactly the width it renders at.
-      const std::span<const uint32_t> tabs = tabGapsInLine(lineStart, lineEnd);
-      if (!tabs.empty()) {
-        float pen = 0;
-        uint32_t segmentStart = lineStart;
-        for (const uint32_t tabIndex : tabs) {
-          pen += (prefixWidth[tabIndex + 1] - prefixWidth[segmentStart]) +
-                 (prefixGlue[tabIndex] - prefixGlue[segmentStart]);
-          pen += glueAfter(words[tabIndex], pen, options);
-          segmentStart = tabIndex + 1;
-        }
-        natural = pen + (prefixWidth[lineEnd] - prefixWidth[segmentStart]) +
-                  (prefixGlue[lineEnd - 1] - prefixGlue[segmentStart]);
-      }
-    }
-    return natural + hyphenWidthAt(lineEnd);
-  };
-  // Glue at or before a line's last tab cannot move the line's end — the
-  // following stop swallows it — so elasticity counts only the gaps past
-  // that tab.
-  auto elasticityStart = [&](uint32_t lineStart, uint32_t lineEnd) {
-    if (!tabGapIndices.empty()) {
-      const std::span<const uint32_t> tabs = tabGapsInLine(lineStart, lineEnd);
-      if (!tabs.empty())
-        return tabs.back() + 1;
-    }
-    return lineStart;
+    return (prefixWidth[lineEnd] - prefixWidth[lineStart]) +
+           (prefixGlue[lineEnd - 1] - prefixGlue[lineStart]) +
+           hyphenWidthAt(lineEnd);
   };
   auto lineStretch = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixStretch[lineEnd - 1] -
-           prefixStretch[elasticityStart(lineStart, lineEnd)];
+    return prefixStretch[lineEnd - 1] - prefixStretch[lineStart];
   };
   auto lineShrink = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixShrink[lineEnd - 1] -
-           prefixShrink[elasticityStart(lineStart, lineEnd)];
+    return prefixShrink[lineEnd - 1] - prefixShrink[lineStart];
+  };
+  // Natural width of a line that contains tab gaps: tab-separated segments
+  // accumulate from the prefix sums (tab gaps contributed zero there); each
+  // tab then jumps the pen to its stop through the same glueAfter placement
+  // will use, so the breaker's width for a candidate line is exactly the
+  // width it renders at.
+  auto tabResolvedNatural = [&](uint32_t lineStart, uint32_t lineEnd,
+                                std::span<const uint32_t> tabs) {
+    float pen = 0;
+    uint32_t segmentStart = lineStart;
+    for (const uint32_t tabIndex : tabs) {
+      pen += (prefixWidth[tabIndex + 1] - prefixWidth[segmentStart]) +
+             (prefixGlue[tabIndex] - prefixGlue[segmentStart]);
+      pen += glueAfter(words[tabIndex], pen, options);
+      segmentStart = tabIndex + 1;
+    }
+    return pen + (prefixWidth[lineEnd] - prefixWidth[segmentStart]) +
+           (prefixGlue[lineEnd - 1] - prefixGlue[segmentStart]) +
+           hyphenWidthAt(lineEnd);
   };
 
   // Shrink is only real when placement will actually render the line
@@ -231,10 +222,25 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
         }
         const uint32_t lineStart = node.breakAt;
         const float measure = lineInterval->interval.length;
-        const float natural = lineNatural(lineStart, breakIndex);
-        const float stretch = lineStretch(lineStart, breakIndex) +
-                              (useEmergencyStretch ? measure : 0.0f);
-        const float shrink = lineShrink(lineStart, breakIndex);
+        float natural = lineNatural(lineStart, breakIndex);
+        float stretch = lineStretch(lineStart, breakIndex);
+        float shrink = lineShrink(lineStart, breakIndex);
+        if (tabAware) {
+          // Tab corrections: the natural width resolves through the stops,
+          // and glue at or before the line's last tab cannot move the
+          // line's end (the following stop swallows it), so elasticity
+          // counts only the gaps past that tab.
+          const std::span<const uint32_t> tabs =
+              tabGapsInLine(lineStart, breakIndex);
+          if (!tabs.empty()) {
+            natural = tabResolvedNatural(lineStart, breakIndex, tabs);
+            stretch =
+                prefixStretch[breakIndex - 1] - prefixStretch[tabs.back() + 1];
+            shrink =
+                prefixShrink[breakIndex - 1] - prefixShrink[tabs.back() + 1];
+          }
+        }
+        stretch += useEmergencyStretch ? measure : 0.0f;
 
         float ratio;
         if (forcedBreak && natural <= measure) {
