@@ -45,7 +45,7 @@ FlowGeometry       — per line: ordered intervals (rect bands, bands minus
   │                  OverflowOptions::maxLines clamps any geometry
   ▼
 LineBreakStrategy  — greedy or Knuth-Plass, both feeding one placement stage
-  │                  (tab stops resolve in the greedy pass)
+  │                  (both resolve tab stops through the same glue function)
   ▼
 ParagraphLayout    — PositionedRuns: shared word blob + origin (horizontal or
                      vertical columns), or RSXform-baked blob (rotated /
@@ -153,8 +153,9 @@ The Chrome-parity surface, and where each feature lives in the pipeline:
   exclusion flows; combine with `overflow.ellipsis` for a shaped marker on
   the clamped line.
 - **Tab stops** — `ParagraphLayoutOptions::tabStops` (explicit positions +
-  repeating interval). Tab glue advances to the next stop and is rigid under
-  justification. Unconfigured, tabs measure as spaces.
+  repeating interval). Tab glue advances to the next stop under both
+  breakers; justification stretches only the gaps past a line's last tab, so
+  columns stay pinned to their stops. Unconfigured, tabs measure as spaces.
 - **Overflow ellipsis** — `overflow.ellipsis` trims the final placed line
   until a shaped marker fits (CSS text-overflow, but the marker is a real
   glyph run in the tail's style).

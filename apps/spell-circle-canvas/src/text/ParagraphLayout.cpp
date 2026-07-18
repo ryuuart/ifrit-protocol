@@ -19,37 +19,10 @@ namespace textflow {
 
 namespace detail {
 
-namespace {
-
-constexpr float kFitEpsilon = 0.25f;
-// After this many consecutive intervals rejected a word outright, it is
-// force-placed (overflowing) rather than skipping arbitrarily far down the
-// geometry — matches browser overflow behavior for unbreakably-wide content.
-constexpr int kMaxIntervalSkips = 12;
-
-enum class GapKind : uint8_t { kRigid, kSpace, kIdeographic };
-
-/** Returns whether tab stops are configured at all. */
 bool tabStopsActive(const ParagraphLayoutOptions &options) {
   return !options.tabStops.positions.empty() || options.tabStops.interval > 0;
 }
 
-/** Classifies the gap after one logical word for justification. */
-GapKind gapKind(const std::vector<Word> &words, uint32_t wordIndex,
-                const ParagraphLayoutOptions &options) {
-  if (words[wordIndex].tabAfter && tabStopsActive(options))
-    return GapKind::kRigid; // tab gaps never stretch or shrink
-  if (words[wordIndex].spaceWidth > 0)
-    return GapKind::kSpace;
-  if (options.justification.expandIdeographicGaps &&
-      (words[wordIndex].ideographic || words[wordIndex + 1].ideographic))
-    return GapKind::kIdeographic;
-  return GapKind::kRigid;
-}
-
-/** Returns the glue width after `word` with the pen at `penPosition`
- * (relative to the line interval's start): the distance to the next tab
- * stop for tab gaps, the measured whitespace otherwise. */
 float glueAfter(const Word &word, float penPosition,
                 const ParagraphLayoutOptions &options) {
   if (!word.tabAfter || !tabStopsActive(options))
@@ -72,6 +45,29 @@ float glueAfter(const Word &word, float penPosition,
     return stop + options.tabStops.interval - penPosition;
   }
   return word.spaceWidth; // stops exhausted: tab degrades to a space
+}
+
+namespace {
+
+constexpr float kFitEpsilon = 0.25f;
+// After this many consecutive intervals rejected a word outright, it is
+// force-placed (overflowing) rather than skipping arbitrarily far down the
+// geometry — matches browser overflow behavior for unbreakably-wide content.
+constexpr int kMaxIntervalSkips = 12;
+
+enum class GapKind : uint8_t { kRigid, kSpace, kIdeographic };
+
+/** Classifies the gap after one logical word for justification. */
+GapKind gapKind(const std::vector<Word> &words, uint32_t wordIndex,
+                const ParagraphLayoutOptions &options) {
+  if (words[wordIndex].tabAfter && tabStopsActive(options))
+    return GapKind::kRigid; // tab gaps never stretch or shrink
+  if (words[wordIndex].spaceWidth > 0)
+    return GapKind::kSpace;
+  if (options.justification.expandIdeographicGaps &&
+      (words[wordIndex].ideographic || words[wordIndex + 1].ideographic))
+    return GapKind::kIdeographic;
+  return GapKind::kRigid;
 }
 
 /** Returns a word's em size, including a safe default for placeholders. */
@@ -269,25 +265,76 @@ void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
   const float hyphenWidth =
       hyphenBreakTaken ? words[endWordIndex - 1].hyphenGlyph->advance : 0.0f;
 
-  // Gap census for justification.
+  // Visual reordering (no-op for pure-LTR lines). Computed up front because
+  // tab resolution follows pen order, not logical order.
+  static thread_local std::vector<uint32_t> visualWordOrder;
+  visualOrder(words, firstWordIndex, endWordIndex, visualWordOrder);
+
+  // Tab gaps pin the pen to absolute stops, so a tabbed line's width can
+  // only be known by walking it. The same walk finds the last tab gap:
+  // justification must ignore every gap at or before it — the following
+  // stop would swallow any adjustment (and overshooting a stop would break
+  // the column) — so only the gaps past the last tab absorb slack.
+  int lastTabVisualIndex = -1; // visual index of the word before the gap
+  float resolvedNaturalWidth = 0;
+  if (tabStopsActive(options)) {
+    float pen = 0;
+    for (size_t visualIndex = 0; visualIndex < visualWordOrder.size();
+         ++visualIndex) {
+      const Word &word = words[visualWordOrder[visualIndex]];
+      pen += word.width;
+      if (visualIndex + 1 < visualWordOrder.size()) {
+        if (word.tabAfter)
+          lastTabVisualIndex = static_cast<int>(visualIndex);
+        pen += glueAfter(word, pen, options);
+      }
+    }
+    resolvedNaturalWidth = pen + hyphenWidth;
+  }
+  const bool hasTab = lastTabVisualIndex >= 0;
+
+  // Gap census for justification (tabbed lines: only gaps past the last
+  // tab), plus the measured glue behind the census for the shrink limit.
   int spaceGapCount = 0;
   int ideographicGapCount = 0;
-  for (uint32_t wordIndex = firstWordIndex; wordIndex + 1 < endWordIndex;
-       ++wordIndex) {
-    switch (gapKind(words, wordIndex, options)) {
-    case GapKind::kSpace:
-      spaceGapCount++;
-      break;
-    case GapKind::kIdeographic:
-      ideographicGapCount++;
-      break;
-    case GapKind::kRigid:
-      break;
+  float stretchableGlue = 0;
+  if (hasTab) {
+    for (size_t visualIndex = static_cast<size_t>(lastTabVisualIndex) + 1;
+         visualIndex + 1 < visualWordOrder.size(); ++visualIndex) {
+      const uint32_t gapWordIndex = std::min(
+          visualWordOrder[visualIndex], visualWordOrder[visualIndex + 1]);
+      switch (gapKind(words, gapWordIndex, options)) {
+      case GapKind::kSpace:
+        spaceGapCount++;
+        break;
+      case GapKind::kIdeographic:
+        ideographicGapCount++;
+        break;
+      case GapKind::kRigid:
+        break;
+      }
+      stretchableGlue += words[gapWordIndex].spaceWidth;
+    }
+  } else {
+    for (uint32_t wordIndex = firstWordIndex; wordIndex + 1 < endWordIndex;
+         ++wordIndex) {
+      switch (gapKind(words, wordIndex, options)) {
+      case GapKind::kSpace:
+        spaceGapCount++;
+        break;
+      case GapKind::kIdeographic:
+        ideographicGapCount++;
+        break;
+      case GapKind::kRigid:
+        break;
+      }
+      stretchableGlue += words[wordIndex].spaceWidth;
     }
   }
 
   const float naturalLineWidth =
-      naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
+      hasTab ? resolvedNaturalWidth
+             : naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
   const float extraWidth = flatInterval.interval.length - naturalLineWidth;
 
   TextAlignment resolvedAlignment = alignment;
@@ -331,14 +378,11 @@ void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
       // line beats spaces collapsing to nothing. Ideographic gaps compress
       // a touch too, mirroring the breakers' shrink model (em * 0.03), so
       // a break the breaker deemed renderable never leaks past the measure.
-      float totalGlue = 0;
-      for (uint32_t wordIndex = firstWordIndex; wordIndex + 1 < endWordIndex;
-           ++wordIndex)
-        totalGlue += words[wordIndex].spaceWidth;
       const float spaceShrinkLimit =
-          spaceGapCount > 0 ? totalGlue / static_cast<float>(spaceGapCount) *
-                                  options.justification.spaceShrink
-                            : 0;
+          spaceGapCount > 0
+              ? stretchableGlue / static_cast<float>(spaceGapCount) *
+                    options.justification.spaceShrink
+              : 0;
       const float ideographicShrinkLimit =
           0.03f * wordFontSize(words[firstWordIndex]);
       const float capacity =
@@ -353,10 +397,6 @@ void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
     break;
   }
   }
-
-  // Visual reordering (no-op for pure-LTR lines).
-  static thread_local std::vector<uint32_t> visualWordOrder;
-  visualOrder(words, firstWordIndex, endWordIndex, visualWordOrder);
 
   float penPosition = startOffset;
   for (size_t visualIndex = 0; visualIndex < visualWordOrder.size();
@@ -391,18 +431,23 @@ void placeWords(const std::vector<Word> &words, uint32_t firstWordIndex,
     if (visualIndex + 1 < visualWordOrder.size()) {
       // Glue between visual neighbors; logical == visual for LTR text.
       // (glueAfter == spaceWidth unless the gap is a configured tab stop.)
-      penPosition += glueAfter(word, penPosition, options);
-      switch (gapKind(words,
-                      std::min(wordIndex, visualWordOrder[visualIndex + 1]),
-                      options)) {
-      case GapKind::kSpace:
-        penPosition += spaceAdjustment;
-        break;
-      case GapKind::kIdeographic:
-        penPosition += ideographicAdjustment;
-        break;
-      case GapKind::kRigid:
-        break;
+      // Stops resolve in line-local coordinates — the alignment offset
+      // shifts the resolved line as a whole, keeping the line's width the
+      // width the breaker and the census computed for it.
+      penPosition += glueAfter(word, penPosition - startOffset, options);
+      if (static_cast<int>(visualIndex) > lastTabVisualIndex) {
+        switch (gapKind(words,
+                        std::min(wordIndex, visualWordOrder[visualIndex + 1]),
+                        options)) {
+        case GapKind::kSpace:
+          penPosition += spaceAdjustment;
+          break;
+        case GapKind::kIdeographic:
+          penPosition += ideographicAdjustment;
+          break;
+        case GapKind::kRigid:
+          break;
+        }
       }
     }
   }

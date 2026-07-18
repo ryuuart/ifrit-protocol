@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <span>
 #include <vector>
 
 namespace textflow {
@@ -62,10 +63,16 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
   // Extended on demand up to the furthest boundary the DP visits.
   static thread_local std::vector<float> prefixWidth, prefixGlue, prefixStretch,
       prefixShrink;
+  // Words followed by a tab gap, ascending; only filled when stops are
+  // active. Tab glue is pen-dependent, so it stays out of the prefix sums —
+  // lineNatural resolves it per candidate line instead.
+  static thread_local std::vector<uint32_t> tabGapIndices;
   prefixWidth.assign(1, 0);
   prefixGlue.assign(1, 0);
   prefixStretch.assign(1, 0);
   prefixShrink.assign(1, 0);
+  tabGapIndices.clear();
+  const bool tabAware = tabStopsActive(options);
   auto ensurePrefixSums = [&](uint32_t endWordIndex) {
     for (uint32_t wordIndex = static_cast<uint32_t>(prefixWidth.size()) - 1;
          wordIndex < endWordIndex; ++wordIndex) {
@@ -73,7 +80,11 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
       float glue = 0;
       float stretch = 0;
       float shrink = 0;
-      if (words[wordIndex].spaceWidth > 0) {
+      if (tabAware && words[wordIndex].tabAfter) {
+        // Tab gaps are rigid (columns pin to stops) and positional; the
+        // width they'll actually take is resolved in lineNatural.
+        tabGapIndices.push_back(wordIndex);
+      } else if (words[wordIndex].spaceWidth > 0) {
         glue = words[wordIndex].spaceWidth;
         stretch = glue * options.justification.spaceStretch;
         shrink = glue * options.justification.spaceShrink;
@@ -94,6 +105,16 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
     }
   };
 
+  // Tab gaps interior to a candidate line [lineStart, lineEnd): gap indices
+  // in [lineStart, lineEnd - 1) — the break-side gap is never on the line.
+  auto tabGapsInLine = [&](uint32_t lineStart, uint32_t lineEnd) {
+    const auto first = std::lower_bound(tabGapIndices.begin(),
+                                        tabGapIndices.end(), lineStart);
+    const auto last =
+        std::lower_bound(first, tabGapIndices.end(), lineEnd - 1);
+    return std::span<const uint32_t>(first, last);
+  };
+
   // Extra width when the line ends on a discretionary (soft-hyphen) break.
   auto hyphenWidthAt = [&](uint32_t breakIndex) -> float {
     return hyphenTakenAt(words, breakIndex, breakIndex == wordCount, options)
@@ -103,15 +124,47 @@ ParagraphLayout knuthPlassLayout(FontContext &fontContext, Paragraph &paragraph,
 
   // Natural width and elasticity of a line holding a half-open word range.
   auto lineNatural = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return (prefixWidth[lineEnd] - prefixWidth[lineStart]) +
-           (prefixGlue[lineEnd - 1] - prefixGlue[lineStart]) +
-           hyphenWidthAt(lineEnd);
+    float natural = (prefixWidth[lineEnd] - prefixWidth[lineStart]) +
+                    (prefixGlue[lineEnd - 1] - prefixGlue[lineStart]);
+    if (!tabGapIndices.empty()) {
+      // Tab-separated segments accumulate from the prefix sums (tab gaps
+      // contributed zero there); each tab then jumps the pen to its stop
+      // through the same glueAfter placement will use, so the breaker's
+      // width for a candidate line is exactly the width it renders at.
+      const std::span<const uint32_t> tabs = tabGapsInLine(lineStart, lineEnd);
+      if (!tabs.empty()) {
+        float pen = 0;
+        uint32_t segmentStart = lineStart;
+        for (const uint32_t tabIndex : tabs) {
+          pen += (prefixWidth[tabIndex + 1] - prefixWidth[segmentStart]) +
+                 (prefixGlue[tabIndex] - prefixGlue[segmentStart]);
+          pen += glueAfter(words[tabIndex], pen, options);
+          segmentStart = tabIndex + 1;
+        }
+        natural = pen + (prefixWidth[lineEnd] - prefixWidth[segmentStart]) +
+                  (prefixGlue[lineEnd - 1] - prefixGlue[segmentStart]);
+      }
+    }
+    return natural + hyphenWidthAt(lineEnd);
+  };
+  // Glue at or before a line's last tab cannot move the line's end — the
+  // following stop swallows it — so elasticity counts only the gaps past
+  // that tab.
+  auto elasticityStart = [&](uint32_t lineStart, uint32_t lineEnd) {
+    if (!tabGapIndices.empty()) {
+      const std::span<const uint32_t> tabs = tabGapsInLine(lineStart, lineEnd);
+      if (!tabs.empty())
+        return tabs.back() + 1;
+    }
+    return lineStart;
   };
   auto lineStretch = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixStretch[lineEnd - 1] - prefixStretch[lineStart];
+    return prefixStretch[lineEnd - 1] -
+           prefixStretch[elasticityStart(lineStart, lineEnd)];
   };
   auto lineShrink = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixShrink[lineEnd - 1] - prefixShrink[lineStart];
+    return prefixShrink[lineEnd - 1] -
+           prefixShrink[elasticityStart(lineStart, lineEnd)];
   };
 
   // Shrink is only real when placement will actually render the line

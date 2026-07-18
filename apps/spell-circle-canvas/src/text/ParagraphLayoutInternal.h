@@ -70,6 +70,16 @@ private:
 float naturalWidth(const std::vector<Word> &words, uint32_t firstWordIndex,
                    uint32_t endWordIndex);
 
+// Whether tab stops are configured at all (ParagraphLayoutOptions::tabStops).
+bool tabStopsActive(const ParagraphLayoutOptions &options);
+
+// The glue width after one word with the pen at `penPosition` (relative to
+// the line interval's start): the distance to the next tab stop for tab
+// gaps, the measured whitespace otherwise. Both breakers and placement
+// resolve stops through this one function so they always agree on widths.
+float glueAfter(const Word &word, float penPosition,
+                const ParagraphLayoutOptions &options);
+
 // Places a half-open word range into `interval` with the given alignment,
 // appending PositionedRuns to `out`. Pure arithmetic over cached ShapedWords:
 // straight horizontal intervals reuse each word's shared blob; rotated and

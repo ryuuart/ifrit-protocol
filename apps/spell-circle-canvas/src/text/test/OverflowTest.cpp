@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <string>
@@ -301,6 +302,87 @@ TEST(TabStops, WrapsWhenStopExceedsMeasure) {
       layoutParagraph(fontContext, paragraph, flow, options);
   EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
   EXPECT_FALSE(layout.overflowed());
+}
+
+TEST(TabStops, KnuthPlassAlignsColumns) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx\ncdef\tk\tyz");
+  BlockFlow flow(SkRect::MakeWH(600, 90));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  options.tabStops.positions = {120.0f, 300.0f};
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_EQ(layout.lineCount, 2);
+  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"longerhead"), 120.0f);
+  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"x"), 300.0f);
+  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"k"), 120.0f);
+  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"yz"), 300.0f);
+}
+
+TEST(TabStops, KnuthPlassBreaksAtTabResolvedWidths) {
+  FontContext &fontContext = sharedContext();
+  // At its shaped space-equivalent width "head tail" fits the 200px
+  // measure, but the tab pushes "tail" to the 180px stop where it cannot;
+  // a breaker scoring lines at natural glue width would leak it past the
+  // measure instead of wrapping.
+  Paragraph paragraph = makeParagraph(u8"head\ttail");
+  BlockFlow flow(SkRect::MakeWH(200, 200));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  options.tabStops.positions = {180.0f};
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
+  EXPECT_FALSE(layout.overflowed());
+  for (const PositionedRun &run : layout.runs)
+    EXPECT_LE(runEnd(paragraph, run), 200.0f + 0.75f)
+        << "tabbed line leaks past the measure";
+}
+
+TEST(TabStops, JustificationKeepsColumnsOnStops) {
+  FontContext &fontContext = sharedContext();
+  for (const LineBreakStrategy strategy :
+       {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
+    Paragraph paragraph = makeParagraph(u8"a\tbb cc dd");
+    BlockFlow flow(SkRect::MakeWH(400, 60));
+    ParagraphLayoutOptions options;
+    options.lineBreakStrategy = strategy;
+    options.alignment = TextAlignment::kJustify;
+    options.justification.justifyLastLine = true;
+    options.tabStops.positions = {100.0f};
+    ParagraphLayout layout =
+        layoutParagraph(fontContext, paragraph, flow, options);
+    ASSERT_EQ(layout.lineCount, 1);
+    // The column stays pinned to its stop; only the gaps past the tab
+    // stretch, and they absorb the entire slack to the measure.
+    EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"bb"), 100.0f);
+    float lineEnd = 0;
+    for (const PositionedRun &run : layout.runs)
+      lineEnd = std::max(lineEnd, runEnd(paragraph, run));
+    EXPECT_NEAR(lineEnd, 400.0f, 0.75f) << "tabbed line not justified";
+  }
+}
+
+TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
+  FontContext &fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"a\tb");
+  BlockFlow flow(SkRect::MakeWH(300, 60));
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kCenter;
+  options.tabStops.positions = {100.0f};
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  const float aOrigin = runOriginFor(paragraph, layout, u"a");
+  const float bOrigin = runOriginFor(paragraph, layout, u"b");
+  // Stops are line-local: the column offset survives the shift, and the
+  // slack splits evenly around the tab-resolved line width.
+  EXPECT_FLOAT_EQ(bOrigin - aOrigin, 100.0f);
+  EXPECT_GT(aOrigin, 0.0f);
+  float lineEnd = 0;
+  for (const PositionedRun &run : layout.runs)
+    lineEnd = std::max(lineEnd, runEnd(paragraph, run));
+  EXPECT_NEAR(aOrigin, 300.0f - lineEnd, 0.5f) << "line not centered";
 }
 
 TEST(TabStops, UnconfiguredTabsStillMeasureAsSpaces) {

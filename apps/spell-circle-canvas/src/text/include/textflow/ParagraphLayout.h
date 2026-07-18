@@ -90,17 +90,23 @@ struct OverflowOptions {
   int maxLines = 0;
 };
 
-/** Tab-character handling for straight horizontal flows (greedy breaker).
+/** Tab-character handling for straight horizontal flows.
  *
  * A word whose trailing whitespace contains a tab advances the pen to the
  * next stop instead of its measured glue: first through `positions`
  * (ascending, px from each line interval's start), then repeating every
  * `interval` px past the last explicit stop. With no stop ahead (or no
  * configuration at all — the default) tabs keep their shaped
- * space-equivalent width. Tab gaps are rigid under justification.
- * v1 scope: greedy breaker, straight horizontal intervals, LTR lines;
- * Knuth-Plass treats tabs as ordinary glue. Alignment other than kStart
- * may shift a tabbed line as a whole (width estimation uses natural glue).
+ * space-equivalent width.
+ *
+ * Both breakers resolve stops identically: greedy fits against tab-resolved
+ * widths as it goes, and Knuth-Plass scores every candidate line at its
+ * tab-resolved width. Stops are line-local — alignment other than kStart
+ * shifts the resolved line as a whole. Tab gaps are rigid under
+ * justification, and gaps at or before a line's last tab never stretch or
+ * shrink (the following stop would swallow the adjustment and unpin the
+ * column); only the gaps past the last tab absorb slack.
+ * Scope: straight horizontal intervals, LTR lines.
  */
 struct TabStopOptions {
   std::vector<float> positions; ///< explicit stops, ascending px from the
