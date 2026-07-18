@@ -1,0 +1,10 @@
+#pragma once
+// Generated from UltralightShaders.metal by CMake — do not edit.
+
+namespace ifrit::web {
+
+inline constexpr char kUltralightShaderSource[] = R"ULSHADER(
+@IFRIT_WEB_ULTRALIGHT_SHADER_SOURCE@
+)ULSHADER";
+
+} // namespace ifrit::web
