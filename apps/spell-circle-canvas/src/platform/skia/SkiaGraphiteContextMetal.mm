@@ -9,20 +9,14 @@
 #include <gpu/graphite/Recorder.h>
 #include <gpu/graphite/mtl/MtlBackendContext.h>
 
-SkiaGraphiteContext::SkiaGraphiteContext(
-    std::unique_ptr<skgpu::graphite::Context> context,
-    std::unique_ptr<skgpu::graphite::Recorder> recorder)
-    : m_context(std::move(context)), m_recorder(std::move(recorder)) {}
-
-SkiaGraphiteContext::~SkiaGraphiteContext() = default;
-
 std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
-  // This factory is the single Graphite bring-up point: it inspects the
-  // QRhi backend and returns null for anything it cannot serve, so callers
-  // never assume Metal. A Vulkan/Dawn port adds a branch here (Vulkan:
-  // QRhiVulkanNativeHandles → skgpu::graphite::VulkanBackendContext →
-  // ContextFactory::MakeVulkan) plus the matching texture-wrap branch in
-  // SkiaOffscreenSurface — nothing outside src/platform/skia changes.
+  // This factory is the single Graphite bring-up point per graphics API: it
+  // inspects the QRhi backend and returns null for anything it cannot
+  // serve, so callers never assume Metal. Each build compiles exactly one
+  // create() TU — this Metal one on Apple, SkiaGraphiteContextVulkan.cpp
+  // elsewhere. A Dawn/D3D port would swap in a third sibling TU plus the
+  // matching texture-wrap TU beside SkiaOffscreenSurfaceMetal.mm — nothing
+  // outside src/platform/skia changes.
   if (!rhi || rhi->backend() != QRhi::Metal)
     return nullptr;
 

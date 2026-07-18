@@ -65,11 +65,5 @@ void SyphonBridge::stop() {
   m_private->server = nil;
 }
 
-std::unique_ptr<TexturePublisher> createTexturePublisher(QRhi *rhi,
-                                                         std::string name) {
-  if (!rhi || rhi->backend() != QRhi::Metal)
-    return nullptr;
-  auto bridge = std::make_unique<SyphonBridge>(std::move(name));
-  bridge->start(rhi);
-  return bridge;
-}
+// createTexturePublisher() lives in TexturePublisherFactory.cpp, which
+// selects this bridge on Metal and SpoutBridge on D3D11.

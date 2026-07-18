@@ -42,7 +42,7 @@ private:
   // inherited beginCanvasPainting()/endCanvasPainting() recording brackets —
   // QCanvasPainterSceneBackend draws directly from these rather than going
   // through a method on SpellCircleRenderer. SkiaSceneBackendImpl (defined at
-  // global scope in SkiaSceneBackend.mm, not in an anonymous namespace, so
+  // global scope in SkiaSceneBackend.cpp, not in an anonymous namespace, so
   // this forward-declaring friend actually names it) needs the same resolved
   // geometry and style fields to draw the equivalent scene via Skia, but
   // never uses m_curvedTextPainter or the QCanvasPainter recording brackets —

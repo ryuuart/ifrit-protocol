@@ -45,12 +45,15 @@ Incoming UDP datagrams flow through `NetworkManager` verification into
 `SpellCircleRenderer` resolves model entities to native canvas coordinates and
 delegates drawing to one of two `CanvasSceneBackend` implementations:
 
-- `SkiaSceneBackend` draws with Graphite on Qt's Metal device and uses TextFlow.
+- `SkiaSceneBackend` draws with Graphite on Qt's native GPU device (Metal on
+  macOS; Vulkan draft elsewhere) and uses TextFlow.
 - `QCanvasPainterSceneBackend` is the always-available fallback.
 
-Both render to a native-size `QCanvasOffscreenCanvas`; `SyphonBridge` publishes
-that Metal texture. The visible QML item blits the registered image and handles
-zoom and pan independently of scene rerendering.
+Both render to a native-size `QCanvasOffscreenCanvas`; a `TexturePublisher`
+(`SyphonBridge` on macOS/Metal, `SpoutBridge` draft on Windows/D3D11)
+publishes that texture. The visible QML item blits the registered image and
+handles zoom and pan independently of scene rerendering. The Windows paths
+are untested bring-up drafts until the Windows port lands.
 
 The main QML lives under `src/qml/app/`. Reusable controls live in its
 `components/` directory. The `SpellCircle.Canvas` module and its C++ backends

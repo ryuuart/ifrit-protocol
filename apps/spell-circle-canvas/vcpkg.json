@@ -11,16 +11,29 @@
     {
       "name": "harfbuzz",
       "features": [
-        "coretext",
-        "icu"
+        "icu",
+        {
+          "name": "coretext",
+          "platform": "osx"
+        }
       ]
     },
     {
       "name": "skia",
       "features": [
         "graphite",
-        "metal"
+        {
+          "name": "metal",
+          "platform": "osx"
+        }
       ]
+    },
+    {
+      "name": "spout2",
+      "features": [
+        "dx"
+      ],
+      "platform": "windows & !uwp & !arm64"
     }
   ]
 }

@@ -9,11 +9,12 @@ class QRhiCommandBuffer;
 /**
  * Publishes rendered frames to an external inter-application video sink.
  *
- * Implementations are graphics-backend-specific: Syphon serves Metal on
- * macOS today, and a Spout implementation is the Direct3D analogue when a
- * Windows port lands. Obtain one through createTexturePublisher(), which
- * returns null on backends without a publisher — callers must treat the
- * publisher as optional and skip publishing when it is absent.
+ * Implementations are graphics-backend-specific: SyphonBridge serves Metal
+ * on macOS, SpoutBridge is the Direct3D 11 analogue on Windows (a bring-up
+ * draft until the Windows port lands). Obtain one through
+ * createTexturePublisher() (TexturePublisherFactory.cpp), which returns
+ * null on backends without a publisher — callers must treat the publisher
+ * as optional and skip publishing when it is absent.
  */
 class TexturePublisher {
 public:

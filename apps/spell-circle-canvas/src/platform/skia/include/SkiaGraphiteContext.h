@@ -9,15 +9,18 @@ class Recorder;
 } // namespace skgpu::graphite
 
 /**
- * Owns the Skia Graphite Metal Context + Recorder used to draw into
- * QCanvasOffscreenCanvas textures from SkCanvas. Built from the same
- * MTLDevice/MTLCommandQueue that Qt's QRhi already uses (see SyphonBridge for
- * the equivalent pattern), so Graphite's GPU work rides the same Metal
- * command queue as Qt Quick's own rendering.
+ * Owns the Skia Graphite Context + Recorder used to draw into
+ * QCanvasOffscreenCanvas textures from SkCanvas. Built from the same native
+ * device/queue that Qt's QRhi already uses (Metal on Apple platforms,
+ * Vulkan elsewhere — one create() TU per build, see
+ * SkiaGraphiteContextMetal.mm / SkiaGraphiteContextVulkan.cpp), so
+ * Graphite's GPU work rides the same command queue as Qt Quick's own
+ * rendering.
  */
 class SkiaGraphiteContext {
 public:
-  /** Returns null if @p rhi isn't backed by Metal or Context creation fails. */
+  /** Returns null if @p rhi isn't backed by this build's graphics API or
+   *  Context creation fails. */
   static std::unique_ptr<SkiaGraphiteContext> create(QRhi *rhi);
 
   ~SkiaGraphiteContext();

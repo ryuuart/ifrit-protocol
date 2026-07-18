@@ -20,12 +20,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # Redirects QT modules
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
-# Compiles the Skia Graphite (Metal) CanvasSceneBackend and its generic GPU
-# interop plumbing under src/platform/skia. At runtime the renderer uses it
-# when a compatible Graphite context can be created and otherwise falls back
-# to QCanvasPainter. Turning this off removes the Graphite implementation and
+# Compiles the Skia Graphite CanvasSceneBackend (Metal on Apple platforms,
+# Vulkan elsewhere) and its generic GPU interop plumbing under
+# src/platform/skia. At runtime the renderer uses it when a compatible
+# Graphite context can be created and otherwise falls back to
+# QCanvasPainter. Turning this off removes the Graphite implementation and
 # leaves the same renderer-facing factory backed by its always-null stub.
-option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal) offscreen-canvas backend" ON)
+option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) offscreen-canvas backend" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts CanvasPainter Network GuiPrivate)
 find_package(gtest CONFIG REQUIRED)
@@ -43,10 +44,12 @@ find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 enable_testing()
 
 # MacOS Frameworks
-find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
-find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
-find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
-find_library(SYPHON_FRAMEWORK Syphon)
+if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+  find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
+  find_library(SYPHON_FRAMEWORK Syphon)
+endif()
 
 qt_standard_project_setup(REQUIRES 6.11)
 

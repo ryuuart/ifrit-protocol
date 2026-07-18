@@ -8,15 +8,17 @@ class SkCanvas;
 class SkSurface;
 
 /**
- * Wraps an existing QRhiTexture's native Metal texture (e.g. the one owned by
- * a QCanvasOffscreenCanvas) in an SkSurface, without copying it, so SkCanvas
+ * Wraps an existing QRhiTexture's native texture (e.g. the one owned by a
+ * QCanvasOffscreenCanvas) in an SkSurface, without copying it, so SkCanvas
  * draw calls land directly in that texture. Construct fresh per use — it's a
- * thin, cheap wrapper around a texture someone else owns.
+ * thin, cheap wrapper around a texture someone else owns. The wrap is
+ * per-API (Metal on Apple platforms, Vulkan elsewhere), matching the
+ * SkiaGraphiteContext create() TU compiled into this build.
  */
 class SkiaOffscreenSurface {
 public:
-  /** @p texture must be a Metal-backed QRhiTexture created by the same QRhi
-   *  whose device/queue @p context was built from. */
+  /** @p texture must be a QRhiTexture created by the same QRhi whose native
+   *  device/queue @p context was built from. */
   SkiaOffscreenSurface(SkiaGraphiteContext &context, QRhiTexture *texture,
                        QSize pixelSize);
   ~SkiaOffscreenSurface();
