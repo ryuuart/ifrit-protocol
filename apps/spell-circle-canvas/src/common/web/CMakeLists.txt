@@ -85,6 +85,29 @@ add_executable(ifritweb_demo
 target_link_libraries(ifritweb_demo PRIVATE IfritWeb)
 ultralight_copy_resources(ifritweb_demo)
 
+# Integration-path benchmarks; run `web_bench` for the CPU engine and
+# `web_bench --gpu` for the GPU engine (one Ultralight renderer per
+# process, so the two modes are separate runs).
+if(NOT APPLE OR TARGET SpellCircleSkia)
+  if(APPLE)
+    set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuMetal.mm)
+  else()
+    set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
+  endif()
+  add_executable(web_bench
+    bench/WebBench.cpp
+    bench/BenchGpu.h
+    ${IFRIT_WEB_BENCH_GPU_SOURCES}
+  )
+  target_link_libraries(web_bench PRIVATE IfritWeb benchmark::benchmark)
+  if(APPLE)
+    set_source_files_properties(bench/BenchGpuMetal.mm PROPERTIES
+      COMPILE_OPTIONS -fobjc-arc)
+    target_link_libraries(web_bench PRIVATE SpellCircleSkia ${METAL_FRAMEWORK})
+  endif()
+  ultralight_copy_resources(web_bench)
+endif()
+
 # GPU-mode targets: Ultralight's Metal GPUDriver feeding texture-backed
 # SkImages into a Graphite context (SpellCircleSkia provides the Qt-free
 # Metal bring-up). Separate test binary because Ultralight allows one

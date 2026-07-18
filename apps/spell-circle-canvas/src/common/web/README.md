@@ -100,6 +100,36 @@ device/queue, submit, then `invalidate()` — in that order). A page that
 references a slot name with no registered WebImage logs a warning naming
 the slot.
 
+## Performance
+
+`web_bench` (Release) measures the integration paths; run it plain for
+the CPU engine and with `--gpu` for the GPU engine (one Ultralight
+renderer per process, so the modes are separate runs). Reference numbers
+from an Apple Silicon dev Mac, 1280x720 view, per operation:
+
+| Path                                   | CPU engine      | GPU engine |
+| -------------------------------------- | --------------- | ---------- |
+| `frame()` acquire                      | 13 ns           | 9 ns |
+| full-view draw onto the scene canvas   | 571 µs          | 1.4 µs record, 56 µs with per-frame submit (14 µs CPU) |
+| `frameImage()` texture wrap            | n/a (raster)    | 231 ns |
+| slot `update()` raster 256² / 1024²    | 14 µs / 136 µs  | 42 µs / 474 µs |
+| slot `updateTexture()` 256² / 1024²    | n/a             | 31 µs / 38 µs |
+| slot `paint()` 256² / 1024²            | 62 µs / 198 µs  | 61 µs / 61 µs |
+| DOM change → published frame           | 22 ms           | 22 ms |
+
+Guidance that falls out of this:
+
+- GPU mode makes consumer-side compositing ~400x cheaper (a recorded
+  textured quad vs a 3.7 MB raster blit) and the SkImage wrap is free —
+  draw web frames every scene frame without budgeting for them.
+- On GPU engines, feed slots with `paint()` or `updateTexture()` (cost
+  is size-independent — a blit/draw on the shared queue) rather than
+  raster `update()`, which pays a CPU convert + upload.
+- The ~22 ms DOM-change latency is dominated by pacing — Ultralight's
+  Free-edition 60 FPS repaint cap plus the engine's own default 60 FPS
+  render cadence — not by compositing cost. Input-to-glass latency for
+  web content is therefore roughly two frames.
+
 ## GPU vs CPU
 
 Pass the host's `id<MTLDevice>` / `id<MTLCommandQueue>` (bridged to
