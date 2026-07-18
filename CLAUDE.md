@@ -41,7 +41,9 @@ The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
 `CMakeUserPresets.json`. The primary executables are `SpellCircle`,
 `SpellCircleMac` (macOS only, needs a Swift toolchain), `TextFlowGallery`,
 `textflow_test`, `textflow_bench`, `textflow_demo`, `ifritweb_demo`
-(CPU/lockstep), and `ifritweb_gpu_demo` (Metal + Graphite).
+(CPU/lockstep), `ifritweb_gpu_demo` (Metal + Graphite), and `web_bench`
+(IfritWeb path costs; plain = CPU engine, `--gpu` = GPU engine — see the
+performance table in `src/common/web/README.md`).
 
 The Ultralight SDK is required for IfritWeb;
 `SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
@@ -140,11 +142,14 @@ SDK runtime data, synthesizes the `.imgsrc` indirection files, and
 resolves other paths against `WebEngineConfig::fileSystemDir`; loadHTML
 pages get a `file:///` base URL so those resources are reachable. Engine shutdown must purge WebCore
 caches before destroying the renderer (see `threadMain`) — GPU glyph
-textures otherwise dangle into pthread TSD cleanup. A Vulkan GPUDriver is
-future work alongside the repo's other Vulkan draft targets; sharing an
-SkCanvas directly is not architecturally possible (Ultralight records its
-own render passes), so texture-backed SkImage is the supported
-compositing model.
+textures otherwise dangle into pthread TSD cleanup. The engine internals are
+backend-neutral: everything codes against `WebGpuDriver`
+(`src/common/web/WebGpuDriver.h`), with `UltralightMetalDriver` as the
+Metal implementation and one factory seam in `setupPlatform` — the
+Windows/Linux ports add a Vulkan/D3D driver there alongside the repo's
+other Vulkan draft targets. Sharing an SkCanvas directly is not
+architecturally possible (Ultralight records its own render passes), so
+texture-backed SkImage is the supported compositing model.
 
 TextFlow is a Qt-independent library under `src/textflow/`, with its
 interactive gallery and headless demo under `src/textflow/examples/`. Its
