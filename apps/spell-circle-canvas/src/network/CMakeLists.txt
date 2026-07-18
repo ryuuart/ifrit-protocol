@@ -16,6 +16,7 @@ target_link_libraries(SpellCircleNetwork
     PRIVATE
       spdlog::spdlog
       flatbuffers::flatbuffers
+      SpellCircleNet
 )
 
 target_include_directories(SpellCircleNetwork

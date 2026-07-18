@@ -12,6 +12,12 @@ int main(int argc, char *argv[]) {
 #endif
 
   QGuiApplication application(argc, argv);
+  QGuiApplication::setOrganizationDomain("sigil.dev");
+  QGuiApplication::setApplicationName("SpellCircle");
+
+  // Windows request an alpha channel so the native vibrancy background
+  // installed by Ui.WindowChrome shows through transparent QML windows.
+  QQuickWindow::setDefaultAlphaBuffer(true);
 
   spdlog::info("App started");
 

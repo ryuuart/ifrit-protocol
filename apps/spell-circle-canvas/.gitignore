@@ -1,6 +1,7 @@
 # C/C++
 .cache/clangd/
 build/
+build-*/
 CMakeUserPresets.json
 
 ## Qt

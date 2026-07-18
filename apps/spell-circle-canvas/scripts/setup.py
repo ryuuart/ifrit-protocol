@@ -139,6 +139,10 @@ def write_user_presets(qt_installation: Path, vcpkg_root: Path) -> None:
                 "name": "main",
                 "inherits": ["vcpkg", "qt", "ninja"],
             },
+            {
+                "name": "main-xcode",
+                "inherits": ["vcpkg", "qt", "xcode"],
+            }
         ],
         "buildPresets": [
             {

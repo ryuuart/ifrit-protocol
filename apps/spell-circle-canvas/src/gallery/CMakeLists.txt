@@ -78,6 +78,6 @@ target_link_libraries(TextFlowGallery
 # (SkiaGraphiteContext + SkiaOffscreenSurface); without it the gallery
 # still runs on Skia's CPU raster backend with a texture upload.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  target_link_libraries(TextFlowGallery PRIVATE SpellCircleSkia)
+  target_link_libraries(TextFlowGallery PRIVATE SpellCircleSkiaQt)
   target_compile_definitions(TextFlowGallery PRIVATE TEXTFLOW_GALLERY_GPU)
 endif()

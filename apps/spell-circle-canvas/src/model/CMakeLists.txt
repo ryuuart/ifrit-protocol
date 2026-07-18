@@ -16,6 +16,7 @@ qt_add_qml_module(SpellCircleModels
 target_link_libraries(SpellCircleModels
   PUBLIC
     SpellCircleNetwork # NetworkManager + the generated wire schema
+    SpellCircleScene # Qt-free scene document (decode + entt registry)
     EnTT::EnTT
   PRIVATE
     spdlog::spdlog

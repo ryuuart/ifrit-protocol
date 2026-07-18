@@ -2,9 +2,16 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 
 int main(int argc, char *argv[]) {
   QGuiApplication application(argc, argv);
+  QGuiApplication::setOrganizationDomain("sigil.dev");
+  QGuiApplication::setApplicationName("TextFlowGallery");
+
+  // Windows request an alpha channel so the native vibrancy background
+  // installed by Ui.WindowChrome shows through transparent QML windows.
+  QQuickWindow::setDefaultAlphaBuffer(true);
 
   QCommandLineParser parser;
   parser.addHelpOption();

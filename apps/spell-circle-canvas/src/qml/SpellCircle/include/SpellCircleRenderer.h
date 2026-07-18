@@ -1,10 +1,10 @@
 #pragma once
 #include "CanvasSceneBackend.h"
 #include "QTextPathPainter.h"
+#include "SceneGeometry.h"
 #include "SpellCircleModel.h"
 #include <QColor>
 #include <QFont>
-#include <QPointF>
 #include <QtCanvasPainter/QCanvasPainterItemRenderer>
 #include <memory>
 
@@ -12,11 +12,11 @@ class TexturePublisher;
 
 /**
  * Render-thread renderer for SpellCircle. Resolves scene entities queried
- * from the model's entt::registry into absolute, native-scaled positions
- * (via QPainterPath), draws the resulting geometry and labels onto an
- * offscreen canvas each frame, and (when the active graphics backend has a
- * TexturePublisher — Syphon on Metal) publishes that texture for
- * inter-application sharing.
+ * from the model's document into absolute, native-scaled positions (via the
+ * shared spellcircle::resolveScene()), draws the resulting geometry and
+ * labels onto an offscreen canvas each frame, and (when the active graphics
+ * backend has a TexturePublisher — Syphon on Metal) publishes that texture
+ * for inter-application sharing.
  */
 class SpellCircleRenderer : public QCanvasPainterItemRenderer {
 public:
@@ -37,61 +37,27 @@ protected:
   void render(QRhiCommandBuffer *commandBuffer) override;
 
 private:
-  // Grants access to the resolved geometry (m_circles/m_edges/m_boxes/
-  // m_pointLabels), style fields, and m_curvedTextPainter below, plus the
-  // inherited beginCanvasPainting()/endCanvasPainting() recording brackets —
-  // QCanvasPainterSceneBackend draws directly from these rather than going
-  // through a method on SpellCircleRenderer. SkiaSceneBackendImpl (defined at
-  // global scope in SkiaSceneBackend.cpp, not in an anonymous namespace, so
-  // this forward-declaring friend actually names it) needs the same resolved
-  // geometry and style fields to draw the equivalent scene via Skia, but
-  // never uses m_curvedTextPainter or the QCanvasPainter recording brackets —
-  // those are QCanvasPainter-specific.
+  // Grants access to the resolved geometry (m_resolved), style fields, and
+  // m_curvedTextPainter below, plus the inherited beginCanvasPainting()/
+  // endCanvasPainting() recording brackets — QCanvasPainterSceneBackend
+  // draws directly from these rather than going through a method on
+  // SpellCircleRenderer. SkiaSceneBackendImpl (defined at global scope in
+  // SkiaSceneBackend.cpp, not in an anonymous namespace, so this
+  // forward-declaring friend actually names it) needs the same resolved
+  // geometry and style fields to hand the shared spellcircle::SceneRenderer
+  // an equivalent scene, but never uses m_curvedTextPainter or the
+  // QCanvasPainter recording brackets — those are QCanvasPainter-specific.
   friend class QCanvasPainterSceneBackend;
   friend class SkiaSceneBackendImpl;
 
-  /** A circle resolved to absolute, native-scaled canvas coordinates. */
-  struct ResolvedCircle {
-    QString name;
-    QPointF center;
-    float radius = 0.0f;
-    float textStart = 0.0f;
-    float active = 0.0f; // background fill alpha/intensity [0, 1]
-  };
-
-  /** A straight connector between two resolved point positions. */
-  struct ResolvedEdge {
-    QPointF first;
-    QPointF second;
-  };
-
-  /** A labelled box anchored at a resolved point position, offset outward
-   *  along the ray from the canvas center through that point. */
-  struct ResolvedBox {
-    QString value;
-    QPointF anchor;
-    // Unit vector from the canvas center through `anchor`, used both to push
-    // the box outward by the configured distance and to pick which of its
-    // edges (the one facing the center) sits at that offset.
-    QPointF direction;
-    float active = 0.0f; // background fill alpha/intensity [0, 1]
-  };
-
-  /** Queries the model's registry (if the generation changed) and resolves
-   *  every entity's canvas position/scale into m_circles/m_edges/m_boxes.
-   *  This is the only place scaling and point-on-circle math happens. */
+  /** Queries the model's document (if the generation changed) and resolves
+   *  every entity's canvas position/scale into m_resolved via the shared
+   *  spellcircle::resolveScene(). */
   void resolveGeometry(SpellCircleModel *model);
 
-  QList<ResolvedCircle> m_circles;
-  QList<ResolvedEdge> m_edges;
-  QList<ResolvedBox> m_boxes;
-  // Point.value labels: positioned the same way as m_boxes (anchor pushed
-  // outward along the ray from the canvas center) and sourced from every
-  // PointComponent with a non-empty value rather than from BoxComponent — a
-  // Point already anchoring a Box or Edge can still carry its own label —
-  // but drawn as plain text with no surrounding rect/stroke/fill, since a
-  // point isn't a box. `active` is unused here (Point has no fill concept).
-  QList<ResolvedBox> m_pointLabels;
+  // Scene geometry in absolute, native-scaled canvas coordinates — the
+  // same Qt-free structures the native macOS app draws from.
+  spellcircle::ResolvedScene m_resolved;
   QTextPathPainter m_curvedTextPainter;
   // Registered image for blitting the latest native offscreen scene into the
   // visible item without re-recording geometry during zoom or pan.

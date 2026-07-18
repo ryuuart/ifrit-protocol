@@ -1,0 +1,5 @@
+module SpellCircleMacBridge {
+  header "SCKEngine.h"
+  header "SCKCanvasView.h"
+  export *
+}

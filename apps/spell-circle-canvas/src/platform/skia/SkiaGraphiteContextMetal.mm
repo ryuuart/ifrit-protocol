@@ -1,42 +1,30 @@
 #import <Metal/Metal.h>
 
 #include "SkiaGraphiteContext.h"
-#include <rhi/qrhi.h>
-#include <rhi/qrhi_platform.h>
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
 #include <gpu/graphite/Recorder.h>
 #include <gpu/graphite/mtl/MtlBackendContext.h>
 
-std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
-  // This factory is the single Graphite bring-up point per graphics API: it
-  // inspects the QRhi backend and returns null for anything it cannot
-  // serve, so callers never assume Metal. Each build compiles exactly one
-  // create() TU — this Metal one on Apple, SkiaGraphiteContextVulkan.cpp
-  // elsewhere. A Dawn/D3D port would swap in a third sibling TU plus the
-  // matching texture-wrap TU beside SkiaOffscreenSurfaceMetal.mm — nothing
-  // outside src/platform/skia changes.
-  if (!rhi || rhi->backend() != QRhi::Metal)
+std::unique_ptr<SkiaGraphiteContext>
+SkiaGraphiteContext::createMetal(void *mtlDevice, void *mtlCommandQueue) {
+  // Qt-free Metal bring-up point, shared by the Qt adapter (which extracts
+  // these handles from a QRhi in SkiaQtInteropMetal.mm) and the native
+  // macOS app (which owns its device/queue outright).
+  if (!mtlDevice || !mtlCommandQueue)
     return nullptr;
 
-  const auto *nativeHandles =
-      static_cast<const QRhiMetalNativeHandles *>(rhi->nativeHandles());
-  // qrhi_platform.h forward-declares MTLDevice/MTLCommandQueue as opaque C
-  // structs; __bridge recasts without touching ARC ownership (matches
-  // SyphonBridge::start()).
-  id<MTLDevice> device = (__bridge id<MTLDevice>)nativeHandles->dev;
-  id<MTLCommandQueue> queue =
-      (__bridge id<MTLCommandQueue>)nativeHandles->cmdQueue;
-
   skgpu::graphite::MtlBackendContext backendContext;
-  // sk_cfp adopts without retaining, but Qt still owns `device`/`queue` (no
-  // ownership is transferred to us here) — this file compiles without ARC
-  // (see the __bridge_retained-has-no-effect warning otherwise), so retain
-  // Skia its own +1 ref explicitly via CFRetain before adopting, or the
-  // context would end up holding an under-retained reference.
-  backendContext.fDevice.reset(CFRetain((__bridge CFTypeRef)device));
-  backendContext.fQueue.reset(CFRetain((__bridge CFTypeRef)queue));
+  // sk_cfp adopts without retaining, but the caller still owns
+  // `mtlDevice`/`mtlCommandQueue` (no ownership is transferred to us here) —
+  // this file compiles without ARC (see the __bridge_retained-has-no-effect
+  // warning otherwise), so retain Skia its own +1 ref explicitly via
+  // CFRetain before adopting, or the context would end up holding an
+  // under-retained reference.
+  backendContext.fDevice.reset(CFRetain(static_cast<CFTypeRef>(mtlDevice)));
+  backendContext.fQueue.reset(
+      CFRetain(static_cast<CFTypeRef>(mtlCommandQueue)));
 
   std::unique_ptr<skgpu::graphite::Context> context =
       skgpu::graphite::ContextFactory::MakeMetal(backendContext, {});

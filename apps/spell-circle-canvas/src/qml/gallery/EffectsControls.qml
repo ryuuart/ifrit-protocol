@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Ifrit.Ui 1.0 as Ui
 
 /**
  * Scene-owned controls for the merged "Effects & shaders" scene — the
@@ -62,7 +63,7 @@ ColumnLayout {
 
         Label {
             text: "Glow spread"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
         Slider {
             id: spreadSlider
@@ -74,7 +75,7 @@ ColumnLayout {
         }
         Label {
             text: spreadSlider.value.toFixed(1) + "px"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
     }
     RowLayout {
@@ -82,7 +83,7 @@ ColumnLayout {
 
         Label {
             text: "Glow intensity"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
         Slider {
             id: intensitySlider
@@ -94,7 +95,7 @@ ColumnLayout {
         }
         Label {
             text: intensitySlider.value.toFixed(1) + "×"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
     }
 }

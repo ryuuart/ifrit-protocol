@@ -33,6 +33,13 @@ struct CanvasSizeConfigQmlType {
   QML_ANONYMOUS
 };
 
+/** QML tooling registration for the application-owned UDP receiver. */
+struct NetworkManagerQmlType {
+  Q_GADGET
+  QML_FOREIGN(NetworkManager)
+  QML_ANONYMOUS
+};
+
 /**
  * QML singleton that owns the application's SpellCircleModel, GraphicsConfig,
  * and NetworkManager, wiring received UDP packets into the model.
@@ -44,6 +51,7 @@ class Models : public QObject {
 
   Q_PROPERTY(SpellCircleModel *spellCircleModel READ spellCircleModel CONSTANT)
   Q_PROPERTY(GraphicsConfig *graphicsConfig READ graphicsConfig CONSTANT)
+  Q_PROPERTY(NetworkManager *networkManager READ networkManager CONSTANT)
 public:
   /** Constructs and wires the model, graphics configuration, and receiver. */
   explicit Models(QObject *parent = nullptr);
@@ -53,6 +61,9 @@ public:
 
   /** Returns the singleton GraphicsConfig instance. */
   GraphicsConfig *graphicsConfig() const { return m_graphicsConfig; }
+
+  /** Returns the singleton NetworkManager instance. */
+  NetworkManager *networkManager() const { return m_networkManager; }
 
 private:
   SpellCircleModel *m_spellCircleModel;

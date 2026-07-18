@@ -2,14 +2,12 @@
 # (always-null stub) is a build-time swap on the same createSkiaSceneBackend()
 # factory declared in include/SkiaSceneBackend.h — see SPELLCIRCLE_ENABLE_SKIA_CANVAS
 # in the top-level CMakeLists.txt. SpellCircleRenderer never branches on which
-# one it got.
+# one it got. (The scene drawing itself lives in the shared Qt-free
+# src/scene/SceneRenderer.cpp; SkiaSceneBackend.cpp is the Qt frame around it.)
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE SkiaSceneBackend.cpp)
-  set(SPELLCIRCLE_SKIA_SCENE_LABEL_SOURCES
-      SceneLabels.cpp include/SceneLabels.h)
 else()
   set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE SkiaSceneBackendStub.cpp)
-  set(SPELLCIRCLE_SKIA_SCENE_LABEL_SOURCES)
 endif()
 
 # Per-platform TexturePublisher implementation behind the one factory in
@@ -38,7 +36,6 @@ qt_add_qml_module(SpellCircleCanvas
       include/CanvasSceneBackend.h
       include/SkiaSceneBackend.h
       ${SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE}
-      ${SPELLCIRCLE_SKIA_SCENE_LABEL_SOURCES}
 )
 
 target_link_libraries(SpellCircleCanvas
@@ -48,6 +45,7 @@ target_link_libraries(SpellCircleCanvas
     PRIVATE
       spdlog::spdlog
       SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
+      SpellCircleScene # shared resolve/draw core (also used by src/mac)
       QtCanvasTextPath
       EnTT::EnTT
       Qt::GuiPrivate
@@ -72,7 +70,7 @@ if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   # TextFlowQt carries TextFlow transitively; TextFlowPorts provides the
   # system font manager used by the render-thread FontContext. (No direct
   # absl links: TextFlow's public headers no longer expose abseil types.)
-  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkia TextFlowQt
+  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkiaQt TextFlowQt
     TextFlowPorts)
 endif()
 

@@ -30,7 +30,7 @@ RowLayout {
         visible: control.parameter.type === "float" || control.parameter.type === "int"
                  || control.parameter.type === "choice"
         text: control.parameter.label
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
     Slider {
         id: numericSlider
@@ -50,7 +50,7 @@ RowLayout {
         text: (control.parameter.type === "int"
                ? Math.round(numericSlider.value)
                : numericSlider.value.toFixed(1)) + control.parameter.suffix
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
 
     ComboBox {

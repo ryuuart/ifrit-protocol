@@ -1,5 +1,6 @@
 import QtQuick
-import QtQuick.Controls.Basic
+import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import Ifrit.Ui 1.0 as Ui
 
@@ -9,8 +10,6 @@ ColumnLayout {
 
     required property var config
     required property var fontDatabase
-
-    signal saveRequested
 
     spacing: 16
 
@@ -133,17 +132,29 @@ ColumnLayout {
         RowLayout {
             spacing: 8
 
+            // Color well: the swatch opens the system color picker (HIG
+            // "Color wells"); the field still accepts pasted hex values.
             Rectangle {
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 radius: 4
                 color: root.config.color
-                border.color: "#444444"
+                border.color: Ui.Theme.border
+
+                TapHandler {
+                    onTapped: colorDialog.open()
+                }
             }
             TextField {
                 Layout.preferredWidth: 100
                 text: root.config.color.toString()
                 onEditingFinished: root.config.color = text
+            }
+
+            ColorDialog {
+                id: colorDialog
+                selectedColor: root.config.color
+                onSelectedColorChanged: root.config.color = selectedColor
             }
         }
     }
@@ -157,10 +168,5 @@ ColumnLayout {
 
     Item {
         Layout.fillHeight: true
-    }
-
-    Button {
-        text: "Save"
-        onClicked: root.saveRequested()
     }
 }

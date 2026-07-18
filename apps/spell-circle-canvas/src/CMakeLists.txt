@@ -1,10 +1,15 @@
+add_subdirectory(net)
 add_subdirectory(network)
-add_subdirectory(model)
 add_subdirectory(platform)
 add_subdirectory(text)
+add_subdirectory(scene)
+add_subdirectory(model)
 add_subdirectory(painting)
 add_subdirectory(qml)
 add_subdirectory(gallery)
+if(APPLE)
+  add_subdirectory(mac)
+endif()
 
 qt_add_executable(SpellCircle
     main.cpp
@@ -32,6 +37,10 @@ set_source_files_properties(
     qml/app/components/GraphicsSettingsForm.qml
     PROPERTIES QT_RESOURCE_ALIAS GraphicsSettingsForm.qml
 )
+set_source_files_properties(
+    qml/app/components/NetworkSettingsForm.qml
+    PROPERTIES QT_RESOURCE_ALIAS NetworkSettingsForm.qml
+)
 
 qt_add_qml_module(SpellCircle
     URI SpellCircle.App
@@ -42,6 +51,7 @@ qt_add_qml_module(SpellCircle
         qml/app/components/LogSidebar.qml
         qml/app/components/PreviewPane.qml
         qml/app/components/GraphicsSettingsForm.qml
+        qml/app/components/NetworkSettingsForm.qml
 )
 
 set_target_properties(SpellCircle PROPERTIES

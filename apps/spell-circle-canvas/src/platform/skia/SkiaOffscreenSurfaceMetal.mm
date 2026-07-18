@@ -2,7 +2,6 @@
 
 #include "SkiaGraphiteContext.h"
 #include "SkiaOffscreenSurface.h"
-#include <rhi/qrhi.h>
 
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkSurface.h>
@@ -12,22 +11,19 @@
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 
 SkiaOffscreenSurface::SkiaOffscreenSurface(SkiaGraphiteContext &context,
-                                           QRhiTexture *texture,
-                                           QSize pixelSize)
+                                           void *mtlTexture, int width,
+                                           int height)
     : m_context(context) {
-  if (!texture)
+  // Qt-free Metal wrap, shared by the Qt adapter (which unpacks the
+  // id<MTLTexture> from a QRhiTexture in SkiaQtInteropMetal.mm) and the
+  // native macOS app (offscreen canvas textures and CAMetalLayer
+  // drawables alike).
+  if (!mtlTexture)
     return;
-
-  // Qt packs the id<MTLTexture> pointer into a quint64 on Metal (same
-  // pattern as SyphonBridge::publishFrame).
-  id<MTLTexture> metalTexture =
-      (__bridge id<MTLTexture>)reinterpret_cast<void *>(
-          texture->nativeTexture().object);
 
   const skgpu::graphite::BackendTexture backendTexture =
       skgpu::graphite::BackendTextures::MakeMetal(
-          SkISize::Make(pixelSize.width(), pixelSize.height()),
-          (__bridge CFTypeRef)metalTexture);
+          SkISize::Make(width, height), static_cast<CFTypeRef>(mtlTexture));
 
   m_surface = SkSurfaces::WrapBackendTexture(context.recorder(), backendTexture,
                                              /*colorSpace=*/nullptr,

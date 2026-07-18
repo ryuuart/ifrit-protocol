@@ -14,9 +14,18 @@ qt_add_qml_module(IfritUi
     DimensionSpinBoxes.qml
     FontFamilyField.qml
     FontSelector.qml
-    IconButton.qml
+    GlassPanel.qml
     PanZoomCanvas.qml
+  SOURCES
+    WindowChrome.h
 )
+
+if(APPLE)
+  target_sources(IfritUi PRIVATE WindowChrome.mm)
+  target_link_libraries(IfritUi PRIVATE ${APPKIT_FRAMEWORK})
+else()
+  target_sources(IfritUi PRIVATE WindowChromeStub.cpp)
+endif()
 
 target_link_libraries(IfritUi
   PUBLIC

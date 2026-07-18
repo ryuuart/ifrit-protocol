@@ -3,7 +3,8 @@
 ## Layout
 
 ```
-apps/spell-circle-canvas/  Qt/C++ receiver, renderer, gallery, and TextFlow
+apps/spell-circle-canvas/  Qt/C++ receiver, renderer, gallery, TextFlow, and
+                           the native macOS SwiftUI app (src/mac)
 apps/python/               Python scene-authoring and UDP transport package
 touchdesigner/             TouchDesigner project and editor tooling
 ```
@@ -24,7 +25,8 @@ ctest --test-dir build -C Debug --output-on-failure
 
 The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
 `CMakeUserPresets.json`. The primary executables are `SpellCircle`,
-`TextFlowGallery`, `textflow_test`, `textflow_bench`, and `textflow_demo`.
+`SpellCircleMac` (macOS only, needs a Swift toolchain), `TextFlowGallery`,
+`textflow_test`, `textflow_bench`, and `textflow_demo`.
 
 ## FlatBuffers generation
 
@@ -40,13 +42,25 @@ flatc --python -o apps/python \
 
 ## Architecture
 
-Incoming UDP datagrams flow through `NetworkManager` verification into
-`SpellCircleModel`, which stores the decoded scene in an `entt::registry`.
-`SpellCircleRenderer` resolves model entities to native canvas coordinates and
-delegates drawing to one of two `CanvasSceneBackend` implementations:
+The Qt-free scene core under `src/scene/` (`SpellCircleScene`) is shared by
+both receiver apps: `SceneModel` (FlatBuffers verify/decode into an
+`entt::registry` of components), `SceneGeometry` (`resolveScene()` —
+author-space to native-canvas resolution, the only place scaling and
+point-on-circle math happens), `SceneRenderer` (the Skia/TextFlow scene
+drawing), and `SceneLabels` (measured ring-label geometry). The Graphite GPU
+plumbing under `src/platform/skia/` is split the same way: `SpellCircleSkia`
+(Qt-free; Metal bring-up from raw handles) and `SpellCircleSkiaQt` (QRhi
+adapters; also the Vulkan draft TUs).
 
-- `SkiaSceneBackend` draws with Graphite on Qt's native GPU device (Metal on
-  macOS; Vulkan draft elsewhere) and uses TextFlow.
+In the Qt app, incoming UDP datagrams flow through `NetworkManager`
+verification into `SpellCircleModel`, which holds the decoded
+`spellcircle::SceneDocument`. `SpellCircleRenderer` resolves it via
+`resolveScene()` and delegates drawing to one of two `CanvasSceneBackend`
+implementations:
+
+- `SkiaSceneBackend` — the Qt frame around the shared
+  `spellcircle::SceneRenderer`, drawing with Graphite on Qt's native GPU
+  device (Metal on macOS; Vulkan draft elsewhere).
 - `QCanvasPainterSceneBackend` is the always-available fallback.
 
 Both render to a native-size `QCanvasOffscreenCanvas`; a `TexturePublisher`
@@ -59,6 +73,16 @@ The main QML lives under `src/qml/app/`. Reusable controls live in its
 `components/` directory. The `SpellCircle.Canvas` module and its C++ backends
 live under `src/qml/SpellCircle/`.
 
+`SpellCircleMac` (`src/mac/`) is the native macOS companion app — a separate
+executable, not a Qt build: SwiftUI Liquid Glass chrome over an ObjC++ bridge
+(`SpellCircleMacBridge`, a SHARED library that absorbs the C++ world —
+Swift's linker rejects vcpkg's raw `-framework` interface flags). `SCKEngine`
+receives UDP on a GCD source, decodes/resolves/draws through the same shared
+core into an offscreen Metal texture, publishes it over Syphon under the same
+"SpellCircle" server name, and blits into `SCKCanvasView`'s CAMetalLayer
+(pan/zoom, event-driven redraws). Swift imports the bridge via
+`bridge/module.modulemap`; the Qt app remains the cross-platform build.
+
 TextFlow is a Qt-independent library under `src/text/`. Its main pipeline is:
 
 ```
@@ -68,7 +92,7 @@ Paragraph -> ICU analysis -> cached HarfBuzz words -> FlowGeometry
 
 `ParagraphLayoutOptions` groups line metrics, hyphenation, justification,
 Knuth–Plass, overflow, and path-rendering concerns. SpellCircle-specific ring
-label geometry belongs in `src/qml/SpellCircle/SceneLabels.*`; the core exposes
+label geometry belongs in `src/scene/SceneLabels.*`; the core exposes
 only reusable `SingleLineParagraphCache` and `layoutSingleLine()` support.
 
 ## Python API

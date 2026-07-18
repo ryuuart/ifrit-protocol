@@ -5,6 +5,11 @@
       "name": "ninja",
       "binaryDir": "${sourceDir}/build",
       "generator": "Ninja Multi-Config"
+    },
+    {
+      "name": "xcode",
+      "binaryDir": "${sourceDir}/build-xcode",
+      "generator": "Xcode"
     }
   ]
 }

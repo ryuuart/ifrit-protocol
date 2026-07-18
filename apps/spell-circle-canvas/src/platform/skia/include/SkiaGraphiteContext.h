@@ -9,19 +9,34 @@ class Recorder;
 } // namespace skgpu::graphite
 
 /**
- * Owns the Skia Graphite Context + Recorder used to draw into
- * QCanvasOffscreenCanvas textures from SkCanvas. Built from the same native
- * device/queue that Qt's QRhi already uses (Metal on Apple platforms,
- * Vulkan elsewhere — one create() TU per build, see
- * SkiaGraphiteContextMetal.mm / SkiaGraphiteContextVulkan.cpp), so
- * Graphite's GPU work rides the same command queue as Qt Quick's own
+ * Owns the Skia Graphite Context + Recorder used to draw into offscreen
+ * textures from SkCanvas. Built on an existing native device/queue so
+ * Graphite's GPU work rides the same command queue as the host's own
  * rendering.
+ *
+ * Two kinds of entry point exist:
+ *  - create(QRhi *): Qt applications hand over the QRhi whose native
+ *    device/queue Graphite should share. Implemented per graphics API in
+ *    the Qt adapter target SpellCircleSkiaQt (SkiaQtInteropMetal.mm on
+ *    Apple, SkiaGraphiteContextVulkan.cpp elsewhere) — link that target,
+ *    not SpellCircleSkia, from Qt code.
+ *  - createMetal(...): Qt-free bring-up from raw Metal handles, used by the
+ *    native macOS app. Lives in SpellCircleSkia, which never links Qt.
  */
 class SkiaGraphiteContext {
 public:
   /** Returns null if @p rhi isn't backed by this build's graphics API or
-   *  Context creation fails. */
+   *  Context creation fails. Qt adapter — see the class comment. */
   static std::unique_ptr<SkiaGraphiteContext> create(QRhi *rhi);
+
+#ifdef __APPLE__
+  /** Qt-free Metal bring-up: @p mtlDevice / @p mtlCommandQueue are
+   *  id<MTLDevice> / id<MTLCommandQueue> bridged to void*. Both are
+   *  retained for the context's lifetime; the caller keeps its own
+   *  references. Returns null if Context creation fails. */
+  static std::unique_ptr<SkiaGraphiteContext> createMetal(void *mtlDevice,
+                                                          void *mtlCommandQueue);
+#endif
 
   ~SkiaGraphiteContext();
 

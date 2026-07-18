@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls.Basic
+import QtQuick.Controls
 
 /**
  * Searchable font-family field independent of a particular font database.

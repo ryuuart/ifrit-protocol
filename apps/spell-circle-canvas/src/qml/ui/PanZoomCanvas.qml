@@ -22,9 +22,17 @@ Item {
     property real minimumScale: 0.04
     property real maximumScale: 16.0
     property bool checkerboardVisible: true
+    /** Hides the built-in zoom and canvas-size badges for hosts that show
+     *  that information in their own chrome (e.g. the app's activity
+     *  panel), keeping the viewport itself unobstructed. */
+    property bool showOverlays: true
+    /** Width covered by floating chrome on the left; fitting and centering
+     *  use the remaining region so a full-bleed viewport keeps its canvas
+     *  in full view beside an overlaid panel. */
+    property real leftContentInset: 0
 
     readonly property real fitScale: {
-        const availableWidth = width - 60;
+        const availableWidth = width - leftContentInset - 60;
         const availableHeight = height - 60;
         if (availableWidth <= 0 || availableHeight <= 0 || canvasWidth <= 0 || canvasHeight <= 0)
             return 1.0;
@@ -52,7 +60,7 @@ Item {
         if (appliedFactor === 1.0)
             return;
 
-        const horizontalDistance = pointerX - width / 2 - horizontalPan;
+        const horizontalDistance = pointerX - (leftContentInset + (width - leftContentInset) / 2) - horizontalPan;
         const verticalDistance = pointerY - height / 2 - verticalPan;
         viewScale = newScale;
         horizontalPan += horizontalDistance * (1.0 - appliedFactor);
@@ -83,7 +91,7 @@ Item {
                 y: rowIndex * 32 + (root.verticalPan % 32)
                 width: 2
                 height: 2
-                color: "#666666"
+                color: Theme.secondaryText
             }
         }
     }
@@ -112,7 +120,7 @@ Item {
         id: scaledCanvas
         width: root.canvasWidth * root.viewScale
         height: root.canvasHeight * root.viewScale
-        x: (root.width - width) / 2 + root.horizontalPan
+        x: root.leftContentInset + (root.width - root.leftContentInset - width) / 2 + root.horizontalPan
         y: (root.height - height) / 2 + root.verticalPan
 
         Item {
@@ -123,7 +131,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: "transparent"
-            border.color: "#3a3a3a"
+            border.color: Theme.border
             border.width: 1
         }
     }
@@ -140,12 +148,13 @@ Item {
         radius: 3
         color: Theme.toolbarBackground
         opacity: 0.85
+        visible: root.showOverlays
 
         Text {
             id: zoomBadgeText
             anchors.centerIn: parent
             text: Math.round(root.viewScale * 100) + "%"
-            color: "#999999"
+            color: Theme.secondaryText
             font.pixelSize: 11
             font.family: Theme.monospaceFontFamily
         }
@@ -159,7 +168,7 @@ Item {
         radius: 2
         color: Theme.toolbarBackground
         opacity: 0.7
-        visible: y + height < root.height
+        visible: root.showOverlays && y + height < root.height
 
         Text {
             id: canvasSizeText

@@ -33,7 +33,7 @@ ColumnLayout {
 
     Label {
         text: "Scene"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
     ComboBox {
         Layout.fillWidth: true
@@ -42,13 +42,15 @@ ColumnLayout {
         onActivated: index => root.view.sceneIndex = index
     }
 
+    // Checkboxes, not switches: HIG macOS toggles guidance reserves switches
+    // for emphasized settings and prefers checkboxes for compact options.
     RowLayout {
-        Switch {
+        CheckBox {
             text: "Animate"
             checked: root.view.animating
             onToggled: root.view.animating = checked
         }
-        Switch {
+        CheckBox {
             text: "GPU"
             visible: root.view.gpuAvailable
             checked: root.view.gpu
@@ -58,7 +60,7 @@ ColumnLayout {
 
     Label {
         text: "Font"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
     Ui.FontFamilyField {
         Layout.fillWidth: true
@@ -70,7 +72,7 @@ ColumnLayout {
     RowLayout {
         Label {
             text: "Size"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
         Slider {
             id: sizeSlider
@@ -82,13 +84,13 @@ ColumnLayout {
         }
         Label {
             text: Math.round(sizeSlider.value) + "px"
-            color: "#9aa3b2"
+            color: Ui.Theme.secondaryText
         }
     }
 
     Label {
         text: "Variable axes"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
         visible: root.view.fontAxes.length > 0
     }
     Repeater {
@@ -103,7 +105,7 @@ ColumnLayout {
             Label {
                 Layout.preferredWidth: 38
                 text: modelData.tag
-                color: "#9aa3b2"
+                color: Ui.Theme.secondaryText
                 font.family: Ui.Theme.monospaceFontFamily
             }
             Slider {
@@ -123,7 +125,7 @@ ColumnLayout {
                 Layout.preferredWidth: 42
                 horizontalAlignment: Text.AlignRight
                 text: root.formatAxisValue(axisSlider.value)
-                color: "#9aa3b2"
+                color: Ui.Theme.secondaryText
             }
             ToolButton {
                 text: "↺"
@@ -137,7 +139,7 @@ ColumnLayout {
 
     Label {
         text: "Alignment"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
     ComboBox {
         Layout.fillWidth: true
@@ -148,7 +150,7 @@ ColumnLayout {
 
     Label {
         text: "Line breaker"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
     }
     ComboBox {
         Layout.fillWidth: true
@@ -166,7 +168,7 @@ ColumnLayout {
 
     Label {
         text: "Scene options"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
         visible: root.hasCustomControls || root.view.sceneParameters.length > 0
     }
     Loader {
@@ -189,7 +191,7 @@ ColumnLayout {
 
     Label {
         text: "Text (live)"
-        color: "#9aa3b2"
+        color: Ui.Theme.secondaryText
         visible: root.view.textEditable
     }
     ScrollView {
