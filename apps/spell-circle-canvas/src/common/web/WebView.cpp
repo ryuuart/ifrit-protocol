@@ -6,14 +6,6 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkRect.h>
 
-#ifdef __APPLE__
-#include <include/gpu/graphite/BackendTexture.h>
-#include <include/gpu/graphite/Image.h>
-#include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
-
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-
 #include <cstring>
 
 namespace ifrit::web {
@@ -63,10 +55,8 @@ bool WebView::Impl::publishIfDirty() {
   return true;
 }
 
-#ifdef __APPLE__
-
 bool WebView::Impl::publishGpuIfDirty(
-    UltralightMetalDriver &driver,
+    WebGpuDriver &driver,
     const std::unordered_set<uint32_t> &dirtyRenderBuffers) {
   ultralight::RenderTarget target = view->render_target();
   if (target.is_empty || !dirtyRenderBuffers.count(target.render_buffer_id))
@@ -97,15 +87,15 @@ bool WebView::Impl::publishGpuIfDirty(
 
 void WebView::Impl::releaseGpuTextures() {
   std::lock_guard<std::mutex> lock(frameMutex);
-  UltralightMetalDriver::releaseTexture(publishedGpuTexture);
-  UltralightMetalDriver::releaseTexture(spareGpuTexture);
+  if (WebGpuDriver *driver = engine->gpuDriver()) {
+    driver->releaseNativeTexture(publishedGpuTexture);
+    driver->releaseNativeTexture(spareGpuTexture);
+  }
   publishedGpuTexture = nullptr;
   spareGpuTexture = nullptr;
   gpuTextureWidth = 0;
   gpuTextureHeight = 0;
 }
-
-#endif // __APPLE__
 
 void WebView::Impl::OnFinishLoading(ultralight::View *, uint64_t,
                                     bool isMainFrame,
@@ -223,32 +213,13 @@ WebView::GpuFrame WebView::gpuFrame() const {
 }
 
 sk_sp<SkImage> WebView::frameImage(skgpu::graphite::Recorder *recorder) const {
-#ifdef __APPLE__
   {
     std::lock_guard<std::mutex> lock(m_impl->frameMutex);
-    if (m_impl->publishedGpuTexture) {
-      if (!recorder)
-        return nullptr;
-      // The wrapped image retains the MTLTexture so it stays valid even
-      // if the view resizes or is destroyed while the image is alive.
-      CFTypeRef texture =
-          static_cast<CFTypeRef>(m_impl->publishedGpuTexture);
-      CFRetain(texture);
-      skgpu::graphite::BackendTexture backendTexture =
-          skgpu::graphite::BackendTextures::MakeMetal(
-              SkISize::Make(m_impl->gpuTextureWidth,
-                            m_impl->gpuTextureHeight),
-              texture);
-      return SkImages::WrapTexture(
-          recorder, backendTexture, kPremul_SkAlphaType,
-          SkColorSpace::MakeSRGB(),
-          [](void *context) { CFRelease(static_cast<CFTypeRef>(context)); },
-          const_cast<void *>(static_cast<const void *>(texture)));
-    }
+    if (m_impl->publishedGpuTexture)
+      return m_impl->engine->gpuDriver()->wrapTexture(
+          recorder, m_impl->publishedGpuTexture, m_impl->gpuTextureWidth,
+          m_impl->gpuTextureHeight);
   }
-#else
-  (void)recorder;
-#endif
   return frame().image;
 }
 

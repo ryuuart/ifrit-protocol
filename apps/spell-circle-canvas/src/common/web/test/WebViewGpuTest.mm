@@ -135,7 +135,7 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
     }
 
     WebView::GpuFrame gpuFrame = view->gpuFrame();
-    ASSERT_NE(gpuFrame.mtlTexture, nullptr);
+    ASSERT_NE(gpuFrame.nativeTexture, nullptr);
     ASSERT_EQ(gpuFrame.width, 64);
     ASSERT_EQ(gpuFrame.height, 64);
     EXPECT_EQ(view->frame().image, nullptr); // GPU engines publish textures
@@ -160,7 +160,7 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
 TEST(WebViewGpuTest, CompositesGraphiteContentIntoPage) {
   auto image = sharedEngine().createImage("gpu_swatch", 64, 64);
   ASSERT_NE(image, nullptr);
-  ASSERT_NE(image->mtlTexture(), nullptr);
+  ASSERT_NE(image->nativeTexture(), nullptr);
 
   auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(),
                                                    (void *)sharedQueue());
@@ -169,7 +169,7 @@ TEST(WebViewGpuTest, CompositesGraphiteContentIntoPage) {
   // Render into the page-visible texture with Graphite.
   skgpu::graphite::BackendTexture backendTexture =
       skgpu::graphite::BackendTextures::MakeMetal(
-          SkISize::Make(64, 64), (CFTypeRef)image->mtlTexture());
+          SkISize::Make(64, 64), (CFTypeRef)image->nativeTexture());
   sk_sp<SkSurface> imageSurface = SkSurfaces::WrapBackendTexture(
       graphite->recorder(), backendTexture, SkColorSpace::MakeSRGB(),
       nullptr);
@@ -294,6 +294,58 @@ TEST(WebViewGpuTest, PaintsSlotWithCallback) {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
   EXPECT_EQ(center, SK_ColorYELLOW);
+}
+
+// Feeding a slot from an externally-produced native texture (the path
+// for content rendered by another engine, e.g. a Syphon feed).
+TEST(WebViewGpuTest, UpdatesSlotFromNativeTexture) {
+  auto image = sharedEngine().createImage("gpu_ext_texture", 16, 16);
+  ASSERT_NE(image, nullptr);
+
+  MTLTextureDescriptor *desc = [MTLTextureDescriptor
+      texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                   width:16
+                                  height:16
+                               mipmapped:NO];
+  desc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> external = [sharedDevice() newTextureWithDescriptor:desc];
+  std::vector<uint32_t> pixels(16 * 16, 0xffff0000); // opaque red, BGRA
+  [external replaceRegion:MTLRegionMake2D(0, 0, 16, 16)
+              mipmapLevel:0
+                withBytes:pixels.data()
+              bytesPerRow:16 * 4];
+
+  ASSERT_TRUE(image->updateTexture((void *)external));
+
+  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  ASSERT_NE(view, nullptr);
+  view->loadHTML("<html><body style='margin:0;background:#000'>"
+                 "<img src='gpu_ext_texture.imgsrc' "
+                 "style='display:block;width:64px;height:64px'>"
+                 "</body></html>");
+
+  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(),
+                                                   (void *)sharedQueue());
+  ASSERT_NE(graphite, nullptr);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite->recorder(), SkImageInfo::MakeN32Premul(64, 64));
+  ASSERT_NE(surface, nullptr);
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  SkColor center = 0;
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (view->frameVersion() == 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    }
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    view->draw(*surface->getCanvas(), SkRect::MakeWH(64, 64));
+    center = readbackPixel(*graphite, surface.get(), 32, 32);
+    if (center == SK_ColorRED)
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  EXPECT_EQ(center, SK_ColorRED);
 }
 
 TEST(WebViewGpuTest, FrameImageWrapsTexture) {

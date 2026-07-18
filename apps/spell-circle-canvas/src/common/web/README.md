@@ -94,7 +94,7 @@ CPU mode) and performs the GPU flush and page invalidation in the same
 step, serialized on the web thread — there is no wrap, submit, or
 invalidate to forget, and pages can never observe a half-drawn slot.
 Call it once for static content or per tick for animation. `update()`
-copies raster pixels instead; the raw `mtlTexture()` remains available
+copies raster pixels instead; the raw `nativeTexture()` remains available
 for expert integrations (draw with your own recorder on the engine's
 device/queue, submit, then `invalidate()` — in that order). A page that
 references a slot name with no registered WebImage logs a warning naming

@@ -25,14 +25,16 @@ class WebEngine;
  * expects; any path whose filename is "<name>.imgsrc" resolves to the
  * image registered under <name>.)
  *
- * Three ways to supply pixels, safest first:
+ * Ways to supply pixels, safest first:
  *  - paint(painter): hands you an SkCanvas already targeting the image's
  *    pixels — a Graphite surface on the engine's own recorder (GPU) or
  *    the shared bitmap (CPU) — and handles the GPU flush and the
  *    invalidate in the same step. Mode-agnostic; nothing to forget.
- *  - update(pixmap): copies raster pixels in and invalidates. Works on
- *    CPU and GPU engines alike.
- *  - GPU engines, expert path: render straight into mtlTexture() with
+ *  - update(pixmap) / update(rasterImage): copies raster pixels in and
+ *    invalidates. Works on CPU and GPU engines alike.
+ *  - updateTexture(texture): GPU engines — blit-copies a native texture
+ *    (e.g. one another renderer produced) into the slot and invalidates.
+ *  - GPU engines, expert path: render straight into nativeTexture() with
  *    your own Graphite recorder (must share the engine's device/queue),
  *    submit that work, then call invalidate() — in that order.
  *
@@ -59,16 +61,33 @@ public:
   bool paint(const std::function<void(SkCanvas &)> &painter);
 
   /** Copies @p pixels (converted to premultiplied BGRA) into the image
-   *  and invalidates it. Safe from any thread. */
-  void update(const SkPixmap &pixels);
+   *  and invalidates it. Safe from any thread. False if the pixels could
+   *  not be converted. */
+  bool update(const SkPixmap &pixels);
 
-  /** Convenience: update from a raster-backed SkImage. */
-  void update(const sk_sp<SkImage> &rasterImage);
+  /**
+   * Updates from an SkImage. Raster-backed images are copied in on any
+   * engine. Texture-backed (Graphite) images are recorder-bound and
+   * cannot be read from here — pass the underlying native texture to
+   * updateTexture(), or draw via paint(); this overload logs a warning
+   * and returns false for them.
+   */
+  bool update(const sk_sp<SkImage> &image);
 
-  /** GPU engines: the retained id<MTLTexture> (bridged to void*) backing
-   *  this image, valid for the WebImage's lifetime. Null on CPU engines.
-   *  After rendering into it, call invalidate(). */
-  void *mtlTexture() const;
+  /**
+   * GPU engines: blit-copies @p texture (a native texture handle on the
+   * engine's device — id<MTLTexture> bridged to void* on Metal) into the
+   * slot and invalidates it, on the web thread. The copy is clamped to
+   * the smaller of the two sizes. Safe from any thread; the texture must
+   * stay alive until this returns. False on CPU engines.
+   */
+  bool updateTexture(void *texture);
+
+  /** GPU engines: the retained native texture backing this image
+   *  (id<MTLTexture> bridged to void* on Metal), valid for the
+   *  WebImage's lifetime. Null on CPU engines. After rendering into it,
+   *  call invalidate(). */
+  void *nativeTexture() const;
 
   /** Notifies pages displaying this image that it changed and should be
    *  redrawn (update() does this automatically). */

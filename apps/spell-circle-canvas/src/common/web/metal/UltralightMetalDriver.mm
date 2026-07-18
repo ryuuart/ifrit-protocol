@@ -7,7 +7,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorSpace.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/BackendTexture.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/ContextOptions.h>
@@ -414,9 +416,9 @@ void *UltralightMetalDriver::createPublishTexture(int width, int height) {
   return (__bridge_retained void *)texture;
 }
 
-void UltralightMetalDriver::releaseTexture(void *mtlTexture) {
-  if (mtlTexture)
-    CFRelease(mtlTexture);
+void UltralightMetalDriver::releaseNativeTexture(void *texture) {
+  if (texture)
+    CFRelease(texture);
 }
 
 void *UltralightMetalDriver::createImageTexture(int width, int height) {
@@ -485,21 +487,17 @@ void UltralightMetalDriver::uploadToTexture(void *mtlTexture,
              bytesPerRow:rowBytes];
 }
 
-void UltralightMetalDriver::copyTexture(uint32_t srcTextureId,
-                                        void *dstMtlTexture, int width,
-                                        int height) {
-  auto it = m_state->textures.find(srcTextureId);
-  if (it == m_state->textures.end() || !dstMtlTexture)
-    return;
-  id<MTLTexture> src = it->second;
-  id<MTLTexture> dst = (__bridge id<MTLTexture>)dstMtlTexture;
+namespace {
+
+void copyMetalTextures(id<MTLCommandQueue> queue, id<MTLTexture> src,
+                       id<MTLTexture> dst, int width, int height) {
   NSUInteger copyWidth = std::min<NSUInteger>(width, src.width);
   copyWidth = std::min(copyWidth, dst.width);
   NSUInteger copyHeight = std::min<NSUInteger>(height, src.height);
   copyHeight = std::min(copyHeight, dst.height);
 
   @autoreleasepool {
-    id<MTLCommandBuffer> commandBuffer = [m_state->queue commandBuffer];
+    id<MTLCommandBuffer> commandBuffer = [queue commandBuffer];
     id<MTLBlitCommandEncoder> blit = [commandBuffer blitCommandEncoder];
     [blit copyFromTexture:src
               sourceSlice:0
@@ -513,6 +511,45 @@ void UltralightMetalDriver::copyTexture(uint32_t srcTextureId,
     [blit endEncoding];
     [commandBuffer commit];
   }
+}
+
+} // namespace
+
+void UltralightMetalDriver::copyNativeTexture(void *srcTexture,
+                                              void *dstTexture, int width,
+                                              int height) {
+  if (!srcTexture || !dstTexture)
+    return;
+  copyMetalTextures(m_state->queue, (__bridge id<MTLTexture>)srcTexture,
+                    (__bridge id<MTLTexture>)dstTexture, width, height);
+}
+
+void UltralightMetalDriver::copyTexture(uint32_t srcTextureId,
+                                        void *dstMtlTexture, int width,
+                                        int height) {
+  auto it = m_state->textures.find(srcTextureId);
+  if (it == m_state->textures.end() || !dstMtlTexture)
+    return;
+  copyMetalTextures(m_state->queue, it->second,
+                    (__bridge id<MTLTexture>)dstMtlTexture, width, height);
+}
+
+sk_sp<SkImage> UltralightMetalDriver::wrapTexture(
+    skgpu::graphite::Recorder *recorder, void *texture, int width,
+    int height) {
+  if (!recorder || !texture)
+    return nullptr;
+  // The wrapped image retains the MTLTexture so it stays valid even if
+  // the owning view/image resizes or is destroyed while the image lives.
+  CFTypeRef retained = CFRetain((__bridge CFTypeRef)(
+      (__bridge id<MTLTexture>)texture));
+  skgpu::graphite::BackendTexture backendTexture =
+      skgpu::graphite::BackendTextures::MakeMetal(
+          SkISize::Make(width, height), retained);
+  return SkImages::WrapTexture(
+      recorder, backendTexture, kPremul_SkAlphaType, SkColorSpace::MakeSRGB(),
+      [](void *context) { CFRelease(static_cast<CFTypeRef>(context)); },
+      const_cast<void *>(static_cast<const void *>(retained)));
 }
 
 } // namespace ifrit::web

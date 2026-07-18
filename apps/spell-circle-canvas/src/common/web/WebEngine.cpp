@@ -1,5 +1,9 @@
 #include "WebInternal.h"
 
+#ifdef __APPLE__
+#include "UltralightMetalDriver.h"
+#endif
+
 #include <Ultralight/platform/Config.h>
 #include <Ultralight/platform/Platform.h>
 
@@ -39,23 +43,21 @@ bool WebEngine::Impl::setupPlatform() {
   platform.set_font_loader(ultralight::GetPlatformFontLoader());
   platform.set_surface_factory(m_surfaceFactory.get());
 
-#ifdef __APPLE__
+  // The only backend-specific seam: pick the WebGpuDriver implementation
+  // for this platform. Everything downstream sees the neutral interface.
   if (config.metalDevice && config.metalCommandQueue) {
+#ifdef __APPLE__
     m_gpuDriver = UltralightMetalDriver::create(config.metalDevice,
                                                 config.metalCommandQueue);
+#endif
     if (m_gpuDriver)
       platform.set_gpu_driver(m_gpuDriver.get());
     else
       m_logger->log(LogLevel::Warning,
-                    "Metal GPU driver bring-up failed; falling back to the "
-                    "CPU renderer");
+                    "GPU driver bring-up failed (no backend for this "
+                    "platform yet, or shader compile failed); falling back "
+                    "to the CPU renderer");
   }
-#else
-  if (config.metalDevice || config.metalCommandQueue)
-    m_logger->log(LogLevel::Warning,
-                  "GPU rendering is Metal-only for now; using the CPU "
-                  "renderer (Vulkan driver is future work)");
-#endif
 
   // Touch the ImageSourceProvider singleton before the renderer exists:
   // it is destroyed in reverse construction order, and engine teardown
@@ -128,10 +130,8 @@ void WebEngine::Impl::threadMain(std::promise<bool> &ready) {
   m_renderer->Update();
   m_renderer->Render();
   m_renderer->PurgeMemory();
-#ifdef __APPLE__
   if (m_gpuDriver)
     m_gpuDriver->flush();
-#endif
   m_renderer = nullptr;
 }
 
@@ -203,7 +203,6 @@ bool WebEngine::Impl::renderOnce() {
   m_renderer->RefreshDisplay(0);
   m_renderer->Render();
 
-#ifdef __APPLE__
   if (m_gpuDriver) {
     std::unordered_set<uint32_t> dirty = m_gpuDriver->flush();
     bool published = false;
@@ -217,7 +216,6 @@ bool WebEngine::Impl::renderOnce() {
     }
     return published;
   }
-#endif
 
   bool published = false;
   for (auto it = m_views.begin(); it != m_views.end();) {
@@ -285,8 +283,7 @@ std::shared_ptr<WebImage> WebEngine::createImage(std::string name, int width,
   imageImpl->height = height;
 
   m_impl->postAndWait([this, imageImpl, width, height] {
-#ifdef __APPLE__
-    if (UltralightMetalDriver *driver = m_impl->gpuDriver()) {
+    if (WebGpuDriver *driver = m_impl->gpuDriver()) {
       imageImpl->gpuTexture = driver->createImageTexture(width, height);
       imageImpl->gpuTextureId =
           driver->registerExternalTexture(imageImpl->gpuTexture);
@@ -295,7 +292,6 @@ std::shared_ptr<WebImage> WebEngine::createImage(std::string name, int width,
           imageImpl->gpuTextureId,
           ultralight::Rect{0.0f, 0.0f, 1.0f, 1.0f});
     }
-#endif
     if (!imageImpl->source) {
       imageImpl->bitmap = ultralight::Bitmap::Create(
           static_cast<uint32_t>(width), static_cast<uint32_t>(height),

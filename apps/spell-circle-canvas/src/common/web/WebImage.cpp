@@ -23,14 +23,12 @@ WebImage::~WebImage() {
         impl->name.c_str());
     impl->source = nullptr;
     impl->bitmap = nullptr;
-#ifdef __APPLE__
     if (impl->gpuTexture) {
-      impl->engine->gpuDriver()->unregisterExternalTexture(
-          impl->gpuTextureId);
-      UltralightMetalDriver::releaseTexture(impl->gpuTexture);
+      WebGpuDriver *driver = impl->engine->gpuDriver();
+      driver->unregisterExternalTexture(impl->gpuTextureId);
+      driver->releaseNativeTexture(impl->gpuTexture);
       impl->gpuTexture = nullptr;
     }
-#endif
   });
 }
 
@@ -42,7 +40,6 @@ bool WebImage::paint(const std::function<void(SkCanvas &)> &painter) {
   bool ok = false;
   auto impl = m_impl;
   m_impl->engine->postAndWait([impl, &painter, &ok] {
-#ifdef __APPLE__
     if (impl->gpuTexture) {
       ok = impl->engine->gpuDriver()->paintTexture(
           impl->gpuTexture, impl->width, impl->height, painter);
@@ -50,7 +47,6 @@ bool WebImage::paint(const std::function<void(SkCanvas &)> &painter) {
         impl->source->Invalidate();
       return;
     }
-#endif
     if (!impl->bitmap)
       return;
     if (void *pixels = impl->bitmap->LockPixels()) {
@@ -70,7 +66,7 @@ bool WebImage::paint(const std::function<void(SkCanvas &)> &painter) {
   return ok;
 }
 
-void WebImage::update(const SkPixmap &pixels) {
+bool WebImage::update(const SkPixmap &pixels) {
   // Convert to premultiplied BGRA (Ultralight's pixel format) on the
   // caller's thread; only the upload runs on the web thread.
   SkImageInfo info = SkImageInfo::Make(
@@ -79,20 +75,18 @@ void WebImage::update(const SkPixmap &pixels) {
   auto converted = std::make_shared<SkBitmap>();
   if (!converted->tryAllocPixels(info) ||
       !pixels.readPixels(converted->pixmap(), 0, 0))
-    return;
+    return false;
 
   auto impl = m_impl;
   m_impl->engine->post([impl, converted] {
-#ifdef __APPLE__
     if (impl->gpuTexture) {
-      UltralightMetalDriver::uploadToTexture(
+      impl->engine->gpuDriver()->uploadToTexture(
           impl->gpuTexture, converted->getPixels(), converted->width(),
           converted->height(), converted->rowBytes());
       if (impl->source)
         impl->source->Invalidate();
       return;
     }
-#endif
     if (!impl->bitmap)
       return;
     if (void *dst = impl->bitmap->LockPixels()) {
@@ -109,15 +103,53 @@ void WebImage::update(const SkPixmap &pixels) {
     if (impl->source)
       impl->source->Invalidate();
   });
+  return true;
 }
 
-void WebImage::update(const sk_sp<SkImage> &rasterImage) {
+bool WebImage::update(const sk_sp<SkImage> &image) {
+  if (!image)
+    return false;
   SkPixmap pixmap;
-  if (rasterImage && rasterImage->peekPixels(&pixmap))
-    update(pixmap);
+  if (image->peekPixels(&pixmap))
+    return update(pixmap);
+  if (image->isTextureBacked()) {
+    m_impl->engine->logger()->log(
+        LogLevel::Warning,
+        "WebImage '" + m_impl->name +
+            "': texture-backed SkImages are recorder-bound and can't be "
+            "read here — use updateTexture() with the native texture, or "
+            "draw via paint()");
+    return false;
+  }
+  // Lazy/generated raster image without peekable pixels: rasterize it.
+  SkImageInfo info = SkImageInfo::Make(
+      image->width(), image->height(), kBGRA_8888_SkColorType,
+      kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+  SkBitmap bitmap;
+  if (!bitmap.tryAllocPixels(info) ||
+      !image->readPixels(nullptr, bitmap.pixmap(), 0, 0))
+    return false;
+  return update(bitmap.pixmap());
 }
 
-void *WebImage::mtlTexture() const { return m_impl->gpuTexture; }
+bool WebImage::updateTexture(void *texture) {
+  if (!texture || !m_impl->gpuTexture)
+    return false;
+  auto impl = m_impl;
+  bool ok = false;
+  m_impl->engine->postAndWait([impl, texture, &ok] {
+    if (!impl->gpuTexture)
+      return;
+    impl->engine->gpuDriver()->copyNativeTexture(
+        texture, impl->gpuTexture, impl->width, impl->height);
+    if (impl->source)
+      impl->source->Invalidate();
+    ok = true;
+  });
+  return ok;
+}
+
+void *WebImage::nativeTexture() const { return m_impl->gpuTexture; }
 
 void WebImage::invalidate() {
   auto impl = m_impl;

@@ -57,15 +57,20 @@ struct WebEngineConfig {
   std::function<void(LogLevel, const std::string &)> logCallback;
 
   /**
-   * GPU rendering (Apple): an id<MTLDevice> and id<MTLCommandQueue>
-   * bridged to void* — pass the same pair the host's Graphite context is
-   * built on so every draw rides one command queue. When both are set,
-   * views render through Ultralight's Metal pipeline into MTLTextures and
-   * publish texture-backed frames (WebView::frameImage() wraps them
-   * zero-copy for a Graphite recorder); when null, the CPU renderer
-   * publishes raster SkImages instead. Falls back to CPU with a logged
-   * warning if driver bring-up fails. A Vulkan driver is future work,
-   * alongside the repo's Vulkan draft targets.
+   * GPU rendering: native device and command-queue handles for this
+   * platform's graphics API — pass the same pair the host's Graphite
+   * context is built on so every draw rides one command queue. On Apple
+   * these are an id<MTLDevice> / id<MTLCommandQueue> bridged to void*.
+   * When both are set, views render through Ultralight's GPU pipeline
+   * into native textures and publish texture-backed frames
+   * (WebView::frameImage() wraps them zero-copy for a Graphite
+   * recorder); when null, the CPU renderer publishes raster SkImages
+   * instead. Falls back to CPU with a logged warning if driver bring-up
+   * fails.
+   *
+   * The engine internals are backend-neutral (see WebGpuDriver): the
+   * Windows/Linux ports add a Vulkan/D3D driver implementation and their
+   * own handle fields here without touching the rest of the library.
    */
   void *metalDevice = nullptr;
   void *metalCommandQueue = nullptr;

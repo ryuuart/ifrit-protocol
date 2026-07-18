@@ -8,9 +8,7 @@
 #include <Ultralight/AppCore/Platform.h>
 #include <Ultralight/Ultralight.h>
 
-#ifdef __APPLE__
-#include "UltralightMetalDriver.h"
-#endif
+#include "WebGpuDriver.h"
 
 #include <include/core/SkBitmap.h>
 
@@ -140,16 +138,8 @@ public:
 
   CallbackLogger *logger() { return m_logger.get(); }
 
-#ifdef __APPLE__
-  UltralightMetalDriver *gpuDriver() { return m_gpuDriver.get(); }
-#endif
-  bool gpuEnabled() const {
-#ifdef __APPLE__
-    return m_gpuDriver != nullptr;
-#else
-    return false;
-#endif
-  }
+  WebGpuDriver *gpuDriver() { return m_gpuDriver.get(); }
+  bool gpuEnabled() const { return m_gpuDriver != nullptr; }
 
 private:
   bool setupPlatform();
@@ -169,9 +159,7 @@ private:
   std::unique_ptr<PrefixFileSystem> m_fileSystem;
   std::unique_ptr<CallbackLogger> m_logger;
   std::unique_ptr<SkiaSurfaceFactory> m_surfaceFactory;
-#ifdef __APPLE__
-  std::unique_ptr<UltralightMetalDriver> m_gpuDriver;
-#endif
+  std::unique_ptr<WebGpuDriver> m_gpuDriver;
 };
 
 class WebImage::Impl {
@@ -219,16 +207,14 @@ public:
    *  page repainted since the last publish. Returns true on publish. */
   bool publishIfDirty();
 
-#ifdef __APPLE__
   /** Web thread: blit-copies the view's render target into the spare
    *  publish texture and swaps it in, when this view's render buffer is
    *  in @p dirtyRenderBuffers. Returns true on publish. */
-  bool publishGpuIfDirty(UltralightMetalDriver &driver,
+  bool publishGpuIfDirty(WebGpuDriver &driver,
                          const std::unordered_set<uint32_t> &dirtyRenderBuffers);
 
   /** Web thread: releases the ping-pong publish textures. */
   void releaseGpuTextures();
-#endif
 
   // ultralight::LoadListener
   void OnFinishLoading(ultralight::View *caller, uint64_t frameId,

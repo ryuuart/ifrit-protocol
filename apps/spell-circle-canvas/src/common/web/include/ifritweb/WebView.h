@@ -82,12 +82,13 @@ public:
    *  GPU). */
   uint64_t frameVersion() const;
 
-  /** A published GPU frame (GPU engines only): the id<MTLTexture> the
-   *  page was composited into, bridged to void*. Valid until two more
+  /** A published GPU frame (GPU engines only): the native texture the
+   *  page was composited into — an id<MTLTexture> bridged to void* on
+   *  Metal, this platform's equivalent elsewhere. Valid until two more
    *  publishes occur (frames ping-pong between two textures); wrap it
    *  promptly or use frameImage(), which manages lifetime for you. */
   struct GpuFrame {
-    void *mtlTexture = nullptr;
+    void *nativeTexture = nullptr;
     int width = 0;
     int height = 0;
     uint64_t version = 0;
@@ -96,9 +97,9 @@ public:
 
   /**
    * The latest published frame as an SkImage usable with @p recorder's
-   * Graphite context: on GPU engines this wraps the published MTLTexture
-   * zero-copy (the image retains the texture; the engine and recorder
-   * must share one Metal device/queue), on CPU engines it returns the
+   * Graphite context: on GPU engines this wraps the published native
+   * texture zero-copy (the image retains the texture; the engine and
+   * recorder must share one device/queue), on CPU engines it returns the
    * raster frame (recorder may be null there). Null before the first
    * repaint.
    */

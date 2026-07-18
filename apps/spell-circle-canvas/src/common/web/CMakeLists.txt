@@ -28,6 +28,7 @@ add_library(IfritWeb STATIC
   WebImage.cpp
   UltralightPlatform.cpp
   WebInternal.h
+  WebGpuDriver.h
   include/ifritweb/WebEngine.h
   include/ifritweb/WebView.h
   include/ifritweb/WebImage.h
