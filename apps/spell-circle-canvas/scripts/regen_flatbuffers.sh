@@ -8,9 +8,9 @@
 set -eu
 
 repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
-schema="$repo_root/apps/spell-circle-canvas/src/network/SpellCircle.fbs"
+schema="$repo_root/apps/spell-circle-canvas/src/spellcircle/shared/schema/SpellCircle.fbs"
 
-flatc --cpp -o "$repo_root/apps/spell-circle-canvas/src/network/include" "$schema"
+flatc --cpp -o "$repo_root/apps/spell-circle-canvas/src/spellcircle/shared/schema/include" "$schema"
 flatc --python -o "$repo_root/apps/python" "$schema"
 
 echo "Regenerated FlatBuffers artifacts from $schema"

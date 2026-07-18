@@ -22,9 +22,9 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
 # Compiles the Skia Graphite CanvasSceneBackend (Metal on Apple platforms,
 # Vulkan elsewhere) and its generic GPU interop plumbing under
-# src/platform/skia. At runtime the renderer uses it when a compatible
-# Graphite context can be created and otherwise falls back to
-# QCanvasPainter. Turning this off removes the Graphite implementation and
+# src/common/skia. At runtime the renderer uses it when a compatible
+# Graphite context can be created; without it the canvas renders no scene
+# content. Turning this off removes the Graphite implementation and
 # leaves the same renderer-facing factory backed by its always-null stub.
 option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) offscreen-canvas backend" ON)
 
@@ -36,7 +36,7 @@ find_package(entt CONFIG REQUIRED)
 find_package(benchmark CONFIG REQUIRED)
 find_package(absl CONFIG REQUIRED)
 # Skia is needed unconditionally now: the TextFlow text-layout library
-# (src/text) builds on it even when the Skia scene backend is disabled.
+# (src/textflow) builds on it even when the Skia scene backend is disabled.
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)

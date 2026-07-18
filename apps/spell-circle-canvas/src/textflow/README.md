@@ -61,7 +61,7 @@ Optional layers on top (nothing in the core pipeline depends on them):
 - `SingleLineParagraphCache.h` + `layoutSingleLine()` — reusable support for
   high-frequency labels and captions, shaped once per unique text/font/size.
   SpellCircle-specific ring measurement and curvature compensation live with
-  that renderer in `src/qml/SpellCircle/SceneLabels.*`, not in this library.
+  that renderer in `src/spellcircle/shared/scene/SceneLabels.*`, not in this library.
 - `Choreograph.h` — per-glyph animation: `forEachPlacedGlyph` (walk a
   layout's glyphs with rest positions; stable order across relayouts) and
   `GlyphRSXformBatches` (thousands of animated letters → a handful of
@@ -287,7 +287,7 @@ CJK/vertical, SkPath exclusions, CJK fallback, and a `new_features.png`
 panel covering decorations, text-transform, word spacing, variable axes,
 tab stops, and line clamp (the visual-regression image for those features).
 
-**`TextFlowGallery`** (`src/gallery/`) is the interactive home for the
+**`TextFlowGallery`** (`src/textflow/examples/gallery/`) is the interactive home for the
 animated scenes: exclusions & morphing SkPath shapes,
 greedy-vs-Knuth-Plass, infinite loop, letter rain, click-to-ripple pool,
 vertical CJK with ruby/kenten/tate-chu-yoko, a Unicode-singularity wall,

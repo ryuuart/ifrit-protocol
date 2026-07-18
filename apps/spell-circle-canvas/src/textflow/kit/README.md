@@ -69,5 +69,5 @@ class MyScene {
 };
 ```
 
-The gallery scenes under `src/gallery/scenes/` are the living reference:
+The gallery scenes under `src/textflow/examples/gallery/src/scenes/` are the living reference:
 each one is built on core TextFlow plus exactly these utilities.

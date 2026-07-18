@@ -1,8 +1,8 @@
 # Generic Skia Graphite GPU interop plumbing: standing up a
 # skgpu::graphite::Context/Recorder on a native device/queue, and wrapping
 # an existing native texture as an SkSurface. This knows nothing about
-# SpellCircle scene content — that lives in src/scene/SceneRenderer.cpp and
-# src/qml/SpellCircle/SkiaSceneBackend.cpp, which link against this.
+# SpellCircle scene content — that lives in src/spellcircle/shared/scene/SceneRenderer.cpp and
+# src/spellcircle/qt/src/SkiaSceneBackend.cpp, which link against this.
 #
 # Split into two targets so the native macOS app can use Graphite without
 # pulling in Qt:
@@ -16,7 +16,7 @@
 #    returns null and the renderer falls back to QCanvasPainter).
 #
 # Only added when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON (see
-# src/platform/CMakeLists.txt and the top-level CMakeLists.txt).
+# src/CMakeLists.txt and the top-level CMakeLists.txt).
 if(APPLE)
   set(SPELLCIRCLE_SKIA_NATIVE_SOURCES
       SkiaGraphiteContextMetal.mm

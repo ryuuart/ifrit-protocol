@@ -160,24 +160,9 @@ add_executable(textflow_bench
 target_link_libraries(textflow_bench PRIVATE TextFlow TextFlowShaders
   TextFlowPorts benchmark::benchmark)
 
-# Headless PNG panels for library-only surfaces; the interactive/animated
-# showcases live in TextFlowGallery (the former duplicated scenes were
-# consolidated there).
-add_executable(textflow_demo
-  demo/textflow_demo.cpp
-  demo/DemoSupport.cpp demo/DemoSupport.h
-  demo/DemoScenes.h
-  demo/SceneExtreme.cpp
-  demo/SceneTypography.cpp
-  demo/SceneBabel.cpp
-  demo/SceneFeatures.cpp
-  demo/SceneCjk.cpp
-  demo/SceneShapes.cpp
-  demo/SceneFallback.cpp
-  demo/SceneNewFeatures.cpp
-)
-target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
-                                            TextFlowPorts TextFlowKit)
+# Example programs: the headless PNG demo and the interactive Qt gallery.
+add_subdirectory(examples/demo)
+add_subdirectory(examples/gallery)
 
 # ── Install / export (find_package(TextFlow) from an install tree) ───────
 # The eventual private vcpkg registry port drives exactly these rules; the
