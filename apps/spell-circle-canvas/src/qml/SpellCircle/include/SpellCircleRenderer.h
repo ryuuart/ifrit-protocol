@@ -1,6 +1,5 @@
 #pragma once
 #include "CanvasSceneBackend.h"
-#include "QTextPathPainter.h"
 #include "SceneGeometry.h"
 #include "SpellCircleModel.h"
 #include <QColor>
@@ -37,17 +36,11 @@ protected:
   void render(QRhiCommandBuffer *commandBuffer) override;
 
 private:
-  // Grants access to the resolved geometry (m_resolved), style fields, and
-  // m_curvedTextPainter below, plus the inherited beginCanvasPainting()/
-  // endCanvasPainting() recording brackets — QCanvasPainterSceneBackend
-  // draws directly from these rather than going through a method on
-  // SpellCircleRenderer. SkiaSceneBackendImpl (defined at global scope in
-  // SkiaSceneBackend.cpp, not in an anonymous namespace, so this
-  // forward-declaring friend actually names it) needs the same resolved
-  // geometry and style fields to hand the shared spellcircle::SceneRenderer
-  // an equivalent scene, but never uses m_curvedTextPainter or the
-  // QCanvasPainter recording brackets — those are QCanvasPainter-specific.
-  friend class QCanvasPainterSceneBackend;
+  // Grants access to the resolved geometry (m_resolved) and style fields.
+  // SkiaSceneBackendImpl (defined at global scope in SkiaSceneBackend.cpp,
+  // not in an anonymous namespace, so this forward-declaring friend
+  // actually names it) reads them to hand the shared
+  // spellcircle::SceneRenderer an equivalent scene.
   friend class SkiaSceneBackendImpl;
 
   /** Queries the model's document (if the generation changed) and resolves
@@ -58,7 +51,6 @@ private:
   // Scene geometry in absolute, native-scaled canvas coordinates — the
   // same Qt-free structures the native macOS app draws from.
   spellcircle::ResolvedScene m_resolved;
-  QTextPathPainter m_curvedTextPainter;
   // Registered image for blitting the latest native offscreen scene into the
   // visible item without re-recording geometry during zoom or pan.
   QCanvasImage m_displayImage;
@@ -75,12 +67,10 @@ private:
   // createTexturePublisher()); render() skips publishing in that case.
   std::unique_ptr<TexturePublisher> m_publisher;
 
-  // The active offscreen-canvas backend, chosen once in
-  // initializeResources() and used for every draw in prePaint(). Defaults to
-  // QCanvasPainterSceneBackend; createSkiaSceneBackend() replaces it with a
-  // Skia Graphite backend when this build has SPELLCIRCLE_ENABLE_SKIA_CANVAS
-  // compiled in (see include/SkiaSceneBackend.h) — a build-time choice, so
-  // prePaint() itself never branches on which one it has.
+  // The Skia Graphite offscreen backend, created once in
+  // initializeResources(). Null when the build has no Skia canvas
+  // (SPELLCIRCLE_ENABLE_SKIA_CANVAS off — the stub factory) or the active
+  // QRhi backend is unsupported; prePaint() then draws nothing.
   std::unique_ptr<CanvasSceneBackend> m_sceneBackend;
 
   // Copied from GraphicsConfig in synchronize() — defaults match the

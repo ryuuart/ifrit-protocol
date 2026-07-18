@@ -32,7 +32,6 @@ qt_add_qml_module(SpellCircleCanvas
       ${SPELLCIRCLE_PUBLISHER_SOURCES}
       SpellCircle.cpp include/SpellCircle.h
       SpellCircleRenderer.cpp include/SpellCircleRenderer.h
-      QCanvasPainterSceneBackend.cpp include/QCanvasPainterSceneBackend.h
       include/CanvasSceneBackend.h
       include/SkiaSceneBackend.h
       ${SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE}
@@ -46,7 +45,6 @@ target_link_libraries(SpellCircleCanvas
       spdlog::spdlog
       SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
       SpellCircleScene # shared resolve/draw core (also used by src/mac)
-      QtCanvasTextPath
       EnTT::EnTT
       Qt::GuiPrivate
 )

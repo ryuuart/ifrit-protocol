@@ -169,9 +169,9 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
     const float resolvedBoxHeight = style.boxHeight;
 
     // The box's center sits on the ray from the canvas center through the
-    // point, pushed outward by boxDistance beyond the point — nothing more
-    // (see the equivalent comment in QCanvasPainterSceneBackend::drawScene
-    // for why edge-dependent anchoring was rejected).
+    // point, pushed outward by boxDistance beyond the point — nothing more.
+    // Edge-dependent anchoring (snapping the box's near edge to the point)
+    // was rejected: it makes the box jump as the ray crosses 45° diagonals.
     const float boxCenterX = box.anchor.x + box.direction.x * style.boxDistance;
     const float boxCenterY = box.anchor.y + box.direction.y * style.boxDistance;
     const float boxX = boxCenterX - resolvedBoxWidth / 2.0f;

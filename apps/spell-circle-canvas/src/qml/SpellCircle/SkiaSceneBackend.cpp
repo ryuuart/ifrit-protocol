@@ -36,11 +36,10 @@ public:
   QCanvasImage drawScene(SpellCircleRenderer &renderer, QCanvasPainter *painter,
                          QCanvasOffscreenCanvas &canvas,
                          QSize pixelSize) override {
-    // All coordinates are in 0..canvasWidth / 0..canvasHeight scene space,
-    // same as QCanvasPainterSceneBackend — pixelSize always matches that
-    // scene size (see SpellCircleRenderer::prePaint), so the resolved
-    // geometry in renderer.m_resolved can be drawn directly with no extra
-    // scaling here.
+    // All coordinates are in 0..canvasWidth / 0..canvasHeight scene space —
+    // pixelSize always matches that scene size (see
+    // SpellCircleRenderer::prePaint), so the resolved geometry in
+    // renderer.m_resolved can be drawn directly with no extra scaling here.
     const auto frameStart = std::chrono::steady_clock::now();
     SkiaOffscreenSurface surface(*m_context, canvas.texture(), pixelSize);
     SkCanvas *skCanvas = surface.canvas();

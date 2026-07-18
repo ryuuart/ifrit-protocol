@@ -1,5 +1,4 @@
 #include "SpellCircleRenderer.h"
-#include "QCanvasPainterSceneBackend.h"
 #include "SkiaSceneBackend.h"
 #include "SpellCircle.h"
 #include "TexturePublisher.h"
@@ -8,8 +7,6 @@
 SpellCircleRenderer::SpellCircleRenderer() {
   m_font.setBold(true);
   m_font.setPointSize(36);
-  // addEllipse starts at 3 o'clock and goes CW, so 0.75 lands at 12 o'clock.
-  m_curvedTextPainter.setPathOffset(0.75f);
 }
 
 SpellCircleRenderer::~SpellCircleRenderer() = default;
@@ -70,17 +67,18 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel *model) {
 void SpellCircleRenderer::initializeResources(QCanvasPainter *painter) {
   static_cast<void>(painter);
   // Both factories inspect the active QRhi backend themselves and return
-  // null when they have no implementation for it, so this method stays
-  // backend-agnostic: publishing is optional, drawing falls back to the
-  // always-available QCanvasPainter backend.
+  // null when they have no implementation for it: publishing is optional,
+  // and without a Skia backend the canvas stays empty (the QCanvasPainter
+  // fallback drawing path is gone).
   m_publisher = createTexturePublisher(rhi(), "SpellCircle");
   m_sceneBackend = createSkiaSceneBackend(rhi());
   if (!m_sceneBackend)
-    m_sceneBackend = std::make_unique<QCanvasPainterSceneBackend>();
+    spdlog::warn("No Skia scene backend for the active graphics API; the "
+                 "canvas will not render scene content");
 }
 
 void SpellCircleRenderer::prePaint(QCanvasPainter *painter) {
-  if (!m_geometryDirty)
+  if (!m_sceneBackend || !m_geometryDirty)
     return;
   m_geometryDirty = false;
 
