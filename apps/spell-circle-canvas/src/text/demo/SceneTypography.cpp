@@ -39,10 +39,9 @@ void sceneTypography(FontContext &fontContext,
         30.0f + static_cast<float>(exampleIndex % 2) * 260.0f;
     const float exampleY =
         40.0f + static_cast<float>(exampleIndex / 2) * 190.0f;
-    Paragraph caption;
-    caption.appendText(labels[exampleIndex], style(12, kAccent));
-    BlockFlow capFlow(SkRect::MakeXYWH(exampleX, exampleY - 24, 220, 20));
-    layoutParagraph(fontContext, caption, capFlow).draw(canvas, caption);
+    textflowkit::drawLabel(canvas, fontContext, labels[exampleIndex],
+                           {exampleX, exampleY - 24},
+                           {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(sample, style(14.5f));
@@ -60,10 +59,9 @@ void sceneTypography(FontContext &fontContext,
 
   // Narrow hyphenated Knuth-Plass column (soft hyphens marked with ­).
   {
-    Paragraph caption;
-    caption.appendText(u8"KP + soft hyphens, 130px", style(12, kAccent));
-    BlockFlow capFlow(SkRect::MakeXYWH(570, 16, 220, 20));
-    layoutParagraph(fontContext, caption, capFlow).draw(canvas, caption);
+    textflowkit::drawLabel(canvas, fontContext, u8"KP + soft hyphens, 130px",
+                           {570, 16},
+                           {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(u8"In these as­ton­ish­ing­ly nar­row "

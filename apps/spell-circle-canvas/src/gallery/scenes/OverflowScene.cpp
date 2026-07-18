@@ -2,6 +2,8 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
+#include <textflowqt/TextFlowQt.h>
+
 #include <include/core/SkPaint.h>
 
 #include <cmath>
@@ -100,17 +102,9 @@ public:
       }
     }
 
-    const QByteArray clippedStatus = status[0].toUtf8();
-    const QByteArray ellipsizedStatus = status[1].toUtf8();
-    drawCaption(canvas, fontContext,
-                std::u8string_view(
-                    reinterpret_cast<const char8_t *>(clippedStatus.data()),
-                    static_cast<size_t>(clippedStatus.size())),
+    drawCaption(canvas, fontContext, textflowqt::toU16(status[0]),
                 {canvasWidth * 0.06f, 48 + boxHeight + 22}, paneWidth);
-    drawCaption(canvas, fontContext,
-                std::u8string_view(
-                    reinterpret_cast<const char8_t *>(ellipsizedStatus.data()),
-                    static_cast<size_t>(ellipsizedStatus.size())),
+    drawCaption(canvas, fontContext, textflowqt::toU16(status[1]),
                 {canvasWidth * 0.54f, 48 + boxHeight + 22}, paneWidth);
 
     return {layoutMicroseconds, runCount, 0};

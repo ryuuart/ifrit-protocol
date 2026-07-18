@@ -1,12 +1,13 @@
 #pragma once
 
-// Shared helpers used by every demo scene (src/text/demo/Scene*.cpp): the
-// shared palette, frame-timing statistics, PNG output, and the mixed
-// Latin/CJK filler paragraph reused by the rain and ripple scenes. Nothing
-// here is scene-specific; scene-specific state lives in each scene's own
-// file.
+// Shared helpers used by every demo scene (src/text/demo/Scene*.cpp).
+// The palette, style shorthand, filler paragraph, and timing conversion come
+// from TextFlowKit; this header keeps only what is demo-specific — frame
+// statistics reporting and PNG output. Nothing here is scene-specific;
+// scene-specific state lives in each scene's own file.
 
 #include <textflow/TextFlow.h>
+#include <textflowkit/TextFlowKit.h>
 
 #include <include/core/SkSurface.h>
 
@@ -16,11 +17,13 @@
 
 using Clock = std::chrono::steady_clock;
 
-inline constexpr SkColor kInk = 0xFF23252B;
-inline constexpr SkColor kAccent = 0xFFC63D2F;
-inline constexpr SkColor kBlue = 0xFF2B5AA7;
-inline constexpr SkColor kShape = 0x33808A99;
-inline constexpr SkColor kPaper = 0xFFFAF7F0;
+inline constexpr SkColor kInk = textflowkit::palette::kInk;
+inline constexpr SkColor kAccent = textflowkit::palette::kAccent;
+inline constexpr SkColor kBlue = textflowkit::palette::kBlue;
+inline constexpr SkColor kShape = textflowkit::palette::kShape;
+inline constexpr SkColor kPaper = textflowkit::palette::kPaper;
+
+using textflowkit::toMicroseconds;
 
 struct TimingStats {
   std::vector<double> microseconds;
@@ -35,12 +38,13 @@ struct TimingStats {
 /** Writes a raster surface's pixels to a PNG file at `path`. */
 void writePng(SkSurface *surface, const std::filesystem::path &path);
 
-/** Converts a steady-clock duration to the demo's reporting unit. */
-double toMicroseconds(Clock::duration duration);
-
 /** Creates a single-span style for demo paragraphs. */
-textflow::TextStyle style(float fontSize, SkColor color = kInk,
-                         const char *languageTag = "");
+inline textflow::TextStyle style(float fontSize, SkColor color = kInk,
+                                 const char *languageTag = "") {
+  return textflowkit::makeStyle(fontSize, color, languageTag);
+}
 
 /** ~wordCount words of mixed Latin/CJK in alternating color/style chunks. */
-textflow::Paragraph makeBigParagraph(int wordCount, float fontSize);
+inline textflow::Paragraph makeBigParagraph(int wordCount, float fontSize) {
+  return textflowkit::mixedScriptFiller(wordCount, fontSize);
+}

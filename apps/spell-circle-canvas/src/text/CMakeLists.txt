@@ -92,6 +92,32 @@ target_include_directories(TextFlowPorts PUBLIC
 )
 target_link_libraries(TextFlowPorts PUBLIC unofficial::skia::skia)
 
+# Companion utilities distilled from the gallery, demo, and app consumers:
+# keyed rebuild guards, paragraph-aware layout memoization, glyph bucketing,
+# label/style shorthand, and shared sample content. The point is to make the
+# invisible parts of fast TextFlow usage — cache invalidation keys, draw-call
+# batching — explicit and reusable (see kit/README.md). Qt-free; a separate
+# target so the core engine carries no convenience layer, and the eventual
+# vcpkg port's optional "Kit" component.
+add_library(TextFlowKit STATIC
+  kit/Labels.cpp
+  kit/SampleText.cpp
+
+  kit/include/textflowkit/TextFlowKit.h
+  kit/include/textflowkit/RebuildGuard.h
+  kit/include/textflowkit/LayoutGuard.h
+  kit/include/textflowkit/GlyphBuckets.h
+  kit/include/textflowkit/Labels.h
+  kit/include/textflowkit/SampleText.h
+  kit/include/textflowkit/Timing.h
+)
+target_compile_features(TextFlowKit PUBLIC cxx_std_20)
+target_include_directories(TextFlowKit PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/kit/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(TextFlowKit PUBLIC TextFlow unofficial::skia::skia)
+
 # Qt ↔ Skia bridging helpers (header-only). Separate target so the core
 # TextFlow library stays Qt-free; only Qt consumers link this.
 add_library(TextFlowQt INTERFACE
@@ -122,9 +148,10 @@ add_executable(textflow_test
   test/VerticalTest.cpp
   test/StressTest.cpp
   test/InlineVectorTest.cpp
+  test/KitTest.cpp
 )
 target_link_libraries(textflow_test PRIVATE TextFlow TextFlowShaders
-  TextFlowPorts GTest::gtest_main absl::flat_hash_set)
+  TextFlowPorts TextFlowKit GTest::gtest_main absl::flat_hash_set)
 add_test(NAME textflow_test COMMAND textflow_test)
 
 add_executable(textflow_bench
@@ -150,7 +177,7 @@ add_executable(textflow_demo
   demo/SceneNewFeatures.cpp
 )
 target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
-                                            TextFlowPorts)
+                                            TextFlowPorts TextFlowKit)
 
 # ── Install / export (find_package(TextFlow) from an install tree) ───────
 # The eventual private vcpkg registry port drives exactly these rules; the
@@ -158,17 +185,19 @@ target_link_libraries(textflow_demo PRIVATE TextFlow TextFlowShaders
 # are static archives, so even PRIVATE deps must be resolvable at consumer
 # link time) and exposes the Qt bridge behind an optional "Qt" component:
 #   find_package(TextFlow CONFIG REQUIRED)                # core, Qt-free
+#   find_package(TextFlow CONFIG REQUIRED COMPONENTS Kit) # + textflow::TextFlowKit
 #   find_package(TextFlow CONFIG REQUIRED COMPONENTS Qt)  # + textflow::TextFlowQt
 if(TEXTFLOW_ENABLE_INSTALL)
   include(CMakePackageConfigHelpers)
 
-  install(TARGETS TextFlow TextFlowShaders TextFlowPorts TextFlowQt
+  install(TARGETS TextFlow TextFlowShaders TextFlowPorts TextFlowKit TextFlowQt
     EXPORT TextFlowTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
   )
   install(DIRECTORY include/textflow DESTINATION include)
+  install(DIRECTORY kit/include/textflowkit DESTINATION include)
   install(DIRECTORY qt/include/textflowqt DESTINATION include)
 
   install(EXPORT TextFlowTargets

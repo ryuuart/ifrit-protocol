@@ -105,33 +105,29 @@ public:
     // set whose boundaries moved) re-break lines, so a screenful of 10k
     // words costs its layout once, not 60× a second.
     double layoutMicroseconds = 0;
-    if (m_body.paragraph.needsShaping() ||
-        m_body.paragraph.revision() != m_lastRevision || size != m_lastSize ||
-        params.alignment != m_lastAlignment ||
-        params.lineBreakStrategy != m_lastLineBreakStrategy ||
-        m_layout.runs.empty()) {
-      m_lastRevision = m_body.paragraph.revision();
-      m_lastSize = size;
-      m_lastAlignment = params.alignment;
-      m_lastLineBreakStrategy = params.lineBreakStrategy;
+    m_layoutGuard.ensure(
+        m_body.paragraph,
+        {size, params.alignment, params.lineBreakStrategy, params.fontSize},
+        [&] {
+          BlockFlow flow(box);
+          ParagraphLayoutOptions options;
+          options.alignment = params.alignment;
+          options.lineBreakStrategy = params.lineBreakStrategy;
+          options.lineMetrics.height = params.fontSize * 1.8f;
 
-      BlockFlow flow(box);
-      ParagraphLayoutOptions options;
-      options.alignment = params.alignment;
-      options.lineBreakStrategy = params.lineBreakStrategy;
-      options.lineMetrics.height = params.fontSize * 1.8f;
+          const kit::Stopwatch layoutTime;
+          m_layout =
+              layoutParagraph(fontContext, m_body.paragraph, flow, options);
+          layoutMicroseconds = layoutTime.microseconds();
 
-      const auto layoutStartTime = Clock::now();
-      m_layout = layoutParagraph(fontContext, m_body.paragraph, flow, options);
-      layoutMicroseconds = toMicroseconds(Clock::now() - layoutStartTime);
-
-      // Remember how much text actually landed: the next re-query (text
-      // edit) scopes itself to this window.
-      m_placedTextEnd =
-          m_layout.overflowed()
-              ? m_body.paragraph.words()[m_layout.firstUnplacedWord].textBegin
-              : static_cast<uint32_t>(m_body.paragraph.text().size());
-    }
+          // Remember how much text actually landed: the next re-query (text
+          // edit) scopes itself to this window.
+          m_placedTextEnd =
+              m_layout.overflowed()
+                  ? m_body.paragraph.words()[m_layout.firstUnplacedWord]
+                        .textBegin
+                  : static_cast<uint32_t>(m_body.paragraph.text().size());
+        });
 
     canvas->clear(kPaper);
     // The breaker already stops placing words once the box is full, but a
@@ -158,10 +154,8 @@ private:
   MarkerSet m_markers;
   sk_sp<SkTypeface> m_serif;
   ParagraphLayout m_layout; // memoized across frames (see render)
-  uint64_t m_lastRevision = ~0ull;
-  SkISize m_lastSize = {0, 0};
-  TextAlignment m_lastAlignment = TextAlignment::kStart;
-  LineBreakStrategy m_lastLineBreakStrategy = LineBreakStrategy::kGreedy;
+  kit::LayoutGuard<SkISize, TextAlignment, LineBreakStrategy, float>
+      m_layoutGuard;
   uint32_t m_placedTextEnd = 0; // Text frontier of last layout (0 = unknown).
   bool m_queryWasScoped = false;
 };

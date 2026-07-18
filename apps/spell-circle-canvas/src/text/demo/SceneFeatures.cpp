@@ -55,10 +55,8 @@ void sceneFeatures(FontContext &fontContext,
 
   float rowTop = 30;
   for (const Row &row : rows) {
-    Paragraph caption;
-    caption.appendText(row.label, style(12, kAccent));
-    BlockFlow capFlow(SkRect::MakeXYWH(40, rowTop, 900, 18));
-    layoutParagraph(fontContext, caption, capFlow).draw(canvas, caption);
+    textflowkit::drawLabel(canvas, fontContext, row.label, {40, rowTop},
+                           {.color = kAccent, .width = 900, .height = 18});
 
     TextStyle body = style(30, kInk);
     body.shaping.typeface = hoeflerTypeface;

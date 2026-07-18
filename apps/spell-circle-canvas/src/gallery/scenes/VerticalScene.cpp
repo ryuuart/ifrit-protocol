@@ -31,10 +31,10 @@ public:
       if (!m_mincho)
         m_mincho = fontContext.defaultTypeface();
     }
-    if (fontSize != m_fontSize) {
+    m_paragraphsBuilt.ensure({fontSize}, [&] {
       m_fontSize = fontSize;
       buildParagraphs(fontSize);
-    }
+    });
 
     canvas->clear(kPaper);
 
@@ -233,8 +233,9 @@ private:
 
   Paragraph m_verticalParagraph;
   Paragraph m_horizontalParagraph;
+  kit::RebuildGuard<float> m_paragraphsBuilt;
   sk_sp<SkTypeface> m_mincho;
-  float m_fontSize = 0;
+  float m_fontSize = 0; // display size the ruby/kenten helpers scale from
 };
 
 SceneDescriptor makeVerticalDescriptor() {

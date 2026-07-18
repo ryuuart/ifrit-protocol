@@ -50,6 +50,7 @@ qt_add_qml_module(TextFlowGallery
     scenes/LoopScene.cpp
     scenes/RainScene.cpp
     scenes/RippleScene.cpp
+    scenes/TerminalScene.cpp
     scenes/VerticalScene.cpp
     scenes/HyperScriptsScene.cpp
     scenes/EffectsScene.cpp
@@ -68,6 +69,7 @@ target_link_libraries(TextFlowGallery
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
     TextFlowQt # carries TextFlow transitively
+    TextFlowKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
     TextFlowShaders # PaintShaders presets used by the effect scenes
     TextFlowPorts # systemFontManager()
 )

@@ -34,7 +34,7 @@ public:
                     FontContext &fontContext) override {
     if (!m_serif)
       m_serif = defaultSerif(fontContext);
-    const bool rebuilt = m_body.ensure(params, knuthPlassDefaultText(), m_serif);
+    m_body.ensure(params, knuthPlassDefaultText(), m_serif);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -43,37 +43,34 @@ public:
     // frame, so most frames pose the *same* problem as the last — quantize
     // and reuse the cached layouts instead of re-breaking 2× per frame.
     // Sub-pixel measure changes are invisible anyway.
-    const float measure = std::round(
+    const float measure = kit::quantize(
         canvasWidth * 0.36f *
         (1.0f + 0.10f * std::sin(static_cast<float>(elapsedSeconds) * 0.5f)));
 
     double layoutMicroseconds = 0;
-    if (rebuilt || m_body.paragraph.needsShaping() ||
-        measure != m_lastMeasure || size != m_lastSize ||
-        params.alignment != m_lastAlignment) {
-      m_lastMeasure = measure;
-      m_lastSize = size;
-      m_lastAlignment = params.alignment;
+    m_layoutGuard.ensure(
+        m_body.paragraph, {measure, size, params.alignment}, [&] {
+          ParagraphLayoutOptions options;
+          options.alignment = params.alignment;
+          options.lineMetrics.height = fontSize * 1.6f;
+          options.hyphenation.enabled = true;
+          options.knuthPlass.minimumIntervalWidth = fontSize * 3;
+          options.overflow.ellipsis = u"…";
 
-      ParagraphLayoutOptions options;
-      options.alignment = params.alignment;
-      options.lineMetrics.height = fontSize * 1.6f;
-      options.hyphenation.enabled = true;
-      options.knuthPlass.minimumIntervalWidth = fontSize * 3;
-      options.overflow.ellipsis = u"…";
-
-      const auto layoutStartTime = Clock::now();
-      for (int pass = 0; pass < 2; ++pass) {
-        options.lineBreakStrategy = pass == 0 ? LineBreakStrategy::kGreedy
-                                              : LineBreakStrategy::kKnuthPlass;
-        const float left =
-            pass == 0 ? canvasWidth * 0.07f : canvasWidth * 0.55f;
-        BlockFlow flow(SkRect::MakeXYWH(left, 48, measure, canvasHeight - 80));
-        m_layouts[pass] =
-            layoutParagraph(fontContext, m_body.paragraph, flow, options);
-      }
-      layoutMicroseconds = toMicroseconds(Clock::now() - layoutStartTime);
-    }
+          const kit::Stopwatch layoutTime;
+          for (int pass = 0; pass < 2; ++pass) {
+            options.lineBreakStrategy = pass == 0
+                                            ? LineBreakStrategy::kGreedy
+                                            : LineBreakStrategy::kKnuthPlass;
+            const float left =
+                pass == 0 ? canvasWidth * 0.07f : canvasWidth * 0.55f;
+            BlockFlow flow(
+                SkRect::MakeXYWH(left, 48, measure, canvasHeight - 80));
+            m_layouts[pass] =
+                layoutParagraph(fontContext, m_body.paragraph, flow, options);
+          }
+          layoutMicroseconds = layoutTime.microseconds();
+        });
 
     canvas->clear(kPaper);
     drawCaption(canvas, fontContext, u8"greedy", {canvasWidth * 0.07f, 18});
@@ -100,9 +97,7 @@ private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
   std::array<ParagraphLayout, 2> m_layouts;
-  float m_lastMeasure = -1;
-  SkISize m_lastSize = {0, 0};
-  TextAlignment m_lastAlignment = TextAlignment::kStart;
+  kit::LayoutGuard<float, SkISize, TextAlignment> m_layoutGuard;
 };
 
 SceneDescriptor makeKnuthPlassDescriptor() {

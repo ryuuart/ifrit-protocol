@@ -93,10 +93,9 @@ void sceneFallback(FontContext &fontContext,
   canvas->clear(kPaper);
 
   auto drawCaption = [&](const char8_t *text, float left, float top) {
-    Paragraph caption;
-    caption.appendText(text, style(13, kAccent));
-    BlockFlow flow(SkRect::MakeXYWH(left, top, kColumnWidth, 18));
-    layoutParagraph(fontContext, caption, flow).draw(canvas, caption);
+    textflowkit::drawLabel(canvas, fontContext, text, {left, top},
+                           {.fontSize = 13, .color = kAccent,
+                            .width = kColumnWidth, .height = 18});
   };
   drawCaption(u8"Noto Sans primary", 40, 16);
   drawCaption(u8"Noto Serif primary", 40 + kColumnWidth, 16);

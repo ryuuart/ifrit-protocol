@@ -6,6 +6,8 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
+#include <textflowqt/TextFlowQt.h>
+
 #include <include/core/SkPaint.h>
 
 #include <algorithm>
@@ -36,13 +38,13 @@ void includeCoverage(const ParagraphLayout &layout, Coverage &coverage) {
   }
 }
 
-void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext,
-                    std::u8string_view text, SkPoint origin, float width,
-                    SkColor color = 0xFF86D7FF) {
-  Paragraph paragraph;
-  paragraph.appendText(text, makeStyle(12.0f, color, "en"));
-  BlockFlow flow(SkRect::MakeXYWH(origin.x(), origin.y(), width, 28));
-  layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
+/// This scene's panel label: the kit caption in the wall's cyan-on-dark.
+template <typename TextView>
+void drawSceneLabel(SkCanvas *canvas, FontContext &fontContext, TextView text,
+                    SkPoint origin, float width, SkColor color = 0xFF86D7FF) {
+  kit::drawLabel(canvas, fontContext, text, origin,
+                 {.color = color, .width = width, .height = 28,
+                  .language = "en"});
 }
 
 class HyperScriptsScene final : public Scene {
@@ -51,11 +53,8 @@ public:
                     int /*frameNumber*/, const SceneParams &params,
                     FontContext &fontContext) override {
     const float baseSize = std::clamp(params.fontSize, 12.0f, 26.0f);
-    if (baseSize != m_builtSize || params.typeface.get() != m_builtTypeface) {
-      build(baseSize, params.typeface);
-      m_builtSize = baseSize;
-      m_builtTypeface = params.typeface.get();
-    }
+    m_built.ensure({baseSize, params.typeface.get()},
+                   [&] { build(baseSize, params.typeface); });
 
     const float width = static_cast<float>(size.width());
     const float height = static_cast<float>(size.height());
@@ -146,11 +145,7 @@ public:
             .arg(coverage.glyphCount)
             .arg(coverage.typefaceIds.size())
             .arg(coverage.missingGlyphCount);
-    const QByteArray statusUtf8 = status.toUtf8();
-    drawSceneLabel(canvas, fontContext,
-                   std::u8string_view(reinterpret_cast<const char8_t *>(
-                                          statusUtf8.constData()),
-                                      static_cast<size_t>(statusUtf8.size())),
+    drawSceneLabel(canvas, fontContext, textflowqt::toU16(status),
                    {margin, height - 25}, width - margin * 2.0f,
                    coverage.missingGlyphCount == 0 ? 0xFF86D7FF : 0xFFFF5B68);
 
@@ -234,8 +229,7 @@ private:
 
   std::array<Paragraph, 7> m_paragraphs;
   std::array<float, 7> m_lineHeights{};
-  const SkTypeface *m_builtTypeface = nullptr;
-  float m_builtSize = 0;
+  kit::RebuildGuard<float, const SkTypeface *> m_built;
 };
 
 SceneDescriptor makeHyperScriptsDescriptor() {

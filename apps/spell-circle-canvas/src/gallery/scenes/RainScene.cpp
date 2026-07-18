@@ -20,7 +20,7 @@ public:
                     int frameNumber, const SceneParams & /*params*/,
                     FontContext &fontContext) override {
     if (m_paragraph.text().empty())
-      m_paragraph = makeBigParagraph(700, 13.0f);
+      m_paragraph = kit::mixedScriptFiller(700, 13.0f);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -121,12 +121,8 @@ public:
             drawingCenter = particle.position;
             quantizeAngle(particle.angle, cosine, sine);
           }
-          GlyphRSXformBatches::Batch &batch =
-              m_batches.batchForStyle(shapedWord, color);
-          batch.glyphs.push_back(glyph);
-          batch.transforms.push_back({cosine, sine,
-                                      drawingCenter.fX - cosine * halfAdvance,
-                                      drawingCenter.fY - sine * halfAdvance});
+          m_batches.addGlyph(shapedWord, color, glyph, halfAdvance,
+                             drawingCenter, cosine, sine);
         });
 
     canvas->clear(kPaper);

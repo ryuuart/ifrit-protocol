@@ -24,10 +24,8 @@ namespace {
 
 void drawLabel(FontContext &fontContext, SkCanvas *canvas,
                const char8_t *label, float top) {
-  Paragraph caption;
-  caption.appendText(label, style(12, kAccent));
-  BlockFlow captionFlow(SkRect::MakeXYWH(40, top, 900, 18));
-  layoutParagraph(fontContext, caption, captionFlow).draw(canvas, caption);
+  textflowkit::drawLabel(canvas, fontContext, label, {40, top},
+                         {.color = kAccent, .width = 900, .height = 18});
 }
 
 } // namespace

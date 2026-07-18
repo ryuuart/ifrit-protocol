@@ -4,6 +4,7 @@
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
+#include <textflowqt/TextFlowQt.h>
 
 #include <include/core/SkBlendMode.h>
 
@@ -32,16 +33,9 @@ public:
     const sk_sp<SkTypeface> &typeface =
         params.typeface ? params.typeface : m_serif;
     const float fontSize = std::clamp(params.fontSize * 3.4f, 46.0f, 200.0f);
-    const bool rebuild = text != m_text || typeface.get() != m_typeface ||
-                         fontSize != m_fontSize || size != m_size;
 
     double layoutMicroseconds = 0;
-    if (rebuild) {
-      m_text = text;
-      m_typeface = typeface.get();
-      m_fontSize = fontSize;
-      m_size = size;
-
+    m_rebuild.ensure({text, typeface.get(), fontSize, size}, [&] {
       m_paints[0] = PaintStyle(SK_ColorWHITE); // starNest shader set per frame
       m_paints[1] = PaintStyle(SK_ColorWHITE); // clouds shader set per frame
       m_paints[2] = PaintStyle(SK_ColorWHITE); // tunnel shader set per frame
@@ -55,7 +49,7 @@ public:
       sparkleOverlay.setBlendMode(SkBlendMode::kScreen);
       m_paints[3].addOverlay(PaintLayer(std::move(sparkleOverlay)));
 
-      const auto layoutStart = Clock::now();
+      const kit::Stopwatch layoutTime;
       const float top = 60.0f;
       const float rowHeight =
           std::max(80.0f, (static_cast<float>(size.height()) - top - 30.0f) /
@@ -63,19 +57,17 @@ public:
       for (size_t row = 0; row < m_paragraphs.size(); ++row) {
         Paragraph &paragraph = m_paragraphs[row];
         paragraph.clear();
-        TextStyle textStyle = makeStyle(fontSize, SK_ColorWHITE, "", typeface);
-        const std::u16string sample(
-            reinterpret_cast<const char16_t *>(text.utf16()),
-            static_cast<size_t>(text.size()));
-        paragraph.appendText(sample, textStyle);
-        m_textLengths[row] = static_cast<uint32_t>(sample.size());
+        // Zero-copy: QString and Paragraph both store UTF-16.
+        textflowqt::appendText(
+            paragraph, text, makeStyle(fontSize, SK_ColorWHITE, "", typeface));
+        m_textLengths[row] = static_cast<uint32_t>(text.size());
         m_layouts[row] = layoutSingleLine(
             fontContext, paragraph,
             {std::max(220.0f, static_cast<float>(size.width()) * 0.32f),
              top + rowHeight * (static_cast<float>(row) + 0.68f)});
       }
-      layoutMicroseconds = toMicroseconds(Clock::now() - layoutStart);
-    }
+      layoutMicroseconds = layoutTime.microseconds();
+    });
 
     // Bound to the whole canvas so every row's shader shares one coordinate
     // space, the same pattern the other effect scenes use for their shaders.
@@ -128,11 +120,8 @@ private:
   std::array<ParagraphLayout, 4> m_layouts;
   std::array<PaintStyle, 4> m_paints;
   std::array<uint32_t, 4> m_textLengths{};
-  QString m_text;
-  SkTypeface *m_typeface = nullptr;
+  kit::RebuildGuard<QString, const SkTypeface *, float, SkISize> m_rebuild;
   sk_sp<SkTypeface> m_serif;
-  float m_fontSize = 0;
-  SkISize m_size = {0, 0};
 };
 
 } // namespace

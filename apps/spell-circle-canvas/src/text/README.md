@@ -78,6 +78,7 @@ use:
 | Target | Contents | Extra deps |
 |---|---|---|
 | `TextFlow` | the engine (everything above) | Skia (public); HarfBuzz, ICU, abseil (private) |
+| `TextFlowKit` | `textflowkit/` — consumer companion utilities: keyed rebuild/layout guards, glyph bucketing, label/style shorthand, sample content (see `kit/README.md`) | Skia only (via core) |
 | `TextFlowShaders` | `PaintShaders.h` — animated SkSL presets (water, mesh gradient, sparkle, star nest, clouds, tunnel) | Skia + SkRuntimeEffect |
 | `TextFlowPorts` | `ports/SystemFontManager.h` — the OS font manager (CoreText today; DirectWrite/Fontconfig slot in here) | Skia platform ports |
 | `TextFlowQt` | header-only Qt bridging (QFont → SkTypeface, QString ↔ Paragraph zero-copy) | Qt6::Gui |
@@ -93,6 +94,7 @@ vcpkg registry port drives exactly these):
 
 ```cmake
 find_package(TextFlow CONFIG REQUIRED)                # core, Qt-free
+find_package(TextFlow CONFIG REQUIRED COMPONENTS Kit) # + textflow::TextFlowKit
 find_package(TextFlow CONFIG REQUIRED COMPONENTS Qt)  # + textflow::TextFlowQt
 target_link_libraries(app PRIVATE textflow::TextFlow textflow::TextFlowPorts)
 ```

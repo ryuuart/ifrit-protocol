@@ -258,12 +258,9 @@ void sceneCjk(FontContext &fontContext,
   // Captions.
   auto drawCaption = [&](const char8_t *text, float positionX,
                          float positionY) {
-    TextStyle captionStyle = style(13, kBlue);
-    captionStyle.shaping.typeface = notoSansTypeface;
-    Paragraph paragraph;
-    paragraph.appendText(text, captionStyle);
-    BlockFlow flow(SkRect::MakeXYWH(positionX, positionY, 400, 18));
-    layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
+    textflowkit::drawLabel(canvas, fontContext, text, {positionX, positionY},
+                           {.fontSize = 13, .color = kBlue, .width = 400,
+                            .height = 18, .typeface = notoSansTypeface});
   };
   drawCaption(u8"horizontal: ruby + kenten (external utilities)", 50, 90);
   drawCaption(u8"vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430,

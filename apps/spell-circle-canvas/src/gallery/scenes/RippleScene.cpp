@@ -24,7 +24,7 @@ public:
                     int frameNumber, const SceneParams & /*params*/,
                     FontContext &fontContext) override {
     if (m_paragraph.text().empty())
-      m_paragraph = makeBigParagraph(700, 13.0f);
+      m_paragraph = kit::mixedScriptFiller(700, 13.0f);
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
@@ -95,15 +95,11 @@ public:
           float cosine;
           float sine;
           quantizeAngle(tilt, cosine, sine);
-          const SkPoint drawingOrigin = restingOrigin + offset;
           const float halfAdvance = glyphAdvance * 0.5f;
-          GlyphRSXformBatches::Batch &batch =
-              m_batches.batchForStyle(shapedWord, color);
-          batch.glyphs.push_back(glyph);
-          batch.transforms.push_back(
-              {cosine, sine,
-               drawingOrigin.fX - cosine * halfAdvance + halfAdvance,
-               drawingOrigin.fY - sine * halfAdvance});
+          const SkPoint drawingCenter =
+              restingOrigin + offset + SkVector{halfAdvance, 0};
+          m_batches.addGlyph(shapedWord, color, glyph, halfAdvance,
+                             drawingCenter, cosine, sine);
         });
 
     canvas->clear(kPaper);

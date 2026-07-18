@@ -33,8 +33,7 @@ public:
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
-    if (m_size != size) {
-      m_size = size;
+    const Rail &rail = m_rail.ensure({size}, [&] {
       SkPathBuilder pathBuilder;
       const SkPoint center = {canvasWidth * 0.5f, canvasHeight * 0.5f};
       const int steps = 400;
@@ -51,17 +50,19 @@ public:
           pathBuilder.lineTo(point);
       }
       pathBuilder.close();
-      m_eight = pathBuilder.detach();
-      SkContourMeasureIter contourIterator(m_eight, false);
-      m_contour = contourIterator.next();
-    }
-    if (!m_contour)
+      Rail built;
+      built.eight = pathBuilder.detach();
+      SkContourMeasureIter contourIterator(built.eight, false);
+      built.contour = contourIterator.next();
+      return built;
+    });
+    if (!rail.contour)
       return {};
-    const float loopLength = m_contour->length();
+    const float loopLength = rail.contour->length();
 
     LineSetFlow flow;
     LineInterval interval;
-    interval.contour = m_contour;
+    interval.contour = rail.contour;
     interval.length = loopLength;
     interval.contourStart =
         std::fmod(static_cast<float>(elapsedSeconds) * 110.0f, loopLength);
@@ -73,23 +74,27 @@ public:
     const auto layoutEndTime = Clock::now();
 
     canvas->clear(kPaper);
-    SkPaint rail;
-    rail.setAntiAlias(true);
-    rail.setStyle(SkPaint::kStroke_Style);
-    rail.setStrokeWidth(1.2f);
-    rail.setColor(0x2A23252B);
-    canvas->drawPath(m_eight, rail);
+    SkPaint railPaint;
+    railPaint.setAntiAlias(true);
+    railPaint.setStyle(SkPaint::kStroke_Style);
+    railPaint.setStrokeWidth(1.2f);
+    railPaint.setColor(0x2A23252B);
+    canvas->drawPath(rail.eight, railPaint);
     layout.draw(canvas, m_body.paragraph);
     return {toMicroseconds(layoutEndTime - layoutStartTime),
             static_cast<int>(layout.runs.size()), 0};
   }
 
 private:
+  /// The marquee rail: figure-eight path plus its contour measure, derived
+  /// together from the canvas size.
+  struct Rail {
+    SkPath eight;
+    sk_sp<SkContourMeasure> contour;
+  };
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  SkPath m_eight;
-  sk_sp<SkContourMeasure> m_contour;
-  SkISize m_size = {0, 0};
+  kit::CachedValue<Rail, SkISize> m_rail;
 };
 
 SceneDescriptor makeLoopDescriptor() {

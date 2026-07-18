@@ -66,16 +66,15 @@ public:
                          2 * circleRadius),
         fontSize * 0.5f));
 
-    if (m_pathSize != size) {
-      m_pathSize = size;
+    const SkPath &donutPath = m_donut.ensure({size}, [&] {
       SkPathBuilder donut;
       const float donutRadius = std::min(canvasWidth, canvasHeight) * 0.16f;
       donut.addCircle(canvasWidth * 0.72f, canvasHeight * 0.68f, donutRadius);
       donut.addCircle(canvasWidth * 0.72f, canvasHeight * 0.68f,
                       donutRadius * 0.5f);
       donut.setFillType(SkPathFillType::kEvenOdd);
-      m_donut = donut.detach();
-    }
+      return donut.detach();
+    });
     // Morphing exclusion: a brand-new spiky path every frame, points
     // pulsing in and out — the flow re-flattens and relayouts live.
     const SkPath spiky =
@@ -94,7 +93,7 @@ public:
     // The donut drifts too: moving a path via pathOffset reuses its cached
     // flattening, and every frame is a full live relayout around it.
     ExclusionFlow::Shape donut =
-        ExclusionFlow::Shape::fromPath(m_donut, fontSize * 0.4f);
+        ExclusionFlow::Shape::fromPath(donutPath, fontSize * 0.4f);
     donut.pathOffset = {
         canvasWidth * 0.05f *
             std::sin(static_cast<float>(elapsedSeconds) * 0.6f),
@@ -127,7 +126,7 @@ public:
     canvas->restore();
     canvas->save();
     canvas->translate(donut.pathOffset.x(), donut.pathOffset.y());
-    canvas->drawPath(m_donut, ghost);
+    canvas->drawPath(donutPath, ghost);
     canvas->restore();
     layout.drawBatched(canvas, m_body.paragraph);
 
@@ -138,8 +137,7 @@ public:
 private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  SkPath m_donut;
-  SkISize m_pathSize = {0, 0};
+  kit::CachedValue<SkPath, SkISize> m_donut;
 };
 
 SceneDescriptor makeExclusionsDescriptor() {

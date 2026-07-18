@@ -65,19 +65,8 @@ public:
         params.floatValue(QStringLiteral("glowSpread"), 0.6f);
     const float glowIntensity =
         params.floatValue(QStringLiteral("glowIntensity"), 1.3f);
-    const bool layoutDirty = size != m_size || typeface.get() != m_typeface ||
-                             stressFontSize != m_fontSize;
-    const bool effectDirty = layoutDirty || effectGlow != m_effectGlow ||
-                             effectOutline != m_effectOutline ||
-                             effectStars != m_effectStars ||
-                             glowSpread != m_glowSpread ||
-                             glowIntensity != m_glowIntensity;
-
     double layoutMicroseconds = 0;
-    if (layoutDirty) {
-      m_size = size;
-      m_typeface = typeface.get();
-      m_fontSize = stressFontSize;
+    m_layoutBuild.ensure({size, typeface.get(), stressFontSize}, [&] {
       m_paragraph.clear();
       TextStyle textStyle =
           makeStyle(stressFontSize, SK_ColorWHITE, "", typeface);
@@ -89,16 +78,21 @@ public:
       options.lineBreakStrategy = LineBreakStrategy::kGreedy;
       options.lineMetrics.height = stressFontSize * 1.22f;
       BlockFlow flow(textBounds);
-      const auto layoutStart = Clock::now();
+      const kit::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
-      layoutMicroseconds = toMicroseconds(Clock::now() - layoutStart);
+      layoutMicroseconds = layoutTime.microseconds();
       m_glyphCount = 0;
       for (const PositionedRun &run : m_layout.runs)
         if (run.shaped)
           m_glyphCount += static_cast<int>(run.shaped->glyphs.size());
-    }
+    });
 
-    if (effectDirty) {
+    // The paint stack keys on the toggles plus the font size its blur/stroke
+    // scales derive from — never on canvas size or typeface, so resizes
+    // rebuild the layout above without touching the effect below.
+    m_effectBuild.ensure({effectGlow, effectOutline, effectStars, glowSpread,
+                          glowIntensity, stressFontSize},
+                         [&] {
       m_effectGlow = effectGlow;
       m_effectOutline = effectOutline;
       m_effectStars = effectStars;
@@ -129,7 +123,7 @@ public:
         stars.setBlendMode(SkBlendMode::kScreen);
         m_effect.addOverlay(PaintLayer(std::move(stars)));
       }
-    }
+    });
 
     const float time = static_cast<float>(elapsedSeconds);
     if (effectShader)
@@ -169,10 +163,9 @@ private:
   Paragraph m_paragraph;
   ParagraphLayout m_layout;
   PaintStyle m_effect;
+  kit::RebuildGuard<SkISize, const SkTypeface *, float> m_layoutBuild;
+  kit::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
   sk_sp<SkTypeface> m_serif;
-  SkTypeface *m_typeface = nullptr;
-  SkISize m_size = {0, 0};
-  float m_fontSize = 0;
   uint32_t m_textLength = 0;
   int m_glyphCount = 0;
   bool m_effectGlow = true;

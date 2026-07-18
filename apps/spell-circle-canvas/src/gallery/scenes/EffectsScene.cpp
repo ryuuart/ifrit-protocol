@@ -4,6 +4,7 @@
 #include "SceneSupport.h"
 
 #include <textflow/PaintShaders.h>
+#include <textflowqt/TextFlowQt.h>
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkTileMode.h>
@@ -71,66 +72,55 @@ public:
         SkRect::MakeLTRB(24.0f, canvasHeight - paragraphAreaHeight,
                          canvasWidth - 24.0f, canvasHeight - 20.0f);
 
-    const bool rebuild = text != m_text || typeface.get() != m_typeface ||
-                         fontSize != m_fontSize ||
-                         paragraphFontSize != m_paragraphFontSize ||
-                         size != m_size;
-
     double layoutMicroseconds = 0;
-    if (rebuild) {
-      m_text = text;
-      m_typeface = typeface.get();
-      m_fontSize = fontSize;
-      m_paragraphFontSize = paragraphFontSize;
-      m_size = size;
-      buildPaints(fontSize);
-      buildParagraphPaints(paragraphFontSize);
+    m_rebuild.ensure(
+        {text, typeface.get(), fontSize, paragraphFontSize, size}, [&] {
+          buildPaints(fontSize);
+          buildParagraphPaints(paragraphFontSize);
 
-      const auto layoutStart = Clock::now();
-      for (size_t row = 0; row < m_paragraphs.size(); ++row) {
-        Paragraph &paragraph = m_paragraphs[row];
-        paragraph.clear();
-        TextStyle textStyle = makeStyle(fontSize, kInk, "", typeface);
-        const std::u16string sample(
-            reinterpret_cast<const char16_t *>(text.utf16()),
-            static_cast<size_t>(text.size()));
-        paragraph.appendText(sample, textStyle);
-        m_textLengths[row] = static_cast<uint32_t>(sample.size());
-        m_layouts[row] = layoutSingleLine(
-            fontContext, paragraph,
-            {std::max(230.0f, canvasWidth * 0.28f),
-             top + rowHeight * (static_cast<float>(row) + 0.67f)});
-      }
+          const kit::Stopwatch layoutTime;
+          for (size_t row = 0; row < m_paragraphs.size(); ++row) {
+            Paragraph &paragraph = m_paragraphs[row];
+            paragraph.clear();
+            // Zero-copy: QString and Paragraph both store UTF-16.
+            textflowqt::appendText(paragraph, text,
+                                   makeStyle(fontSize, kInk, "", typeface));
+            m_textLengths[row] = static_cast<uint32_t>(text.size());
+            m_layouts[row] = layoutSingleLine(
+                fontContext, paragraph,
+                {std::max(230.0f, canvasWidth * 0.28f),
+                 top + rowHeight * (static_cast<float>(row) + 0.67f)});
+          }
 
-      m_paragraphBlock.clear();
-      TextStyle paragraphStyle =
-          makeStyle(paragraphFontSize, kInk, "", typeface);
-      uint32_t clauseStart = 0;
-      for (size_t row = 0; row < kParagraphClauses.size(); ++row) {
-        m_paragraphBlock.appendText(kParagraphClauses[row], paragraphStyle);
-        const uint32_t clauseEnd =
-            static_cast<uint32_t>(m_paragraphBlock.text().size());
-        m_paragraphSpans[row] = {clauseStart, clauseEnd};
-        clauseStart = clauseEnd;
-      }
-      // Split the paint spans before the first layout, not after: a run's
-      // style index is fixed relative to the span list at layout time, and
-      // splitting one span into five afterward (below, every frame) only
-      // updates already-indexed spans in place — it doesn't retarget runs
-      // that were shaped against the single pre-split span.
-      for (size_t row = 0; row < m_paragraphSpans.size(); ++row)
-        m_paragraphBlock.setPaint(m_paragraphSpans[row].start,
-                                  m_paragraphSpans[row].end,
-                                  m_paragraphPaints[row]);
-      ParagraphLayoutOptions paragraphOptions;
-      paragraphOptions.alignment = TextAlignment::kJustify;
-      paragraphOptions.lineMetrics.height = paragraphFontSize * 1.35f;
-      BlockFlow paragraphFlow(paragraphBounds);
-      m_paragraphBlockLayout = layoutParagraph(fontContext, m_paragraphBlock,
-                                               paragraphFlow, paragraphOptions);
+          m_paragraphBlock.clear();
+          TextStyle paragraphStyle =
+              makeStyle(paragraphFontSize, kInk, "", typeface);
+          uint32_t clauseStart = 0;
+          for (size_t row = 0; row < kParagraphClauses.size(); ++row) {
+            m_paragraphBlock.appendText(kParagraphClauses[row], paragraphStyle);
+            const uint32_t clauseEnd =
+                static_cast<uint32_t>(m_paragraphBlock.text().size());
+            m_paragraphSpans[row] = {clauseStart, clauseEnd};
+            clauseStart = clauseEnd;
+          }
+          // Split the paint spans before the first layout, not after: a run's
+          // style index is fixed relative to the span list at layout time, and
+          // splitting one span into five afterward (below, every frame) only
+          // updates already-indexed spans in place — it doesn't retarget runs
+          // that were shaped against the single pre-split span.
+          for (size_t row = 0; row < m_paragraphSpans.size(); ++row)
+            m_paragraphBlock.setPaint(m_paragraphSpans[row].start,
+                                      m_paragraphSpans[row].end,
+                                      m_paragraphPaints[row]);
+          ParagraphLayoutOptions paragraphOptions;
+          paragraphOptions.alignment = TextAlignment::kJustify;
+          paragraphOptions.lineMetrics.height = paragraphFontSize * 1.35f;
+          BlockFlow paragraphFlow(paragraphBounds);
+          m_paragraphBlockLayout = layoutParagraph(
+              fontContext, m_paragraphBlock, paragraphFlow, paragraphOptions);
 
-      layoutMicroseconds = toMicroseconds(Clock::now() - layoutStart);
-    }
+          layoutMicroseconds = layoutTime.microseconds();
+        });
 
     // Runtime effects compile once inside PaintShaders. These calls only make
     // new uniform blocks/shader instances; replacing them is paint-only and
@@ -284,12 +274,9 @@ private:
   ParagraphLayout m_paragraphBlockLayout;
   std::array<PaintStyle, 5> m_paragraphPaints;
   std::array<CharRange, 5> m_paragraphSpans{};
-  QString m_text;
-  SkTypeface *m_typeface = nullptr;
+  kit::RebuildGuard<QString, const SkTypeface *, float, float, SkISize>
+      m_rebuild;
   sk_sp<SkTypeface> m_serif;
-  float m_fontSize = 0;
-  float m_paragraphFontSize = 0;
-  SkISize m_size = {0, 0};
 };
 
 /// The merged effects scene: three former scenes as switchable modes. Each

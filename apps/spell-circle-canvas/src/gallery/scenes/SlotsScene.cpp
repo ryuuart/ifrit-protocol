@@ -28,10 +28,7 @@ public:
         m_sansTypeface = fontContext.defaultTypeface();
     }
     const float fontSize = params.fontSize;
-    if (m_builtFontSize != fontSize) {
-      m_builtFontSize = fontSize;
-      build(fontContext, fontSize);
-    }
+    m_built.ensure({fontSize}, [&] { build(fontContext, fontSize); });
 
     // Pulse the first pill — resizing an inline object relayouts the whole
     // paragraph live, and reshapes exactly zero words.
@@ -173,7 +170,7 @@ private:
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;
   sk_sp<SkTypeface> m_sansTypeface;
-  float m_builtFontSize = 0;
+  kit::RebuildGuard<float> m_built;
 };
 
 SceneDescriptor makeSlotsDescriptor() {
