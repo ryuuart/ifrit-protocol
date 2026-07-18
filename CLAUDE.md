@@ -5,7 +5,9 @@
 ```
 apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
   src/common/              shared libraries: skia/ (Graphite GPU plumbing),
-                           ui/ (Ifrit.Ui Qt Quick controls)
+                           ui/ (Ifrit.Ui Qt Quick controls), image/
+                           (IfritImage — PNG/JPEG/WebP/GIF/AVIF import,
+                           stills + animations, for canvas drawing)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}

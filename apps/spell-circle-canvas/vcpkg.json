@@ -10,6 +10,12 @@
     "spdlog",
     "icu",
     {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
+    {
       "name": "harfbuzz",
       "features": [
         "icu",
@@ -22,7 +28,11 @@
     {
       "name": "skia",
       "features": [
+        "avif",
         "graphite",
+        "jpeg",
+        "png",
+        "webp",
         {
           "name": "metal",
           "platform": "osx"
