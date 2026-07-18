@@ -7,7 +7,10 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
   src/common/              shared libraries: skia/ (Graphite GPU plumbing),
                            ui/ (Ifrit.Ui Qt Quick controls), image/
                            (IfritImage — PNG/JPEG/WebP/GIF/AVIF import,
-                           stills + animations, for canvas drawing)
+                           stills + animations, for canvas drawing), web/
+                           (IfritWeb — Ultralight HTML/CSS layout rendered
+                           to SkImage frames for the canvases; GPU via a
+                           Metal GPUDriver, CPU fallback)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
@@ -37,7 +40,16 @@ ctest --test-dir build -C Debug --output-on-failure
 The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
 `CMakeUserPresets.json`. The primary executables are `SpellCircle`,
 `SpellCircleMac` (macOS only, needs a Swift toolchain), `TextFlowGallery`,
-`textflow_test`, `textflow_bench`, and `textflow_demo`.
+`textflow_test`, `textflow_bench`, `textflow_demo`, `ifritweb_demo`
+(CPU/lockstep), and `ifritweb_gpu_demo` (Metal + Graphite).
+
+The Ultralight SDK is required for IfritWeb;
+`SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
+missing. Installation (headers/dylibs to `/usr/local`, the dylib
+re-signing step, and the runtime-resource locations) is documented in
+`src/common/web/README.md`. Executables that link `IfritWeb` call
+`ultralight_copy_resources(<target>)` so each build stages the resources
+next to the binary, which is where the engine looks first at runtime.
 
 ## FlatBuffers generation
 
@@ -95,6 +107,44 @@ core into an offscreen Metal texture, publishes it over Syphon under the same
 "SpellCircle" server name, and blits into `SCKCanvasView`'s CAMetalLayer
 (pan/zoom, event-driven redraws). Swift imports the bridge via
 `bridge/module.modulemap`; the Qt app remains the cross-platform build.
+
+IfritWeb (`src/common/web/`, namespace `ifrit::web`) renders HTML/CSS/JS
+through the Ultralight SDK (WebKit-derived) for advanced layout on the
+scene canvases. `WebEngine` owns the single-per-process
+`ultralight::Renderer` on a dedicated web thread; each `WebView` is an
+offscreen page. With `WebEngineConfig::metalDevice/metalCommandQueue` set
+(pass the same pair the Graphite context shares), rendering is
+hardware-accelerated: `UltralightMetalDriver`
+(`src/common/web/metal/`, executing the SDK's stock Metal shaders,
+vendored as `UltralightShaders.metal`) runs Ultralight's command lists
+into MTLTextures, publishes each repaint by blitting into per-view
+ping-pong textures, and `WebView::frameImage(recorder)` /
+`WebView::draw()` wrap the published texture zero-copy as a
+Graphite-backed SkImage — everything rides one MTLCommandQueue, so
+ordering is implicit. Without a device the CPU renderer publishes
+immutable raster SkImages instead (Ultralight paints straight into
+SkBitmap memory via a custom `ultralight::SurfaceFactory`); the API is
+identical across modes. Integration paths: pull
+(`frame()`/`frameImage()`/`frameVersion()`), push (`setFrameCallback()`),
+or lockstep (`threaded=false` + `update()`/`renderFrame()` from the host
+loop, with zero-copy `peekPixels()` in CPU mode). Compositing also runs
+the other way: `WebEngine::createImage()` returns a `WebImage` pages
+display as `<img src="<name>.imgsrc">`; `WebImage::paint(callback)` is
+the safe runtime-collaboration path (canvas handed in, GPU flush +
+invalidate atomic, on the web thread — the engine's Metal driver keeps
+its own Graphite recorder for this), with raster `update()` and raw
+`mtlTexture()` as alternatives, and unregistered slot names log a
+warning (both directions covered by round-trip pixel tests in web_test /
+web_gpu_test). A custom FileSystem maps the `resources/` prefix to the
+SDK runtime data, synthesizes the `.imgsrc` indirection files, and
+resolves other paths against `WebEngineConfig::fileSystemDir`; loadHTML
+pages get a `file:///` base URL so those resources are reachable. Engine shutdown must purge WebCore
+caches before destroying the renderer (see `threadMain`) — GPU glyph
+textures otherwise dangle into pthread TSD cleanup. A Vulkan GPUDriver is
+future work alongside the repo's other Vulkan draft targets; sharing an
+SkCanvas directly is not architecturally possible (Ultralight records its
+own render passes), so texture-backed SkImage is the supported
+compositing model.
 
 TextFlow is a Qt-independent library under `src/textflow/`, with its
 interactive gallery and headless demo under `src/textflow/examples/`. Its
