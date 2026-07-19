@@ -436,49 +436,102 @@ Element &background(DecorationScheme auto);   // below content, stackable
 Element &foreground(DecorationScheme auto);   // above children, stackable
 ```
 
-**Built-in kit** — each a thin value struct over machinery Skia ships:
+**Primitives, not a zoo.** Concrete treatments (dashes, stamps, 9-slice
+frames) are *data* over four general primitives — the kit deliberately
+stops here:
 
 ```cpp
-// 9-slice and its generalization: SkCanvas::drawImageLattice does
-// N-patch natively — arbitrary slice grids, per-cell stretch/repeat —
-// so "border that stretches one segment and repeats another" is data.
-NineSlice{.asset = frameTexture, .insets = {24, 24, 24, 24},
-          .center = Repeat::Stretch};
-Lattice{.asset = ornateFrame, .xDivs = {...}, .yDivs = {...}, ...};
+// 1. Fill — paint anything. Color and gradients are conveniences; the
+//    general case is any SkShader, and SkSL runtime effects make that
+//    "any function of position (and time)". Fills serve backgrounds,
+//    stroke paint, and glyph paint alike.
+Fill::shader(sk_sp<SkShader>);   // incl. SkRuntimeEffect-built shaders
 
-// Pattern fills: any tiling SkShader (image shaders, PaintShaders,
-// SkSL) with a local matrix for scale/rotation of the motif.
-PatternFill{.shader = asset.frame(0).image->makeShader(
-                SkTileMode::kRepeat, SkTileMode::kRepeat, sampling)};
+// 2. PathFormat — format any stroke. A stroke is the outline path put
+//    through a chain of path transforms (Skia path effects: dash
+//    intervals, 1D path stamping, discretization, corner rounding,
+//    your own SkPathEffect) and painted with a Fill. "Dashed border"
+//    is a two-number PathFormat, not a type.
+PathFormat{.effects = {...}, .paint = Fill::..., .width = 3};
 
-// Path-effect borders along the node's outline:
-DashedBorder{.stroke = {...}, .intervals = {12, 6}};      // SkDashPathEffect
-StampedBorder{.stamp = leafPath, .advance = 18,           // SkPath1DPathEffect:
-              .style = Stamp::Rotate};                    // vines, curls, chains
-WobbleBorder{.stroke = {...}, .segLength = 4, .dev = 2};  // SkDiscretePathEffect
+// 3. Slice — map an image/asset onto a box through a lattice
+//    (SkCanvas::drawImageLattice: N-patch, per-cell stretch/repeat).
+//    Nine-slice is the 3x3 case.
+Slice{.asset = frame, .xDivs = {...}, .yDivs = {...}};
 
-// Procedural: SkSL runtime effects, time-fed for animation.
-ShaderBorder{.effect = SkRuntimeEffect::MakeForShader(sksl).effect,
-             .width = 6};   // animated() == true when it samples time
-
-// Per-edge composition — different treatment per side:
-EdgeSet{.top = NineSliceStrip{...}, .bottom = DashedBorder{...},
-        .left = StampedBorder{...}};   // right: none
+// 4. ContourWalk — the general procedural border: walk the outline by
+//    arc length (SkContourMeasure) and run a draw program at each
+//    sample. Stamped vines, per-step images, "a different canvas as we
+//    walk" — all the same primitive with a different body.
+struct PathSample { SkPoint pos; SkVector tangent; float distance, fraction; };
+ContourWalk{.spacing = 18,
+            .draw = [](SkCanvas &c, const PathSample &s, const DecorationInput &in) {
+              /* anything — images, nested composed elements, SkSL */
+            }};
+// Element form: the stamp is a full element subtree — laid out once,
+// cached as a picture, replayed per sample, animatable via bindings:
+ContourWalk{.spacing = 24, .stamp = leafOrnament(seed)};
 ```
 
-The floor is the concept itself: a `DecorationScheme` gets the canvas,
-the box, and the outline path — draw anything (this is `custom()` for
-chrome, but layout-aware and cache-managed). "Generators" compose at
-two levels: decoration-level (path effects and SkSL *are* procedural
-generators) and component-level — a component is already a generator,
-so `vineCorners(seed)` returning absolutely-positioned stamped paths in
-a `stack()` is ordinary composition.
+Per-edge treatments are composition, not a type: decorations receive
+the outline, and `edges(outline, Edge::Top)` extracts sub-contours to
+hand any primitive.
 
 **Caching stays sound**: decorations are values in the description
 (reconciled and hashed like everything else), painted inside the node's
 `Cache::Picture` recording; ones declaring `animated()` — or carrying
 bound `ch::Output` fields — demote their node to live painting while
 active, exactly the declared-volatility rule bound properties follow.
+
+### The pipeline — where procedural enters (one architecture, not two)
+
+The generative cases (text flowing around frames, borders between
+*connections*, draw programs walking contours, recursion) do not need a
+second API path. They need the pipeline the declarative surface already
+implies to be **explicit**, with a procedural entry point at every
+phase — each entry point a function whose input is that phase's
+resolved output:
+
+| Phase | Input → Output | Procedural entry |
+| --- | --- | --- |
+| **Describe** | data → elements | components, `memo`, ranges — generation by ordinary code |
+| **Layout** | constraints → rects | `LayoutScheme`; text measure via TextFlow |
+| **Derive** | resolved geometry → more content | `flowAround`, `connector`, `ContourWalk` stamps |
+| **Paint** | geometry + canvas → pixels | `DecorationScheme`, `custom()`, SkSL |
+| **Frame** | time → values / next data | Choreograph outputs, steppables, host data feedback |
+
+The **derive phase** is the addition this round forces — the home of
+everything whose *input is resolved layout*:
+
+```cpp
+// Text flowing around frames: TextFlow's ExclusionFlow already exists;
+// the composer plumbs resolved node outlines into it. Runs as a second
+// layout pass (how DTP engines do float wrap); reference cycles are
+// rejected at reconcile time.
+text(article, body16).flowAround("hero-frame", 12 /*margin px*/);
+
+// Borders between connections: a relationship, not a node property —
+// a first-class element whose geometry derives from its endpoints'
+// resolved bounds, drawn with the full primitive set (a PathFormat, an
+// SkSL Fill along the connecting path, a ContourWalk…). Mirrors the
+// scene schema's own Edge-between-Points model.
+connector("node-a", "node-b")
+    .route(Route::Orthogonal)                  // or a custom router fn
+    .format(PathFormat{.paint = Fill::shader(flowFieldSkSL), .width = 4});
+```
+
+**Recursion is closed under the model**: a `ContourWalk` stamp is an
+element subtree, whose decorations may themselves walk contours, whose
+custom leaves may draw entire nested Composers — each level cached,
+animated, and reconciled by the same rules. What keeps "insanely
+procedural" from becoming "unsound" is one law: **within a frame,
+information flows forward only** (describe → layout → derive → paint).
+Backward influence — paint results affecting layout — happens either
+through the one declared, cycle-checked exception (`flowAround`'s
+second pass) or across frames through ordinary data (this frame's
+`bounds()` feed next frame's describe), which the event-driven loop
+already models. Same backend, same niceties, one dial: at which phase
+your code runs.
 
 ## C++20 at the surface
 
