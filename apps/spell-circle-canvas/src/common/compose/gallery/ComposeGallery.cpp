@@ -70,13 +70,26 @@ constexpr SkSize kSceneSize = {900, 640};
 // Frame statistics (the FPS measurement)
 
 struct FrameStats {
-  std::deque<double> frameMs; // rolling window
+  std::deque<double> frameMs; // rolling window of FULL frame work
+  std::deque<double> presentMs; // wall deltas between presented frames
   static constexpr size_t kWindow = 120;
 
   void add(double ms) {
     frameMs.push_back(ms);
     if (frameMs.size() > kWindow)
       frameMs.pop_front();
+  }
+  void addPresent(double ms) {
+    presentMs.push_back(ms);
+    if (presentMs.size() > kWindow)
+      presentMs.pop_front();
+  }
+  double presentedFps() const {
+    if (presentMs.empty())
+      return 0;
+    const double avg = std::accumulate(presentMs.begin(), presentMs.end(),
+                                       0.0) / (double)presentMs.size();
+    return avg > 0 ? 1000.0 / avg : 0;
   }
   double average() const {
     if (frameMs.empty())
@@ -501,28 +514,50 @@ struct GalleryStage {
     scene->setup(*composer, *ticker);
   }
 
-  void tick() {
-    const double dt = clock.tick();
+  double pendingOverlayMs = 0.0; // charged to the next frame's sample
+  std::chrono::steady_clock::time_point lastPresent{};
+
+  /** One full frame of work: tick (step + scene update + reconcile) and
+   *  the scene draw are measured together — reconcile and relayout are
+   *  real per-frame costs, not free. Returns nothing; stats accumulate. */
+  void frame(SkCanvas &canvas, double fixedDt = -1.0) {
+    const auto start = std::chrono::steady_clock::now();
+    const double dt = fixedDt >= 0 ? fixedDt : clock.tick();
+    if (fixedDt >= 0)
+      clock.tick(); // keep elapsed advancing for scene update schedules
     ticker->tick(dt);
     scene->update(clock.elapsed(), *composer);
-  }
-
-  void draw(SkCanvas &canvas) {
-    const auto start = std::chrono::steady_clock::now();
     composer->draw(canvas);
     const double ms = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - start)
                           .count();
-    stats.add(ms);
+    stats.add(ms + pendingOverlayMs);
+    pendingOverlayMs = 0.0;
+    drawOverlay(canvas);
+  }
 
+  void markPresented() {
+    const auto now = std::chrono::steady_clock::now();
+    if (lastPresent.time_since_epoch().count() != 0)
+      stats.addPresent(std::chrono::duration<double, std::milli>(
+                           now - lastPresent)
+                           .count());
+    lastPresent = now;
+  }
+
+  void drawOverlay(SkCanvas &canvas) {
     if (!showStats)
       return;
+    const auto overlayStart = std::chrono::steady_clock::now();
     const Composer::Stats &cs = composer->stats();
     char line[160];
+    const double presented = stats.presentedFps();
     std::snprintf(line, sizeof(line),
-                  "%s   %5.1f fps   draw %5.2f ms (p99 %5.2f)",
-                  scene->name(), stats.fps(), stats.average(),
-                  stats.percentile(0.99));
+                  "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps%s%.0f%s",
+                  scene->name(), stats.average(), stats.percentile(0.99),
+                  stats.fps(), presented > 0 ? "   presented " : "",
+                  presented > 0 ? presented : 0.0,
+                  presented > 0 ? " fps" : "");
     char line2[160];
     std::snprintf(line2, sizeof(line2),
                   "instances %zu   pictures %zu   textures %zu   live %zu",
@@ -539,6 +574,9 @@ struct GalleryStage {
                                    .child(text(toU8(line2),
                                                styleAt(13, 0xff9aa4bb))))));
     overlay.draw(canvas);
+    pendingOverlayMs = std::chrono::duration<double, std::milli>(
+                           std::chrono::steady_clock::now() - overlayStart)
+                           .count();
   }
 };
 
@@ -563,10 +601,7 @@ public:
     resize((int)kSceneSize.width(), (int)kSceneSize.height());
     m_stage.activate(makeScene(0));
     m_timer.setInterval(16);
-    QObject::connect(&m_timer, &QTimer::timeout, [this] {
-      m_stage.tick();
-      update();
-    });
+    QObject::connect(&m_timer, &QTimer::timeout, [this] { update(); });
     m_timer.start();
   }
 
@@ -579,9 +614,10 @@ protected:
                           kRGBA_8888_SkColorType, kPremul_SkAlphaType),
         image.bits(), image.bytesPerLine());
     surface->getCanvas()->clear(SK_ColorBLACK);
-    m_stage.draw(*surface->getCanvas());
+    m_stage.frame(*surface->getCanvas());
     QPainter painter(this);
     painter.drawImage(0, 0, image);
+    m_stage.markPresented();
   }
 
   void keyPressEvent(QKeyEvent *event) override {
@@ -616,23 +652,25 @@ private:
 
 int runHeadless(const std::string &outDir) {
   std::filesystem::create_directories(outDir);
-  std::printf("%-12s %9s %10s %10s\n", "scene", "fps", "avg ms", "p99 ms");
+  std::printf("%-12s %12s %10s %14s\n", "scene", "work ms", "p99 ms",
+              "headroom fps");
   for (int i = 0; i < kSceneCount; ++i) {
     GalleryStage stage;
     stage.activate(makeScene(i));
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)kSceneSize.width(), (int)kSceneSize.height()));
 
-    // 120 unthrottled frames at a fixed 60 Hz step: the FPS measurement.
+    // 120 frames at a fixed 60 Hz step. The measured span is the FULL
+    // frame body — ticker step, scene update, reconcile, scene draw,
+    // and the overlay (charged to the following sample). "Headroom" is
+    // 1000/work-ms: the unthrottled ceiling, NOT a presented rate.
     for (int f = 0; f < 120; ++f) {
-      stage.ticker->tick(1.0 / 60.0);
-      stage.scene->update((double)f / 60.0, *stage.composer);
       surface->getCanvas()->clear(SK_ColorBLACK);
-      stage.draw(*surface->getCanvas());
+      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
     }
-    std::printf("%-12s %9.1f %10.2f %10.2f\n", stage.scene->name(),
-                stage.stats.fps(), stage.stats.average(),
-                stage.stats.percentile(0.99));
+    std::printf("%-12s %12.2f %10.2f %14.0f\n", stage.scene->name(),
+                stage.stats.average(), stage.stats.percentile(0.99),
+                stage.stats.fps());
 
     SkBitmap bm;
     bm.allocPixels(surface->imageInfo());
