@@ -279,6 +279,152 @@ ticker.add([&](double dt) {
 | Animation | `ch::Output`, phrases/sequences on the Ticker timeline, implicit transitions | when to re-record caches, needs-frame aggregation |
 | Escape | `custom()` = raw `SkCanvas` in a laid-out box; `bounds(key)` for drawing *around* nodes | nothing — this is the floor |
 
+## Stress tests — composition, data, layout, mutation
+
+Design answers to the hard cases, each with its API delta.
+
+### Independent data sources updating at different rates
+
+Three tiers, cheapest first:
+
+1. **`memo` per source.** Describe functions are cheap; a root that
+   composes two memo'd branches re-describes only the branch whose
+   props changed. This covers "model A refreshed, model B untouched".
+2. **Slots** — named mount points for truly independent update domains
+   (React's portal/root lesson, minus the DOM):
+
+   ```cpp
+   // In the tree:  .child(slot("ticker"))
+   composer.renderSlot("ticker", tickerStrip(feedModel));  // updates ONLY
+   // that mount point — the surrounding tree is untouched, its caches
+   // stay valid, and the slot content still participates in layout and
+   // stacking exactly like an inline child.
+   ```
+3. **Multiple Composers** for fully separate systems (scene HUD vs
+   poster): each is already a guest in the canvas; cross-composer
+   ordering is simply draw-call order.
+
+### Two elements composing on top of each other
+
+New container — the overlap primitive (Flutter `Stack` / CSS grid-area
+overlap, made explicit):
+
+```cpp
+Element stack();   // children share the stack's box; each positions
+                   // itself via alignSelf/inset; painted in
+                   // (zIndex, declaration order); sized to the largest
+                   // child unless given explicit dims
+```
+
+Ordering and blending semantics stay the DESIGN.md stacking model, now
+stated precisely for cross-component composition:
+
+- Siblings from *different components* interleave in their **common
+  parent's** paint order `(zIndex, declaration order)` — a component
+  cannot z-escape the stacking context it was composed into, so two
+  data-driven subtrees layered in a `stack()` are ordered where they
+  meet, by the code that composed them. Ordering is always decidable by
+  reading the composition site.
+- `.blend(mode)` composites a node **as a layer against everything
+  painted before it in its stacking context** — including siblings that
+  came from other components/data sources. Multiply-ing a live table
+  over a poster background is one `.blend(SkBlendMode::kMultiply)` at
+  the composition site.
+
+### Custom layout schemes (the lightweight grid)
+
+Two levels, honoring "layout is just code":
+
+1. **Grid as a component** — a free function that computes rects and
+   emits absolutely-positioned children. Works with zero new API; fine
+   for one-offs.
+2. **`LayoutScheme` concept** — SwiftUI's `Layout` protocol, C++20-ified:
+   a container can delegate measure + placement to your code instead of
+   flexbox (implemented internally as a Yoga measure func + pinned
+   children, so it nests freely inside flex and vice versa):
+
+   ```cpp
+   template <typename L>
+   concept LayoutScheme = requires(const L &l, const LayoutInput &in) {
+     { l.measure(in) } -> std::convertible_to<SkSize>;
+     { l.place(in) }   -> std::ranges::range;   // of SkRect, one per child
+   };
+   // LayoutInput: constraints + each child's measured size (text leaves
+   // already measure via TextFlow).
+
+   struct Grid {                       // ~20 lines of user code
+     int columns; float gap;
+     SkSize measure(const LayoutInput &) const;
+     std::vector<SkRect> place(const LayoutInput &) const;
+   };
+   Element layout(LayoutScheme auto scheme);       // container factory
+   ...
+   layout(Grid{.columns = 3, .gap = 12}).children(cells);
+   ```
+
+### Querying — allowed, but only on the resolved side
+
+Elements are write-only descriptions; **reads target the Composer**
+(React's ref lesson: you query the committed tree, never the
+description — querying descriptions would invent a second identity
+system). The read surface is post-layout and read-only:
+
+```cpp
+std::optional<SkRect> bounds(std::string_view key) const;
+const textflow::ParagraphLayout *paragraphLayout(std::string_view key) const;
+std::optional<std::string> hitTest(SkPoint canvasPoint) const;  // topmost key
+```
+
+That is enough to draw *around* nodes, attach scene geometry to them,
+and do coarse interaction, without leaking node internals.
+
+### Swapping children / updating data directly — the two write paths
+
+The model admits exactly two ways to change what's on screen, priced
+and policed differently:
+
+1. **Describe** — structure and discrete state: call `render()` (or
+   `renderSlot()`) with a new description. Keyed reconciliation IS the
+   child-swap API: reordered keys move instances (transitions and glyph
+   state intact), missing keys unmount, new keys mount. There is
+   deliberately no `node.removeChild()` — imperative tree surgery is
+   what reconciliation replaces, and it would corrupt memo/cache
+   invariants silently.
+2. **Bind** — continuous values: `ch::Output<float>*` (and friends)
+   mutated every frame without any render call. Bindings are *declared*
+   in the description, so the composer knows exactly which properties
+   are volatile — bound properties are paint-only by contract, and a
+   bound node inside a `Cache::Picture` boundary is either lifted out
+   of the recording or the boundary demotes to `Cache::None`
+   (declared volatility is what keeps caching sound).
+
+Arbitrary direct mutation of retained nodes is rejected on principle:
+it's the one door that, once open, makes every cache unsound and every
+frame a full repaint "just in case".
+
+## C++20 at the surface
+
+Used deliberately, for errors and ergonomics rather than cleverness:
+
+- **Concepts** gate the generic entry points with readable failures:
+  `ComponentProps` (`std::equality_comparable` + `std::copyable` — what
+  `memo` needs), `ComponentFn<F, P>` (invocable returning `Element`),
+  `LayoutScheme` (above), `Steppable` (`invocable<double> -> bool`, for
+  `Ticker::add`).
+- **Defaulted `operator==`** makes any aggregate usable as props:
+  `struct RowData { ...; bool operator==(const RowData&) const = default; };`
+  — memo works with zero ceremony; **designated initializers** make
+  call sites self-documenting (`Grid{.columns = 3, .gap = 12}`).
+- **Ranges**: `children()` accepts any range of `Element`, so
+  `column.children(rows | std::views::transform(scoreRow))` replaces
+  the loop.
+- **`std::chrono` durations** for time-valued API (revising earlier
+  sketches): `.transition(Prop::Opacity, 400ms, ch::EaseOutQuint())` —
+  no naked doubles-of-seconds.
+- **UDLs** for dimensions: `width(50_pct)`, `padding(24_px)`.
+- `std::span`/`std::string_view` at boundaries; `std::variant` for
+  `Animatable`; no exceptions in the hot path.
+
 ## Non-goals (unchanged)
 
 No input/focus/accessibility, no VDOM/scheduler (you call `render()`),
