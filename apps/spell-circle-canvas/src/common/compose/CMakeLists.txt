@@ -83,4 +83,4 @@ qt_add_executable(ComposeGallery
   gallery/ComposeGallery.cpp
 )
 target_link_libraries(ComposeGallery PRIVATE
-  IfritCompose TextFlowPorts Qt6::Gui)
+  IfritCompose TextFlowPorts Qt6::Gui EnTT::EnTT)
