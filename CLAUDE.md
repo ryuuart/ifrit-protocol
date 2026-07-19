@@ -10,9 +10,12 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            stills + animations, for canvas drawing), web/
                            (IfritWeb — Ultralight HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
-                           Metal GPUDriver, CPU fallback), poster/
-                           (IfritPoster — Yoga+TextFlow poster layouts;
-                           DESIGN.md proposal + feasibility spike only)
+                           Metal GPUDriver, CPU fallback), tick/
+                           (IfritTick — FrameClock + Ticker driving
+                           choreograph timelines, event-driven redraw
+                           contract), poster/ (IfritPoster/Compose —
+                           Yoga+TextFlow layout & component design docs
+                           + feasibility spike only)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
@@ -40,7 +43,12 @@ ctest --test-dir build -C Debug --output-on-failure
 ```
 
 The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
-`CMakeUserPresets.json`. The primary executables are `SpellCircle`,
+`CMakeUserPresets.json`. Custom ports (currently `choreograph`) come from
+the sigil-vcpkg-registry via `vcpkg-configuration.json` — note its
+`repository` currently points at the local checkout
+`/Users/long/REI/sigil-vcpkg-registry`; update the URL and baseline when
+that registry is pushed to GitHub (workflow documented in the registry's
+README). The primary executables are `SpellCircle`,
 `SpellCircleMac` (macOS only, needs a Swift toolchain), `TextFlowGallery`,
 `textflow_test`, `textflow_bench`, `textflow_demo`, `ifritweb_demo`
 (CPU/lockstep), `ifritweb_gpu_demo` (Metal + Graphite), and `web_bench`

@@ -3,5 +3,13 @@
     "kind": "git",
     "baseline": "f9ffbaa46ad8e284b2b74919f7e0ba259564d424",
     "repository": "https://github.com/microsoft/vcpkg"
-  }
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "/Users/long/REI/sigil-vcpkg-registry",
+      "baseline": "8cbb53e33a51d3fec5b6ab3635b02fc7ea4d9076",
+      "packages": ["choreograph"]
+    }
+  ]
 }

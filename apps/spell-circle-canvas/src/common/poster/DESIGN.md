@@ -116,12 +116,12 @@ Two property classes, priced differently (and documented as such):
   prefer transform animation for movement, layout animation for actual
   reflow moments.
 
-Driving them: a keyframe `Timeline` owned by the poster —
-`tl.tween(node, Prop::TranslateY, from, to, duration, ease)` with
-stagger/delay/repeat, advanced by `poster.tick(nowMs)`, which returns
-whether another frame is needed (event-driven redraw, matching the
-canvas model). SwiftUI/Flutter-style implicit "animate to new value"
-sugar can layer on top later.
+Driving them: **superseded by COMPONENTS.md** — instead of a bespoke
+keyframe timeline, animation is sansumbrella Choreograph (packaged in
+the sigil-vcpkg-registry) stepped by IfritTick (`src/common/tick`),
+whose Ticker reports "needs more frames" for event-driven redraw.
+Implicit SwiftUI-style transitions on prop change are part of the
+component design.
 
 **Per-glyph choreography composes.** Text leaves expose their
 `ParagraphLayout`, so `textflow::Choreograph`'s `forEachPlacedGlyph`

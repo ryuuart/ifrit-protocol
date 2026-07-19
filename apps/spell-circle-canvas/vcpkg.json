@@ -3,6 +3,7 @@
     "abseil",
     "asio",
     "benchmark",
+    "choreograph",
     "concurrentqueue",
     "entt",
     "flatbuffers",
