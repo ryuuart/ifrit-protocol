@@ -227,6 +227,23 @@ enum class Justify : uint8_t {
 enum class Cache : uint8_t { Auto, Picture, Texture, None };
 
 // ---------------------------------------------------------------------------
+// Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)
+
+/** What a custom layout sees: the container's resolved size and each
+ *  child's measured size (text children measured by TextFlow). */
+struct LayoutInput {
+  SkSize container = SkSize::MakeEmpty();
+  std::vector<SkSize> childSizes;
+};
+
+/** A custom layout places children: one rect per child (position and
+ *  size, container-relative). Runs as a bounded second layout pass. */
+template <typename L>
+concept LayoutScheme = requires(const L &l, const LayoutInput &in) {
+  { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
+};
+
+// ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)
 
 template <typename P>
@@ -333,6 +350,23 @@ Element image(std::shared_ptr<const ifrit::image::ImageAsset> asset);
  *  Cached like any static subtree — programs that read the clock or
  *  otherwise change per frame must declare .cache(Cache::None). */
 Element custom(PaintProgram program);
+
+/** A container whose children are placed by @p scheme instead of
+ *  flexbox (nests freely inside flex and vice versa). The container
+ *  itself is sized by its own dims/flex; children are measured by
+ *  Yoga/TextFlow, then positioned and sized by scheme.place() in a
+ *  bounded second layout pass. */
+template <LayoutScheme L> Element layout(L scheme);
+
+namespace detail {
+Element makeLayout(
+    std::function<std::vector<SkRect>(const LayoutInput &)> place);
+} // namespace detail
+
+template <LayoutScheme L> Element layout(L scheme) {
+  return detail::makeLayout(
+      [s = std::move(scheme)](const LayoutInput &in) { return s.place(in); });
+}
 
 /** A named mount point whose content is supplied independently via
  *  Composer::renderSlot() — the surrounding tree's caches stay valid

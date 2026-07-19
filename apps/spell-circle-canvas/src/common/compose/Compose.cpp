@@ -204,6 +204,13 @@ Element slot(std::string_view name) {
 }
 
 namespace detail {
+Element makeLayout(
+    std::function<std::vector<SkRect>(const LayoutInput &)> place) {
+  Element e;
+  e.node()->placeFn = std::move(place);
+  return e;
+}
+
 Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
                  std::function<Element(const std::any &)> invoke) {

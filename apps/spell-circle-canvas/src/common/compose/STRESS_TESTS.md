@@ -57,6 +57,22 @@ The decisive number: a blurred headline drawn per frame costs
 texture-baked — **92×** — making Cache::Texture-under-effect the
 mandatory pattern for static filtered content.
 
+**Graphite re-measure (item 21, answered):** same benchmarks against
+a Graphite Metal RenderTarget (wall / CPU): 100-row cached draw
+**313 µs / 311 µs** (vs 412 µs raster — modest: replay still pays
+per-op command translation on the CPU; rasterization moves to GPU);
+bloom via picture replay **369 µs / 84 µs** (vs 7.38 ms raster — the
+filter executes on GPU, 20× wall, 88× CPU); bloom texture-baked
+**57 µs / 15 µs** (best on every axis). Verdict: Graphite absorbs
+filter cost dramatically, texture baking still wins another ~6×, and
+picture replay is cheaper but not free anywhere — the honest ceiling
+is display-list translation. Also landed this round:
+`<ifritcompose/Util.h>` (gradients, stroke/shadow sugar — background
+decorations now correctly paint *beneath* the fill, the CSS
+box-shadow ordering — and the three-line `Stage` bundle, all tested)
+and `layout(LayoutScheme)` (item 6: the ~20-line user Grid places and
+sizes cells via the bounded second layout pass, bounds-verified).
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

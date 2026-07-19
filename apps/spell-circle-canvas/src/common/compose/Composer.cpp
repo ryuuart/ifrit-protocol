@@ -165,6 +165,7 @@ struct Composer::Impl {
 
   // ---- volatility & caching ----
   bool computeVolatile(Instance &inst);
+  bool applyCustomLayouts(Instance &inst);
 
   // ---- paint ----
   void paint(Instance &inst, SkCanvas &canvas);
@@ -515,6 +516,32 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
   }
 }
 
+bool Composer::Impl::applyCustomLayouts(Instance &inst) {
+  bool applied = false;
+  if (inst.desc->placeFn && !inst.children.empty()) {
+    LayoutInput input;
+    input.container = {YGNodeLayoutGetWidth(inst.yoga),
+                       YGNodeLayoutGetHeight(inst.yoga)};
+    for (const auto &child : inst.children)
+      input.childSizes.push_back({YGNodeLayoutGetWidth(child->yoga),
+                                  YGNodeLayoutGetHeight(child->yoga)});
+    std::vector<SkRect> rects = inst.desc->placeFn(input);
+    const size_t count = std::min(rects.size(), inst.children.size());
+    for (size_t i = 0; i < count; ++i) {
+      YGNodeRef child = inst.children[i]->yoga;
+      YGNodeStyleSetPositionType(child, YGPositionTypeAbsolute);
+      YGNodeStyleSetPosition(child, YGEdgeLeft, rects[i].left());
+      YGNodeStyleSetPosition(child, YGEdgeTop, rects[i].top());
+      YGNodeStyleSetWidth(child, rects[i].width());
+      YGNodeStyleSetHeight(child, rects[i].height());
+    }
+    applied = true;
+  }
+  for (const auto &child : inst.children)
+    applied |= applyCustomLayouts(*child);
+  return applied;
+}
+
 // ---------------------------------------------------------------------------
 // Volatility & caching
 
@@ -599,6 +626,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
                               outlineBuilder.detach(), elapsed(), 1.0f,
                               ticker.active()};
 
+  // Background decorations paint beneath the fill (the CSS box-shadow
+  // ordering): shadow/pattern layers first, then the surface.
+  for (const Decoration &decoration : node.backgrounds)
+    decoration.paint(canvas, paintCtx);
+
   // Fill (background)
   if (node.paint.fill) {
     Fill fill;
@@ -632,9 +664,6 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
       canvas.drawRRect(rrect, paint);
     }
   }
-
-  for (const Decoration &decoration : node.backgrounds)
-    decoration.paint(canvas, paintCtx);
 
   // Content
   switch (node.kind) {
@@ -880,6 +909,12 @@ void Composer::draw(SkCanvas &canvas) {
     YGNodeStyleSetHeight(impl.root->yoga, impl.size.height());
     YGNodeCalculateLayout(impl.root->yoga, YGUndefined, YGUndefined,
                           YGDirectionLTR);
+    // Custom layout() containers: a bounded second pass — children were
+    // measured by pass one; scheme.place() pins them, pass two resolves.
+    if (impl.applyCustomLayouts(*impl.root)) {
+      YGNodeCalculateLayout(impl.root->yoga, YGUndefined, YGUndefined,
+                            YGDirectionLTR);
+    }
     impl.needsLayout = false;
   }
 

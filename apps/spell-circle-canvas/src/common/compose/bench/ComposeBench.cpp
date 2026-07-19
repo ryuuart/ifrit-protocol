@@ -264,4 +264,82 @@ static void BM_Draw_Bloom_TextureBaked(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
+
+#ifdef COMPOSE_BENCH_GRAPHITE
+// ---- Item 21: the Graphite re-measure — does picture replay finally
+// beat rasterization when the target is a GPU surface? ----
+
+#include "ComposeBenchGpu.h"
+#include "SkiaGraphiteContext.h"
+
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
+#include <include/gpu/graphite/Surface.h>
+
+namespace {
+
+SkiaGraphiteContext &graphite() {
+  static std::unique_ptr<SkiaGraphiteContext> ctx =
+      SkiaGraphiteContext::createMetal(ifrit::compose::bench::gpuDevice(),
+                                       ifrit::compose::bench::gpuQueue());
+  return *ctx;
+}
+
+void submitGraphite() {
+  auto recording = graphite().recorder()->snap();
+  if (!recording)
+    return;
+  skgpu::graphite::InsertRecordingInfo info;
+  info.fRecording = recording.get();
+  graphite().context()->insertRecording(info);
+  graphite().context()->submit();
+}
+
+} // namespace
+
+static void BM_Draw_100Rows_Cached_Graphite(benchmark::State &state) {
+  Host host;
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite().recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  host.composer.render(scoreboard(makeRows(100)));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite();
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite();
+  }
+}
+BENCHMARK(BM_Draw_100Rows_Cached_Graphite);
+
+static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State &state) {
+  Host host(900, 300);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite().recorder(), SkImageInfo::MakeN32Premul(900, 300));
+  host.composer.render(bloomBlock(Cache::Picture));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite();
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite();
+  }
+}
+BENCHMARK(BM_Draw_Bloom_PictureReplay_Graphite);
+
+static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
+  Host host(900, 300);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite().recorder(), SkImageInfo::MakeN32Premul(900, 300));
+  host.composer.render(bloomBlock(Cache::Texture));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite();
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite();
+  }
+}
+BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
+
+#endif // COMPOSE_BENCH_GRAPHITE
+
 BENCHMARK_MAIN();

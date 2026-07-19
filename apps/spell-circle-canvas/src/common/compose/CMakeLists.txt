@@ -47,11 +47,26 @@ add_test(NAME compose_spike_test COMMAND compose_spike_test)
 
 # Perf gate (run in Release): describe/reconcile/draw costs, memo hit
 # behavior, cache effectiveness. Numbers land in STRESS_TESTS.md.
+if(APPLE AND TARGET SpellCircleSkia)
+  set(COMPOSE_BENCH_GPU_SOURCES
+      bench/ComposeBenchGpuMetal.mm bench/ComposeBenchGpu.h)
+else()
+  set(COMPOSE_BENCH_GPU_SOURCES)
+endif()
 add_executable(compose_bench
   bench/ComposeBench.cpp
+  ${COMPOSE_BENCH_GPU_SOURCES}
 )
 target_link_libraries(compose_bench PRIVATE
   IfritCompose TextFlowPorts benchmark::benchmark)
+if(APPLE AND TARGET SpellCircleSkia)
+  set_source_files_properties(bench/ComposeBenchGpuMetal.mm PROPERTIES
+    COMPILE_OPTIONS -fobjc-arc)
+  target_compile_definitions(compose_bench PRIVATE COMPOSE_BENCH_GRAPHITE)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+  target_link_libraries(compose_bench PRIVATE
+    SpellCircleSkia ${METAL_FRAMEWORK})
+endif()
 
 # Headless gallery: renders stress-catalog panels to PNG (out dir:
 # first argument, default ./compose_demo_out). The interactive Qt

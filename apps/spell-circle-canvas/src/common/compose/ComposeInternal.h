@@ -69,6 +69,9 @@ struct ElementNode {
   std::optional<Effect> layerEffect;
   std::optional<Effect> backdropEffect;
 
+  // Custom layout (layout() containers)
+  std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;
+
   // Memo (deferred description)
   bool isMemo = false;
   std::any memoProps;

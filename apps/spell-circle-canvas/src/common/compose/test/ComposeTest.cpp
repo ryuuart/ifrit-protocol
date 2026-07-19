@@ -468,3 +468,79 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
   EXPECT_GE(host.composer.stats().texturesLive, 1u);
   EXPECT_NE(host.pixel(30, 30), SK_ColorBLACK); // filtered content present
 }
+
+#include <ifritcompose/Util.h>
+
+namespace {
+/** ~20 lines of user code: the lightweight grid from the design docs. */
+struct Grid {
+  int columns = 2;
+  float gap = 8;
+  float cellHeight = 40;
+
+  std::vector<SkRect> place(const LayoutInput &in) const {
+    std::vector<SkRect> rects;
+    const float cellWidth =
+        (in.container.width() - gap * (float)(columns - 1)) / (float)columns;
+    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+      const int col = (int)i % columns;
+      const int row = (int)i / columns;
+      rects.push_back(SkRect::MakeXYWH((cellWidth + gap) * (float)col,
+                                       (cellHeight + gap) * (float)row,
+                                       cellWidth, cellHeight));
+    }
+    return rects;
+  }
+};
+} // namespace
+
+TEST(ComposeLayoutScheme, GridPlacesAndSizesCells) {
+  Host host(200, 200);
+  auto grid = layout(Grid{.columns = 2, .gap = 10, .cellHeight = 30})
+                  .width(190).height(190);
+  for (int i = 0; i < 4; ++i)
+    grid.child(box().key("cell" + std::to_string(i))
+                   .fill(i % 2 ? green() : red()));
+  host.composer.render(box().child(std::move(grid)));
+  host.frame();
+
+  auto c0 = host.composer.bounds("cell0");
+  auto c1 = host.composer.bounds("cell1");
+  auto c3 = host.composer.bounds("cell3");
+  ASSERT_TRUE(c0 && c1 && c3);
+  EXPECT_EQ(c0->left(), 0.0f);
+  EXPECT_EQ(c0->width(), 90.0f); // (190 - 10) / 2
+  EXPECT_EQ(c0->height(), 30.0f);
+  EXPECT_EQ(c1->left(), 100.0f); // second column
+  EXPECT_EQ(c3->top(), 40.0f);   // second row
+  EXPECT_EQ(host.pixel(45, 15), SK_ColorRED);
+  EXPECT_EQ(host.pixel(145, 15), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(145, 55), SK_ColorGREEN);
+}
+
+TEST(ComposeUtil, StageBundlesTheLoop) {
+  ifrit::compose::util::Stage stage({100, 100}, fonts());
+  stage.render(box().fill(Fill::color({1, 0, 0, 1})));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
+  bool more = stage.frame(*surface->getCanvas());
+  EXPECT_FALSE(more); // static content settles immediately
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  surface->readPixels(bm.pixmap(), 50, 50);
+  EXPECT_EQ(bm.getColor(0, 0), SK_ColorRED);
+}
+
+TEST(ComposeUtil, ShadowAndStrokeSugar) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(80).height(80).inset(40, 40, 40, 40).absolute()
+          .corners({10})
+          .background(ifrit::compose::util::shadow({0, 0, 1, 1}, {12, 12}, 0))
+          .fill(red())
+          .foreground(ifrit::compose::util::stroke(4, green()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
+  EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
+  EXPECT_EQ(host.pixel(80, 40), SK_ColorGREEN);   // stroked top edge
+}
