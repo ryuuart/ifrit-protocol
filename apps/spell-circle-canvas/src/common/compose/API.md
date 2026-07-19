@@ -97,7 +97,12 @@ Element &absolute(); Element &inset(float all);               // + per-edge
 
 // ---- shape (geometry: defines PaintContext::outline and clipping) ----
 Element &corners(Corners);
-Element &clip(bool = true); Element &clipPath(SkPath);
+// Custom silhouette: a path generator over the laid-out size. Overrides
+// corners() as the node's shape — fill, clip(), and every
+// outline-following decoration (PathFormat, ContourWalk) trace it.
+// Spiky shout dialogs, scalloped seals, any non-rectangular chrome.
+Element &outline(std::function<SkPath(SkSize)>);
+Element &clip(bool = true);
 
 // ---- paint (ours; stacking per DESIGN.md) ----
 // .fill() is kernel; every setter takes a PropValue, so
@@ -654,6 +659,9 @@ everything whose *input is resolved layout*:
 // layout pass (how DTP engines do float wrap); reference cycles are
 // rejected at reconcile time.
 text(article, body16).flowAround("hero-frame", 12 /*margin px*/);
+// Call repeatedly to weave one paragraph between several elements
+// (drop cap + corner ornaments; margin applies to all):
+text(verse, ink).flowAround("dropcap", 14).flowAround("fne", 8);
 
 // Borders between connections: a relationship, not a node property —
 // a first-class element whose geometry derives from its endpoints'

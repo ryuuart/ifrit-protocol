@@ -9,6 +9,7 @@
 #include "ScenesData.h"
 #include "ScenesGame.h"
 #include "ScenesMotion.h"
+#include "ScenesOrnament.h"
 #include "ScenesScale.h"
 
 #include <include/core/SkBitmap.h>
@@ -27,6 +28,8 @@ struct SceneInfo {
 
 inline constexpr SceneInfo kScenes[] = {
     {"rpg hud", "Showcase", "practical UI"},
+    {"manuscript", "Showcase", "ornament"},
+    {"nine slice", "Showcase", "#9 texture-gen"},
     {"botanical", "Showcase", "generative"},
     {"ui particles", "Showcase", "SoA scale"},
     {"scoreboard", "Composition & data", "#2"},
@@ -48,19 +51,21 @@ inline constexpr int kGallerySceneCount =
 inline std::unique_ptr<Scene> makeScene(int index) {
   switch (index) {
   case 0: return std::make_unique<RpgHudScene>();
-  case 1: return std::make_unique<BotanicalScene>();
-  case 2: return std::make_unique<UiParticleScene>();
-  case 3: return std::make_unique<ScoreboardScene>();
-  case 4: return std::make_unique<SlotsScene>();
-  case 5: return std::make_unique<GridScene>();
-  case 6: return std::make_unique<TransitionScene>();
-  case 7: return std::make_unique<LoadScene>();
-  case 8: return std::make_unique<HeadlineScene>();
-  case 9: return std::make_unique<BlendScene>();
-  case 10: return std::make_unique<ChromeScene>();
-  case 11: return std::make_unique<SkslBorderScene>();
-  case 12: return std::make_unique<CrtScene>();
-  case 13: return std::make_unique<TileScene>();
+  case 1: return std::make_unique<ManuscriptScene>();
+  case 2: return std::make_unique<NineSliceScene>();
+  case 3: return std::make_unique<BotanicalScene>();
+  case 4: return std::make_unique<UiParticleScene>();
+  case 5: return std::make_unique<ScoreboardScene>();
+  case 6: return std::make_unique<SlotsScene>();
+  case 7: return std::make_unique<GridScene>();
+  case 8: return std::make_unique<TransitionScene>();
+  case 9: return std::make_unique<LoadScene>();
+  case 10: return std::make_unique<HeadlineScene>();
+  case 11: return std::make_unique<BlendScene>();
+  case 12: return std::make_unique<ChromeScene>();
+  case 13: return std::make_unique<SkslBorderScene>();
+  case 14: return std::make_unique<CrtScene>();
+  case 15: return std::make_unique<TileScene>();
   default: return std::make_unique<DeriveScene>();
   }
 }

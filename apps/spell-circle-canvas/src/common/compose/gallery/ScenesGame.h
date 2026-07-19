@@ -4,6 +4,7 @@
 // (procedural branches, stamped leaves, randomized flower fields).
 
 #include "GalleryCore.h"
+#include "OrnamentKit.h"
 
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
@@ -17,6 +18,10 @@ namespace compose_gallery {
 
 struct RpgHudScene final : Scene {
   choreograph::Output<float> hp{0.82f}, mp{0.55f}, pulse{0.0f};
+  choreograph::Output<float> critSpin{0.0f};
+  bool firstEvent = true;
+  bool critVisible = false;
+  int critAmount = 0;
   int gold = 12874;
   double nextEvent = 0.0;
   std::mt19937 rng{42};
@@ -253,22 +258,45 @@ struct RpgHudScene final : Scene {
                                           styleAt(16, 0xffffd9a0))
                                          .key("gold")))
                    .child(std::move(bagGrid)))
-        // Quest banner with dashed chrome
+        // Quest scroll: parchment ground + vine chrome (the same
+        // parameterized ornament components the manuscript page uses).
         .child([&] {
-          PathFormat dashed;
-          dashed.width = 2;
-          dashed.strokeFill = Fill::color({0.49f, 0.91f, 1.0f, 0.7f});
-          dashed.dashIntervals = {10, 6};
-          return anchored(box().column().gap(6).padding(14), 556, 24, 320,
-                          104)
-              .corners({14})
-              .fill(Fill::color({0.06f, 0.09f, 0.13f, 0.92f}))
-              .foreground(dashed)
+          const Palette pal = azurePalette();
+          return anchored(box().column().gap(6).padding(16), 548, 24, 328,
+                          112)
+              .corners({12}).cache(Cache::Texture)
+              .background(ifrit::compose::util::shadow(
+                  {0, 0, 0, 0.5f}, {3, 4}, 10))
+              .fill(parchmentFill(pal.parchment))
+              .foreground(ifrit::compose::util::stroke(
+                  2, Fill::color(pal.stem)))
+              .foreground(vineWalk(pal, 26.0f, 0.7f))
               .child(text(u8"QUEST · The Ember Gate",
-                          styleAt(16, 0xff7ee8ff)))
+                          styleAt(16, 0xff1c3450)))
               .child(text(u8"Carry the last coal through the flooded "
                           u8"causeway before the tide turns.",
-                          styleAt(13, 0xffb8c2d8)));
+                          styleAt(13, 0xff2f2617)));
+        }())
+        // Spiky crit shout: a non-square dialog — custom outline() the
+        // fill, stroke, and clip all follow; wobble bound to critSpin.
+        .child([&] {
+          if (!critVisible)
+            return box().key("crit").width(0).height(0).absolute()
+                .inset(0, 0, kSceneSize.width(), kSceneSize.height());
+          return anchored(box().key("crit").column()
+                              .alignItems(Align::Center)
+                              .justify(Justify::Center),
+                          370, 96, 170, 140)
+              .outline(starburstOutline(12, 0.34f))
+              .fill(ifrit::compose::util::radialGradient(
+                  {85, 70}, 90,
+                  {{1.0f, 0.88f, 0.40f, 1}, {0.88f, 0.26f, 0.10f, 1}}))
+              .foreground(ifrit::compose::util::stroke(
+                  3, Fill::color({0.45f, 0.07f, 0.05f, 1})))
+              .rotate(&critSpin).zIndex(5)
+              .child(text(u8"CRIT!", styleAt(21, 0xff471003)))
+              .child(text(toU8(std::to_string(critAmount)),
+                          styleAt(30, 0xff2e0a02)));
         }());
   }
 
@@ -282,6 +310,7 @@ struct RpgHudScene final : Scene {
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       pulse = (float)std::sin(t * 2.0);
+      critSpin = 4.0f * (float)std::sin(t * 9.0);
       return true;
     });
     composer.render(describe());
@@ -292,7 +321,11 @@ struct RpgHudScene final : Scene {
       return;
     nextEvent = elapsed + 1.1;
     // Combat tick: damage or regen, loot shuffle, gold trickle.
-    const bool hit = (rng() % 3) == 0;
+    const bool hit = firstEvent || (rng() % 3) == 0;
+    firstEvent = false;
+    critVisible = hit;
+    if (hit)
+      critAmount = 80 + (int)(rng() % 160);
     // Retarget-from-current ramps via the composer's ticker isn't
     // needed here: bars are bound Outputs — animate them directly.
     // (Scene owns no ticker ref; jitter in setup steppable instead.)

@@ -104,7 +104,7 @@ struct Instance {
   Fill fillFrom, fillTo; // endpoints for kFillLerp
 
   // Derive-phase state
-  std::optional<SkRect> exclusionLocal;   // flowAround rect, text-local
+  std::vector<SkRect> exclusionsLocal;    // flowAround rects, text-local
   SkPath connectorPath;                    // routed path, connector-local
   SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
 
@@ -179,6 +179,9 @@ struct Composer::Impl {
   bool computeVolatile(Instance &inst);
   bool applyCustomLayouts(Instance &inst);
 
+  // ---- text ----
+  void layoutText(Instance &inst, float constraint);
+
   // ---- paint ----
   void paint(Instance &inst, SkCanvas &canvas);
   void paintContent(Instance &inst, SkCanvas &canvas);
@@ -225,28 +228,7 @@ YGSize measureTextNode(YGNodeConstRef node, float width, YGMeasureMode widthMode
       const_cast<YGNodeRef>(node)));
   const float constraint =
       widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
-  if (constraint == inst->measuredForWidth &&
-      inst->measuredRev == inst->contentRev)
-    return inst->measuredSize; // Yoga re-probes; layout is already valid
-  auto &impl = *inst->owner;
-  if (inst->exclusionLocal) {
-    textflow::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    flow.shapes().push_back(textflow::ExclusionFlow::Shape::fromRectangle(
-        *inst->exclusionLocal, inst->desc->flowAroundMargin));
-    inst->textLayout = textflow::layoutParagraph(impl.fonts, *inst->paragraph,
-                                                 flow, {});
-  } else {
-    textflow::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    inst->textLayout = textflow::layoutParagraph(impl.fonts, *inst->paragraph,
-                                                 flow, {});
-  }
-  inst->lines = inst->textLayout.lineMetrics(*inst->paragraph);
-  inst->measuredForWidth = constraint;
-  SkRect bounds = SkRect::MakeEmpty();
-  for (const textflow::LineMetrics &line : inst->lines)
-    bounds.join(line.rect());
-  inst->measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
-  inst->measuredRev = inst->contentRev;
+  inst->owner->layoutText(*inst, constraint);
   return inst->measuredSize;
 }
 
@@ -260,6 +242,31 @@ float baselineOfTextNode(YGNodeConstRef node, float, float) {
 }
 
 } // namespace
+
+void Composer::Impl::layoutText(Instance &inst, float constraint) {
+  if (constraint == inst.measuredForWidth &&
+      inst.measuredRev == inst.contentRev)
+    return; // layout is already valid for this content and width
+  if (!inst.exclusionsLocal.empty()) {
+    textflow::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    for (const SkRect &exclusion : inst.exclusionsLocal)
+      flow.shapes().push_back(textflow::ExclusionFlow::Shape::fromRectangle(
+          exclusion, inst.desc->flowAroundMargin));
+    inst.textLayout = textflow::layoutParagraph(fonts, *inst.paragraph,
+                                                flow, {});
+  } else {
+    textflow::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    inst.textLayout = textflow::layoutParagraph(fonts, *inst.paragraph,
+                                                flow, {});
+  }
+  inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
+  inst.measuredForWidth = constraint;
+  SkRect bounds = SkRect::MakeEmpty();
+  for (const textflow::LineMetrics &line : inst.lines)
+    bounds.join(line.rect());
+  inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
+  inst.measuredRev = inst.contentRev;
+}
 
 // ---------------------------------------------------------------------------
 // Reconcile
@@ -325,7 +332,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
 
   applyLayoutProps(inst);
 
-  if (!resolved->flowAroundKey.empty() || !resolved->connectFrom.empty())
+  if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty())
     hasDerived = true;
   if (resolved->placeFn)
     hasCustomLayout = true;
@@ -446,7 +453,21 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   applyDim(n, l.basis, &YGNodeStyleSetFlexBasis,
            &YGNodeStyleSetFlexBasisPercent);
   YGNodeStyleSetAlignItems(n, toYogaAlign(l.alignItems));
-  YGNodeStyleSetAlignSelf(n, toYogaAlign(l.alignSelf));
+  // Measured text must not stretch on the cross axis (the spike's API
+  // lesson): demote a resolved Stretch to Start for text leaves, but let
+  // explicit alignment — own or inherited — through untouched.
+  Align self = l.alignSelf;
+  if (inst.desc->kind == Kind::Text) {
+    const Align resolved =
+        self != Align::Auto
+            ? self
+            : (inst.parent && inst.parent->desc
+                   ? inst.parent->desc->layout.alignItems
+                   : Align::Stretch);
+    if (resolved == Align::Stretch)
+      self = Align::Start;
+  }
+  YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
   YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
 
   (void)isStack;
@@ -588,23 +609,25 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
   bool relayout = false;
   const ElementNode &node = *inst.desc;
 
-  if (!node.flowAroundKey.empty() && inst.paragraph) {
-    std::optional<SkRect> exclusion;
-    auto it = byKey.find(node.flowAroundKey);
-    if (it != byKey.end()) {
+  if (!node.flowAroundKeys.empty() && inst.paragraph) {
+    std::vector<SkRect> exclusions;
+    const SkRect own = absoluteRect(inst);
+    for (const std::string &key : node.flowAroundKeys) {
+      auto it = byKey.find(key);
+      if (it == byKey.end())
+        continue;
       // Cycle guard: the target must not be this node or a descendant.
       bool cyclic = false;
       for (Instance *p = it->second; p; p = p->parent)
         if (p == &inst) { cyclic = true; break; }
-      if (!cyclic) {
-        SkRect target = absoluteRect(*it->second);
-        SkRect own = absoluteRect(inst);
-        target.offset(-own.left(), -own.top());
-        exclusion = target;
-      }
+      if (cyclic)
+        continue;
+      SkRect target = absoluteRect(*it->second);
+      target.offset(-own.left(), -own.top());
+      exclusions.push_back(target);
     }
-    if (exclusion != inst.exclusionLocal) {
-      inst.exclusionLocal = exclusion;
+    if (exclusions != inst.exclusionsLocal) {
+      inst.exclusionsLocal = std::move(exclusions);
       inst.contentRev++;
       YGNodeMarkDirty(inst.yoga);
       inst.markPaintDirtyUp();
@@ -707,8 +730,26 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
   const SkRRect rrect =
       SkRRect::MakeRectXY(bounds, node.corners.radius, node.corners.radius);
 
-  if (node.clipContent)
-    canvas.clipRRect(rrect, true);
+  // The node's shape: routed connector path, custom outline(), or the
+  // corner-rounded box.
+  const bool customShape = node.shapeFn && node.connectFrom.empty();
+  SkPath outlinePath;
+  if (!node.connectFrom.empty()) {
+    outlinePath = inst.connectorPath; // derive phase routed it
+  } else if (customShape) {
+    outlinePath = node.shapeFn({bounds.width(), bounds.height()});
+  } else {
+    SkPathBuilder outlineBuilder;
+    outlineBuilder.addRRect(rrect);
+    outlinePath = outlineBuilder.detach();
+  }
+
+  if (node.clipContent) {
+    if (customShape)
+      canvas.clipPath(outlinePath, true);
+    else
+      canvas.clipRRect(rrect, true);
+  }
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots.
@@ -718,15 +759,6 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
     SkPaint effectPaint;
     effectPaint.setImageFilter(node.layerEffect->imageFilter());
     canvas.saveLayer(nullptr, &effectPaint);
-  }
-
-  SkPath outlinePath;
-  if (!node.connectFrom.empty()) {
-    outlinePath = inst.connectorPath; // derive phase routed it
-  } else {
-    SkPathBuilder outlineBuilder;
-    outlineBuilder.addRRect(rrect);
-    outlinePath = outlineBuilder.detach();
   }
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
                               std::move(outlinePath), elapsed(), 1.0f,
@@ -767,15 +799,24 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
         paint.setColor4f(fill.colorValue, nullptr);
       else
         paint.setShader(fill.shaderValue);
-      canvas.drawRRect(rrect, paint);
+      if (customShape)
+        canvas.drawPath(paintCtx.outline, paint);
+      else
+        canvas.drawRRect(rrect, paint);
     }
   }
 
   // Content
   switch (node.kind) {
   case Kind::Text:
-    if (inst.paragraph)
+    if (inst.paragraph) {
+      // Yoga skips the measure callback when both dimensions are fully
+      // determined (absolute + all four insets); lay out on demand at
+      // the resolved width so such text still paints.
+      if (inst.measuredRev != inst.contentRev)
+        layoutText(inst, bounds.width());
       inst.textLayout.drawBatched(&canvas, *inst.paragraph);
+    }
     break;
   case Kind::Image:
     if (node.imageAsset && !node.imageAsset->frames().empty()) {
@@ -841,10 +882,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       node.backdropEffect && node.backdropEffect->imageFilter();
   if (hasBackdrop) {
     canvas.save();
-    canvas.clipRRect(SkRRect::MakeRectXY(
-                         SkRect::MakeWH(rect.width(), rect.height()),
-                         node.corners.radius, node.corners.radius),
-                     true);
+    if (node.shapeFn)
+      canvas.clipPath(node.shapeFn({rect.width(), rect.height()}), true);
+    else
+      canvas.clipRRect(SkRRect::MakeRectXY(
+                           SkRect::MakeWH(rect.width(), rect.height()),
+                           node.corners.radius, node.corners.radius),
+                       true);
     SkCanvas::SaveLayerRec rec(nullptr, nullptr,
                                node.backdropEffect->imageFilter().get(), 0);
     canvas.saveLayer(rec);

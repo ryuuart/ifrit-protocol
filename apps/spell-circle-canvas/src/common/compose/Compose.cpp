@@ -71,6 +71,10 @@ Element &Element::inset(float l, float t, float r, float b) {
 // ---- shape ----------------------------------------------------------------
 
 Element &Element::corners(Corners c) { m_node->corners = c; return *this; }
+Element &Element::outline(std::function<SkPath(SkSize)> shape) {
+  m_node->shapeFn = std::move(shape);
+  return *this;
+}
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
 
 // ---- paint ----------------------------------------------------------------
@@ -177,8 +181,9 @@ Element text(std::u8string utf8, textflow::TextStyle style) {
   e.node()->textUtf8 = std::move(utf8);
   e.node()->textStyle = std::move(style);
   // "The box fits the type": measured text must not stretch on the
-  // cross axis (the spike's API lesson).
-  e.node()->layout.alignSelf = Align::Start;
+  // cross axis (the spike's API lesson) — but that demotion happens at
+  // layout-apply time, where the resolved alignment is known, so a
+  // parent's alignItems(Center/End) still reaches text leaves.
   return e;
 }
 
@@ -197,7 +202,7 @@ Element custom(PaintProgram program) {
 }
 
 Element &Element::flowAround(std::string_view key, float margin) {
-  m_node->flowAroundKey = std::string(key);
+  m_node->flowAroundKeys.push_back(std::string(key));
   m_node->flowAroundMargin = margin;
   return *this;
 }

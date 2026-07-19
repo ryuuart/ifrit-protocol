@@ -112,6 +112,16 @@ std::optional<ImageAsset> ImageAsset::load(const std::string &path) {
   return decode(SkData::MakeFromFileName(path.c_str()));
 }
 
+ImageAsset ImageAsset::wrap(sk_sp<SkImage> image) {
+  ImageAsset asset;
+  if (!image)
+    return asset;
+  asset.m_width = image->width();
+  asset.m_height = image->height();
+  asset.m_frames.push_back({std::move(image), 0.0f});
+  return asset;
+}
+
 const Frame &ImageAsset::frameAt(double milliseconds) const {
   if (m_frames.size() == 1 || m_totalDurationMs <= 0.0f)
     return m_frames.front();

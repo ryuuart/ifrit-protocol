@@ -10,9 +10,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 
 #include <gtest/gtest.h>
+#include <cstdio>
 
 using namespace ifrit::compose;
 using namespace std::chrono_literals;
@@ -630,4 +632,65 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
   host.frame();
   EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);   // old route gone
   EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);    // new diagonal route
+}
+
+TEST(Shape, CustomOutlineShapesFillAndClip) {
+  Host host;
+  // A diamond outline over a 100x100 box: the box's corner pixels sit
+  // outside the shape, so fill and clipped children must not reach them.
+  auto diamond = [](SkSize s) {
+    SkPathBuilder b;
+    b.moveTo(s.width() / 2, 0);
+    b.lineTo(s.width(), s.height() / 2);
+    b.lineTo(s.width() / 2, s.height());
+    b.lineTo(0, s.height() / 2);
+    b.close();
+    return b.detach();
+  };
+  host.composer.render(
+      box().width(100).height(100).clip().outline(diamond).fill(red())
+          .child(box().inset(0).absolute().fill(green())));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN); // clipped child inside
+  EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);   // box corner outside shape
+}
+
+TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
+  // Yoga skips the measure callback when absolute insets determine both
+  // dimensions; the kernel must lay the paragraph out at paint time.
+  Host host;
+  textflow::TextStyle style = styleAt(40);
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  host.composer.render(
+      stack().child(text(u8"WWWW", style).absolute()
+                        .inset(10, 10, 10, 120)));
+  host.frame();
+  int lit = 0;
+  for (int x = 10; x < 190; x += 4)
+    for (int y = 10; y < 70; y += 4)
+      if (host.pixel(x, y) != SK_ColorBLACK)
+        lit++;
+  EXPECT_GT(lit, 20); // glyph coverage, not empty
+}
+
+TEST(TextLayout, AlignItemsCentersTextLeaf) {
+  Host host;
+  textflow::TextStyle style = styleAt(40);
+  style.paint.foreground.setColor(SK_ColorWHITE);
+  host.composer.render(box().width(200).height(60)
+                           .alignItems(Align::Center)
+                           .child(text(u8"W", style)));
+  host.frame();
+
+  int litLeft = 0, litMiddle = 0;
+  for (int x = 0; x < 50; x += 2)
+    for (int y = 0; y < 60; y += 2)
+      if (host.pixel(x, y) != SK_ColorBLACK)
+        litLeft++;
+  for (int x = 75; x < 125; x += 2)
+    for (int y = 0; y < 60; y += 2)
+      if (host.pixel(x, y) != SK_ColorBLACK)
+        litMiddle++;
+  EXPECT_EQ(litLeft, 0);    // nothing hugging the start edge
+  EXPECT_GT(litMiddle, 5);  // the glyph sits in the middle
 }

@@ -42,6 +42,12 @@ public:
   /** Reads and decodes a file; nullopt on I/O or decode failure. */
   static std::optional<ImageAsset> load(const std::string &path);
 
+  /** Wraps an already-rendered still image as a one-frame asset — the
+   *  bridge for textures generated on an intermediate canvas/surface
+   *  (procedural nine-slice frames, baked patterns). Null images yield
+   *  an empty asset. */
+  static ImageAsset wrap(sk_sp<SkImage> image);
+
   int width() const { return m_width; }
   int height() const { return m_height; }
 

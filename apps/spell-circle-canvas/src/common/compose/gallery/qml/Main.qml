@@ -14,6 +14,8 @@ ApplicationWindow {
     // Sidebar model mirrors compose_gallery::kScenes (name/category/catalog).
     property var scenes: [
         { name: "rpg hud",      category: "Showcase",           tag: "practical UI" },
+        { name: "manuscript",   category: "Showcase",           tag: "ornament" },
+        { name: "nine slice",   category: "Showcase",           tag: "#9 texture-gen" },
         { name: "botanical",    category: "Showcase",           tag: "generative" },
         { name: "ui particles", category: "Showcase",           tag: "SoA scale" },
         { name: "scoreboard",   category: "Composition & data", tag: "#2" },

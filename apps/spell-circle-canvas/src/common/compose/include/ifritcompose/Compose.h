@@ -288,6 +288,12 @@ public:
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
+  /** Custom outline: a path generator over the node's laid-out size,
+   *  in local coordinates. Overrides corners() as the node's shape —
+   *  the fill surface, clip(), and every outline-following decoration
+   *  (PathFormat strokes, ContourWalk) trace it. Spiky dialogs,
+   *  scalloped frames, any non-rectangular chrome. */
+  Element &outline(std::function<SkPath(SkSize)> shape);
   Element &clip(bool on = true);
 
   // ---- paint ----
@@ -319,6 +325,9 @@ public:
    *  resolved bounds (TextFlow ExclusionFlow), with @p margin px of
    *  standoff. Resolved as a bounded second layout pass; a reference
    *  to self or a descendant is ignored (cycle guard). */
+  /** Text-only: flow this paragraph around the keyed element's resolved
+   *  bounds (derive phase). Call repeatedly to weave around several
+   *  elements; `margin` applies to all of them. */
   Element &flowAround(std::string_view key, float margin = 0.0f);
 
   // ---- identity, caching, transitions ----

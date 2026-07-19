@@ -47,6 +47,7 @@ struct ElementNode {
   LayoutProps layout;
   PaintProps paint;
   Corners corners;
+  std::function<SkPath(SkSize)> shapeFn; // custom outline; overrides corners
   bool clipContent = false;
   Cache cacheMode = Cache::Auto;
   std::optional<Transition> nodeTransition;
@@ -73,7 +74,7 @@ struct ElementNode {
   std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;
 
   // Derive phase
-  std::string flowAroundKey;
+  std::vector<std::string> flowAroundKeys;
   float flowAroundMargin = 0;
   std::string connectFrom, connectTo;
   Router router;
