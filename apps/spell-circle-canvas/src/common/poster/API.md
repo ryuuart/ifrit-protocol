@@ -402,6 +402,84 @@ Arbitrary direct mutation of retained nodes is rejected on principle:
 it's the one door that, once open, makes every cache unsound and every
 frame a full repaint "just in case".
 
+### Decorations — frames, 9-slice, patterned and procedural borders
+
+`.fill()/.stroke()/.corners()/.shadow()` cover documents; game-style
+chrome (textured frames, stamped vines, per-edge treatments, procedural
+borders) needs decoration to be an **open protocol**, same move as
+`LayoutScheme`. Prior art: Flutter's `Decoration`/`BoxPainter`, Godot's
+`StyleBox` resources, UE Slate brushes, CSS `border-image` + the
+Houdini Paint API — every mature system eventually makes "how a box is
+dressed" pluggable. Ours plugs straight into Skia, which already owns
+the hard cases.
+
+**Layer model.** A node paints: background decorations (declaration
+order) → content + children (stacking rules) → foreground decorations.
+`.fill()`/`.stroke()` become sugar for the built-ins below.
+
+```cpp
+struct DecorationInput {
+  SkSize size;            // the node's resolved box
+  SkPath outline;         // its shape: rounded rect, or the clipPath
+  double elapsedSeconds;  // for procedural/animated decorations
+  float contentScale;
+};
+
+template <typename D>
+concept DecorationScheme =
+    requires(const D &d, SkCanvas &canvas, const DecorationInput &in) {
+      { d.paint(canvas, in) };
+    };  // optional `bool animated() const` → node repaints per frame
+        // (declared volatility, same rule as bound properties)
+
+Element &background(DecorationScheme auto);   // below content, stackable
+Element &foreground(DecorationScheme auto);   // above children, stackable
+```
+
+**Built-in kit** — each a thin value struct over machinery Skia ships:
+
+```cpp
+// 9-slice and its generalization: SkCanvas::drawImageLattice does
+// N-patch natively — arbitrary slice grids, per-cell stretch/repeat —
+// so "border that stretches one segment and repeats another" is data.
+NineSlice{.asset = frameTexture, .insets = {24, 24, 24, 24},
+          .center = Repeat::Stretch};
+Lattice{.asset = ornateFrame, .xDivs = {...}, .yDivs = {...}, ...};
+
+// Pattern fills: any tiling SkShader (image shaders, PaintShaders,
+// SkSL) with a local matrix for scale/rotation of the motif.
+PatternFill{.shader = asset.frame(0).image->makeShader(
+                SkTileMode::kRepeat, SkTileMode::kRepeat, sampling)};
+
+// Path-effect borders along the node's outline:
+DashedBorder{.stroke = {...}, .intervals = {12, 6}};      // SkDashPathEffect
+StampedBorder{.stamp = leafPath, .advance = 18,           // SkPath1DPathEffect:
+              .style = Stamp::Rotate};                    // vines, curls, chains
+WobbleBorder{.stroke = {...}, .segLength = 4, .dev = 2};  // SkDiscretePathEffect
+
+// Procedural: SkSL runtime effects, time-fed for animation.
+ShaderBorder{.effect = SkRuntimeEffect::MakeForShader(sksl).effect,
+             .width = 6};   // animated() == true when it samples time
+
+// Per-edge composition — different treatment per side:
+EdgeSet{.top = NineSliceStrip{...}, .bottom = DashedBorder{...},
+        .left = StampedBorder{...}};   // right: none
+```
+
+The floor is the concept itself: a `DecorationScheme` gets the canvas,
+the box, and the outline path — draw anything (this is `custom()` for
+chrome, but layout-aware and cache-managed). "Generators" compose at
+two levels: decoration-level (path effects and SkSL *are* procedural
+generators) and component-level — a component is already a generator,
+so `vineCorners(seed)` returning absolutely-positioned stamped paths in
+a `stack()` is ordinary composition.
+
+**Caching stays sound**: decorations are values in the description
+(reconciled and hashed like everything else), painted inside the node's
+`Cache::Picture` recording; ones declaring `animated()` — or carrying
+bound `ch::Output` fields — demote their node to live painting while
+active, exactly the declared-volatility rule bound properties follow.
+
 ## C++20 at the surface
 
 Used deliberately, for errors and ergonomics rather than cleverness:
