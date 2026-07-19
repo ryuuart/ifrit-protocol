@@ -314,6 +314,13 @@ public:
   Element &transformOrigin(float fx, float fy);
   Element &zIndex(int z);
 
+  // ---- derive phase (inputs are resolved geometry) ----
+  /** Text leaves only: flow this paragraph around the keyed node's
+   *  resolved bounds (TextFlow ExclusionFlow), with @p margin px of
+   *  standoff. Resolved as a bounded second layout pass; a reference
+   *  to self or a descendant is ignored (cycle guard). */
+  Element &flowAround(std::string_view key, float margin = 0.0f);
+
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);
   Element &cache(Cache c);
@@ -372,6 +379,16 @@ template <LayoutScheme L> Element layout(L scheme) {
  *  Composer::renderSlot() — the surrounding tree's caches stay valid
  *  across slot updates (independent data domains). */
 Element slot(std::string_view name);
+
+/** A relationship as a first-class element: a path routed between two
+ *  keyed nodes' resolved bounds, stroked by the connector's foreground
+ *  decorations (attach a PathFormat — the routed path arrives as
+ *  PaintContext::outline). Straight line by default; supply a router
+ *  for anything else. Position it absolute().inset(0) over the nodes
+ *  it connects. */
+using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
+Element connector(std::string_view fromKey, std::string_view toKey,
+                  Router router = {});
 
 namespace detail {
 Element makeMemo(std::any props,

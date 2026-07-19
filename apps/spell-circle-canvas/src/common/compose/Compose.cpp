@@ -196,6 +196,22 @@ Element custom(PaintProgram program) {
   return e;
 }
 
+Element &Element::flowAround(std::string_view key, float margin) {
+  m_node->flowAroundKey = std::string(key);
+  m_node->flowAroundMargin = margin;
+  return *this;
+}
+
+Element connector(std::string_view fromKey, std::string_view toKey,
+                  Router router) {
+  Element e;
+  e.node()->kind = Kind::Custom; // painted via derive-resolved outline
+  e.node()->connectFrom = std::string(fromKey);
+  e.node()->connectTo = std::string(toKey);
+  e.node()->router = std::move(router);
+  return e;
+}
+
 Element slot(std::string_view name) {
   Element e;
   e.node()->kind = Kind::Slot;

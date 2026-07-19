@@ -544,3 +544,90 @@ TEST(ComposeUtil, ShadowAndStrokeSugar) {
   EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
   EXPECT_EQ(host.pixel(80, 40), SK_ColorGREEN);   // stroked top edge
 }
+
+namespace {
+textflow::TextStyle whiteStyle(float size) {
+  textflow::TextStyle s = styleAt(size);
+  s.paint.foreground.setColor(SK_ColorWHITE);
+  return s;
+}
+bool anyWhiteIn(Host &host, SkIRect region) {
+  for (int y = region.top(); y < region.bottom(); y += 2)
+    for (int x = region.left(); x < region.right(); x += 2)
+      if (host.pixel(x, y) == SK_ColorWHITE)
+        return true;
+  return false;
+}
+} // namespace
+
+TEST(ComposeDerive, FlowAroundWrapsTextAroundFrame) {
+  const std::u8string body =
+      u8"the quick brown fox jumps over the lazy dog and keeps running "
+      u8"through the tall summer grass until the river bend appears and "
+      u8"the evening light settles over the water in long amber bands";
+
+  auto tree = [&](bool flow) {
+    auto t = text(body, whiteStyle(18)).key("body");
+    if (flow)
+      t.flowAround("frame", 6);
+    return stack()
+        .child(box().key("frame").width(150).height(140)
+                   .inset(200, 10, 10, 210).absolute()
+                   .fill(Fill::color({0, 0.4f, 0, 1})))
+        .child(box().inset(0).child(std::move(t)).zIndex(1));
+  };
+
+  Host plain(360, 420), flowed(360, 420);
+  plain.composer.render(tree(false));
+  plain.frame();
+  flowed.composer.render(tree(true));
+  flowed.frame();
+
+  // Without the exclusion, text runs under the frame region; with it,
+  // the region stays text-free (frame color only).
+  const SkIRect inner = SkIRect::MakeLTRB(215, 25, 345, 135);
+  EXPECT_TRUE(anyWhiteIn(plain, inner));
+  EXPECT_FALSE(anyWhiteIn(flowed, inner));
+
+  // Displaced words push the flowed paragraph taller.
+  auto plainBounds = plain.composer.bounds("body");
+  auto flowedBounds = flowed.composer.bounds("body");
+  ASSERT_TRUE(plainBounds && flowedBounds);
+  EXPECT_GT(flowedBounds->height(), plainBounds->height());
+}
+
+TEST(ComposeDerive, FlowAroundCycleIsIgnored) {
+  Host host;
+  host.composer.render(box().child(
+      text(u8"self reference", whiteStyle(16)).key("self")
+          .flowAround("self")));
+  host.frame(); // must not hang or exclude itself into nothing
+  EXPECT_NE(host.composer.paragraphLayout("self"), nullptr);
+}
+
+TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
+  Host host;
+  PathFormat wire;
+  wire.width = 4;
+  wire.strokeFill = Fill::color({1, 1, 0, 1});
+
+  auto tree = [&](float bLeft) {
+    return stack()
+        .child(box().key("a").width(20).height(20)
+                   .inset(10, 10, 170, 170).absolute().fill(red()))
+        .child(box().key("b").width(20).height(20)
+                   .inset(bLeft, 160, 180 - bLeft, 20).absolute()
+                   .fill(green()))
+        .child(connector("a", "b").inset(0).foreground(wire).zIndex(-1));
+  };
+
+  host.composer.render(tree(10.0f));
+  host.frame();
+  // Vertical wire at x=20 between the stacked boxes.
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorYELLOW);
+
+  host.composer.render(tree(160.0f)); // move b to the right
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);   // old route gone
+  EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);    // new diagonal route
+}

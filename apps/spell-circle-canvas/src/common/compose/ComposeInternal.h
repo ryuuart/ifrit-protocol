@@ -72,6 +72,12 @@ struct ElementNode {
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;
 
+  // Derive phase
+  std::string flowAroundKey;
+  float flowAroundMargin = 0;
+  std::string connectFrom, connectTo;
+  Router router;
+
   // Memo (deferred description)
   bool isMemo = false;
   std::any memoProps;

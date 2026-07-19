@@ -73,6 +73,18 @@ box-shadow ordering — and the three-line `Stage` bundle, all tested)
 and `layout(LayoutScheme)` (item 6: the ~20-line user Grid places and
 sizes cells via the bounded second layout pass, bounds-verified).
 
+**Derive phase (landed):** `text().flowAround(key, margin)` plumbs
+resolved node bounds into TextFlow `ExclusionFlow` shapes as the
+design's bounded second layout pass (item 7: pixel-verified — the
+excluded region stays text-free and displaced words push the paragraph
+taller; self/descendant references are cycle-guarded and ignored), and
+`connector(from, to, router)` makes relationships first-class elements
+(item 12, core): the routed path (straight default, Router fn for
+custom) arrives as the connector's PaintContext outline, so a
+PathFormat foreground strokes it — endpoint moves re-route and
+invalidate through the standard dirty chain, pixel-tested across a
+re-render.
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

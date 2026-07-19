@@ -100,6 +100,11 @@ struct Instance {
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo; // endpoints for kFillLerp
 
+  // Derive-phase state
+  std::optional<SkRect> exclusionLocal;   // flowAround rect, text-local
+  SkPath connectorPath;                    // routed path, connector-local
+  SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
+
   // Caching
   sk_sp<SkPicture> picture;
   sk_sp<SkImage> textureImage;
@@ -173,6 +178,8 @@ struct Composer::Impl {
   void rebuildKeyIndex();
   void indexKeys(Instance &inst);
   SkRect instanceRect(const Instance &inst) const;
+  SkRect absoluteRect(const Instance &inst) const;
+  bool resolveDerived(Instance &inst);
 };
 
 // ---------------------------------------------------------------------------
@@ -212,9 +219,17 @@ YGSize measureTextNode(YGNodeConstRef node, float width, YGMeasureMode widthMode
   const float constraint =
       widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
   auto &impl = *inst->owner;
-  textflow::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-  inst->textLayout = textflow::layoutParagraph(impl.fonts, *inst->paragraph,
-                                               flow, {});
+  if (inst->exclusionLocal) {
+    textflow::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    flow.shapes().push_back(textflow::ExclusionFlow::Shape::fromRectangle(
+        *inst->exclusionLocal, inst->desc->flowAroundMargin));
+    inst->textLayout = textflow::layoutParagraph(impl.fonts, *inst->paragraph,
+                                                 flow, {});
+  } else {
+    textflow::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    inst->textLayout = textflow::layoutParagraph(impl.fonts, *inst->paragraph,
+                                                 flow, {});
+  }
   inst->lines = inst->textLayout.lineMetrics(*inst->paragraph);
   inst->measuredForWidth = constraint;
   SkRect bounds = SkRect::MakeEmpty();
@@ -542,6 +557,72 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
   return applied;
 }
 
+SkRect Composer::Impl::absoluteRect(const Instance &inst) const {
+  SkRect rect = instanceRect(inst);
+  for (Instance *p = inst.parent; p; p = p->parent)
+    rect.offset(YGNodeLayoutGetLeft(p->yoga), YGNodeLayoutGetTop(p->yoga));
+  return rect;
+}
+
+/** The derive pass: content whose input is resolved geometry. Returns
+ *  true when a text exclusion changed (second layout pass needed). */
+bool Composer::Impl::resolveDerived(Instance &inst) {
+  bool relayout = false;
+  const ElementNode &node = *inst.desc;
+
+  if (!node.flowAroundKey.empty() && inst.paragraph) {
+    std::optional<SkRect> exclusion;
+    auto it = byKey.find(node.flowAroundKey);
+    if (it != byKey.end()) {
+      // Cycle guard: the target must not be this node or a descendant.
+      bool cyclic = false;
+      for (Instance *p = it->second; p; p = p->parent)
+        if (p == &inst) { cyclic = true; break; }
+      if (!cyclic) {
+        SkRect target = absoluteRect(*it->second);
+        SkRect own = absoluteRect(inst);
+        target.offset(-own.left(), -own.top());
+        exclusion = target;
+      }
+    }
+    if (exclusion != inst.exclusionLocal) {
+      inst.exclusionLocal = exclusion;
+      YGNodeMarkDirty(inst.yoga);
+      inst.markPaintDirtyUp();
+      relayout = true;
+    }
+  }
+
+  if (!node.connectFrom.empty() && !node.connectTo.empty()) {
+    auto fromIt = byKey.find(node.connectFrom);
+    auto toIt = byKey.find(node.connectTo);
+    if (fromIt != byKey.end() && toIt != byKey.end()) {
+      SkRect own = absoluteRect(inst);
+      SkRect from = absoluteRect(*fromIt->second);
+      SkRect to = absoluteRect(*toIt->second);
+      from.offset(-own.left(), -own.top());
+      to.offset(-own.left(), -own.top());
+      if (from != inst.connectorFrom || to != inst.connectorTo) {
+        inst.connectorFrom = from;
+        inst.connectorTo = to;
+        if (node.router) {
+          inst.connectorPath = node.router(from, to);
+        } else {
+          SkPathBuilder b;
+          b.moveTo(from.centerX(), from.centerY());
+          b.lineTo(to.centerX(), to.centerY());
+          inst.connectorPath = b.detach();
+        }
+        inst.markPaintDirtyUp();
+      }
+    }
+  }
+
+  for (auto &child : inst.children)
+    relayout |= resolveDerived(*child);
+  return relayout;
+}
+
 // ---------------------------------------------------------------------------
 // Volatility & caching
 
@@ -620,10 +701,16 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
     canvas.saveLayer(nullptr, &effectPaint);
   }
 
-  SkPathBuilder outlineBuilder;
-  outlineBuilder.addRRect(rrect);
+  SkPath outlinePath;
+  if (!node.connectFrom.empty()) {
+    outlinePath = inst.connectorPath; // derive phase routed it
+  } else {
+    SkPathBuilder outlineBuilder;
+    outlineBuilder.addRRect(rrect);
+    outlinePath = outlineBuilder.detach();
+  }
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
-                              outlineBuilder.detach(), elapsed(), 1.0f,
+                              std::move(outlinePath), elapsed(), 1.0f,
                               ticker.active()};
 
   // Background decorations paint beneath the fill (the CSS box-shadow
@@ -911,9 +998,13 @@ void Composer::draw(SkCanvas &canvas) {
                           YGDirectionLTR);
     // Custom layout() containers: a bounded second pass — children were
     // measured by pass one; scheme.place() pins them, pass two resolves.
-    if (impl.applyCustomLayouts(*impl.root)) {
+    bool repass = impl.applyCustomLayouts(*impl.root);
+    // Derive phase: geometry-consuming content (exclusions, connectors).
+    repass |= impl.resolveDerived(*impl.root);
+    if (repass) {
       YGNodeCalculateLayout(impl.root->yoga, YGUndefined, YGUndefined,
                             YGDirectionLTR);
+      impl.resolveDerived(*impl.root); // refresh connectors post-move
     }
     impl.needsLayout = false;
   }
