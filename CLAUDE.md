@@ -13,9 +13,11 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            Metal GPUDriver, CPU fallback), tick/
                            (IfritTick — FrameClock + Ticker driving
                            choreograph timelines, event-driven redraw
-                           contract), poster/ (IfritPoster/Compose —
-                           Yoga+TextFlow layout & component design docs
-                           + feasibility spike only)
+                           contract), compose/ (IfritCompose —
+                           data-driven drawable components over
+                           Yoga+TextFlow+Choreograph; DESIGN.md /
+                           API.md / STRESS_TESTS.md + feasibility
+                           spike only, implementation pending)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}

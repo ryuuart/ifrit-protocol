@@ -1,6 +1,6 @@
 # IfritCompose — the concrete API surface (proposal)
 
-Companion to COMPONENTS.md. This is the surface as you would write it,
+Companion to DESIGN.md. This is the surface as you would write it,
 header-level signatures plus complete usage in real canvas contexts.
 Everything here is `namespace ifrit::compose` unless noted.
 
@@ -482,6 +482,57 @@ hand any primitive.
 `Cache::Picture` recording; ones declaring `animated()` — or carrying
 bound `ch::Output` fields — demote their node to live painting while
 active, exactly the declared-volatility rule bound properties follow.
+
+### Layer effects — post-processing and backdrop treatment
+
+Post-processing joins as the paint-phase counterpart of decorations:
+effects operate on *rendered layers* at stacking-context boundaries,
+the way Flutter's `ImageFiltered`/`BackdropFilter` and CSS
+`filter`/`backdrop-filter` do — and like decorations, the surface is
+two primitives, not an effect zoo:
+
+```cpp
+struct Effect {
+  static Effect filter(sk_sp<SkImageFilter> f);   // blur, displacement,
+                                                  // lighting, compose chains
+  static Effect shader(sk_sp<SkRuntimeEffect> e,  // SkSL image filter: the
+                       Uniforms u = {});          // node's layer is an input
+};                                                // optional animated()
+
+Element &effect(Effect);    // filters the node's own rendered layer
+Element &backdrop(Effect);  // filters what's already painted beneath
+                            // the node's bounds, then paints the node
+```
+
+Concrete looks are data built from these plus what already exists —
+composed in user code or the stress-test catalog, not enumerated in the
+API: bloom is a bright-pass SkSL `Effect::shader` blurred and re-blended
+`kPlus` over the source (foreground *or* background nodes — effects
+attach to any node in any layer); a CRT stack is semi-transparent tiled
+layers with `.blend(SkBlendMode::kPlus)` accumulating brightness where
+they overlap, a scanline SkSL fill, and a `backdrop()` distortion.
+
+Cost model is explicit: an effect forces a `saveLayer` (its node is
+already a stacking context), and pairs naturally with
+`Cache::Texture` — a filtered subtree renders + filters once and stays
+a cached snapshot until it dirties, so expensive post-processing on
+static content is paid once, not per frame.
+
+### Tiling and tile-map content
+
+No new machinery — tiling resolves into existing phases, three tiers:
+
+1. **Uniform tiling**: `Fill::shader` with `SkTileMode::kRepeat` and a
+   local matrix (any image, `PaintShaders`, or SkSL motif).
+2. **Procedural tile *selection*** (the tile-map case): a describe-phase
+   component maps data/noise/rules over a grid and emits atlas-region
+   image leaves — `image(atlas).region(SkRect)` is the one API addition
+   (sub-rect of an asset, the sprite/atlas idiom). Chunk the grid into
+   `Cache::Picture` boundaries the way game engines chunk tile maps;
+   only chunks whose data changed re-record.
+3. **Fully procedural tiling**: one SkSL fill sampling the atlas by a
+   computed index — a single draw for backgrounds where per-tile
+   identity doesn't matter.
 
 ### The pipeline — where procedural enters (one architecture, not two)
 

@@ -1,4 +1,4 @@
-// Feasibility spike for the IfritPoster design (see ../DESIGN.md):
+// Feasibility spike for the IfritCompose design (see ../DESIGN.md):
 // proves that Yoga's measure and baseline callbacks can be driven by
 // TextFlow, which is the load-bearing assumption of the whole proposal.
 //
