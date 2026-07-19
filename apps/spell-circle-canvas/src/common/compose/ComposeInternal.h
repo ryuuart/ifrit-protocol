@@ -65,6 +65,10 @@ struct ElementNode {
   std::vector<Decoration> backgrounds;
   std::vector<Decoration> foregrounds;
 
+  // Layer effects
+  std::optional<Effect> layerEffect;
+  std::optional<Effect> backdropEffect;
+
   // Memo (deferred description)
   bool isMemo = false;
   std::any memoProps;

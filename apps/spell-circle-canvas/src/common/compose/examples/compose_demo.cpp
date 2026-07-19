@@ -4,6 +4,7 @@
 
 #include <ifritcompose/Compose.h>
 #include <ifritcompose/Decorations.h>
+#include <include/effects/SkImageFilters.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <textflow/FontContext.h>
@@ -188,6 +189,41 @@ Element chromePanel(SkSize size) {
                                        .foreground(dashedBottom))));
 }
 
+// ---- Panel 5: CRT stack + bloom (stress #13/#14) -------------------------
+
+Element scanlines(float phase, SkColor4f tint) {
+  return custom([phase, tint](SkCanvas &c, const PaintContext &ctx) {
+           SkPaint p;
+           p.setColor4f(tint, nullptr);
+           for (float y = phase; y < ctx.size.height(); y += 6.0f)
+             c.drawRect(SkRect::MakeXYWH(0, y, ctx.size.width(), 2.4f), p);
+         })
+      .absolute().inset(0)
+      .blend(SkBlendMode::kPlus); // stacked layers accumulate brightness
+}
+
+Element crtBloomPanel(SkSize) {
+  return stack().fill(Fill::color({0.02f, 0.03f, 0.05f, 1}))
+      // Bloom: a blurred bright copy beneath the sharp headline, both
+      // over the CRT glow field.
+      .child(box().column().padding(70).gap(10).inset(0).zIndex(2)
+                 .child(text(u8"PHOSPHOR", styleAt(96, 0xff9df2ff)))
+                 .child(text(u8"plus-blended scanline layers brighten where they stack;",
+                             styleAt(17, 0xff9aa4bb)))
+                 .child(text(u8"the halo is the same headline, blurred and plus-blended.",
+                             styleAt(17, 0xff9aa4bb))))
+      .child(box().column().padding(70).inset(0).zIndex(1)
+                 .effect(Effect::filter(SkImageFilters::Blur(14, 14, nullptr)))
+                 .blend(SkBlendMode::kPlus)
+                 .cache(Cache::Texture) // bloom baked once
+                 .child(text(u8"PHOSPHOR", styleAt(96, 0xff2a7f96))))
+      .child(scanlines(0.0f, {0.10f, 0.22f, 0.16f, 1}).zIndex(0))
+      .child(scanlines(2.0f, {0.16f, 0.10f, 0.20f, 1})
+                 .inset(0, 0, 120, 0).zIndex(0))
+      .child(scanlines(4.0f, {0.05f, 0.12f, 0.24f, 1})
+                 .inset(140, 40, 0, 0).zIndex(0));
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -235,6 +271,15 @@ int main(int argc, char **argv) {
       return 1;
   }
 
-  std::printf("wrote 4 panels to %s\n", outDir.string().c_str());
+  {
+    Composer composer(ticker, fonts());
+    SkSize size = {860, 520};
+    composer.setSize(size);
+    composer.render(crtBloomPanel(size));
+    if (!writePanel(composer, size, outDir / "crt_bloom.png"))
+      return 1;
+  }
+
+  std::printf("wrote 5 panels to %s\n", outDir.string().c_str());
   return 0;
 }

@@ -45,6 +45,18 @@ the parent chain; re-measured — cached draw 412 µs, volatile 368 µs,
 renders 30 µs: policy change is cost-free and buys partial
 invalidation everywhere.
 
+**Layer effects (landed, measured):** `.effect()` (node's own layer,
+SkImageFilter or SkSL via `Effect::shader`) and `.backdrop()` (filters
+beneath the node, backdrop-incompatible with texture baking and
+guarded so) are in the kernel, pixel-tested (blur bleed, deterministic
+backdrop color-invert, baked-texture filter). The crt_bloom demo panel
+renders items 13/14: plus-blended scanline stacks brightening where
+they overlap and a bloom halo (blurred plus-blended headline copy).
+The decisive number: a blurred headline drawn per frame costs
+**7.38 ms** via picture replay (filter re-executes) vs **80 µs**
+texture-baked — **92×** — making Cache::Texture-under-effect the
+mandatory pattern for static filtered content.
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

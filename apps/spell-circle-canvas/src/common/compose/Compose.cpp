@@ -4,7 +4,10 @@
 
 #include "ComposeInternal.h"
 
+#include <include/core/SkImageFilter.h>
 #include <include/core/SkShader.h>
+#include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
 
 namespace ifrit::compose {
 
@@ -76,12 +79,38 @@ Element &Element::fill(PropValue<Fill> f) {
   m_node->paint.fill = std::move(f);
   return *this;
 }
+Effect Effect::filter(sk_sp<SkImageFilter> f) {
+  Effect e;
+  e.m_filter = std::move(f);
+  return e;
+}
+
+Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
+                      std::vector<std::pair<std::string, float>> uniforms) {
+  Effect e;
+  if (!effect)
+    return e;
+  SkRuntimeShaderBuilder builder(std::move(effect));
+  for (const auto &[name, value] : uniforms)
+    builder.uniform(name.c_str()) = value;
+  e.m_filter = SkImageFilters::RuntimeShader(builder, "content", nullptr);
+  return e;
+}
+
 Element &Element::background(Decoration d) {
   m_node->backgrounds.push_back(std::move(d));
   return *this;
 }
 Element &Element::foreground(Decoration d) {
   m_node->foregrounds.push_back(std::move(d));
+  return *this;
+}
+Element &Element::effect(Effect e) {
+  m_node->layerEffect = std::move(e);
+  return *this;
+}
+Element &Element::backdrop(Effect e) {
+  m_node->backdropEffect = std::move(e);
   return *this;
 }
 Element &Element::opacity(PropValue<float> o) {

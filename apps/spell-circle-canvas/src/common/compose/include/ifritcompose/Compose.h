@@ -39,6 +39,8 @@
 #include <vector>
 
 class SkCanvas;
+class SkImageFilter;
+class SkRuntimeEffect;
 
 namespace ifrit::image {
 class ImageAsset;
@@ -124,6 +126,29 @@ struct PaintContext {
 };
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
+
+/**
+ * Post-processing at stacking-context boundaries. `filter` wraps any
+ * SkImageFilter (blur, displacement, lighting, compose chains);
+ * `shader` wraps an SkSL runtime effect whose child shader is the
+ * rendered layer. Attach with Element::effect() (the node's own layer)
+ * or Element::backdrop() (what's already painted beneath the node's
+ * bounds). Under Cache::Texture an effect() is baked into the snapshot
+ * — expensive filters on static content are paid once.
+ */
+class Effect {
+public:
+  static Effect filter(sk_sp<SkImageFilter> f);
+  /** @p uniforms are float uniforms set by name on the SkSL effect;
+   *  the layer arrives as the child shader named "content". */
+  static Effect shader(sk_sp<SkRuntimeEffect> effect,
+                       std::vector<std::pair<std::string, float>> uniforms = {});
+
+  const sk_sp<SkImageFilter> &imageFilter() const { return m_filter; }
+
+private:
+  sk_sp<SkImageFilter> m_filter;
+};
 
 /** Anything with paint(canvas, PaintContext) — decorations, effects
  *  bodies. An optional `bool animated() const` declares per-frame
@@ -255,6 +280,14 @@ public:
    *  first background; custom() is a box with one background program. */
   Element &background(Decoration d);
   Element &foreground(Decoration d);
+  /** Post-processes this node's rendered layer (forces a stacking
+   *  context). Baked once under Cache::Texture. */
+  Element &effect(Effect e);
+  /** Filters what is already painted beneath this node's bounds before
+   *  the node paints (CSS backdrop-filter). Incompatible with
+   *  Cache::Texture (the backdrop depends on the live destination);
+   *  such nodes fall back to picture caching. */
+  Element &backdrop(Effect e);
   Element &opacity(PropValue<float> o);
   Element &blend(SkBlendMode mode);
   Element &translateX(PropValue<float> v);

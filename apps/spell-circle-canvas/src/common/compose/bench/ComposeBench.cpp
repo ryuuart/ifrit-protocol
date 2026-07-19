@@ -4,6 +4,8 @@
 
 #include <ifritcompose/Compose.h>
 
+#include <include/effects/SkImageFilters.h>
+
 #include <textflow/FontContext.h>
 #include <textflow/ports/SystemFontManager.h>
 
@@ -231,5 +233,35 @@ static void BM_Draw_100Rows_TextureBlit(benchmark::State &state) {
     host.composer.draw(*host.surface->getCanvas());
 }
 BENCHMARK(BM_Draw_100Rows_TextureBlit);
+
+
+/** A blur-effected headline: picture replay re-runs the filter every
+ *  draw; Cache::Texture bakes it — the effects payoff. */
+static Element bloomBlock(Cache mode) {
+  textflow::TextStyle style;
+  style.shaping.fontSize = 64.0f;
+  style.paint.foreground.setColor(0xff7ee8ff);
+  return box().padding(24).cache(mode)
+      .effect(Effect::filter(SkImageFilters::Blur(12, 12, nullptr)))
+      .child(text(u8"BLOOM PIPELINE", style));
+}
+
+static void BM_Draw_Bloom_PictureReplay(benchmark::State &state) {
+  Host host(900, 300);
+  host.composer.render(bloomBlock(Cache::Picture));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_Bloom_PictureReplay);
+
+static void BM_Draw_Bloom_TextureBaked(benchmark::State &state) {
+  Host host(900, 300);
+  host.composer.render(bloomBlock(Cache::Texture));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 BENCHMARK_MAIN();

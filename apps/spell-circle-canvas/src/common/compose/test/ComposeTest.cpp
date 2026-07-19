@@ -419,3 +419,52 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   EXPECT_EQ(host.pixel(115, 115), SK_ColorRED);
   EXPECT_EQ(host.pixel(60, 4), SK_ColorRED);    // edge strip
 }
+
+#include <include/core/SkColorFilter.h>
+#include <include/effects/SkImageFilters.h>
+
+TEST(ComposeEffects, LayerEffectBlursNode) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).inset(70, 70, 70, 70).absolute()
+          .fill(red())
+          .effect(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))));
+  host.frame();
+  // Blur bleeds outside the crisp box bounds and softens the center edge.
+  SkColor outside = host.pixel(64, 100); // 6px outside the left edge
+  EXPECT_NE(outside, SK_ColorBLACK);
+  EXPECT_NE(host.pixel(100, 100), SK_ColorBLACK); // center still red-ish
+  // Far away stays untouched.
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorBLACK);
+}
+
+TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
+  Host host;
+  // Invert color matrix as a deterministic backdrop filter.
+  float invert[20] = {-1, 0, 0, 0, 1,  0, -1, 0, 0, 1,
+                      0, 0, -1, 0, 1,  0, 0, 0, 1, 0};
+  auto invertFilter = SkImageFilters::ColorFilter(
+      SkColorFilters::Matrix(invert), nullptr);
+
+  host.composer.render(
+      stack()
+          .child(box().inset(0).fill(red()))
+          .child(box().width(80).height(80).inset(60, 60, 60, 60)
+                     .absolute()
+                     .backdrop(Effect::filter(invertFilter))));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorCYAN); // red inverted inside
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);   // untouched outside
+}
+
+TEST(ComposeEffects, TextureBakesEffectOnce) {
+  Host host;
+  host.composer.render(box().child(
+      box().key("bloomed").width(60).height(60).fill(green())
+          .effect(Effect::filter(SkImageFilters::Blur(4, 4, nullptr)))
+          .cache(Cache::Texture)));
+  host.frame();
+  host.frame();
+  EXPECT_GE(host.composer.stats().texturesLive, 1u);
+  EXPECT_NE(host.pixel(30, 30), SK_ColorBLACK); // filtered content present
+}

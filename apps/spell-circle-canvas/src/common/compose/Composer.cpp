@@ -583,6 +583,16 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
   if (node.clipContent)
     canvas.clipRRect(rrect, true);
 
+  // The node's own layer effect wraps everything painted here, so it is
+  // captured by picture recordings and BAKED by texture snapshots.
+  const bool hasEffect =
+      node.layerEffect && node.layerEffect->imageFilter();
+  if (hasEffect) {
+    SkPaint effectPaint;
+    effectPaint.setImageFilter(node.layerEffect->imageFilter());
+    canvas.saveLayer(nullptr, &effectPaint);
+  }
+
   SkPathBuilder outlineBuilder;
   outlineBuilder.addRRect(rrect);
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
@@ -657,6 +667,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
 
   for (const Decoration &decoration : node.foregrounds)
     decoration.paint(canvas, paintCtx);
+
+  if (hasEffect)
+    canvas.restore();
 }
 
 void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
@@ -689,6 +702,19 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     canvas.translate(-origin.x(), -origin.y());
   }
 
+  const bool hasBackdrop =
+      node.backdropEffect && node.backdropEffect->imageFilter();
+  if (hasBackdrop) {
+    canvas.save();
+    canvas.clipRRect(SkRRect::MakeRectXY(
+                         SkRect::MakeWH(rect.width(), rect.height()),
+                         node.corners.radius, node.corners.radius),
+                     true);
+    SkCanvas::SaveLayerRec rec(nullptr, nullptr,
+                               node.backdropEffect->imageFilter().get(), 0);
+    canvas.saveLayer(rec);
+  }
+
   const bool needsLayer =
       opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver;
   if (needsLayer) {
@@ -701,7 +727,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // Automatic caching at topmost provably-static subtrees: pictures by
   // default, a rasterized image under Cache::Texture (the raster-target
   // pixel win — replaying a picture re-rasterizes, blitting doesn't).
-  if (!inst.subtreeVolatile && node.cacheMode == Cache::Texture) {
+  if (!inst.subtreeVolatile && node.cacheMode == Cache::Texture &&
+      !node.backdropEffect) {
     // Rasterize at the canvas's current scale so zoomed hosts stay crisp.
     SkMatrix total = canvas.getTotalMatrix();
     const float scale = std::clamp(
@@ -744,6 +771,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
 
   if (needsLayer)
     canvas.restore();
+  if (hasBackdrop) {
+    canvas.restore(); // backdrop layer
+    canvas.restore(); // clip
+  }
   canvas.restore();
 }
 
