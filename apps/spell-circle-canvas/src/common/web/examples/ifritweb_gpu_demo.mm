@@ -89,7 +89,7 @@ constexpr const char *kDemoHtml = R"html(
   <div class="card"><div>
     <h2>Same API as the CPU path</h2>
     <p>WebView::draw() detects the Graphite canvas and wraps the texture;
-       frame()/frameImage()/frameVersion() behave identically in both
+       frame(recorder) and frameVersion() behave identically in both
        modes.</p></div>
     <span class="tag">WebView::draw()</span></div>
   <div class="card" style="align-items:center"><div style="text-align:center">

@@ -134,11 +134,11 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
       continue;
     }
 
-    WebView::GpuFrame gpuFrame = view->gpuFrame();
+    WebView::Frame gpuFrame = view->frame();
     ASSERT_NE(gpuFrame.nativeTexture, nullptr);
     ASSERT_EQ(gpuFrame.width, 64);
     ASSERT_EQ(gpuFrame.height, 64);
-    EXPECT_EQ(view->frame().image, nullptr); // GPU engines publish textures
+    EXPECT_EQ(gpuFrame.image, nullptr); // no recorder given, no wrap
 
     surface->getCanvas()->clear(SK_ColorGREEN);
     view->draw(*surface->getCanvas(), SkRect::MakeXYWH(32, 32, 64, 64));
@@ -363,12 +363,20 @@ TEST(WebViewGpuTest, FrameImageWrapsTexture) {
                                                    (void *)sharedQueue());
   ASSERT_NE(graphite, nullptr);
 
-  sk_sp<SkImage> image = view->frameImage(graphite->recorder());
+  sk_sp<SkImage> image = view->frame(graphite->recorder()).image;
   ASSERT_NE(image, nullptr);
   EXPECT_TRUE(image->isTextureBacked());
   EXPECT_EQ(image->width(), 32);
   EXPECT_EQ(image->height(), 32);
 
-  // Without a recorder there is nothing to wrap the texture for.
-  EXPECT_EQ(view->frameImage(nullptr), nullptr);
+  // Wraps are cached per version: acquiring the same frame again returns
+  // the same SkImage identity, so Skia-side caches stay warm.
+  sk_sp<SkImage> again = view->frame(graphite->recorder()).image;
+  EXPECT_EQ(again.get(), image.get());
+
+  // Without a recorder there is no wrap, but the metadata still flows.
+  WebView::Frame bare = view->frame();
+  EXPECT_EQ(bare.image, nullptr);
+  EXPECT_NE(bare.nativeTexture, nullptr);
+  EXPECT_TRUE(static_cast<bool>(bare));
 }

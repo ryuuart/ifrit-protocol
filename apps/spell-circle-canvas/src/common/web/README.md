@@ -109,19 +109,23 @@ from an Apple Silicon dev Mac, 1280x720 view, per operation:
 
 | Path                                   | CPU engine      | GPU engine |
 | -------------------------------------- | --------------- | ---------- |
-| `frame()` acquire                      | 13 ns           | 9 ns |
-| full-view draw onto the scene canvas   | 571 µs          | 1.4 µs record, 56 µs with per-frame submit (14 µs CPU) |
-| `frameImage()` texture wrap            | n/a (raster)    | 231 ns |
-| slot `update()` raster 256² / 1024²    | 14 µs / 136 µs  | 42 µs / 474 µs |
-| slot `updateTexture()` 256² / 1024²    | n/a             | 31 µs / 38 µs |
-| slot `paint()` 256² / 1024²            | 62 µs / 198 µs  | 61 µs / 61 µs |
+| `frame()` acquire                      | 13 ns           | 10 ns |
+| `frame(recorder)` with texture wrap    | n/a (raster)    | 13 ns cached, 228 ns on first acquire per publish |
+| full-view draw onto the scene canvas   | 538 µs          | 0.9 µs record, 39 µs with per-frame submit (12 µs CPU) |
+| slot `update()` raster 256² / 1024²    | 13 µs / 134 µs  | 28 µs / 434 µs |
+| slot `updateTexture()` 256² / 1024²    | n/a             | 26 µs / 30 µs |
+| slot `paint()` 256² / 1024²            | 52 µs / 183 µs  | 50 µs / 50 µs |
 | DOM change → published frame           | 22 ms           | 22 ms |
 
 Guidance that falls out of this:
 
-- GPU mode makes consumer-side compositing ~400x cheaper (a recorded
-  textured quad vs a 3.7 MB raster blit) and the SkImage wrap is free —
-  draw web frames every scene frame without budgeting for them.
+- GPU mode makes consumer-side compositing ~600x cheaper (a recorded
+  textured quad vs a 3.7 MB raster blit) and frame acquisition is free:
+  wraps are cached per publish with stable SkImage identity, which also
+  keeps Skia's internal draw caches warm across frames.
+- CPU publishes recycle their frame buffers through a small pool once
+  consumers release them, and `Frame::dirtyBounds` (CEF-style) reports
+  the changed page region for consumers that can repaint partially.
 - On GPU engines, feed slots with `paint()` or `updateTexture()` (cost
   is size-independent — a blit/draw on the shared queue) rather than
   raster `update()`, which pays a CPU convert + upload.

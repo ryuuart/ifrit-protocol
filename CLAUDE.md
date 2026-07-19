@@ -120,22 +120,22 @@ hardware-accelerated: `UltralightMetalDriver`
 (`src/common/web/metal/`, executing the SDK's stock Metal shaders,
 vendored as `UltralightShaders.metal`) runs Ultralight's command lists
 into MTLTextures, publishes each repaint by blitting into per-view
-ping-pong textures, and `WebView::frameImage(recorder)` /
+ping-pong textures, and `WebView::frame(recorder)` /
 `WebView::draw()` wrap the published texture zero-copy as a
 Graphite-backed SkImage — everything rides one MTLCommandQueue, so
 ordering is implicit. Without a device the CPU renderer publishes
 immutable raster SkImages instead (Ultralight paints straight into
 SkBitmap memory via a custom `ultralight::SurfaceFactory`); the API is
 identical across modes. Integration paths: pull
-(`frame()`/`frameImage()`/`frameVersion()`), push (`setFrameCallback()`),
+(`frame(recorder)`/`frameVersion()`), push (`setFrameCallback()`),
 or lockstep (`threaded=false` + `update()`/`renderFrame()` from the host
 loop, with zero-copy `peekPixels()` in CPU mode). Compositing also runs
 the other way: `WebEngine::createImage()` returns a `WebImage` pages
 display as `<img src="<name>.imgsrc">`; `WebImage::paint(callback)` is
 the safe runtime-collaboration path (canvas handed in, GPU flush +
 invalidate atomic, on the web thread — the engine's Metal driver keeps
-its own Graphite recorder for this), with raster `update()` and raw
-`mtlTexture()` as alternatives, and unregistered slot names log a
+its own Graphite recorder for this), with raster `update()`, `updateTexture()`, and raw
+`nativeTexture()` as alternatives, and unregistered slot names log a
 warning (both directions covered by round-trip pixel tests in web_test /
 web_gpu_test). A custom FileSystem maps the `resources/` prefix to the
 SDK runtime data, synthesizes the `.imgsrc` indirection files, and

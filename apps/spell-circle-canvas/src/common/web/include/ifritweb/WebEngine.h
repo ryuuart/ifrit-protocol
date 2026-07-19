@@ -63,7 +63,7 @@ struct WebEngineConfig {
    * these are an id<MTLDevice> / id<MTLCommandQueue> bridged to void*.
    * When both are set, views render through Ultralight's GPU pipeline
    * into native textures and publish texture-backed frames
-   * (WebView::frameImage() wraps them zero-copy for a Graphite
+   * (WebView::frame(recorder) wraps them zero-copy for a Graphite
    * recorder); when null, the CPU renderer publishes raster SkImages
    * instead. Falls back to CPU with a logged warning if driver bring-up
    * fails.

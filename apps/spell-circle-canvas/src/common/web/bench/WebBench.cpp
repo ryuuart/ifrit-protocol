@@ -135,17 +135,36 @@ BENCHMARK(BM_Draw_RasterCanvas);
 
 #ifdef __APPLE__
 
-/** GPU mode: wrapping the published texture as a Graphite SkImage. */
-static void BM_FrameImage_Wrap(benchmark::State &state) {
+/** GPU mode: acquiring the published frame with its texture wrapped for
+ *  a recorder — the per-version cache makes repeats free. */
+static void BM_Frame_WrapCached(benchmark::State &state) {
   if (!g_useGpu) {
     state.SkipWithMessage("GPU mode only");
     return;
   }
   WebView &view = benchView();
   for (auto _ : state)
-    benchmark::DoNotOptimize(view.frameImage(graphite().recorder()));
+    benchmark::DoNotOptimize(view.frame(graphite().recorder()));
 }
-BENCHMARK(BM_FrameImage_Wrap);
+BENCHMARK(BM_Frame_WrapCached);
+
+/** GPU mode: the uncached wrap cost, forced by alternating recorders
+ *  (what the first acquisition after each publish pays). */
+static void BM_Frame_WrapMiss(benchmark::State &state) {
+  if (!g_useGpu) {
+    state.SkipWithMessage("GPU mode only");
+    return;
+  }
+  WebView &view = benchView();
+  static std::unique_ptr<SkiaGraphiteContext> other =
+      SkiaGraphiteContext::createMetal(bench::gpuDevice(),
+                                       bench::gpuQueue());
+  int toggle = 0;
+  for (auto _ : state)
+    benchmark::DoNotOptimize(view.frame(
+        (toggle++ & 1) ? other->recorder() : graphite().recorder()));
+}
+BENCHMARK(BM_Frame_WrapMiss);
 
 /** GPU mode: recording a full-view draw of the published frame into a
  *  Graphite canvas (no submission). */

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <include/core/SkImage.h>
+#include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 
@@ -11,7 +12,6 @@
 
 class SkCanvas;
 class SkPixmap;
-struct SkRect;
 
 namespace skgpu::graphite {
 class Recorder;
@@ -35,11 +35,36 @@ class WebEngine;
  */
 class WebView {
 public:
-  /** A published page snapshot. `version` increases by one per repaint;
-   *  it is 0 before the first paint (with a null image). */
+  /**
+   * A published page snapshot — everything about the latest repaint in
+   * one value (the acquire-latest-frame shape of Android's ImageReader
+   * and CAMetalLayer, rather than separate accessors per fact).
+   *
+   * `image` is the frame as a drawable SkImage: always set on CPU
+   * engines; on GPU engines it is set when frame() was given a recorder
+   * to wrap `nativeTexture` for. Wraps are cached per version, so the
+   * SkImage identity is stable across draws of the same frame and
+   * Skia-side caches keyed on it stay warm.
+   *
+   * `dirtyBounds` is the page region that changed in this repaint (CEF
+   * OnPaint-style), in frame pixels — full bounds when unknown.
+   * Consumers that blend the frame over live content can use it to
+   * limit their own repaint area.
+   *
+   * `version` increases by one per repaint and is 0 before the first
+   * paint. A default-constructed Frame is falsy.
+   */
   struct Frame {
     sk_sp<SkImage> image;
+    void *nativeTexture = nullptr;
+    int width = 0;
+    int height = 0;
+    SkIRect dirtyBounds = SkIRect::MakeEmpty();
     uint64_t version = 0;
+
+    explicit operator bool() const {
+      return image != nullptr || nativeTexture != nullptr;
+    }
   };
 
   enum class MouseButton { None, Left, Middle, Right };
@@ -70,40 +95,28 @@ public:
   void setLoadCallback(std::function<void()> callback);
 
   /** Fires on the web thread after each repaint publishes a new frame.
-   *  Use it to schedule a redraw of whatever composites this view. */
+   *  Use it to schedule a redraw of whatever composites this view. The
+   *  Frame carries metadata and (CPU engines) the raster image; GPU
+   *  consumers treat it as a signal and acquire via frame(recorder) on
+   *  their own render thread. */
   void setFrameCallback(std::function<void(const Frame &)> callback);
 
-  /** Latest published frame; image is null until the first repaint —
-   *  and always null on GPU engines, whose frames are MTLTextures (use
-   *  gpuFrame() / frameImage() / draw() there). */
-  Frame frame() const;
-
-  /** Cheap dirty check: version of the latest published frame (CPU or
-   *  GPU). */
-  uint64_t frameVersion() const;
-
-  /** A published GPU frame (GPU engines only): the native texture the
-   *  page was composited into — an id<MTLTexture> bridged to void* on
-   *  Metal, this platform's equivalent elsewhere. Valid until two more
-   *  publishes occur (frames ping-pong between two textures); wrap it
-   *  promptly or use frameImage(), which manages lifetime for you. */
-  struct GpuFrame {
-    void *nativeTexture = nullptr;
-    int width = 0;
-    int height = 0;
-    uint64_t version = 0;
-  };
-  GpuFrame gpuFrame() const;
-
   /**
-   * The latest published frame as an SkImage usable with @p recorder's
-   * Graphite context: on GPU engines this wraps the published native
-   * texture zero-copy (the image retains the texture; the engine and
-   * recorder must share one device/queue), on CPU engines it returns the
-   * raster frame (recorder may be null there). Null before the first
-   * repaint.
+   * Acquires the latest published frame. Falsy until the first repaint.
+   *
+   * On GPU engines pass the Graphite recorder you will draw with (it
+   * must share the engine's device/queue) to get `image` populated with
+   * a zero-copy, per-version-cached wrap of the frame texture; without
+   * a recorder you still get `nativeTexture` + metadata. On CPU engines
+   * the recorder is ignored and `image` is the raster frame.
+   *
+   * Call from the thread that owns @p recorder.
    */
-  sk_sp<SkImage> frameImage(skgpu::graphite::Recorder *recorder) const;
+  Frame frame(skgpu::graphite::Recorder *recorder = nullptr) const;
+
+  /** Cheap poll: version of the latest published frame (CPU or GPU).
+   *  Redraw consumers skip work while this hasn't moved. */
+  uint64_t frameVersion() const;
 
   /** Draws the latest published frame scaled into @p dst. On GPU engines
    *  @p canvas must be Graphite-backed (its recorder wraps the frame

@@ -11,6 +11,7 @@
 #include "WebGpuDriver.h"
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkData.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -189,15 +190,28 @@ public:
   std::atomic<int> height{0};
 
   // Latest published frame, readable from any thread. CPU engines fill
-  // latestImage; GPU engines ping-pong the two retained MTLTextures and
-  // expose publishedGpuTexture.
+  // latestImage; GPU engines ping-pong the two retained native textures
+  // and expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
   void *publishedGpuTexture = nullptr;
   void *spareGpuTexture = nullptr;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
+  SkIRect lastDirtyBounds = SkIRect::MakeEmpty();
   std::atomic<uint64_t> version{0};
+
+  // Per-version cache of the Graphite wrap handed out by frame(): keeps
+  // the SkImage identity stable across draws of one frame (Skia caches
+  // key on it) and makes repeat acquisition free. Guarded by frameMutex;
+  // the wrap itself happens on the recorder owner's thread.
+  mutable sk_sp<SkImage> cachedWrap;
+  mutable uint64_t cachedWrapVersion = 0;
+  mutable skgpu::graphite::Recorder *cachedWrapRecorder = nullptr;
+
+  // CPU publish buffers, recycled once consumers release the SkImages
+  // that reference them (web thread only).
+  std::vector<sk_sp<SkData>> publishPool;
 
   // Web-thread-only state (set via posted tasks, invoked on the web thread).
   std::function<void(const WebView::Frame &)> frameCallback;

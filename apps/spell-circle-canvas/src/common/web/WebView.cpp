@@ -33,25 +33,50 @@ bool WebView::Impl::publishIfDirty() {
   if (!surface || surface->dirty_bounds().IsEmpty())
     return false;
 
-  // Snapshot into a fresh immutable bitmap so consumers on other threads
-  // can hold the SkImage for as long as they like while Ultralight keeps
-  // painting into the live surface.
-  const SkBitmap &src = surface->bitmap();
-  SkBitmap copy;
-  copy.allocPixels(src.info(), src.rowBytes());
-  std::memcpy(copy.getPixels(), src.getPixels(), src.computeByteSize());
-  copy.setImmutable();
+  ultralight::IntRect dirty = surface->dirty_bounds();
+  SkIRect dirtyBounds =
+      SkIRect::MakeLTRB(dirty.left, dirty.top, dirty.right, dirty.bottom);
 
-  sk_sp<SkImage> image = copy.asImage();
+  // Snapshot into an immutable buffer so consumers on other threads can
+  // hold the SkImage for as long as they like while Ultralight keeps
+  // painting into the live surface. Buffers are pooled: once every
+  // consumer releases a frame, its allocation is reused instead of
+  // paying a fresh multi-megabyte alloc (and its page faults) per
+  // publish.
+  const SkBitmap &src = surface->bitmap();
+  const size_t byteSize = src.computeByteSize();
+  sk_sp<SkData> buffer;
+  for (auto it = publishPool.begin(); it != publishPool.end(); ++it) {
+    if ((*it)->size() == byteSize && (*it)->unique()) {
+      // Take the pool's ref so the buffer is uniquely ours while writing
+      // (SkData::writable_data requires it).
+      buffer = std::move(*it);
+      publishPool.erase(it);
+      break;
+    }
+  }
+  std::erase_if(publishPool, [byteSize](const sk_sp<SkData> &pooled) {
+    return pooled->size() != byteSize && pooled->unique(); // post-resize
+  });
+  if (!buffer)
+    buffer = SkData::MakeUninitialized(byteSize);
+  std::memcpy(buffer->writable_data(), src.getPixels(), byteSize);
+
+  sk_sp<SkImage> image =
+      SkImages::RasterFromData(src.info(), buffer, src.rowBytes());
+  if (publishPool.size() < 2)
+    publishPool.push_back(std::move(buffer));
   {
     std::lock_guard<std::mutex> lock(frameMutex);
     latestImage = image;
+    lastDirtyBounds = dirtyBounds;
   }
   uint64_t newVersion = ++version;
   surface->ClearDirtyBounds();
 
   if (frameCallback)
-    frameCallback({std::move(image), newVersion});
+    frameCallback({std::move(image), nullptr, src.width(), src.height(),
+                   dirtyBounds, newVersion});
   return true;
 }
 
@@ -74,14 +99,17 @@ bool WebView::Impl::publishGpuIfDirty(
 
   driver.copyTexture(target.texture_id, spareGpuTexture, frameWidth,
                      frameHeight);
+  SkIRect dirtyBounds = SkIRect::MakeWH(frameWidth, frameHeight);
   {
     std::lock_guard<std::mutex> lock(frameMutex);
     std::swap(publishedGpuTexture, spareGpuTexture);
+    lastDirtyBounds = dirtyBounds;
   }
   uint64_t newVersion = ++version;
 
   if (frameCallback)
-    frameCallback({nullptr, newVersion});
+    frameCallback({nullptr, publishedGpuTexture, frameWidth, frameHeight,
+                   dirtyBounds, newVersion});
   return true;
 }
 
@@ -95,6 +123,9 @@ void WebView::Impl::releaseGpuTextures() {
   spareGpuTexture = nullptr;
   gpuTextureWidth = 0;
   gpuTextureHeight = 0;
+  cachedWrap = nullptr; // the wrap itself keeps its texture alive
+  cachedWrapVersion = 0;
+  cachedWrapRecorder = nullptr;
 }
 
 void WebView::Impl::OnFinishLoading(ultralight::View *, uint64_t,
@@ -121,7 +152,7 @@ WebView::~WebView() {
   // Tear the ultralight::View down on the web thread; the impl travels
   // with the task so it outlives any in-flight callbacks. Publish
   // textures are safe to release here: wrapped SkImages hold their own
-  // retains (see frameImage).
+  // retains (see WebGpuDriver::wrapTexture).
   auto impl = m_impl;
   m_impl->engine->post([impl] {
     if (impl->view) {
@@ -197,38 +228,47 @@ void WebView::setFrameCallback(std::function<void(const Frame &)> callback) {
   });
 }
 
-WebView::Frame WebView::frame() const {
+WebView::Frame WebView::frame(skgpu::graphite::Recorder *recorder) const {
   std::lock_guard<std::mutex> lock(m_impl->frameMutex);
-  return {m_impl->latestImage, m_impl->version.load()};
+  Frame result;
+  result.version = m_impl->version.load();
+  result.dirtyBounds = m_impl->lastDirtyBounds;
+
+  if (m_impl->publishedGpuTexture) {
+    result.nativeTexture = m_impl->publishedGpuTexture;
+    result.width = m_impl->gpuTextureWidth;
+    result.height = m_impl->gpuTextureHeight;
+    if (recorder) {
+      if (!m_impl->cachedWrap ||
+          m_impl->cachedWrapVersion != result.version ||
+          m_impl->cachedWrapRecorder != recorder) {
+        m_impl->cachedWrap = m_impl->engine->gpuDriver()->wrapTexture(
+            recorder, m_impl->publishedGpuTexture, result.width,
+            result.height);
+        m_impl->cachedWrapVersion = result.version;
+        m_impl->cachedWrapRecorder = recorder;
+      }
+      result.image = m_impl->cachedWrap;
+    }
+    return result;
+  }
+
+  result.image = m_impl->latestImage;
+  if (result.image) {
+    result.width = result.image->width();
+    result.height = result.image->height();
+  }
+  return result;
 }
 
 uint64_t WebView::frameVersion() const { return m_impl->version.load(); }
 
-WebView::GpuFrame WebView::gpuFrame() const {
-  std::lock_guard<std::mutex> lock(m_impl->frameMutex);
-  if (!m_impl->publishedGpuTexture)
-    return {};
-  return {m_impl->publishedGpuTexture, m_impl->gpuTextureWidth,
-          m_impl->gpuTextureHeight, m_impl->version.load()};
-}
-
-sk_sp<SkImage> WebView::frameImage(skgpu::graphite::Recorder *recorder) const {
-  {
-    std::lock_guard<std::mutex> lock(m_impl->frameMutex);
-    if (m_impl->publishedGpuTexture)
-      return m_impl->engine->gpuDriver()->wrapTexture(
-          recorder, m_impl->publishedGpuTexture, m_impl->gpuTextureWidth,
-          m_impl->gpuTextureHeight);
-  }
-  return frame().image;
-}
-
 void WebView::draw(SkCanvas &canvas, const SkRect &dst,
                    const SkSamplingOptions &sampling) const {
-  sk_sp<SkImage> image = frameImage(canvas.recorder());
-  if (!image)
+  Frame current = frame(canvas.recorder());
+  if (!current.image)
     return;
-  canvas.drawImageRect(image, dst, sampling);
+  canvas.drawImageRect(current.image, dst, sampling);
 }
 
 bool WebView::peekPixels(SkPixmap *pixmap) const {
