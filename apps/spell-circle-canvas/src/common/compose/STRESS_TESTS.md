@@ -85,6 +85,24 @@ PathFormat foreground strokes it — endpoint moves re-route and
 invalidate through the standard dirty chain, pixel-tested across a
 re-render.
 
+**Polish pass + the particles answer:** frame-loop hot paths cleaned
+— the volatility walk now runs only on reconcile/animation frames
+(plus one settling frame), stats tallies moved out of draw() into
+stats(), trivial leaf boxes no longer earn pictures, text measurement
+short-circuits Yoga's re-probes by (constraint, content-rev), and the
+derive/custom-layout passes skip trees that contain none. `leaks`
+reports **0 leaked bytes** for compose_demo and ComposeGallery.
+"What would millions look like?" is now measured: UI-as-particles is
+ONE `Cache::None` custom leaf over an EnTT registry (SoA pools stepped
+as a Ticker steppable) batching into a single `drawAtlas` — the
+textflow GlyphRSXformBatches pattern. CPU raster: ~300 ns/particle
+flat (10k = 3 ms, 1M = 309 ms; per-particle drawCircle is 2.5×
+worse). **Graphite: 3.7 ns/particle — 1,000,000 plus-blended sprites
+in 3.7 ms/frame.** Millions are a leaf, not a tree; EnTT belongs on
+the user side of the seam, exactly where the scene core already uses
+it. Retained-tree instances themselves stay AoS until profiles say
+otherwise (the tree walks are no longer per-frame).
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

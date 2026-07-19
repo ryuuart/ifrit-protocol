@@ -58,7 +58,7 @@ add_executable(compose_bench
   ${COMPOSE_BENCH_GPU_SOURCES}
 )
 target_link_libraries(compose_bench PRIVATE
-  IfritCompose TextFlowPorts benchmark::benchmark)
+  IfritCompose TextFlowPorts benchmark::benchmark EnTT::EnTT)
 if(APPLE AND TARGET SpellCircleSkia)
   set_source_files_properties(bench/ComposeBenchGpuMetal.mm PROPERTIES
     COMPILE_OPTIONS -fobjc-arc)

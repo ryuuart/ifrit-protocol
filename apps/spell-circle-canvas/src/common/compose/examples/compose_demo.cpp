@@ -3,6 +3,7 @@
 // ./compose_demo_out. The interactive Qt ComposeGallery follows later.
 
 #include <ifritcompose/Compose.h>
+#include <ifritcompose/Util.h>
 #include <ifritcompose/Decorations.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/core/SkPathBuilder.h>
@@ -24,11 +25,6 @@
 
 using namespace ifrit::compose;
 
-namespace {
-std::u8string toU8(const std::string &s) {
-  return std::u8string(s.begin(), s.end());
-}
-} // namespace
 
 namespace {
 
@@ -105,8 +101,8 @@ Element scoreRow(const Row &row) {
       .fill(Fill::color(row.highlighted
                             ? SkColor4f{0.32f, 0.18f, 0.45f, 1}
                             : SkColor4f{0.10f, 0.11f, 0.16f, 1}))
-      .child(text(toU8(row.name), styleAt(18, 0xffe8ecf8)).grow(1))
-      .child(text(toU8(std::to_string(row.score)),
+      .child(text(ifrit::compose::util::toU8(row.name), styleAt(18, 0xffe8ecf8)).grow(1))
+      .child(text(ifrit::compose::util::toU8(std::to_string(row.score)),
                   styleAt(18, 0xff7ee8ff)));
 }
 

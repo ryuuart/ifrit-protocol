@@ -16,6 +16,11 @@
 
 namespace ifrit::compose::util {
 
+/** UTF-8 std::string → std::u8string for text() call sites. */
+inline std::u8string toU8(std::string_view s) {
+  return std::u8string(s.begin(), s.end());
+}
+
 /** Linear gradient Fill — one line over Fill::shader + SkShaders. */
 inline Fill linearGradient(SkPoint from, SkPoint to,
                            std::vector<SkColor4f> colors,

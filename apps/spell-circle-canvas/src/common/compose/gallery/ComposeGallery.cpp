@@ -9,6 +9,7 @@
 // to PNG and exits (CI smoke / visual review).
 
 #include <ifritcompose/Compose.h>
+#include <ifritcompose/Util.h>
 
 #include <textflow/FontContext.h>
 #include <textflow/ports/SystemFontManager.h>
@@ -39,10 +40,6 @@ using namespace ifrit::compose;
 using namespace std::chrono_literals;
 
 namespace {
-
-std::u8string toU8(const std::string &s) {
-  return std::u8string(s.begin(), s.end());
-}
 
 textflow::FontContext &fonts() {
   static auto *context =
@@ -91,8 +88,8 @@ struct ScoreboardScene final : Scene {
         .fill(Fill::color(row.highlighted
                               ? SkColor4f{0.35f, 0.20f, 0.52f, 1}
                               : SkColor4f{0.10f, 0.11f, 0.16f, 1}))
-        .child(text(toU8(row.name), styleAt(20, 0xffe8ecf8)).grow(1))
-        .child(text(toU8(std::to_string(row.score)),
+        .child(text(ifrit::compose::util::toU8(row.name), styleAt(20, 0xffe8ecf8)).grow(1))
+        .child(text(ifrit::compose::util::toU8(std::to_string(row.score)),
                     styleAt(20, 0xff7ee8ff)));
   }
 
@@ -190,13 +187,13 @@ struct BlendScene final : Scene {
   static Element table(const char *title, SkColor4f base) {
     auto t = box().column().gap(6).padding(18).width(380).corners({12})
                  .fill(Fill::color(base));
-    t.child(text(toU8(title), styleAt(22, 0xffffffff)));
+    t.child(text(ifrit::compose::util::toU8(title), styleAt(22, 0xffffffff)));
     for (int i = 0; i < 4; ++i)
       t.child(box().row().gap(10).padding(8).corners({6})
                   .fill(Fill::color({0, 0, 0, 0.35f}))
-                  .child(text(toU8("row " + std::to_string(i)),
+                  .child(text(ifrit::compose::util::toU8("row " + std::to_string(i)),
                               styleAt(16, 0xffdde4f2)).grow(1))
-                  .child(text(toU8(std::to_string(37 * (i + 1))),
+                  .child(text(ifrit::compose::util::toU8(std::to_string(37 * (i + 1))),
                               styleAt(16, 0xff7ee8ff))));
     return t;
   }

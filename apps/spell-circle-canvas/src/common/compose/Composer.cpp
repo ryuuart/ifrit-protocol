@@ -94,6 +94,9 @@ struct Instance {
   textflow::ParagraphLayout textLayout;
   std::vector<textflow::LineMetrics> lines;
   float measuredForWidth = -1.0f;
+  YGSize measuredSize{0, 0};
+  uint32_t contentRev = 0;     // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
 
   // Transition state, keyed by property slot
   enum Slot : int { kOpacity, kTx, kTy, kRotate, kScale, kFillLerp, kSlots };
@@ -142,8 +145,12 @@ struct Composer::Impl {
   bool needsLayout = true;
   bool contentDirty = true;
   std::unordered_map<std::string, Instance *> byKey;
+  bool volatileDirty = true;   // recompute needed (render or animation)
+  bool tickerWasActive = false;
+  bool hasDerived = false;     // any flowAround/connector in the tree
+  bool hasCustomLayout = false;
 
-  Stats stats;
+  mutable Stats stats;
 
   Impl(tick::Ticker &t, textflow::FontContext &f) : ticker(t), fonts(f) {
     yogaConfig = YGConfigNew();
@@ -218,6 +225,9 @@ YGSize measureTextNode(YGNodeConstRef node, float width, YGMeasureMode widthMode
       const_cast<YGNodeRef>(node)));
   const float constraint =
       widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
+  if (constraint == inst->measuredForWidth &&
+      inst->measuredRev == inst->contentRev)
+    return inst->measuredSize; // Yoga re-probes; layout is already valid
   auto &impl = *inst->owner;
   if (inst->exclusionLocal) {
     textflow::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
@@ -235,7 +245,9 @@ YGSize measureTextNode(YGNodeConstRef node, float width, YGMeasureMode widthMode
   SkRect bounds = SkRect::MakeEmpty();
   for (const textflow::LineMetrics &line : inst->lines)
     bounds.join(line.rect());
-  return {std::ceil(bounds.width()), std::ceil(bounds.height())};
+  inst->measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
+  inst->measuredRev = inst->contentRev;
+  return inst->measuredSize;
 }
 
 float baselineOfTextNode(YGNodeConstRef node, float, float) {
@@ -313,11 +325,17 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
 
   applyLayoutProps(inst);
 
+  if (!resolved->flowAroundKey.empty() || !resolved->connectFrom.empty())
+    hasDerived = true;
+  if (resolved->placeFn)
+    hasCustomLayout = true;
+
   if (resolved->kind == Kind::Text) {
     const bool textChanged = !prev || kindChanged ||
                              prev->textUtf8 != resolved->textUtf8 ||
                              !(prev->textStyle == resolved->textStyle);
     if (textChanged) {
+      inst.contentRev++;
       inst.paragraph.emplace();
       inst.paragraph->appendText(resolved->textUtf8, resolved->textStyle);
       YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
@@ -587,6 +605,7 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
     if (exclusion != inst.exclusionLocal) {
       inst.exclusionLocal = exclusion;
+      inst.contentRev++;
       YGNodeMarkDirty(inst.yoga);
       inst.markPaintDirtyUp();
       relayout = true;
@@ -868,7 +887,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     canvas.drawImageRect(inst.textureImage,
                          SkRect::MakeWH(rect.width(), rect.height()),
                          SkSamplingOptions(SkFilterMode::kLinear));
-  } else if (!inst.subtreeVolatile && node.cacheMode != Cache::None) {
+  } else if (!inst.subtreeVolatile && node.cacheMode != Cache::None &&
+             (node.cacheMode == Cache::Picture || !inst.children.empty() ||
+              node.kind == Kind::Text || node.kind == Kind::Custom ||
+              node.kind == Kind::Image || !node.backgrounds.empty() ||
+              !node.foregrounds.empty() || node.layerEffect)) {
     if (!inst.picture || inst.paintDirty) {
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(
@@ -942,16 +965,8 @@ void Composer::render(Element root) {
     impl.patch(*impl.root, root.node());
 
   impl.computeVolatile(*impl.root);
+  impl.volatileDirty = true; // transitions may have started
   impl.rebuildKeyIndex();
-
-  size_t count = 0;
-  std::function<void(const Instance &)> tally = [&](const Instance &i) {
-    ++count;
-    for (const auto &c : i.children)
-      tally(*c);
-  };
-  tally(*impl.root);
-  impl.stats.instances = count;
 }
 
 void Composer::renderSlot(std::string_view name, Element content) {
@@ -974,6 +989,7 @@ void Composer::renderSlot(std::string_view name, Element content) {
   }
   slotInst.markPaintDirtyUp();
   impl.contentDirty = true;
+  impl.volatileDirty = true;
   if (impl.root)
     impl.computeVolatile(*impl.root);
   impl.rebuildKeyIndex();
@@ -998,35 +1014,31 @@ void Composer::draw(SkCanvas &canvas) {
                           YGDirectionLTR);
     // Custom layout() containers: a bounded second pass — children were
     // measured by pass one; scheme.place() pins them, pass two resolves.
-    bool repass = impl.applyCustomLayouts(*impl.root);
+    bool repass =
+        impl.hasCustomLayout && impl.applyCustomLayouts(*impl.root);
     // Derive phase: geometry-consuming content (exclusions, connectors).
-    repass |= impl.resolveDerived(*impl.root);
+    if (impl.hasDerived)
+      repass |= impl.resolveDerived(*impl.root);
     if (repass) {
       YGNodeCalculateLayout(impl.root->yoga, YGUndefined, YGUndefined,
                             YGDirectionLTR);
-      impl.resolveDerived(*impl.root); // refresh connectors post-move
+      if (impl.hasDerived)
+        impl.resolveDerived(*impl.root); // refresh connectors post-move
     }
     impl.needsLayout = false;
   }
 
-  // Volatility can settle frame to frame (transitions finish).
-  impl.computeVolatile(*impl.root);
+  // Volatility changes only on reconcile or while animations run (and
+  // once more on the settling frame) — skip the walk otherwise.
+  const bool active = impl.ticker.active();
+  if (impl.volatileDirty || active || impl.tickerWasActive) {
+    impl.computeVolatile(*impl.root);
+    impl.volatileDirty = false;
+  }
+  impl.tickerWasActive = active;
 
   impl.paint(*impl.root, canvas);
   impl.contentDirty = false;
-
-  size_t live = 0, textures = 0;
-  std::function<void(const Instance &)> tally = [&](const Instance &i) {
-    if (i.picture)
-      ++live;
-    if (i.textureImage)
-      ++textures;
-    for (const auto &c : i.children)
-      tally(*c);
-  };
-  tally(*impl.root);
-  impl.stats.picturesLive = live;
-  impl.stats.texturesLive = textures;
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {
@@ -1051,6 +1063,24 @@ Composer::paragraphLayout(std::string_view key) const {
   return &it->second->textLayout;
 }
 
-const Composer::Stats &Composer::stats() const { return m_impl->stats; }
+const Composer::Stats &Composer::stats() const {
+  // Tree tallies are computed on demand, never in the frame loop.
+  size_t instances = 0, pictures = 0, textures = 0;
+  std::function<void(const Instance &)> tally = [&](const Instance &i) {
+    ++instances;
+    if (i.picture)
+      ++pictures;
+    if (i.textureImage)
+      ++textures;
+    for (const auto &child : i.children)
+      tally(*child);
+  };
+  if (m_impl->root)
+    tally(*m_impl->root);
+  m_impl->stats.instances = instances;
+  m_impl->stats.picturesLive = pictures;
+  m_impl->stats.texturesLive = textures;
+  return m_impl->stats;
+}
 
 } // namespace ifrit::compose

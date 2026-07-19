@@ -3,6 +3,7 @@
 // actually save. Reference numbers live in STRESS_TESTS.md.
 
 #include <ifritcompose/Compose.h>
+#include <ifritcompose/Util.h>
 
 #include <include/effects/SkImageFilters.h>
 
@@ -14,16 +15,12 @@
 
 #include <benchmark/benchmark.h>
 
+#include <random>
 #include <string>
 #include <vector>
 
 using namespace ifrit::compose;
 
-namespace {
-std::u8string toU8(const std::string &s) {
-  return std::u8string(s.begin(), s.end());
-}
-} // namespace
 using namespace std::chrono_literals;
 
 namespace {
@@ -45,8 +42,8 @@ Element scoreRow(const Row &row) {
   style.shaping.fontSize = 14.0f;
   return box().row().gap(12).padding(8).corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .child(text(toU8(row.name), style).grow(1))
-      .child(text(toU8(std::to_string(row.score)), style));
+      .child(text(ifrit::compose::util::toU8(row.name), style).grow(1))
+      .child(text(ifrit::compose::util::toU8(std::to_string(row.score)), style));
 }
 
 Element scoreboard(const std::vector<Row> &rows) {
@@ -341,5 +338,144 @@ static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
 BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
 
 #endif // COMPOSE_BENCH_GRAPHITE
+
+
+// ---- "UI as particles": the scale answer ----------------------------------
+// Millions of visual items are ONE element, not a million elements: an
+// EnTT registry (SoA component pools, cache-friendly iteration) stepped
+// as a Ticker steppable, rendered by a single Cache::None custom leaf
+// batching everything into one SkCanvas::drawAtlas call — the same
+// GlyphRSXformBatches pattern textflow::Choreograph uses for glyphs.
+
+#include <entt/entt.hpp>
+
+#include <include/core/SkRSXform.h>
+
+namespace {
+
+struct Particle {
+  entt::registry registry;
+  sk_sp<SkImage> sprite;
+  std::vector<SkRSXform> xforms;
+  std::vector<SkRect> texRects;
+
+  struct Pos { float x, y; };
+  struct Vel { float dx, dy; };
+
+  explicit Particle(size_t count) {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
+    s->getCanvas()->clear(SK_ColorTRANSPARENT);
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor(0xff7ee8ff);
+    s->getCanvas()->drawCircle(4, 4, 3.5f, p);
+    sprite = s->makeImageSnapshot();
+
+    std::mt19937 rng{11};
+    auto unit = [&] { return (float)(rng() % 10000) / 10000.0f; };
+    for (size_t i = 0; i < count; ++i) {
+      entt::entity e = registry.create();
+      registry.emplace<Pos>(e, unit() * 800.0f, unit() * 800.0f);
+      registry.emplace<Vel>(e, unit() * 80 - 40, unit() * 80 - 40);
+    }
+    xforms.reserve(count);
+    texRects.assign(count, SkRect::MakeWH(8, 8));
+  }
+
+  void step(float dt) {
+    registry.view<Pos, const Vel>().each([dt](Pos &p, const Vel &v) {
+      p.x += v.dx * dt;
+      p.y += v.dy * dt;
+      if (p.x < 0) p.x += 800; else if (p.x > 800) p.x -= 800;
+      if (p.y < 0) p.y += 800; else if (p.y > 800) p.y -= 800;
+    });
+  }
+
+  void draw(SkCanvas &c) {
+    xforms.clear();
+    registry.view<const Pos>().each([this](const Pos &p) {
+      xforms.push_back(SkRSXform::Make(1, 0, p.x, p.y));
+    });
+    c.drawAtlas(sprite.get(), SkSpan(xforms.data(), xforms.size()),
+                SkSpan(texRects.data(), texRects.size()), {},
+                SkBlendMode::kPlus, SkSamplingOptions(SkFilterMode::kNearest),
+                nullptr, nullptr);
+  }
+};
+
+} // namespace
+
+/** Full frame at N particles: EnTT SoA step + one drawAtlas leaf. */
+static void BM_Particles_EnttAtlasLeaf(benchmark::State &state) {
+  const size_t count = (size_t)state.range(0);
+  auto particles = std::make_shared<Particle>(count);
+  Host host(800, 800);
+  host.composer.render(box().child(
+      custom([particles](SkCanvas &c, const PaintContext &) {
+        particles->draw(c);
+      }).inset(0).cache(Cache::None)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) {
+    particles->step(1.0f / 120.0f);
+    host.composer.draw(*host.surface->getCanvas());
+  }
+  state.counters["perParticleNs"] =
+      benchmark::Counter((double)count, benchmark::Counter::kIsIterationInvariantRate |
+                                            benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Particles_EnttAtlasLeaf)->Arg(10000)->Arg(100000)->Arg(1000000);
+
+/** The anti-pattern for contrast: per-particle draw calls. */
+static void BM_Particles_DrawCircleLoop(benchmark::State &state) {
+  const size_t count = (size_t)state.range(0);
+  auto particles = std::make_shared<Particle>(count);
+  Host host(800, 800);
+  host.composer.render(box().child(
+      custom([particles](SkCanvas &c, const PaintContext &) {
+        SkPaint p;
+        p.setAntiAlias(true);
+        p.setColor(0xff7ee8ff);
+        particles->registry.view<const Particle::Pos>().each(
+            [&](const Particle::Pos &pos) {
+              c.drawCircle(pos.x, pos.y, 3.5f, p);
+            });
+      }).inset(0).cache(Cache::None)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) {
+    particles->step(1.0f / 120.0f);
+    host.composer.draw(*host.surface->getCanvas());
+  }
+}
+BENCHMARK(BM_Particles_DrawCircleLoop)->Arg(10000);
+
+
+#ifdef COMPOSE_BENCH_GRAPHITE
+/** The same particle frame against a Graphite Metal target: drawAtlas
+ *  becomes an instanced GPU batch; the CPU cost is building RSXforms. */
+static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State &state) {
+  const size_t count = (size_t)state.range(0);
+  auto particles = std::make_shared<Particle>(count);
+  Host host(800, 800);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphite().recorder(), SkImageInfo::MakeN32Premul(800, 800));
+  host.composer.render(box().child(
+      custom([particles](SkCanvas &c, const PaintContext &) {
+        particles->draw(c);
+      }).inset(0).cache(Cache::None)));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite();
+  for (auto _ : state) {
+    particles->step(1.0f / 120.0f);
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite();
+  }
+  state.counters["perParticleNs"] =
+      benchmark::Counter((double)count,
+                         benchmark::Counter::kIsIterationInvariantRate |
+                             benchmark::Counter::kInvert);
+}
+BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)
+    ->Arg(100000)->Arg(1000000);
+#endif
 
 BENCHMARK_MAIN();
