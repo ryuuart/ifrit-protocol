@@ -1,5 +1,33 @@
 # IfritCompose — stress-test catalog
 
+## Phase-1 status and reference numbers
+
+Kernel landed: items 1–3 render in `compose_demo` (PNG panels), the
+kernel semantics (layout, stacking, memo, keyed reorder, auto-caching,
+transition retarget/unmount, bindings) are pinned by `compose_test`,
+and `compose_bench` (Release, Apple Silicon dev Mac, 100 text rows,
+800×2400 raster target) reads:
+
+| Benchmark | Time | Notes |
+| --- | --- | --- |
+| render, nothing changed | 29 µs | 100 memo hits ≈ 290 ns/row |
+| render, one row changed | 30 µs | one describe+patch ≈ +0.7 µs |
+| render, cold mount | 226 µs | describe + mount + Yoga |
+| draw, fully cached | 406 µs | 1 picture, 0 live nodes |
+| draw, root-bound volatile | 375 µs | volatility partitions: 1 live node, rows stay cached |
+| relayout on width change | 583 µs | ~200 paragraph re-measures |
+| frame with 1 transition | 700 µs | ticker step + partial repaint |
+
+**Finding (assumption revised):** on a *raster* target, SkPicture
+replay re-rasterizes — cached and volatile draws cost the same ~400 µs
+because pixels dominate, and the cache's win is confined to describe/
+layout/traversal. The pixel-level win arrives with (a) Graphite
+targets, where replay is cheap command re-recording on the GPU, and
+(b) `Cache::Texture` (phase 2), which rasterizes once — now justified
+as the *raster-surface* optimization, not just an effects host. At
+~0.4 ms per full 100-row redraw the raster numbers are comfortably
+inside frame budget regardless; item 21 re-measures on Graphite.
+
 Every use case raised during design review, kept as the implementation's
 acceptance suite. Each item names what it exercises and how it will be
 validated: **golden** = headless golden-image test (textflow_demo-style

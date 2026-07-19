@@ -15,9 +15,10 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            choreograph timelines, event-driven redraw
                            contract), compose/ (IfritCompose —
                            data-driven drawable components over
-                           Yoga+TextFlow+Choreograph; DESIGN.md /
-                           API.md / STRESS_TESTS.md + feasibility
-                           spike only, implementation pending)
+                           Yoga+TextFlow+Choreograph: phase-1 kernel
+                           implemented — see DESIGN.md / API.md /
+                           STRESS_TESTS.md for architecture, surface,
+                           and measured numbers)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
@@ -55,7 +56,9 @@ README). The primary executables are `SpellCircle`,
 `textflow_test`, `textflow_bench`, `textflow_demo`, `ifritweb_demo`
 (CPU/lockstep), `ifritweb_gpu_demo` (Metal + Graphite), and `web_bench`
 (IfritWeb path costs; plain = CPU engine, `--gpu` = GPU engine — see the
-performance table in `src/common/web/README.md`).
+performance table in `src/common/web/README.md`), `compose_test`,
+`compose_bench`, and `compose_demo` (headless PNG panels of the
+compose stress catalog).
 
 The Ultralight SDK is required for IfritWeb;
 `SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's

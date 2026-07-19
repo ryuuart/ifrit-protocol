@@ -218,5 +218,9 @@ Library **IfritCompose**, namespace `ifrit::compose`, directory
 - `saveLayer` cost for opacity/blend/effect groups on Graphite — the
   CRT/bloom stress tests exist to measure exactly this; stacking
   contexts keep it opt-in.
+- Measured (phase 1): on raster targets picture replay re-rasterizes,
+  so auto-caching bounds CPU at rasterization cost (~4 µs/text row);
+  `Cache::Texture` is the raster-surface pixel win, Graphite targets
+  get cheap replay. See STRESS_TESTS.md reference numbers.
 - `flowAround`'s second layout pass must stay bounded (single re-pass,
   cycles rejected at reconcile).
