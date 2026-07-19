@@ -139,15 +139,18 @@ props re-measure — visible in the API, chosen deliberately.
 
 ## Caching
 
-Explicit boundaries (Flutter's RepaintBoundary meets Skia display
-lists): `Cache::Picture` (record once, replay — repeated complex items
-and static compositions become ~free), `Cache::Texture` (rasterized
-snapshot; natural fit under layer effects — a filtered layer stays
-cached until its subtree dirties), `Cache::None` (live per-frame:
-choreographed glyphs, web frames, per-frame custom leaves).
-Invalidation is the reconciler's job — a boundary re-records only when
-its subtree changed; volatility is declared (bindings, `animated()`
-decorations), never guessed.
+Cache as much as possible — automatically, because it is provable:
+declared volatility (bindings, `with()` transitions, `animated()`
+schemes, live leaves) means "static" is a decidable property of a
+subtree, not a heuristic. The reconciler prunes structurally-equal
+descriptions wholesale (with or without `memo` — `memo` only saves
+calling the describe function); provably-static subtrees are
+picture-cached automatically (record once, replay; Flutter's
+RepaintBoundary meets Skia display lists, minus the manual boundary);
+`.cache()` is an override — `None` to opt out, `Texture` to rasterize
+under heavy effects. Volatility partitions the tree: an animating node
+demotes itself, never its static siblings. Invalidation is the
+reconciler's job alone.
 
 ## Independent data domains
 
@@ -169,20 +172,23 @@ system (the React ref lesson).
 
 The review rounds grew the surface; this boundary keeps the original
 goal — *draw and control, quickly and robustly, without framework
-weight* — honest. The **kernel** is what phase 1 builds and what every
-user must understand: `Element`/component functions/`Composer`, Yoga
-flex + `stack()`, stacking paint with zIndex/opacity/blend/transform,
-`Fill`, the text/image/custom leaves, `key` + `memo`,
-`Cache::Picture`, and `ch::Output` bindings. Everything else is an
-**extension that plugs into a kernel seam** and ships as its own
-header, with the kernel depending on none of it: `LayoutScheme`
-(custom layout), `PathFormat`/`Slice`/`ContourWalk` (decoration
-primitives beyond Fill), `Effect`/backdrop (layer post-processing),
-the derive phase (`flowAround`, `connector`), slots, `Cache::Texture`,
-and implicit transitions. A user who reads only the kernel section of
-API.md has a complete, sound mental model; extensions add power
-without ever changing kernel semantics. That is the design's weight
-budget, enforced structurally.
+weight* — honest. Three tiers. The **kernel** is what phase 1 builds
+and what every user must understand: `Element`/component functions/
+`Composer`, Yoga flex + `stack()`, stacking paint with
+zIndex/opacity/blend/transform, `Fill::color/shader`, the
+text/image/custom leaves, `key` + `memo`, `PropValue`/`Transition`,
+`ch::Output` bindings, and automatic caching. **Util**
+(`<ifritcompose/util.h>`) holds deliberately-demoted sugar a user
+could write themselves — gradient constructors, stroke/shadow
+helpers, the `Stage` host bundle — depending only on the kernel and
+optional by definition. Everything else is an **extension that plugs
+into a kernel seam** and ships as its own header, with the kernel
+depending on none of it: `LayoutScheme`, `PathFormat`/`Slice`/
+`ContourWalk`, `Effect`/backdrop, the derive phase (`flowAround`,
+`connector`), slots, `Cache::Texture`. A user who reads only the
+kernel section of API.md has a complete, sound mental model;
+extensions add power without ever changing kernel semantics. That is
+the design's weight budget, enforced structurally.
 
 ## Naming
 

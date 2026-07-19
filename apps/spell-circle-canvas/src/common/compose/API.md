@@ -34,32 +34,37 @@ Every layer has a bottom you can reach.
 ## Values
 
 ```cpp
-// Paint slots accept real Skia machinery; the named constructors are
-// conveniences, shader() is the general case.
+// The kernel Fill is two constructors — a color, or anything Skia can
+// shade. Gradient conveniences are userland-shaped and live in
+// <ifritcompose/util.h> (they are one-line wrappers over
+// Fill::shader(SkShaders::LinearGradient(...))).
 struct Fill {
   static Fill color(SkColor4f c);
-  static Fill linearGradient(SkPoint from, SkPoint to,
-                             std::vector<SkColor4f> colors,
-                             std::vector<float> stops = {});
-  static Fill radialGradient(SkPoint center, float radius,
-                             std::vector<SkColor4f> colors,
-                             std::vector<float> stops = {});
-  static Fill shader(sk_sp<SkShader> shader);   // anything Skia can make
+  static Fill shader(sk_sp<SkShader> shader);
   static Fill none();
 };
 
-struct Stroke  { Fill fill; float width = 1.0f; };
-struct Shadow  { SkColor4f color; SkVector offset; float blur = 0.0f; };
 struct Corners { float radius = 0;  /* or per-corner overloads */ };
 
 // Dimensions carry Yoga semantics: pixels, percent of parent, or auto.
 struct Dim;                    // implicit from float (px)
 Dim px(float);  Dim pct(float);  Dim autoDim();
 
-// Any float-valued paint property can be a live Choreograph binding
-// instead of a constant. Bound properties are paint-only by contract:
+// Property values — ONE wrapper scheme for every animatable property,
+// no per-setter overload matrix: a constant, a constant that
+// transitions when it changes, or a live Choreograph binding.
+struct Transition {
+  std::chrono::milliseconds duration;
+  choreograph::EaseFn ease = choreograph::easeOutQuad;
+};
+template <typename T> struct Transitioned { T value; Transition spec; };
+template <typename T> Transitioned<T> with(T value, Transition spec);
+
+template <typename T>   // T: float, SkColor4f, Fill… (Lerpable concept)
+using PropValue = std::variant<T, Transitioned<T>,
+                               const choreograph::Output<T> *>;
+// Bound and transitioned properties are paint-only by contract:
 // animating them never triggers relayout.
-using Animatable = std::variant<float, const choreograph::Output<float> *>;
 ```
 
 ## Elements
@@ -95,32 +100,27 @@ Element &corners(Corners);
 Element &clip(bool = true); Element &clipPath(SkPath);
 
 // ---- paint (ours; stacking per DESIGN.md) ----
-// fill/stroke/shadow are DEFINED as sugar over the decoration slots:
-// .fill(f) ≡ .background(f); .stroke(s) ≡ .foreground(PathFormat from s);
-// .shadow(s) ≡ .background(shadow decoration). One painting system.
-Element &fill(Fill); Element &stroke(Stroke); Element &shadow(Shadow);
-Element &opacity(Animatable);
+// .fill() is kernel; every setter takes a PropValue, so
+// with(v, {300ms}) and Output bindings work uniformly everywhere:
+Element &fill(PropValue<Fill>);            // colors/fills lerp via
+                                           // choreograph Sequence
+Element &opacity(PropValue<float>);
 Element &blend(SkBlendMode);
-Element &translateX(Animatable); Element &translateY(Animatable);
-Element &rotate(Animatable /*degrees*/); Element &scale(Animatable);
+Element &translateX(PropValue<float>); Element &translateY(PropValue<float>);
+Element &rotate(PropValue<float>); Element &scale(PropValue<float>);
 Element &transformOrigin(float fx, float fy);   // fractions of own box
 Element &zIndex(int);
+// stroke()/shadow()/gradient constructors live in <ifritcompose/util.h>
+// — pure sugar over foreground(PathFormat…)/background(…)/Fill::shader,
+// deliberately outside the kernel (see "Kernel, util, extensions").
 
 // ---- identity, caching, transitions ----
 Element &key(std::string_view);            // stable identity across renders
-Element &cache(Cache);                     // Picture | Texture | None
-
-// Implicit transitions — no property enum (properties are named once,
-// by their setters). Node-level: reconciled changes to ANY animatable
-// property on this node ramp instead of snap. Property-level: pass a
-// Transition to the setter itself to scope or override.
-struct Transition { std::chrono::milliseconds duration;
-                    choreograph::EaseFn ease = choreograph::easeOutQuad; };
-Element &transition(Transition);                       // node default
-Element &opacity(float, Transition);                   // per-property
-Element &fill(Fill, Transition);                       // colors lerp via
-                                                       // choreograph
-                                                       // Sequence<SkColor4f>
+Element &cache(Cache);                     // OVERRIDE only — see Caching:
+                                           // provably-static subtrees are
+                                           // picture-cached automatically
+Element &transition(Transition);           // node default applied to any
+                                           // plain-constant prop change
 
 // ---- composition ----
 Element &child(Element);
@@ -156,6 +156,31 @@ using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
 // decorations are the same concept in different slots.
 Element custom(PaintProgram program);
 ```
+
+### Transition semantics — declarative state, not commands
+
+Transitions are not fire-and-forget animations; they are a standing
+declaration: *changes to this property converge smoothly instead of
+snapping*. The lifecycle rules, stated once:
+
+- **One motion per (instance, property), always.** A reconciled change
+  while a transition is mid-flight **retargets**: the motion continues
+  from the property's *current* value toward the new target — this is
+  Choreograph's own `Output` re-apply semantic, and matches CSS
+  transitions. Nothing stacks, nothing queues.
+- **Reset is just description.** Describe the value you want; the
+  system converges toward the latest description. Changing back
+  mid-flight retargets back; describing a plain value with no
+  `with()`/node transition snaps. There is no imperative
+  cancel/reset/cleanup API to call or forget.
+- **Mount applies values directly** — no transition on first
+  appearance (the CSS rule). Enter/exit choreography is explicit
+  bindings today; a dedicated enter/exit extension can come later.
+- **Unmount cancels automatically**: the instance's `ch::Output`s are
+  destroyed with it, and Choreograph disconnects a motion when its
+  Output dies — removed list rows can't leak motions by construction.
+- **Keys carry state**: a keyed node that moves in the tree keeps its
+  instance, so mid-flight transitions survive reorders.
 
 ## Composer — the retained side, and the whole canvas contract
 
@@ -196,6 +221,55 @@ That is the entire integration contract: **construct with a Ticker,
 `render()` on data change, `draw(canvas)` wherever you already draw.**
 
 ---
+
+## Caching — automatic wherever it is provable
+
+"Cache as much as possible" is the policy, and the declared-volatility
+rule is what makes it *safe to automate*: because every source of
+change is declared (bindings, `with()` transitions, `animated()`
+schemes, web/custom `Cache::None` leaves), "static" is a provable
+property of a subtree, not a heuristic guess. So:
+
+- **Reconcile prunes automatically.** Element trees are structurally
+  hashed; a subtree whose new description equals its old one is skipped
+  wholesale — no patching, no cache invalidation, *whether or not you
+  used `memo`*. `memo`'s only job is cheaper still: don't even call the
+  describe function. Use it for expensive describes over big data;
+  everything else is already pruned.
+- **Picture caching is automatic** for provably-static subtrees (no
+  declared volatility anywhere below): the composer records them on
+  first paint and replays until a reconcile dirties them. `.cache()` is
+  an *override*, not a chore: `Cache::None` to opt out (memory-tight
+  hosts, huge one-off trees), `Cache::Texture` to rasterize under
+  heavy effects. The default path is: write nothing, get the caches.
+- **Animation costs exactly its subtree.** A bound headline demotes its
+  own node, not its parent's static frame — volatility partitions the
+  tree; static siblings stay cached while neighbors animate.
+
+## Kernel, util, extensions — where things live
+
+Three layers keep the library lean and the call sites short:
+
+- **Kernel** (`<ifritcompose/compose.h>`): elements/components/
+  Composer, flex + `stack()`, stacking paint, `Fill::color/shader`,
+  text/image/custom leaves, `key`/`memo`, `PropValue` + `Transition`,
+  automatic caching. Complete mental model, smallest possible surface.
+- **Util** (`<ifritcompose/util.h>`, depends only on the kernel —
+  deliberately *demoted* sugar that users could write themselves):
+  gradient Fill constructors, `stroke()`/`shadow()` decoration
+  helpers, and `Stage` — the three-line host bundle for the common
+  loop:
+
+  ```cpp
+  util::Stage stage({1080, 1350});      // owns FrameClock+Ticker+Composer
+  stage.render(poster(info));           // on data change
+  bool more = stage.frame(canvas);      // tick + draw + needs-more-frames
+  ```
+
+  Anything in util is by definition optional reading.
+- **Extensions** (own headers, plug into kernel seams, kernel never
+  depends on them): `LayoutScheme`, `PathFormat`/`Slice`/`ContourWalk`,
+  `Effect`/backdrop, `flowAround`/`connector`, slots.
 
 ## Worked example 1 — static poster, headless (textflow_demo style)
 
