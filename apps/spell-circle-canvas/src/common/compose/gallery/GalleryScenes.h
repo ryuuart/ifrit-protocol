@@ -1,12 +1,7 @@
-// ComposeGallery — the interactive vehicle for the stress catalog, and
-// the practical-usage proof: every scene is built with the public API
-// exactly as a host app would, and the FPS overlay is itself an
-// IfritCompose composer layered over each scene (multi-composer usage).
-//
-// Keys: 1..7 scenes · Space pause · -/= time scale · F toggle stats ·
-// Esc quit.  `ComposeGallery --headless <outdir>` renders each scene
-// mid-animation to PNG, measures unthrottled frame times over 120
-// frames, prints a per-scene FPS table, and exits.
+#pragma once
+// ComposeGallery scenes + stage + registry — shared by the Qt Quick app
+// (ComposeGalleryView) and the --headless FPS runner. Each scene names
+// the STRESS_TESTS.md catalog items it exercises.
 
 #include <ifritcompose/Compose.h>
 #include <ifritcompose/Decorations.h>
@@ -24,15 +19,8 @@
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QImage>
-#include <QtGui/QKeyEvent>
-#include <QtGui/QPainter>
-#include <QtGui/QRasterWindow>
-
-#include <QtCore/QTimer>
 
 #include <algorithm>
 #include <chrono>
@@ -45,19 +33,20 @@
 #include <string>
 #include <vector>
 
+namespace compose_gallery {
+
 using namespace ifrit::compose;
 using ifrit::compose::util::toU8;
 using namespace std::chrono_literals;
 
-namespace {
 
-textflow::FontContext &fonts() {
+inline textflow::FontContext &fonts() {
   static auto *context =
       new textflow::FontContext(textflow::ports::systemFontManager());
   return *context;
 }
 
-textflow::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
+inline textflow::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
   textflow::TextStyle s;
   s.shaping.fontSize = size;
   s.paint.foreground.setColor(color);
@@ -552,12 +541,17 @@ struct GalleryStage {
     const Composer::Stats &cs = composer->stats();
     char line[160];
     const double presented = stats.presentedFps();
-    std::snprintf(line, sizeof(line),
-                  "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps%s%.0f%s",
-                  scene->name(), stats.average(), stats.percentile(0.99),
-                  stats.fps(), presented > 0 ? "   presented " : "",
-                  presented > 0 ? presented : 0.0,
-                  presented > 0 ? " fps" : "");
+    if (presented > 0)
+      std::snprintf(line, sizeof(line),
+                    "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps"
+                    "   presented %.1f fps",
+                    scene->name(), stats.average(), stats.percentile(0.99),
+                    stats.fps(), presented);
+    else
+      std::snprintf(line, sizeof(line),
+                    "%s   work %5.2f ms (p99 %5.2f)   headroom ~%.0f fps",
+                    scene->name(), stats.average(), stats.percentile(0.99),
+                    stats.fps());
     char line2[160];
     std::snprintf(line2, sizeof(line2),
                   "instances %zu   pictures %zu   textures %zu   live %zu",
@@ -580,98 +574,373 @@ struct GalleryStage {
   }
 };
 
-std::unique_ptr<Scene> makeScene(int index) {
+
+// ---- 8: independent data domains via slot() (#4) --------------------------
+
+struct SlotsScene final : Scene {
+  int counter = 0;
+  double nextTickerUpdate = 0.0;
+
+  const char *name() const override { return "slots"; }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+    counter = 0;
+    nextTickerUpdate = 0.0;
+    composer.render(
+        box().column().padding(48).gap(18)
+            .fill(Fill::color({0.06f, 0.05f, 0.12f, 1}))
+            .child(text(u8"STATIC POSTER CHROME", styleAt(44, 0xffffb46b)))
+            .child(text(u8"everything here keeps its caches while the "
+                        u8"ticker below re-renders alone",
+                        styleAt(18, 0xff9aa4bb)))
+            .child(box().grow(1))
+            .child(slot("ticker").height(64)));
+  }
+
+  void update(double elapsed, Composer &composer) override {
+    if (elapsed < nextTickerUpdate)
+      return;
+    nextTickerUpdate = elapsed + 0.1; // 10 Hz independent domain
+    ++counter;
+    composer.renderSlot(
+        "ticker",
+        box().row().gap(10).padding(12).corners({10})
+            .fill(Fill::color({0.12f, 0.16f, 0.26f, 1}))
+            .child(text(u8"live feed", styleAt(18, 0xff9aa4bb)).grow(1))
+            .child(text(toU8("tick " + std::to_string(counter)),
+                        styleAt(18, 0xff7ee8ff))));
+  }
+};
+
+// ---- 9: LayoutScheme grid + query-driven surround (#5, #6) ----------------
+
+struct GridScene final : Scene {
+  struct Grid {
+    int columns = 4;
+    float gap = 12;
+    float cellHeight = 120;
+    std::vector<SkRect> place(const LayoutInput &in) const {
+      std::vector<SkRect> rects;
+      const float w =
+          (in.container.width() - gap * (float)(columns - 1)) /
+          (float)columns;
+      for (size_t i = 0; i < in.childSizes.size(); ++i)
+        rects.push_back(SkRect::MakeXYWH(
+            (w + gap) * (float)((int)i % columns),
+            (cellHeight + gap) * (float)((int)i / columns), w,
+            cellHeight));
+      return rects;
+    }
+  };
+  int highlighted = 0;
+  double nextMove = 0.0;
+  SkRect ringRect = SkRect::MakeEmpty(); // last frame's bounds() feedback
+
+  const char *name() const override { return "grid_query"; }
+
+  Element describe() {
+    auto grid = layout(Grid{}).width(pct(100)).grow(1);
+    for (int i = 0; i < 12; ++i)
+      grid.child(box().key("cell" + std::to_string(i)).corners({10})
+                     .fill(Fill::color(i == highlighted
+                                           ? SkColor4f{0.35f, 0.2f, 0.52f, 1}
+                                           : SkColor4f{0.1f, 0.11f, 0.16f, 1}))
+                     .child(text(toU8("cell " + std::to_string(i)),
+                                 styleAt(16, 0xff9aa4bb))
+                                .absolute().inset(10, 10, 10, 80)));
+    SkRect ring = ringRect;
+    return stack().fill(Fill::color({0.05f, 0.06f, 0.1f, 1}))
+        .child(box().inset(30, 30, 30, 30).child(std::move(grid)))
+        .child(custom([ring](SkCanvas &c, const PaintContext &) {
+                 if (ring.isEmpty())
+                   return;
+                 SkPaint p;
+                 p.setAntiAlias(true);
+                 p.setStyle(SkPaint::kStroke_Style);
+                 p.setStrokeWidth(3);
+                 p.setColor(0xffffb46b);
+                 c.drawRoundRect(ring.makeOutset(6, 6), 14, 14, p);
+               })
+                   .inset(0).cache(Cache::None).zIndex(1));
+  }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+    highlighted = 0;
+    ringRect = SkRect::MakeEmpty();
+    composer.render(describe());
+  }
+
+  void update(double elapsed, Composer &composer) override {
+    if (elapsed >= nextMove) {
+      nextMove = elapsed + 0.8;
+      highlighted = (highlighted + 1) % 12;
+      composer.render(describe());
+    }
+    // Query-driven surround: this frame reads resolved bounds, next
+    // frame's describe draws the ring (cross-frame feedback — the
+    // forward-only law in practice).
+    auto b = composer.bounds("cell" + std::to_string(highlighted));
+    if (b && *b != ringRect) {
+      // ring is drawn in stack-local coords; bounds are composer-space
+      ringRect = *b;
+      composer.render(describe());
+    }
+  }
+};
+
+// ---- 10: procedural SkSL border (#11) -------------------------------------
+
+struct SkslBorderScene final : Scene {
+  sk_sp<SkRuntimeEffect> effect;
+
+  const char *name() const override { return "sksl_border"; }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+    auto result = SkRuntimeEffect::MakeForShader(SkString(R"(
+        uniform float t;
+        half4 main(float2 p) {
+          float wave = 0.5 + 0.5 * sin(p.x * 0.05 + p.y * 0.08 + t * 3.0);
+          return half4(0.3 + 0.6 * wave, 0.55, 1.0 - 0.5 * wave, 1) *
+                 half4(0.9);
+        })"));
+    effect = result.effect;
+
+    composer.render(
+        stack().fill(Fill::color({0.05f, 0.06f, 0.1f, 1}))
+            .child(box().inset(90, 100, 90, 100).corners({26})
+                       .fill(Fill::color({0.08f, 0.09f, 0.15f, 1}))
+                       .foreground(Decoration(PaintProgram(
+                           [this](SkCanvas &c, const PaintContext &ctx) {
+                             if (!effect)
+                               return;
+                             SkRuntimeShaderBuilder b(effect);
+                             b.uniform("t") =
+                                 (float)ctx.elapsedSeconds;
+                             SkPaint p;
+                             p.setAntiAlias(true);
+                             p.setStyle(SkPaint::kStroke_Style);
+                             p.setStrokeWidth(10);
+                             p.setShader(b.makeShader());
+                             c.drawPath(ctx.outline, p);
+                           })))
+                       .cache(Cache::None) // reads the clock
+                       .child(text(u8"SKSL BORDER",
+                                   styleAt(52, 0xffe8ecf8))
+                                  .absolute().inset(60, 80, 60, 60))));
+  }
+};
+
+// ---- 11: tile map with chunked caching (#15) ------------------------------
+
+struct TileScene final : Scene {
+  struct Chunk {
+    int index;
+    int revision;
+    bool operator==(const Chunk &) const = default;
+  };
+  std::vector<int> revisions = std::vector<int>(4, 0);
+  double nextMutation = 0.0;
+
+  const char *name() const override { return "tilemap"; }
+
+  static Element chunkElement(const Chunk &chunk) {
+    // 8x5 tiles per chunk, "atlas index" from a hash of position+rev.
+    auto rows = box().column();
+    for (int y = 0; y < 5; ++y) {
+      auto row = box().row();
+      for (int x = 0; x < 8; ++x) {
+        const uint32_t h = (uint32_t)(x * 73856093 ^ y * 19349663 ^
+                                      chunk.index * 83492791 ^
+                                      chunk.revision * 2654435761u);
+        const float v = 0.08f + 0.10f * (float)(h % 5);
+        row.child(box().width(27).height(27).margin(0.5f)
+                      .fill(Fill::color({v, v * 0.9f, v * 1.4f, 1})));
+      }
+      rows.child(std::move(row));
+    }
+    return rows;
+  }
+
+  Element describe() {
+    auto grid = box().row();
+    for (int i = 0; i < 4; ++i)
+      grid.child(memo(Chunk{i, revisions[(size_t)i]}, chunkElement)
+                     .key("chunk" + std::to_string(i)));
+    return box().padding(40).fill(Fill::color({0.03f, 0.03f, 0.07f, 1}))
+        .child(text(u8"tile map — one chunk re-records per mutation",
+                    styleAt(18, 0xff9aa4bb)))
+        .child(box().height(16))
+        .child(std::move(grid));
+  }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+    revisions.assign(4, 0);
+    nextMutation = 0.0;
+    composer.render(describe());
+  }
+
+  void update(double elapsed, Composer &composer) override {
+    if (elapsed < nextMutation)
+      return;
+    nextMutation = elapsed + 0.7;
+    revisions[(size_t)(elapsed * 13.0) % 4]++;
+    composer.render(describe());
+  }
+};
+
+// ---- 12: transition choreography — insert/remove/reorder (#18) ------------
+
+struct TransitionScene final : Scene {
+  std::vector<int> ids;
+  std::mt19937 rng{5};
+  int nextId = 0;
+  double nextOp = 0.0;
+
+  const char *name() const override { return "transitions"; }
+
+  Element describe() {
+    auto list = box().column().gap(8).padding(36)
+                    .fill(Fill::color({0.06f, 0.05f, 0.12f, 1}));
+    list.child(text(u8"insert / remove / reorder", styleAt(24, 0xffffb46b)));
+    for (int id : ids)
+      list.child(box().key("item" + std::to_string(id))
+                     .row().padding(10).corners({8})
+                     .transition({400ms, &choreograph::easeOutQuint})
+                     .fill(Fill::color(
+                         {0.10f + 0.02f * (float)(id % 5), 0.12f,
+                          0.20f + 0.02f * (float)(id % 3), 1}))
+                     .child(text(toU8("item " + std::to_string(id)),
+                                 styleAt(18, 0xffdde4f2))));
+    return list;
+  }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+    ids = {0, 1, 2, 3, 4};
+    nextId = 5;
+    nextOp = 0.0;
+    composer.render(describe());
+  }
+
+  void update(double elapsed, Composer &composer) override {
+    if (elapsed < nextOp)
+      return;
+    nextOp = elapsed + 0.8;
+    switch (rng() % 3) {
+    case 0:
+      if (ids.size() < 10)
+        ids.insert(ids.begin() + (long)(rng() % (ids.size() + 1)), nextId++);
+      break;
+    case 1:
+      if (ids.size() > 3)
+        ids.erase(ids.begin() + (long)(rng() % ids.size()));
+      break;
+    default:
+      std::shuffle(ids.begin(), ids.end(), rng);
+      break;
+    }
+    composer.render(describe());
+  }
+};
+
+// ---- 13: sustained load — cached cards + bound movers (#21) ---------------
+
+struct LoadScene final : Scene {
+  std::vector<std::unique_ptr<choreograph::Output<float>>> movers;
+
+  const char *name() const override { return "load"; }
+
+  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+    movers.clear();
+    auto root = stack().fill(Fill::color({0.04f, 0.04f, 0.08f, 1}));
+    std::mt19937 rng{3};
+    // 300 static cached cards.
+    for (int i = 0; i < 300; ++i) {
+      const float x = (float)(rng() % 860), y = (float)(rng() % 600);
+      root.child(box().width(34).height(22).corners({4})
+                     .inset(x, y, 0, 0).absolute()
+                     .fill(Fill::color({0.09f, 0.10f, 0.16f, 1})));
+    }
+    // 24 binding-driven movers over them (only these paint live).
+    for (int i = 0; i < 24; ++i) {
+      auto out = std::make_unique<choreograph::Output<float>>(0.0f);
+      const float y = 20.0f + 25.0f * (float)i;
+      const float phase = (float)i * 0.7f;
+      root.child(box().width(46).height(18).corners({4})
+                     .inset(0, y, 0, 0).absolute()
+                     .translateX(out.get())
+                     .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})));
+      movers.push_back(std::move(out));
+      ticker.add([o = movers.back().get(), phase, t = 0.0](double dt) mutable {
+        t += dt;
+        *o = 430.0f + 410.0f * (float)std::sin(t * 0.9 + phase);
+        return true;
+      });
+    }
+    composer.render(std::move(root));
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Registry
+
+struct SceneInfo {
+  const char *name;
+  const char *category;
+  const char *catalog; // STRESS_TESTS.md items exercised
+};
+
+inline constexpr SceneInfo kScenes[] = {
+    {"scoreboard", "Composition & data", "#2"},
+    {"slots", "Composition & data", "#4"},
+    {"grid + query", "Composition & data", "#5 #6"},
+    {"transitions", "Composition & data", "#18"},
+    {"load", "Composition & data", "#21"},
+    {"headline", "Animation", "#17"},
+    {"blend", "Animation", "#3"},
+    {"chrome", "Chrome & decoration", "#8 #9 #10"},
+    {"sksl border", "Chrome & decoration", "#11"},
+    {"crt + bloom", "Effects", "#13 #14"},
+    {"tile map", "Tiling", "#15"},
+    {"derive", "Derive", "#7 #12"},
+    {"particles", "Scale", "SoA"},
+};
+inline constexpr int kGallerySceneCount =
+    (int)(sizeof(kScenes) / sizeof(kScenes[0]));
+
+inline std::unique_ptr<Scene> makeScene(int index) {
   switch (index) {
-  case 1: return std::make_unique<HeadlineScene>();
-  case 2: return std::make_unique<BlendScene>();
-  case 3: return std::make_unique<ChromeScene>();
-  case 4: return std::make_unique<CrtScene>();
-  case 5: return std::make_unique<ParticleScene>();
-  case 6: return std::make_unique<DeriveScene>();
+  case 1: return std::make_unique<SlotsScene>();
+  case 2: return std::make_unique<GridScene>();
+  case 3: return std::make_unique<TransitionScene>();
+  case 4: return std::make_unique<LoadScene>();
+  case 5: return std::make_unique<HeadlineScene>();
+  case 6: return std::make_unique<BlendScene>();
+  case 7: return std::make_unique<ChromeScene>();
+  case 8: return std::make_unique<SkslBorderScene>();
+  case 9: return std::make_unique<CrtScene>();
+  case 10: return std::make_unique<TileScene>();
+  case 11: return std::make_unique<DeriveScene>();
+  case 12: return std::make_unique<ParticleScene>();
   default: return std::make_unique<ScoreboardScene>();
   }
 }
-constexpr int kSceneCount = 7;
 
-class GalleryWindow final : public QRasterWindow {
-public:
-  GalleryWindow() {
-    setTitle(
-        "ComposeGallery — 1..7 scenes · Space pause · -/= speed · F stats");
-    resize((int)kSceneSize.width(), (int)kSceneSize.height());
-    m_stage.activate(makeScene(0));
-    m_timer.setInterval(16);
-    QObject::connect(&m_timer, &QTimer::timeout, [this] { update(); });
-    m_timer.start();
-  }
-
-protected:
-  void paintEvent(QPaintEvent *) override {
-    QImage image((int)kSceneSize.width(), (int)kSceneSize.height(),
-                 QImage::Format_RGBA8888_Premultiplied);
-    sk_sp<SkSurface> surface = SkSurfaces::WrapPixels(
-        SkImageInfo::Make(image.width(), image.height(),
-                          kRGBA_8888_SkColorType, kPremul_SkAlphaType),
-        image.bits(), image.bytesPerLine());
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    m_stage.frame(*surface->getCanvas());
-    QPainter painter(this);
-    painter.drawImage(0, 0, image);
-    m_stage.markPresented();
-  }
-
-  void keyPressEvent(QKeyEvent *event) override {
-    const int key = event->key();
-    if (key >= Qt::Key_1 && key < Qt::Key_1 + kSceneCount) {
-      m_stage.activate(makeScene(key - Qt::Key_1));
-      return;
-    }
-    switch (key) {
-    case Qt::Key_Space:
-      m_stage.clock.setPaused(!m_stage.clock.paused());
-      break;
-    case Qt::Key_Minus:
-      m_stage.clock.setTimeScale(m_stage.clock.timeScale() * 0.5);
-      break;
-    case Qt::Key_Equal:
-      m_stage.clock.setTimeScale(m_stage.clock.timeScale() * 2.0);
-      break;
-    case Qt::Key_F:
-      m_stage.showStats = !m_stage.showStats;
-      break;
-    case Qt::Key_Escape:
-      close();
-      break;
-    }
-  }
-
-private:
-  GalleryStage m_stage;
-  QTimer m_timer;
-};
-
-int runHeadless(const std::string &outDir) {
+inline int runHeadless(const std::string &outDir) {
   std::filesystem::create_directories(outDir);
-  std::printf("%-12s %12s %10s %14s\n", "scene", "work ms", "p99 ms",
+  std::printf("%-14s %12s %10s %14s\n", "scene", "work ms", "p99 ms",
               "headroom fps");
-  for (int i = 0; i < kSceneCount; ++i) {
+  for (int i = 0; i < kGallerySceneCount; ++i) {
     GalleryStage stage;
     stage.activate(makeScene(i));
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)kSceneSize.width(), (int)kSceneSize.height()));
-
-    // 120 frames at a fixed 60 Hz step. The measured span is the FULL
-    // frame body — ticker step, scene update, reconcile, scene draw,
-    // and the overlay (charged to the following sample). "Headroom" is
-    // 1000/work-ms: the unthrottled ceiling, NOT a presented rate.
     for (int f = 0; f < 120; ++f) {
       surface->getCanvas()->clear(SK_ColorBLACK);
       stage.frame(*surface->getCanvas(), 1.0 / 60.0);
     }
-    std::printf("%-12s %12.2f %10.2f %14.0f\n", stage.scene->name(),
+    std::printf("%-14s %12.2f %10.2f %14.0f\n", stage.scene->name(),
                 stage.stats.average(), stage.stats.percentile(0.99),
                 stage.stats.fps());
-
     SkBitmap bm;
     bm.allocPixels(surface->imageInfo());
     surface->readPixels(bm.pixmap(), 0, 0);
@@ -681,19 +950,9 @@ int runHeadless(const std::string &outDir) {
     if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
       return 1;
   }
-  std::printf("wrote %d gallery scenes to %s\n", kSceneCount,
+  std::printf("wrote %d gallery scenes to %s\n", kGallerySceneCount,
               outDir.c_str());
   return 0;
 }
 
-} // namespace
-
-int main(int argc, char **argv) {
-  if (argc >= 2 && std::string(argv[1]) == "--headless")
-    return runHeadless(argc >= 3 ? argv[2] : "compose_gallery_out");
-
-  QGuiApplication app(argc, argv);
-  GalleryWindow window;
-  window.show();
-  return app.exec();
-}
+} // namespace compose_gallery

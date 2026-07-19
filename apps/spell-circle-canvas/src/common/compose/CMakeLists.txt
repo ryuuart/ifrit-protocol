@@ -76,11 +76,22 @@ add_executable(compose_demo
 )
 target_link_libraries(compose_demo PRIVATE IfritCompose TextFlowPorts)
 
-# Interactive motion gallery (Qt raster window; --headless renders each
-# scene mid-animation to PNG). The full Qt Quick gallery in the
-# TextFlowGallery mold follows once scenes stabilize.
+# ComposeGallery — Qt Quick app in the TextFlowGallery mold: QML
+# sidebar over the scene registry (every STRESS_TESTS.md gallery item,
+# tagged), clock controls, and a live frame-metrics panel.
+# `--headless <outdir>` prints the per-scene FPS table and captures.
 qt_add_executable(ComposeGallery
-  gallery/ComposeGallery.cpp
+  gallery/gallery_main.cpp
+  gallery/GalleryScenes.h
 )
+qt_add_qml_module(ComposeGallery
+  URI Compose.Gallery
+  VERSION 1.0
+  QML_FILES gallery/qml/Main.qml
+  SOURCES gallery/ComposeGalleryView.cpp gallery/ComposeGalleryView.h
+)
+set_source_files_properties(gallery/qml/Main.qml
+  PROPERTIES QT_RESOURCE_ALIAS Main.qml)
+target_include_directories(ComposeGallery PRIVATE gallery)
 target_link_libraries(ComposeGallery PRIVATE
-  IfritCompose TextFlowPorts Qt6::Gui EnTT::EnTT)
+  IfritCompose TextFlowPorts Qt6::Gui Qt6::Quick EnTT::EnTT)
