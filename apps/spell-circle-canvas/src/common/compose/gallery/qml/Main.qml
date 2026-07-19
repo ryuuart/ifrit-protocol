@@ -13,19 +13,21 @@ ApplicationWindow {
 
     // Sidebar model mirrors compose_gallery::kScenes (name/category/catalog).
     property var scenes: [
-        { name: "scoreboard",  category: "Composition & data", tag: "#2" },
-        { name: "slots",       category: "Composition & data", tag: "#4" },
+        { name: "rpg hud",      category: "Showcase",           tag: "practical UI" },
+        { name: "botanical",    category: "Showcase",           tag: "generative" },
+        { name: "ui particles", category: "Showcase",           tag: "SoA scale" },
+        { name: "scoreboard",   category: "Composition & data", tag: "#2" },
+        { name: "slots",        category: "Composition & data", tag: "#4" },
         { name: "grid + query", category: "Composition & data", tag: "#5 #6" },
-        { name: "transitions", category: "Composition & data", tag: "#18" },
-        { name: "load",        category: "Composition & data", tag: "#21" },
-        { name: "headline",    category: "Animation",          tag: "#17" },
-        { name: "blend",       category: "Animation",          tag: "#3" },
-        { name: "chrome",      category: "Chrome & decoration", tag: "#8 #9 #10" },
-        { name: "sksl border", category: "Chrome & decoration", tag: "#11" },
-        { name: "crt + bloom", category: "Effects",            tag: "#13 #14" },
-        { name: "tile map",    category: "Tiling",             tag: "#15" },
-        { name: "derive",      category: "Derive",             tag: "#7 #12" },
-        { name: "particles",   category: "Scale",              tag: "SoA" }
+        { name: "transitions",  category: "Composition & data", tag: "#18" },
+        { name: "load",         category: "Composition & data", tag: "#21" },
+        { name: "headline",     category: "Animation",          tag: "#17" },
+        { name: "blend",        category: "Animation",          tag: "#3" },
+        { name: "chrome",       category: "Chrome & decoration", tag: "#8 #9 #10" },
+        { name: "sksl border",  category: "Chrome & decoration", tag: "#11" },
+        { name: "crt + bloom",  category: "Effects",            tag: "#13 #14" },
+        { name: "tile map",     category: "Tiling",             tag: "#15" },
+        { name: "derive",       category: "Derive",             tag: "#7 #12" }
     ]
 
     RowLayout {
