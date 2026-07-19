@@ -264,3 +264,35 @@ TEST(ComposeBindings, OutputDrivesPaintWithoutRender) {
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(140, 20), SK_ColorBLUE);
 }
+
+TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
+  static int programRuns;
+  programRuns = 0;
+  Host host;
+  auto tree = [](SkColor color) {
+    return box().child(custom([color](SkCanvas &c, const PaintContext &ctx) {
+                         ++programRuns;
+                         SkPaint p;
+                         p.setColor(color);
+                         c.drawRect(SkRect::MakeWH(ctx.size.width(),
+                                                   ctx.size.height()),
+                                    p);
+                       })
+                           .key("tex")
+                           .width(80)
+                           .height(80)
+                           .cache(Cache::Texture));
+  };
+  host.composer.render(tree(SK_ColorMAGENTA));
+  host.frame();
+  host.frame();
+  host.frame();
+  EXPECT_EQ(programRuns, 1); // rasterized once, blitted thereafter
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorMAGENTA);
+  EXPECT_GE(host.composer.stats().texturesLive, 1u);
+
+  host.composer.render(tree(SK_ColorYELLOW)); // invalidate
+  host.frame();
+  EXPECT_EQ(programRuns, 2);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorYELLOW);
+}

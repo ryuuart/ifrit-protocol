@@ -150,9 +150,12 @@ enum class Justify : uint8_t {
 };
 
 /** Cache override. Auto (the default) picture-caches provably-static
- *  subtrees; None opts a node out (per-frame paint programs that read
- *  the clock MUST declare this — declared volatility). */
-enum class Cache : uint8_t { Auto, Picture, None };
+ *  subtrees; Texture rasterizes the subtree once into an image (the
+ *  raster-surface pixel win — best for dense or effect-heavy content,
+ *  wasteful for sparse regions); None opts a node out (per-frame paint
+ *  programs that read the clock MUST declare this — declared
+ *  volatility). */
+enum class Cache : uint8_t { Auto, Picture, Texture, None };
 
 // ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)
@@ -316,6 +319,7 @@ public:
     size_t memoHits = 0;        ///< memo props equal → describe skipped
     size_t patchedNodes = 0;    ///< instances whose props changed
     size_t picturesLive = 0;    ///< auto-cached subtree pictures held
+    size_t texturesLive = 0;    ///< Cache::Texture images held
     size_t picturesRecorded = 0;///< recordings performed last draw()
     size_t nodesPainted = 0;    ///< instances painted live last draw()
   };

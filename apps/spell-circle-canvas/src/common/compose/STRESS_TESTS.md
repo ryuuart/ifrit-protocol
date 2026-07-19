@@ -18,6 +18,16 @@ and `compose_bench` (Release, Apple Silicon dev Mac, 100 text rows,
 | relayout on width change | 583 µs | ~200 paragraph re-measures |
 | frame with 1 transition | 700 µs | ticker step + partial repaint |
 
+**Cache::Texture (landed, measured):** dense text block (800×540
+fully covered): picture replay 1224 µs → texture blit **600 µs (2.0×)**;
+the sparse 100-row list texture-cached whole: 404 µs → 597 µs (48%
+*regression* — blitting mostly-empty area). Both predictions held:
+texture-cache dense or effect-heavy subtrees, leave sparse regions on
+Auto. ComposeGallery (`--headless` smoke) adds the interactive vehicle
+for the motion items: live scoreboard mutations with transitions,
+Choreograph-bound headline + per-frame custom leaf, binding-driven
+blend stack.
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

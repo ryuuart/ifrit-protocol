@@ -181,4 +181,55 @@ static void BM_Frame_OneTransitionActive(benchmark::State &state) {
 }
 BENCHMARK(BM_Frame_OneTransitionActive);
 
+
+/** Dense text block, picture replay per draw: the raster re-raster
+ *  cost that Cache::Texture exists to eliminate. */
+static Element denseBlock(Cache mode) {
+  textflow::TextStyle style;
+  style.shaping.fontSize = 15.0f;
+  std::u8string para;
+  for (int i = 0; i < 60; ++i)
+    para += u8"the quick brown fox jumps over the lazy dog ";
+  auto block = box().padding(12).width(780).cache(mode)
+                   .fill(Fill::color({0.1f, 0.1f, 0.12f, 1}));
+  for (int i = 0; i < 6; ++i)
+    block.child(text(para, style));
+  return block;
+}
+
+static void BM_Draw_DenseText_PictureReplay(benchmark::State &state) {
+  Host host(800, 2400);
+  host.composer.render(denseBlock(Cache::Picture));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_DenseText_PictureReplay);
+
+static void BM_Draw_DenseText_TextureBlit(benchmark::State &state) {
+  Host host(800, 2400);
+  host.composer.render(denseBlock(Cache::Texture));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+  state.counters["texturesLive"] =
+      (double)host.composer.stats().texturesLive;
+}
+BENCHMARK(BM_Draw_DenseText_TextureBlit);
+
+/** The sparse case: the 100-row list texture-cached whole — blitting
+ *  its mostly-empty full area vs replaying only the rows. */
+static void BM_Draw_100Rows_TextureBlit(benchmark::State &state) {
+  Host host;
+  auto rows = makeRows(100);
+  auto list = box().column().gap(4).padding(16).cache(Cache::Texture);
+  for (const Row &row : rows)
+    list.child(memo(row, scoreRow).key(row.name));
+  host.composer.render(std::move(list));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_100Rows_TextureBlit);
+
 BENCHMARK_MAIN();

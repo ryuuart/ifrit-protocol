@@ -16,7 +16,9 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkRRect.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkSurface.h>
 
 #include <yoga/Yoga.h>
 
@@ -99,6 +101,8 @@ struct Instance {
 
   // Caching
   sk_sp<SkPicture> picture;
+  sk_sp<SkImage> textureImage;
+  float textureScale = 1.0f;
   bool paintDirty = true;
   bool subtreeVolatile = false;
 
@@ -530,8 +534,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     inst.subtreeVolatile = subtree;
     inst.paintDirty = true; // cacheability changed → re-record/drop
   }
-  if (inst.subtreeVolatile)
+  if (inst.subtreeVolatile) {
     inst.picture.reset();
+    inst.textureImage.reset();
+  }
   return subtree;
 }
 
@@ -664,8 +670,34 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas,
     canvas.saveLayer(nullptr, &layerPaint);
   }
 
-  // Automatic picture caching at topmost provably-static subtrees.
-  if (!inst.subtreeVolatile && !insideCache) {
+  // Automatic caching at topmost provably-static subtrees: pictures by
+  // default, a rasterized image under Cache::Texture (the raster-target
+  // pixel win — replaying a picture re-rasterizes, blitting doesn't).
+  if (!inst.subtreeVolatile && node.cacheMode == Cache::Texture) {
+    // Rasterize at the canvas's current scale so zoomed hosts stay crisp.
+    SkMatrix total = canvas.getTotalMatrix();
+    const float scale = std::clamp(
+        std::max(std::abs(total.getScaleX()), std::abs(total.getScaleY())),
+        0.25f, 4.0f);
+    if (!inst.textureImage || inst.paintDirty ||
+        inst.textureScale != scale) {
+      const int pw = std::max(1, (int)std::ceil(rect.width() * scale));
+      const int ph = std::max(1, (int)std::ceil(rect.height() * scale));
+      sk_sp<SkSurface> layer =
+          canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
+      if (!layer)
+        layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
+      layer->getCanvas()->scale(scale, scale);
+      paintContent(inst, *layer->getCanvas());
+      inst.textureImage = layer->makeImageSnapshot();
+      inst.textureScale = scale;
+      inst.paintDirty = false;
+      stats.picturesRecorded++;
+    }
+    canvas.drawImageRect(inst.textureImage,
+                         SkRect::MakeWH(rect.width(), rect.height()),
+                         SkSamplingOptions(SkFilterMode::kLinear));
+  } else if (!inst.subtreeVolatile && !insideCache) {
     if (!inst.picture || inst.paintDirty) {
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(
@@ -773,15 +805,18 @@ void Composer::draw(SkCanvas &canvas) {
   impl.paint(*impl.root, canvas, false);
   impl.contentDirty = false;
 
-  size_t live = 0;
+  size_t live = 0, textures = 0;
   std::function<void(const Instance &)> tally = [&](const Instance &i) {
     if (i.picture)
       ++live;
+    if (i.textureImage)
+      ++textures;
     for (const auto &c : i.children)
       tally(*c);
   };
   tally(*impl.root);
   impl.stats.picturesLive = live;
+  impl.stats.texturesLive = textures;
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {

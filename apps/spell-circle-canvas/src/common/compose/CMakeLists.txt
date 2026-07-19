@@ -59,3 +59,12 @@ add_executable(compose_demo
   examples/compose_demo.cpp
 )
 target_link_libraries(compose_demo PRIVATE IfritCompose TextFlowPorts)
+
+# Interactive motion gallery (Qt raster window; --headless renders each
+# scene mid-animation to PNG). The full Qt Quick gallery in the
+# TextFlowGallery mold follows once scenes stabilize.
+qt_add_executable(ComposeGallery
+  gallery/ComposeGallery.cpp
+)
+target_link_libraries(ComposeGallery PRIVATE
+  IfritCompose TextFlowPorts Qt6::Gui)
