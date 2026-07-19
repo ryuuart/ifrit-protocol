@@ -130,10 +130,12 @@ Exactly two ways to change what's on screen:
    caches while active).
 
 Implicit transitions (the SwiftUI lesson) ride path 1:
-`.transition(Prop, 400ms, ease)` turns a reconciled prop change into a
-Choreograph ramp instead of a snap. Property price tags: paint props
-(opacity/transform/color) animate freely; layout props re-measure —
-visible in the API, chosen deliberately.
+`.transition({.duration, .ease})` on a node turns reconciled changes to
+its animatable properties into Choreograph ramps instead of snaps, with
+per-property scoping via the setters themselves — no property enum
+(properties are named exactly once, by their setters). Property price
+tags: paint props (opacity/transform/color) animate freely; layout
+props re-measure — visible in the API, chosen deliberately.
 
 ## Caching
 
@@ -162,6 +164,25 @@ post-layout, read-only: `bounds(key)`, `paragraphLayout(key)` (live
 TextFlow layout for glyph choreography and decoration), `hitTest(pt)`.
 Querying descriptions is rejected — it would invent a second identity
 system (the React ref lesson).
+
+## Kernel and extensions
+
+The review rounds grew the surface; this boundary keeps the original
+goal — *draw and control, quickly and robustly, without framework
+weight* — honest. The **kernel** is what phase 1 builds and what every
+user must understand: `Element`/component functions/`Composer`, Yoga
+flex + `stack()`, stacking paint with zIndex/opacity/blend/transform,
+`Fill`, the text/image/custom leaves, `key` + `memo`,
+`Cache::Picture`, and `ch::Output` bindings. Everything else is an
+**extension that plugs into a kernel seam** and ships as its own
+header, with the kernel depending on none of it: `LayoutScheme`
+(custom layout), `PathFormat`/`Slice`/`ContourWalk` (decoration
+primitives beyond Fill), `Effect`/backdrop (layer post-processing),
+the derive phase (`flowAround`, `connector`), slots, `Cache::Texture`,
+and implicit transitions. A user who reads only the kernel section of
+API.md has a complete, sound mental model; extensions add power
+without ever changing kernel semantics. That is the design's weight
+budget, enforced structurally.
 
 ## Naming
 

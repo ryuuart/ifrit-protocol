@@ -76,7 +76,7 @@ Element text(textflow::Paragraph paragraph,                 // full control:
                                                             // justification…
 Element image(std::shared_ptr<const ifrit::image::ImageAsset> asset);
 Element web(std::shared_ptr<ifrit::web::WebView> view);     // live frames
-Element custom(CustomPainter painter);                      // raw SkCanvas
+Element custom(PaintProgram program);                       // raw SkCanvas
 
 // ---- layout (Yoga, 1:1 semantics) ----
 Element &row(); Element &column(); Element &wrapLines();
@@ -90,46 +90,71 @@ Element &alignItems(Align); Element &alignSelf(Align);       // Baseline!
 Element &justify(Justify);
 Element &absolute(); Element &inset(float all);               // + per-edge
 
+// ---- shape (geometry: defines PaintContext::outline and clipping) ----
+Element &corners(Corners);
+Element &clip(bool = true); Element &clipPath(SkPath);
+
 // ---- paint (ours; stacking per DESIGN.md) ----
-Element &fill(Fill); Element &stroke(Stroke);
-Element &corners(Corners); Element &shadow(Shadow);
+// fill/stroke/shadow are DEFINED as sugar over the decoration slots:
+// .fill(f) ≡ .background(f); .stroke(s) ≡ .foreground(PathFormat from s);
+// .shadow(s) ≡ .background(shadow decoration). One painting system.
+Element &fill(Fill); Element &stroke(Stroke); Element &shadow(Shadow);
 Element &opacity(Animatable);
 Element &blend(SkBlendMode);
 Element &translateX(Animatable); Element &translateY(Animatable);
 Element &rotate(Animatable /*degrees*/); Element &scale(Animatable);
 Element &transformOrigin(float fx, float fy);   // fractions of own box
-Element &clip(bool = true); Element &clipPath(SkPath);
 Element &zIndex(int);
 
 // ---- identity, caching, transitions ----
 Element &key(std::string_view);            // stable identity across renders
 Element &cache(Cache);                     // Picture | Texture | None
-Element &transition(Prop, double seconds,  // implicit: prop change animates
-                    choreograph::EaseFn ease = choreograph::easeOutQuad);
+
+// Implicit transitions — no property enum (properties are named once,
+// by their setters). Node-level: reconciled changes to ANY animatable
+// property on this node ramp instead of snap. Property-level: pass a
+// Transition to the setter itself to scope or override.
+struct Transition { std::chrono::milliseconds duration;
+                    choreograph::EaseFn ease = choreograph::easeOutQuad; };
+Element &transition(Transition);                       // node default
+Element &opacity(float, Transition);                   // per-property
+Element &fill(Fill, Transition);                       // colors lerp via
+                                                       // choreograph
+                                                       // Sequence<SkColor4f>
 
 // ---- composition ----
 Element &child(Element);
 Element &children(std::span<Element>);
 
-// Deferred description: fn is only invoked when props changed (compared
-// by operator==) since the last render — the data-driven cache.
-template <typename Props>
-Element memo(Props props, Element (*fn)(const Props &));
+// Deferred description: fn (any invocable per ComponentFn — function,
+// lambda, functor) runs only when props changed (operator==) since the
+// last render — the data-driven cache.
+template <ComponentProps P, ComponentFn<P> F>
+Element memo(P props, F fn);
 ```
 
-Custom leaves get the real canvas, pre-positioned:
+**One paint-program context.** Every paint-phase entry point — custom
+leaves, decorations, contour-walk bodies — receives the same struct
+(one shape to learn, one clock to trust):
 
 ```cpp
-struct PaintInfo {
+struct PaintContext {
   SkSize size;            // resolved layout size; draw in [0,0 .. size]
-  double elapsedSeconds;  // FrameClock-derived, for self-animating leaves
-  float contentScale;     // device px per layout px (2.0 on HiDPI canvases)
+  SkPath outline;         // the node's shape (corners / clipPath applied)
+  double elapsedSeconds;  // THE Ticker's FrameClock time — paused and
+                          // time-scaled consistently with all bindings
+  float contentScale;     // device px per layout px (2.0 on HiDPI)
   bool animating;         // whether the Ticker is currently active
 };
-using CustomPainter = std::function<void(SkCanvas &, const PaintInfo &)>;
-// Contract: canvas is translated to the node's origin (and clipped when
-// .clip() is set); matrix/clip state is restored after you return. You
-// may use TextFlow, IfritImage, PaintShaders — anything.
+using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
+// Contract: canvas is translated to the node's origin (clipped when
+// .clip() is set); matrix/clip restored after you return. You may use
+// TextFlow, IfritImage, PaintShaders — anything.
+
+// custom() is DEFINED as sugar: a box whose content is one paint
+// program — custom(p) ≡ box().background(p). Custom leaves and
+// decorations are the same concept in different slots.
+Element custom(PaintProgram program);
 ```
 
 ## Composer — the retained side, and the whole canvas contract
@@ -208,11 +233,11 @@ Element scoreRow(const RowData &r) {
   return box().row().gap(12).padding(8).corners({6})
       .fill(r.highlighted ? kAccent : kCard)
       .key(r.id)
-      .transition(Prop::Fill, 0.25)                  // highlight fades in
+      .transition({.duration = 250ms})               // highlight fades in
       .child(text(r.name, mono14).grow(1))
       .child(text(formatScore(r.score), mono14Bold)
                  .key(r.id + "#score")
-                 .transition(Prop::TranslateY, 0.3, ch::easeOutBack));
+                 .transition({.duration = 300ms, .ease = ch::easeOutBack}));
 }
 
 Element scoreboard(const Model &m) {
@@ -252,7 +277,7 @@ Element hero =
                    .key("headline")
                    .translateY(&drop).opacity(&fade)   // paint-only, no relayout
                    .cache(Cache::None))                // repainted while animating
-        .child(custom([](SkCanvas &c, const PaintInfo &i) {
+        .child(custom([](SkCanvas &c, const PaintContext &i) {
                  // Raw Skia inside a layout-managed box: rings, shaders,
                  // whatever — this is the "way more customized than UI" hatch.
                  drawSigilRings(c, i.size, i.elapsedSeconds);
@@ -418,19 +443,14 @@ order) → content + children (stacking rules) → foreground decorations.
 `.fill()`/`.stroke()` become sugar for the built-ins below.
 
 ```cpp
-struct DecorationInput {
-  SkSize size;            // the node's resolved box
-  SkPath outline;         // its shape: rounded rect, or the clipPath
-  double elapsedSeconds;  // for procedural/animated decorations
-  float contentScale;
-};
-
 template <typename D>
 concept DecorationScheme =
-    requires(const D &d, SkCanvas &canvas, const DecorationInput &in) {
+    requires(const D &d, SkCanvas &canvas, const PaintContext &in) {
       { d.paint(canvas, in) };
-    };  // optional `bool animated() const` → node repaints per frame
-        // (declared volatility, same rule as bound properties)
+    };  // PaintContext: the ONE paint-program context (see Elements).
+        // Optional `bool animated() const` → node repaints per frame —
+        // the single declared-volatility rule shared by decorations,
+        // effects, and bound properties alike.
 
 Element &background(DecorationScheme auto);   // below content, stackable
 Element &foreground(DecorationScheme auto);   // above children, stackable
@@ -465,7 +485,7 @@ Slice{.asset = frame, .xDivs = {...}, .yDivs = {...}};
 //    walk" — all the same primitive with a different body.
 struct PathSample { SkPoint pos; SkVector tangent; float distance, fraction; };
 ContourWalk{.spacing = 18,
-            .draw = [](SkCanvas &c, const PathSample &s, const DecorationInput &in) {
+            .draw = [](SkCanvas &c, const PathSample &s, const PaintContext &in) {
               /* anything — images, nested composed elements, SkSL */
             }};
 // Element form: the stamp is a full element subtree — laid out once,
@@ -567,7 +587,9 @@ text(article, body16).flowAround("hero-frame", 12 /*margin px*/);
 // SkSL Fill along the connecting path, a ContourWalk…). Mirrors the
 // scene schema's own Edge-between-Points model.
 connector("node-a", "node-b")
-    .route(Route::Orthogonal)                  // or a custom router fn
+    .route(routers::orthogonal)                // routers are values/fns
+                                               // (Router concept), not an
+                                               // enum — write your own
     .format(PathFormat{.paint = Fill::shader(flowFieldSkSL), .width = 4});
 ```
 
@@ -601,7 +623,7 @@ Used deliberately, for errors and ergonomics rather than cleverness:
   `column.children(rows | std::views::transform(scoreRow))` replaces
   the loop.
 - **`std::chrono` durations** for time-valued API (revising earlier
-  sketches): `.transition(Prop::Opacity, 400ms, ch::EaseOutQuint())` —
+  sketches): `.transition({.duration = 400ms, .ease = ch::easeOutQuint})` —
   no naked doubles-of-seconds.
 - **UDLs** for dimensions: `width(50_pct)`, `padding(24_px)`.
 - `std::span`/`std::string_view` at boundaries; `std::variant` for
