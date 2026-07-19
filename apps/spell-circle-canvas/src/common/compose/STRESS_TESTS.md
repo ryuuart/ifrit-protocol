@@ -28,6 +28,23 @@ for the motion items: live scoreboard mutations with transitions,
 Choreograph-bound headline + per-frame custom leaf, binding-driven
 blend stack.
 
+**Decorations + slots (landed):** the Decoration seam is live —
+`background()`/`foreground()` take any `DecorationScheme` — with the
+three primitives in `<ifritcompose/Decorations.h>`: `PathFormat`
+(solid/dash/stamped strokes along the outline; item 9's dashes and
+item 10's vine stamps render in compose_demo's chrome panel), `Slice`
+(drawImageLattice nine-patch, pixel-tested on a synthesized asset —
+item 8), and `ContourWalk` (arc-length walk with tangent-aligned
+canvas, sample counts and volatility declaration tested; element
+stamps still pending). `slot()`/`renderSlot()` covers item 4 with the
+isolation guarantee pixel-tested: a slot update re-records only the
+ancestor chain — sibling paint programs never re-run. Enabling fix:
+caching is now **per-node** (clean children embed as nested
+drawPicture refs in ancestor re-recordings) plus dirty-propagation up
+the parent chain; re-measured — cached draw 412 µs, volatile 368 µs,
+renders 30 µs: policy change is cost-free and buys partial
+invalidation everywhere.
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

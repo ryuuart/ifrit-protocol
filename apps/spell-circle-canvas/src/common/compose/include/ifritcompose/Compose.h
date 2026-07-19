@@ -125,6 +125,50 @@ struct PaintContext {
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
 
+/** Anything with paint(canvas, PaintContext) — decorations, effects
+ *  bodies. An optional `bool animated() const` declares per-frame
+ *  volatility (the single declared-volatility rule). */
+template <typename D>
+concept DecorationScheme =
+    requires(const D &d, SkCanvas &canvas, const PaintContext &ctx) {
+      { d.paint(canvas, ctx) };
+    };
+
+template <typename D>
+concept AnimatedDecoration = requires(const D &d) {
+  { d.animated() } -> std::convertible_to<bool>;
+};
+
+/** Type-erased decoration: the kernel seam extension primitives
+ *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A
+ *  bare PaintProgram works too. */
+class Decoration {
+public:
+  template <DecorationScheme D>
+  Decoration(D scheme) // NOLINT: implicit by design
+      : m_animated([&] {
+          if constexpr (AnimatedDecoration<D>)
+            return scheme.animated();
+          else
+            return false;
+        }()),
+        m_paint([s = std::move(scheme)](SkCanvas &c, const PaintContext &ctx) {
+          s.paint(c, ctx);
+        }) {}
+  Decoration(PaintProgram program) // NOLINT: implicit by design
+      : m_paint(std::move(program)) {}
+
+  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+    if (m_paint)
+      m_paint(canvas, ctx);
+  }
+  bool animated() const { return m_animated; }
+
+private:
+  bool m_animated = false;
+  PaintProgram m_paint;
+};
+
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
 
@@ -206,6 +250,11 @@ public:
 
   // ---- paint ----
   Element &fill(PropValue<Fill> f);
+  /** Decoration layers: backgrounds paint below content/children (in
+   *  declaration order), foregrounds above. fill() is the transitionable
+   *  first background; custom() is a box with one background program. */
+  Element &background(Decoration d);
+  Element &foreground(Decoration d);
   Element &opacity(PropValue<float> o);
   Element &blend(SkBlendMode mode);
   Element &translateX(PropValue<float> v);
@@ -252,6 +301,11 @@ Element image(std::shared_ptr<const ifrit::image::ImageAsset> asset);
  *  otherwise change per frame must declare .cache(Cache::None). */
 Element custom(PaintProgram program);
 
+/** A named mount point whose content is supplied independently via
+ *  Composer::renderSlot() — the surrounding tree's caches stay valid
+ *  across slot updates (independent data domains). */
+Element slot(std::string_view name);
+
 namespace detail {
 Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
@@ -294,6 +348,11 @@ public:
   /** Reconciles against the retained tree (keys match instances; memo
    *  and payload identity prune). Call whenever data changed. */
   void render(Element root);
+
+  /** Updates only the named slot() mount point (layout and stacking
+   *  still integrate normally; ancestors re-record their caches, the
+   *  rest of the tree is untouched). No-op if the slot doesn't exist. */
+  void renderSlot(std::string_view name, Element content);
 
   /** Content or layout changed since the last draw(). Redraw when
    *  dirty() || ticker.active(). */

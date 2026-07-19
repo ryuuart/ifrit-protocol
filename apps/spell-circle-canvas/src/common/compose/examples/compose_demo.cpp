@@ -3,6 +3,8 @@
 // ./compose_demo_out. The interactive Qt ComposeGallery follows later.
 
 #include <ifritcompose/Compose.h>
+#include <ifritcompose/Decorations.h>
+#include <include/core/SkPathBuilder.h>
 
 #include <textflow/FontContext.h>
 #include <textflow/ports/SystemFontManager.h>
@@ -139,6 +141,53 @@ Element blendPanel(SkSize size) {
                  .blend(SkBlendMode::kScreen));
 }
 
+// ---- Panel 4: chrome — per-edge decoration primitives (stress #9/10) ----
+
+Element chromePanel(SkSize size) {
+  // A leaf-ish stamp path for the vine walk.
+  SkPathBuilder leaf;
+  leaf.moveTo(0, 0);
+  leaf.quadTo(6, -7, 14, 0);
+  leaf.quadTo(6, 7, 0, 0);
+
+  PathFormat dashedBottom;
+  dashedBottom.width = 4;
+  dashedBottom.strokeFill = Fill::color({0.49f, 0.91f, 1.0f, 1});
+  dashedBottom.dashIntervals = {14, 8};
+
+  PathFormat stampedFrame;
+  stampedFrame.width = 2;
+  stampedFrame.strokeFill = Fill::color({0.69f, 0.55f, 1.0f, 1});
+  stampedFrame.stampPath = leaf.detach();
+  stampedFrame.stampAdvance = 20;
+
+  ContourWalk dotWalk;
+  dotWalk.spacing = 26;
+  dotWalk.draw = [](SkCanvas &c, const PathSample &s, const PaintContext &) {
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor(SkColorSetARGB(0xff, 0xff, 0xb4, 0x6b));
+    c.drawCircle(0, -10, 2.0f + 1.6f * std::sin(s.fraction * 6.28318f), p);
+  };
+
+  return stack().fill(backdropGradient(size))
+      .child(box().inset(60, 70, 60, 70)
+                 .corners({24})
+                 .fill(Fill::color({0.07f, 0.08f, 0.14f, 0.92f}))
+                 .foreground(stampedFrame)
+                 .foreground(dotWalk)
+                 .child(box().column().padding(40).gap(14)
+                            .child(text(u8"CHROME", styleAt(56, 0xffe8ecf8)))
+                            .child(text(u8"PathFormat stamps a leaf around the frame,",
+                                        styleAt(17, 0xff9aa4bb)))
+                            .child(text(u8"a ContourWalk orbits dots along the outline,",
+                                        styleAt(17, 0xff9aa4bb)))
+                            .child(text(u8"and the divider below is two numbers of dash data.",
+                                        styleAt(17, 0xff9aa4bb)))
+                            .child(box().height(30)
+                                       .foreground(dashedBottom))));
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -177,6 +226,15 @@ int main(int argc, char **argv) {
       return 1;
   }
 
-  std::printf("wrote 3 panels to %s\n", outDir.string().c_str());
+  {
+    Composer composer(ticker, fonts());
+    SkSize size = {760, 520};
+    composer.setSize(size);
+    composer.render(chromePanel(size));
+    if (!writePanel(composer, size, outDir / "chrome.png"))
+      return 1;
+  }
+
+  std::printf("wrote 4 panels to %s\n", outDir.string().c_str());
   return 0;
 }

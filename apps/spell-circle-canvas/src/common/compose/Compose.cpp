@@ -76,6 +76,14 @@ Element &Element::fill(PropValue<Fill> f) {
   m_node->paint.fill = std::move(f);
   return *this;
 }
+Element &Element::background(Decoration d) {
+  m_node->backgrounds.push_back(std::move(d));
+  return *this;
+}
+Element &Element::foreground(Decoration d) {
+  m_node->foregrounds.push_back(std::move(d));
+  return *this;
+}
 Element &Element::opacity(PropValue<float> o) {
   m_node->paint.opacity = std::move(o);
   return *this;
@@ -156,6 +164,13 @@ Element custom(PaintProgram program) {
   Element e;
   e.node()->kind = Kind::Custom;
   e.node()->program = std::move(program);
+  return e;
+}
+
+Element slot(std::string_view name) {
+  Element e;
+  e.node()->kind = Kind::Slot;
+  e.node()->key = std::string(name);
   return e;
 }
 

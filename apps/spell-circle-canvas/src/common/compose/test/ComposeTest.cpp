@@ -296,3 +296,126 @@ TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
   EXPECT_EQ(programRuns, 2);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorYELLOW);
 }
+
+#include <ifritcompose/Decorations.h>
+
+TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
+  Host host;
+  PathFormat dashed;
+  dashed.width = 6;
+  dashed.strokeFill = Fill::color({1, 1, 0, 1});
+  dashed.dashIntervals = {10, 10};
+  host.composer.render(box().child(
+      box().width(120).height(120).inset(20).absolute()
+          .foreground(dashed)));
+  host.frame();
+  // Somewhere along the top edge a dash lands; somewhere it doesn't.
+  int lit = 0;
+  for (int x = 25; x < 135; ++x)
+    if (host.pixel(x, 20) == SK_ColorYELLOW)
+      ++lit;
+  EXPECT_GT(lit, 10);
+  EXPECT_LT(lit, 110); // gaps exist → it really dashed
+}
+
+TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
+  Host host;
+  static int visits;
+  visits = 0;
+  ContourWalk walk;
+  walk.spacing = 25.0f;
+  walk.draw = [](SkCanvas &c, const PathSample &s, const PaintContext &) {
+    ++visits;
+    EXPECT_GE(s.fraction, 0.0f);
+    EXPECT_LE(s.fraction, 1.0f);
+    SkPaint p;
+    p.setColor(SK_ColorGREEN);
+    c.drawRect(SkRect::MakeXYWH(-2, -2, 4, 4), p); // at the sample origin
+  };
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(50, 50, 50, 50).absolute()
+          .foreground(walk)));
+  host.frame();
+  EXPECT_EQ(visits, 16); // 400px perimeter / 25px spacing
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN); // top edge stamped
+  host.frame();
+  EXPECT_EQ(visits, 16); // static walk → recorded once, replayed
+}
+
+TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
+  Host host;
+  static int visits;
+  visits = 0;
+  ContourWalk walk;
+  walk.spacing = 50.0f;
+  walk.animatedWalk = true;
+  walk.draw = [](SkCanvas &, const PathSample &, const PaintContext &) {
+    ++visits;
+  };
+  host.composer.render(box().child(
+      box().width(100).height(100).foreground(walk)));
+  host.frame();
+  host.frame();
+  EXPECT_EQ(visits, 16); // 8 samples × 2 frames: repainted per frame
+}
+
+TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
+  static int staticRuns;
+  staticRuns = 0;
+  Host host;
+  host.composer.render(
+      box().row().gap(10)
+          .child(custom([](SkCanvas &c, const PaintContext &ctx) {
+                   ++staticRuns;
+                   SkPaint p;
+                   p.setColor(SK_ColorRED);
+                   c.drawRect(SkRect::MakeWH(ctx.size.width(),
+                                             ctx.size.height()), p);
+                 }).width(50).height(50))
+          .child(slot("live").width(80).height(50)));
+  host.frame();
+  EXPECT_EQ(staticRuns, 1);
+
+  host.composer.renderSlot("live", box().fill(Fill::color({0, 1, 0, 1}))
+                                       .width(80).height(50));
+  host.frame();
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorRED);
+  EXPECT_EQ(host.pixel(70, 25), SK_ColorGREEN);
+
+  host.composer.renderSlot("live", box().fill(Fill::color({0, 0, 1, 1}))
+                                       .width(80).height(50));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 25), SK_ColorBLUE);
+  // The sibling's paint program never re-ran across slot updates: its
+  // own recording stayed valid even though ancestors re-recorded.
+  EXPECT_EQ(staticRuns, 1);
+}
+
+#include <ifritimage/ImageAsset.h>
+#include <include/core/SkStream.h>
+#include <include/encode/SkPngEncoder.h>
+
+TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
+  // Synthesize a 30x30 nine-patch: 10px red border ring, green center.
+  SkBitmap src;
+  src.allocN32Pixels(30, 30);
+  src.eraseColor(SK_ColorRED);
+  src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(10, 10, 10, 10));
+  SkDynamicMemoryWStream stream;
+  SkPngEncoder::Encode(&stream, src.pixmap(), {});
+  auto asset = std::make_shared<ifrit::image::ImageAsset>(
+      *ifrit::image::ImageAsset::decode(stream.detachAsData()));
+
+  Host host;
+  Slice nine;
+  nine.asset = asset;
+  nine.xDivs = {10, 20};
+  nine.yDivs = {10, 20};
+  host.composer.render(box().child(
+      box().width(120).height(120).background(nine)));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN); // stretched center
+  EXPECT_EQ(host.pixel(4, 4), SK_ColorRED);     // corner intact
+  EXPECT_EQ(host.pixel(115, 115), SK_ColorRED);
+  EXPECT_EQ(host.pixel(60, 4), SK_ColorRED);    // edge strip
+}

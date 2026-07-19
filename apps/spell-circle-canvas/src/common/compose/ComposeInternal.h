@@ -8,7 +8,7 @@
 
 namespace ifrit::compose::detail {
 
-enum class Kind : uint8_t { Box, Stack, Text, Image, Custom };
+enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
 
 struct EdgeValues {
   float left = 0, top = 0, right = 0, bottom = 0;
@@ -60,6 +60,10 @@ struct ElementNode {
 
   // Custom
   PaintProgram program;
+
+  // Decoration layers (kernel seam; primitives live in Decorations.h)
+  std::vector<Decoration> backgrounds;
+  std::vector<Decoration> foregrounds;
 
   // Memo (deferred description)
   bool isMemo = false;

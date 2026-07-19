@@ -82,6 +82,7 @@ struct AnimatedFloat {
 
 struct Instance {
   Composer::Impl *owner = nullptr;
+  Instance *parent = nullptr;
   std::shared_ptr<ElementNode> desc; // resolved (post-memo) description
   std::shared_ptr<ElementNode> memoShell; // the memo element, if any
   YGNodeRef yoga = nullptr;
@@ -108,6 +109,17 @@ struct Instance {
 
   ~Instance();
   float resolveFloat(Instance::Slot slot, const PropValue<float> &v) const;
+
+  /** A change here stales every ancestor's recording too. */
+  void markPaintDirtyUp() {
+    for (Instance *i = this; i; i = i->parent) {
+      if (i->paintDirty && i != this)
+        break; // ancestors already invalidated
+      i->paintDirty = true;
+      i->picture.reset();
+      i->textureImage.reset();
+    }
+  }
 };
 
 } // namespace detail
@@ -139,7 +151,8 @@ struct Composer::Impl {
   double elapsed() const { return clock ? clock->elapsed() : 0.0; }
 
   // ---- reconcile ----
-  std::unique_ptr<Instance> mount(const std::shared_ptr<ElementNode> &node);
+  std::unique_ptr<Instance> mount(const std::shared_ptr<ElementNode> &node,
+                                  Instance *parent);
   void patch(Instance &inst, std::shared_ptr<ElementNode> node);
   void patchChildren(Instance &inst,
                      const std::vector<Element> &newChildren);
@@ -154,7 +167,7 @@ struct Composer::Impl {
   bool computeVolatile(Instance &inst);
 
   // ---- paint ----
-  void paint(Instance &inst, SkCanvas &canvas, bool insideCache);
+  void paint(Instance &inst, SkCanvas &canvas);
   void paintContent(Instance &inst, SkCanvas &canvas);
   void rebuildKeyIndex();
   void indexKeys(Instance &inst);
@@ -244,9 +257,11 @@ Composer::Impl::resolveMemo(Instance *existing,
 }
 
 std::unique_ptr<Instance>
-Composer::Impl::mount(const std::shared_ptr<ElementNode> &node) {
+Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
+                      Instance *parent) {
   auto inst = std::make_unique<Instance>();
   inst->owner = this;
+  inst->parent = parent;
   inst->yoga = YGNodeNewWithConfig(yogaConfig);
   YGNodeSetContext(inst->yoga, inst.get());
   patch(*inst, node);
@@ -269,7 +284,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
   std::shared_ptr<ElementNode> prev = std::move(inst.desc);
   inst.desc = resolved;
   stats.patchedNodes++;
-  inst.paintDirty = true;
+  inst.markPaintDirtyUp();
   contentDirty = true;
 
   // Kind change → full remount of content state.
@@ -300,7 +315,9 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
   if (prev)
     applyTransitions(inst, *prev, *resolved);
 
-  patchChildren(inst, resolved->children);
+  // Slot content is owned by renderSlot(), not the description.
+  if (resolved->kind != Kind::Slot)
+    patchChildren(inst, resolved->children);
 
   // Paint order: stable sort by zIndex.
   inst.paintOrder.resize(inst.children.size());
@@ -344,10 +361,11 @@ void Composer::Impl::patchChildren(Instance &inst,
     }
 
     if (match) {
+      match->parent = &inst;
       patch(*match, node);
       inst.children.push_back(std::move(match));
     } else {
-      inst.children.push_back(mount(node));
+      inst.children.push_back(mount(node, &inst));
       needsLayout = true;
     }
     Instance &placed = *inst.children.back();
@@ -523,6 +541,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     own = true;
   if (node.cacheMode == Cache::None)
     own = true;
+  for (const Decoration &d : node.backgrounds)
+    own |= d.animated();
+  for (const Decoration &d : node.foregrounds)
+    own |= d.animated();
   if (node.kind == Kind::Image && node.imageAsset &&
       node.imageAsset->animated())
     own = true;
@@ -561,6 +583,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
   if (node.clipContent)
     canvas.clipRRect(rrect, true);
 
+  SkPathBuilder outlineBuilder;
+  outlineBuilder.addRRect(rrect);
+  const PaintContext paintCtx{{bounds.width(), bounds.height()},
+                              outlineBuilder.detach(), elapsed(), 1.0f,
+                              ticker.active()};
+
   // Fill (background)
   if (node.paint.fill) {
     Fill fill;
@@ -595,6 +623,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
     }
   }
 
+  for (const Decoration &decoration : node.backgrounds)
+    decoration.paint(canvas, paintCtx);
+
   // Content
   switch (node.kind) {
   case Kind::Text:
@@ -610,28 +641,25 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas) {
     }
     break;
   case Kind::Custom:
-    if (node.program) {
-      SkPathBuilder outlineBuilder;
-      outlineBuilder.addRRect(rrect);
-      node.program(canvas,
-                   PaintContext{{bounds.width(), bounds.height()},
-                                outlineBuilder.detach(), elapsed(), 1.0f,
-                                ticker.active()});
-    }
+    if (node.program)
+      node.program(canvas, paintCtx);
     break;
   case Kind::Box:
   case Kind::Stack:
+  case Kind::Slot:
     break;
   }
 
-  // Children in stacking order.
+  // Children in stacking order (each clean static child replays its own
+  // nested picture — ancestor re-records don't repaint clean subtrees).
   for (size_t index : inst.paintOrder)
-    paint(*inst.children[index], canvas, /*insideCache handled upstream*/
-          !inst.subtreeVolatile);
+    paint(*inst.children[index], canvas);
+
+  for (const Decoration &decoration : node.foregrounds)
+    decoration.paint(canvas, paintCtx);
 }
 
-void Composer::Impl::paint(Instance &inst, SkCanvas &canvas,
-                           bool insideCache) {
+void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const ElementNode &node = *inst.desc;
   const SkRect rect = instanceRect(inst);
 
@@ -697,7 +725,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas,
     canvas.drawImageRect(inst.textureImage,
                          SkRect::MakeWH(rect.width(), rect.height()),
                          SkSamplingOptions(SkFilterMode::kLinear));
-  } else if (!inst.subtreeVolatile && !insideCache) {
+  } else if (!inst.subtreeVolatile && node.cacheMode != Cache::None) {
     if (!inst.picture || inst.paintDirty) {
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(
@@ -762,7 +790,7 @@ void Composer::render(Element root) {
   impl.stats.patchedNodes = 0;
 
   if (!impl.root)
-    impl.root = impl.mount(root.node());
+    impl.root = impl.mount(root.node(), nullptr);
   else
     impl.patch(*impl.root, root.node());
 
@@ -777,6 +805,31 @@ void Composer::render(Element root) {
   };
   tally(*impl.root);
   impl.stats.instances = count;
+}
+
+void Composer::renderSlot(std::string_view name, Element content) {
+  Impl &impl = *m_impl;
+  auto it = impl.byKey.find(std::string(name));
+  if (it == impl.byKey.end() || it->second->desc->kind != Kind::Slot)
+    return;
+  Instance &slotInst = *it->second;
+
+  // Patch or mount the slot's single content child.
+  if (slotInst.children.size() == 1) {
+    impl.patch(*slotInst.children.front(), content.node());
+  } else {
+    slotInst.children.clear();
+    slotInst.children.push_back(impl.mount(content.node(), &slotInst));
+    YGNodeRemoveAllChildren(slotInst.yoga);
+    YGNodeInsertChild(slotInst.yoga, slotInst.children.front()->yoga, 0);
+    slotInst.paintOrder = {0};
+    impl.needsLayout = true;
+  }
+  slotInst.markPaintDirtyUp();
+  impl.contentDirty = true;
+  if (impl.root)
+    impl.computeVolatile(*impl.root);
+  impl.rebuildKeyIndex();
 }
 
 bool Composer::dirty() const {
@@ -802,7 +855,7 @@ void Composer::draw(SkCanvas &canvas) {
   // Volatility can settle frame to frame (transitions finish).
   impl.computeVolatile(*impl.root);
 
-  impl.paint(*impl.root, canvas, false);
+  impl.paint(*impl.root, canvas);
   impl.contentDirty = false;
 
   size_t live = 0, textures = 0;

@@ -10,6 +10,7 @@ add_library(IfritCompose STATIC
   Composer.cpp
   ComposeInternal.h
   include/ifritcompose/Compose.h
+  include/ifritcompose/Decorations.h
 )
 
 target_compile_features(IfritCompose PUBLIC cxx_std_20)
@@ -20,11 +21,11 @@ target_include_directories(IfritCompose PUBLIC
 
 target_link_libraries(IfritCompose
   PUBLIC
+    IfritImage
     IfritTick
     TextFlow
     unofficial::skia::skia
   PRIVATE
-    IfritImage
     yoga::yogacore
 )
 
