@@ -7,14 +7,6 @@
     "entt",
     "flatbuffers",
     "gtest",
-    "spdlog",
-    "icu",
-    {
-      "name": "libavif",
-      "features": [
-        "dav1d"
-      ]
-    },
     {
       "name": "harfbuzz",
       "features": [
@@ -23,6 +15,13 @@
           "name": "coretext",
           "platform": "osx"
         }
+      ]
+    },
+    "icu",
+    {
+      "name": "libavif",
+      "features": [
+        "dav1d"
       ]
     },
     {
@@ -39,12 +38,14 @@
         }
       ]
     },
+    "spdlog",
     {
       "name": "spout2",
       "features": [
         "dx"
       ],
       "platform": "windows & !uwp & !arm64"
-    }
+    },
+    "yoga"
   ]
 }

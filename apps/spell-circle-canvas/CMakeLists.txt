@@ -47,6 +47,7 @@ find_package(absl CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
+find_package(yoga CONFIG REQUIRED)
 
 if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   find_package(Ultralight)

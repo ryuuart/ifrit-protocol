@@ -10,7 +10,9 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            stills + animations, for canvas drawing), web/
                            (IfritWeb — Ultralight HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
-                           Metal GPUDriver, CPU fallback)
+                           Metal GPUDriver, CPU fallback), poster/
+                           (IfritPoster — Yoga+TextFlow poster layouts;
+                           DESIGN.md proposal + feasibility spike only)
   src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
