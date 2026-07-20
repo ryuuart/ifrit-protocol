@@ -1,12 +1,12 @@
 #pragma once
 // Split from GalleryScenes.h — see that header for the registry.
 
-#include <ifritcompose/Compose.h>
-#include <ifritcompose/Decorations.h>
-#include <ifritcompose/Util.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/Decorations.h>
+#include <sigilcompose/Util.h>
 
-#include <textflow/FontContext.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -21,18 +21,18 @@
 
 namespace compose_gallery {
 
-using namespace ifrit::compose;
-using ifrit::compose::util::toU8;
+using namespace sigil::compose;
+using sigil::compose::util::toU8;
 using namespace std::chrono_literals;
 
-inline textflow::FontContext &fonts() {
+inline sigil::weave::FontContext &fonts() {
   static auto *context =
-      new textflow::FontContext(textflow::ports::systemFontManager());
+      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
-inline textflow::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  textflow::TextStyle s;
+inline sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
+  sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.paint.foreground.setColor(color);
   return s;
@@ -90,22 +90,22 @@ struct FrameStats {
 struct Scene {
   virtual ~Scene() = default;
   virtual const char *name() const = 0;
-  virtual void setup(Composer &composer, ifrit::tick::Ticker &ticker) = 0;
+  virtual void setup(Composer &composer, sigil::tick::Ticker &ticker) = 0;
   virtual void update(double, Composer &) {}
 };
 
 
 // ---------------------------------------------------------------------------
-// Stage + FPS overlay (itself an IfritCompose composer)
+// Stage + FPS overlay (itself an SigilCompose composer)
 
 struct GalleryStage {
-  ifrit::tick::FrameClock clock;
-  std::unique_ptr<ifrit::tick::Ticker> ticker;
+  sigil::tick::FrameClock clock;
+  std::unique_ptr<sigil::tick::Ticker> ticker;
   std::unique_ptr<Composer> composer;
   std::unique_ptr<Scene> scene;
 
   // Overlay: a second composer layered over the scene.
-  ifrit::tick::Ticker overlayTicker;
+  sigil::tick::Ticker overlayTicker;
   Composer overlay{overlayTicker, fonts()};
   FrameStats stats;
   bool showStats = true;
@@ -117,7 +117,7 @@ struct GalleryStage {
 
   void reset() {
     composer.reset();
-    ticker = std::make_unique<ifrit::tick::Ticker>();
+    ticker = std::make_unique<sigil::tick::Ticker>();
     composer = std::make_unique<Composer>(*ticker, fonts());
     composer->setClock(&clock);
     composer->setSize(kSceneSize);

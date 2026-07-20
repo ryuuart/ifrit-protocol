@@ -3,7 +3,7 @@
 #   common/      libraries shared across products: the generic Skia Graphite
 #                GPU plumbing (skia/), the reusable Ifrit.Ui Qt Quick
 #                controls (ui/), and image import for the canvases (image/)
-#   textflow/    the Qt-free TextFlow text layout engine, its companion
+#   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
 #                both the qt/ and mac/ executables
@@ -17,5 +17,5 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
 endif()
 add_subdirectory(common/tick)
 add_subdirectory(common/compose)
-add_subdirectory(textflow)
+add_subdirectory(sigilweave)
 add_subdirectory(spellcircle)

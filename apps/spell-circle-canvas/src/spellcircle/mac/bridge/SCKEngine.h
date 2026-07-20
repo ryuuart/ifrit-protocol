@@ -3,7 +3,7 @@
 // Pure Objective-C surface of the native macOS engine, imported by the
 // SwiftUI app as the Clang module `SpellCircleMacBridge` (see
 // module.modulemap). Everything C++ — the shared spellcircle scene core,
-// Skia Graphite, TextFlow — stays behind SCKEngine.mm.
+// Skia Graphite, SigilWeave — stays behind SCKEngine.mm.
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
@@ -37,7 +37,7 @@ NS_SWIFT_UI_ACTOR
  * The native SpellCircle engine: receives FlatBuffers scene packets over
  * UDP (same wire protocol and default port as the Qt app), decodes and
  * resolves them through the shared spellcircle core, draws them with Skia
- * Graphite + TextFlow into an offscreen Metal texture at the configured
+ * Graphite + SigilWeave into an offscreen Metal texture at the configured
  * native canvas size, publishes that texture over Syphon, and blits it into
  * CAMetalLayers for on-screen presentation.
  *

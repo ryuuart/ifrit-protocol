@@ -1,0 +1,23 @@
+@PACKAGE_INIT@
+
+# SigilWeave static archives carry undefined symbols from every dependency
+# (even the PRIVATE ones), so consumers must be able to resolve them all.
+include(CMakeFindDependencyMacro)
+find_dependency(unofficial-skia CONFIG)
+find_dependency(harfbuzz CONFIG)
+find_dependency(ICU COMPONENTS i18n uc data)
+find_dependency(absl CONFIG)
+
+# The Qt bridge (sigil::weave::SigilWeaveQt) is opt-in: only consumers that ask
+# for the Qt component pull a Qt6 requirement.
+if("Qt" IN_LIST SigilWeave_FIND_COMPONENTS)
+  find_dependency(Qt6 COMPONENTS Gui)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/SigilWeaveTargets.cmake")
+
+# Every component ships in the one targets file above, so requesting it can
+# only succeed once that include ran; Kit adds no dependencies beyond core.
+set(SigilWeave_Kit_FOUND TRUE)
+set(SigilWeave_Qt_FOUND TRUE)
+check_required_components(SigilWeave)

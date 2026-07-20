@@ -1,12 +1,12 @@
-// IfritTick: the frame clock's pause/scale/clamp behavior, and the
+// SigilTick: the frame clock's pause/scale/clamp behavior, and the
 // Ticker actually driving Choreograph motions to completion.
 
-#include <ifrittick/FrameClock.h>
-#include <ifrittick/Ticker.h>
+#include <sigiltick/FrameClock.h>
+#include <sigiltick/Ticker.h>
 
 #include <gtest/gtest.h>
 
-using namespace ifrit::tick;
+using namespace sigil::tick;
 namespace ch = choreograph;
 
 TEST(FrameClockTest, FirstTickIsZeroThenDeltas) {

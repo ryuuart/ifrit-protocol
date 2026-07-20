@@ -53,7 +53,7 @@ struct ManuscriptScene final : Scene {
     // A TRUE drop cap: the verse's first grapheme becomes the
     // illuminated initial, and the body text is the REMAINDER — the
     // paragraph flows around the initial via the derive phase.
-    // (TextFlow's ExclusionFlow provides the geometry; a first-class
+    // (SigilWeave's ExclusionFlow provides the geometry; a first-class
     // N-line initial in ParagraphLayoutOptions is the eventual home.)
     const std::u8string letter(1, kVerses[verse][0]);
     const std::u8string body(kVerses[verse] + 1);
@@ -90,10 +90,10 @@ struct ManuscriptScene final : Scene {
     auto pageStack = stack().inset(0).absolute().cache(Cache::Texture)
         // The page: parchment ground, stem-colored rule, vine border.
         .child(box().inset(26, 22, 26, 22).absolute().corners({6})
-                   .background(ifrit::compose::util::shadow(
+                   .background(sigil::compose::util::shadow(
                        {0, 0, 0, 0.55f}, {5, 7}, 16))
                    .fill(parchmentFill(pal.parchment))
-                   .foreground(ifrit::compose::util::stroke(
+                   .foreground(sigil::compose::util::stroke(
                        2.2f, Fill::color(pal.stem)))
                    // Inner gilded dashed rule (the broken hairline the
                    // corner flourishes dance around).
@@ -112,10 +112,10 @@ struct ManuscriptScene final : Scene {
                    .inset(84, 146, kSceneSize.width() - 84 - 92,
                           kSceneSize.height() - 146 - 98)
                    .absolute().zIndex(3).corners({8})
-                   .background(ifrit::compose::util::shadow(
+                   .background(sigil::compose::util::shadow(
                        {0, 0, 0, 0.35f}, {2, 3}, 7))
                    .fill(Fill::color(pal.stem))
-                   .foreground(ifrit::compose::util::stroke(
+                   .foreground(sigil::compose::util::stroke(
                        1.6f, Fill::color(pal.gold)))
                    .alignItems(Align::Center).justify(Justify::Center)
                    .child(box().inset(5).absolute().foreground(goldDash))
@@ -186,7 +186,7 @@ struct ManuscriptScene final : Scene {
     return SkColor4f{c.fR, c.fG, c.fB, c.fA}.toSkColor();
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     verse = 0;
     nextTurn = 7.0;
     composer.render(describe());
@@ -204,27 +204,27 @@ struct ManuscriptScene final : Scene {
 // ---- Nine-slice hall ------------------------------------------------------
 
 struct NineSliceScene final : Scene {
-  std::shared_ptr<ifrit::image::ImageAsset> oakFrame, azureFrame,
+  std::shared_ptr<sigil::image::ImageAsset> oakFrame, azureFrame,
       crimsonFrame;
   float stretch = 0.0f;
 
   const char *name() const override { return "nineslice"; }
 
-  static std::shared_ptr<ifrit::image::ImageAsset>
+  static std::shared_ptr<sigil::image::ImageAsset>
   generate(const Palette &pal) {
     // The intermediate canvas: draw the carved frame once, wrap the
     // snapshot, stretch it everywhere below. Generated at 2x the
     // on-page band width so the slice bands never magnify (raster
     // textures blur when stretched past their resolution).
-    return std::make_shared<ifrit::image::ImageAsset>(
-        ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 192)));
+    return std::make_shared<sigil::image::ImageAsset>(
+        sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 192)));
   }
 
   Element describe() {
     const Palette oak = oakPalette(), azure = azurePalette(),
                   crimson = crimsonPalette();
 
-    auto panel = [&](const std::shared_ptr<ifrit::image::ImageAsset> &f,
+    auto panel = [&](const std::shared_ptr<sigil::image::ImageAsset> &f,
                      float l, float t, float w, float h) {
       return box().width(w).height(h)
           .inset(l, t, kSceneSize.width() - l - w,
@@ -238,7 +238,7 @@ struct NineSliceScene final : Scene {
     const float breathH = 130 + 34 * stretch;
 
     return stack()
-        .fill(ifrit::compose::util::linearGradient(
+        .fill(sigil::compose::util::linearGradient(
             {0, 0}, {0, 640},
             {{0.09f, 0.07f, 0.10f, 1}, {0.05f, 0.06f, 0.09f, 1}}))
         // The source texture at natural size, labeled.
@@ -289,7 +289,7 @@ struct NineSliceScene final : Scene {
 
   static float breathHalf(float h) { return (h - 130.0f) * 0.5f; }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     oakFrame = generate(oakPalette());
     azureFrame = generate(azurePalette());
     crimsonFrame = generate(crimsonPalette());

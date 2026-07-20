@@ -1,8 +1,8 @@
-# IfritCompose — the concrete API surface (proposal)
+# SigilCompose — the concrete API surface (proposal)
 
 Companion to DESIGN.md. This is the surface as you would write it,
 header-level signatures plus complete usage in real canvas contexts.
-Everything here is `namespace ifrit::compose` unless noted.
+Everything here is `namespace sigil::compose` unless noted.
 
 ## The three answers up front
 
@@ -23,7 +23,7 @@ projection of it.
 Yoga node lifetimes, cache invalidation, stacking order, saveLayer
 management, dirty tracking. The *capabilities* are not: styling takes
 real Skia types (`SkColor4f`, `sk_sp<SkShader>`, `SkBlendMode`,
-`SkPath`), text takes real TextFlow types (`TextStyle`, `Paragraph`,
+`SkPath`), text takes real SigilWeave types (`TextStyle`, `Paragraph`,
 `ParagraphLayoutOptions`) and hands the resolved `ParagraphLayout` back,
 animation takes real Choreograph objects (`ch::Output<float>`, phrases
 on the Ticker's timeline), and `custom()` hands you the raw `SkCanvas`.
@@ -36,7 +36,7 @@ Every layer has a bottom you can reach.
 ```cpp
 // The kernel Fill is two constructors — a color, or anything Skia can
 // shade. Gradient conveniences are userland-shaped and live in
-// <ifritcompose/util.h> (they are one-line wrappers over
+// <sigilcompose/util.h> (they are one-line wrappers over
 // Fill::shader(SkShaders::LinearGradient(...))).
 struct Fill {
   static Fill color(SkColor4f c);
@@ -75,11 +75,11 @@ happens until a `Composer` reconciles the tree.
 ```cpp
 // ---- factories (the leaf set = everything we already draw) ----
 Element box();
-Element text(std::u8string utf8, textflow::TextStyle style);
-Element text(textflow::Paragraph paragraph,                 // full control:
-             textflow::ParagraphLayoutOptions opts = {});   // spans, K-P,
+Element text(std::u8string utf8, sigil::weave::TextStyle style);
+Element text(sigil::weave::Paragraph paragraph,                 // full control:
+             sigil::weave::ParagraphLayoutOptions opts = {});   // spans, K-P,
                                                             // justification…
-Element image(std::shared_ptr<const ifrit::image::ImageAsset> asset);
+Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 Element web(std::shared_ptr<ifrit::web::WebView> view);     // live frames
 Element custom(PaintProgram program);                       // raw SkCanvas
 
@@ -115,7 +115,7 @@ Element &translateX(PropValue<float>); Element &translateY(PropValue<float>);
 Element &rotate(PropValue<float>); Element &scale(PropValue<float>);
 Element &transformOrigin(float fx, float fy);   // fractions of own box
 Element &zIndex(int);
-// stroke()/shadow()/gradient constructors live in <ifritcompose/util.h>
+// stroke()/shadow()/gradient constructors live in <sigilcompose/util.h>
 // — pure sugar over foreground(PathFormat…)/background(…)/Fill::shader,
 // deliberately outside the kernel (see "Kernel, util, extensions").
 
@@ -154,7 +154,7 @@ struct PaintContext {
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
 // Contract: canvas is translated to the node's origin (clipped when
 // .clip() is set); matrix/clip restored after you return. You may use
-// TextFlow, IfritImage, PaintShaders — anything.
+// SigilWeave, SigilImage, PaintShaders — anything.
 
 // custom() is DEFINED as sugar: a box whose content is one paint
 // program — custom(p) ≡ box().background(p). Custom leaves and
@@ -192,7 +192,7 @@ snapping*. The lifecycle rules, stated once:
 ```cpp
 class Composer {
 public:
-  explicit Composer(ifrit::tick::Ticker &ticker);
+  explicit Composer(sigil::tick::Ticker &ticker);
 
   /** Layout viewport in canvas-space px (a poster's size, a panel's
    *  rect…). Percent dims resolve against this. */
@@ -216,9 +216,9 @@ public:
   // ---- escape hatches / queries ----
   /** Resolved layout rect of a keyed node (canvas space). */
   std::optional<SkRect> bounds(std::string_view key) const;
-  /** The live TextFlow layout of a keyed text node — for glyph
+  /** The live SigilWeave layout of a keyed text node — for glyph
    *  choreography, hit queries, decorations. Valid until next layout. */
-  const textflow::ParagraphLayout *paragraphLayout(std::string_view key) const;
+  const sigil::weave::ParagraphLayout *paragraphLayout(std::string_view key) const;
 };
 ```
 
@@ -255,11 +255,11 @@ property of a subtree, not a heuristic guess. So:
 
 Three layers keep the library lean and the call sites short:
 
-- **Kernel** (`<ifritcompose/compose.h>`): elements/components/
+- **Kernel** (`<sigilcompose/compose.h>`): elements/components/
   Composer, flex + `stack()`, stacking paint, `Fill::color/shader`,
   text/image/custom leaves, `key`/`memo`, `PropValue` + `Transition`,
   automatic caching. Complete mental model, smallest possible surface.
-- **Util** (`<ifritcompose/util.h>`, depends only on the kernel —
+- **Util** (`<sigilcompose/util.h>`, depends only on the kernel —
   deliberately *demoted* sugar that users could write themselves):
   gradient Fill constructors, `stroke()`/`shadow()` decoration
   helpers, and `Stage` — the three-line host bundle for the common
@@ -276,10 +276,10 @@ Three layers keep the library lean and the call sites short:
   depends on them): `LayoutScheme`, `PathFormat`/`Slice`/`ContourWalk`,
   `Effect`/backdrop, `flowAround`/`connector`, slots.
 
-## Worked example 1 — static poster, headless (textflow_demo style)
+## Worked example 1 — static poster, headless (weave_demo style)
 
 ```cpp
-using namespace ifrit::compose;
+using namespace sigil::compose;
 namespace ch = choreograph;
 
 Element poster(const EventInfo &info) {
@@ -295,7 +295,7 @@ Element poster(const EventInfo &info) {
 }
 
 // Host: exactly like a textflow demo panel.
-ifrit::tick::Ticker ticker;               // unused motions? fine — inert
+sigil::tick::Ticker ticker;               // unused motions? fine — inert
 Composer composer(ticker);
 composer.setSize({1080, 1350});
 composer.render(poster(info));
@@ -362,7 +362,7 @@ Element hero =
                  drawSigilRings(c, i.size, i.elapsedSeconds);
                }).height(220).cache(Cache::None));
 
-// Glyph-level motion via textflow::Choreograph, as a Ticker steppable:
+// Glyph-level motion via sigil::weave::Choreograph, as a Ticker steppable:
 ticker.add([&](double dt) {
   const auto *layout = composer.paragraphLayout("headline");
   if (layout) glyphRain.step(*layout, dt);     // stable glyph enumeration
@@ -454,7 +454,7 @@ Two levels, honoring "layout is just code":
      { l.place(in) }   -> std::ranges::range;   // of SkRect, one per child
    };
    // LayoutInput: constraints + each child's measured size (text leaves
-   // already measure via TextFlow).
+   // already measure via SigilWeave).
 
    struct Grid {                       // ~20 lines of user code
      int columns; float gap;
@@ -475,7 +475,7 @@ system). The read surface is post-layout and read-only:
 
 ```cpp
 std::optional<SkRect> bounds(std::string_view key) const;
-const textflow::ParagraphLayout *paragraphLayout(std::string_view key) const;
+const sigil::weave::ParagraphLayout *paragraphLayout(std::string_view key) const;
 std::optional<std::string> hitTest(SkPoint canvasPoint) const;  // topmost key
 ```
 
@@ -645,7 +645,7 @@ resolved output:
 | Phase | Input → Output | Procedural entry |
 | --- | --- | --- |
 | **Describe** | data → elements | components, `memo`, ranges — generation by ordinary code |
-| **Layout** | constraints → rects | `LayoutScheme`; text measure via TextFlow |
+| **Layout** | constraints → rects | `LayoutScheme`; text measure via SigilWeave |
 | **Derive** | resolved geometry → more content | `flowAround`, `connector`, `ContourWalk` stamps |
 | **Paint** | geometry + canvas → pixels | `DecorationScheme`, `custom()`, SkSL |
 | **Frame** | time → values / next data | Choreograph outputs, steppables, host data feedback |
@@ -654,7 +654,7 @@ The **derive phase** is the addition this round forces — the home of
 everything whose *input is resolved layout*:
 
 ```cpp
-// Text flowing around frames: TextFlow's ExclusionFlow already exists;
+// Text flowing around frames: SigilWeave's ExclusionFlow already exists;
 // the composer plumbs resolved node outlines into it. Runs as a second
 // layout pass (how DTP engines do float wrap); reference cycles are
 // rejected at reconcile time.

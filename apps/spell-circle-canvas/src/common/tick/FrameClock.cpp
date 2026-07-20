@@ -1,9 +1,9 @@
-#include "ifrittick/FrameClock.h"
+#include "sigiltick/FrameClock.h"
 
 #include <algorithm>
 #include <chrono>
 
-namespace ifrit::tick {
+namespace sigil::tick {
 
 double FrameClock::tick(double nowSeconds) {
   if (m_lastNow < 0.0) {
@@ -27,4 +27,4 @@ double FrameClock::tick() {
 
 void FrameClock::setPaused(bool paused) { m_paused = paused; }
 
-} // namespace ifrit::tick
+} // namespace sigil::tick

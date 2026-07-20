@@ -1,7 +1,7 @@
 #include "SceneRenderer.h"
 
-#include <textflow/TextFlow.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/SigilWeave.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
@@ -28,12 +28,12 @@ std::u8string_view u8view(const std::string &text) {
 SceneRenderer::SceneRenderer() = default;
 SceneRenderer::~SceneRenderer() = default;
 
-textflow::FontContext &SceneRenderer::fontContext() {
+sigil::weave::FontContext &SceneRenderer::fontContext() {
   // Created on first use, on the calling thread (its owner) — all label and
   // paragraph text below goes through it.
   if (!m_textContext)
-    m_textContext = std::make_unique<textflow::FontContext>(
-        textflow::ports::systemFontManager());
+    m_textContext = std::make_unique<sigil::weave::FontContext>(
+        sigil::weave::ports::systemFontManager());
   return *m_textContext;
 }
 
@@ -42,7 +42,7 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   if (!skCanvas)
     return;
 
-  textflow::FontContext &textContext = fontContext();
+  sigil::weave::FontContext &textContext = fontContext();
 
   const SkColor accentColor = style.accentColor;
 
@@ -106,19 +106,19 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
       // compensated and centre-anchored on textStart (see
       // spellcircle::makeRingLabelInterval). Rings are origin-centred and
       // cached, so a canvas translate puts the label on the actual circle.
-      const textflow::LineInterval interval = makeRingLabelInterval(
+      const sigil::weave::LineInterval interval = makeRingLabelInterval(
           m_ringLabelGeometry, fontMetrics, radius + style.labelOffset,
           circle.textStart);
       if (interval.contour) {
-        textflow::Paragraph &label = m_labelParagraphs.paragraphFor(
+        sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
             u8view(circle.name), typeface, style.fontSize);
-        textflow::LineSetFlow flow;
+        sigil::weave::LineSetFlow flow;
         flow.lines().push_back({interval});
-        textflow::ParagraphLayoutOptions labelOptions;
-        labelOptions.alignment = textflow::TextAlignment::kCenter;
-        textflow::ParagraphLayout labelLayout =
-            textflow::layoutParagraph(textContext, label, flow, labelOptions);
-        textflow::PaintStyle accentPaint(accentColor);
+        sigil::weave::ParagraphLayoutOptions labelOptions;
+        labelOptions.alignment = sigil::weave::TextAlignment::kCenter;
+        sigil::weave::ParagraphLayout labelLayout =
+            sigil::weave::layoutParagraph(textContext, label, flow, labelOptions);
+        sigil::weave::PaintStyle accentPaint(accentColor);
         skCanvas->save();
         skCanvas->translate(centerX, centerY);
         labelLayout.draw(skCanvas, label, &accentPaint);
@@ -136,14 +136,14 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
         pointLabel.anchor.x + pointLabel.direction.x * style.pointDistance;
     const float centerY =
         pointLabel.anchor.y + pointLabel.direction.y * style.pointDistance;
-    textflow::Paragraph &label = m_labelParagraphs.paragraphFor(
+    sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
         u8view(pointLabel.value), typeface, style.fontSize);
     const float textWidth = label.naturalWidth(textContext);
-    textflow::ParagraphLayout labelLayout = textflow::layoutSingleLine(
+    sigil::weave::ParagraphLayout labelLayout = sigil::weave::layoutSingleLine(
         textContext, label,
         {centerX - textWidth * 0.5f,
          centerY + centeredBaselineOffset(fontMetrics)});
-    textflow::PaintStyle accentPaint(accentColor);
+    sigil::weave::PaintStyle accentPaint(accentColor);
     labelLayout.draw(skCanvas, label, &accentPaint);
   }
 
@@ -161,7 +161,7 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
   boxStrokePaint.setStrokeWidth(style.strokeWidth);
   boxStrokePaint.setColor(accentColor);
   for (const auto &box : scene.boxes) {
-    textflow::Paragraph &label = m_labelParagraphs.paragraphFor(
+    sigil::weave::Paragraph &label = m_labelParagraphs.paragraphFor(
         u8view(box.value), typeface, style.fontSize);
     const float textWidth = label.naturalWidth(textContext);
     const float resolvedBoxWidth =
@@ -194,11 +194,11 @@ void SceneRenderer::draw(SkCanvas *skCanvas, const ResolvedScene &scene,
 
     // TextBaseline::Top: the top of the glyphs (not the alphabetic
     // baseline) sits at (boxX + boxPadding, boxY + boxPadding).
-    textflow::ParagraphLayout labelLayout = textflow::layoutSingleLine(
+    sigil::weave::ParagraphLayout labelLayout = sigil::weave::layoutSingleLine(
         textContext, label,
         {boxX + style.boxPadding,
          boxY + style.boxPadding - fontMetrics.fAscent});
-    textflow::PaintStyle textPaint;
+    sigil::weave::PaintStyle textPaint;
     if (box.active > 0.0f) {
       // Punches the text out of the box fill instead of drawing it on top
       // — matches QCanvasPainter::CompositeOperation::DestinationOut.

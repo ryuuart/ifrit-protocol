@@ -1,12 +1,12 @@
 #pragma once
-// Internal to IfritCompose — the element description payload shared by
+// Internal to SigilCompose — the element description payload shared by
 // the builders (Compose.cpp) and the reconciler (Composer.cpp).
 
-#include "ifritcompose/Compose.h"
+#include "sigilcompose/Compose.h"
 
-#include <textflow/Paragraph.h>
+#include <sigilweave/Paragraph.h>
 
-namespace ifrit::compose::detail {
+namespace sigil::compose::detail {
 
 enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
 
@@ -54,10 +54,10 @@ struct ElementNode {
 
   // Text
   std::u8string textUtf8;
-  textflow::TextStyle textStyle;
+  sigil::weave::TextStyle textStyle;
 
   // Image
-  std::shared_ptr<const ifrit::image::ImageAsset> imageAsset;
+  std::shared_ptr<const sigil::image::ImageAsset> imageAsset;
 
   // Custom
   PaintProgram program;
@@ -112,4 +112,4 @@ ResolvedProp<T> resolveProp(const PropValue<T> &v,
   return out;
 }
 
-} // namespace ifrit::compose::detail
+} // namespace sigil::compose::detail

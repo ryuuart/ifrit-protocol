@@ -122,14 +122,14 @@ elseif(TARGET Spout2::SpoutDX)
 endif()
 
 # SpellCircleSkia (the generic Skia GPU plumbing under src/common/skia)
-# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. TextFlow provides
+# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. SigilWeave provides
 # the animated text layer drawn by SkiaSceneBackend.cpp.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  # TextFlowQt carries TextFlow transitively; TextFlowPorts provides the
+  # SigilWeaveQt carries SigilWeave transitively; SigilWeavePorts provides the
   # system font manager used by the render-thread FontContext. (No direct
-  # absl links: TextFlow's public headers no longer expose abseil types.)
-  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkiaQt TextFlowQt
-    TextFlowPorts)
+  # absl links: SigilWeave's public headers no longer expose abseil types.)
+  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkiaQt SigilWeaveQt
+    SigilWeavePorts)
 endif()
 
 target_include_directories(SpellCircleCanvas PUBLIC

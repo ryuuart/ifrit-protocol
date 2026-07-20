@@ -23,11 +23,11 @@ RingLabelGeometryCache::ringForRadius(float radius) {
   return measuredRing->second;
 }
 
-textflow::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCache,
+sigil::weave::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCache,
                                              const SkFontMetrics &metrics,
                                              float opticalMiddleRadius,
                                              float anchorFraction) {
-  textflow::LineInterval interval;
+  sigil::weave::LineInterval interval;
 
   // Baselines sit inward of the optical-middle ring. Without the scale
   // correction the same glyph advances consume more angle at the smaller

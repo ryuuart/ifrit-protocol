@@ -6,11 +6,11 @@
 // hand-maintained. (It also guarantees the sketch prelude always
 // compiles, even if no sketch is open.)
 
-#include <ifritsketch/Sketch.h>
+#include <sigilsketch/Sketch.h>
 
-namespace ifrit::compose::sketch {
+namespace sigil::compose::sketch {
 
 /** Referenced by nothing; exists so this TU is a real compile unit. */
 void sketchAnchor() {}
 
-} // namespace ifrit::compose::sketch
+} // namespace sigil::compose::sketch

@@ -1,14 +1,14 @@
 // The Composer: keyed reconciliation into a retained instance tree,
-// Yoga layout with TextFlow-measured text leaves, stacking-order paint,
+// Yoga layout with SigilWeave-measured text leaves, stacking-order paint,
 // automatic SkPicture caching of provably-static subtrees, and
 // Choreograph-backed transitions/bindings stepped by the host's Ticker.
 
 #include "ComposeInternal.h"
 
-#include <ifritimage/ImageAsset.h>
+#include <sigilimage/ImageAsset.h>
 
-#include <textflow/Flow.h>
-#include <textflow/FontContext.h>
+#include <sigilweave/Flow.h>
+#include <sigilweave/FontContext.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
@@ -27,7 +27,7 @@
 #include <numeric>
 #include <unordered_map>
 
-namespace ifrit::compose {
+namespace sigil::compose {
 
 using namespace detail;
 
@@ -90,9 +90,9 @@ struct Instance {
   std::vector<size_t> paintOrder; // child indices sorted by zIndex
 
   // Text state
-  std::optional<textflow::Paragraph> paragraph;
-  textflow::ParagraphLayout textLayout;
-  std::vector<textflow::LineMetrics> lines;
+  std::optional<sigil::weave::Paragraph> paragraph;
+  sigil::weave::ParagraphLayout textLayout;
+  std::vector<sigil::weave::LineMetrics> lines;
   float measuredForWidth = -1.0f;
   YGSize measuredSize{0, 0};
   uint32_t contentRev = 0;     // bumped on text/exclusion change
@@ -136,7 +136,7 @@ struct Instance {
 
 struct Composer::Impl {
   tick::Ticker &ticker;
-  textflow::FontContext &fonts;
+  sigil::weave::FontContext &fonts;
   const tick::FrameClock *clock = nullptr;
 
   SkSize size = SkSize::MakeEmpty();
@@ -152,7 +152,7 @@ struct Composer::Impl {
 
   mutable Stats stats;
 
-  Impl(tick::Ticker &t, textflow::FontContext &f) : ticker(t), fonts(f) {
+  Impl(tick::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
     yogaConfig = YGConfigNew();
   }
   ~Impl() {
@@ -237,7 +237,7 @@ float baselineOfTextNode(YGNodeConstRef node, float, float) {
       const_cast<YGNodeRef>(node)));
   if (inst->lines.empty())
     return 0.0f;
-  const textflow::LineMetrics &first = inst->lines.front();
+  const sigil::weave::LineMetrics &first = inst->lines.front();
   return first.baseline - first.rect().top();
 }
 
@@ -248,21 +248,21 @@ void Composer::Impl::layoutText(Instance &inst, float constraint) {
       inst.measuredRev == inst.contentRev)
     return; // layout is already valid for this content and width
   if (!inst.exclusionsLocal.empty()) {
-    textflow::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
     for (const SkRect &exclusion : inst.exclusionsLocal)
-      flow.shapes().push_back(textflow::ExclusionFlow::Shape::fromRectangle(
+      flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromRectangle(
           exclusion, inst.desc->flowAroundMargin));
-    inst.textLayout = textflow::layoutParagraph(fonts, *inst.paragraph,
+    inst.textLayout = sigil::weave::layoutParagraph(fonts, *inst.paragraph,
                                                 flow, {});
   } else {
-    textflow::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    inst.textLayout = textflow::layoutParagraph(fonts, *inst.paragraph,
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    inst.textLayout = sigil::weave::layoutParagraph(fonts, *inst.paragraph,
                                                 flow, {});
   }
   inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
   inst.measuredForWidth = constraint;
   SkRect bounds = SkRect::MakeEmpty();
-  for (const textflow::LineMetrics &line : inst.lines)
+  for (const sigil::weave::LineMetrics &line : inst.lines)
     bounds.join(line.rect());
   inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
   inst.measuredRev = inst.contentRev;
@@ -990,7 +990,7 @@ void Composer::Impl::indexKeys(Instance &inst) {
 // ---------------------------------------------------------------------------
 // Composer public surface
 
-Composer::Composer(tick::Ticker &ticker, textflow::FontContext &fonts)
+Composer::Composer(tick::Ticker &ticker, sigil::weave::FontContext &fonts)
     : m_impl(std::make_unique<Impl>(ticker, fonts)) {}
 Composer::~Composer() = default;
 
@@ -1108,7 +1108,7 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
   return rect;
 }
 
-const textflow::ParagraphLayout *
+const sigil::weave::ParagraphLayout *
 Composer::paragraphLayout(std::string_view key) const {
   auto it = m_impl->byKey.find(std::string(key));
   if (it == m_impl->byKey.end() || !it->second->paragraph)
@@ -1136,4 +1136,4 @@ const Composer::Stats &Composer::stats() const {
   return m_impl->stats;
 }
 
-} // namespace ifrit::compose
+} // namespace sigil::compose

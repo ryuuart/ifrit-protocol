@@ -1,6 +1,6 @@
-#include "ifrittick/Ticker.h"
+#include "sigiltick/Ticker.h"
 
-namespace ifrit::tick {
+namespace sigil::tick {
 
 Ticker::Ticker() {
   // Finished motions leave the timeline so active() settles to false
@@ -27,4 +27,4 @@ bool Ticker::active() const {
   return !m_timeline.empty() || !m_steppables.empty();
 }
 
-} // namespace ifrit::tick
+} // namespace sigil::tick

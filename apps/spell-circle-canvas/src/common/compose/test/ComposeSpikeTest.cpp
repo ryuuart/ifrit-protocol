@@ -1,16 +1,16 @@
-// Feasibility spike for the IfritCompose design (see ../DESIGN.md):
+// Feasibility spike for the SigilCompose design (see ../DESIGN.md):
 // proves that Yoga's measure and baseline callbacks can be driven by
-// TextFlow, which is the load-bearing assumption of the whole proposal.
+// SigilWeave, which is the load-bearing assumption of the whole proposal.
 //
-// No poster API exists yet — this talks to Yoga and TextFlow directly,
+// No poster API exists yet — this talks to Yoga and SigilWeave directly,
 // the way the future layout pass would.
 
-#include <textflow/Flow.h>
-#include <textflow/FontContext.h>
-#include <textflow/Paragraph.h>
-#include <textflow/ParagraphLayout.h>
-#include <textflow/Style.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/Flow.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/Paragraph.h>
+#include <sigilweave/ParagraphLayout.h>
+#include <sigilweave/Style.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <yoga/Yoga.h>
 
@@ -22,7 +22,7 @@
 
 namespace {
 
-using namespace textflow;
+using namespace sigil::weave;
 
 FontContext &sharedContext() {
   static auto *context = new FontContext(ports::systemFontManager());
@@ -62,7 +62,7 @@ struct TextLeaf {
   }
 };
 
-/** Yoga measure callback → TextFlow layout at the constraint width. */
+/** Yoga measure callback → SigilWeave layout at the constraint width. */
 YGSize measureText(YGNodeConstRef node, float width, YGMeasureMode widthMode,
                    float /*height*/, YGMeasureMode /*heightMode*/) {
   auto *leaf = static_cast<TextLeaf *>(YGNodeGetContext(node));
@@ -73,7 +73,7 @@ YGSize measureText(YGNodeConstRef node, float width, YGMeasureMode widthMode,
   return {std::ceil(bounds.width()), std::ceil(bounds.height())};
 }
 
-/** Yoga baseline callback → the first line's baseline from TextFlow. */
+/** Yoga baseline callback → the first line's baseline from SigilWeave. */
 float baselineOfText(YGNodeConstRef node, float /*width*/, float /*height*/) {
   auto *leaf = static_cast<TextLeaf *>(YGNodeGetContext(node));
   if (leaf->lines.empty())
@@ -126,7 +126,7 @@ TEST(PosterSpike, TextLeafSizesToMeasurement) {
   YGNodeFreeRecursive(root);
 }
 
-// Constrained width wraps through TextFlow: Yoga's measure constraint
+// Constrained width wraps through SigilWeave: Yoga's measure constraint
 // really reaches the line breaker.
 TEST(PosterSpike, ConstrainedWidthWrapsText) {
   TextLeaf wide(u8"the quick brown fox jumps over the lazy dog", 24.0f);

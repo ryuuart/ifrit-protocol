@@ -9,7 +9,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 
-namespace ifrit::compose {
+namespace sigil::compose {
 
 using detail::ElementNode;
 using detail::Kind;
@@ -175,7 +175,7 @@ Element stack() {
   return e;
 }
 
-Element text(std::u8string utf8, textflow::TextStyle style) {
+Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
   e.node()->textUtf8 = std::move(utf8);
@@ -187,7 +187,7 @@ Element text(std::u8string utf8, textflow::TextStyle style) {
   return e;
 }
 
-Element image(std::shared_ptr<const ifrit::image::ImageAsset> asset) {
+Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   Element e;
   e.node()->kind = Kind::Image;
   e.node()->imageAsset = std::move(asset);
@@ -244,4 +244,4 @@ Element makeMemo(std::any props,
 }
 } // namespace detail
 
-} // namespace ifrit::compose
+} // namespace sigil::compose

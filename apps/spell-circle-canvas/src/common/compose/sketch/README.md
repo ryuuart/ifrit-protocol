@@ -1,4 +1,4 @@
-# ComposeSketch — live-coding host for IfritCompose
+# ComposeSketch — live-coding host for SigilCompose
 
 A p5.js-style creative loop for the compose framework, without leaving
 C++: a **sketch** is a single `.cpp` file using the full real API
@@ -31,8 +31,8 @@ Headless single-shot (also the CI smoke test):
 ## Writing a sketch
 
 ```cpp
-#include <ifritsketch/Sketch.h>
-using namespace ifrit::compose;
+#include <sigilsketch/Sketch.h>
+using namespace sigil::compose;
 
 struct MySketch : sketch::Sketch {
   choreograph::Output<float> pulse{0};
@@ -46,7 +46,7 @@ struct MySketch : sketch::Sketch {
   }
   void update(double elapsed, sketch::SketchContext &ctx) override {}
 };
-IFRIT_SKETCH(MySketch)
+SIGIL_SKETCH(MySketch)
 ```
 
 - `ctx.canvas(w, h)` / `ctx.background(color)` — p5's
@@ -57,7 +57,7 @@ IFRIT_SKETCH(MySketch)
 - `update(elapsed, ctx)` runs every frame; re-`render()` for
   data-driven changes, use bindings/transitions for motion.
 - `ctx.assets.image("name.png")` loads from the sketch's `assets/`
-  directory (override with `--assets <dir>`) through IfritImage —
+  directory (override with `--assets <dir>`) through SigilImage —
   PNG/JPEG/WebP/GIF/AVIF. Missing files render the magenta checker and
   heal when the file appears; editing an asset hot-swaps it.
 
@@ -74,7 +74,7 @@ IFRIT_SKETCH(MySketch)
 
 ## How it works
 
-- The flags are never hand-maintained: `IfritSketchKit`'s PUBLIC
+- The flags are never hand-maintained: `SigilSketchKit`'s PUBLIC
   dependencies define what sketches may use, `SketchAnchor.cpp`
   compiles the sketch prelude inside the real target graph, and
   `ExtractSketchFlags.cmake` lifts that TU's exact command out of

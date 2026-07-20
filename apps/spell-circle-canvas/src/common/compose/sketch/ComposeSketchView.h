@@ -31,7 +31,7 @@ public:
   QString metrics() const { return m_metrics; }
 
   /** Wired up by main() before the QML scene loads. */
-  static ifrit::compose::sketch::SketchHost *host;
+  static sigil::compose::sketch::SketchHost *host;
 
 signals:
   void stateChanged();

@@ -126,10 +126,10 @@ struct RpgHudScene final : Scene {
 
   static Element bagSlot(const Slot &s) {
     auto cell = box().width(56).height(56).corners({10})
-                    .background(ifrit::compose::util::shadow(
+                    .background(sigil::compose::util::shadow(
                         rarityColor(s.rarity), {0, 0}, 14))
                     .fill(Fill::color({0.09f, 0.10f, 0.16f, 1}))
-                    .foreground(ifrit::compose::util::stroke(
+                    .foreground(sigil::compose::util::stroke(
                         2, Fill::color(rarityColor(s.rarity))));
     const int icon = s.icon;
     cell.child(custom([icon](SkCanvas &c, const PaintContext &ctx) {
@@ -150,17 +150,17 @@ struct RpgHudScene final : Scene {
       bagGrid.child(memo(bag[i], bagSlot).key("slot" + std::to_string(i)));
 
     return stack()
-        .fill(ifrit::compose::util::linearGradient(
+        .fill(sigil::compose::util::linearGradient(
             {0, 0}, {900, 640},
             {{0.10f, 0.05f, 0.20f, 1}, {0.03f, 0.10f, 0.16f, 1}}))
         // Character card
         .child(anchored(box().column().gap(10).padding(16), 24, 24, 320,
                         178)
                    .corners({16})
-                   .background(ifrit::compose::util::shadow(
+                   .background(sigil::compose::util::shadow(
                        {0, 0, 0, 0.6f}, {4, 6}, 18))
                    .fill(Fill::color({0.08f, 0.07f, 0.14f, 0.94f}))
-                   .foreground(ifrit::compose::util::stroke(
+                   .foreground(sigil::compose::util::stroke(
                        1.5f, Fill::color({0.69f, 0.55f, 1.0f, 0.6f})))
                    .child(box().row().gap(12)
                               .child(custom([this](SkCanvas &c,
@@ -249,7 +249,7 @@ struct RpgHudScene final : Scene {
                         132)
                    .corners({16})
                    .fill(Fill::color({0.07f, 0.06f, 0.12f, 0.94f}))
-                   .foreground(ifrit::compose::util::stroke(
+                   .foreground(sigil::compose::util::stroke(
                        1.5f, Fill::color({0.98f, 0.62f, 0.20f, 0.5f})))
                    .child(box().row().gap(8)
                               .child(text(u8"◈", styleAt(18, 0xffffb46b)))
@@ -265,10 +265,10 @@ struct RpgHudScene final : Scene {
           return anchored(box().column().gap(6).padding(16), 548, 24, 328,
                           112)
               .corners({12}).cache(Cache::Texture)
-              .background(ifrit::compose::util::shadow(
+              .background(sigil::compose::util::shadow(
                   {0, 0, 0, 0.5f}, {3, 4}, 10))
               .fill(parchmentFill(pal.parchment))
-              .foreground(ifrit::compose::util::stroke(
+              .foreground(sigil::compose::util::stroke(
                   2, Fill::color(pal.stem)))
               .foreground(SwirlCorners{pal, 18.0f, 1.6f})
               .child(text(u8"QUEST · The Ember Gate",
@@ -288,10 +288,10 @@ struct RpgHudScene final : Scene {
                               .justify(Justify::Center),
                           370, 96, 170, 140)
               .outline(starburstOutline(12, 0.34f))
-              .fill(ifrit::compose::util::radialGradient(
+              .fill(sigil::compose::util::radialGradient(
                   {85, 70}, 90,
                   {{1.0f, 0.88f, 0.40f, 1}, {0.88f, 0.26f, 0.10f, 1}}))
-              .foreground(ifrit::compose::util::stroke(
+              .foreground(sigil::compose::util::stroke(
                   3, Fill::color({0.45f, 0.07f, 0.05f, 1})))
               .rotate(&critSpin).zIndex(5)
               .child(text(u8"CRIT!", styleAt(21, 0xff471003)))
@@ -300,7 +300,7 @@ struct RpgHudScene final : Scene {
         }());
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     bag.clear();
     for (int i = 0; i < 8; ++i)
       bag.push_back({(int)(rng() % 5), (int)(rng() % 4)});
@@ -441,7 +441,7 @@ struct BotanicalScene final : Scene {
     }
 
     return stack()
-        .fill(ifrit::compose::util::linearGradient(
+        .fill(sigil::compose::util::linearGradient(
             {0, 0}, {0, 640},
             {{0.13f, 0.09f, 0.26f, 1},
              {0.72f, 0.36f, 0.34f, 1},
@@ -477,7 +477,7 @@ struct BotanicalScene final : Scene {
                    .absolute().inset(24, 20, 24, 590));
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     seed = 7;
     nextReseed = 0.0;
     ticker.add([this, t = 0.0](double dt) mutable {

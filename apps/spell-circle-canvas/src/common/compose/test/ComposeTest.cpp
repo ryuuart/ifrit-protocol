@@ -2,10 +2,10 @@
 // memo), automatic picture caching, and transition semantics — the P1
 // slice of STRESS_TESTS.md, in headless deterministic form.
 
-#include <ifritcompose/Compose.h>
+#include <sigilcompose/Compose.h>
 
-#include <textflow/FontContext.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -16,26 +16,26 @@
 #include <gtest/gtest.h>
 #include <cstdio>
 
-using namespace ifrit::compose;
+using namespace sigil::compose;
 using namespace std::chrono_literals;
 
 namespace {
 
-textflow::FontContext &fonts() {
+sigil::weave::FontContext &fonts() {
   static auto *context =
-      new textflow::FontContext(textflow::ports::systemFontManager());
+      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
-textflow::TextStyle styleAt(float size) {
-  textflow::TextStyle s;
+sigil::weave::TextStyle styleAt(float size) {
+  sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   return s;
 }
 
 /** A composer with its own ticker, drawn into a raster surface. */
 struct Host {
-  ifrit::tick::Ticker ticker;
+  sigil::tick::Ticker ticker;
   Composer composer{ticker, fonts()};
   sk_sp<SkSurface> surface;
 
@@ -299,7 +299,7 @@ TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
   EXPECT_EQ(host.pixel(40, 40), SK_ColorYELLOW);
 }
 
-#include <ifritcompose/Decorations.h>
+#include <sigilcompose/Decorations.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
@@ -393,7 +393,7 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   EXPECT_EQ(staticRuns, 1);
 }
 
-#include <ifritimage/ImageAsset.h>
+#include <sigilimage/ImageAsset.h>
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
 
@@ -405,8 +405,8 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(10, 10, 10, 10));
   SkDynamicMemoryWStream stream;
   SkPngEncoder::Encode(&stream, src.pixmap(), {});
-  auto asset = std::make_shared<ifrit::image::ImageAsset>(
-      *ifrit::image::ImageAsset::decode(stream.detachAsData()));
+  auto asset = std::make_shared<sigil::image::ImageAsset>(
+      *sigil::image::ImageAsset::decode(stream.detachAsData()));
 
   Host host;
   Slice nine;
@@ -471,7 +471,7 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
   EXPECT_NE(host.pixel(30, 30), SK_ColorBLACK); // filtered content present
 }
 
-#include <ifritcompose/Util.h>
+#include <sigilcompose/Util.h>
 
 namespace {
 /** ~20 lines of user code: the lightweight grid from the design docs. */
@@ -521,7 +521,7 @@ TEST(ComposeLayoutScheme, GridPlacesAndSizesCells) {
 }
 
 TEST(ComposeUtil, StageBundlesTheLoop) {
-  ifrit::compose::util::Stage stage({100, 100}, fonts());
+  sigil::compose::util::Stage stage({100, 100}, fonts());
   stage.render(box().fill(Fill::color({1, 0, 0, 1})));
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
@@ -538,9 +538,9 @@ TEST(ComposeUtil, ShadowAndStrokeSugar) {
   host.composer.render(box().child(
       box().width(80).height(80).inset(40, 40, 40, 40).absolute()
           .corners({10})
-          .background(ifrit::compose::util::shadow({0, 0, 1, 1}, {12, 12}, 0))
+          .background(sigil::compose::util::shadow({0, 0, 1, 1}, {12, 12}, 0))
           .fill(red())
-          .foreground(ifrit::compose::util::stroke(4, green()))));
+          .foreground(sigil::compose::util::stroke(4, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);     // fill over shadow
   EXPECT_EQ(host.pixel(128, 128), SK_ColorBLUE);  // shadow offset corner
@@ -548,8 +548,8 @@ TEST(ComposeUtil, ShadowAndStrokeSugar) {
 }
 
 namespace {
-textflow::TextStyle whiteStyle(float size) {
-  textflow::TextStyle s = styleAt(size);
+sigil::weave::TextStyle whiteStyle(float size) {
+  sigil::weave::TextStyle s = styleAt(size);
   s.paint.foreground.setColor(SK_ColorWHITE);
   return s;
 }
@@ -659,7 +659,7 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
   // Yoga skips the measure callback when absolute insets determine both
   // dimensions; the kernel must lay the paragraph out at paint time.
   Host host;
-  textflow::TextStyle style = styleAt(40);
+  sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(
       stack().child(text(u8"WWWW", style).absolute()
@@ -675,7 +675,7 @@ TEST(TextLayout, FullyConstrainedAbsoluteTextPaints) {
 
 TEST(TextLayout, AlignItemsCentersTextLeaf) {
   Host host;
-  textflow::TextStyle style = styleAt(40);
+  sigil::weave::TextStyle style = styleAt(40);
   style.paint.foreground.setColor(SK_ColorWHITE);
   host.composer.render(box().width(200).height(60)
                            .alignItems(Align::Center)

@@ -7,14 +7,14 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 
-#include <textflowqt/TextFlowQt.h>
+#include <sigilweaveqt/SigilWeaveQt.h>
 
 #include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <memory>
 
-using textflowqt::toSkColor;
+using sigil::weave::qt::toSkColor;
 
 // SkiaSceneBackendImpl deliberately lives at global scope (not in an
 // anonymous namespace) so that SpellCircleRenderer's
@@ -62,9 +62,9 @@ public:
         static_cast<float>(renderer.m_font.pointSizeF() * scale);
     // The settings dialog's "Font Style" picker (e.g. "Light", "Semibold
     // Italic") sets weight/slant via QFontDatabase::font() (see
-    // FontDatabase.cpp); textflowqt::toSkTypeface carries both through,
+    // FontDatabase.cpp); sigil::weave::qt::toSkTypeface carries both through,
     // resolved against the same font manager the labels are shaped with.
-    style.typeface = textflowqt::toSkTypeface(
+    style.typeface = sigil::weave::qt::toSkTypeface(
         m_sceneRenderer.fontContext().fontManager(), renderer.m_font);
 
     m_sceneRenderer.draw(skCanvas, renderer.m_resolved, style);

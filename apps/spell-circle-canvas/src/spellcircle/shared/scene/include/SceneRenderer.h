@@ -1,6 +1,6 @@
 #pragma once
 
-// Qt-free Skia/TextFlow drawing of a ResolvedScene. This is the single scene
+// Qt-free Skia/SigilWeave drawing of a ResolvedScene. This is the single scene
 // drawing implementation shared by the Qt app's Skia Graphite backend and
 // the native macOS app — both hand it an SkCanvas (wrapping whatever GPU or
 // raster surface they own) plus pre-scaled style values.
@@ -8,8 +8,8 @@
 #include "SceneGeometry.h"
 #include "SceneLabels.h"
 
-#include <textflow/FontContext.h>
-#include <textflow/SingleLineParagraphCache.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/SingleLineParagraphCache.h>
 
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
@@ -39,7 +39,7 @@ struct SceneStyle {
 };
 
 /**
- * Draws ResolvedScenes onto SkCanvases, owning the TextFlow caches that make
+ * Draws ResolvedScenes onto SkCanvases, owning the SigilWeave caches that make
  * repeated labels cheap (FontContext word-shape cache, single-line paragraph
  * cache, measured ring-label geometry).
  *
@@ -65,11 +65,11 @@ public:
    *  thread — same threading rule as draw()). Exposed so callers can resolve
    *  configured font families against the same SkFontMgr the labels are
    *  shaped with. */
-  textflow::FontContext &fontContext();
+  sigil::weave::FontContext &fontContext();
 
 private:
-  std::unique_ptr<textflow::FontContext> m_textContext;
-  textflow::SingleLineParagraphCache m_labelParagraphs;
+  std::unique_ptr<sigil::weave::FontContext> m_textContext;
+  sigil::weave::SingleLineParagraphCache m_labelParagraphs;
   RingLabelGeometryCache m_ringLabelGeometry;
 };
 

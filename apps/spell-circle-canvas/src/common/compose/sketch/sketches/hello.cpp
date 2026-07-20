@@ -8,20 +8,20 @@
 // ctx.assets.image("name.png") (a magenta checker shows until the file
 // exists; editing the file on disk hot-swaps it too).
 
-#include <ifritsketch/Sketch.h>
+#include <sigilsketch/Sketch.h>
 
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
 
-using namespace ifrit::compose;
-using namespace ifrit::compose::util;
+using namespace sigil::compose;
+using namespace sigil::compose::util;
 using namespace std::chrono_literals;
 
 namespace {
 
-textflow::TextStyle type(float size, SkColor color) {
-  textflow::TextStyle style;
+sigil::weave::TextStyle type(float size, SkColor color) {
+  sigil::weave::TextStyle style;
   style.shaping.fontSize = size;
   style.paint.foreground.setColor(color);
   return style;
@@ -39,7 +39,7 @@ textflow::TextStyle type(float size, SkColor color) {
 //  3. update(elapsed, ctx) is for DATA changes: mutate state, call
 //     composer.render(describe()) again, and the reconciler diffs it
 //     (see the score counter below).
-struct HelloSketch : ifrit::compose::sketch::Sketch {
+struct HelloSketch : sigil::compose::sketch::Sketch {
   choreograph::Output<float> wave{0.0f};
   int score = 0;
   double nextScoreAt = 0.0;
@@ -141,4 +141,4 @@ struct HelloSketch : ifrit::compose::sketch::Sketch {
   }
 };
 
-IFRIT_SKETCH(HelloSketch)
+SIGIL_SKETCH(HelloSketch)

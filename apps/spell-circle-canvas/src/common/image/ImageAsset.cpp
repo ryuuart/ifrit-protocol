@@ -1,4 +1,4 @@
-#include "ifritimage/ImageAsset.h"
+#include "sigilimage/ImageAsset.h"
 
 #include <include/codec/SkAvifDecoder.h>
 #include <include/codec/SkCodec.h>
@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace ifrit::image {
+namespace sigil::image {
 namespace {
 
 /** The formats this library imports. SkCodec sniffs the actual bytes, so
@@ -144,4 +144,4 @@ const Frame &ImageAsset::frameAt(double milliseconds) const {
   return m_frames.back();
 }
 
-} // namespace ifrit::image
+} // namespace sigil::image

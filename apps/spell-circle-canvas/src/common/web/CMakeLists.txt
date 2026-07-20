@@ -2,7 +2,7 @@
 # Ultralight SDK (WebKit-derived, CPU renderer) into premultiplied-BGRA
 # SkImage frames. A dedicated web thread drives ultralight::Renderer and
 # publishes immutable snapshots that any SkCanvas — raster or Graphite —
-# can draw like an IfritImage frame; an unthreaded mode lets a host drive
+# can draw like an SigilImage frame; an unthreaded mode lets a host drive
 # rendering in lockstep with its own loop instead. Only added when
 # SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the SDK is missing;
 # see cmake/FindUltralight.cmake).

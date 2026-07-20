@@ -1,15 +1,15 @@
-// Headless IfritCompose gallery: renders phase-1 stress-catalog panels
+// Headless SigilCompose gallery: renders phase-1 stress-catalog panels
 // (STRESS_TESTS.md items 1–3) to PNG. Out dir: first argument, default
 // ./compose_demo_out. The interactive Qt ComposeGallery follows later.
 
-#include <ifritcompose/Compose.h>
-#include <ifritcompose/Util.h>
-#include <ifritcompose/Decorations.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/Util.h>
+#include <sigilcompose/Decorations.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/core/SkPathBuilder.h>
 
-#include <textflow/FontContext.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -23,19 +23,19 @@
 #include <string>
 #include <vector>
 
-using namespace ifrit::compose;
+using namespace sigil::compose;
 
 
 namespace {
 
-textflow::FontContext &fonts() {
+sigil::weave::FontContext &fonts() {
   static auto *context =
-      new textflow::FontContext(textflow::ports::systemFontManager());
+      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
-textflow::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  textflow::TextStyle s;
+sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
+  sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.paint.foreground.setColor(color);
   return s;
@@ -101,8 +101,8 @@ Element scoreRow(const Row &row) {
       .fill(Fill::color(row.highlighted
                             ? SkColor4f{0.32f, 0.18f, 0.45f, 1}
                             : SkColor4f{0.10f, 0.11f, 0.16f, 1}))
-      .child(text(ifrit::compose::util::toU8(row.name), styleAt(18, 0xffe8ecf8)).grow(1))
-      .child(text(ifrit::compose::util::toU8(std::to_string(row.score)),
+      .child(text(sigil::compose::util::toU8(row.name), styleAt(18, 0xffe8ecf8)).grow(1))
+      .child(text(sigil::compose::util::toU8(std::to_string(row.score)),
                   styleAt(18, 0xff7ee8ff)));
 }
 
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
   std::filesystem::path outDir = argc > 1 ? argv[1] : "compose_demo_out";
   std::filesystem::create_directories(outDir);
 
-  ifrit::tick::Ticker ticker;
+  sigil::tick::Ticker ticker;
 
   {
     Composer composer(ticker, fonts());

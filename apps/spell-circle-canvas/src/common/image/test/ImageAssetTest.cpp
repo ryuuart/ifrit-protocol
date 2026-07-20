@@ -1,4 +1,4 @@
-#include <ifritimage/ImageAsset.h>
+#include <sigilimage/ImageAsset.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -10,7 +10,7 @@
 
 #include <string>
 
-using ifrit::image::ImageAsset;
+using sigil::image::ImageAsset;
 
 namespace {
 

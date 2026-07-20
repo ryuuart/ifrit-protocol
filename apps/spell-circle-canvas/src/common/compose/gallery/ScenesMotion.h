@@ -14,7 +14,7 @@ struct HeadlineScene final : Scene {
 
   const char *name() const override { return "headline"; }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     drop = -40.0f;
     fade = 0.0f;
     ticker.timeline().apply(&drop).then<choreograph::RampTo>(
@@ -74,7 +74,7 @@ struct BlendScene final : Scene {
     return t;
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       slide = (float)(std::sin(t * 0.8) * 140.0);
@@ -135,7 +135,7 @@ struct DeriveScene final : Scene {
         .child(connector("anchor", "float").inset(0).foreground(wire));
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     slotIndex = 0;
     nextMove = 0.0;
     composer.render(describe());

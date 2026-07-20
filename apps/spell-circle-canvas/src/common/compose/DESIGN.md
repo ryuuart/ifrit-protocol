@@ -1,4 +1,4 @@
-# IfritCompose — design
+# SigilCompose — design
 
 Data-driven, cacheable, animated drawable components for the Skia
 canvases — layered typographic posters, live data panels, game-UI-grade
@@ -9,14 +9,14 @@ implementation-validation catalog in `STRESS_TESTS.md`.
 
 ## Problem
 
-We lay out paragraphs beautifully (TextFlow) and documents completely
+We lay out paragraphs beautifully (SigilWeave) and documents completely
 (IfritWeb/Ultralight). Missing is the middle: *box-level* composition of
-TextFlow-quality typography and arbitrary Skia drawing — sized by
+SigilWeave-quality typography and arbitrary Skia drawing — sized by
 flexbox rules with baseline alignment, layered with explicit z-order and
 blending, cached like display lists, animated at scene rate, refreshed
 from data without rebuilding the world. IfritWeb covers genuinely web
 content but through WebCore's text stack, capped at 60 FPS, a thread hop
-away. IfritCompose exists for when the typography and the drawing are
+away. SigilCompose exists for when the typography and the drawing are
 the product.
 
 ## Foundations — borrow the owners, build the glue
@@ -24,29 +24,29 @@ the product.
 Survey conclusion (React, Flutter, SwiftUI/Compose, Dear ImGui,
 RmlUi/Slint/QML/LVGL, Rive, Skia's own machinery): every adoptable
 framework owns its text and render pipeline — adopting one means
-fighting it exactly where TextFlow and Graphite should win. But each
+fighting it exactly where SigilWeave and Graphite should win. But each
 hard subproblem has a proven owner already in our stack:
 
 - **Layout: Yoga** (vcpkg 3.2.1). Flexbox with measure callbacks made
   for text leaves; baseline callbacks for typographic alignment;
   microsecond incremental relayout. Validated by `compose_spike_test`:
-  measure funcs drive `textflow::layoutParagraph`, width constraints
+  measure funcs drive `sigil::weave::layoutParagraph`, width constraints
   reach the line breaker, `align-items: baseline` works via
   `LineMetrics::baseline`. (API lesson from the spike: flexbox's
   `stretch` default would override measured text height — text leaves
   default start-aligned.)
-- **Animation: Choreograph + IfritTick.** sansumbrella's Choreograph
+- **Animation: Choreograph + SigilTick.** sansumbrella's Choreograph
   (sigil-vcpkg-registry port) supplies phrases/sequences/motions;
-  IfritTick (`src/common/tick`) is the backing ticking engine —
+  SigilTick (`src/common/tick`) is the backing ticking engine —
   pausable, time-scalable FrameClock and a Ticker that steps the master
   timeline plus steppables and reports "needs more frames" for
-  event-driven hosts. (Nameclash note: `textflow::Choreograph` is the
+  event-driven hosts. (Nameclash note: `sigil::weave::Choreograph` is the
   in-repo glyph-placement utility; `choreograph::` is the tween library
   — namespaces disambiguate, and they compose: glyph effects register
   as Ticker steppables.)
 - **Caching: SkPicture** display lists (record/replay), textures for
   effect-heavy layers.
-- **Text and paint: ours** (TextFlow, IfritImage, IfritWeb frames,
+- **Text and paint: ours** (SigilWeave, SigilImage, IfritWeb frames,
   PaintShaders, raw Skia).
 
 What's left to build is deliberately thin: element values, a keyed
@@ -77,7 +77,7 @@ they are early-phase and late-phase entries into one dataflow:
 | Phase | Input → Output | Procedural entry |
 | --- | --- | --- |
 | **Describe** | data → elements | components, `memo`, ranges |
-| **Layout** | constraints → rects | `LayoutScheme` concept; TextFlow measure |
+| **Layout** | constraints → rects | `LayoutScheme` concept; SigilWeave measure |
 | **Derive** | resolved geometry → more content | `flowAround`, `connector`, `ContourWalk` stamps |
 | **Paint** | geometry + canvas → pixels | `DecorationScheme`, layer `Effect`s, `custom()`, SkSL |
 | **Frame** | time → values / next data | Choreograph outputs, steppables, host feedback |
@@ -164,7 +164,7 @@ separate systems, ordered by draw-call order in the shared canvas.
 
 Elements are write-only descriptions; reads target the **Composer**,
 post-layout, read-only: `bounds(key)`, `paragraphLayout(key)` (live
-TextFlow layout for glyph choreography and decoration), `hitTest(pt)`.
+SigilWeave layout for glyph choreography and decoration), `hitTest(pt)`.
 Querying descriptions is rejected — it would invent a second identity
 system (the React ref lesson).
 
@@ -178,7 +178,7 @@ and what every user must understand: `Element`/component functions/
 zIndex/opacity/blend/transform, `Fill::color/shader`, the
 text/image/custom leaves, `key` + `memo`, `PropValue`/`Transition`,
 `ch::Output` bindings, and automatic caching. **Util**
-(`<ifritcompose/util.h>`) holds deliberately-demoted sugar a user
+(`<sigilcompose/util.h>`) holds deliberately-demoted sugar a user
 could write themselves — gradient constructors, stroke/shadow
 helpers, the `Stage` host bundle — depending only on the kernel and
 optional by definition. Everything else is an **extension that plugs
@@ -192,7 +192,7 @@ the design's weight budget, enforced structurally.
 
 ## Naming
 
-Library **IfritCompose**, namespace `ifrit::compose`, directory
+Library **SigilCompose**, namespace `sigil::compose`, directory
 `src/common/compose/`. "Poster" survives as a use case, not a name.
 
 ## Phasing
@@ -205,7 +205,7 @@ Library **IfritCompose**, namespace `ifrit::compose`, directory
 3. Choreograph bindings, implicit transitions, layer effects.
 4. Derive phase: `ContourWalk` stamps, `flowAround`, `connector`;
    remaining leaves (image/web/custom already sketched).
-5. ComposeGallery (Qt, TextFlowGallery-style) hosting the stress-test
+5. ComposeGallery (Qt, WeaveGallery-style) hosting the stress-test
    catalog interactively; compose_bench for the per-frame costs.
 6. Authoring: FlatBuffers schema, Python/TouchDesigner path.
 

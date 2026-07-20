@@ -1,4 +1,4 @@
-// ComposeSketch — the p5-style live-coding host for IfritCompose.
+// ComposeSketch — the p5-style live-coding host for SigilCompose.
 //
 //   ComposeSketch <sketch.cpp> [--assets <dir>] [--frame <out.png>]
 //
@@ -13,8 +13,8 @@
 #include "ComposeSketchView.h"
 #include "SketchHost.h"
 
-#include <textflow/FontContext.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkStream.h>
@@ -47,13 +47,13 @@ std::filesystem::path executableDir(const char *argv0) {
   return ec ? std::filesystem::current_path() : canonical.parent_path();
 }
 
-textflow::FontContext &fonts() {
+sigil::weave::FontContext &fonts() {
   static auto *context =
-      new textflow::FontContext(textflow::ports::systemFontManager());
+      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
-int runHeadless(ifrit::compose::sketch::SketchHost &host,
+int runHeadless(sigil::compose::sketch::SketchHost &host,
                 const std::string &outPath) {
   using namespace std::chrono_literals;
   // Wait for the first build to land (or fail).
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
     return 2;
   }
 
-  ifrit::compose::sketch::SketchHost::Options options;
+  sigil::compose::sketch::SketchHost::Options options;
   options.sketchPath = std::filesystem::absolute(sketchPath);
   options.assetsDir = assetsDir;
   options.flagsFile = executableDir(argv[0]) / "sketch_flags.rsp";
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
                  options.flagsFile.string().c_str());
     return 2;
   }
-  ifrit::compose::sketch::SketchHost host(std::move(options), fonts());
+  sigil::compose::sketch::SketchHost host(std::move(options), fonts());
 
   if (!framePath.empty())
     return runHeadless(host, framePath);

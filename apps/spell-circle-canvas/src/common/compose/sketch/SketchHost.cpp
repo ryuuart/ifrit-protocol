@@ -1,6 +1,6 @@
 #include "SketchHost.h"
 
-#include <ifrittick/Ticker.h>
+#include <sigiltick/Ticker.h>
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <sstream>
 
-namespace ifrit::compose::sketch {
+namespace sigil::compose::sketch {
 
 namespace {
 
@@ -34,7 +34,7 @@ int run(const std::string &command, std::string &output) {
 
 } // namespace
 
-SketchHost::SketchHost(Options options, textflow::FontContext &fonts)
+SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
     : m_options(withDefaults(std::move(options))), m_fonts(fonts),
       m_assets(m_options.assetsDir) {
   m_buildDir = std::filesystem::temp_directory_path() /
@@ -88,11 +88,11 @@ void SketchHost::adopt(const std::filesystem::path &library) {
     return;
   }
   auto abi =
-      reinterpret_cast<unsigned (*)()>(dlsym(handle, "ifritSketchAbi"));
+      reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
   auto create = reinterpret_cast<Sketch *(*)()>(
-      dlsym(handle, "ifritSketchCreate"));
+      dlsym(handle, "sigilSketchCreate"));
   if (!abi || !create || abi() != kAbiVersion) {
-    m_errorLog = "sketch ABI mismatch — is IFRIT_SKETCH(...) present? "
+    m_errorLog = "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
                  "(after framework changes, restart the host)";
     m_status = "load failed";
     return;
@@ -104,7 +104,7 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   // each sketch declares its own via ctx.canvas()/ctx.background().
   m_sketch.reset();
   m_canvasSpec = CanvasSpec{};
-  m_ticker = std::make_unique<ifrit::tick::Ticker>();
+  m_ticker = std::make_unique<sigil::tick::Ticker>();
   m_composer = std::make_unique<Composer>(*m_ticker, m_fonts);
   m_composer->setSize(m_canvasSpec.size);
   m_appliedSize = m_canvasSpec.size;
@@ -245,4 +245,4 @@ void SketchHost::markPresented() {
   m_lastPresent = now;
 }
 
-} // namespace ifrit::compose::sketch
+} // namespace sigil::compose::sketch

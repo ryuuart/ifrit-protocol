@@ -6,20 +6,20 @@
 apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
   src/common/              shared libraries: skia/ (Graphite GPU plumbing),
                            ui/ (Ifrit.Ui Qt Quick controls), image/
-                           (IfritImage — PNG/JPEG/WebP/GIF/AVIF import,
+                           (SigilImage — PNG/JPEG/WebP/GIF/AVIF import,
                            stills + animations, for canvas drawing), web/
                            (IfritWeb — Ultralight HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
                            Metal GPUDriver, CPU fallback), tick/
-                           (IfritTick — FrameClock + Ticker driving
+                           (SigilTick — FrameClock + Ticker driving
                            choreograph timelines, event-driven redraw
-                           contract), compose/ (IfritCompose —
+                           contract), compose/ (SigilCompose —
                            data-driven drawable components over
-                           Yoga+TextFlow+Choreograph: phase-1 kernel
+                           Yoga+SigilWeave+Choreograph: phase-1 kernel
                            implemented — see DESIGN.md / API.md /
                            STRESS_TESTS.md for architecture, surface,
                            and measured numbers)
-  src/textflow/            the TextFlow layout engine + kit/ports/qt/shaders,
+  src/sigilweave/            the SigilWeave layout engine + kit/ports/qt/shaders,
                            test/, bench/, and examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
                            core embedded by qt/ (Qt app) and mac/ (SwiftUI)
@@ -28,7 +28,7 @@ touchdesigner/             TouchDesigner project and editor tooling
 ```
 
 Qt executables keep their own `src/`, `include/`, and `qml/` folders
-(`spellcircle/qt/`, `textflow/examples/gallery/`).
+(`spellcircle/qt/`, `sigilweave/examples/gallery/`).
 
 Generated files are
 `apps/spell-circle-canvas/src/spellcircle/shared/schema/include/SpellCircle_generated.h`
@@ -52,8 +52,8 @@ the sigil-vcpkg-registry via `vcpkg-configuration.json` — note its
 `/Users/long/REI/sigil-vcpkg-registry`; update the URL and baseline when
 that registry is pushed to GitHub (workflow documented in the registry's
 README). The primary executables are `SpellCircle`,
-`SpellCircleMac` (macOS only, needs a Swift toolchain), `TextFlowGallery`,
-`textflow_test`, `textflow_bench`, `textflow_demo`, `ifritweb_demo`
+`SpellCircleMac` (macOS only, needs a Swift toolchain), `WeaveGallery`,
+`weave_test`, `weave_bench`, `weave_demo`, `ifritweb_demo`
 (CPU/lockstep), `ifritweb_gpu_demo` (Metal + Graphite), and `web_bench`
 (IfritWeb path costs; plain = CPU engine, `--gpu` = GPU engine — see the
 performance table in `src/common/web/README.md`), `compose_test`,
@@ -87,7 +87,7 @@ The Qt-free scene core under `src/spellcircle/shared/scene/`
 (FlatBuffers verify/decode into an `entt::registry` of components),
 `SceneGeometry` (`resolveScene()` — author-space to native-canvas
 resolution, the only place scaling and point-on-circle math happens),
-`SceneRenderer` (the Skia/TextFlow scene drawing), and `SceneLabels`
+`SceneRenderer` (the Skia/SigilWeave scene drawing), and `SceneLabels`
 (measured ring-label geometry). The Graphite GPU plumbing under
 `src/common/skia/` is split the same way: `SpellCircleSkia` (Qt-free; Metal
 bring-up from raw handles) and `SpellCircleSkiaQt` (QRhi adapters; also the
@@ -166,8 +166,8 @@ other Vulkan draft targets. Sharing an SkCanvas directly is not
 architecturally possible (Ultralight records its own render passes), so
 texture-backed SkImage is the supported compositing model.
 
-TextFlow is a Qt-independent library under `src/textflow/`, with its
-interactive gallery and headless demo under `src/textflow/examples/`. Its
+SigilWeave is a Qt-independent library under `src/sigilweave/`, with its
+interactive gallery and headless demo under `src/sigilweave/examples/`. Its
 main pipeline is:
 
 ```

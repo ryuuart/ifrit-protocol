@@ -6,9 +6,9 @@
 // executable exports the framework's symbols, so sketch dylibs link
 // with `-undefined dynamic_lookup` and build in a couple of seconds.
 
-#include "ifritsketch/Sketch.h"
+#include "sigilsketch/Sketch.h"
 
-#include <ifrittick/FrameClock.h>
+#include <sigiltick/FrameClock.h>
 
 #include <chrono>
 #include <filesystem>
@@ -17,11 +17,11 @@
 #include <string>
 #include <vector>
 
-namespace textflow {
+namespace sigil::weave {
 class FontContext;
 }
 
-namespace ifrit::compose::sketch {
+namespace sigil::compose::sketch {
 
 class SketchHost {
 public:
@@ -32,7 +32,7 @@ public:
     std::string compiler = "clang++";
   };
 
-  SketchHost(Options options, textflow::FontContext &fonts);
+  SketchHost(Options options, sigil::weave::FontContext &fonts);
   ~SketchHost();
 
   /** Drives the reload machinery: source mtime, async compile results,
@@ -74,7 +74,7 @@ public:
    *  when the latest build is good. */
   const std::string &errorLog() const { return m_errorLog; }
 
-  ifrit::tick::FrameClock &clock() { return m_clock; }
+  sigil::tick::FrameClock &clock() { return m_clock; }
   Composer *composer() { return m_composer.get(); }
 
   /** The sketch-declared canvas (ctx.canvas()/ctx.background()); hosts
@@ -95,14 +95,14 @@ private:
   void applyCanvasSpec();
 
   Options m_options;
-  textflow::FontContext &m_fonts;
+  sigil::weave::FontContext &m_fonts;
   std::filesystem::path m_buildDir;
 
-  ifrit::tick::FrameClock m_clock;
+  sigil::tick::FrameClock m_clock;
   CanvasSpec m_canvasSpec;
   SkSize m_appliedSize = SkSize::MakeEmpty();
   Assets m_assets;
-  std::unique_ptr<ifrit::tick::Ticker> m_ticker;
+  std::unique_ptr<sigil::tick::Ticker> m_ticker;
   std::unique_ptr<Composer> m_composer;
   std::unique_ptr<Sketch> m_sketch;
   std::vector<void *> m_libraries; // never dlclosed (statics stay valid)
@@ -121,4 +121,4 @@ private:
   std::string m_errorLog;
 };
 
-} // namespace ifrit::compose::sketch
+} // namespace sigil::compose::sketch

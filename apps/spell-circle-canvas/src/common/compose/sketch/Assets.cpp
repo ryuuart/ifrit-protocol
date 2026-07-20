@@ -1,15 +1,15 @@
-#include "ifritsketch/Assets.h"
+#include "sigilsketch/Assets.h"
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 
-namespace ifrit::compose::sketch {
+namespace sigil::compose::sketch {
 
 namespace {
 
 /** The classic missing-texture checker: magenta/black, unmistakable. */
-std::shared_ptr<const ifrit::image::ImageAsset> makePlaceholder() {
+std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
   constexpr int kSize = 64, kCell = 16;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSize, kSize));
@@ -22,8 +22,8 @@ std::shared_ptr<const ifrit::image::ImageAsset> makePlaceholder() {
                                        (float)(y * kCell), kCell, kCell),
                       paint);
     }
-  return std::make_shared<ifrit::image::ImageAsset>(
-      ifrit::image::ImageAsset::wrap(surface->makeImageSnapshot()));
+  return std::make_shared<sigil::image::ImageAsset>(
+      sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
 }
 
 } // namespace
@@ -32,7 +32,7 @@ Assets::Assets(std::filesystem::path root) : m_root(std::move(root)) {
   m_placeholder = makePlaceholder();
 }
 
-std::shared_ptr<const ifrit::image::ImageAsset>
+std::shared_ptr<const sigil::image::ImageAsset>
 Assets::image(std::string_view name) {
   auto it = m_entries.find(name);
   if (it != m_entries.end())
@@ -43,15 +43,15 @@ Assets::image(std::string_view name) {
       .first->second.asset;
 }
 
-std::shared_ptr<const ifrit::image::ImageAsset>
+std::shared_ptr<const sigil::image::ImageAsset>
 Assets::load(const std::filesystem::path &path, Entry &entry) {
   std::error_code ec;
   const auto mtime = std::filesystem::last_write_time(path, ec);
   if (!ec) {
-    if (auto decoded = ifrit::image::ImageAsset::load(path.string())) {
+    if (auto decoded = sigil::image::ImageAsset::load(path.string())) {
       entry.mtime = mtime;
       entry.placeholder = false;
-      return std::make_shared<ifrit::image::ImageAsset>(
+      return std::make_shared<sigil::image::ImageAsset>(
           std::move(*decoded));
     }
   }
@@ -75,4 +75,4 @@ bool Assets::poll() {
   return changed;
 }
 
-} // namespace ifrit::compose::sketch
+} // namespace sigil::compose::sketch

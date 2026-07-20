@@ -67,17 +67,17 @@ struct UiParticleScene final : Scene {
   Element pill(const ChipTheme &t, std::u8string label) {
     return box().width(kSprite - 10).height(kSprite - 26).corners({14})
         .fill(Fill::color(t.fill))
-        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center).justify(Justify::Center)
         .child(text(std::move(label), styleAt(15, ink(t))));
   }
   Element shout(const ChipTheme &t, std::u8string label, int spikes) {
     return box().width(kSprite - 4).height(kSprite - 4)
         .outline(starburstOutline(spikes, 0.32f))
-        .fill(ifrit::compose::util::radialGradient(
+        .fill(sigil::compose::util::radialGradient(
             {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
             {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
-        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center).justify(Justify::Center)
         .child(text(std::move(label), styleAt(13, ink(t))));
   }
@@ -85,15 +85,15 @@ struct UiParticleScene final : Scene {
     return box().width(kSprite - 8).height(kSprite - 8)
         .outline(scallopOutline(lobe))
         .fill(Fill::color(t.fill))
-        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center).justify(Justify::Center)
         .child(text(std::move(label), styleAt(13, ink(t))));
   }
   Element framed(const Palette &pal, std::u8string label) {
     return box().width(kSprite - 8).height(kSprite - 12)
         .background(carvedFrameSlice(
-            std::make_shared<ifrit::image::ImageAsset>(
-                ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
+            std::make_shared<sigil::image::ImageAsset>(
+                sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center).justify(Justify::Center)
         .child(text(std::move(label),
                     styleAt(15, pal.ink.toSkColor())));
@@ -120,7 +120,7 @@ struct UiParticleScene final : Scene {
    *  the same five components cycling through seeded hues and content
    *  pools — no two cells identical. */
   void buildAtlas() {
-    ifrit::tick::Ticker atlasTicker;
+    sigil::tick::Ticker atlasTicker;
     Composer sprites(atlasTicker, fonts());
     sprites.setSize({kSprite * kCols, kSprite * kRows});
 
@@ -182,7 +182,7 @@ struct UiParticleScene final : Scene {
     atlas = surface->makeImageSnapshot();
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     buildAtlas();
     registry.clear();
     std::mt19937 rng{11};
@@ -213,7 +213,7 @@ struct UiParticleScene final : Scene {
 
     composer.render(
         stack()
-            .fill(ifrit::compose::util::linearGradient(
+            .fill(sigil::compose::util::linearGradient(
                 {0, 0}, {0, 640},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
             .child(custom([this](SkCanvas &c, const PaintContext &ctx) {

@@ -1,10 +1,10 @@
 #pragma once
 
 // SpellCircle-specific label geometry. Text shaping and straight single-line
-// layout remain in TextFlow; this layer owns only the measured circular paths
+// layout remain in SigilWeave; this layer owns only the measured circular paths
 // and optical compensation needed by the scene renderer.
 
-#include <textflow/Flow.h>
+#include <sigilweave/Flow.h>
 
 #include <absl/container/flat_hash_map.h>
 
@@ -43,7 +43,7 @@ private:
  * resulting difference in circumference. A degenerate radius returns an
  * empty interval with no contour.
  */
-textflow::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCache,
+sigil::weave::LineInterval makeRingLabelInterval(RingLabelGeometryCache &ringCache,
                                              const SkFontMetrics &metrics,
                                              float opticalMiddleRadius,
                                              float anchorFraction);

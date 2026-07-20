@@ -1,4 +1,4 @@
-// ComposeGallery entry point: the Qt Quick app (TextFlowGallery mold —
+// ComposeGallery entry point: the Qt Quick app (WeaveGallery mold —
 // QML sidebar over the scene registry, live metrics panel), or
 // `--headless <outdir>` for the per-scene FPS table + PNG captures.
 

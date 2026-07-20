@@ -1,4 +1,4 @@
-# IfritCompose — stress-test catalog
+# SigilCompose — stress-test catalog
 
 ## Phase-1 status and reference numbers
 
@@ -30,7 +30,7 @@ blend stack.
 
 **Decorations + slots (landed):** the Decoration seam is live —
 `background()`/`foreground()` take any `DecorationScheme` — with the
-three primitives in `<ifritcompose/Decorations.h>`: `PathFormat`
+three primitives in `<sigilcompose/Decorations.h>`: `PathFormat`
 (solid/dash/stamped strokes along the outline; item 9's dashes and
 item 10's vine stamps render in compose_demo's chrome panel), `Slice`
 (drawImageLattice nine-patch, pixel-tested on a synthesized asset —
@@ -67,14 +67,14 @@ filter executes on GPU, 20× wall, 88× CPU); bloom texture-baked
 filter cost dramatically, texture baking still wins another ~6×, and
 picture replay is cheaper but not free anywhere — the honest ceiling
 is display-list translation. Also landed this round:
-`<ifritcompose/Util.h>` (gradients, stroke/shadow sugar — background
+`<sigilcompose/Util.h>` (gradients, stroke/shadow sugar — background
 decorations now correctly paint *beneath* the fill, the CSS
 box-shadow ordering — and the three-line `Stage` bundle, all tested)
 and `layout(LayoutScheme)` (item 6: the ~20-line user Grid places and
 sizes cells via the bounded second layout pass, bounds-verified).
 
 **Derive phase (landed):** `text().flowAround(key, margin)` plumbs
-resolved node bounds into TextFlow `ExclusionFlow` shapes as the
+resolved node bounds into SigilWeave `ExclusionFlow` shapes as the
 design's bounded second layout pass (item 7: pixel-verified — the
 excluded region stays text-free and displaced words push the paragraph
 taller; self/descendant references are cycle-guarded and ignored), and
@@ -115,9 +115,9 @@ inside frame budget regardless; item 21 re-measures on Graphite.
 
 Every use case raised during design review, kept as the implementation's
 acceptance suite. Each item names what it exercises and how it will be
-validated: **golden** = headless golden-image test (textflow_demo-style
+validated: **golden** = headless golden-image test (weave_demo-style
 deterministic render), **gallery** = interactive scene in ComposeGallery
-(the planned Qt host, TextFlowGallery-style), **bench** = compose_bench
+(the planned Qt host, WeaveGallery-style), **bench** = compose_bench
 measurement. Phases refer to DESIGN.md's plan.
 
 ## Composition & data (P1–P2)
@@ -149,7 +149,7 @@ measurement. Phases refer to DESIGN.md's plan.
    flex column. Exercises: custom layout protocol, Yoga interop both
    directions. *golden*
 7. **Text flowing around frames** — article text `.flowAround()` a
-   floated hero frame (TextFlow `ExclusionFlow` from the frame's
+   floated hero frame (SigilWeave `ExclusionFlow` from the frame's
    resolved outline; second layout pass; cycle rejection unit test).
    Exercises: derive phase, exclusion plumbing. *golden*
 
@@ -200,7 +200,7 @@ measurement. Phases refer to DESIGN.md's plan.
 
 17. **Choreographed headline** — `ch::Output` bindings for drop/fade
     (paint-only: assert zero relayouts), plus glyph rain via
-    `textflow::Choreograph` reading `paragraphLayout(key)` as a Ticker
+    `sigil::weave::Choreograph` reading `paragraphLayout(key)` as a Ticker
     steppable surviving a data refresh of a sibling. Exercises:
     bindings, steppables, glyph-state stability. *gallery + golden
     (frozen time)*
@@ -226,9 +226,9 @@ measurement. Phases refer to DESIGN.md's plan.
 
 - **Golden tests**: headless, deterministic (frozen FrameClock time,
   fixed seeds), PNG-compared like the textflow demo panels.
-- **ComposeGallery** (P5): Qt app in the TextFlowGallery mold — one
+- **ComposeGallery** (P5): Qt app in the WeaveGallery mold — one
   scene per catalog item above marked *gallery*, with live controls
   (time scale, pause, data mutation buttons) for eyeballing motion and
   interaction that goldens can't capture.
 - **compose_bench** (P5): google-benchmark target for the *bench*
-  items, alongside textflow_bench/web_bench.
+  items, alongside weave_bench/web_bench.

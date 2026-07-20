@@ -93,7 +93,7 @@ struct ViewOptions {
  * grid, custom fonts, SVG, canvas, animations) into offscreen pixel
  * buffers on the CPU. This engine wraps it so each WebView's output is a
  * premultiplied-BGRA SkImage, ready to draw onto any SkCanvas — raster or
- * Graphite-backed — exactly like an ifrit::image::ImageAsset frame.
+ * Graphite-backed — exactly like an sigil::image::ImageAsset frame.
  *
  * Integration paths, from least to most coupled:
  *  1. Pull: draw WebView::frame().image whenever you repaint, using

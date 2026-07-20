@@ -8,7 +8,7 @@ ApplicationWindow {
     width: 1220
     height: 700
     visible: true
-    title: "ComposeGallery — IfritCompose stress catalog"
+    title: "ComposeGallery — SigilCompose stress catalog"
     color: "#0b0a14"
 
     // Sidebar model mirrors compose_gallery::kScenes (name/category/catalog).

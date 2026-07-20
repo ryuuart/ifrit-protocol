@@ -34,7 +34,7 @@ endif()
 
 # SHARED, deliberately: the Swift link runs through swift-driver, which
 # rejects the raw `-framework X` strings vcpkg's skia config carries in its
-# link interface. Absorbing the whole C++ world (scene core, Skia, TextFlow,
+# link interface. Absorbing the whole C++ world (scene core, Skia, SigilWeave,
 # ICU, HarfBuzz, Syphon) into one dylib keeps those flags on the clang++
 # side; the Swift executable links only this library.
 add_library(SpellCircleMacBridge SHARED

@@ -1,14 +1,14 @@
-// The IfritCompose perf gate (run in Release): what describe, reconcile,
+// The SigilCompose perf gate (run in Release): what describe, reconcile,
 // layout, and draw cost — and what memo and automatic picture caching
 // actually save. Reference numbers live in STRESS_TESTS.md.
 
-#include <ifritcompose/Compose.h>
-#include <ifritcompose/Util.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/Util.h>
 
 #include <include/effects/SkImageFilters.h>
 
-#include <textflow/FontContext.h>
-#include <textflow/ports/SystemFontManager.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -19,15 +19,15 @@
 #include <string>
 #include <vector>
 
-using namespace ifrit::compose;
+using namespace sigil::compose;
 
 using namespace std::chrono_literals;
 
 namespace {
 
-textflow::FontContext &fonts() {
+sigil::weave::FontContext &fonts() {
   static auto *context =
-      new textflow::FontContext(textflow::ports::systemFontManager());
+      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
 }
 
@@ -38,12 +38,12 @@ struct Row {
 };
 
 Element scoreRow(const Row &row) {
-  textflow::TextStyle style;
+  sigil::weave::TextStyle style;
   style.shaping.fontSize = 14.0f;
   return box().row().gap(12).padding(8).corners({6})
       .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
-      .child(text(ifrit::compose::util::toU8(row.name), style).grow(1))
-      .child(text(ifrit::compose::util::toU8(std::to_string(row.score)), style));
+      .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
+      .child(text(sigil::compose::util::toU8(std::to_string(row.score)), style));
 }
 
 Element scoreboard(const std::vector<Row> &rows) {
@@ -61,7 +61,7 @@ std::vector<Row> makeRows(int count) {
 }
 
 struct Host {
-  ifrit::tick::Ticker ticker;
+  sigil::tick::Ticker ticker;
   Composer composer{ticker, fonts()};
   sk_sp<SkSurface> surface;
 
@@ -184,7 +184,7 @@ BENCHMARK(BM_Frame_OneTransitionActive);
 /** Dense text block, picture replay per draw: the raster re-raster
  *  cost that Cache::Texture exists to eliminate. */
 static Element denseBlock(Cache mode) {
-  textflow::TextStyle style;
+  sigil::weave::TextStyle style;
   style.shaping.fontSize = 15.0f;
   std::u8string para;
   for (int i = 0; i < 60; ++i)
@@ -235,7 +235,7 @@ BENCHMARK(BM_Draw_100Rows_TextureBlit);
 /** A blur-effected headline: picture replay re-runs the filter every
  *  draw; Cache::Texture bakes it — the effects payoff. */
 static Element bloomBlock(Cache mode) {
-  textflow::TextStyle style;
+  sigil::weave::TextStyle style;
   style.shaping.fontSize = 64.0f;
   style.paint.foreground.setColor(0xff7ee8ff);
   return box().padding(24).cache(mode)
@@ -278,8 +278,8 @@ namespace {
 
 SkiaGraphiteContext &graphite() {
   static std::unique_ptr<SkiaGraphiteContext> ctx =
-      SkiaGraphiteContext::createMetal(ifrit::compose::bench::gpuDevice(),
-                                       ifrit::compose::bench::gpuQueue());
+      SkiaGraphiteContext::createMetal(sigil::compose::bench::gpuDevice(),
+                                       sigil::compose::bench::gpuQueue());
   return *ctx;
 }
 
@@ -345,7 +345,7 @@ BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
 // EnTT registry (SoA component pools, cache-friendly iteration) stepped
 // as a Ticker steppable, rendered by a single Cache::None custom leaf
 // batching everything into one SkCanvas::drawAtlas call — the same
-// GlyphRSXformBatches pattern textflow::Choreograph uses for glyphs.
+// GlyphRSXformBatches pattern sigil::weave::Choreograph uses for glyphs.
 
 #include <entt/entt.hpp>
 

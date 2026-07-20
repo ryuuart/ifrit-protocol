@@ -11,7 +11,7 @@
 
 #include "GalleryCore.h"
 
-#include <ifritcompose/Decorations.h>
+#include <sigilcompose/Decorations.h>
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
@@ -368,7 +368,7 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette &pal, int size = 96) {
 
 /** The carved frame as a nine-slice decoration for any box size. */
 inline Slice carvedFrameSlice(
-    const std::shared_ptr<const ifrit::image::ImageAsset> &asset) {
+    const std::shared_ptr<const sigil::image::ImageAsset> &asset) {
   Slice nine;
   nine.asset = asset;
   const int size = asset ? asset->width() : 96;
@@ -387,9 +387,9 @@ inline Element illuminatedPanel(const Palette &pal) {
   goldDash.dashIntervals = {8, 5};
   return box().corners({8})
       .fill(parchmentFill(pal.parchment))
-      .background(ifrit::compose::util::shadow({0, 0, 0, 0.35f}, {2, 3},
+      .background(sigil::compose::util::shadow({0, 0, 0, 0.35f}, {2, 3},
                                                8))
-      .foreground(ifrit::compose::util::stroke(1.8f,
+      .foreground(sigil::compose::util::stroke(1.8f,
                                                Fill::color(pal.stem)))
       .foreground(SwirlCorners{pal, 20.0f, 1.7f})
       .child(box().inset(5).absolute().foreground(goldDash));

@@ -2,7 +2,7 @@
 
 #include "ComposeBenchGpu.h"
 
-namespace ifrit::compose::bench {
+namespace sigil::compose::bench {
 
 void *gpuDevice() {
   static id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -15,4 +15,4 @@ void *gpuQueue() {
   return (__bridge void *)queue;
 }
 
-} // namespace ifrit::compose::bench
+} // namespace sigil::compose::bench

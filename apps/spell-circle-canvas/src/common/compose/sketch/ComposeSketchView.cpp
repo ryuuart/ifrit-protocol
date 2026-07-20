@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 
-using ifrit::compose::sketch::SketchHost;
+using sigil::compose::sketch::SketchHost;
 
 SketchHost *ComposeSketchView::host = nullptr;
 

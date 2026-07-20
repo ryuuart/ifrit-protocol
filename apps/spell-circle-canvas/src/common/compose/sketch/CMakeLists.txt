@@ -9,16 +9,16 @@
 # target graph — ExtractSketchFlags.cmake lifts that TU's command from
 # compile_commands.json into sketch_flags.rsp at build time, so sketch
 # compilation has no hand-maintained flag list.
-add_library(IfritSketchKit STATIC
+add_library(SigilSketchKit STATIC
   SketchHost.cpp
   SketchHost.h
   Assets.cpp
   SketchAnchor.cpp
 )
-target_include_directories(IfritSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(IfritSketchKit PUBLIC
-  IfritCompose TextFlowPorts EnTT::EnTT)
-set_target_properties(IfritSketchKit PROPERTIES
+target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(SigilSketchKit PUBLIC
+  SigilCompose SigilWeavePorts EnTT::EnTT)
+set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
 qt_add_executable(ComposeSketch
@@ -34,7 +34,7 @@ set_source_files_properties(qml/Main.qml
   PROPERTIES QT_RESOURCE_ALIAS Main.qml)
 target_include_directories(ComposeSketch PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(ComposeSketch PRIVATE
-  IfritSketchKit Qt6::Gui Qt6::Quick)
+  SigilSketchKit Qt6::Gui Qt6::Quick)
 if(APPLE)
   target_link_options(ComposeSketch PRIVATE "LINKER:-export_dynamic")
   # Sketches may call ANY part of the SDK, not just what the host's own
@@ -42,8 +42,8 @@ if(APPLE)
   # -undefined dynamic_lookup always resolves. (Skia is the exception:
   # vcpkg builds it hidden-visibility, so sketches link its archive
   # directly — see EXTRA below.)
-  foreach(sketch_dep IN ITEMS IfritSketchKit IfritCompose IfritImage
-                              IfritTick TextFlow TextFlowPorts)
+  foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
+                              SigilTick SigilWeave SigilWeavePorts)
     target_link_options(ComposeSketch PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
   endforeach()

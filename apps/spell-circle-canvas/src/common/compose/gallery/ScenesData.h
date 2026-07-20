@@ -42,7 +42,7 @@ struct ScoreboardScene final : Scene {
     return list;
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     rows = {{"ember", 128, false}, {"sigil", 96, true},
             {"cinder", 77, false}, {"ash", 64, false},
             {"flare", 51, false},  {"soot", 12, false}};
@@ -75,7 +75,7 @@ struct SlotsScene final : Scene {
 
   const char *name() const override { return "slots"; }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     counter = 0;
     nextTickerUpdate = 0.0;
     composer.render(
@@ -156,7 +156,7 @@ struct GridScene final : Scene {
                    .inset(0).cache(Cache::None).zIndex(1));
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     highlighted = 0;
     ringRect = SkRect::MakeEmpty();
     composer.render(describe());
@@ -206,7 +206,7 @@ struct TransitionScene final : Scene {
     return list;
   }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::tick::Ticker &) override {
     ids = {0, 1, 2, 3, 4};
     nextId = 5;
     nextOp = 0.0;
@@ -241,7 +241,7 @@ struct LoadScene final : Scene {
 
   const char *name() const override { return "load"; }
 
-  void setup(Composer &composer, ifrit::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
     movers.clear();
     auto root = stack().fill(Fill::color({0.04f, 0.04f, 0.08f, 1}));
     std::mt19937 rng{3};

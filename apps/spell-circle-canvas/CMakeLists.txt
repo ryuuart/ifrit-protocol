@@ -42,8 +42,8 @@ find_package(flatbuffers CONFIG REQUIRED)
 find_package(entt CONFIG REQUIRED)
 find_package(benchmark CONFIG REQUIRED)
 find_package(absl CONFIG REQUIRED)
-# Skia is needed unconditionally now: the TextFlow text-layout library
-# (src/textflow) builds on it even when the Skia scene backend is disabled.
+# Skia is needed unconditionally now: the SigilWeave text-layout library
+# (src/sigilweave) builds on it even when the Skia scene backend is disabled.
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
