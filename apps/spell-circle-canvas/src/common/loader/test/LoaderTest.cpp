@@ -164,11 +164,11 @@ TEST(LoaderOiio, ProbeListsLayersAndChannels) {
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->kind, ResourceInfo::Kind::Image);
   EXPECT_EQ(info->format, "openexr");
-  EXPECT_EQ(info->width, 4);
-  EXPECT_TRUE(info->floatingPoint);
-  EXPECT_EQ(info->channels, 8);
-  ASSERT_EQ(info->layers.size(), 1u);
-  EXPECT_EQ(info->layers[0], "glow");
+  EXPECT_EQ(info->image.width, 4);
+  EXPECT_TRUE(info->image.floatingPoint);
+  EXPECT_EQ(info->image.channels, 8);
+  ASSERT_EQ(info->image.layers.size(), 1u);
+  EXPECT_EQ(info->image.layers[0], "glow");
 }
 
 #endif // SIGILLOADER_HAS_OIIO

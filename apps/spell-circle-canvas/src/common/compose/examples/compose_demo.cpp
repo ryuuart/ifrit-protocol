@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
   std::filesystem::path outDir = argc > 1 ? argv[1] : "compose_demo_out";
   std::filesystem::create_directories(outDir);
 
-  sigil::tick::Ticker ticker;
+  sigil::motion::Ticker ticker;
 
   {
     Composer composer(ticker, fonts());

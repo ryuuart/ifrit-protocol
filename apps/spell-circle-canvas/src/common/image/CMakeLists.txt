@@ -8,7 +8,9 @@
 # fails to decode any frames.
 add_library(SigilImage STATIC
   ImageAsset.cpp
+  Decode.cpp
   include/sigilimage/ImageAsset.h
+  include/sigilimage/Decode.h
 )
 
 target_compile_features(SigilImage PUBLIC cxx_std_20)
@@ -21,6 +23,20 @@ target_link_libraries(SigilImage
   PUBLIC
     unofficial::skia::skia
 )
+
+# OpenImageIO extends decode/probe beyond the Skia codecs: EXR (with
+# layer/channel selection), PSD (composited), TIFF, HDR, and the rest
+# of its roster. Optional: without it, decodeImage falls back to the
+# Skia path only.
+find_package(OpenImageIO CONFIG QUIET)
+if(OpenImageIO_FOUND)
+  target_link_libraries(SigilImage PRIVATE OpenImageIO::OpenImageIO)
+  target_compile_definitions(SigilImage PRIVATE SIGILIMAGE_HAS_OIIO)
+  message(STATUS "SigilImage: OpenImageIO backend enabled")
+else()
+  message(WARNING
+    "SigilImage: OpenImageIO not found — EXR/PSD/TIFF decoding disabled")
+endif()
 
 add_executable(image_test
   test/ImageAssetTest.cpp

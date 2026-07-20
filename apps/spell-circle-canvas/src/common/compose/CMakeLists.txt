@@ -1,5 +1,5 @@
 # SigilCompose — data-driven, cacheable, animated drawable components
-# over Yoga + SigilWeave + Choreograph/SigilTick + Skia. DESIGN.md is the
+# over Yoga + SigilWeave + Choreograph/SigilMotion + Skia. DESIGN.md is the
 # architecture, API.md the surface, STRESS_TESTS.md the acceptance
 # catalog. This is the phase-1 kernel: element values, keyed
 # reconciler, Yoga layout with SigilWeave-measured text, stacking paint,
@@ -22,7 +22,7 @@ target_include_directories(SigilCompose PUBLIC
 target_link_libraries(SigilCompose
   PUBLIC
     SigilImage
-    SigilTick
+    SigilMotion
     SigilWeave
     unofficial::skia::skia
   PRIVATE

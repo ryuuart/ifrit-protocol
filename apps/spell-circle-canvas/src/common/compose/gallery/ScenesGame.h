@@ -300,7 +300,7 @@ struct RpgHudScene final : Scene {
         }());
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     bag.clear();
     for (int i = 0; i < 8; ++i)
       bag.push_back({(int)(rng() % 5), (int)(rng() % 4)});
@@ -477,7 +477,7 @@ struct BotanicalScene final : Scene {
                    .absolute().inset(24, 20, 24, 590));
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     seed = 7;
     nextReseed = 0.0;
     ticker.add([this, t = 0.0](double dt) mutable {

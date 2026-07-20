@@ -1,6 +1,6 @@
 #include "SketchHost.h"
 
-#include <sigiltick/Ticker.h>
+#include <sigilmotion/Ticker.h>
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -104,7 +104,7 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   // each sketch declares its own via ctx.canvas()/ctx.background().
   m_sketch.reset();
   m_canvasSpec = CanvasSpec{};
-  m_ticker = std::make_unique<sigil::tick::Ticker>();
+  m_ticker = std::make_unique<sigil::motion::Ticker>();
   m_composer = std::make_unique<Composer>(*m_ticker, m_fonts);
   m_composer->setSize(m_canvasSpec.size);
   m_appliedSize = m_canvasSpec.size;

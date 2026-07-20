@@ -89,8 +89,8 @@ Hub::image(std::string_view uri, const ImageOptions &options) {
   auto bytes = ec ? nullptr : readFile(path);
   if (!bytes)
     return nullptr;
-  auto decoded =
-      decodeImage(bytes->bytes.data(), bytes->bytes.size(), options, path);
+  auto decoded = sigil::image::decodeImage(
+      bytes->bytes.data(), bytes->bytes.size(), options, path);
   if (!decoded)
     return nullptr;
   Entry entry;
@@ -112,9 +112,13 @@ std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
   auto bytes = readFile(path);
   if (!bytes)
     return std::nullopt;
-  if (auto info = probeImage(bytes->bytes.data(), bytes->bytes.size(),
-                             path)) {
-    info->byteSize = size;
+  if (auto probe = sigil::image::probeImage(
+          bytes->bytes.data(), bytes->bytes.size(), path)) {
+    ResourceInfo info;
+    info.kind = ResourceInfo::Kind::Image;
+    info.byteSize = size;
+    info.format = probe->format;
+    info.image = std::move(*probe);
     return info;
   }
   ResourceInfo info;
@@ -134,8 +138,9 @@ bool Hub::reload(const std::string &key, Entry &entry) {
   if (!bytes)
     return false;
   if (entry.image) {
-    auto decoded = decodeImage(bytes->bytes.data(), bytes->bytes.size(),
-                               entry.imageOptions, path);
+    auto decoded = sigil::image::decodeImage(
+        bytes->bytes.data(), bytes->bytes.size(), entry.imageOptions,
+        path);
     if (!decoded)
       return false;
     entry.image = std::make_shared<sigil::image::ImageAsset>(

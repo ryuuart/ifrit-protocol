@@ -16,7 +16,7 @@ namespace compose_gallery {
 struct ChromeScene final : Scene {
   const char *name() const override { return "chrome"; }
 
-  void setup(Composer &composer, sigil::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::motion::Ticker &) override {
     SkPathBuilder leaf;
     leaf.moveTo(0, 0);
     leaf.quadTo(6, -7, 14, 0);
@@ -69,7 +69,7 @@ struct SkslBorderScene final : Scene {
 
   const char *name() const override { return "sksl_border"; }
 
-  void setup(Composer &composer, sigil::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::motion::Ticker &) override {
     auto result = SkRuntimeEffect::MakeForShader(SkString(R"(
         uniform float t;
         half4 main(float2 p) {
@@ -123,7 +123,7 @@ struct CrtScene final : Scene {
         .blend(SkBlendMode::kPlus);
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::motion::Ticker &) override {
     composer.render(
         stack().fill(Fill::color({0.02f, 0.03f, 0.05f, 1}))
             .child(box().column().padding(70).gap(10).inset(0).zIndex(2)
@@ -183,7 +183,7 @@ struct TileScene final : Scene {
         .child(std::move(grid));
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::motion::Ticker &) override {
     revisions.assign(4, 0);
     nextMutation = 0.0;
     composer.render(describe());

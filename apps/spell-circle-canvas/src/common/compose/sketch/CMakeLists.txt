@@ -43,7 +43,7 @@ if(APPLE)
   # vcpkg builds it hidden-visibility, so sketches link its archive
   # directly — see EXTRA below.)
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
-                              SigilLoader SigilTick SigilWeave
+                              SigilLoader SigilMotion SigilWeave
                               SigilWeavePorts)
     target_link_options(ComposeSketch PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")

@@ -80,7 +80,7 @@ Element text(sigil::weave::Paragraph paragraph,                 // full control:
              sigil::weave::ParagraphLayoutOptions opts = {});   // spans, K-P,
                                                             // justification…
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
-Element web(std::shared_ptr<ifrit::web::WebView> view);     // live frames
+Element web(std::shared_ptr<sigil::web::WebView> view);     // live frames
 Element custom(PaintProgram program);                       // raw SkCanvas
 
 // ---- layout (Yoga, 1:1 semantics) ----
@@ -192,7 +192,7 @@ snapping*. The lifecycle rules, stated once:
 ```cpp
 class Composer {
 public:
-  explicit Composer(sigil::tick::Ticker &ticker);
+  explicit Composer(sigil::motion::Ticker &ticker);
 
   /** Layout viewport in canvas-space px (a poster's size, a panel's
    *  rect…). Percent dims resolve against this. */
@@ -295,7 +295,7 @@ Element poster(const EventInfo &info) {
 }
 
 // Host: exactly like a textflow demo panel.
-sigil::tick::Ticker ticker;               // unused motions? fine — inert
+sigil::motion::Ticker ticker;               // unused motions? fine — inert
 Composer composer(ticker);
 composer.setSize({1080, 1350});
 composer.render(poster(info));

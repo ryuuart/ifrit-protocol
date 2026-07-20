@@ -16,13 +16,12 @@
 //                          {.layer = "diffuse"});           //  PSD, TIFF…
 //   auto info  = hub.probe("res://light/probe.exr");        // metadata
 //
-// Image decoding routes by content: Skia codecs (PNG/JPEG/WebP/GIF/AVIF,
-// animation included) through SigilImage; everything else — EXR with
-// layer/channel selection, PSD (composited), TIFF, HDR… — through the
-// OpenImageIO backend when built with SIGILLOADER_HAS_OIIO. Float
-// sources land as F16 SkImages so HDR data survives into compositing.
+// The loader owns ACCESS: where bytes come from, caching, reload.
+// What pixels mean is SigilImage's concern (sigilimage/Decode.h) — the
+// Skia codecs plus, when built in, the OpenImageIO backend (EXR with
+// layer selection, PSD, TIFF, HDR; float sources land as RGBA_F32).
 
-#include <sigilimage/ImageAsset.h>
+#include <sigilimage/Decode.h>
 
 #include <cstddef>
 #include <filesystem>
@@ -51,25 +50,13 @@ struct ResourceInfo {
   std::uintmax_t byteSize = 0;
   std::string format; // "png", "openexr", "psd", … (decoder's name)
 
-  // Image-only fields:
-  int width = 0;
-  int height = 0;
-  int channels = 0;
-  bool floatingPoint = false; // HDR/float source (EXR, float TIFF…)
-  int frames = 1;             // animation frames (GIF/WebP/AVIF)
-  std::vector<std::string> layers;       // EXR subimages/layers
-  std::vector<std::string> channelNames; // EXR channel names ("diffuse.R"…)
+  /** Image metadata (kind == Image); see sigil::image::ImageProbe. */
+  sigil::image::ImageProbe image;
 };
 
-/** Options for image loads. */
-struct ImageOptions {
-  /** EXR layer / channel-group to composite (e.g. "diffuse" selects
-   *  diffuse.R/G/B[/A]); empty = the default layer. Ignored by formats
-   *  without layers. */
-  std::string layer;
-
-  bool operator==(const ImageOptions &) const = default;
-};
+/** Image decode options come from SigilImage — the loader adds no
+ *  format knowledge of its own. */
+using ImageOptions = sigil::image::DecodeOptions;
 
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
@@ -127,18 +114,5 @@ private:
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
 };
-
-/** Decodes an image from bytes, routing between the Skia-codec path
- *  (SigilImage) and the OpenImageIO backend by sniffing content.
- *  Exposed for callers that already hold bytes. */
-std::optional<sigil::image::ImageAsset>
-decodeImage(const std::byte *bytes, size_t size,
-            const ImageOptions &options = {},
-            const std::filesystem::path &pathHint = {});
-
-/** Metadata for in-memory bytes (see Hub::probe). */
-std::optional<ResourceInfo>
-probeImage(const std::byte *bytes, size_t size,
-           const std::filesystem::path &pathHint = {});
 
 } // namespace sigil::loader

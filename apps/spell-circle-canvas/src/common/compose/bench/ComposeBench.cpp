@@ -61,7 +61,7 @@ std::vector<Row> makeRows(int count) {
 }
 
 struct Host {
-  sigil::tick::Ticker ticker;
+  sigil::motion::Ticker ticker;
   Composer composer{ticker, fonts()};
   sk_sp<SkSurface> surface;
 

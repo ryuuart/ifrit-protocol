@@ -135,9 +135,9 @@ struct Instance {
 // ---------------------------------------------------------------------------
 
 struct Composer::Impl {
-  tick::Ticker &ticker;
+  motion::Ticker &ticker;
   sigil::weave::FontContext &fonts;
-  const tick::FrameClock *clock = nullptr;
+  const motion::FrameClock *clock = nullptr;
 
   SkSize size = SkSize::MakeEmpty();
   std::unique_ptr<Instance> root;
@@ -152,7 +152,7 @@ struct Composer::Impl {
 
   mutable Stats stats;
 
-  Impl(tick::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
+  Impl(motion::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
     yogaConfig = YGConfigNew();
   }
   ~Impl() {
@@ -990,7 +990,7 @@ void Composer::Impl::indexKeys(Instance &inst) {
 // ---------------------------------------------------------------------------
 // Composer public surface
 
-Composer::Composer(tick::Ticker &ticker, sigil::weave::FontContext &fonts)
+Composer::Composer(motion::Ticker &ticker, sigil::weave::FontContext &fonts)
     : m_impl(std::make_unique<Impl>(ticker, fonts)) {}
 Composer::~Composer() = default;
 
@@ -1002,7 +1002,7 @@ void Composer::setSize(SkSize size) {
   m_impl->contentDirty = true;
 }
 
-void Composer::setClock(const tick::FrameClock *clock) {
+void Composer::setClock(const motion::FrameClock *clock) {
   m_impl->clock = clock;
 }
 

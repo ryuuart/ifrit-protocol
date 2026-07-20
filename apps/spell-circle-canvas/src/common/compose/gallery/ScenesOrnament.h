@@ -186,7 +186,7 @@ struct ManuscriptScene final : Scene {
     return SkColor4f{c.fR, c.fG, c.fB, c.fA}.toSkColor();
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &) override {
+  void setup(Composer &composer, sigil::motion::Ticker &) override {
     verse = 0;
     nextTurn = 7.0;
     composer.render(describe());
@@ -289,7 +289,7 @@ struct NineSliceScene final : Scene {
 
   static float breathHalf(float h) { return (h - 130.0f) * 0.5f; }
 
-  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     oakFrame = generate(oakPalette());
     azureFrame = generate(azurePalette());
     crimsonFrame = generate(crimsonPalette());

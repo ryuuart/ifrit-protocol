@@ -10,11 +10,11 @@ implementation-validation catalog in `STRESS_TESTS.md`.
 ## Problem
 
 We lay out paragraphs beautifully (SigilWeave) and documents completely
-(IfritWeb/Ultralight). Missing is the middle: *box-level* composition of
+(SigilUltralight/Ultralight). Missing is the middle: *box-level* composition of
 SigilWeave-quality typography and arbitrary Skia drawing — sized by
 flexbox rules with baseline alignment, layered with explicit z-order and
 blending, cached like display lists, animated at scene rate, refreshed
-from data without rebuilding the world. IfritWeb covers genuinely web
+from data without rebuilding the world. SigilUltralight covers genuinely web
 content but through WebCore's text stack, capped at 60 FPS, a thread hop
 away. SigilCompose exists for when the typography and the drawing are
 the product.
@@ -35,9 +35,9 @@ hard subproblem has a proven owner already in our stack:
   `LineMetrics::baseline`. (API lesson from the spike: flexbox's
   `stretch` default would override measured text height — text leaves
   default start-aligned.)
-- **Animation: Choreograph + SigilTick.** sansumbrella's Choreograph
+- **Animation: Choreograph + SigilMotion.** sansumbrella's Choreograph
   (sigil-vcpkg-registry port) supplies phrases/sequences/motions;
-  SigilTick (`src/common/tick`) is the backing ticking engine —
+  SigilMotion (`src/common/motion`) is the backing ticking engine —
   pausable, time-scalable FrameClock and a Ticker that steps the master
   timeline plus steppables and reports "needs more frames" for
   event-driven hosts. (Nameclash note: `sigil::weave::Choreograph` is the
@@ -46,7 +46,7 @@ hard subproblem has a proven owner already in our stack:
   as Ticker steppables.)
 - **Caching: SkPicture** display lists (record/replay), textures for
   effect-heavy layers.
-- **Text and paint: ours** (SigilWeave, SigilImage, IfritWeb frames,
+- **Text and paint: ours** (SigilWeave, SigilImage, SigilUltralight frames,
   PaintShaders, raw Skia).
 
 What's left to build is deliberately thin: element values, a keyed

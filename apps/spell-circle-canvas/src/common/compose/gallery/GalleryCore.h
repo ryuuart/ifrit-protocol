@@ -90,7 +90,7 @@ struct FrameStats {
 struct Scene {
   virtual ~Scene() = default;
   virtual const char *name() const = 0;
-  virtual void setup(Composer &composer, sigil::tick::Ticker &ticker) = 0;
+  virtual void setup(Composer &composer, sigil::motion::Ticker &ticker) = 0;
   virtual void update(double, Composer &) {}
 };
 
@@ -99,13 +99,13 @@ struct Scene {
 // Stage + FPS overlay (itself an SigilCompose composer)
 
 struct GalleryStage {
-  sigil::tick::FrameClock clock;
-  std::unique_ptr<sigil::tick::Ticker> ticker;
+  sigil::motion::FrameClock clock;
+  std::unique_ptr<sigil::motion::Ticker> ticker;
   std::unique_ptr<Composer> composer;
   std::unique_ptr<Scene> scene;
 
   // Overlay: a second composer layered over the scene.
-  sigil::tick::Ticker overlayTicker;
+  sigil::motion::Ticker overlayTicker;
   Composer overlay{overlayTicker, fonts()};
   FrameStats stats;
   bool showStats = true;
@@ -117,7 +117,7 @@ struct GalleryStage {
 
   void reset() {
     composer.reset();
-    ticker = std::make_unique<sigil::tick::Ticker>();
+    ticker = std::make_unique<sigil::motion::Ticker>();
     composer = std::make_unique<Composer>(*ticker, fonts());
     composer->setClock(&clock);
     composer->setSize(kSceneSize);

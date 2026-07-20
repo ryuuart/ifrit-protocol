@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <vector>
 
 class SkData;
 
@@ -15,8 +16,12 @@ namespace sigil::image {
 struct ImageProbe {
   int width = 0;
   int height = 0;
-  int frames = 1;      // >1 for animations
-  std::string format;  // "png", "jpeg", "webp", "gif", "avif"
+  int channels = 4;
+  int frames = 1;             // >1 for animations
+  bool floatingPoint = false; // HDR/float source (EXR, float TIFF…)
+  std::string format;         // "png", "openexr", "psd", …
+  std::vector<std::string> layers;       // EXR subimages/layer prefixes
+  std::vector<std::string> channelNames; // EXR channel names
 };
 
 /** One decoded frame: a premultiplied, immutable, raster-backed SkImage

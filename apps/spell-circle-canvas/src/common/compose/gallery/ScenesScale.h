@@ -120,7 +120,7 @@ struct UiParticleScene final : Scene {
    *  the same five components cycling through seeded hues and content
    *  pools — no two cells identical. */
   void buildAtlas() {
-    sigil::tick::Ticker atlasTicker;
+    sigil::motion::Ticker atlasTicker;
     Composer sprites(atlasTicker, fonts());
     sprites.setSize({kSprite * kCols, kSprite * kRows});
 
@@ -182,7 +182,7 @@ struct UiParticleScene final : Scene {
     atlas = surface->makeImageSnapshot();
   }
 
-  void setup(Composer &composer, sigil::tick::Ticker &ticker) override {
+  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     buildAtlas();
     registry.clear();
     std::mt19937 rng{11};

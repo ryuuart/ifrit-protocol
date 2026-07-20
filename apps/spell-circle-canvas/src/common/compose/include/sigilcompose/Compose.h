@@ -10,11 +10,11 @@
  * reconciles by key, lays out via Yoga (SigilWeave-measured text leaves),
  * paints with explicit stacking, caches provably-static subtrees as
  * SkPictures automatically, and animates through Choreograph driven by
- * an sigil::tick::Ticker.
+ * an sigil::motion::Ticker.
  */
 
-#include <sigiltick/FrameClock.h>
-#include <sigiltick/Ticker.h>
+#include <sigilmotion/FrameClock.h>
+#include <sigilmotion/Ticker.h>
 
 #include <sigilweave/ParagraphLayout.h>
 #include <sigilweave/Style.h>
@@ -425,7 +425,7 @@ class Composer {
 public:
   /** @p fontContext outlives the composer; @p ticker drives transitions
    *  and (via its FrameClock, when attached) PaintContext time. */
-  Composer(tick::Ticker &ticker, sigil::weave::FontContext &fontContext);
+  Composer(motion::Ticker &ticker, sigil::weave::FontContext &fontContext);
   ~Composer();
 
   Composer(const Composer &) = delete;
@@ -436,7 +436,7 @@ public:
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
    *  freezes paint time at 0 — fine for static content and goldens. */
-  void setClock(const tick::FrameClock *clock);
+  void setClock(const motion::FrameClock *clock);
 
   /** Reconciles against the retained tree (keys match instances; memo
    *  and payload identity prune). Call whenever data changed. */

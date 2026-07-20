@@ -35,7 +35,7 @@ sigil::weave::TextStyle styleAt(float size) {
 
 /** A composer with its own ticker, drawn into a raster surface. */
 struct Host {
-  sigil::tick::Ticker ticker;
+  sigil::motion::Ticker ticker;
   Composer composer{ticker, fonts()};
   sk_sp<SkSurface> surface;
 

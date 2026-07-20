@@ -212,7 +212,7 @@ measurement. Phases refer to DESIGN.md's plan.
 
 19. **Web leaf in a composition / composition in a page** — a live
     `WebView` frame as a leaf (Cache::None), and a Composer drawn into
-    an IfritWeb `WebImage` slot — both directions with IfritWeb.
+    an SigilUltralight `WebImage` slot — both directions with SigilUltralight.
     *gallery*
 20. **Recursive stamps** — a `ContourWalk` stamp whose own decoration
     walks its contour (2 levels), and a `custom()` leaf drawing a
@@ -231,4 +231,4 @@ measurement. Phases refer to DESIGN.md's plan.
   (time scale, pause, data mutation buttons) for eyeballing motion and
   interaction that goldens can't capture.
 - **compose_bench** (P5): google-benchmark target for the *bench*
-  items, alongside weave_bench/web_bench.
+  items, alongside weave_bench/ultralight_bench.

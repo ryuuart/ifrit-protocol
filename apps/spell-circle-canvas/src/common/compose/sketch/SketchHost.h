@@ -8,7 +8,7 @@
 
 #include "sigilsketch/Sketch.h"
 
-#include <sigiltick/FrameClock.h>
+#include <sigilmotion/FrameClock.h>
 
 #include <chrono>
 #include <filesystem>
@@ -74,7 +74,7 @@ public:
    *  when the latest build is good. */
   const std::string &errorLog() const { return m_errorLog; }
 
-  sigil::tick::FrameClock &clock() { return m_clock; }
+  sigil::motion::FrameClock &clock() { return m_clock; }
   Composer *composer() { return m_composer.get(); }
 
   /** The sketch-declared canvas (ctx.canvas()/ctx.background()); hosts
@@ -98,11 +98,11 @@ private:
   sigil::weave::FontContext &m_fonts;
   std::filesystem::path m_buildDir;
 
-  sigil::tick::FrameClock m_clock;
+  sigil::motion::FrameClock m_clock;
   CanvasSpec m_canvasSpec;
   SkSize m_appliedSize = SkSize::MakeEmpty();
   Assets m_assets;
-  std::unique_ptr<sigil::tick::Ticker> m_ticker;
+  std::unique_ptr<sigil::motion::Ticker> m_ticker;
   std::unique_ptr<Composer> m_composer;
   std::unique_ptr<Sketch> m_sketch;
   std::vector<void *> m_libraries; // never dlclosed (statics stay valid)

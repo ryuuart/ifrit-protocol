@@ -41,7 +41,7 @@ struct CanvasSpec {
 
 struct SketchContext {
   Composer &composer;        // render()/renderSlot()/query surface
-  sigil::tick::Ticker &ticker; // steppables + choreograph timeline
+  sigil::motion::Ticker &ticker; // steppables + choreograph timeline
   Assets &assets;            // hot-reloading image loader
   SkSize size;               // the current logical canvas size
   CanvasSpec *spec = nullptr; // host-owned; written via the calls below

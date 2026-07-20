@@ -87,8 +87,8 @@ public:
     m_composer.setSize(size);
   }
 
-  tick::FrameClock &clock() { return m_clock; }
-  tick::Ticker &ticker() { return m_ticker; }
+  motion::FrameClock &clock() { return m_clock; }
+  motion::Ticker &ticker() { return m_ticker; }
   Composer &composer() { return m_composer; }
 
   void render(Element root) { m_composer.render(std::move(root)); }
@@ -106,8 +106,8 @@ public:
   }
 
 private:
-  tick::FrameClock m_clock;
-  tick::Ticker m_ticker;
+  motion::FrameClock m_clock;
+  motion::Ticker m_ticker;
   Composer m_composer;
 };
 
