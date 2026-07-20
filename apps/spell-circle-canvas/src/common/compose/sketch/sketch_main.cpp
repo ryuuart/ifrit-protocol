@@ -68,13 +68,18 @@ int runHeadless(ifrit::compose::sketch::SketchHost &host,
                  host.errorLog().c_str());
     return 1;
   }
+  // One frame settles ctx.canvas() before the capture surface sizes.
+  {
+    sk_sp<SkSurface> warm = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
+    host.frame(*warm->getCanvas(), 1.0 / 60.0);
+  }
   constexpr float kCapture = 2.0f;
-  const SkSize size = ifrit::compose::sketch::SketchHost::kCanvasSize;
+  const SkSize size = host.canvasSize();
   sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
       (int)(size.width() * kCapture), (int)(size.height() * kCapture)));
   surface->getCanvas()->scale(kCapture, kCapture);
   for (int i = 0; i < 90; ++i) {
-    surface->getCanvas()->clear(SK_ColorBLACK);
+    surface->getCanvas()->clear(host.background().toSkColor());
     host.frame(*surface->getCanvas(), 1.0 / 60.0);
   }
   SkBitmap bitmap;

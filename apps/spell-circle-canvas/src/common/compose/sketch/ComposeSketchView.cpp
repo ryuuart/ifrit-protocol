@@ -58,15 +58,16 @@ void ComposeSketchView::paint(QPainter *painter) {
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       m_frame.bits(), m_frame.bytesPerLine());
   SkCanvas &canvas = *surface->getCanvas();
-  canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
-  constexpr SkSize kScene = SketchHost::kCanvasSize;
+  canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14)); // letterbox bars
+  const SkSize scene = host->canvasSize(); // sketch-declared (ctx.canvas)
   const float scale =
-      std::min((float)w / kScene.width(), (float)h / kScene.height());
+      std::min((float)w / scene.width(), (float)h / scene.height());
   canvas.save();
-  canvas.translate((w - kScene.width() * scale) / 2,
-                   (h - kScene.height() * scale) / 2);
+  canvas.translate((w - scene.width() * scale) / 2,
+                   (h - scene.height() * scale) / 2);
   canvas.scale(scale, scale);
-  canvas.clipRect(SkRect::MakeWH(kScene.width(), kScene.height()));
+  canvas.clipRect(SkRect::MakeWH(scene.width(), scene.height()));
+  canvas.clear(host->background().toSkColor());
   if (!host->frame(canvas)) {
     // Nothing loaded yet — quiet dark canvas until the first build.
     canvas.clear(SkColorSetRGB(0x14, 0x12, 0x1e));

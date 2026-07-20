@@ -100,15 +100,19 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   m_libraries.push_back(handle);
 
   // Fresh world for the new sketch; the clock keeps running so time is
-  // continuous across reloads.
+  // continuous across reloads. The canvas spec resets to defaults —
+  // each sketch declares its own via ctx.canvas()/ctx.background().
   m_sketch.reset();
+  m_canvasSpec = CanvasSpec{};
   m_ticker = std::make_unique<ifrit::tick::Ticker>();
   m_composer = std::make_unique<Composer>(*m_ticker, m_fonts);
-  m_composer->setSize(kCanvasSize);
+  m_composer->setSize(m_canvasSpec.size);
+  m_appliedSize = m_canvasSpec.size;
   m_composer->setClock(&m_clock);
   m_sketch.reset(create());
-  SketchContext ctx{*m_composer, *m_ticker, m_assets, kCanvasSize};
+  SketchContext ctx = makeContext();
   m_sketch->setup(ctx);
+  applyCanvasSpec();
   m_errorLog.clear();
   const double seconds =
       std::chrono::duration<double>(std::chrono::steady_clock::now() -
@@ -153,9 +157,22 @@ void SketchHost::poll() {
   if (m_sketch && m_clock.elapsed() - m_lastAssetPoll > 0.5) {
     m_lastAssetPoll = m_clock.elapsed();
     if (m_assets.poll()) {
-      SketchContext ctx{*m_composer, *m_ticker, m_assets, kCanvasSize};
+      SketchContext ctx = makeContext();
       m_sketch->setup(ctx);
+      applyCanvasSpec();
     }
+  }
+}
+
+SketchContext SketchHost::makeContext() {
+  return SketchContext{*m_composer, *m_ticker, m_assets,
+                       m_canvasSpec.size, &m_canvasSpec};
+}
+
+void SketchHost::applyCanvasSpec() {
+  if (m_composer && m_appliedSize != m_canvasSpec.size) {
+    m_composer->setSize(m_canvasSpec.size);
+    m_appliedSize = m_canvasSpec.size;
   }
 }
 
@@ -173,8 +190,9 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
     dt = m_clock.tick();
   }
   m_ticker->tick(dt);
-  SketchContext ctx{*m_composer, *m_ticker, m_assets, kCanvasSize};
+  SketchContext ctx = makeContext();
   m_sketch->update(m_clock.elapsed(), ctx);
+  applyCanvasSpec(); // ctx.canvas() mid-run = p5's resizeCanvas
   m_composer->draw(canvas);
   const double ms = std::chrono::duration<double, std::milli>(
                         std::chrono::steady_clock::now() - start)

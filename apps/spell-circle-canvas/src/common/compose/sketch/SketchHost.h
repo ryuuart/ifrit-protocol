@@ -77,7 +77,10 @@ public:
   ifrit::tick::FrameClock &clock() { return m_clock; }
   Composer *composer() { return m_composer.get(); }
 
-  static constexpr SkSize kCanvasSize = {900, 640};
+  /** The sketch-declared canvas (ctx.canvas()/ctx.background()); hosts
+   *  letterbox to this size and clear with this color. */
+  SkSize canvasSize() const { return m_canvasSpec.size; }
+  SkColor4f background() const { return m_canvasSpec.background; }
 
 private:
   struct CompileResult {
@@ -88,12 +91,16 @@ private:
 
   void startCompile();
   void adopt(const std::filesystem::path &library);
+  SketchContext makeContext();
+  void applyCanvasSpec();
 
   Options m_options;
   textflow::FontContext &m_fonts;
   std::filesystem::path m_buildDir;
 
   ifrit::tick::FrameClock m_clock;
+  CanvasSpec m_canvasSpec;
+  SkSize m_appliedSize = SkSize::MakeEmpty();
   Assets m_assets;
   std::unique_ptr<ifrit::tick::Ticker> m_ticker;
   std::unique_ptr<Composer> m_composer;

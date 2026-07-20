@@ -29,13 +29,35 @@ namespace ifrit::compose::sketch {
 
 /** Bumped whenever SketchContext/Sketch change shape; the host refuses
  *  sketch dylibs built against another version. */
-inline constexpr unsigned kAbiVersion = 1;
+inline constexpr unsigned kAbiVersion = 2;
+
+/** The canvas the host realizes for the sketch: logical size (the
+ *  window letterboxes it, headless captures honor it) and the clear
+ *  color behind the scene. */
+struct CanvasSpec {
+  SkSize size = {900, 640};
+  SkColor4f background = {0.043f, 0.039f, 0.078f, 1};
+};
 
 struct SketchContext {
   Composer &composer;        // render()/renderSlot()/query surface
   ifrit::tick::Ticker &ticker; // steppables + choreograph timeline
   Assets &assets;            // hot-reloading image loader
-  SkSize size;               // the logical canvas size
+  SkSize size;               // the current logical canvas size
+  CanvasSpec *spec = nullptr; // host-owned; written via the calls below
+
+  /** p5's createCanvas: declare the logical canvas size. Usually in
+   *  setup(); calling later resizes live (applied next frame). */
+  void canvas(float width, float height) {
+    if (spec)
+      spec->size = {width, height};
+    size = {width, height}; // visible immediately, p5-style
+  }
+  /** The clear color behind the scene (p5's background). */
+  void background(SkColor4f color) {
+    if (spec)
+      spec->background = color;
+  }
 };
 
 /** Retained-mode, not p5's redraw loop — three paths for motion:

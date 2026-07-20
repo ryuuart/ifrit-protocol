@@ -49,6 +49,10 @@ struct MySketch : sketch::Sketch {
 IFRIT_SKETCH(MySketch)
 ```
 
+- `ctx.canvas(w, h)` / `ctx.background(color)` — p5's
+  createCanvas/background: declare the canvas in `setup()`; the window
+  letterboxes to it and headless captures honor it. Calling
+  `ctx.canvas()` later resizes live. Defaults: 900×640, near-black.
 - `setup(ctx)` runs on every (re)load and when an asset file changes.
 - `update(elapsed, ctx)` runs every frame; re-`render()` for
   data-driven changes, use bindings/transitions for motion.
