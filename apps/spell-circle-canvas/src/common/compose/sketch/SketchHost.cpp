@@ -64,7 +64,7 @@ void SketchHost::startCompile() {
   std::ostringstream cmd;
   cmd << m_options.compiler << " @" << m_options.flagsFile
 #ifdef __APPLE__
-      << " -shared -undefined dynamic_lookup"
+      << " -shared -undefined dynamic_lookup -Wl,-dead_strip"
 #else
       << " -shared"
 #endif

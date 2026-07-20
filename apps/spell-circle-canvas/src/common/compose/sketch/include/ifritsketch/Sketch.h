@@ -38,11 +38,23 @@ struct SketchContext {
   SkSize size;               // the logical canvas size
 };
 
+/** Retained-mode, not p5's redraw loop — three paths for motion:
+ *  1. setup() DECLARES the scene once, wiring in its animation
+ *     (bound Outputs, transitions, ticker steppables) — the runtime
+ *     then animates every frame without re-describing anything.
+ *  2. custom() leaves with Cache::None are the immediate-mode floor:
+ *     their paint program runs per frame with elapsedSeconds.
+ *  3. update() is the DATA path: when state changes, describe again
+ *     via composer.render(...) and the reconciler diffs it. Do not
+ *     re-render every frame out of habit — bindings are cheaper. */
 struct Sketch {
   virtual ~Sketch() = default;
-  /** Called once per (re)load and again when an asset file changes. */
+  /** Called once per (re)load and again when an asset file changes.
+   *  Declare the scene here, animation wiring included. */
   virtual void setup(SketchContext &ctx) = 0;
-  /** Called every frame with the clock's elapsed seconds. */
+  /** Called every frame with the clock's elapsed seconds — react to
+   *  DATA changes here by re-rendering a fresh description; leave
+   *  per-frame motion to bindings and Cache::None paint programs. */
   virtual void update(double elapsed, SketchContext &ctx) {
     (void)elapsed;
     (void)ctx;

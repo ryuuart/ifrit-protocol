@@ -29,16 +29,22 @@ textflow::TextStyle type(float size, SkColor color) {
 
 } // namespace
 
+// The three ways things move here (retained-mode, not p5's redraw
+// loop):
+//  1. setup() DECLARES the scene once — including its motion: bound
+//     Outputs, transitions, ticker steppables. The runtime animates
+//     them every frame without re-describing anything.
+//  2. custom() leaves with Cache::None are the immediate-mode floor —
+//     their paint program runs per frame (see the wave below).
+//  3. update(elapsed, ctx) is for DATA changes: mutate state, call
+//     composer.render(describe()) again, and the reconciler diffs it
+//     (see the score counter below).
 struct HelloSketch : ifrit::compose::sketch::Sketch {
   choreograph::Output<float> wave{0.0f};
+  int score = 0;
+  double nextScoreAt = 0.0;
 
-  void setup(sketch::SketchContext &ctx) override {
-    // A steppable drives the bound Output every frame.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
-      wave = (float)std::sin(t * 1.6);
-      return true;
-    });
+  Element describe(sketch::SketchContext &ctx) {
 
     auto card = [&](std::u8string label, SkColor4f color) {
       return box()
@@ -52,7 +58,7 @@ struct HelloSketch : ifrit::compose::sketch::Sketch {
           .child(text(std::move(label), type(20, SK_ColorWHITE)));
     };
 
-    ctx.composer.render(
+    return
         stack()
             .fill(linearGradient(
                 {0, 0}, {0, ctx.size.height()},
@@ -98,10 +104,38 @@ struct HelloSketch : ifrit::compose::sketch::Sketch {
                        .absolute()
                        .inset(240, 300, 90, 180)
                        .cache(Cache::None))
+            // Re-rendered by update() whenever the score changes —
+            // the keyed text keeps its identity across renders.
+            .child(text(toU8("score " + std::to_string(score)),
+                        type(24, 0xffffd9a0))
+                       .key("score")
+                       .absolute()
+                       .inset(650, 120, 90, 480))
             .child(text(u8"ComposeSketch — edit hello.cpp and save",
                         type(17, 0xff9aa4bb))
                        .absolute()
-                       .inset(90, 560, 90, 40)));
+                       .inset(90, 560, 90, 40));
+  }
+
+  void setup(sketch::SketchContext &ctx) override {
+    // Declared motion: a steppable drives the bound Output every
+    // frame from here on — no per-frame describes needed.
+    ctx.ticker.add([this, t = 0.0](double dt) mutable {
+      t += dt;
+      wave = (float)std::sin(t * 1.6);
+      return true;
+    });
+    ctx.composer.render(describe(ctx));
+  }
+
+  void update(double elapsed, sketch::SketchContext &ctx) override {
+    // Data path: when state changes, describe again and let the
+    // reconciler diff. Everything unchanged stays cached.
+    if (elapsed < nextScoreAt)
+      return;
+    nextScoreAt = elapsed + 1.0;
+    score += 25;
+    ctx.composer.render(describe(ctx));
   }
 };
 
