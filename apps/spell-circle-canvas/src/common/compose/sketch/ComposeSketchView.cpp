@@ -22,12 +22,23 @@ ComposeSketchView::ComposeSketchView(QQuickItem *parent)
     host->poll();
     const QString status = QString::fromStdString(host->status());
     const QString error = QString::fromStdString(host->errorLog());
+    static const char *kStateNames[] = {"waiting", "compiling", "live",
+                                        "failed"};
+    const QString state = kStateNames[(int)host->state()];
     if (status != m_status || error != m_errorLog ||
-        m_compiling != host->compiling()) {
+        m_compiling != host->compiling() || state != m_state) {
       m_status = status;
       m_errorLog = error;
       m_compiling = host->compiling();
+      m_state = state;
       emit stateChanged();
+    }
+    if (host->live()) {
+      m_metrics = QString("work %1 ms (p99 %2)   %3 fps")
+                      .arg(host->workMsAverage(), 0, 'f', 2)
+                      .arg(host->workMsP99(), 0, 'f', 2)
+                      .arg(host->presentedFps(), 0, 'f', 0);
+      emit metricsChanged();
     }
     update();
   });
@@ -63,4 +74,5 @@ void ComposeSketchView::paint(QPainter *painter) {
   canvas.restore();
   m_frame.setDevicePixelRatio(dpr);
   painter->drawImage(QPointF(0, 0), m_frame);
+  host->markPresented();
 }

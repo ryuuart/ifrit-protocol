@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <sstream>
 
@@ -54,7 +55,9 @@ void SketchHost::startCompile() {
   m_compiledMtime =
       std::filesystem::last_write_time(m_options.sketchPath, ec);
   m_everCompiled = true;
-  m_status = "compiling…";
+  m_compileStart = std::chrono::steady_clock::now();
+  m_status = "compiling build " + std::to_string(m_generation + 1) +
+             "…";
 
   const std::filesystem::path out =
       m_buildDir / ("sketch_" + std::to_string(++m_generation) + ".dylib");
@@ -107,7 +110,15 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   SketchContext ctx{*m_composer, *m_ticker, m_assets, kCanvasSize};
   m_sketch->setup(ctx);
   m_errorLog.clear();
-  m_status = "live · build " + std::to_string(m_generation);
+  const double seconds =
+      std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                    m_compileStart)
+          .count();
+  char line[128];
+  std::snprintf(line, sizeof line, "live · build %d · compiled in %.1fs",
+                m_generation, seconds);
+  m_status = line;
+  m_workMs.clear(); // fresh sketch, fresh numbers
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
 }
 
@@ -120,7 +131,9 @@ void SketchHost::poll() {
       adopt(result.library);
     } else {
       m_errorLog = result.output;
-      m_status = live() ? "compile failed — keeping last good build"
+      m_status = live() ? "build " + std::to_string(m_generation) +
+                              " failed — keeping build " +
+                              std::to_string(m_generation - 1)
                         : "compile failed";
       std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
                    m_errorLog.c_str());
@@ -149,6 +162,7 @@ void SketchHost::poll() {
 bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
   if (!m_sketch)
     return false;
+  const auto start = std::chrono::steady_clock::now();
   double dt;
   if (fixedDt >= 0) { // deterministic stepping (headless capture)
     m_syntheticNow += fixedDt;
@@ -162,7 +176,55 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
   SketchContext ctx{*m_composer, *m_ticker, m_assets, kCanvasSize};
   m_sketch->update(m_clock.elapsed(), ctx);
   m_composer->draw(canvas);
+  const double ms = std::chrono::duration<double, std::milli>(
+                        std::chrono::steady_clock::now() - start)
+                        .count();
+  if (m_workMs.size() >= 120)
+    m_workMs.erase(m_workMs.begin());
+  m_workMs.push_back(ms);
   return true;
+}
+
+double SketchHost::workMsAverage() const {
+  if (m_workMs.empty())
+    return 0.0;
+  double sum = 0.0;
+  for (double v : m_workMs)
+    sum += v;
+  return sum / (double)m_workMs.size();
+}
+
+double SketchHost::workMsP99() const {
+  if (m_workMs.empty())
+    return 0.0;
+  std::vector<double> sorted = m_workMs;
+  std::sort(sorted.begin(), sorted.end());
+  return sorted[(size_t)((double)(sorted.size() - 1) * 0.99)];
+}
+
+double SketchHost::presentedFps() const {
+  if (m_presentMs.size() < 2)
+    return 0.0;
+  double sum = 0.0;
+  for (double v : m_presentMs)
+    sum += v;
+  const double mean = sum / (double)m_presentMs.size();
+  return mean > 0 ? 1000.0 / mean : 0.0;
+}
+
+void SketchHost::markPresented() {
+  const auto now = std::chrono::steady_clock::now();
+  if (m_lastPresent.time_since_epoch().count() != 0) {
+    const double ms =
+        std::chrono::duration<double, std::milli>(now - m_lastPresent)
+            .count();
+    if (ms < 1000.0) { // ignore stalls (window drags, sleeps)
+      if (m_presentMs.size() >= 60)
+        m_presentMs.erase(m_presentMs.begin());
+      m_presentMs.push_back(ms);
+    }
+  }
+  m_lastPresent = now;
 }
 
 } // namespace ifrit::compose::sketch

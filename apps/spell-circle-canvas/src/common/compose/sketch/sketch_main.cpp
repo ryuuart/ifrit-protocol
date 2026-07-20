@@ -86,8 +86,9 @@ int runHeadless(ifrit::compose::sketch::SketchHost &host,
     std::fprintf(stderr, "failed to write %s\n", outPath.c_str());
     return 1;
   }
-  std::printf("wrote %s (build %d)\n", outPath.c_str(),
-              host.generation());
+  std::printf("wrote %s (build %d, work %.2f ms avg / %.2f p99)\n",
+              outPath.c_str(), host.generation(), host.workMsAverage(),
+              host.workMsP99());
   return 0;
 }
 

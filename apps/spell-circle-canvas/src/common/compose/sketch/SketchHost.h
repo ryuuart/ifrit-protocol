@@ -10,6 +10,7 @@
 
 #include <ifrittick/FrameClock.h>
 
+#include <chrono>
 #include <filesystem>
 #include <future>
 #include <memory>
@@ -47,6 +48,25 @@ public:
   bool compiling() const { return m_compile.valid(); }
   bool live() const { return m_sketch != nullptr; }
   int generation() const { return m_generation; }
+
+  /** The lifecycle for status displays: Compiling wins even while a
+   *  previous build keeps rendering underneath. */
+  enum class State { Waiting, Compiling, Live, Failed };
+  State state() const {
+    if (m_compile.valid())
+      return State::Compiling;
+    if (!m_errorLog.empty())
+      return State::Failed;
+    return m_sketch ? State::Live : State::Waiting;
+  }
+
+  /** Honest frame metrics over a rolling window: the full frame body
+   *  (tick + update + reconcile + draw) is timed, presentation is what
+   *  the host reports via markPresented(). */
+  double workMsAverage() const;
+  double workMsP99() const;
+  double presentedFps() const;
+  void markPresented();
 
   /** One-line state for a status bar. */
   const std::string &status() const { return m_status; }
@@ -86,6 +106,10 @@ private:
   int m_generation = 0;
   double m_lastAssetPoll = 0.0;
   double m_syntheticNow = 0.0; // fixed-dt timeline for headless runs
+  std::chrono::steady_clock::time_point m_compileStart{};
+  std::chrono::steady_clock::time_point m_lastPresent{};
+  std::vector<double> m_workMs;      // rolling frame-body cost window
+  std::vector<double> m_presentMs;   // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
 };

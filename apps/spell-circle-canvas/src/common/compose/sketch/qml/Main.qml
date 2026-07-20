@@ -45,31 +45,54 @@ ApplicationWindow {
             }
         }
 
-        // Status bar.
+        // Status bar: state dot + build status | frame metrics.
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 30
+            Layout.preferredHeight: 32
             color: "#12101e"
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
+                spacing: 8
+
+                // The state dot: green live, amber compiling (pulsing),
+                // red failed, gray waiting.
+                Rectangle {
+                    id: stateDot
+                    width: 10
+                    height: 10
+                    radius: 5
+                    color: view.state === "live" ? "#5bd47a"
+                         : view.state === "compiling" ? "#ffb46b"
+                         : view.state === "failed" ? "#ff5a6e"
+                         : "#5a5f73"
+                    SequentialAnimation on opacity {
+                        running: view.state === "compiling"
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.25; duration: 350 }
+                        NumberAnimation { to: 1.0; duration: 350 }
+                        onRunningChanged: if (!running) stateDot.opacity = 1
+                    }
+                }
                 Label {
                     text: view.status
-                    color: view.errorLog.length > 0 ? "#ff9aa4"
-                                                    : "#7ee8ff"
+                    color: view.state === "failed" ? "#ff9aa4"
+                         : view.state === "compiling" ? "#ffd9a0"
+                         : "#7ee8ff"
                     font.pixelSize: 13
                 }
                 Item { Layout.fillWidth: true }
-                BusyIndicator {
-                    running: view.compiling
-                    visible: view.compiling
-                    Layout.preferredHeight: 20
-                    Layout.preferredWidth: 20
+                Label {
+                    text: view.metrics
+                    visible: view.metrics.length > 0
+                    color: "#9aa4bb"
+                    font.family: "Menlo"
+                    font.pixelSize: 12
                 }
                 Label {
-                    text: "save the sketch to reload"
-                    color: "#9aa4bb"
+                    text: "save to reload"
+                    color: "#5a5f73"
                     font.pixelSize: 12
                 }
             }
