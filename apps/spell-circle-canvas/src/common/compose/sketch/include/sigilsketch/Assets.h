@@ -1,11 +1,12 @@
 #pragma once
-// Hot-reloading asset loader for sketches: images resolve against the
-// sketch's assets directory through SigilImage (PNG/JPEG/WebP/GIF/AVIF,
-// stills and animations). Missing files return a magenta placeholder
-// (the game-dev tradition) and heal automatically when the file
-// appears; editing an asset on disk swaps it into the running sketch.
+// Sketch-facing assets: a thin veneer over sigil::loader::Hub. The
+// sketch's assets directory mounts at "res://"; image(name) keeps the
+// forgiving sketch contract (magenta placeholder for missing files,
+// heals + hot-swaps on change), and hub() opens the full resource
+// surface — text, blobs, metadata probes, EXR layers, PSD — without
+// the sketch ever touching the filesystem.
 
-#include <sigilimage/ImageAsset.h>
+#include <sigilloader/Loader.h>
 
 #include <filesystem>
 #include <map>
@@ -19,30 +20,26 @@ class Assets {
 public:
   explicit Assets(std::filesystem::path root);
 
-  /** The image at `<root>/<name>`, cached. Never null: a missing or
-   *  undecodable file yields the placeholder until it becomes
-   *  loadable. */
+  /** The image at "res://<name>", cached by the hub. Never null: a
+   *  missing or undecodable file yields the placeholder until it
+   *  becomes loadable. */
   std::shared_ptr<const sigil::image::ImageAsset>
   image(std::string_view name);
 
-  /** Re-checks every requested asset against the filesystem; returns
-   *  true when something changed (host re-runs the sketch's setup). */
+  /** The full resource hub (text/blob/probe/EXR layers…) with the
+   *  sketch's assets directory mounted at "res://". */
+  sigil::loader::Hub &hub() { return m_hub; }
+
+  /** Re-checks everything: returns true when a loaded resource changed
+   *  on disk OR a placeholder's file appeared (host re-runs setup). */
   bool poll();
 
   const std::filesystem::path &root() const { return m_root; }
 
 private:
-  struct Entry {
-    std::shared_ptr<const sigil::image::ImageAsset> asset;
-    std::filesystem::file_time_type mtime{};
-    bool placeholder = false;
-  };
-
-  std::shared_ptr<const sigil::image::ImageAsset> load(
-      const std::filesystem::path &path, Entry &entry);
-
   std::filesystem::path m_root;
-  std::map<std::string, Entry, std::less<>> m_entries;
+  sigil::loader::Hub m_hub;
+  std::map<std::string, bool, std::less<>> m_placeholders; // name → waiting
   std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
 };
 

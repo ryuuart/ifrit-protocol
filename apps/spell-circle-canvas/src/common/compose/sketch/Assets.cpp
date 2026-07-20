@@ -26,50 +26,36 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
       sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
 }
 
+std::string uriFor(std::string_view name) {
+  return "res://" + std::string(name);
+}
+
 } // namespace
 
 Assets::Assets(std::filesystem::path root) : m_root(std::move(root)) {
+  m_hub.mount("res://", m_root);
   m_placeholder = makePlaceholder();
 }
 
 std::shared_ptr<const sigil::image::ImageAsset>
 Assets::image(std::string_view name) {
-  auto it = m_entries.find(name);
-  if (it != m_entries.end())
-    return it->second.asset;
-  Entry entry;
-  entry.asset = load(m_root / name, entry);
-  return m_entries.emplace(std::string(name), std::move(entry))
-      .first->second.asset;
-}
-
-std::shared_ptr<const sigil::image::ImageAsset>
-Assets::load(const std::filesystem::path &path, Entry &entry) {
-  std::error_code ec;
-  const auto mtime = std::filesystem::last_write_time(path, ec);
-  if (!ec) {
-    if (auto decoded = sigil::image::ImageAsset::load(path.string())) {
-      entry.mtime = mtime;
-      entry.placeholder = false;
-      return std::make_shared<sigil::image::ImageAsset>(
-          std::move(*decoded));
-    }
+  if (auto asset = m_hub.image(uriFor(name))) {
+    m_placeholders.erase(std::string(name));
+    return asset;
   }
-  entry.placeholder = true;
-  entry.mtime = {};
+  m_placeholders.insert_or_assign(std::string(name), true);
   return m_placeholder;
 }
 
 bool Assets::poll() {
-  bool changed = false;
-  for (auto &[name, entry] : m_entries) {
-    const std::filesystem::path path = m_root / name;
-    std::error_code ec;
-    const auto mtime = std::filesystem::last_write_time(path, ec);
-    const bool existsNow = !ec;
-    if (entry.placeholder ? existsNow : (ec || mtime != entry.mtime)) {
-      entry.asset = load(path, entry);
+  bool changed = m_hub.poll();
+  // Placeholders heal the moment their file becomes loadable.
+  for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
+    if (m_hub.image(uriFor(it->first))) {
+      it = m_placeholders.erase(it);
       changed = true;
+    } else {
+      ++it;
     }
   }
   return changed;

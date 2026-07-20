@@ -17,7 +17,7 @@ add_library(SigilSketchKit STATIC
 )
 target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilWeavePorts EnTT::EnTT)
+  SigilCompose SigilLoader SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -43,7 +43,8 @@ if(APPLE)
   # vcpkg builds it hidden-visibility, so sketches link its archive
   # directly — see EXTRA below.)
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
-                              SigilTick SigilWeave SigilWeavePorts)
+                              SigilLoader SigilTick SigilWeave
+                              SigilWeavePorts)
     target_link_options(ComposeSketch PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
   endforeach()

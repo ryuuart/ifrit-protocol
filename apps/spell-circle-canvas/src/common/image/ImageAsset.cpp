@@ -2,6 +2,7 @@
 
 #include <include/codec/SkAvifDecoder.h>
 #include <include/codec/SkCodec.h>
+#include <include/codec/SkEncodedImageFormat.h>
 #include <include/codec/SkGifDecoder.h>
 #include <include/codec/SkJpegDecoder.h>
 #include <include/codec/SkPngDecoder.h>
@@ -106,6 +107,28 @@ std::optional<ImageAsset> ImageAsset::decode(sk_sp<SkData> encoded) {
         reps == SkCodec::kRepetitionCountInfinite ? kInfinite : reps + 1;
   }
   return asset;
+}
+
+std::optional<ImageProbe> ImageAsset::probe(sk_sp<SkData> encoded) {
+  if (!encoded)
+    return std::nullopt;
+  std::unique_ptr<SkCodec> codec =
+      SkCodec::MakeFromData(std::move(encoded), supportedDecoders());
+  if (!codec)
+    return std::nullopt;
+  ImageProbe info;
+  info.width = codec->dimensions().width();
+  info.height = codec->dimensions().height();
+  info.frames = std::max(1, codec->getFrameCount());
+  switch (codec->getEncodedFormat()) {
+  case SkEncodedImageFormat::kPNG: info.format = "png"; break;
+  case SkEncodedImageFormat::kJPEG: info.format = "jpeg"; break;
+  case SkEncodedImageFormat::kWEBP: info.format = "webp"; break;
+  case SkEncodedImageFormat::kGIF: info.format = "gif"; break;
+  case SkEncodedImageFormat::kAVIF: info.format = "avif"; break;
+  default: info.format = "image"; break;
+  }
+  return info;
 }
 
 std::optional<ImageAsset> ImageAsset::load(const std::string &path) {

@@ -7,7 +7,13 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
   src/common/              shared libraries: skia/ (Graphite GPU plumbing),
                            ui/ (Ifrit.Ui Qt Quick controls), image/
                            (SigilImage — PNG/JPEG/WebP/GIF/AVIF import,
-                           stills + animations, for canvas drawing), web/
+                           stills + animations, for canvas drawing),
+                           loader/ (SigilLoader — runtime resource hub:
+                           mounted res:// URIs over pluggable decode
+                           backends; blob/text/image + metadata probe +
+                           hot reload; OpenImageIO extends decoding to
+                           EXR w/ layer selection, PSD, TIFF, HDR —
+                           float sources land as F32 SkImages), web/
                            (IfritWeb — Ultralight HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
                            Metal GPUDriver, CPU fallback), tick/
@@ -19,8 +25,8 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            implemented — see DESIGN.md / API.md /
                            STRESS_TESTS.md for architecture, surface,
                            and measured numbers)
-  src/sigilweave/            the SigilWeave layout engine + kit/ports/qt/shaders,
-                           test/, bench/, and examples/{gallery,demo}
+  src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
+                           shaders, test/, bench/, examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
                            core embedded by qt/ (Qt app) and mac/ (SwiftUI)
 apps/python/               Python scene-authoring and UDP transport package
@@ -57,7 +63,8 @@ README). The primary executables are `SpellCircle`,
 (CPU/lockstep), `ifritweb_gpu_demo` (Metal + Graphite), and `web_bench`
 (IfritWeb path costs; plain = CPU engine, `--gpu` = GPU engine — see the
 performance table in `src/common/web/README.md`), `compose_test`,
-`compose_bench`, and `compose_demo` (headless PNG panels of the
+`compose_bench`, `loader_test` (SigilLoader), and `compose_demo`
+(headless PNG panels of the
 compose stress catalog).
 
 The Ultralight SDK is required for IfritWeb;
@@ -67,6 +74,12 @@ re-signing step, and the runtime-resource locations) is documented in
 `src/common/web/README.md`. Executables that link `IfritWeb` call
 `ultralight_copy_resources(<target>)` so each build stages the resources
 next to the binary, which is where the engine looks first at runtime.
+
+Naming: libraries destined for extraction into their own repos carry
+the Sigil prefix (SigilCompose, SigilWeave, SigilImage, SigilTick,
+SigilLoader, SigilSketchKit); product-side integrations keep Ifrit
+(IfritWeb, Ifrit.Ui). ComposeSketch is the live-coding host for
+SigilCompose sketches (see src/common/compose/sketch/README.md).
 
 ## FlatBuffers generation
 

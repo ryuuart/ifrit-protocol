@@ -11,6 +11,14 @@ class SkData;
 
 namespace sigil::image {
 
+/** Cheap metadata from encoded bytes, no pixel decode. */
+struct ImageProbe {
+  int width = 0;
+  int height = 0;
+  int frames = 1;      // >1 for animations
+  std::string format;  // "png", "jpeg", "webp", "gif", "avif"
+};
+
 /** One decoded frame: a premultiplied, immutable, raster-backed SkImage
  *  plus how long it stays on screen (0 for still images). */
 struct Frame {
@@ -41,6 +49,10 @@ public:
 
   /** Reads and decodes a file; nullopt on I/O or decode failure. */
   static std::optional<ImageAsset> load(const std::string &path);
+
+  /** Sniffs encoded bytes: dimensions, frame count, format name;
+   *  nullopt when the bytes are not a supported format. */
+  static std::optional<ImageProbe> probe(sk_sp<SkData> encoded);
 
   /** Wraps an already-rendered still image as a one-frame asset — the
    *  bridge for textures generated on an intermediate canvas/surface

@@ -25,6 +25,7 @@
         "dav1d"
       ]
     },
+    "openimageio",
     {
       "name": "skia",
       "features": [
