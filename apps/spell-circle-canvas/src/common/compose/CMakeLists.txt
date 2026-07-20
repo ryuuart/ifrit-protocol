@@ -95,3 +95,72 @@ set_source_files_properties(gallery/qml/Main.qml
 target_include_directories(ComposeGallery PRIVATE gallery)
 target_link_libraries(ComposeGallery PRIVATE
   IfritCompose TextFlowPorts Qt6::Gui Qt6::Quick EnTT::EnTT)
+
+# ComposeSketch — the p5-style live-coding host (cr.h/RCC++ pattern):
+# sketches are real C++ over the full compose API, compiled on save
+# into dylibs that resolve the framework's symbols from THIS executable
+# (-undefined dynamic_lookup + -export_dynamic), so a sketch build is
+# one small TU with no linking against the static libraries.
+qt_add_executable(ComposeSketch
+  sketch/sketch_main.cpp
+  sketch/SketchHost.cpp
+  sketch/SketchHost.h
+  sketch/Assets.cpp
+)
+qt_add_qml_module(ComposeSketch
+  URI Compose.Sketch
+  VERSION 1.0
+  QML_FILES sketch/qml/Main.qml
+  SOURCES sketch/ComposeSketchView.cpp sketch/ComposeSketchView.h
+)
+set_source_files_properties(sketch/qml/Main.qml
+  PROPERTIES QT_RESOURCE_ALIAS Main.qml)
+target_include_directories(ComposeSketch PRIVATE
+  sketch sketch/include)
+target_link_libraries(ComposeSketch PRIVATE
+  IfritCompose TextFlowPorts Qt6::Gui Qt6::Quick)
+if(APPLE)
+  target_link_options(ComposeSketch PRIVATE "LINKER:-export_dynamic")
+  # Sketches may call ANY part of the SDK, not just what the host's own
+  # TUs reference — force the full archives into the executable so
+  # -undefined dynamic_lookup always resolves.
+  foreach(sketch_dep IN ITEMS IfritCompose IfritImage IfritTick TextFlow
+                              TextFlowPorts)
+    target_link_options(ComposeSketch PRIVATE
+      "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
+  endforeach()
+  target_link_options(ComposeSketch PRIVATE
+    "LINKER:-force_load,$<TARGET_FILE:unofficial::skia::skia>")
+else()
+  # Non-Apple ports: mirror with --whole-archive when the sketch host
+  # lands there (see the repo's other platform-draft notes).
+  target_link_options(ComposeSketch PRIVATE "LINKER:--export-dynamic")
+endif()
+
+# The compiler flags a sketch TU needs, captured at configure time into
+# a response file next to the executable ($<CONFIG>-aware: skia's
+# interface defines differ between Debug and Release).
+file(GENERATE
+  OUTPUT $<TARGET_FILE_DIR:ComposeSketch>/sketch_flags.rsp
+  CONTENT "-std=c++20
+-fPIC
+-O1
+$<$<NOT:$<CONFIG:Debug>>:-DNDEBUG>
+-I${CMAKE_CURRENT_LIST_DIR}/sketch/include
+-I${CMAKE_CURRENT_LIST_DIR}/include
+-I${CMAKE_SOURCE_DIR}/src/common/image/include
+-I${CMAKE_SOURCE_DIR}/src/common/tick/include
+-I${CMAKE_SOURCE_DIR}/src/textflow/include
+-I$<JOIN:$<FILTER:$<TARGET_PROPERTY:unofficial::skia::skia,INTERFACE_INCLUDE_DIRECTORIES>,EXCLUDE,^$>,\n-I>
+-I$<JOIN:$<FILTER:$<TARGET_PROPERTY:choreograph::choreograph,INTERFACE_INCLUDE_DIRECTORIES>,EXCLUDE,^$>,\n-I>
+-I$<JOIN:$<FILTER:$<TARGET_PROPERTY:EnTT::EnTT,INTERFACE_INCLUDE_DIRECTORIES>,EXCLUDE,^$>,\n-I>
+-D$<JOIN:$<FILTER:$<TARGET_PROPERTY:unofficial::skia::skia,INTERFACE_COMPILE_DEFINITIONS>,EXCLUDE,^$>,\n-D>
+$<TARGET_FILE:unofficial::skia::skia>
+")
+
+# End-to-end smoke test of the reload pipeline: compile the starter
+# sketch through the same script, dlopen it, render a frame.
+add_test(NAME compose_sketch_smoke
+  COMMAND ComposeSketch
+    ${CMAKE_CURRENT_LIST_DIR}/sketch/sketches/hello.cpp
+    --frame ${CMAKE_BINARY_DIR}/compose_sketch_smoke.png)
