@@ -1,10 +1,10 @@
 #pragma once
-// Scale scene: "UI as particles" — the atlas sprites are REAL UI
-// rendered once by IfritCompose itself, and not just pills: the mix
-// includes ornate posts wearing different chrome (spiky outline() shout,
-// scalloped seal, carved nine-slice frame, dashed field note), each
-// parameterized by color. Then instanced by the thousand through one
-// drawAtlas call over an EnTT SoA registry.
+// Scale scene: "UI as particles" — and none of them look instanced.
+// FIVE parameterized components (pill chip, spiky shout, scalloped
+// seal, carved nine-slice post, dashed field note) are instantiated
+// THIRTY-TWO ways — every atlas cell gets its own hue and its own
+// content — then scattered by the thousand through one drawAtlas call
+// over an EnTT SoA registry. Same components, different data.
 
 #include "GalleryCore.h"
 #include "OrnamentKit.h"
@@ -21,7 +21,8 @@ namespace compose_gallery {
 struct UiParticleScene final : Scene {
   static constexpr size_t kCount = 1500;
   static constexpr float kSprite = 64.0f; // atlas cell size
-  static constexpr int kSpriteCount = 8;
+  static constexpr int kCols = 8, kRows = 4;
+  static constexpr int kVariants = kCols * kRows;
   entt::registry registry;
   sk_sp<SkImage> atlas;
   std::vector<SkRSXform> xforms;
@@ -33,103 +34,143 @@ struct UiParticleScene final : Scene {
 
   const char *name() const override { return "ui_particles"; }
 
-  /** Eight UI sprites described with the ordinary element API and
-   *  rendered into the atlas by a throwaway Composer: four pill chips
-   *  and four ornate posts, every one color-parameterized. */
+  /** Pastel/deep color pair from a hue — the palette knob every chip
+   *  component takes. */
+  struct ChipTheme {
+    SkColor4f fill, edge, ink;
+  };
+  static SkColor4f hsv(float h, float s, float v) {
+    const float c = v * s;
+    const float x = c * (1 - std::fabs(std::fmod(h / 60.0f, 2.0f) - 1));
+    const float m = v - c;
+    float r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    return {r + m, g + m, b + m, 1};
+  }
+  static ChipTheme chipTheme(float hueDegrees, bool darkInk) {
+    return {hsv(hueDegrees, 0.62f, 0.94f),
+            hsv(hueDegrees, 0.80f, 0.45f),
+            darkInk ? hsv(hueDegrees, 0.85f, 0.22f)
+                    : SkColor4f{1, 1, 1, 1}};
+  }
+  static SkColor ink(const ChipTheme &t) { return t.ink.toSkColor(); }
+
+  /** The five components. Each takes (theme, content) — the whole
+   *  point: one component, many skins. */
+  Element pill(const ChipTheme &t, std::u8string label) {
+    return box().width(kSprite - 10).height(kSprite - 26).corners({14})
+        .fill(Fill::color(t.fill))
+        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .alignItems(Align::Center).justify(Justify::Center)
+        .child(text(std::move(label), styleAt(15, ink(t))));
+  }
+  Element shout(const ChipTheme &t, std::u8string label, int spikes) {
+    return box().width(kSprite - 4).height(kSprite - 4)
+        .outline(starburstOutline(spikes, 0.32f))
+        .fill(ifrit::compose::util::radialGradient(
+            {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
+            {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
+        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .alignItems(Align::Center).justify(Justify::Center)
+        .child(text(std::move(label), styleAt(13, ink(t))));
+  }
+  Element seal(const ChipTheme &t, std::u8string label, float lobe) {
+    return box().width(kSprite - 8).height(kSprite - 8)
+        .outline(scallopOutline(lobe))
+        .fill(Fill::color(t.fill))
+        .foreground(ifrit::compose::util::stroke(2, Fill::color(t.edge)))
+        .alignItems(Align::Center).justify(Justify::Center)
+        .child(text(std::move(label), styleAt(13, ink(t))));
+  }
+  Element framed(const Palette &pal, std::u8string label) {
+    return box().width(kSprite - 8).height(kSprite - 12)
+        .background(carvedFrameSlice(
+            std::make_shared<ifrit::image::ImageAsset>(
+                ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 48)))))
+        .alignItems(Align::Center).justify(Justify::Center)
+        .child(text(std::move(label),
+                    styleAt(15, pal.ink.toSkColor())));
+  }
+  Element note(const ChipTheme &t, std::u8string line1,
+               std::u8string line2) {
+    PathFormat dashed;
+    dashed.width = 1.6f;
+    dashed.strokeFill = Fill::color(t.edge);
+    dashed.dashIntervals = {5, 4};
+    SkColor4f paper = t.fill;
+    paper.fR = 0.75f + paper.fR * 0.25f;
+    paper.fG = 0.75f + paper.fG * 0.25f;
+    paper.fB = 0.75f + paper.fB * 0.25f;
+    return box().width(kSprite - 10).height(kSprite - 18).corners({8})
+        .fill(Fill::color(paper))
+        .foreground(dashed)
+        .column().gap(2).padding(6)
+        .child(text(std::move(line1), styleAt(12, ink(t))))
+        .child(text(std::move(line2), styleAt(10, t.edge.toSkColor())));
+  }
+
+  /** 32 variants rendered by a throwaway Composer into an 8×4 atlas:
+   *  the same five components cycling through seeded hues and content
+   *  pools — no two cells identical. */
   void buildAtlas() {
     ifrit::tick::Ticker atlasTicker;
     Composer sprites(atlasTicker, fonts());
-    sprites.setSize({kSprite * kSpriteCount, kSprite});
+    sprites.setSize({kSprite * kCols, kSprite * kRows});
 
-    // One 64px atlas cell, content centered.
-    auto cell = [&](Element content) {
-      return box().width(kSprite).height(kSprite)
-          .alignItems(Align::Center).justify(Justify::Center)
-          .child(std::move(content));
-    };
+    static constexpr const char8_t *kPillLabels[] = {
+        u8"+250", u8"+120", u8"+45", u8"-87", u8"-12", u8"xp",
+        u8"gg", u8"♥", u8"lv 9", u8"rare"};
+    static constexpr const char8_t *kShoutLabels[] = {u8"POW", u8"BAM",
+                                                      u8"ZOK", u8"CRIT"};
+    static constexpr const char8_t *kSealLabels[] = {u8"act I", u8"act II",
+                                                     u8"fin", u8"oath"};
+    static constexpr const char8_t *kFrameLabels[] = {u8"+1", u8"+3",
+                                                      u8"7", u8"key"};
+    static constexpr const char8_t *kNoteLines[][2] = {
+        {u8"run!", u8"north"}, {u8"hide!", u8"east"},
+        {u8"loot!", u8"cave"}, {u8"rest", u8"camp"}};
+    const Palette framePals[4] = {oakPalette(), azurePalette(),
+                                  crimsonPalette(), emeraldPalette()};
 
-    auto pill = [&](Element content, SkColor4f fillColor,
-                    SkColor4f strokeColor) {
-      return cell(box().width(kSprite - 10).height(kSprite - 26)
-                      .corners({14})
-                      .fill(Fill::color(fillColor))
-                      .foreground(ifrit::compose::util::stroke(
-                          2, Fill::color(strokeColor)))
-                      .alignItems(Align::Center).justify(Justify::Center)
-                      .child(std::move(content)));
-    };
-
-    const Palette oak = oakPalette(), emerald = emeraldPalette();
-
-    // Post 1: spiky outline() shout.
-    auto shout = cell(
-        box().width(kSprite - 4).height(kSprite - 4)
-            .outline(starburstOutline(10, 0.32f))
-            .fill(ifrit::compose::util::radialGradient(
-                {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
-                {{1.0f, 0.88f, 0.40f, 1}, {0.88f, 0.26f, 0.10f, 1}}))
-            .foreground(ifrit::compose::util::stroke(
-                2, Fill::color({0.45f, 0.07f, 0.05f, 1})))
-            .alignItems(Align::Center).justify(Justify::Center)
-            .child(text(u8"POW", styleAt(14, 0xff471003))));
-
-    // Post 2: scalloped wax-seal silhouette, emerald parchment.
-    auto seal = cell(
-        box().width(kSprite - 8).height(kSprite - 8)
-            .outline(scallopOutline(9))
-            .fill(parchmentFill(emerald.parchment, 0.12f))
-            .foreground(ifrit::compose::util::stroke(
-                2, Fill::color(emerald.stem)))
-            .alignItems(Align::Center).justify(Justify::Center)
-            .child(text(u8"act I", styleAt(13, 0xff10361f))));
-
-    // Post 3: the carved nine-slice frame, generated on an
-    // intermediate canvas at 48px and sliced into this cell.
-    auto framed = cell(
-        box().width(kSprite - 8).height(kSprite - 12)
-            .background(carvedFrameSlice(
-                std::make_shared<ifrit::image::ImageAsset>(
-                    ifrit::image::ImageAsset::wrap(
-                        makeCarvedFrame(oak, 48)))))
-            .alignItems(Align::Center).justify(Justify::Center)
-            .child(text(u8"+1", styleAt(16, 0xff2b1c0b))));
-
-    // Post 4: dashed field note, two lines.
-    auto note = [&] {
-      PathFormat dashed;
-      dashed.width = 1.6f;
-      dashed.strokeFill = Fill::color({0.30f, 0.56f, 0.95f, 1});
-      dashed.dashIntervals = {5, 4};
-      return cell(box().width(kSprite - 10).height(kSprite - 18)
-                      .corners({8})
-                      .fill(Fill::color({0.90f, 0.94f, 1.0f, 1}))
-                      .foreground(dashed)
-                      .column().gap(2).padding(6)
-                      .child(text(u8"run!", styleAt(12, 0xff14243a)))
-                      .child(text(u8"north", styleAt(10, 0xff3a4a63))));
-    }();
-
-    sprites.render(
-        box().row()
-            .child(pill(text(u8"+250", styleAt(15, 0xff2b1e08)),
-                        {0.98f, 0.78f, 0.30f, 1},
-                        {0.66f, 0.46f, 0.10f, 1}))
-            .child(pill(text(u8"♥", styleAt(20, 0xffffffff)),
-                        {0.90f, 0.28f, 0.42f, 1},
-                        {0.55f, 0.10f, 0.22f, 1}))
-            .child(pill(text(u8"xp", styleAt(15, 0xff08303a)),
-                        {0.49f, 0.91f, 1.0f, 1},
-                        {0.10f, 0.45f, 0.55f, 1}))
-            .child(pill(text(u8"-87", styleAt(15, 0xffffffff)),
-                        {0.42f, 0.24f, 0.62f, 1},
-                        {0.72f, 0.55f, 0.95f, 1}))
-            .child(std::move(shout))
-            .child(std::move(seal))
-            .child(std::move(framed))
-            .child(std::move(note)));
+    std::mt19937 rng{23};
+    auto column = box().column();
+    for (int row = 0; row < kRows; ++row) {
+      auto rowBox = box().row();
+      for (int col = 0; col < kCols; ++col) {
+        const int i = row * kCols + col;
+        const float hue = std::fmod((float)i * 137.5f, 360.0f);
+        const ChipTheme theme = chipTheme(hue, (i % 3) != 0);
+        Element content = [&]() -> Element {
+          switch (i % 5) {
+          case 0: return pill(theme, kPillLabels[rng() % 10]);
+          case 1: return shout(theme, kShoutLabels[rng() % 4],
+                               8 + (int)(rng() % 5));
+          case 2: return seal(theme, kSealLabels[rng() % 4],
+                              7.0f + (float)(rng() % 4));
+          case 3: return framed(framePals[rng() % 4],
+                                kFrameLabels[rng() % 4]);
+          default: {
+            const auto &lines = kNoteLines[rng() % 4];
+            return note(theme, lines[0], lines[1]);
+          }
+          }
+        }();
+        rowBox.child(box().width(kSprite).height(kSprite)
+                         .alignItems(Align::Center)
+                         .justify(Justify::Center)
+                         .child(std::move(content)));
+      }
+      column.child(std::move(rowBox));
+    }
+    sprites.render(std::move(column));
 
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(kSprite * kSpriteCount), (int)kSprite));
+        (int)(kSprite * kCols), (int)(kSprite * kRows)));
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
     sprites.draw(*surface->getCanvas());
     atlas = surface->makeImageSnapshot();
@@ -145,7 +186,7 @@ struct UiParticleScene final : Scene {
       registry.emplace<Pos>(e, unit() * kSceneSize.width(),
                             unit() * kSceneSize.height());
       registry.emplace<Vel>(e, unit() * 60 - 30, -20.0f - unit() * 70);
-      registry.emplace<Look>(e, (uint8_t)(rng() % kSpriteCount),
+      registry.emplace<Look>(e, (uint8_t)(rng() % kVariants),
                              0.35f + unit() * 0.55f,
                              unit() * 0.4f - 0.2f);
     }
@@ -181,8 +222,9 @@ struct UiParticleScene final : Scene {
                                l.scale, a, p.x, p.y, kSprite / 2,
                                kSprite / 2));
                            texRects.push_back(SkRect::MakeXYWH(
-                               kSprite * (float)l.sprite, 0, kSprite,
-                               kSprite));
+                               kSprite * (float)(l.sprite % kCols),
+                               kSprite * (float)(l.sprite / kCols),
+                               kSprite, kSprite));
                          });
                      c.drawAtlas(atlas.get(),
                                  SkSpan(xforms.data(), xforms.size()),
@@ -193,9 +235,9 @@ struct UiParticleScene final : Scene {
                    })
                        .inset(0)
                        .cache(Cache::None))
-            .child(text(u8"1,500 compose-rendered UI sprites — pills and "
-                        u8"ornate posts (spiky, scalloped, nine-sliced, "
-                        u8"dashed) from one atlas, one drawAtlas, EnTT SoA",
+            .child(text(u8"1,500 sprites from 32 atlas variants — five "
+                        u8"components, each instantiated with its own hue "
+                        u8"and content; one drawAtlas, EnTT SoA",
                         styleAt(16, 0xffdde4f2))
                        .absolute().inset(24, 24, 24, 590).zIndex(1)));
   }

@@ -1,8 +1,13 @@
 #pragma once
 // Parameterized ornament components shared by the showcase scenes.
 // Everything here is a component over the public API: colors arrive as
-// data (a Palette), so the same vine border, flourish, or carved frame
-// renders in any tint — illuminated azure, blood crimson, royal oak.
+// data (a Palette), so the same flourish, sprig, or carved frame
+// renders in any tint.
+//
+// The flourish language follows classic scrollwork references: long
+// calligraphic sweeps that TAPER from a hairline, roll into tight
+// spirals at both ends, and concentrate at the corners — accompanied
+// by thin dashed rules and small diamond accents. Not uniform stamps.
 
 #include "GalleryCore.h"
 
@@ -12,6 +17,7 @@
 #include <include/effects/SkPerlinNoiseShader.h>
 
 #include <cmath>
+#include <vector>
 
 namespace compose_gallery {
 
@@ -20,32 +26,32 @@ namespace compose_gallery {
 struct Palette {
   SkColor4f parchment; // page/panel ground
   SkColor4f ink;       // body text on that ground
-  SkColor4f stem;      // vine stems / frame wood
-  SkColor4f leaf;      // vine leaves
-  SkColor4f gold;      // gilded accents: berries, trims, bosses
+  SkColor4f stem;      // flourish strokes (the watercolor "cobalt")
+  SkColor4f leaf;      // sprig leaves (olive/ochre greens)
+  SkColor4f gold;      // gilded accents: diamonds, dots, trims
 };
 
 inline Palette azurePalette() {
-  return {{0.91f, 0.86f, 0.72f, 1},
-          {0.16f, 0.13f, 0.10f, 1},
-          {0.16f, 0.29f, 0.48f, 1},
-          {0.24f, 0.45f, 0.38f, 1},
-          {0.83f, 0.62f, 0.18f, 1}};
+  return {{0.93f, 0.89f, 0.78f, 1},
+          {0.17f, 0.14f, 0.11f, 1},
+          {0.13f, 0.23f, 0.52f, 1},  // cobalt
+          {0.44f, 0.47f, 0.20f, 1},  // olive
+          {0.82f, 0.62f, 0.20f, 1}}; // ochre gold
 }
 
 inline Palette crimsonPalette() {
-  return {{0.93f, 0.83f, 0.72f, 1},
-          {0.22f, 0.09f, 0.07f, 1},
-          {0.52f, 0.13f, 0.14f, 1},
-          {0.35f, 0.36f, 0.14f, 1},
-          {0.85f, 0.58f, 0.21f, 1}};
+  return {{0.94f, 0.86f, 0.76f, 1},
+          {0.23f, 0.10f, 0.08f, 1},
+          {0.55f, 0.14f, 0.16f, 1},  // alizarin
+          {0.40f, 0.42f, 0.16f, 1},
+          {0.84f, 0.60f, 0.22f, 1}};
 }
 
 inline Palette emeraldPalette() {
-  return {{0.85f, 0.89f, 0.76f, 1},
-          {0.10f, 0.16f, 0.11f, 1},
-          {0.13f, 0.35f, 0.22f, 1},
-          {0.30f, 0.52f, 0.24f, 1},
+  return {{0.87f, 0.90f, 0.79f, 1},
+          {0.10f, 0.17f, 0.12f, 1},
+          {0.12f, 0.36f, 0.24f, 1},
+          {0.35f, 0.50f, 0.20f, 1},
           {0.80f, 0.66f, 0.25f, 1}};
 }
 
@@ -67,58 +73,101 @@ inline Fill parchmentFill(SkColor4f base, float frequency = 0.045f) {
       SkShaders::Color(base, nullptr), std::move(noise)));
 }
 
-/** Curling vine run along the node's outline: seeded curls alternate
- *  sides of the contour, a leaf rides each curl, gilded berries land
- *  every third step. The general procedural border, palette-driven. */
-inline ContourWalk vineWalk(const Palette &pal, float spacing = 26.0f,
-                            float scale = 1.0f) {
-  ContourWalk walk;
-  walk.spacing = spacing;
-  walk.draw = [pal, scale](SkCanvas &c, const PathSample &s,
-                           const PaintContext &) {
-    const int step = (int)(s.distance / 26.0f);
-    const uint32_t h = (uint32_t)step * 2654435761u;
-    const float side = (step & 1) ? 1.0f : -1.0f;
-    c.scale(scale, scale * side);
+// ---------------------------------------------------------------------------
+// Tapered calligraphic strokes — the swirl primitive
 
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeCap(SkPaint::kRound_Cap);
-    p.setStrokeWidth(1.8f);
-    p.setColor4f(pal.stem, nullptr);
-
-    // The stem: an S-curl lifting off the contour, seeded height.
-    const float tipX = 2.0f + (float)(h % 5);
-    const float tipY = -13.0f - (float)(h % 6);
-    SkPathBuilder b;
-    b.moveTo(-10, 0);
-    b.cubicTo(-2, -1, 5, -6, tipX, tipY);
-    // Curl: a hook past the tip.
-    b.cubicTo(tipX + 4, tipY - 3, tipX + 5, tipY + 2, tipX + 1,
-              tipY + 3);
-    c.drawPath(b.detach(), p);
-
-    // A leaf riding the curl.
-    p.setStyle(SkPaint::kFill_Style);
-    p.setColor4f(pal.leaf, nullptr);
-    c.save();
-    c.translate(1, -8);
-    c.rotate(-38.0f + (float)(h % 34));
-    c.drawOval(SkRect::MakeXYWH(0, -2.6f, 9.5f, 5.2f), p);
-    c.restore();
-
-    // Gilded berry every third step.
-    if (step % 3 == 0) {
-      p.setColor4f(pal.gold, nullptr);
-      c.drawCircle(tipX, tipY, 2.3f, p);
-    }
-  };
-  return walk;
+/** Appends `steps` samples of a cubic bezier to `out`. */
+inline void appendCubic(std::vector<SkPoint> &out, SkPoint p0, SkPoint c1,
+                        SkPoint c2, SkPoint p1, int steps = 22) {
+  for (int i = out.empty() ? 0 : 1; i <= steps; ++i) {
+    const float t = (float)i / (float)steps, u = 1 - t;
+    out.push_back({u * u * u * p0.x() + 3 * u * u * t * c1.x() +
+                       3 * u * t * t * c2.x() + t * t * t * p1.x(),
+                   u * u * u * p0.y() + 3 * u * u * t * c1.y() +
+                       3 * u * t * t * c2.y() + t * t * t * p1.y()});
+  }
 }
 
-/** An illuminated corner flourish: a sweeping spiral stem with leaves
- *  and gilded dots, drawn for the top-left and mirrored into any
+/** Appends an Archimedean spiral: radius sweeps r0→r1 while the angle
+ *  sweeps a0→a1 (radians) around `center`. Roll tips with r1 ≈ 0. */
+inline void appendSpiral(std::vector<SkPoint> &out, SkPoint center,
+                         float r0, float r1, float a0, float a1,
+                         int steps = 26) {
+  for (int i = out.empty() ? 0 : 1; i <= steps; ++i) {
+    const float t = (float)i / (float)steps;
+    const float r = r0 + (r1 - r0) * t;
+    const float a = a0 + (a1 - a0) * t;
+    out.push_back({center.x() + std::cos(a) * r,
+                   center.y() + std::sin(a) * r});
+  }
+}
+
+/** Builds a filled path that strokes the centerline with a width that
+ *  swells in the middle and thins to hairlines at both tips — the
+ *  calligraphic taper every scrollwork flourish reads by. */
+inline SkPath taperedStroke(const std::vector<SkPoint> &pts, float wMax,
+                            float wTip = 0.4f) {
+  SkPathBuilder b;
+  const size_t n = pts.size();
+  if (n < 2)
+    return b.detach();
+  auto normalAt = [&](size_t i) -> SkVector {
+    const SkPoint &a = pts[i == 0 ? 0 : i - 1];
+    const SkPoint &c = pts[i + 1 < n ? i + 1 : n - 1];
+    SkVector d = {c.x() - a.x(), c.y() - a.y()};
+    const float len = std::sqrt(d.x() * d.x() + d.y() * d.y());
+    if (len < 1e-4f)
+      return {0, 0};
+    return {-d.y() / len, d.x() / len};
+  };
+  auto halfWidth = [&](size_t i) {
+    const float t = (float)i / (float)(n - 1);
+    // max() guards the tip: sin(pi*1.0f) is a tiny NEGATIVE float and
+    // pow(negative, fractional) is NaN — one NaN voids the whole path.
+    const float swell =
+        std::pow(std::max(0.0f, std::sin(t * 3.14159265f)), 0.65f);
+    return 0.5f * (wTip + (wMax - wTip) * swell);
+  };
+  b.moveTo(pts[0].x() + normalAt(0).x() * halfWidth(0),
+           pts[0].y() + normalAt(0).y() * halfWidth(0));
+  for (size_t i = 1; i < n; ++i)
+    b.lineTo(pts[i].x() + normalAt(i).x() * halfWidth(i),
+             pts[i].y() + normalAt(i).y() * halfWidth(i));
+  for (size_t i = n; i-- > 0;)
+    b.lineTo(pts[i].x() - normalAt(i).x() * halfWidth(i),
+             pts[i].y() - normalAt(i).y() * halfWidth(i));
+  b.close();
+  return b.detach();
+}
+
+/** One tapered sweep with spiral-rolled ends, described by its rough
+ *  course; fills in pal-colored ink. */
+inline void drawTaperedSweep(SkCanvas &c, const std::vector<SkPoint> &pts,
+                             SkColor4f color, float weight) {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f(color, nullptr);
+  c.drawPath(taperedStroke(pts, weight), p);
+}
+
+/** Small gilded diamond, the reference's corner stud. */
+inline void drawDiamond(SkCanvas &c, SkPoint at, float r, SkColor4f color) {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f(color, nullptr);
+  SkPathBuilder d;
+  d.moveTo(at.x(), at.y() - r);
+  d.lineTo(at.x() + r, at.y());
+  d.lineTo(at.x(), at.y() + r);
+  d.lineTo(at.x() - r, at.y());
+  d.close();
+  c.drawPath(d.detach(), p);
+}
+
+/** The corner flourish: a long tapered sweep that turns the corner and
+ *  rolls into spirals at both ends, an inner counter-curl, hairline
+ *  dashed rules running out along both edges, and a gilded diamond on
+ *  the corner itself. Drawn for the top-left, mirrored into any
  *  quadrant (0=NW, 1=NE, 2=SE, 3=SW). */
 inline PaintProgram cornerFlourish(const Palette &pal, int quadrant) {
   return [pal, quadrant](SkCanvas &c, const PaintContext &ctx) {
@@ -128,119 +177,127 @@ inline PaintProgram cornerFlourish(const Palette &pal, int quadrant) {
     c.translate(right ? w : 0, bottom ? h : 0);
     c.scale(right ? -1 : 1, bottom ? -1 : 1);
 
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeCap(SkPaint::kRound_Cap);
-    p.setStrokeWidth(2.6f);
-    p.setColor4f(pal.stem, nullptr);
+    // Main sweep: unrolls from a spiral eye out on the top edge, dips
+    // through the corner, and rolls tangent-smoothly into a second eye
+    // down the left edge.
+    std::vector<SkPoint> sweep;
+    appendSpiral(sweep, {w * 0.80f, 24}, 1.5f, 11.0f, -1.2f, 3.6f);
+    appendCubic(sweep, sweep.back(), {w * 0.52f, 0}, {w * 0.25f, 4},
+                {24, 24});
+    appendCubic(sweep, sweep.back(), {10, 36}, {8, h * 0.43f},
+                {16, h * 0.65f});
+    appendSpiral(sweep, {27, h * 0.69f}, 12.0f, 1.5f, 3.14159f,
+                 3.14159f - 4.7f);
+    drawTaperedSweep(c, sweep, pal.stem, 3.6f);
 
-    // The main sweep out of the corner, plus two branching curls.
-    SkPathBuilder b;
-    b.moveTo(4, 4);
-    b.cubicTo(w * 0.55f, h * 0.06f, w * 0.72f, h * 0.22f, w * 0.88f,
-              h * 0.52f);
-    b.moveTo(w * 0.34f, h * 0.10f);
-    b.cubicTo(w * 0.40f, h * 0.34f, w * 0.30f, h * 0.52f, w * 0.14f,
-              h * 0.60f);
-    b.moveTo(w * 0.60f, h * 0.16f);
-    b.cubicTo(w * 0.68f, h * 0.36f, w * 0.58f, h * 0.52f, w * 0.44f,
-              h * 0.58f);
-    c.drawPath(b.detach(), p);
+    // Inner counter-curl, opposite curvature, lighter weight.
+    std::vector<SkPoint> counter;
+    appendSpiral(counter, {w * 0.55f, 38}, 1.2f, 8.5f, -0.6f, 3.5f);
+    appendCubic(counter, counter.back(), {w * 0.32f, 22}, {34, 30},
+                {30, h * 0.48f});
+    appendSpiral(counter, {40, h * 0.52f}, 9.0f, 1.2f, 3.14159f,
+                 3.14159f - 4.4f);
+    drawTaperedSweep(c, counter, pal.stem, 2.2f);
 
-    // Spiral terminal on the main sweep.
-    b.moveTo(w * 0.88f, h * 0.52f);
-    b.cubicTo(w * 0.96f, h * 0.66f, w * 0.86f, h * 0.76f, w * 0.78f,
-              h * 0.68f);
-    b.cubicTo(w * 0.74f, h * 0.62f, w * 0.80f, h * 0.56f, w * 0.85f,
-              h * 0.60f);
-    p.setStrokeWidth(1.8f);
-    c.drawPath(b.detach(), p);
+    // Hairline dashed rules running out along both edges.
+    SkPaint rule;
+    rule.setAntiAlias(true);
+    rule.setStyle(SkPaint::kStroke_Style);
+    rule.setStrokeWidth(0.9f);
+    rule.setColor4f(pal.stem, nullptr);
+    const SkScalar dash[2] = {14, 7};
+    rule.setPathEffect(SkDashPathEffect::Make(SkSpan(dash, 2), 0));
+    c.drawLine(30, 11, w, 11, rule);
+    c.drawLine(11, 30, 11, h, rule);
 
-    // Leaves along the sweeps.
-    p.setStyle(SkPaint::kFill_Style);
-    const SkPoint leafAt[4] = {{w * 0.30f, h * 0.08f},
-                               {w * 0.58f, h * 0.14f},
-                               {w * 0.36f, h * 0.42f},
-                               {w * 0.60f, h * 0.44f}};
-    const float leafRot[4] = {18, 40, 96, 74};
-    for (int i = 0; i < 4; ++i) {
-      p.setColor4f(pal.leaf, nullptr);
+    // Gilded accents: corner diamond and dots in the spiral eyes.
+    drawDiamond(c, {11, 11}, 5.0f, pal.gold);
+    SkPaint dot;
+    dot.setAntiAlias(true);
+    dot.setColor4f(pal.gold, nullptr);
+    c.drawCircle(w * 0.80f, 24, 2.4f, dot);
+    c.drawCircle(24, h * 0.70f, 2.4f, dot);
+    c.drawCircle(w * 0.52f, 40, 1.8f, dot);
+  };
+}
+
+/** A leafy sprig for edge midpoints: one tapered curling stem, olive
+ *  leaves either side, gilded berry at the tip. Points up; rotate at
+ *  the call site. */
+inline PaintProgram sprig(const Palette &pal) {
+  return [pal](SkCanvas &c, const PaintContext &ctx) {
+    const float w = ctx.size.width(), h = ctx.size.height();
+    c.translate(w / 2, h);
+
+    std::vector<SkPoint> stem;
+    appendCubic(stem, {0, 0}, {2, -h * 0.35f}, {-4, -h * 0.6f},
+                {2, -h * 0.82f});
+    appendSpiral(stem, {7, -h * 0.86f}, 6.0f, 1.0f, 3.4f, 0.2f);
+    drawTaperedSweep(c, stem, pal.stem, 2.2f);
+
+    SkPaint leaf;
+    leaf.setAntiAlias(true);
+    auto drawLeaf = [&](SkPoint at, float rot, float len, SkColor4f col) {
+      leaf.setColor4f(col, nullptr);
       c.save();
-      c.translate(leafAt[i].x(), leafAt[i].y());
-      c.rotate(leafRot[i]);
-      c.drawOval(SkRect::MakeXYWH(0, -4, 15, 8), p);
+      c.translate(at.x(), at.y());
+      c.rotate(rot);
+      c.drawOval(SkRect::MakeXYWH(0, -len * 0.22f, len, len * 0.44f),
+                 leaf);
+      c.restore();
+    };
+    SkColor4f leafDark = pal.leaf;
+    leafDark.fR *= 0.75f; leafDark.fG *= 0.75f; leafDark.fB *= 0.75f;
+    drawLeaf({0, -h * 0.30f}, -140, 13, pal.leaf);
+    drawLeaf({1, -h * 0.46f}, -40, 12, leafDark);
+    drawLeaf({-1, -h * 0.62f}, -150, 11, pal.leaf);
+
+    SkPaint berry;
+    berry.setAntiAlias(true);
+    berry.setColor4f(pal.gold, nullptr);
+    c.drawCircle(7, -h * 0.86f, 2.6f, berry);
+  };
+}
+
+/** Mini tapered curls hugging the four corners of a panel — the
+ *  small-scale cousin of cornerFlourish for dialogs and scrolls.
+ *  A DecorationScheme: attach with .foreground()/.background(). */
+struct SwirlCorners {
+  Palette pal;
+  float size = 24.0f;
+  float weight = 2.0f;
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    const float w = ctx.size.width(), h = ctx.size.height();
+    for (int q = 0; q < 4; ++q) {
+      const bool right = q == 1 || q == 2;
+      const bool bottom = q >= 2;
+      c.save();
+      c.translate(right ? w : 0, bottom ? h : 0);
+      c.scale(right ? -1 : 1, bottom ? -1 : 1);
+      std::vector<SkPoint> curl;
+      appendSpiral(curl, {size * 0.94f, size * 0.34f}, 0.8f,
+                   size * 0.20f, -1.0f, 3.4f);
+      appendCubic(curl, curl.back(), {size * 0.42f, size * 0.02f},
+                  {size * 0.10f, size * 0.14f},
+                  {size * 0.16f, size * 0.72f});
+      appendSpiral(curl, {size * 0.34f, size * 0.86f}, size * 0.18f,
+                   0.8f, 3.6f + 3.14159f, 0.2f + 3.14159f);
+      drawTaperedSweep(c, curl, pal.stem, weight);
+      drawDiamond(c, {size * 0.16f, size * 0.16f}, size * 0.11f,
+                  pal.gold);
       c.restore();
     }
+  }
+};
 
-    // Gilded dots at the terminals.
-    p.setColor4f(pal.gold, nullptr);
-    c.drawCircle(w * 0.14f, h * 0.60f, 3.4f, p);
-    c.drawCircle(w * 0.44f, h * 0.58f, 3.0f, p);
-    c.drawCircle(w * 0.82f, h * 0.64f, 2.6f, p);
-    c.drawCircle(8, 8, 4.2f, p);
-  };
-}
-
-/** Starburst outline for spiky shout dialogs: `spikes` points, `depth`
- *  0..1 how deep the valleys cut. */
-inline std::function<SkPath(SkSize)> starburstOutline(int spikes,
-                                                      float depth) {
-  return [spikes, depth](SkSize s) {
-    SkPathBuilder b;
-    const float cx = s.width() / 2, cy = s.height() / 2;
-    const int n = spikes * 2;
-    for (int i = 0; i < n; ++i) {
-      const float a = (float)i / (float)n * 6.28318f - 1.5708f;
-      const float k = (i & 1) ? 1.0f - depth : 1.0f;
-      const SkPoint pt = {cx + std::cos(a) * cx * k,
-                          cy + std::sin(a) * cy * k};
-      if (i == 0)
-        b.moveTo(pt);
-      else
-        b.lineTo(pt);
-    }
-    b.close();
-    return b.detach();
-  };
-}
-
-/** Scalloped outline: rounded lobes bulging out of each edge — the
- *  cloud-bubble / wax-seal silhouette. */
-inline std::function<SkPath(SkSize)> scallopOutline(float lobe = 14.0f) {
-  return [lobe](SkSize s) {
-    SkPathBuilder b;
-    const float w = s.width(), h = s.height(), inset = lobe * 0.5f;
-    auto edge = [&](SkPoint from, SkPoint to) {
-      const float dx = to.x() - from.x(), dy = to.y() - from.y();
-      const float len = std::sqrt(dx * dx + dy * dy);
-      const int n = std::max(1, (int)(len / lobe));
-      // Outward normal for clockwise travel.
-      const float nx = dy / len, ny = -dx / len;
-      for (int i = 0; i < n; ++i) {
-        const float t0 = (float)i / n, t1 = (float)(i + 1) / n;
-        const SkPoint mid = {from.x() + dx * (t0 + t1) * 0.5f +
-                                 nx * lobe * 0.55f,
-                             from.y() + dy * (t0 + t1) * 0.5f +
-                                 ny * lobe * 0.55f};
-        b.quadTo(mid, {from.x() + dx * t1, from.y() + dy * t1});
-      }
-    };
-    b.moveTo(inset, inset);
-    edge({inset, inset}, {w - inset, inset});
-    edge({w - inset, inset}, {w - inset, h - inset});
-    edge({w - inset, h - inset}, {inset, h - inset});
-    edge({inset, h - inset}, {inset, inset});
-    b.close();
-    return b.detach();
-  };
-}
+// ---------------------------------------------------------------------------
+// Carved nine-slice frames (generated on intermediate canvases)
 
 /** Draws a carved dialog frame onto an intermediate canvas and hands
  *  back the texture: rounded wood band, gilded trim, corner bosses,
  *  edge studs, translucent parchment center. The nine-slice source —
- *  generate once per palette, stretch everywhere. `size` must be
- *  sliceable at divs {size/3, 2*size/3}. */
+ *  generate once per palette, stretch everywhere. */
 inline sk_sp<SkImage> makeCarvedFrame(const Palette &pal, int size = 96) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
@@ -287,26 +344,15 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette &pal, int size = 96) {
     dark.fR *= 0.6f; dark.fG *= 0.6f; dark.fB *= 0.6f;
     p.setColor4f(dark, nullptr);
     c.drawCircle(at[0], at[1], s * 0.085f, p);
-    p.setColor4f(pal.gold, nullptr);
-    SkPathBuilder diamond;
-    const float r = s * 0.042f;
-    diamond.moveTo(at[0], at[1] - r);
-    diamond.lineTo(at[0] + r, at[1]);
-    diamond.lineTo(at[0], at[1] + r);
-    diamond.lineTo(at[0] - r, at[1]);
-    diamond.close();
-    c.drawPath(diamond.detach(), p);
+    drawDiamond(c, {at[0], at[1]}, s * 0.042f, pal.gold);
   }
 
-  // Edge studs at the thirds (they live in the stretchable bands, so
-  // they repeat visually as ticks when the frame stretches).
+  // Edge studs at the halves (in the stretchable bands).
   p.setColor4f(pal.gold, nullptr);
-  for (float t : {0.5f}) {
-    c.drawCircle(s * t, s * 0.075f, 2.6f, p);
-    c.drawCircle(s * t, s * 0.925f, 2.6f, p);
-    c.drawCircle(s * 0.075f, s * t, 2.6f, p);
-    c.drawCircle(s * 0.925f, s * t, 2.6f, p);
-  }
+  c.drawCircle(s * 0.5f, s * 0.075f, 2.6f, p);
+  c.drawCircle(s * 0.5f, s * 0.925f, 2.6f, p);
+  c.drawCircle(s * 0.075f, s * 0.5f, 2.6f, p);
+  c.drawCircle(s * 0.925f, s * 0.5f, 2.6f, p);
 
   return surface->makeImageSnapshot();
 }
@@ -322,16 +368,75 @@ inline Slice carvedFrameSlice(
   return nine;
 }
 
-/** An illuminated panel: parchment ground, ink-colored chrome stroke,
- *  vine border — the parameterized dialog every palette shares. */
+/** An illuminated panel: parchment ground, ink rule, gilded dashed
+ *  inner trim, tapered corner curls — the parameterized dialog every
+ *  palette shares. */
 inline Element illuminatedPanel(const Palette &pal) {
-  return box().corners({10})
+  PathFormat goldDash;
+  goldDash.width = 1.1f;
+  goldDash.strokeFill = Fill::color(pal.gold);
+  goldDash.dashIntervals = {8, 5};
+  return box().corners({8})
       .fill(parchmentFill(pal.parchment))
       .background(ifrit::compose::util::shadow({0, 0, 0, 0.35f}, {2, 3},
                                                8))
-      .foreground(ifrit::compose::util::stroke(2.4f,
+      .foreground(ifrit::compose::util::stroke(1.8f,
                                                Fill::color(pal.stem)))
-      .foreground(vineWalk(pal, 24.0f, 0.75f));
+      .foreground(SwirlCorners{pal, 20.0f, 1.7f})
+      .child(box().inset(5).absolute().foreground(goldDash));
+}
+
+/** Starburst outline for spiky shout dialogs: `spikes` points, `depth`
+ *  0..1 how deep the valleys cut. */
+inline std::function<SkPath(SkSize)> starburstOutline(int spikes,
+                                                      float depth) {
+  return [spikes, depth](SkSize s) {
+    SkPathBuilder b;
+    const float cx = s.width() / 2, cy = s.height() / 2;
+    const int n = spikes * 2;
+    for (int i = 0; i < n; ++i) {
+      const float a = (float)i / (float)n * 6.28318f - 1.5708f;
+      const float k = (i & 1) ? 1.0f - depth : 1.0f;
+      const SkPoint pt = {cx + std::cos(a) * cx * k,
+                          cy + std::sin(a) * cy * k};
+      if (i == 0)
+        b.moveTo(pt);
+      else
+        b.lineTo(pt);
+    }
+    b.close();
+    return b.detach();
+  };
+}
+
+/** Scalloped outline: rounded lobes bulging out of each edge — the
+ *  cloud-bubble / wax-seal silhouette. */
+inline std::function<SkPath(SkSize)> scallopOutline(float lobe = 14.0f) {
+  return [lobe](SkSize s) {
+    SkPathBuilder b;
+    const float w = s.width(), h = s.height(), inset = lobe * 0.5f;
+    auto edge = [&](SkPoint from, SkPoint to) {
+      const float dx = to.x() - from.x(), dy = to.y() - from.y();
+      const float len = std::sqrt(dx * dx + dy * dy);
+      const int n = std::max(1, (int)(len / lobe));
+      const float nx = dy / len, ny = -dx / len;
+      for (int i = 0; i < n; ++i) {
+        const float t0 = (float)i / n, t1 = (float)(i + 1) / n;
+        const SkPoint mid = {from.x() + dx * (t0 + t1) * 0.5f +
+                                 nx * lobe * 0.55f,
+                             from.y() + dy * (t0 + t1) * 0.5f +
+                                 ny * lobe * 0.55f};
+        b.quadTo(mid, {from.x() + dx * t1, from.y() + dy * t1});
+      }
+    };
+    b.moveTo(inset, inset);
+    edge({inset, inset}, {w - inset, inset});
+    edge({w - inset, inset}, {w - inset, h - inset});
+    edge({w - inset, h - inset}, {inset, h - inset});
+    edge({inset, h - inset}, {inset, inset});
+    b.close();
+    return b.detach();
+  };
 }
 
 } // namespace compose_gallery

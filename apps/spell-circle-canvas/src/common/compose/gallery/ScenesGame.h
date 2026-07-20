@@ -270,7 +270,7 @@ struct RpgHudScene final : Scene {
               .fill(parchmentFill(pal.parchment))
               .foreground(ifrit::compose::util::stroke(
                   2, Fill::color(pal.stem)))
-              .foreground(vineWalk(pal, 26.0f, 0.7f))
+              .foreground(SwirlCorners{pal, 18.0f, 1.6f})
               .child(text(u8"QUEST · The Ember Gate",
                           styleAt(16, 0xff1c3450)))
               .child(text(u8"Carry the last coal through the flooded "

@@ -49,8 +49,19 @@ struct ManuscriptScene final : Scene {
   Element describe() {
     const Palette pal = azurePalette();
     const Palette rubric = crimsonPalette();
-    const SkSize page = {kSceneSize.width() - 52,
-                         kSceneSize.height() - 44};
+
+    // A TRUE drop cap: the verse's first grapheme becomes the
+    // illuminated initial, and the body text is the REMAINDER — the
+    // paragraph flows around the initial via the derive phase.
+    // (TextFlow's ExclusionFlow provides the geometry; a first-class
+    // N-line initial in ParagraphLayoutOptions is the eventual home.)
+    const std::u8string letter(1, kVerses[verse][0]);
+    const std::u8string body(kVerses[verse] + 1);
+
+    PathFormat goldDash;
+    goldDash.width = 1.3f;
+    goldDash.strokeFill = Fill::color(pal.gold);
+    goldDash.dashIntervals = {16, 8};
 
     // Corner flourishes: keyed absolute ornaments the body text weaves
     // between (multi-exclusion flowAround).
@@ -74,27 +85,32 @@ struct ManuscriptScene final : Scene {
                        {0, 0, 0, 0.55f}, {5, 7}, 16))
                    .fill(parchmentFill(pal.parchment))
                    .foreground(ifrit::compose::util::stroke(
-                       3, Fill::color(pal.stem)))
-                   .foreground(vineWalk(pal, 27.0f, 1.0f))
-                   // Inner gilded rule.
+                       2.2f, Fill::color(pal.stem)))
+                   // Inner gilded dashed rule (the broken hairline the
+                   // corner flourishes dance around).
                    .child(box().inset(14).absolute()
-                              .foreground(ifrit::compose::util::stroke(
-                                  1.2f, Fill::color(pal.gold)))))
+                              .foreground(goldDash)))
         // Title rubric line.
         .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
                     styleAt(24, toColor(rubric.stem)))
                    .absolute()
                    .inset(200, 54, 200, kSceneSize.height() - 92)
                    .zIndex(1))
-        // Drop cap: the illuminated panel component in azure.
-        .child(illuminatedPanel(pal).key("dropcap")
-                   .width(96).height(102)
-                   .inset(84, 108, kSceneSize.width() - 84 - 96,
-                          kSceneSize.height() - 108 - 102)
-                   .absolute().zIndex(3)
+        // The illuminated initial: first grapheme on a cobalt block
+        // with gilded trim (the watercolor-manuscript treatment).
+        .child(box().key("dropcap")
+                   .width(92).height(98)
+                   .inset(84, 112, kSceneSize.width() - 84 - 92,
+                          kSceneSize.height() - 112 - 98)
+                   .absolute().zIndex(3).corners({8})
+                   .background(ifrit::compose::util::shadow(
+                       {0, 0, 0, 0.35f}, {2, 3}, 7))
+                   .fill(Fill::color(pal.stem))
+                   .foreground(ifrit::compose::util::stroke(
+                       1.6f, Fill::color(pal.gold)))
                    .alignItems(Align::Center).justify(Justify::Center)
-                   .child(text(verse == 0 ? u8"H" : u8"I",
-                               styleAt(64, toColor(rubric.stem)))))
+                   .child(box().inset(5).absolute().foreground(goldDash))
+                   .child(text(letter, styleAt(62, toColor(pal.gold)))))
         // Rubric side panel: the same component, crimson palette.
         .child(illuminatedPanel(rubric).key("rubric")
                    .width(200).height(148)
@@ -108,8 +124,7 @@ struct ManuscriptScene final : Scene {
         // Body text weaving between drop cap, rubric, and all four
         // corner flourishes.
         .child(box().inset(66, 96, 66, 64).absolute()
-                   .child(text(kVerses[verse], styleAt(19.5f,
-                                                       toColor(pal.ink)))
+                   .child(text(body, styleAt(19.5f, toColor(pal.ink)))
                               .key("body")
                               .flowAround("dropcap", 14)
                               .flowAround("rubric", 14)
@@ -118,10 +133,21 @@ struct ManuscriptScene final : Scene {
                               .flowAround("fsw", 8)
                               .flowAround("fse", 8))
                    .zIndex(1))
-        .child(flourish("fnw", 0, 30, 26, 170, 120))
-        .child(flourish("fne", 1, 700, 26, 170, 120))
-        .child(flourish("fsw", 3, 30, 494, 170, 120))
-        .child(flourish("fse", 2, 700, 494, 170, 120));
+        .child(flourish("fnw", 0, 30, 26, 190, 130))
+        .child(flourish("fne", 1, 680, 26, 190, 130))
+        .child(flourish("fsw", 3, 30, 484, 190, 130))
+        .child(flourish("fse", 2, 680, 484, 190, 130))
+        // Leafy sprigs at the edge midpoints (upright at the bottom,
+        // hanging from the top, reaching in from the sides).
+        .child(box().width(46).height(52)
+                   .inset(427, 588 - 52, 427, 30).absolute()
+                   .child(custom(sprig(pal)).inset(0)))
+        .child(box().width(46).height(52)
+                   .inset(34, 294, 820, 294).absolute().rotate(90.0f)
+                   .child(custom(sprig(pal)).inset(0)))
+        .child(box().width(46).height(52)
+                   .inset(820, 294, 34, 294).absolute().rotate(-90.0f)
+                   .child(custom(sprig(pal)).inset(0)));
 
     return stack()
         .fill(Fill::color({0.11f, 0.09f, 0.075f, 1})) // scriptorium desk
