@@ -17,6 +17,7 @@ struct EdgeValues {
 
 struct LayoutProps {
   bool row = false;
+  bool wrap = false;
   float gap = 0;
   EdgeValues padding, margin;
   Dim width, height, minWidth, maxWidth, minHeight, maxHeight, basis;
@@ -55,9 +56,13 @@ struct ElementNode {
   // Text
   std::u8string textUtf8;
   sigil::weave::TextStyle textStyle;
+  // Full-control overload: identity (the pointer) is the change signal.
+  std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
+  sigil::weave::ParagraphLayoutOptions layoutOptions;
 
   // Image
   std::shared_ptr<const sigil::image::ImageAsset> imageAsset;
+  std::optional<SkRect> imageRegion; // atlas sub-rect, source px
 
   // Custom
   PaintProgram program;

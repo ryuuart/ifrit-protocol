@@ -40,6 +40,7 @@
 
 class SkCanvas;
 class SkImageFilter;
+class SkPicture;
 class SkRuntimeEffect;
 
 namespace sigil::image {
@@ -109,20 +110,39 @@ struct Fill {
   }
 };
 
+/** Corner radii, clockwise from top-left. `{r}` rounds all four; the
+ *  four-value form dresses each corner independently. For shapes whose
+ *  corners aren't box corners (stars, polygons, custom outlines), use
+ *  shapes::rounded() around the outline generator instead. */
 struct Corners {
-  float radius = 0.0f;
+  float topLeft = 0.0f, topRight = 0.0f, bottomRight = 0.0f,
+        bottomLeft = 0.0f;
+
+  Corners() = default;
+  Corners(float all) // NOLINT: implicit by design (.corners({8}))
+      : topLeft(all), topRight(all), bottomRight(all), bottomLeft(all) {}
+  Corners(float tl, float tr, float br, float bl)
+      : topLeft(tl), topRight(tr), bottomRight(br), bottomLeft(bl) {}
+
+  bool any() const {
+    return topLeft > 0 || topRight > 0 || bottomRight > 0 || bottomLeft > 0;
+  }
   bool operator==(const Corners &) const = default;
 };
 
 /** The one paint-program context: custom leaves (and, in extensions,
  *  decorations and contour walks) all receive this. `elapsedSeconds` is
- *  the Ticker's FrameClock time — pause/time-scale affect it. */
+ *  the Ticker's FrameClock time — pause/time-scale affect it. `fonts`
+ *  is the owning composer's FontContext (null only when a decoration
+ *  is painted outside a composer) — what element stamps and ad-hoc
+ *  SigilWeave drawing inside paint programs lay text out with. */
 struct PaintContext {
   SkSize size = SkSize::MakeEmpty();
   SkPath outline;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
   bool animating = false;
+  sigil::weave::FontContext *fonts = nullptr;
 };
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
@@ -202,16 +222,28 @@ struct Dim {
   Unit unit = Unit::Auto;
   float value = 0.0f;
 
-  Dim() = default;
-  Dim(float px) : unit(Unit::Px), value(px) {} // NOLINT: implicit by design
+  constexpr Dim() = default;
+  constexpr Dim(float px) // NOLINT: implicit by design
+      : unit(Unit::Px), value(px) {}
   bool operator==(const Dim &) const = default;
 };
-inline Dim pct(float v) {
+constexpr Dim pct(float v) {
   Dim d;
   d.unit = Dim::Unit::Pct;
   d.value = v;
   return d;
 }
+constexpr Dim autoDim() { return {}; }
+
+/** `width(50_pct)`, `basis(120_px)` — for the Dim-valued setters;
+ *  exposed by `using namespace sigil::compose` (or `using namespace
+ *  sigil::compose::literals`). */
+inline namespace literals {
+constexpr Dim operator""_px(long double v) { return Dim((float)v); }
+constexpr Dim operator""_px(unsigned long long v) { return Dim((float)v); }
+constexpr Dim operator""_pct(long double v) { return pct((float)v); }
+constexpr Dim operator""_pct(unsigned long long v) { return pct((float)v); }
+} // namespace literals
 
 enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };
 enum class Justify : uint8_t {
@@ -265,10 +297,16 @@ public:
   // ---- layout ----
   Element &row();
   Element &column();
+  /** Flex-wrap: children flow onto new lines/columns when they
+   *  overflow the main axis. */
+  Element &wrapLines(bool on = true);
   Element &gap(float px);
   Element &padding(float all);
   Element &padding(float horizontal, float vertical);
+  Element &padding(float left, float top, float right, float bottom);
   Element &margin(float all);
+  Element &margin(float horizontal, float vertical);
+  Element &margin(float left, float top, float right, float bottom);
   Element &width(Dim d);
   Element &height(Dim d);
   Element &minWidth(Dim d);
@@ -330,6 +368,12 @@ public:
    *  elements; `margin` applies to all of them. */
   Element &flowAround(std::string_view key, float margin = 0.0f);
 
+  // ---- content ----
+  /** Image leaves only: draw this sub-rect of the asset (atlas / sprite
+   *  regions, in source pixels) instead of the whole image. Strictly
+   *  constrained — neighboring atlas cells never bleed in. */
+  Element &region(SkRect sourceRect);
+
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);
   Element &cache(Cache c);
@@ -361,6 +405,13 @@ Element box();
  *  painted in (zIndex, declaration order). */
 Element stack();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
+/** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
+ *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
+ *  overflow…). The paragraph is shared by reference: reuse one
+ *  shared_ptr across renders to keep shaping caches warm; a fresh
+ *  pointer means "content changed" and re-shapes. */
+Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
+             sigil::weave::ParagraphLayoutOptions options = {});
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 /** A box whose content is one paint program (≡ box().background(p)).
  *  Cached like any static subtree — programs that read the clock or
@@ -399,6 +450,16 @@ using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {});
 
+/** One-shot element render: reconciles, lays out, and records the
+ *  paint into a picture. With an empty @p maxSize the tree takes its
+ *  intrinsic (content) size; a non-empty one bounds it (root max
+ *  dims). Bindings are sampled at their current values; transitions
+ *  don't run — there is no live timeline. This is the bake primitive
+ *  behind ContourWalk element stamps, and generally "an element tree
+ *  as a brush". */
+sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
+                          SkSize maxSize = SkSize::MakeEmpty());
+
 namespace detail {
 Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
@@ -431,7 +492,9 @@ public:
   Composer(const Composer &) = delete;
   Composer &operator=(const Composer &) = delete;
 
-  /** Layout viewport in canvas-space px; percent dims resolve here. */
+  /** Layout viewport in canvas-space px; percent dims resolve here.
+   *  The root element always fills the viewport (its own width/height
+   *  are ignored, like the CSS root) — size content via children. */
   void setSize(SkSize size);
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
@@ -463,6 +526,14 @@ public:
    *  layout; for glyph choreography and queries). */
   const sigil::weave::ParagraphLayout *
   paragraphLayout(std::string_view key) const;
+  /** Topmost key at a canvas-space point (valid after draw()/layout).
+   *  Paint-order aware (zIndex, declaration order, topmost first),
+   *  transform-aware (rotated/scaled/translated nodes hit in their
+   *  visual place), and shape-aware (custom outlines and corner radii
+   *  bound the hit region — the gap between a star's arms misses).
+   *  A keyless node hit resolves to its nearest keyed ancestor;
+   *  clipped subtrees don't hit outside their clip. */
+  std::optional<std::string> hitTest(SkPoint canvasPoint) const;
 
   // ---- introspection (perf verification; see compose_bench) ----
   struct Stats {
@@ -482,6 +553,8 @@ public:
 
 private:
   friend struct detail::Instance;
+  friend sk_sp<SkPicture> snapshot(Element, sigil::weave::FontContext &,
+                                   SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

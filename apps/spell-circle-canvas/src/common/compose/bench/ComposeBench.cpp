@@ -479,3 +479,222 @@ BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)
 #endif
 
 BENCHMARK_MAIN();
+
+// ---------------------------------------------------------------------------
+// Completeness-round benches: stamps, regions vs SkSL tiling, hitTest,
+// direct leaf blending, transform-replay caching.
+
+#include <sigilcompose/Decorations.h>
+#include <sigilcompose/Layouts.h>
+#include <sigilcompose/Shapes.h>
+
+#include <include/core/SkBitmap.h>
+#include <include/core/SkStream.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <include/encode/SkPngEncoder.h>
+
+#include <sigilimage/ImageAsset.h>
+
+namespace {
+
+std::shared_ptr<sigil::image::ImageAsset> benchAtlas() {
+  static std::shared_ptr<sigil::image::ImageAsset> asset = [] {
+    SkBitmap src;
+    src.allocN32Pixels(64, 16);
+    for (int i = 0; i < 4; ++i)
+      src.erase(SkColorSetRGB((U8CPU)(60 + i * 40), 40, 90),
+                SkIRect::MakeXYWH(i * 16, 0, 16, 16));
+    SkDynamicMemoryWStream stream;
+    SkPngEncoder::Encode(&stream, src.pixmap(), {});
+    return std::make_shared<sigil::image::ImageAsset>(
+        *sigil::image::ImageAsset::decode(stream.detachAsData()));
+  }();
+  return asset;
+}
+
+struct ChunkProps {
+  std::vector<int> ids;
+  bool operator==(const ChunkProps &) const = default;
+};
+
+Element benchChunk(const ChunkProps &p) {
+  constexpr float kTile = 16.0f;
+  auto tiles = box().width(10 * kTile).height(10 * kTile);
+  for (int i = 0; i < (int)p.ids.size(); ++i)
+    tiles.child(image(benchAtlas())
+                    .region(SkRect::MakeXYWH(
+                        (float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
+                    .absolute()
+                    .inset((float)(i % 10) * kTile, (float)(i / 10) * kTile,
+                           0, 0)
+                    .width(kTile).height(kTile));
+  return tiles;
+}
+
+} // namespace
+
+/** 6x4 chunks of 10x10 region tiles (2400 tiles): steady-state redraw,
+ *  everything picture-cached (the tile-map baseline). */
+static void BM_Draw_TileGrid_Region_Cached(benchmark::State &state) {
+  Host host(960, 640);
+  std::vector<ChunkProps> chunks(24);
+  for (int c = 0; c < 24; ++c)
+    for (int i = 0; i < 100; ++i)
+      chunks[(size_t)c].ids.push_back((i * 31 + c) % 4);
+  auto describe = [&] {
+    auto grid = box().row().wrapLines().width(6 * 160.0f);
+    for (int c = 0; c < 24; ++c)
+      grid.child(memo(chunks[(size_t)c], benchChunk)
+                     .key("c" + std::to_string(c)));
+    return box().child(grid);
+  };
+  host.composer.render(describe());
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state) {
+    host.composer.render(describe());
+    host.composer.draw(*host.surface->getCanvas());
+  }
+}
+BENCHMARK(BM_Draw_TileGrid_Region_Cached);
+
+/** Same grid, one chunk's data mutated per iteration — the incremental
+ *  cost item 15 promises: one chunk re-records, 23 replay. */
+static void BM_Draw_TileGrid_Region_OneChunkChanged(benchmark::State &state) {
+  Host host(960, 640);
+  std::vector<ChunkProps> chunks(24);
+  for (int c = 0; c < 24; ++c)
+    for (int i = 0; i < 100; ++i)
+      chunks[(size_t)c].ids.push_back((i * 31 + c) % 4);
+  auto describe = [&] {
+    auto grid = box().row().wrapLines().width(6 * 160.0f);
+    for (int c = 0; c < 24; ++c)
+      grid.child(memo(chunks[(size_t)c], benchChunk)
+                     .key("c" + std::to_string(c)));
+    return box().child(grid);
+  };
+  host.composer.render(describe());
+  host.composer.draw(*host.surface->getCanvas());
+  int flip = 0;
+  for (auto _ : state) {
+    chunks[7].ids[(size_t)(flip++ % 100)] ^= 1;
+    host.composer.render(describe());
+    host.composer.draw(*host.surface->getCanvas());
+  }
+}
+BENCHMARK(BM_Draw_TileGrid_Region_OneChunkChanged);
+
+/** Item 16: the same 2400-tile field as ONE SkSL fill sampling the
+ *  atlas procedurally — a single draw, no per-tile identity. */
+static void BM_Draw_TileGrid_SkSLFill(benchmark::State &state) {
+  Host host(960, 640);
+  static const char *kSkSL = R"(
+    uniform shader atlas;
+    half4 main(float2 xy) {
+      float2 tile = floor(xy / 16.0);
+      float id = mod(tile.x * 31.0 + tile.y * 7.0, 4.0);
+      float2 local = xy - tile * 16.0;
+      return atlas.eval(float2(id * 16.0, 0) + local);
+    })";
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
+  if (!effect) {
+    state.SkipWithError(err.c_str());
+    return;
+  }
+  const auto &frame = benchAtlas()->frames().front();
+  sk_sp<SkShader> atlasShader = frame.image->makeShader(
+      SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions());
+  SkRuntimeShaderBuilder builder(effect);
+  builder.child("atlas") = atlasShader;
+  sk_sp<SkShader> field = builder.makeShader();
+
+  host.composer.render(box().child(
+      box().width(960).height(640).fill(Fill::shader(field))
+          .cache(Cache::None)));
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_TileGrid_SkSLFill);
+
+/** Element-stamp border: a card whose ContourWalk stamps a composed
+ *  ornament every 24px — recorded once, replayed ~46 times per draw. */
+static void BM_Draw_StampBorder_Cached(benchmark::State &state) {
+  Host host(800, 600);
+  ContourWalk vine;
+  vine.spacing = 24.0f;
+  vine.stamp = box().width(14).height(14)
+                   .outline(shapes::star(4, 0.45f))
+                   .fill(Fill::color({1, 0.7f, 0.4f, 1}));
+  host.composer.render(box().child(
+      box().width(400).height(280).inset(100, 100, 300, 220).absolute()
+          .corners({20}).fill(Fill::color({0.1f, 0.1f, 0.2f, 1}))
+          .foreground(vine)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_StampBorder_Cached);
+
+/** hitTest through a 3-level tree with shaped and rotated nodes. */
+static void BM_HitTest_ShapedTree(benchmark::State &state) {
+  Host host(900, 640);
+  auto scatter = layout(layouts::Scatter{.seed = 3}).inset(0);
+  for (int i = 0; i < 50; ++i)
+    scatter.child(box().key("blob" + std::to_string(i))
+                      .width(60).height(60)
+                      .outline(shapes::blob((uint32_t)i, 0.3f, 7))
+                      .rotate((float)i * 7.0f)
+                      .fill(Fill::color({0.5f, 0.3f, 0.4f, 1})));
+  host.composer.render(box().child(scatter));
+  host.composer.draw(*host.surface->getCanvas());
+  int step = 0;
+  for (auto _ : state) {
+    const SkPoint pt{(float)(step * 37 % 900), (float)(step * 53 % 640)};
+    benchmark::DoNotOptimize(host.composer.hitTest(pt));
+    ++step;
+  }
+}
+BENCHMARK(BM_HitTest_ShapedTree);
+
+/** 100 plus-blended blob leaves — the direct-blend fast path (each
+ *  used to cost a device-sized saveLayer). */
+static void BM_Draw_BlendField_100Blobs(benchmark::State &state) {
+  Host host(900, 640);
+  auto scatter = layout(layouts::Scatter{.seed = 9, .jitter = 0.8f})
+                     .inset(0);
+  for (int i = 0; i < 100; ++i)
+    scatter.child(box().width(70).height(60)
+                      .outline(shapes::blob((uint32_t)(i + 1), 0.3f, 6))
+                      .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
+                      .blend(SkBlendMode::kPlus));
+  host.composer.render(box().child(scatter));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_BlendField_100Blobs);
+
+/** A transform-bound ornament (rotating star with a stamped border):
+ *  paint-only volatility — content picture replays under the animated
+ *  matrix instead of re-walking the border every frame. */
+static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State &state) {
+  Host host(800, 600);
+  choreograph::Output<float> spin{0.0f};
+  ContourWalk vine;
+  vine.spacing = 24.0f;
+  vine.stamp = box().width(14).height(14)
+                   .outline(shapes::star(4, 0.45f))
+                   .fill(Fill::color({1, 0.7f, 0.4f, 1}));
+  host.composer.render(box().child(
+      box().width(300).height(300).inset(250, 150, 250, 150).absolute()
+          .outline(shapes::rounded(shapes::star(7, 0.6f), 10))
+          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+          .rotate(&spin)
+          .foreground(vine)));
+  host.composer.draw(*host.surface->getCanvas());
+  float angle = 0;
+  for (auto _ : state) {
+    spin = (angle += 0.7f);
+    host.composer.draw(*host.surface->getCanvas());
+  }
+}
+BENCHMARK(BM_Draw_SpinningStamped_TransformReplay);

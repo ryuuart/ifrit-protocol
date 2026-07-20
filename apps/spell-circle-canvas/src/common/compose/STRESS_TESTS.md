@@ -103,6 +103,74 @@ the user side of the seam, exactly where the scene core already uses
 it. Retained-tree instances themselves stay AoS until profiles say
 otherwise (the tree walks are no longer per-frame).
 
+**Completeness round (landed):** the remaining catalog gaps closed in
+one pass — measured Release, Apple Silicon dev Mac, raster unless
+noted:
+
+- **Structural prune without memo** — the reconciler now proves
+  value-equality on comparable descriptions (plain boxes, fills,
+  text runs, images; anything carrying an incomparable callable stays
+  conservative): re-rendering an unchanged non-memo tree patches 0
+  nodes, records 0 pictures, and leaves `dirty()` false, so hosts can
+  skip the frame entirely. Keyed reorders/mounts/unmounts still
+  invalidate through an explicit structure check.
+- **hitTest (item 5)** — paint-order, transform- and shape-aware
+  (star-arm gaps miss; rotated bars hit in their visual place;
+  keyless nodes resolve to the nearest keyed ancestor; clips bound
+  their subtrees): **1.2 µs** per query over a 50-blob rotated
+  scatter. Demoed in `query_hits.png` (host draws bounds() ring +
+  hitTest probe row) and live in the gallery's organic scene.
+- **Per-edge chrome (item 9)** — `shapes::edges()` extracts exact
+  sub-contours by arc-length classification (rounded corners split at
+  the diagonal, bisection-refined) and `onEdges(mask, decoration)`
+  retargets ANY primitive at them; pixel-tested both on rects and
+  rounded rects.
+- **Element stamps (items 10, 20)** — `snapshot()` (one-shot
+  reconcile→layout→record at intrinsic size, bindings sampled,
+  liveOnly) plus `ContourWalk::stamp`: unit-proven record-once
+  (stamp's describe runs exactly once while ~40 samples replay),
+  level-2 recursion (a stamp whose own decoration walks its contour)
+  and a nested-Composer custom leaf both pixel-tested. A stamped
+  border card draws in **74 µs**.
+- **Tile maps (items 15, 16)** — `image(atlas).region(rect)` with
+  strict source constraint; childless image leaves no longer earn
+  per-node pictures (a chunk records flat drawImageRects). 24 memo'd
+  chunks × 100 tiles (2,400 tiles, 960×640): **2.49 ms** steady-state
+  replay, one-chunk mutation costs **+80 µs** over steady state
+  (only that chunk re-records — unit-asserted ≤3 recordings).
+  *Item 16 verdict inverted on CPU raster*: the single SkSL
+  atlas-sampling fill costs **5.52 ms** — per-pixel runtime-effect
+  eval loses to 2,400 cached drawImageRects by 2.2×. Take the SkSL
+  route only on GPU targets (Graphite executes the effect on-device).
+- **Direct leaf blending** — fill-only leaves route blend/opacity
+  onto the fill paint instead of a device-clip-sized saveLayer
+  (guarded: live opacity and texture bakes keep the layer). A
+  100-blob plus-blended field draws in **539 µs**; the gallery's
+  organic scene dropped 300 ms → 88 ms (Debug) from this alone.
+- **Transform-replay caching** — paint-only volatility (bound/
+  transitioning transforms and opacity) no longer blocks the node's
+  own content picture: a spinning 7-point star with a stamped border
+  replays at **95.8 µs/frame** with zero re-records (ancestors still
+  demote, so nothing above bakes the motion). Fill lerps, animated
+  decorations, Cache::None, and animated image frames remain content
+  volatility and paint live.
+- **Kernel/API completions** — `wrapLines()`, per-edge
+  padding/margin, per-corner `Corners` (`{tl,tr,br,bl}`),
+  `autoDim()` + `_px`/`_pct` literals, full-control
+  `text(shared_ptr<Paragraph>, ParagraphLayoutOptions)` (pointer
+  identity = change signal), honest `PaintContext::contentScale`
+  (host canvas scale; texture bakes report their bake scale),
+  `PaintContext::fonts`, and the intrinsic-size root rule
+  (`setSize({})` → content-sized, the snapshot path). The organic
+  extension headers — `Shapes.h` (polygon/star/squircle/blob +
+  `rounded()` + `edges()`), `Layouts.h` (Radial/AlongPath/Scatter),
+  `Routers.h` (straight/orthogonal/arc), `Web.h` (`web()` leaf,
+  engine-tested in compose_web_test both directions) — all plug into
+  existing seams; the kernel depends on none of them. 56 unit tests
+  green; gallery grew the `organic` scene (everything above, live)
+  and the tile maze; compose_demo gained `organic.png`,
+  `tile_maze.png`, `query_hits.png`.
+
 **Finding (assumption revised):** on a *raster* target, SkPicture
 replay re-rasterizes — cached and volatile draws cost the same ~400 µs
 because pixels dominate, and the cache's win is confined to describe/

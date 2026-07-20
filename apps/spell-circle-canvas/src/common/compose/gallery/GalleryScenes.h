@@ -7,8 +7,10 @@
 #include "GalleryCore.h"
 #include "ScenesChrome.h"
 #include "ScenesData.h"
+#include "ScenesFlourish.h"
 #include "ScenesGame.h"
 #include "ScenesMotion.h"
+#include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
 #include "ScenesScale.h"
 
@@ -44,6 +46,8 @@ inline constexpr SceneInfo kScenes[] = {
     {"crt + bloom", "Effects", "#13 #14"},
     {"tile map", "Tiling", "#15"},
     {"derive", "Derive", "#7 #12"},
+    {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
+    {"flourish", "Showcase", "the whole surface, at once"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -66,7 +70,9 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 13: return std::make_unique<SkslBorderScene>();
   case 14: return std::make_unique<CrtScene>();
   case 15: return std::make_unique<TileScene>();
-  default: return std::make_unique<DeriveScene>();
+  case 16: return std::make_unique<DeriveScene>();
+  case 17: return std::make_unique<OrganicScene>();
+  default: return std::make_unique<FlourishScene>();
   }
 }
 

@@ -1,8 +1,13 @@
-# SigilCompose — the concrete API surface (proposal)
+# SigilCompose — the concrete API surface
 
 Companion to DESIGN.md. This is the surface as you would write it,
 header-level signatures plus complete usage in real canvas contexts.
-Everything here is `namespace sigil::compose` unless noted.
+Everything here is `namespace sigil::compose` unless noted. Originally
+the design proposal; now implemented through the completeness round —
+`<sigilcompose/Compose.h>` (kernel), `Decorations.h`, `Shapes.h`,
+`Layouts.h`, `Routers.h`, `Util.h`, and `Web.h` are the real headers,
+and STRESS_TESTS.md carries the measured numbers. Where this document
+and the headers disagree, the headers win.
 
 ## The three answers up front
 
@@ -195,7 +200,11 @@ public:
   explicit Composer(sigil::motion::Ticker &ticker);
 
   /** Layout viewport in canvas-space px (a poster's size, a panel's
-   *  rect…). Percent dims resolve against this. */
+   *  rect…). Percent dims resolve against this. The ROOT element
+   *  always fills the viewport (its own width/height are ignored,
+   *  like the CSS root) — size content via children. An empty size
+   *  means "intrinsic": the root takes its content size (what
+   *  snapshot() uses). */
   void setSize(SkSize size);
 
   /** Reconciles `root` against the retained tree by key/position:
@@ -273,8 +282,16 @@ Three layers keep the library lean and the call sites short:
 
   Anything in util is by definition optional reading.
 - **Extensions** (own headers, plug into kernel seams, kernel never
-  depends on them): `LayoutScheme`, `PathFormat`/`Slice`/`ContourWalk`,
-  `Effect`/backdrop, `flowAround`/`connector`, slots.
+  depends on them): `LayoutScheme`, `PathFormat`/`Slice`/`ContourWalk`
+  (`<sigilcompose/Decorations.h>`, element stamps included),
+  `Effect`/backdrop, `flowAround`/`connector`, slots — plus the
+  organic kit: `<sigilcompose/Shapes.h>` (polygon/star/squircle/blob
+  outline generators, `rounded()`, per-edge `edges()`/`onEdges()`),
+  `<sigilcompose/Layouts.h>` (`Radial`, `AlongPath`, `Scatter`
+  layout schemes), `<sigilcompose/Routers.h>`
+  (`straight`/`orthogonal`/`arc` connector routers), and
+  `<sigilcompose/Web.h>` (the SigilScry `web()` leaf; header-only, only
+  targets that link SigilScry include it).
 
 ## Worked example 1 — static poster, headless (weave_demo style)
 
@@ -480,7 +497,23 @@ std::optional<std::string> hitTest(SkPoint canvasPoint) const;  // topmost key
 ```
 
 That is enough to draw *around* nodes, attach scene geometry to them,
-and do coarse interaction, without leaking node internals.
+and do coarse interaction, without leaking node internals. hitTest is
+paint-order aware (topmost first), transform-aware (rotated/scaled
+nodes hit in their visual place), and shape-aware (custom outlines and
+corner radii bound the region — the gap between a star's arms misses);
+keyless hits resolve to the nearest keyed ancestor, and clipped
+subtrees don't hit outside their clip.
+
+One more read-side primitive rounds this out — the one-shot render:
+
+```cpp
+/** Reconcile + lay out + record an element tree into a picture at its
+ *  intrinsic size (or bounded by maxSize). Bindings sample at their
+ *  current values; transitions don't run. The bake behind ContourWalk
+ *  element stamps — and generally "an element tree as a brush". */
+sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
+                          SkSize maxSize = {});
+```
 
 ### Swapping children / updating data directly — the two write paths
 

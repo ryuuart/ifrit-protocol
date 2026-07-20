@@ -25,10 +25,12 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPicture.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 
 #include <cmath>
+#include <optional>
 
 namespace sigil::compose {
 
@@ -113,22 +115,41 @@ struct PathSample {
   float fraction = 0.0f; // 0..1 within its contour
 };
 
-/** Walk the outline at `spacing` px intervals; `draw` runs with the
- *  canvas translated to the sample and rotated so +x follows the
- *  tangent. The general procedural border — stamps, per-step images,
- *  nested drawing. Set `animatedWalk` when `draw` depends on
- *  ctx.elapsedSeconds (declared volatility). */
+/** Walk the outline at `spacing` px intervals; at every sample the
+ *  canvas is translated to the sample and rotated so +x follows the
+ *  tangent. The general procedural border. Two bodies, composable:
+ *
+ *  - `draw`: a raw program per sample (per-step images, SkSL, nested
+ *    drawing). Set `animatedWalk` when it depends on
+ *    ctx.elapsedSeconds (declared volatility).
+ *  - `stamp`: a full element subtree — laid out and recorded ONCE via
+ *    snapshot() (at intrinsic size, its own decorations and all), then
+ *    replayed per sample centered on the contour. Recursion is closed:
+ *    the stamp's decorations may walk their own contours. With
+ *    `animatedWalk` the stamp re-records each paint, sampling any
+ *    bound ch::Outputs at their current values.
+ *
+ *  When both are set, `stamp` replays first, then `draw` runs on top. */
 struct ContourWalk {
   float spacing = 16.0f;
   std::function<void(SkCanvas &, const PathSample &, const PaintContext &)>
       draw;
   bool animatedWalk = false;
 
+  std::optional<Element> stamp;
+
   bool animated() const { return animatedWalk; }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (!draw || spacing <= 0)
+    if ((!draw && !stamp) || spacing <= 0)
       return;
+
+    // Bake (or re-bake) the stamp element: once per description for
+    // static stamps, once per paint for animated ones.
+    if (stamp && ctx.fonts && (!stampCache->picture || animatedWalk))
+      stampCache->picture = snapshot(*stamp, *ctx.fonts);
+    const sk_sp<SkPicture> &stampPicture = stampCache->picture;
+
     SkContourMeasureIter iter(ctx.outline, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float length = contour->length();
@@ -141,11 +162,27 @@ struct ContourWalk {
         canvas.save();
         canvas.translate(pos.x(), pos.y());
         canvas.rotate(std::atan2(tan.y(), tan.x()) * 180.0f / 3.14159265f);
-        draw(canvas, sample, ctx);
+        if (stampPicture) {
+          const SkRect cull = stampPicture->cullRect();
+          canvas.save();
+          canvas.translate(-cull.width() / 2, -cull.height() / 2);
+          canvas.drawPicture(stampPicture);
+          canvas.restore();
+        }
+        if (draw)
+          draw(canvas, sample, ctx);
         canvas.restore();
       }
     }
   }
+
+  /** @private Replay cache, shared across the by-value copies
+   *  Decoration makes; paint() is const, the bake is memoization.
+   *  (Public to keep ContourWalk an aggregate for designated init.) */
+  struct StampCache {
+    sk_sp<SkPicture> picture;
+  };
+  std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
 };
 
 } // namespace sigil::compose

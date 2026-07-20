@@ -11,6 +11,11 @@ add_library(SigilCompose STATIC
   ComposeInternal.h
   include/sigilcompose/Compose.h
   include/sigilcompose/Decorations.h
+  include/sigilcompose/Layouts.h
+  include/sigilcompose/Routers.h
+  include/sigilcompose/Shapes.h
+  include/sigilcompose/Util.h
+  include/sigilcompose/Web.h
 )
 
 target_compile_features(SigilCompose PUBLIC cxx_std_20)
@@ -35,6 +40,19 @@ add_executable(compose_test
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_test COMMAND compose_test)
+
+# SigilScry integration (the web() leaf, stress item 19) — the kernel
+# never links SigilScry; the adapter is header-only and this dedicated
+# test target exists only when the Ultralight SDK produced the target.
+if(TARGET SigilScry)
+  add_executable(compose_web_test
+    test/ComposeWebTest.cpp
+  )
+  target_link_libraries(compose_web_test PRIVATE
+    SigilCompose SigilScry SigilWeavePorts GTest::gtest_main)
+  ultralight_copy_resources(compose_web_test)
+  add_test(NAME compose_web_test COMMAND compose_web_test)
+endif()
 
 # The pre-implementation feasibility spike stays: it pins the
 # Yoga+SigilWeave measurement contract independently of the kernel.

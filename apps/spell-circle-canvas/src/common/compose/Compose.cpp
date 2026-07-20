@@ -27,6 +27,10 @@ Element::Element() : m_node(std::make_shared<ElementNode>()) {}
 
 Element &Element::row() { m_node->layout.row = true; return *this; }
 Element &Element::column() { m_node->layout.row = false; return *this; }
+Element &Element::wrapLines(bool on) {
+  m_node->layout.wrap = on;
+  return *this;
+}
 Element &Element::gap(float px) { m_node->layout.gap = px; return *this; }
 Element &Element::padding(float all) {
   m_node->layout.padding = {all, all, all, all};
@@ -36,8 +40,20 @@ Element &Element::padding(float h, float v) {
   m_node->layout.padding = {h, v, h, v};
   return *this;
 }
+Element &Element::padding(float l, float t, float r, float b) {
+  m_node->layout.padding = {l, t, r, b};
+  return *this;
+}
 Element &Element::margin(float all) {
   m_node->layout.margin = {all, all, all, all};
+  return *this;
+}
+Element &Element::margin(float h, float v) {
+  m_node->layout.margin = {h, v, h, v};
+  return *this;
+}
+Element &Element::margin(float l, float t, float r, float b) {
+  m_node->layout.margin = {l, t, r, b};
   return *this;
 }
 Element &Element::width(Dim d) { m_node->layout.width = d; return *this; }
@@ -187,11 +203,25 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   return e;
 }
 
+Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
+             sigil::weave::ParagraphLayoutOptions options) {
+  Element e;
+  e.node()->kind = Kind::Text;
+  e.node()->paragraphOverride = std::move(paragraph);
+  e.node()->layoutOptions = std::move(options);
+  return e;
+}
+
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   Element e;
   e.node()->kind = Kind::Image;
   e.node()->imageAsset = std::move(asset);
   return e;
+}
+
+Element &Element::region(SkRect sourceRect) {
+  m_node->imageRegion = sourceRect;
+  return *this;
 }
 
 Element custom(PaintProgram program) {

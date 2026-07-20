@@ -3,9 +3,13 @@
 Data-driven, cacheable, animated drawable components for the Skia
 canvases — layered typographic posters, live data panels, game-UI-grade
 chrome — drawable into any `SkCanvas` next to everything else we render.
-Status: **design complete, reviewed through five stress rounds; ready
-for phase 1**. The concrete surface lives in `API.md`; the
-implementation-validation catalog in `STRESS_TESTS.md`.
+Status: **implemented through the completeness round** — kernel,
+decorations (element stamps included), derive phase, effects, caching
+tiers, queries (bounds/paragraphLayout/hitTest/snapshot), and the
+organic extension headers (Shapes/Layouts/Routers/Web); the stress
+catalog's remaining items landed with measured numbers in
+`STRESS_TESTS.md`, pinned by 56 unit tests, the ComposeGallery scenes,
+and compose_demo panels. The concrete surface lives in `API.md`.
 
 ## Problem
 
@@ -197,17 +201,21 @@ Library **SigilCompose**, namespace `sigil::compose`, directory
 
 ## Phasing
 
-1. Element values + keyed reconciler + Yoga integration + stacking
-   painter + the four decoration primitives that are pure Skia wrappers
-   (golden-image tests; `STRESS_TESTS.md` items marked P1).
-2. Cache boundaries (`Picture`, then `Texture` under effects) + memo +
-   slots.
-3. Choreograph bindings, implicit transitions, layer effects.
-4. Derive phase: `ContourWalk` stamps, `flowAround`, `connector`;
-   remaining leaves (image/web/custom already sketched).
-5. ComposeGallery (Qt, WeaveGallery-style) hosting the stress-test
-   catalog interactively; compose_bench for the per-frame costs.
-6. Authoring: FlatBuffers schema, Python/TouchDesigner path.
+1. ~~Element values + keyed reconciler + Yoga integration + stacking
+   painter + the four decoration primitives~~ (landed).
+2. ~~Cache boundaries (`Picture`, `Texture` under effects) + memo +
+   slots~~ (landed; caching later grew the structural prune, direct
+   leaf blending, and transform-replay tiers — STRESS_TESTS.md).
+3. ~~Choreograph bindings, implicit transitions, layer effects~~
+   (landed).
+4. ~~Derive phase: `ContourWalk` stamps, `flowAround`, `connector`;
+   remaining leaves (image regions, web)~~ (landed, plus
+   `snapshot()`/`hitTest()` and the organic Shapes/Layouts/Routers
+   kit).
+5. ~~ComposeGallery + compose_bench~~ (landed; 18 scenes incl. the
+   organic showcase and the region tile maze).
+6. Authoring: FlatBuffers schema, Python/TouchDesigner path — the
+   remaining open phase.
 
 ## Risks
 
