@@ -63,15 +63,24 @@ struct ManuscriptScene final : Scene {
     goldDash.strokeFill = Fill::color(pal.gold);
     goldDash.dashIntervals = {16, 8};
 
-    // Corner flourishes: keyed absolute ornaments the body text weaves
-    // between (multi-exclusion flowAround).
-    auto flourish = [&](const char *key, int quadrant, float l, float t,
-                        float w, float h) {
-      return box().key(key).width(w).height(h)
+    // The scrollwork border: eight half-edge bands (each corner sends
+    // a flourish along both adjacent edges), facing spiral eyes near
+    // every edge midpoint.
+    auto band = [&](int quadrant, bool vertical, float l, float t,
+                    float w, float h) {
+      return box().width(w).height(h)
           .inset(l, t, kSceneSize.width() - l - w,
                  kSceneSize.height() - t - h)
           .absolute().zIndex(2)
-          .child(custom(cornerFlourish(pal, quadrant)).inset(0));
+          .child(custom(edgeFlourish(pal, quadrant, vertical)).inset(0));
+    };
+    // A keyed sprig the body text flows around.
+    auto weaveSprig = [&](const char *key, float l, float t, float rot) {
+      return box().key(key).width(54).height(64)
+          .inset(l, t, kSceneSize.width() - l - 54,
+                 kSceneSize.height() - t - 64)
+          .absolute().zIndex(2).rotate(rot)
+          .child(custom(sprig(pal)).inset(0));
     };
 
     // Everything static lives in one texture-baked stack: the page is
@@ -94,14 +103,14 @@ struct ManuscriptScene final : Scene {
         .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
                     styleAt(24, toColor(rubric.stem)))
                    .absolute()
-                   .inset(200, 54, 200, kSceneSize.height() - 92)
+                   .inset(200, 88, 200, kSceneSize.height() - 126)
                    .zIndex(1))
         // The illuminated initial: first grapheme on a cobalt block
         // with gilded trim (the watercolor-manuscript treatment).
         .child(box().key("dropcap")
                    .width(92).height(98)
-                   .inset(84, 112, kSceneSize.width() - 84 - 92,
-                          kSceneSize.height() - 112 - 98)
+                   .inset(84, 146, kSceneSize.width() - 84 - 92,
+                          kSceneSize.height() - 146 - 98)
                    .absolute().zIndex(3).corners({8})
                    .background(ifrit::compose::util::shadow(
                        {0, 0, 0, 0.35f}, {2, 3}, 7))
@@ -114,8 +123,8 @@ struct ManuscriptScene final : Scene {
         // Rubric side panel: the same component, crimson palette.
         .child(illuminatedPanel(rubric).key("rubric")
                    .width(200).height(148)
-                   .inset(636, 268, kSceneSize.width() - 636 - 200,
-                          kSceneSize.height() - 268 - 148)
+                   .inset(600, 270, kSceneSize.width() - 600 - 200,
+                          kSceneSize.height() - 270 - 148)
                    .absolute().zIndex(3).padding(18).gap(8)
                    .child(text(u8"nota bene",
                                styleAt(15, toColor(rubric.stem))))
@@ -123,31 +132,28 @@ struct ManuscriptScene final : Scene {
                                styleAt(16, toColor(rubric.ink)))))
         // Body text weaving between drop cap, rubric, and all four
         // corner flourishes.
-        .child(box().inset(66, 96, 66, 64).absolute()
+        .child(box().inset(100, 132, 100, 82).absolute()
                    .child(text(body, styleAt(19.5f, toColor(pal.ink)))
                               .key("body")
                               .flowAround("dropcap", 14)
                               .flowAround("rubric", 14)
-                              .flowAround("fnw", 8)
-                              .flowAround("fne", 8)
-                              .flowAround("fsw", 8)
-                              .flowAround("fse", 8))
+                              .flowAround("sprigL", 10)
+                              .flowAround("sprigR", 10)
+                              .flowAround("sprigB", 10))
                    .zIndex(1))
-        .child(flourish("fnw", 0, 30, 26, 190, 130))
-        .child(flourish("fne", 1, 680, 26, 190, 130))
-        .child(flourish("fsw", 3, 30, 484, 190, 130))
-        .child(flourish("fse", 2, 680, 484, 190, 130))
-        // Leafy sprigs at the edge midpoints (upright at the bottom,
-        // hanging from the top, reaching in from the sides).
-        .child(box().width(46).height(52)
-                   .inset(427, 588 - 52, 427, 30).absolute()
-                   .child(custom(sprig(pal)).inset(0)))
-        .child(box().width(46).height(52)
-                   .inset(34, 294, 820, 294).absolute().rotate(90.0f)
-                   .child(custom(sprig(pal)).inset(0)))
-        .child(box().width(46).height(52)
-                   .inset(820, 294, 34, 294).absolute().rotate(-90.0f)
-                   .child(custom(sprig(pal)).inset(0)));
+        .child(band(0, false, 40, 34, 400, 52))
+        .child(band(1, false, 460, 34, 400, 52))
+        .child(band(3, false, 40, 554, 400, 52))
+        .child(band(2, false, 460, 554, 400, 52))
+        .child(band(0, true, 34, 40, 52, 260))
+        .child(band(3, true, 34, 340, 52, 260))
+        .child(band(1, true, 814, 40, 52, 260))
+        .child(band(2, true, 814, 340, 52, 260))
+        // Keyed sprigs the body text weaves around (with the drop cap
+        // and rubric, the multi-exclusion flow demo).
+        .child(weaveSprig("sprigL", 96, 300, 90.0f))
+        .child(weaveSprig("sprigR", 748, 210, -90.0f))
+        .child(weaveSprig("sprigB", 424, 486, 0.0f));
 
     return stack()
         .fill(Fill::color({0.11f, 0.09f, 0.075f, 1})) // scriptorium desk
@@ -207,9 +213,11 @@ struct NineSliceScene final : Scene {
   static std::shared_ptr<ifrit::image::ImageAsset>
   generate(const Palette &pal) {
     // The intermediate canvas: draw the carved frame once, wrap the
-    // snapshot, stretch it everywhere below.
+    // snapshot, stretch it everywhere below. Generated at 2x the
+    // on-page band width so the slice bands never magnify (raster
+    // textures blur when stretched past their resolution).
     return std::make_shared<ifrit::image::ImageAsset>(
-        ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)));
+        ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 192)));
   }
 
   Element describe() {
@@ -238,8 +246,8 @@ struct NineSliceScene final : Scene {
                            kSceneSize.height() - 24 - 150)
                    .absolute().column().gap(8)
                    .child(image(oakFrame).width(96).height(96))
-                   .child(text(u8"96 px source — drawn on an offscreen "
-                               u8"canvas, wrapped, nine-sliced",
+                   .child(text(u8"the source texture — drawn 2x on an "
+                               u8"offscreen canvas, wrapped, nine-sliced",
                                styleAt(12, 0xff9aa4bb))
                               .width(190)))
         // Button: oak, small.

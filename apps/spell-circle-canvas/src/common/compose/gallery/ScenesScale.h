@@ -20,7 +20,9 @@ namespace compose_gallery {
 
 struct UiParticleScene final : Scene {
   static constexpr size_t kCount = 1500;
-  static constexpr float kSprite = 64.0f; // atlas cell size
+  static constexpr float kSprite = 64.0f;      // on-screen sprite size
+  static constexpr float kAtlasScale = 2.0f;   // oversample: crisp when
+  static constexpr float kCell = kSprite * kAtlasScale; // magnified
   static constexpr int kCols = 8, kRows = 4;
   static constexpr int kVariants = kCols * kRows;
   entt::registry registry;
@@ -91,7 +93,7 @@ struct UiParticleScene final : Scene {
     return box().width(kSprite - 8).height(kSprite - 12)
         .background(carvedFrameSlice(
             std::make_shared<ifrit::image::ImageAsset>(
-                ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 48)))))
+                ifrit::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center).justify(Justify::Center)
         .child(text(std::move(label),
                     styleAt(15, pal.ink.toSkColor())));
@@ -169,9 +171,13 @@ struct UiParticleScene final : Scene {
     }
     sprites.render(std::move(column));
 
+    // Bake at kAtlasScale so sprites stay sharp under RSXform scale and
+    // HiDPI canvases — raster textures blur when magnified, so never
+    // let drawAtlas magnify: oversample here, minify at draw time.
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(kSprite * kCols), (int)(kSprite * kRows)));
+        (int)(kCell * kCols), (int)(kCell * kRows)));
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    surface->getCanvas()->scale(kAtlasScale, kAtlasScale);
     sprites.draw(*surface->getCanvas());
     atlas = surface->makeImageSnapshot();
   }
@@ -219,12 +225,12 @@ struct UiParticleScene final : Scene {
                            const float a =
                                l.spin * (float)std::sin(t * 2.0 + p.x);
                            xforms.push_back(SkRSXform::MakeFromRadians(
-                               l.scale, a, p.x, p.y, kSprite / 2,
-                               kSprite / 2));
+                               l.scale / kAtlasScale, a, p.x, p.y,
+                               kCell / 2, kCell / 2));
                            texRects.push_back(SkRect::MakeXYWH(
-                               kSprite * (float)(l.sprite % kCols),
-                               kSprite * (float)(l.sprite / kCols),
-                               kSprite, kSprite));
+                               kCell * (float)(l.sprite % kCols),
+                               kCell * (float)(l.sprite / kCols),
+                               kCell, kCell));
                          });
                      c.drawAtlas(atlas.get(),
                                  SkSpan(xforms.data(), xforms.size()),

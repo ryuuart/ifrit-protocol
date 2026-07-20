@@ -13,6 +13,7 @@
 
 #include <ifritcompose/Decorations.h>
 
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 
@@ -164,60 +165,68 @@ inline void drawDiamond(SkCanvas &c, SkPoint at, float r, SkColor4f color) {
   c.drawPath(d.detach(), p);
 }
 
-/** The corner flourish: a long tapered sweep that turns the corner and
- *  rolls into spirals at both ends, an inner counter-curl, hairline
- *  dashed rules running out along both edges, and a gilded diamond on
- *  the corner itself. Drawn for the top-left, mirrored into any
- *  quadrant (0=NW, 1=NE, 2=SE, 3=SW). */
-inline PaintProgram cornerFlourish(const Palette &pal, int quadrant) {
-  return [pal, quadrant](SkCanvas &c, const PaintContext &ctx) {
+/** A half-edge flourish, drawn from a corner toward the edge's
+ *  midpoint: long hairline rules threading beneath a tapered sweep
+ *  that lifts off the corner and rolls into a tight spiral eye short
+ *  of the midpoint, with an under-curl answering it the other way.
+ *  Eight of these (4 corners × both adjacent edges) build the classic
+ *  mirrored scrollwork border — facing spiral pairs meet at every edge
+ *  midpoint and the sweeps cross at the corner diamonds.
+ *  `quadrant`: 0=NW, 1=NE, 2=SE, 3=SW; `vertical` runs the band down
+ *  the side edge instead of along the top/bottom. */
+inline PaintProgram edgeFlourish(const Palette &pal, int quadrant,
+                                 bool vertical) {
+  return [pal, quadrant, vertical](SkCanvas &c, const PaintContext &ctx) {
     const float w = ctx.size.width(), h = ctx.size.height();
     const bool right = quadrant == 1 || quadrant == 2;
     const bool bottom = quadrant >= 2;
-    c.translate(right ? w : 0, bottom ? h : 0);
-    c.scale(right ? -1 : 1, bottom ? -1 : 1);
+    if (bottom) { c.translate(0, h); c.scale(1, -1); }
+    if (right) { c.translate(w, 0); c.scale(-1, 1); }
+    if (vertical) // draw in (u,v): u along the edge, v into the page
+      c.concat(SkMatrix::MakeAll(0, 1, 0, 1, 0, 0, 0, 0, 1));
+    const float L = vertical ? h : w;
 
-    // Main sweep: unrolls from a spiral eye out on the top edge, dips
-    // through the corner, and rolls tangent-smoothly into a second eye
-    // down the left edge.
-    std::vector<SkPoint> sweep;
-    appendSpiral(sweep, {w * 0.80f, 24}, 1.5f, 11.0f, -1.2f, 3.6f);
-    appendCubic(sweep, sweep.back(), {w * 0.52f, 0}, {w * 0.25f, 4},
-                {24, 24});
-    appendCubic(sweep, sweep.back(), {10, 36}, {8, h * 0.43f},
-                {16, h * 0.65f});
-    appendSpiral(sweep, {27, h * 0.69f}, 12.0f, 1.5f, 3.14159f,
-                 3.14159f - 4.7f);
-    drawTaperedSweep(c, sweep, pal.stem, 3.6f);
-
-    // Inner counter-curl, opposite curvature, lighter weight.
-    std::vector<SkPoint> counter;
-    appendSpiral(counter, {w * 0.55f, 38}, 1.2f, 8.5f, -0.6f, 3.5f);
-    appendCubic(counter, counter.back(), {w * 0.32f, 22}, {34, 30},
-                {30, h * 0.48f});
-    appendSpiral(counter, {40, h * 0.52f}, 9.0f, 1.2f, 3.14159f,
-                 3.14159f - 4.4f);
-    drawTaperedSweep(c, counter, pal.stem, 2.2f);
-
-    // Hairline dashed rules running out along both edges.
+    // Hairline rules: one solid, one dashed and shorter.
     SkPaint rule;
     rule.setAntiAlias(true);
     rule.setStyle(SkPaint::kStroke_Style);
-    rule.setStrokeWidth(0.9f);
+    rule.setStrokeWidth(1.0f);
     rule.setColor4f(pal.stem, nullptr);
-    const SkScalar dash[2] = {14, 7};
+    c.drawLine(26, 11, L - 10, 11, rule);
+    rule.setStrokeWidth(0.8f);
+    const SkScalar dash[2] = {11, 6};
     rule.setPathEffect(SkDashPathEffect::Make(SkSpan(dash, 2), 0));
-    c.drawLine(30, 11, w, 11, rule);
-    c.drawLine(11, 30, 11, h, rule);
+    c.drawLine(26, 18, L * 0.62f, 18, rule);
 
-    // Gilded accents: corner diamond and dots in the spiral eyes.
-    drawDiamond(c, {11, 11}, 5.0f, pal.gold);
+    // Main sweep: a hairline tail landing at the corner diamond, then
+    // shallow over the rule, rolling into a tight eye short of the
+    // edge midpoint.
+    std::vector<SkPoint> sweep;
+    appendCubic(sweep, {14, 20}, {L * 0.05f, 8}, {L * 0.15f, 0},
+                {L * 0.38f, 5});
+    appendCubic(sweep, sweep.back(), {L * 0.55f, 8}, {L * 0.68f, 3},
+                {L * 0.78f, 9});
+    appendSpiral(sweep, {L * 0.83f, 16}, 8.5f, 1.0f, -1.9f,
+                 -1.9f + 7.6f, 40);
+    drawTaperedSweep(c, sweep, pal.stem, 3.0f);
+
+    // Under-curl, rolling the opposite way beneath the sweep.
+    std::vector<SkPoint> counter;
+    appendCubic(counter, {L * 0.08f, 36}, {L * 0.16f, 35},
+                {L * 0.26f, 33}, {L * 0.36f, 32});
+    appendSpiral(counter, {L * 0.43f, 28}, 6.5f, 0.9f, 2.4f,
+                 2.4f - 6.8f, 36);
+    drawTaperedSweep(c, counter, pal.stem, 1.9f);
+
+    // Gilded accents: the corner diamond (horizontal band only, so the
+    // meeting bands don't double it) and dots in the spiral eyes.
+    if (!vertical)
+      drawDiamond(c, {11, 11}, 5.0f, pal.gold);
     SkPaint dot;
     dot.setAntiAlias(true);
     dot.setColor4f(pal.gold, nullptr);
-    c.drawCircle(w * 0.80f, 24, 2.4f, dot);
-    c.drawCircle(24, h * 0.70f, 2.4f, dot);
-    c.drawCircle(w * 0.52f, 40, 1.8f, dot);
+    c.drawCircle(L * 0.83f, 16, 2.2f, dot);
+    c.drawCircle(L * 0.43f, 28, 1.7f, dot);
   };
 }
 

@@ -2,6 +2,10 @@
 
 #include <QtGui/QImage>
 #include <QtGui/QPainter>
+#include <QtQuick/QQuickWindow>
+
+#include <algorithm>
+#include <cmath>
 
 using namespace compose_gallery;
 
@@ -31,15 +35,31 @@ ComposeGalleryView::ComposeGalleryView(QQuickItem *parent)
 }
 
 void ComposeGalleryView::paint(QPainter *painter) {
-  const int w = (int)kSceneSize.width();
-  const int h = (int)kSceneSize.height();
+  // Render at the item's device-pixel size and scale the CANVAS, not
+  // the finished image: vectors re-rasterize crisply at any window
+  // size and DPI, the aspect ratio is letterboxed instead of
+  // stretched, and Cache::Texture nodes re-bake at the live scale.
+  const qreal dpr =
+      window() ? window()->effectiveDevicePixelRatio() : 1.0;
+  const int w = std::max(1, (int)std::lround(width() * dpr));
+  const int h = std::max(1, (int)std::lround(height() * dpr));
   QImage image(w, h, QImage::Format_RGBA8888_Premultiplied);
   sk_sp<SkSurface> surface = SkSurfaces::WrapPixels(
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       image.bits(), image.bytesPerLine());
-  surface->getCanvas()->clear(SK_ColorBLACK);
-  m_stage.frame(*surface->getCanvas());
-  painter->drawImage(QRectF(0, 0, width(), height()), image);
+  SkCanvas &canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorBLACK);
+  const float scale = std::min((float)w / kSceneSize.width(),
+                               (float)h / kSceneSize.height());
+  canvas.save();
+  canvas.translate((w - kSceneSize.width() * scale) / 2,
+                   (h - kSceneSize.height() * scale) / 2);
+  canvas.scale(scale, scale);
+  canvas.clipRect(SkRect::MakeWH(kSceneSize.width(), kSceneSize.height()));
+  m_stage.frame(canvas);
+  canvas.restore();
+  image.setDevicePixelRatio(dpr);
+  painter->drawImage(QPointF(0, 0), image);
   m_stage.markPresented();
 }
 

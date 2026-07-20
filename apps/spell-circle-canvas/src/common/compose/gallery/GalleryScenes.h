@@ -86,9 +86,19 @@ inline int runHeadless(const std::string &outDir) {
     std::printf("%-14s %12.2f %10.2f %14.0f\n", stage.scene->name(),
                 stage.stats.average(), stage.stats.percentile(0.99),
                 stage.stats.fps());
+    // Capture the PNG at 2x: the stats above ran at 1x, but the saved
+    // frame re-renders through a scaled canvas so review images are
+    // sharp (Cache::Texture re-bakes at the capture scale).
+    constexpr float kCapture = 2.0f;
+    sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+        (int)(kSceneSize.width() * kCapture),
+        (int)(kSceneSize.height() * kCapture)));
+    shot->getCanvas()->clear(SK_ColorBLACK);
+    shot->getCanvas()->scale(kCapture, kCapture);
+    stage.frame(*shot->getCanvas(), 1.0 / 60.0);
     SkBitmap bm;
-    bm.allocPixels(surface->imageInfo());
-    surface->readPixels(bm.pixmap(), 0, 0);
+    bm.allocPixels(shot->imageInfo());
+    shot->readPixels(bm.pixmap(), 0, 0);
     const std::string path =
         outDir + "/gallery_" + stage.scene->name() + ".png";
     SkFILEWStream stream(path.c_str());
