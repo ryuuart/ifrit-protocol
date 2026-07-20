@@ -70,9 +70,12 @@ IFRIT_SKETCH(MySketch)
 
 ## How it works
 
-- CMake captures the exact compiler flags a sketch TU needs (include
-  dirs + skia's config-dependent defines) into `sketch_flags.rsp` next
-  to the executable, per config.
+- The flags are never hand-maintained: `IfritSketchKit`'s PUBLIC
+  dependencies define what sketches may use, `SketchAnchor.cpp`
+  compiles the sketch prelude inside the real target graph, and
+  `ExtractSketchFlags.cmake` lifts that TU's exact command out of
+  `compile_commands.json` into `sketch_flags.rsp` at build time —
+  adding a dependency to the kit automatically reaches sketches.
 - On save, the host runs
   `clang++ @sketch_flags.rsp -shared -undefined dynamic_lookup` into a
   versioned dylib in a temp dir, `dlopen`s it, and swaps the sketch.
