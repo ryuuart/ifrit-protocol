@@ -2,6 +2,11 @@
 
 #include <sigilmotion/Ticker.h>
 
+#include <include/core/SkBitmap.h>
+#include <include/core/SkStream.h>
+#include <include/core/SkSurface.h>
+#include <include/encode/SkPngEncoder.h>
+
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -174,6 +179,30 @@ void SketchHost::applyCanvasSpec() {
     m_composer->setSize(m_canvasSpec.size);
     m_appliedSize = m_canvasSpec.size;
   }
+}
+
+bool SketchHost::capture(const std::filesystem::path &out,
+                         float scale) {
+  if (!m_composer)
+    return false;
+  const SkSize size = m_canvasSpec.size;
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+      std::max(1, (int)(size.width() * scale)),
+      std::max(1, (int)(size.height() * scale))));
+  if (!surface)
+    return false;
+  SkCanvas &canvas = *surface->getCanvas();
+  canvas.clear(m_canvasSpec.background.toSkColor());
+  canvas.scale(scale, scale);
+  m_composer->draw(canvas);
+  SkBitmap bitmap;
+  bitmap.allocPixels(surface->imageInfo());
+  surface->readPixels(bitmap.pixmap(), 0, 0);
+  std::error_code ec;
+  std::filesystem::create_directories(out.parent_path(), ec);
+  SkFILEWStream stream(out.string().c_str());
+  return stream.isValid() &&
+         SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
 }
 
 bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {

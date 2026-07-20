@@ -28,10 +28,10 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 # leaves the same renderer-facing factory backed by its always-null stub.
 option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) offscreen-canvas backend" ON)
 
-# Builds SigilUltralight (src/common/ultralight): HTML/CSS layout rendered by the
+# Builds SigilScry (src/common/scry): HTML/CSS layout rendered by the
 # Ultralight SDK onto SkImage frames for the scene canvases. Auto-disables
 # with a warning when the SDK isn't installed (see cmake/FindUltralight.cmake).
-option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilUltralight Ultralight HTML-layout backend" ON)
+option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilScry Ultralight HTML-layout backend" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -53,7 +53,7 @@ find_package(choreograph CONFIG REQUIRED)
 if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   find_package(Ultralight)
   if(NOT Ultralight_FOUND)
-    message(WARNING "Ultralight SDK not found; disabling the SigilUltralight backend")
+    message(WARNING "Ultralight SDK not found; disabling the SigilScry backend")
     set(SPELLCIRCLE_ENABLE_ULTRALIGHT OFF)
   endif()
 endif()

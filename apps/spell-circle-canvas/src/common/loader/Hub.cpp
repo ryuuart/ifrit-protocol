@@ -101,6 +101,31 @@ Hub::image(std::string_view uri, const ImageOptions &options) {
   return m_entries.emplace(key, std::move(entry)).first->second.image;
 }
 
+std::shared_ptr<const sigil::image::ChannelData>
+Hub::channels(std::string_view uri) {
+  const std::string key = std::string(uri) + "#channels";
+  if (auto it = m_entries.find(key); it != m_entries.end())
+    return it->second.channels;
+  std::filesystem::path path = resolve(uri);
+  if (path.empty())
+    path = std::string(uri);
+  std::error_code ec;
+  const auto mtime = std::filesystem::last_write_time(path, ec);
+  auto bytes = ec ? nullptr : readFile(path);
+  if (!bytes)
+    return nullptr;
+  auto decoded = sigil::image::decodeChannels(
+      bytes->bytes.data(), bytes->bytes.size(), path);
+  if (!decoded)
+    return nullptr;
+  Entry entry;
+  entry.channels = std::make_shared<sigil::image::ChannelData>(
+      std::move(*decoded));
+  entry.mtime = mtime;
+  return m_entries.emplace(key, std::move(entry))
+      .first->second.channels;
+}
+
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
   std::filesystem::path path = resolve(uri);
   if (path.empty())
@@ -144,6 +169,13 @@ bool Hub::reload(const std::string &key, Entry &entry) {
     if (!decoded)
       return false;
     entry.image = std::make_shared<sigil::image::ImageAsset>(
+        std::move(*decoded));
+  } else if (entry.channels) {
+    auto decoded = sigil::image::decodeChannels(
+        bytes->bytes.data(), bytes->bytes.size(), path);
+    if (!decoded)
+      return false;
+    entry.channels = std::make_shared<sigil::image::ChannelData>(
         std::move(*decoded));
   } else {
     entry.blob = std::move(bytes);

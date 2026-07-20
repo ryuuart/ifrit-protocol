@@ -24,6 +24,10 @@ public:
 
   void paint(QPainter *painter) override;
 
+  /** Writes the current frame to <sketch dir>/captures/<stem>-NNN.png
+   *  at 2x; returns the path (shown in the status bar) or "". */
+  Q_INVOKABLE QString capture();
+
   QString status() const { return m_status; }
   QString errorLog() const { return m_errorLog; }
   bool compiling() const { return m_compiling; }

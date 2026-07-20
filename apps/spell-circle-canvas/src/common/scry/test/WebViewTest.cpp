@@ -1,12 +1,12 @@
-// Smoke tests for SigilUltralight: engine bring-up, HTML rendering into published
+// Smoke tests for SigilScry: engine bring-up, HTML rendering into published
 // SkImage frames, drawing onto an SkCanvas, and script evaluation.
 //
 // Ultralight allows one Renderer per process, so all tests share a single
 // threaded engine.
 
-#include <sigilultralight/WebEngine.h>
-#include <sigilultralight/WebImage.h>
-#include <sigilultralight/WebView.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebImage.h>
+#include <sigilscry/WebView.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -22,7 +22,7 @@
 #include <thread>
 #include <vector>
 
-using namespace sigil::web;
+using namespace sigil::scry;
 
 namespace {
 
@@ -36,7 +36,7 @@ WebEngine &sharedEngine() {
       std::lock_guard<std::mutex> lock(g_logMutex);
       g_logMessages.push_back(message);
       if (level != LogLevel::Info)
-        std::fprintf(stderr, "[SigilUltralight] %s\n", message.c_str());
+        std::fprintf(stderr, "[SigilScry] %s\n", message.c_str());
     };
     return WebEngine::create(config);
   }();

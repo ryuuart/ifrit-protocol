@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 WebImage::WebImage(std::shared_ptr<WebEngine> engine,
                    std::shared_ptr<Impl> impl)
@@ -159,4 +159,4 @@ void WebImage::invalidate() {
   });
 }
 
-} // namespace sigil::web
+} // namespace sigil::scry

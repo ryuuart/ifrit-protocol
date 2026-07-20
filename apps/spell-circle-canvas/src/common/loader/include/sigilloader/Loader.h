@@ -90,6 +90,12 @@ public:
   std::shared_ptr<const sigil::image::ImageAsset>
   image(std::string_view uri, const ImageOptions &options = {});
 
+  /** The raw decoded color data — every channel the source carries
+   *  (EXR layers included) as named float planes; null on failure.
+   *  See sigil::image::ChannelData for Skia composition helpers. */
+  std::shared_ptr<const sigil::image::ChannelData>
+  channels(std::string_view uri);
+
   /** Metadata without a full decode (dimensions, channels, layers,
    *  float-ness, animation frames); nullopt when unreadable. */
   std::optional<ResourceInfo> probe(std::string_view uri) const;
@@ -103,6 +109,7 @@ private:
   struct Entry {
     std::shared_ptr<const Blob> blob;
     std::shared_ptr<const sigil::image::ImageAsset> image;
+    std::shared_ptr<const sigil::image::ChannelData> channels;
     ImageOptions imageOptions;
     std::filesystem::file_time_type mtime{};
   };

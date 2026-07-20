@@ -22,11 +22,24 @@ cmake --build build --config Release --target ComposeSketch
 
 Edit `hello.cpp` and save. That's the loop.
 
-Headless single-shot (also the CI smoke test):
+Headless rendering (also the CI smoke test) — the asset pipeline:
 
 ```sh
-./build/bin/Release/ComposeSketch <sketch.cpp> --frame out.png
+ComposeSketch <sketch.cpp> --frame out.png \
+    [--at <seconds>] [--scale <n>] [--frames <count>] [--fps <n>]
 ```
+
+Steps the clock to `--at` (default 1.5s) at `--fps` (default 60), then
+captures `--frames` PNGs (sequences number as `out_0001.png…`) at
+`--scale` (default 1: captures match the sketch's declared canvas
+pixel-for-pixel — what asset generation wants). In the windowed host,
+**Cmd+S** or the capture button writes the current frame to
+`<sketch dir>/captures/<name>-NNN.png`.
+
+Asset sketches are the intended workflow for tilemaps, flourishes, and
+nine-slice frames: declare the exact canvas (`ctx.canvas(96, 96)`, a
+transparent `ctx.background`), draw, export headless, load through
+SigilLoader in the demos. `sketches/frame_asset.cpp` is the template.
 
 ## Writing a sketch
 

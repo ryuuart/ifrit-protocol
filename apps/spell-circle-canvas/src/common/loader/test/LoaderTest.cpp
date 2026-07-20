@@ -4,8 +4,11 @@
 
 #include <sigilloader/Loader.h>
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <include/core/SkStream.h>
+#include <include/encode/SkPngEncoder.h>
 
 #ifdef SIGILLOADER_HAS_OIIO
 #include <OpenImageIO/imageio.h>
@@ -171,4 +174,43 @@ TEST(LoaderOiio, ProbeListsLayersAndChannels) {
   EXPECT_EQ(info->image.layers[0], "glow");
 }
 
+TEST(LoaderOiio, ChannelsExposeRawFloatData) {
+  TempDir dir;
+  writeLayeredExr(dir.path / "probe.exr");
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto channels = hub.channels("res://probe.exr");
+  ASSERT_NE(channels, nullptr);
+  EXPECT_EQ(channels->width, 4);
+  EXPECT_TRUE(channels->floatingPoint);
+  ASSERT_EQ(channels->names.size(), 8u);
+  const int glowR = channels->index("glow.R");
+  ASSERT_GE(glowR, 0);
+  EXPECT_FLOAT_EQ(channels->at(0, 0, glowR), 2.5f);
+  // And the Skia composition helper agrees.
+  sk_sp<SkImage> composed = channels->makeImage("glow");
+  ASSERT_NE(composed, nullptr);
+  EXPECT_EQ(composed->colorType(), kRGBA_F32_SkColorType);
+}
+
 #endif // SIGILLOADER_HAS_OIIO
+
+TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
+  // A 1x1 red PNG (encoded by Skia) via the Skia decode path:
+  // channels arrive as R/G/B/A in 0..1.
+  TempDir dir;
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  bitmap.eraseColor(SK_ColorRED);
+  SkFILEWStream stream((dir.path / "red.png").string().c_str());
+  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
+  stream.flush();
+  Hub hub;
+  hub.mount("res://", dir.path);
+  auto channels = hub.channels("res://red.png");
+  ASSERT_NE(channels, nullptr);
+  ASSERT_EQ(channels->names.size(), 4u);
+  EXPECT_FALSE(channels->floatingPoint);
+  EXPECT_FLOAT_EQ(channels->at(0, 0, 0), 1.0f); // R
+  EXPECT_FLOAT_EQ(channels->at(0, 0, 3), 1.0f); // A
+}

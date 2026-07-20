@@ -17,7 +17,7 @@ namespace skgpu::graphite {
 class Recorder;
 }
 
-namespace sigil::web {
+namespace sigil::scry {
 
 class WebEngine;
 
@@ -153,4 +153,4 @@ private:
   friend class WebEngine;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

@@ -68,12 +68,20 @@ public:
   double presentedFps() const;
   void markPresented();
 
+  /** Renders the CURRENT state (clock untouched) into a PNG at
+   *  `scale`× the sketch's canvas size. The capture path for both the
+   *  windowed save command and headless asset generation. */
+  bool capture(const std::filesystem::path &out, float scale = 1.0f);
+
   /** One-line state for a status bar. */
   const std::string &status() const { return m_status; }
   /** Full compiler/loader output of the most recent failure; empty
    *  when the latest build is good. */
   const std::string &errorLog() const { return m_errorLog; }
 
+  const std::filesystem::path &sketchPath() const {
+    return m_options.sketchPath;
+  }
   sigil::motion::FrameClock &clock() { return m_clock; }
   Composer *composer() { return m_composer.get(); }
 

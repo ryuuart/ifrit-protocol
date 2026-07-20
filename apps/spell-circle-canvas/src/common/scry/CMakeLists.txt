@@ -1,4 +1,4 @@
-# SigilUltralight — HTML/CSS/JS layout for the scene canvases, rendered by the
+# SigilScry — HTML/CSS/JS layout for the scene canvases, rendered by the
 # Ultralight SDK (WebKit-derived, CPU renderer) into premultiplied-BGRA
 # SkImage frames. A dedicated web thread drives ultralight::Renderer and
 # publishes immutable snapshots that any SkCanvas — raster or Graphite —
@@ -22,37 +22,37 @@ else()
   set(IFRIT_WEB_METAL_SOURCES)
 endif()
 
-add_library(SigilUltralight STATIC
+add_library(SigilScry STATIC
   WebEngine.cpp
   WebView.cpp
   WebImage.cpp
   UltralightPlatform.cpp
   WebInternal.h
   WebGpuDriver.h
-  include/sigilultralight/WebEngine.h
-  include/sigilultralight/WebView.h
-  include/sigilultralight/WebImage.h
+  include/sigilscry/WebEngine.h
+  include/sigilscry/WebView.h
+  include/sigilscry/WebImage.h
   ${IFRIT_WEB_METAL_SOURCES}
 )
 
 if(APPLE)
   set_source_files_properties(metal/UltralightMetalDriver.mm PROPERTIES
     COMPILE_OPTIONS -fobjc-arc)
-  target_include_directories(SigilUltralight PRIVATE
+  target_include_directories(SigilScry PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
     ${CMAKE_CURRENT_LIST_DIR}/metal
   )
   find_library(METAL_FRAMEWORK Metal REQUIRED)
-  target_link_libraries(SigilUltralight PRIVATE ${METAL_FRAMEWORK})
+  target_link_libraries(SigilScry PRIVATE ${METAL_FRAMEWORK})
 endif()
 
-target_compile_features(SigilUltralight PUBLIC cxx_std_20)
+target_compile_features(SigilScry PUBLIC cxx_std_20)
 
-target_include_directories(SigilUltralight PUBLIC
+target_include_directories(SigilScry PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-target_link_libraries(SigilUltralight
+target_link_libraries(SigilScry
   PUBLIC
     unofficial::skia::skia
   PRIVATE
@@ -62,31 +62,31 @@ target_link_libraries(SigilUltralight
 
 # Fallback resource location (icudt67l.dat, cacert.pem) compiled into the
 # engine; WebEngineConfig::resourceDir overrides it at runtime.
-target_compile_definitions(SigilUltralight PRIVATE
+target_compile_definitions(SigilScry PRIVATE
   IFRIT_WEB_DEFAULT_RESOURCE_DIR="${Ultralight_RESOURCE_DIR}"
 )
 
-add_executable(ultralight_test
+add_executable(scry_test
   test/WebViewTest.cpp
 )
 
-target_link_libraries(ultralight_test PRIVATE SigilUltralight GTest::gtest_main)
-ultralight_copy_resources(ultralight_test)
+target_link_libraries(scry_test PRIVATE SigilScry GTest::gtest_main)
+ultralight_copy_resources(scry_test)
 
-add_test(NAME ultralight_test COMMAND ultralight_test)
+add_test(NAME scry_test COMMAND scry_test)
 
-# Headless demo: renders HTML layouts through SigilUltralight and composites them
+# Headless demo: renders HTML layouts through SigilScry and composites them
 # with direct SkCanvas drawing into PNGs (out dir: first argument,
-# default ./ultralight_demo_out).
-add_executable(ultralight_demo
-  examples/ultralight_demo.cpp
+# default ./scry_demo_out).
+add_executable(scry_demo
+  examples/scry_demo.cpp
 )
 
-target_link_libraries(ultralight_demo PRIVATE SigilUltralight)
-ultralight_copy_resources(ultralight_demo)
+target_link_libraries(scry_demo PRIVATE SigilScry)
+ultralight_copy_resources(scry_demo)
 
-# Integration-path benchmarks; run `ultralight_bench` for the CPU engine and
-# `ultralight_bench --gpu` for the GPU engine (one Ultralight renderer per
+# Integration-path benchmarks; run `scry_bench` for the CPU engine and
+# `scry_bench --gpu` for the GPU engine (one Ultralight renderer per
 # process, so the two modes are separate runs).
 if(NOT APPLE OR TARGET SpellCircleSkia)
   if(APPLE)
@@ -94,37 +94,37 @@ if(NOT APPLE OR TARGET SpellCircleSkia)
   else()
     set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
   endif()
-  add_executable(ultralight_bench
+  add_executable(scry_bench
     bench/WebBench.cpp
     bench/BenchGpu.h
     ${IFRIT_WEB_BENCH_GPU_SOURCES}
   )
-  target_link_libraries(ultralight_bench PRIVATE SigilUltralight benchmark::benchmark)
+  target_link_libraries(scry_bench PRIVATE SigilScry benchmark::benchmark)
   if(APPLE)
     set_source_files_properties(bench/BenchGpuMetal.mm PROPERTIES
       COMPILE_OPTIONS -fobjc-arc)
-    target_link_libraries(ultralight_bench PRIVATE SpellCircleSkia ${METAL_FRAMEWORK})
+    target_link_libraries(scry_bench PRIVATE SpellCircleSkia ${METAL_FRAMEWORK})
   endif()
-  ultralight_copy_resources(ultralight_bench)
+  ultralight_copy_resources(scry_bench)
 endif()
 
 # GPU-mode targets: Ultralight's Metal GPUDriver feeding texture-backed
 # SkImages into a Graphite context (SpellCircleSkia provides the Qt-free
 # Metal bring-up). Separate test binary because Ultralight allows one
-# Renderer per process and ultralight_test owns the CPU-mode engine.
+# Renderer per process and scry_test owns the CPU-mode engine.
 if(APPLE AND TARGET SpellCircleSkia)
-  add_executable(ultralight_gpu_test
+  add_executable(scry_gpu_test
     test/WebViewGpuTest.mm
   )
-  target_link_libraries(ultralight_gpu_test PRIVATE
-    SigilUltralight SpellCircleSkia GTest::gtest_main ${METAL_FRAMEWORK})
-  ultralight_copy_resources(ultralight_gpu_test)
-  add_test(NAME ultralight_gpu_test COMMAND ultralight_gpu_test)
+  target_link_libraries(scry_gpu_test PRIVATE
+    SigilScry SpellCircleSkia GTest::gtest_main ${METAL_FRAMEWORK})
+  ultralight_copy_resources(scry_gpu_test)
+  add_test(NAME scry_gpu_test COMMAND scry_gpu_test)
 
-  add_executable(ultralight_gpu_demo
-    examples/ultralight_gpu_demo.mm
+  add_executable(scry_gpu_demo
+    examples/scry_gpu_demo.mm
   )
-  target_link_libraries(ultralight_gpu_demo PRIVATE
-    SigilUltralight SpellCircleSkia ${METAL_FRAMEWORK})
-  ultralight_copy_resources(ultralight_gpu_demo)
+  target_link_libraries(scry_gpu_demo PRIVATE
+    SigilScry SpellCircleSkia ${METAL_FRAMEWORK})
+  ultralight_copy_resources(scry_gpu_demo)
 endif()

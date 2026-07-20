@@ -1,15 +1,15 @@
-// Headless SigilUltralight demo — drives the engine in unthreaded (lockstep)
+// Headless SigilScry demo — drives the engine in unthreaded (lockstep)
 // mode, renders an HTML/CSS layout, and composites it with direct SkCanvas
 // drawing. Writes PNGs to the output dir (first argument, default
-// ./ultralight_demo_out):
+// ./scry_demo_out):
 //
 //   web_frame.png  the raw Ultralight surface, grabbed zero-copy via
 //                  WebView::peekPixels()
 //   composite.png  the same view drawn over a Skia-painted backdrop with
 //                  extra SkCanvas decorations on top
 
-#include <sigilultralight/WebEngine.h>
-#include <sigilultralight/WebView.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebView.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -28,7 +28,7 @@
 #include <string>
 #include <thread>
 
-using namespace sigil::web;
+using namespace sigil::scry;
 
 namespace {
 
@@ -107,7 +107,7 @@ bool writePng(const SkPixmap &pixmap, const std::filesystem::path &path) {
 
 int main(int argc, char **argv) {
   std::filesystem::path outDir =
-      argc > 1 ? argv[1] : "ultralight_demo_out";
+      argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
 
   WebEngineConfig config;

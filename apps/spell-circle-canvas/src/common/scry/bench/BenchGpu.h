@@ -4,7 +4,7 @@
 
 #include <cstddef>
 
-namespace sigil::web::bench {
+namespace sigil::scry::bench {
 
 /** System default GPU device / a fresh command queue on it, retained for
  *  process lifetime. Null when this platform has no GPU backend yet. */
@@ -15,4 +15,4 @@ void *gpuQueue();
  *  updateTexture() benchmarking. Retained for process lifetime. */
 void *makeSolidTexture(int width, int height);
 
-} // namespace sigil::web::bench
+} // namespace sigil::scry::bench

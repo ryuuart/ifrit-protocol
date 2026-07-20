@@ -1,5 +1,5 @@
 #pragma once
-// Internal to SigilUltralight — the graphics-API-neutral GPU backend contract.
+// Internal to SigilScry — the graphics-API-neutral GPU backend contract.
 
 #include <Ultralight/platform/GPUDriver.h>
 
@@ -16,7 +16,7 @@ namespace skgpu::graphite {
 class Recorder;
 }
 
-namespace sigil::web {
+namespace sigil::scry {
 
 /**
  * What the engine needs from a GPU backend, beyond Ultralight's own
@@ -81,4 +81,4 @@ public:
                                      int height) = 0;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

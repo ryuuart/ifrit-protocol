@@ -8,7 +8,7 @@
 
 #include <cstring>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 namespace {
 
@@ -324,4 +324,4 @@ void WebView::scroll(int dx, int dy) {
   });
 }
 
-} // namespace sigil::web
+} // namespace sigil::scry

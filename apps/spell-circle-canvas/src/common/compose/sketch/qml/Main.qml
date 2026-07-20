@@ -11,6 +11,22 @@ ApplicationWindow {
     title: "ComposeSketch — live canvas"
     color: "#0b0a14"
 
+    function showCapture(path) {
+        captureLabel.text = path.length > 0
+            ? "saved " + path.split("/").pop() : "capture failed"
+        captureLabel.opacity = 1
+        captureHide.restart()
+    }
+    Timer {
+        id: captureHide
+        interval: 2500
+        onTriggered: captureLabel.opacity = 0
+    }
+    Shortcut {
+        sequence: StandardKey.Save
+        onActivated: window.showCapture(view.capture())
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -81,6 +97,17 @@ ApplicationWindow {
                          : view.state === "compiling" ? "#ffd9a0"
                          : "#7ee8ff"
                     font.pixelSize: 13
+                }
+                Button {
+                    text: "capture"
+                    onClicked: window.showCapture(view.capture())
+                }
+                Label {
+                    id: captureLabel
+                    color: "#5bd47a"
+                    font.pixelSize: 12
+                    opacity: 0
+                    Behavior on opacity { NumberAnimation { duration: 300 } }
                 }
                 Item { Layout.fillWidth: true }
                 Label {

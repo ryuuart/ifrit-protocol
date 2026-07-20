@@ -1,6 +1,6 @@
-# SigilUltralight — Ultralight SDK setup
+# SigilScry — Ultralight SDK setup
 
-SigilUltralight renders HTML/CSS/JS onto the scene canvases through the
+SigilScry renders HTML/CSS/JS onto the scene canvases through the
 [Ultralight](https://ultralig.ht) SDK (WebKit-derived). The build needs
 the SDK installed on the machine; without it, CMake prints a warning and
 disables the backend (`SPELLCIRCLE_ENABLE_ULTRALIGHT` turns itself off).
@@ -58,7 +58,7 @@ disables the backend (`SPELLCIRCLE_ENABLE_ULTRALIGHT` turns itself off).
 
 ## Resources at build and run time
 
-Every executable that links `SigilUltralight` calls the
+Every executable that links `SigilScry` calls the
 `ultralight_copy_resources(<target>)` CMake function, which stages the
 resources next to the built binary (`<exe dir>/resources`) after each
 build — Ultralight's standard app-bundling layout, and how a packaged
@@ -69,7 +69,7 @@ directory in this order:
 2. `resources/` next to the executable (the staged copy),
 3. the SDK install location found at configure time.
 
-New executables using the backend should link `SigilUltralight` and call
+New executables using the backend should link `SigilScry` and call
 `ultralight_copy_resources(<target>)` in their `CMakeLists.txt`.
 
 ## Image slots (Skia content inside pages)
@@ -102,7 +102,7 @@ the slot.
 
 ## Performance
 
-`ultralight_bench` (Release) measures the integration paths; run it plain for
+`scry_bench` (Release) measures the integration paths; run it plain for
 the CPU engine and with `--gpu` for the GPU engine (one Ultralight
 renderer per process, so the modes are separate runs). Reference numbers
 from an Apple Silicon dev Mac, 1280x720 view, per operation:

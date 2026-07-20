@@ -1,15 +1,15 @@
-// GPU SigilUltralight demo — the all-hardware pipeline: Ultralight renders an
+// GPU SigilScry demo — the all-hardware pipeline: Ultralight renders an
 // HTML/CSS layout through the Metal GPUDriver, the published MTLTexture is
 // wrapped zero-copy as a Graphite SkImage, and everything is composited on
 // a Graphite surface sharing the same device/queue. The only CPU copy is
 // the final readback for the PNG (out dir: first argument, default
-// ./ultralight_demo_out).
+// ./scry_demo_out).
 
 #import <Metal/Metal.h>
 
-#include <sigilultralight/WebEngine.h>
-#include <sigilultralight/WebImage.h>
-#include <sigilultralight/WebView.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebImage.h>
+#include <sigilscry/WebView.h>
 
 #include "SkiaGraphiteContext.h"
 
@@ -34,7 +34,7 @@
 #include <filesystem>
 #include <thread>
 
-using namespace sigil::web;
+using namespace sigil::scry;
 
 namespace {
 
@@ -72,7 +72,7 @@ constexpr const char *kDemoHtml = R"html(
   <h1>Ifrit Protocol &mdash; <em>Ultralight on Metal</em></h1>
   <div class="card wide"><div>
     <h2>Rendered by the GPU, composited by the GPU</h2>
-    <p>Ultralight executed its fill and path shaders through SigilUltralight's
+    <p>Ultralight executed its fill and path shaders through SigilScry's
        Metal GPUDriver, into an MTLTexture on the same device and command
        queue as the Graphite canvas underneath.</p></div>
     <span class="tag">GPUDriver + Graphite</span></div>
@@ -132,7 +132,7 @@ void drawSigil(SkCanvas *canvas, int size) {
 } // namespace
 
 int main(int argc, char **argv) {
-  std::filesystem::path outDir = argc > 1 ? argv[1] : "ultralight_demo_out";
+  std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
 
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();

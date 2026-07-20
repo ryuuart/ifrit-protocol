@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <filesystem>
 
 using sigil::compose::sketch::SketchHost;
 
@@ -43,6 +45,25 @@ ComposeSketchView::ComposeSketchView(QQuickItem *parent)
     update();
   });
   m_timer.start();
+}
+
+QString ComposeSketchView::capture() {
+  if (!host || !host->live())
+    return {};
+  namespace fs = std::filesystem;
+  const fs::path dir = host->sketchPath().parent_path() / "captures";
+  const std::string stem = host->sketchPath().stem().string();
+  fs::path out;
+  for (int n = 1; n < 10000; ++n) {
+    char name[256];
+    std::snprintf(name, sizeof name, "%s-%03d.png", stem.c_str(), n);
+    out = dir / name;
+    if (!fs::exists(out))
+      break;
+  }
+  if (!host->capture(out, 2.0f))
+    return {};
+  return QString::fromStdString(out.string());
 }
 
 void ComposeSketchView::paint(QPainter *painter) {

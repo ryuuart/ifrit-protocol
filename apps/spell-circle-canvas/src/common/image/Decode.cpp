@@ -26,60 +26,13 @@ std::string oiioName(const std::filesystem::path &pathHint) {
                           : pathHint.filename().string();
 }
 
-/** Channel indices for the requested layer within `spec`: exact
- *  channel-name prefixes ("diffuse.R"), or the plain R/G/B/A (first
- *  four channels as fallback) when no layer is asked for. -1 = absent
- *  (alpha fills with 1, missing G/B repeat R for luminance sources). */
-struct ChannelPick {
-  int r = -1, g = -1, b = -1, a = -1;
-  bool any() const { return r >= 0 || g >= 0 || b >= 0; }
-};
-
-ChannelPick pickChannels(const OIIO::ImageSpec &spec,
-                         const std::string &layer) {
-  ChannelPick pick;
-  auto find = [&](std::initializer_list<const char *> names) {
-    for (const char *name : names) {
-      const std::string wanted =
-          layer.empty() ? std::string(name) : layer + "." + name;
-      for (int i = 0; i < spec.nchannels; ++i)
-        if (spec.channel_name(i) == wanted)
-          return i;
-    }
-    return -1;
-  };
-  pick.r = find({"R", "r", "red", "Y"});
-  pick.g = find({"G", "g", "green"});
-  pick.b = find({"B", "b", "blue"});
-  pick.a = find({"A", "a", "alpha"});
-  if (!pick.any() && layer.empty() && spec.nchannels > 0) {
-    // No conventional names: take the leading channels positionally.
-    pick.r = 0;
-    pick.g = spec.nchannels > 1 ? 1 : -1;
-    pick.b = spec.nchannels > 2 ? 2 : -1;
-    pick.a = spec.nchannels > 3 ? 3 : -1;
-  }
-  return pick;
-}
-
-/** Finds the subimage whose name matches `layer` (multi-part EXR);
- *  -1 when layers live as channel prefixes in part 0 instead. */
-int findSubimage(OIIO::ImageInput &input, const std::string &layer) {
-  if (layer.empty())
-    return -1;
-  for (int index = 0; input.seek_subimage(index, 0); ++index) {
-    const std::string name =
-        input.spec().get_string_attribute("oiio:subimagename");
-    if (name == layer)
-      return index;
-  }
-  return -1;
-}
-
-std::optional<ImageAsset>
-decodeWithOiio(const std::byte *bytes, size_t size,
-               const DecodeOptions &options,
-               const std::filesystem::path &pathHint) {
+/** Reads EVERY channel of the source as ChannelData: subimage 0's
+ *  channels under their own names, plus any named same-size part's
+ *  channels prefixed "part." (multi-part EXR layers become uniform
+ *  with channel-prefix layers). */
+std::optional<ChannelData>
+decodeChannelsWithOiio(const std::byte *bytes, size_t size,
+                       const std::filesystem::path &pathHint) {
   OIIO::Filesystem::IOMemReader reader(
       const_cast<std::byte *>(bytes), size);
   auto input = OIIO::ImageInput::open(oiioName(pathHint), nullptr,
@@ -89,62 +42,53 @@ decodeWithOiio(const std::byte *bytes, size_t size,
     return std::nullopt;
   }
 
-  int subimage = findSubimage(*input, options.layer);
-  std::string channelLayer = options.layer;
-  if (subimage >= 0)
-    channelLayer.clear(); // the part IS the layer; channels are plain
-  else
-    subimage = 0;
-  if (!input->seek_subimage(subimage, 0))
-    return std::nullopt;
-  const OIIO::ImageSpec spec = input->spec();
-
-  const ChannelPick pick = pickChannels(spec, channelLayer);
-  if (!pick.any())
-    return std::nullopt;
-
-  // Everything reads as float; float sources stay float on the Skia
-  // side (F32 raster) so HDR range survives, LDR sources go N32.
-  const bool isFloat = spec.format == OIIO::TypeDesc::HALF ||
-                       spec.format == OIIO::TypeDesc::FLOAT ||
-                       spec.format == OIIO::TypeDesc::DOUBLE;
-  const int w = spec.width, h = spec.height;
-  std::vector<float> planes((size_t)w * h * spec.nchannels);
-  if (!input->read_image(subimage, 0, 0, spec.nchannels,
-                         OIIO::TypeDesc::FLOAT, planes.data()))
-    return std::nullopt;
-
-  std::vector<float> rgba((size_t)w * h * 4);
-  for (size_t px = 0; px < (size_t)w * h; ++px) {
-    const float *src = planes.data() + px * spec.nchannels;
-    float *dst = rgba.data() + px * 4;
-    const float r = pick.r >= 0 ? src[pick.r] : 0.0f;
-    dst[0] = r;
-    dst[1] = pick.g >= 0 ? src[pick.g] : r; // luminance repeats
-    dst[2] = pick.b >= 0 ? src[pick.b] : r;
-    dst[3] = pick.a >= 0 ? src[pick.a] : 1.0f;
-  }
-
-  // EXR carries associated (premultiplied) alpha; kPremul matches.
-  const SkImageInfo info = SkImageInfo::Make(
-      w, h, isFloat ? kRGBA_F32_SkColorType : kN32_SkColorType,
-      kPremul_SkAlphaType);
-  SkBitmap bitmap;
-  if (!bitmap.tryAllocPixels(info))
-    return std::nullopt;
-  if (isFloat) {
-    std::memcpy(bitmap.getPixels(), rgba.data(),
-                rgba.size() * sizeof(float));
-  } else {
-    for (size_t px = 0; px < (size_t)w * h; ++px) {
-      auto *dst = (uint8_t *)bitmap.getPixels() + px * 4;
-      for (int c = 0; c < 4; ++c)
-        dst[c] = (uint8_t)std::clamp(
-            rgba[px * 4 + (size_t)c] * 255.0f + 0.5f, 0.0f, 255.0f);
+  ChannelData channels;
+  for (int part = 0; input->seek_subimage(part, 0); ++part) {
+    const OIIO::ImageSpec spec = input->spec();
+    if (part == 0) {
+      channels.width = spec.width;
+      channels.height = spec.height;
+    } else if (spec.width != channels.width ||
+               spec.height != channels.height) {
+      continue; // differently-sized parts can't interleave
     }
+    channels.floatingPoint |= spec.format == OIIO::TypeDesc::HALF ||
+                              spec.format == OIIO::TypeDesc::FLOAT ||
+                              spec.format == OIIO::TypeDesc::DOUBLE;
+    std::string partName;
+    if (part != 0)
+      partName =
+          std::string(spec.get_string_attribute("oiio:subimagename"));
+    std::vector<float> plane((size_t)spec.width * spec.height *
+                             spec.nchannels);
+    if (!input->read_image(part, 0, 0, spec.nchannels,
+                           OIIO::TypeDesc::FLOAT, plane.data()))
+      continue;
+    const size_t oldCount = channels.names.size();
+    for (int c = 0; c < spec.nchannels; ++c)
+      channels.names.push_back(
+          partName.empty()
+              ? std::string(spec.channel_name(c))
+              : partName + "." + std::string(spec.channel_name(c)));
+    // Re-interleave into the combined layout.
+    const size_t newCount = channels.names.size();
+    std::vector<float> combined((size_t)channels.width *
+                                channels.height * newCount);
+    const size_t pixels = (size_t)channels.width * channels.height;
+    for (size_t px = 0; px < pixels; ++px) {
+      float *dst = combined.data() + px * newCount;
+      if (oldCount)
+        std::memcpy(dst, channels.data.data() + px * oldCount,
+                    oldCount * sizeof(float));
+      for (int c = 0; c < spec.nchannels; ++c)
+        dst[oldCount + (size_t)c] =
+            plane[px * spec.nchannels + (size_t)c];
+    }
+    channels.data = std::move(combined);
   }
-  bitmap.setImmutable();
-  return ImageAsset::wrap(bitmap.asImage());
+  if (channels.names.empty())
+    return std::nullopt;
+  return channels;
 }
 
 std::optional<ImageProbe>
@@ -207,7 +151,114 @@ decodeImage(const std::byte *bytes, size_t size,
       return asset;
   }
 #ifdef SIGILIMAGE_HAS_OIIO
-  return decodeWithOiio(bytes, size, options, pathHint);
+  if (auto channels = decodeChannelsWithOiio(bytes, size, pathHint))
+    if (sk_sp<SkImage> image = channels->makeImage(options.layer))
+      return ImageAsset::wrap(std::move(image));
+  return std::nullopt;
+#else
+  (void)pathHint;
+  return std::nullopt;
+#endif
+}
+
+int ChannelData::index(std::string_view name) const {
+  for (size_t i = 0; i < names.size(); ++i)
+    if (names[i] == name)
+      return (int)i;
+  return -1;
+}
+
+sk_sp<SkImage> ChannelData::makeImage(std::string_view layer) const {
+  auto find = [&](std::initializer_list<const char *> candidates) {
+    for (const char *candidate : candidates) {
+      const std::string wanted =
+          layer.empty() ? std::string(candidate)
+                        : std::string(layer) + "." + candidate;
+      if (int i = index(wanted); i >= 0)
+        return i;
+    }
+    return -1;
+  };
+  int r = find({"R", "r", "red", "Y"});
+  int g = find({"G", "g", "green"});
+  int b = find({"B", "b", "blue"});
+  int a = find({"A", "a", "alpha"});
+  if (r < 0 && g < 0 && b < 0 && layer.empty() && !names.empty()) {
+    r = 0;
+    g = names.size() > 1 ? 1 : -1;
+    b = names.size() > 2 ? 2 : -1;
+    a = names.size() > 3 ? 3 : -1;
+  }
+  if (r < 0 && g < 0 && b < 0)
+    return nullptr;
+  return makeImage(r, g, b, a);
+}
+
+sk_sp<SkImage> ChannelData::makeImage(int r, int g, int b, int a) const {
+  const size_t stride = names.size();
+  const size_t pixels = (size_t)width * height;
+  std::vector<float> rgba(pixels * 4);
+  for (size_t px = 0; px < pixels; ++px) {
+    const float *src = data.data() + px * stride;
+    float *dst = rgba.data() + px * 4;
+    const float red = r >= 0 ? src[r] : 0.0f;
+    dst[0] = red;
+    dst[1] = g >= 0 ? src[g] : red; // luminance repeats
+    dst[2] = b >= 0 ? src[b] : red;
+    dst[3] = a >= 0 ? src[a] : 1.0f;
+  }
+  const SkImageInfo info = SkImageInfo::Make(
+      width, height,
+      floatingPoint ? kRGBA_F32_SkColorType : kN32_SkColorType,
+      kPremul_SkAlphaType);
+  SkBitmap bitmap;
+  if (!bitmap.tryAllocPixels(info))
+    return nullptr;
+  if (floatingPoint) {
+    std::memcpy(bitmap.getPixels(), rgba.data(),
+                rgba.size() * sizeof(float));
+  } else {
+    for (size_t px = 0; px < pixels; ++px) {
+      auto *dst = (uint8_t *)bitmap.getPixels() + px * 4;
+      for (int c = 0; c < 4; ++c)
+        dst[c] = (uint8_t)std::clamp(
+            rgba[px * 4 + (size_t)c] * 255.0f + 0.5f, 0.0f, 255.0f);
+    }
+  }
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+std::optional<ChannelData>
+decodeChannels(const std::byte *bytes, size_t size,
+               const std::filesystem::path &pathHint) {
+  // LDR web formats: decode through the Skia path and normalize the
+  // premultiplied N32 pixels to 0..1 floats named R/G/B/A.
+  if (auto asset = ImageAsset::decode(
+          SkData::MakeWithoutCopy(bytes, size))) {
+    const sk_sp<SkImage> &image = asset->frames().front().image;
+    SkPixmap pixmap;
+    if (!image->peekPixels(&pixmap))
+      return std::nullopt;
+    ChannelData channels;
+    channels.width = image->width();
+    channels.height = image->height();
+    channels.names = {"R", "G", "B", "A"};
+    channels.data.resize((size_t)channels.width * channels.height * 4);
+    for (int y = 0; y < channels.height; ++y)
+      for (int x = 0; x < channels.width; ++x) {
+        const SkColor color = pixmap.getColor(x, y);
+        float *dst = channels.data.data() +
+                     ((size_t)y * channels.width + x) * 4;
+        dst[0] = SkColorGetR(color) / 255.0f;
+        dst[1] = SkColorGetG(color) / 255.0f;
+        dst[2] = SkColorGetB(color) / 255.0f;
+        dst[3] = SkColorGetA(color) / 255.0f;
+      }
+    return channels;
+  }
+#ifdef SIGILIMAGE_HAS_OIIO
+  return decodeChannelsWithOiio(bytes, size, pathHint);
 #else
   (void)pathHint;
   return std::nullopt;

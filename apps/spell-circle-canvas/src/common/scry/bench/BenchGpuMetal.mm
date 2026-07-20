@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace sigil::web::bench {
+namespace sigil::scry::bench {
 
 void *gpuDevice() {
   static id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -34,4 +34,4 @@ void *makeSolidTexture(int width, int height) {
   return (__bridge_retained void *)texture;
 }
 
-} // namespace sigil::web::bench
+} // namespace sigil::scry::bench

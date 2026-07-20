@@ -18,7 +18,7 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            hot reload; OpenImageIO extends decoding to
                            EXR w/ layer selection, PSD, TIFF, HDR —
                            float sources land as F32 SkImages),
-                           ultralight/ (SigilUltralight — Ultralight
+                           ultralight/ (SigilScry — Ultralight
                            HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
                            Metal GPUDriver, CPU fallback), motion/
@@ -64,19 +64,19 @@ the sigil-vcpkg-registry via `vcpkg-configuration.json` — note its
 that registry is pushed to GitHub (workflow documented in the registry's
 README). The primary executables are `SpellCircle`,
 `SpellCircleMac` (macOS only, needs a Swift toolchain), `WeaveGallery`,
-`weave_test`, `weave_bench`, `weave_demo`, `ultralight_demo`
-(CPU/lockstep), `ultralight_gpu_demo` (Metal + Graphite), and `ultralight_bench`
-(SigilUltralight path costs; plain = CPU engine, `--gpu` = GPU engine — see the
-performance table in `src/common/ultralight/README.md`), `compose_test`,
+`weave_test`, `weave_bench`, `weave_demo`, `scry_demo`
+(CPU/lockstep), `scry_gpu_demo` (Metal + Graphite), and `scry_bench`
+(SigilScry path costs; plain = CPU engine, `--gpu` = GPU engine — see the
+performance table in `src/common/scry/README.md`), `compose_test`,
 `compose_bench`, `loader_test` (SigilLoader), and `compose_demo`
 (headless PNG panels of the
 compose stress catalog).
 
-The Ultralight SDK is required for SigilUltralight;
+The Ultralight SDK is required for SigilScry;
 `SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
 missing. Installation (headers/dylibs to `/usr/local`, the dylib
 re-signing step, and the runtime-resource locations) is documented in
-`src/common/ultralight/README.md`. Executables that link `SigilUltralight` call
+`src/common/scry/README.md`. Executables that link `SigilScry` call
 `ultralight_copy_resources(<target>)` so each build stages the resources
 next to the binary, which is where the engine looks first at runtime.
 
@@ -147,14 +147,14 @@ core into an offscreen Metal texture, publishes it over Syphon under the same
 (pan/zoom, event-driven redraws). Swift imports the bridge via
 `bridge/module.modulemap`; the Qt app remains the cross-platform build.
 
-SigilUltralight (`src/common/ultralight/`, namespace `sigil::web`) renders HTML/CSS/JS
+SigilScry (`src/common/scry/`, namespace `sigil::scry`) renders HTML/CSS/JS
 through the Ultralight SDK (WebKit-derived) for advanced layout on the
 scene canvases. `WebEngine` owns the single-per-process
 `ultralight::Renderer` on a dedicated web thread; each `WebView` is an
 offscreen page. With `WebEngineConfig::metalDevice/metalCommandQueue` set
 (pass the same pair the Graphite context shares), rendering is
 hardware-accelerated: `UltralightMetalDriver`
-(`src/common/ultralight/metal/`, executing the SDK's stock Metal shaders,
+(`src/common/scry/metal/`, executing the SDK's stock Metal shaders,
 vendored as `UltralightShaders.metal`) runs Ultralight's command lists
 into MTLTextures, publishes each repaint by blitting into per-view
 ping-pong textures, and `WebView::frame(recorder)` /
@@ -173,15 +173,15 @@ the safe runtime-collaboration path (canvas handed in, GPU flush +
 invalidate atomic, on the web thread — the engine's Metal driver keeps
 its own Graphite recorder for this), with raster `update()`, `updateTexture()`, and raw
 `nativeTexture()` as alternatives, and unregistered slot names log a
-warning (both directions covered by round-trip pixel tests in ultralight_test /
-ultralight_gpu_test). A custom FileSystem maps the `resources/` prefix to the
+warning (both directions covered by round-trip pixel tests in scry_test /
+scry_gpu_test). A custom FileSystem maps the `resources/` prefix to the
 SDK runtime data, synthesizes the `.imgsrc` indirection files, and
 resolves other paths against `WebEngineConfig::fileSystemDir`; loadHTML
 pages get a `file:///` base URL so those resources are reachable. Engine shutdown must purge WebCore
 caches before destroying the renderer (see `threadMain`) — GPU glyph
 textures otherwise dangle into pthread TSD cleanup. The engine internals are
 backend-neutral: everything codes against `WebGpuDriver`
-(`src/common/ultralight/WebGpuDriver.h`), with `UltralightMetalDriver` as the
+(`src/common/scry/WebGpuDriver.h`), with `UltralightMetalDriver` as the
 Metal implementation and one factory seam in `setupPlatform` — the
 Windows/Linux ports add a Vulkan/D3D driver there alongside the repo's
 other Vulkan draft targets. Sharing an SkCanvas directly is not

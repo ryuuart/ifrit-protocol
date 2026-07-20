@@ -1,9 +1,9 @@
 #pragma once
 // Internal plumbing shared by WebEngine.cpp / WebView.cpp — not installed.
 
-#include "sigilultralight/WebEngine.h"
-#include "sigilultralight/WebImage.h"
-#include "sigilultralight/WebView.h"
+#include "sigilscry/WebEngine.h"
+#include "sigilscry/WebImage.h"
+#include "sigilscry/WebView.h"
 
 #include <Ultralight/AppCore/Platform.h>
 #include <Ultralight/Ultralight.h>
@@ -21,7 +21,7 @@
 #include <thread>
 #include <vector>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 inline std::string toUtf8(const ultralight::String &str) {
   const ultralight::String8 &utf8 = str.utf8();
@@ -239,4 +239,4 @@ public:
                            const ultralight::ConsoleMessage &message) override;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

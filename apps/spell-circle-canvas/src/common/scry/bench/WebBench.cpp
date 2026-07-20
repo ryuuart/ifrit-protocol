@@ -1,11 +1,11 @@
-// Benchmarks for the SigilUltralight integration paths — what each compositing
+// Benchmarks for the SigilScry integration paths — what each compositing
 // direction costs per frame, so scene-render budgets can be planned.
 //
 // One Ultralight renderer per process, so CPU and GPU modes are separate
 // runs of the same binary:
 //
-//   ultralight_bench          # CPU engine (raster SkImage frames)
-//   ultralight_bench --gpu    # GPU engine (Metal driver, texture frames)
+//   scry_bench          # CPU engine (raster SkImage frames)
+//   scry_bench --gpu    # GPU engine (Metal driver, texture frames)
 //
 // Benchmarks that only exist in one mode skip themselves in the other.
 // Draw benchmarks measure the consumer-side cost of compositing an
@@ -15,9 +15,9 @@
 
 #include "BenchGpu.h"
 
-#include <sigilultralight/WebEngine.h>
-#include <sigilultralight/WebImage.h>
-#include <sigilultralight/WebView.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebImage.h>
+#include <sigilscry/WebView.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -41,7 +41,7 @@
 #include <string>
 #include <thread>
 
-using namespace sigil::web;
+using namespace sigil::scry;
 
 namespace {
 

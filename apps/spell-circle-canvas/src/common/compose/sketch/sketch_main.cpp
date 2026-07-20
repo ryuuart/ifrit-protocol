@@ -53,8 +53,25 @@ sigil::weave::FontContext &fonts() {
   return *context;
 }
 
+struct CaptureOptions {
+  std::string out;
+  double at = 1.5;    // seconds of fixed-step warmup before capture
+  float scale = 1.0f; // multiplier over the sketch's canvas size
+  int frames = 1;     // >1 captures a numbered sequence
+  double fps = 60.0;  // fixed-step rate
+};
+
+std::string numberedPath(const std::string &path, int index) {
+  const size_t dot = path.rfind('.');
+  char suffix[16];
+  std::snprintf(suffix, sizeof suffix, "_%04d", index);
+  return dot == std::string::npos
+             ? path + suffix
+             : path.substr(0, dot) + suffix + path.substr(dot);
+}
+
 int runHeadless(sigil::compose::sketch::SketchHost &host,
-                const std::string &outPath) {
+                const CaptureOptions &options) {
   using namespace std::chrono_literals;
   // Wait for the first build to land (or fail).
   for (int i = 0; i < 1200; ++i) {
@@ -68,31 +85,31 @@ int runHeadless(sigil::compose::sketch::SketchHost &host,
                  host.errorLog().c_str());
     return 1;
   }
-  // One frame settles ctx.canvas() before the capture surface sizes.
-  {
-    sk_sp<SkSurface> warm = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
-    host.frame(*warm->getCanvas(), 1.0 / 60.0);
+  // Step the clock to --at with fixed dt (a tiny scratch surface: the
+  // real pixels come from capture()).
+  const double dt = 1.0 / options.fps;
+  sk_sp<SkSurface> scratch =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
+  const int warmup = std::max(1, (int)std::lround(options.at / dt));
+  for (int i = 0; i < warmup; ++i)
+    host.frame(*scratch->getCanvas(), dt);
+
+  for (int index = 0; index < options.frames; ++index) {
+    const std::string path =
+        options.frames > 1 ? numberedPath(options.out, index + 1)
+                           : options.out;
+    if (!host.capture(path, options.scale)) {
+      std::fprintf(stderr, "failed to write %s\n", path.c_str());
+      return 1;
+    }
+    if (index + 1 < options.frames)
+      host.frame(*scratch->getCanvas(), dt); // advance between frames
   }
-  constexpr float kCapture = 2.0f;
-  const SkSize size = host.canvasSize();
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-      (int)(size.width() * kCapture), (int)(size.height() * kCapture)));
-  surface->getCanvas()->scale(kCapture, kCapture);
-  for (int i = 0; i < 90; ++i) {
-    surface->getCanvas()->clear(host.background().toSkColor());
-    host.frame(*surface->getCanvas(), 1.0 / 60.0);
-  }
-  SkBitmap bitmap;
-  bitmap.allocPixels(surface->imageInfo());
-  surface->readPixels(bitmap.pixmap(), 0, 0);
-  SkFILEWStream stream(outPath.c_str());
-  if (!stream.isValid() ||
-      !SkPngEncoder::Encode(&stream, bitmap.pixmap(), {})) {
-    std::fprintf(stderr, "failed to write %s\n", outPath.c_str());
-    return 1;
-  }
-  std::printf("wrote %s (build %d, work %.2f ms avg / %.2f p99)\n",
-              outPath.c_str(), host.generation(), host.workMsAverage(),
+  std::printf("wrote %s (%d frame%s at %.3gx, build %d, "
+              "work %.2f ms avg / %.2f p99)\n",
+              options.out.c_str(), options.frames,
+              options.frames == 1 ? "" : "s", options.scale,
+              host.generation(), host.workMsAverage(),
               host.workMsP99());
   return 0;
 }
@@ -102,20 +119,29 @@ int runHeadless(sigil::compose::sketch::SketchHost &host,
 int main(int argc, char *argv[]) {
   std::filesystem::path sketchPath;
   std::filesystem::path assetsDir;
-  std::string framePath;
+  CaptureOptions capture;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--assets" && i + 1 < argc)
       assetsDir = argv[++i];
     else if (arg == "--frame" && i + 1 < argc)
-      framePath = argv[++i];
+      capture.out = argv[++i];
+    else if (arg == "--at" && i + 1 < argc)
+      capture.at = std::stod(argv[++i]);
+    else if (arg == "--scale" && i + 1 < argc)
+      capture.scale = std::stof(argv[++i]);
+    else if (arg == "--frames" && i + 1 < argc)
+      capture.frames = std::max(1, std::stoi(argv[++i]));
+    else if (arg == "--fps" && i + 1 < argc)
+      capture.fps = std::stod(argv[++i]);
     else if (sketchPath.empty())
       sketchPath = arg;
   }
   if (sketchPath.empty() || !std::filesystem::exists(sketchPath)) {
     std::fprintf(stderr,
-                 "usage: ComposeSketch <sketch.cpp> [--assets <dir>] "
-                 "[--frame <out.png>]\n"
+                 "usage: ComposeSketch <sketch.cpp> [--assets <dir>]\n"
+                 "         [--frame <out.png>] [--at <sec>] [--scale <n>]\n"
+                 "         [--frames <count>] [--fps <n>]\n"
                  "starter: src/common/compose/sketch/sketches/hello.cpp\n");
     return 2;
   }
@@ -131,8 +157,8 @@ int main(int argc, char *argv[]) {
   }
   sigil::compose::sketch::SketchHost host(std::move(options), fonts());
 
-  if (!framePath.empty())
-    return runHeadless(host, framePath);
+  if (!capture.out.empty())
+    return runHeadless(host, capture);
 
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");

@@ -1,16 +1,16 @@
-// GPU smoke test for SigilUltralight: boots the engine with a Metal device, has
+// GPU smoke test for SigilScry: boots the engine with a Metal device, has
 // Ultralight render a page through the Metal GPUDriver, wraps the
 // published MTLTexture as a Graphite SkImage, composites it into a
 // Graphite surface on the same device/queue, and reads the pixels back.
 //
-// Separate binary from ultralight_test because Ultralight allows one Renderer
-// per process (ultralight_test owns the CPU-mode engine).
+// Separate binary from scry_test because Ultralight allows one Renderer
+// per process (scry_test owns the CPU-mode engine).
 
 #import <Metal/Metal.h>
 
-#include <sigilultralight/WebEngine.h>
-#include <sigilultralight/WebImage.h>
-#include <sigilultralight/WebView.h>
+#include <sigilscry/WebEngine.h>
+#include <sigilscry/WebImage.h>
+#include <sigilscry/WebView.h>
 
 #include "SkiaGraphiteContext.h"
 
@@ -33,7 +33,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace sigil::web;
+using namespace sigil::scry;
 
 namespace {
 

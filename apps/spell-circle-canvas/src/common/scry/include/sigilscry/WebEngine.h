@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 class WebImage;
 class WebView;
@@ -154,4 +154,4 @@ private:
   friend class WebView;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

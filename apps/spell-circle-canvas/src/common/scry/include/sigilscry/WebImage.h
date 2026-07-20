@@ -10,7 +10,7 @@
 class SkCanvas;
 class SkPixmap;
 
-namespace sigil::web {
+namespace sigil::scry {
 
 class WebEngine;
 
@@ -104,4 +104,4 @@ private:
   friend class WebEngine;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

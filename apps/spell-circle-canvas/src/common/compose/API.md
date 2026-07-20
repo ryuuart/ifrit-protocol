@@ -80,7 +80,7 @@ Element text(sigil::weave::Paragraph paragraph,                 // full control:
              sigil::weave::ParagraphLayoutOptions opts = {});   // spans, K-P,
                                                             // justification…
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
-Element web(std::shared_ptr<sigil::web::WebView> view);     // live frames
+Element web(std::shared_ptr<sigil::scry::WebView> view);     // live frames
 Element custom(PaintProgram program);                       // raw SkCanvas
 
 // ---- layout (Yoga, 1:1 semantics) ----

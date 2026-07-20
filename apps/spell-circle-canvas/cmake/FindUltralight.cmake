@@ -1,5 +1,5 @@
 # FindUltralight — locates the Ultralight 1.4 SDK (an ultra-light WebKit
-# renderer used by SigilUltralight for HTML/CSS layout on the scene canvases).
+# renderer used by SigilScry for HTML/CSS layout on the scene canvases).
 #
 # The SDK is expected at a standard prefix (/usr/local on the dev Macs:
 # headers in /usr/local/include/Ultralight, dylibs in /usr/local/lib).
@@ -9,7 +9,7 @@
 # of the searched locations below (per-user Application Support, or
 # /usr/local/share/ultralight for machine-global).
 #
-# See src/common/ultralight/README.md for SDK installation instructions. Pass
+# See src/common/scry/README.md for SDK installation instructions. Pass
 # -DULTRALIGHT_SDK_DIR=/path/to/extracted-sdk to resolve the resources
 # straight out of an SDK archive instead of an installed location.
 #
@@ -24,8 +24,8 @@
 # Functions:
 #   ultralight_copy_resources(<target>)  post-build, stages the resources
 #   at $<TARGET_FILE_DIR:target>/resources — Ultralight's standard
-#   app-bundling layout, and the first place the SigilUltralight engine looks at
-#   runtime. Call it on every executable that links SigilUltralight.
+#   app-bundling layout, and the first place the SigilScry engine looks at
+#   runtime. Call it on every executable that links SigilScry.
 
 find_path(Ultralight_INCLUDE_DIR
   NAMES Ultralight/Ultralight.h

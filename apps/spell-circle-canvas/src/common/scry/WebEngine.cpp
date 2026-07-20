@@ -9,7 +9,7 @@
 
 #include <chrono>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 namespace {
 
@@ -235,7 +235,7 @@ WebEngine::~WebEngine() { m_impl->shutdown(); }
 
 std::shared_ptr<WebEngine> WebEngine::create(WebEngineConfig config) {
   if (s_engineCreated.exchange(true)) {
-    std::fprintf(stderr, "[SigilUltralight:error] only one WebEngine may be created "
+    std::fprintf(stderr, "[SigilScry:error] only one WebEngine may be created "
                          "per process\n");
     return nullptr;
   }
@@ -320,4 +320,4 @@ bool WebEngine::renderFrame() {
   return m_impl->renderOnce();
 }
 
-} // namespace sigil::web
+} // namespace sigil::scry

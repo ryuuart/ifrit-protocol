@@ -10,11 +10,11 @@ implementation-validation catalog in `STRESS_TESTS.md`.
 ## Problem
 
 We lay out paragraphs beautifully (SigilWeave) and documents completely
-(SigilUltralight/Ultralight). Missing is the middle: *box-level* composition of
+(SigilScry/Ultralight). Missing is the middle: *box-level* composition of
 SigilWeave-quality typography and arbitrary Skia drawing — sized by
 flexbox rules with baseline alignment, layered with explicit z-order and
 blending, cached like display lists, animated at scene rate, refreshed
-from data without rebuilding the world. SigilUltralight covers genuinely web
+from data without rebuilding the world. SigilScry covers genuinely web
 content but through WebCore's text stack, capped at 60 FPS, a thread hop
 away. SigilCompose exists for when the typography and the drawing are
 the product.
@@ -46,7 +46,7 @@ hard subproblem has a proven owner already in our stack:
   as Ticker steppables.)
 - **Caching: SkPicture** display lists (record/replay), textures for
   effect-heavy layers.
-- **Text and paint: ours** (SigilWeave, SigilImage, SigilUltralight frames,
+- **Text and paint: ours** (SigilWeave, SigilImage, SigilScry frames,
   PaintShaders, raw Skia).
 
 What's left to build is deliberately thin: element values, a keyed

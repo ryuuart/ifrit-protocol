@@ -26,7 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 namespace {
 
@@ -108,7 +108,7 @@ UltralightMetalDriver::create(void *mtlDevice, void *mtlCommandQueue) {
                    options:nil
                      error:&error];
   if (!library) {
-    std::fprintf(stderr, "[SigilUltralight:error] Ultralight shader compile: %s\n",
+    std::fprintf(stderr, "[SigilScry:error] Ultralight shader compile: %s\n",
                  error.localizedDescription.UTF8String);
     return nullptr;
   }
@@ -148,7 +148,7 @@ UltralightMetalDriver::create(void *mtlDevice, void *mtlCommandQueue) {
           [state->device newRenderPipelineStateWithDescriptor:desc
                                                         error:&error];
       if (!state->pipelines[shader][blend]) {
-        std::fprintf(stderr, "[SigilUltralight:error] Ultralight pipeline: %s\n",
+        std::fprintf(stderr, "[SigilScry:error] Ultralight pipeline: %s\n",
                      error.localizedDescription.UTF8String);
         return nullptr;
       }
@@ -163,7 +163,7 @@ UltralightMetalDriver::create(void *mtlDevice, void *mtlCommandQueue) {
   if (state->skiaContext)
     state->skiaRecorder = state->skiaContext->makeRecorder();
   if (!state->skiaRecorder)
-    std::fprintf(stderr, "[SigilUltralight:warning] Graphite bring-up for "
+    std::fprintf(stderr, "[SigilScry:warning] Graphite bring-up for "
                          "WebImage::paint() failed; paint() will no-op\n");
 
   return std::unique_ptr<UltralightMetalDriver>(
@@ -552,4 +552,4 @@ sk_sp<SkImage> UltralightMetalDriver::wrapTexture(
       const_cast<void *>(static_cast<const void *>(retained)));
 }
 
-} // namespace sigil::web
+} // namespace sigil::scry

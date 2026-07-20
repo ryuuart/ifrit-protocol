@@ -1,11 +1,11 @@
 #pragma once
-// Internal to SigilUltralight — the Metal implementation of WebGpuDriver.
+// Internal to SigilScry — the Metal implementation of WebGpuDriver.
 
 #include "../WebGpuDriver.h"
 
 #include <memory>
 
-namespace sigil::web {
+namespace sigil::scry {
 
 /**
  * Executes Ultralight's GPU command lists on an existing Metal device and
@@ -73,4 +73,4 @@ private:
   std::unique_ptr<State> m_state;
 };
 
-} // namespace sigil::web
+} // namespace sigil::scry

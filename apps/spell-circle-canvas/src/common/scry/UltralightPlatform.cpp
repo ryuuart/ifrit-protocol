@@ -17,7 +17,7 @@
 #include <mach-o/dyld.h>
 #endif
 
-namespace sigil::web {
+namespace sigil::scry {
 
 std::string executableAdjacentResourceDir() {
   std::filesystem::path executable;
@@ -182,9 +182,9 @@ void CallbackLogger::log(LogLevel level, const std::string &message) {
   }
   if (level == LogLevel::Info)
     return;
-  std::fprintf(stderr, "[SigilUltralight:%s] %s\n",
+  std::fprintf(stderr, "[SigilScry:%s] %s\n",
                level == LogLevel::Error ? "error" : "warning",
                message.c_str());
 }
 
-} // namespace sigil::web
+} // namespace sigil::scry
