@@ -6,6 +6,7 @@
 
 #include "GalleryScenes.h"
 
+#include <QtGui/QImage>
 #include <QtQuick/QQuickPaintedItem>
 
 #include <QtCore/QTimer>
@@ -44,4 +45,5 @@ private:
   QTimer m_timer;
   int m_sceneIndex = 0;
   QString m_metrics;
+  QImage m_frame; // reused between paints; realloc only on size change
 };

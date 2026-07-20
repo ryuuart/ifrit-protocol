@@ -908,11 +908,20 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // pixel win — replaying a picture re-rasterizes, blitting doesn't).
   if (!inst.subtreeVolatile && node.cacheMode == Cache::Texture &&
       !node.backdropEffect) {
-    // Rasterize at the canvas's current scale so zoomed hosts stay crisp.
+    // Rasterize at the canvas's current scale so zoomed hosts stay
+    // crisp — but quantized UP to a coarse step, so a continuously
+    // changing scale (window resize, pinch zoom) reuses one bake per
+    // step instead of re-rasterizing every frame. Between steps the
+    // draw minifies slightly, which stays sharp.
     SkMatrix total = canvas.getTotalMatrix();
-    const float scale = std::clamp(
+    const float raw = std::clamp(
         std::max(std::abs(total.getScaleX()), std::abs(total.getScaleY())),
         0.25f, 4.0f);
+    static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
+                                           1.5f, 2.0f, 3.0f, 4.0f};
+    float scale = kBakeSteps[std::size(kBakeSteps) - 1];
+    for (float step : kBakeSteps)
+      if (step >= raw) { scale = step; break; }
     if (!inst.textureImage || inst.paintDirty ||
         inst.textureScale != scale) {
       const int pw = std::max(1, (int)std::ceil(rect.width() * scale));

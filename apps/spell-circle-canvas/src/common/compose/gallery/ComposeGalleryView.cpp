@@ -43,7 +43,11 @@ void ComposeGalleryView::paint(QPainter *painter) {
       window() ? window()->effectiveDevicePixelRatio() : 1.0;
   const int w = std::max(1, (int)std::lround(width() * dpr));
   const int h = std::max(1, (int)std::lround(height() * dpr));
-  QImage image(w, h, QImage::Format_RGBA8888_Premultiplied);
+  // Reuse the frame buffer: a fresh device-size QImage per paint is
+  // megabytes of allocation churn that stutters live resizing.
+  if (m_frame.width() != w || m_frame.height() != h)
+    m_frame = QImage(w, h, QImage::Format_RGBA8888_Premultiplied);
+  QImage &image = m_frame;
   sk_sp<SkSurface> surface = SkSurfaces::WrapPixels(
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       image.bits(), image.bytesPerLine());

@@ -694,3 +694,28 @@ TEST(TextLayout, AlignItemsCentersTextLeaf) {
   EXPECT_EQ(litLeft, 0);    // nothing hugging the start edge
   EXPECT_GT(litMiddle, 5);  // the glyph sits in the middle
 }
+
+TEST(ComposeCaching, TextureBakeScaleQuantized) {
+  // A continuously changing canvas scale (live window resize, pinch
+  // zoom) must not re-bake Cache::Texture nodes every frame: the bake
+  // scale quantizes up to a coarse step.
+  Host host;
+  host.composer.render(
+      box().width(60).height(60).cache(Cache::Texture).fill(red())
+          .child(box().width(20).height(20).fill(green())));
+  auto drawAt = [&](float s) {
+    SkCanvas &canvas = *host.surface->getCanvas();
+    canvas.save();
+    canvas.scale(s, s);
+    host.composer.draw(canvas);
+    canvas.restore();
+  };
+  drawAt(1.6f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u); // first bake
+  drawAt(1.7f);
+  drawAt(1.9f);
+  drawAt(2.0f); // still within the 2.0 step: the bake is reused
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  drawAt(2.2f); // crossed into the 3.0 step: one re-bake
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+}
