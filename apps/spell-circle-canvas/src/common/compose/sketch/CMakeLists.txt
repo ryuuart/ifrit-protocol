@@ -53,16 +53,25 @@ else()
   target_link_options(ComposeSketch PRIVATE "LINKER:--export-dynamic")
 endif()
 
-add_custom_command(TARGET ComposeSketch POST_BUILD
+# The rsp is a tracked build output (not POST_BUILD): deleting it or
+# reconfiguring (compile_commands.json rewrites at generate time)
+# regenerates it, independent of whether ComposeSketch relinks.
+add_custom_command(
+  OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
   COMMAND ${CMAKE_COMMAND}
     -DCOMPDB=${CMAKE_BINARY_DIR}/compile_commands.json
     -DANCHOR=${CMAKE_CURRENT_LIST_DIR}/SketchAnchor.cpp
     -DCONFIG=$<CONFIG>
-    -DOUT=$<TARGET_FILE_DIR:ComposeSketch>/sketch_flags.rsp
+    -DOUT=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
     -DEXTRA=$<TARGET_FILE:unofficial::skia::skia>
     -P ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
+  DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+          ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
   COMMENT "Extracting sketch compile flags from compile_commands.json"
   VERBATIM)
+add_custom_target(sketch_flags
+  DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
+add_dependencies(ComposeSketch sketch_flags)
 
 # End-to-end smoke test of the reload pipeline: compile the starter
 # sketch through the same flags, dlopen it, render a frame.

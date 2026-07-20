@@ -7,6 +7,17 @@
 #         -DCONFIG=<config> -DOUT=<sketch_flags.rsp>
 #         -DEXTRA=<extra link inputs, ;-separated>  (e.g. skia archive)
 
+# The database is written at GENERATE time by the Ninja and Makefiles
+# generators (it describes the build graph, so it exists before the
+# first compile) — a missing file means an unsupported generator, not
+# an incomplete build.
+if(NOT EXISTS "${COMPDB}")
+  message(FATAL_ERROR
+    "${COMPDB} not found — CMAKE_EXPORT_COMPILE_COMMANDS is only "
+    "supported by the Ninja and Makefiles generators; configure with "
+    "one of those to build ComposeSketch (see scripts/setup.py)")
+endif()
+
 file(READ "${COMPDB}" _json)
 string(JSON _count LENGTH "${_json}")
 
