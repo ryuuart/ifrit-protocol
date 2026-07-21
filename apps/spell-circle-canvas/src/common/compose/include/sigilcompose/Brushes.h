@@ -240,6 +240,147 @@ inline PathOp chain(std::vector<PathOp> steps) {
 
 } // namespace ops
 
+/** Anything with `SkPath apply(const SkPath&) const` — a geometry op as a
+ *  VALUE. Optional `float bleed() const` declares extra paint reach (wave
+ *  amplitude, offset distance). Value-comparable ops keep the whole Brush
+ *  prunable; a raw ops::PathOp still converts (conservatively unequal). */
+template <typename G>
+concept GeometryScheme = requires(const G &g, const SkPath &p) {
+  { g.apply(p) } -> std::convertible_to<SkPath>;
+};
+
+/** Type-erased comparable geometry op — Decoration's pattern applied to
+ *  the path-transform seam (Skia seals SkPathEffect subclassing; this is
+ *  our equivalent, as values). */
+class GeometryOp {
+public:
+  template <GeometryScheme G>
+  GeometryOp(G scheme) // NOLINT: implicit by design
+      : m_bleed([&] {
+          if constexpr (requires { { scheme.bleed() } -> std::convertible_to<float>; })
+            return (float)scheme.bleed();
+          else
+            return 0.0f;
+        }()) {
+    if constexpr (std::equality_comparable<G>) {
+      m_held = scheme;
+      m_equals = [](const std::any &a, const std::any &b) {
+        return std::any_cast<const G &>(a) == std::any_cast<const G &>(b);
+      };
+    }
+    m_apply = [s = std::move(scheme)](const SkPath &p) { return s.apply(p); };
+  }
+  GeometryOp(ops::PathOp fn) // NOLINT: escape hatch, never prunes
+      : m_apply(std::move(fn)) {}
+
+  SkPath apply(const SkPath &p) const { return m_apply ? m_apply(p) : p; }
+  float bleed() const { return m_bleed; }
+  bool operator==(const GeometryOp &o) const {
+    return m_equals && o.m_equals && m_held.type() == o.m_held.type() &&
+           m_equals(m_held, o.m_held);
+  }
+
+private:
+  float m_bleed = 0.0f;
+  std::function<SkPath(const SkPath &)> m_apply;
+  std::any m_held;
+  std::function<bool(const std::any &, const std::any &)> m_equals;
+};
+
+namespace ops {
+
+/** The struct forms — comparable, prunable, designated-init friendly. */
+struct Wave {
+  float amplitude = 4.0f, wavelength = 24.0f;
+  bool zigzag = false;
+  bool operator==(const Wave &) const = default;
+  float bleed() const { return amplitude; }
+  SkPath apply(const SkPath &p) const {
+    return lines::displace(p, amplitude, wavelength, zigzag);
+  }
+};
+struct Rounded {
+  float radius = 6.0f;
+  bool operator==(const Rounded &) const = default;
+  SkPath apply(const SkPath &p) const { return rounded(radius)(p); }
+};
+struct Sketchy {
+  float segLength = 8.0f, deviation = 2.0f;
+  uint32_t seed = 7;
+  bool operator==(const Sketchy &) const = default;
+  float bleed() const { return deviation * 2; }
+  SkPath apply(const SkPath &p) const {
+    return sketchy(segLength, deviation, seed)(p);
+  }
+};
+struct Offset {
+  float px = 0.0f;
+  float step = 4.0f;
+  bool operator==(const Offset &) const = default;
+  float bleed() const { return std::abs(px); }
+  SkPath apply(const SkPath &p) const { return lines::offsetAlong(p, px, step); }
+};
+
+} // namespace ops
+
+/** THE BRUSH: one composable value — a geometry PIPELINE over the outline
+ *  (ops applied in order, the SkComposePathEffect idea as data) feeding
+ *  ordered paint LEGS (any Decoration: a lines::Line, a LayeredBrush
+ *  stack, Scatter/Pattern instancing, a Ribbon, a raw PathFormat). The
+ *  Illustrator model, closed under composition:
+ *
+ *    element.stroke(Brush{}
+ *        .op(ops::Rounded{6})
+ *        .op(ops::Wave{.amplitude = 3, .wavelength = 30})
+ *        .leg(lines::cased(3, ink, 5))
+ *        .leg(brushes::ScatterBrush{.art = spark(), .spacing = 40}));
+ *
+ *  A Brush of comparable ops and legs is itself comparable — the whole
+ *  styled connector prunes and caches as ONE value. animated legs declare
+ *  volatility through; bleed aggregates pipeline reach + leg reach. */
+struct Brush {
+  std::vector<GeometryOp> pipeline;
+  std::vector<Decoration> legs;
+
+  Brush &op(GeometryOp g) {
+    pipeline.push_back(std::move(g));
+    return *this;
+  }
+  Brush &leg(Decoration d) {
+    legs.push_back(std::move(d));
+    return *this;
+  }
+
+  bool operator==(const Brush &o) const {
+    return pipeline == o.pipeline && legs == o.legs;
+  }
+  bool animated() const {
+    for (const Decoration &d : legs)
+      if (d.animated())
+        return true;
+    return false;
+  }
+  float bleed() const {
+    float ops = 0, leg = 0;
+    for (const GeometryOp &g : pipeline)
+      ops += g.bleed(); // pipeline reaches compound (offset THEN wave)
+    for (const Decoration &d : legs)
+      leg = std::max(leg, d.bleed());
+    return ops + leg;
+  }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    SkPath styled = ctx.outline;
+    for (const GeometryOp &g : pipeline)
+      styled = g.apply(styled);
+    const PaintContext restyled{ctx.size,        std::move(styled),
+                                ctx.elapsedSeconds, ctx.contentScale,
+                                ctx.animating,   ctx.fonts};
+    for (const Decoration &d : legs)
+      d.paint(c, restyled);
+  }
+};
+
 namespace brushes {
 
 /** Run a geometry pipeline, then paint `inner` on the restyled outline —

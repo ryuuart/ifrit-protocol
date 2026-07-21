@@ -3635,3 +3635,51 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE); // the seam corner tile
 }
+
+// ---------------------------------------------------------------------------
+// The unified Brush engine: geometry pipeline → paint legs, as ONE value.
+
+TEST(ComposeBrushEngine, PipelineStylesEveryLeg) {
+  Host host;
+  Brush b;
+  b.op(ops::Wave{.amplitude = 8, .wavelength = 24})
+      .leg(util::stroke(2, green()))
+      .leg([] {
+        brushes::ScatterBrush s;
+        s.art = box().width(6).height(6).fill(red());
+        s.spacing = 40;
+        return s;
+      }());
+  host.composer.render(straightRun(std::move(b)));
+  host.frame();
+  int off = 0;
+  for (int x = 30; x < 170; x += 2)
+    for (int dy : {-7, 7})
+      off += host.pixel(x, 100 + dy) == SK_ColorGREEN;
+  EXPECT_GT(off, 10); // the stroke leg rides the waved pipeline
+  int reds = 0;       // and the scatter leg rides the SAME waved geometry
+  for (int x = 24; x < 176; ++x)
+    for (int y = 84; y < 116; ++y)
+      reds += host.pixel(x, y) == SK_ColorRED;
+  EXPECT_GT(reds, 30);
+}
+
+TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
+  Host host;
+  auto tree = [] {
+    Brush b;
+    b.op(ops::Rounded{6})
+        .op(ops::Wave{.amplitude = 3, .wavelength = 30})
+        .leg(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
+    return box().child(box()
+                           .absolute()
+                           .inset(40, 40, 40, 40)
+                           .stroke(std::move(b)));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree()); // fresh Elements, identical brush values
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
