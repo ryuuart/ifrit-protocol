@@ -25,6 +25,10 @@ struct Material::Live {
   sk_sp<SkRuntimeEffect> effect;
   std::vector<std::pair<std::string, float>> constants;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
+  // Declaring uTime/uResolution/uContentScale IS the volatility declaration
+  // (the REVIEW rule): such effects need PaintContext at resolve, so the
+  // material takes the live path even with no bound Outputs.
+  bool usesContext = false;
 };
 
 /** The comparable build recipe behind gradient/image/blend materials — the
@@ -228,6 +232,10 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
     }
     m.m_live->constants.emplace_back(std::move(name), value);
   }
+  m.m_live->usesContext =
+      validUniform(m.m_live->effect, "uTime", sizeof(float)) ||
+      validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float)) ||
+      validUniform(m.m_live->effect, "uContentScale", sizeof(float));
   m.m_shader = build(*m.m_live, nullptr); // static snapshot (constants only)
   return m;
 }
@@ -322,7 +330,9 @@ Material &Material::uniform(std::string name,
   return *this; // now LIVE; painting resolves per frame (resolve())
 }
 
-bool Material::isLive() const { return m_live && !m_live->binds.empty(); }
+bool Material::isLive() const {
+  return m_live && (!m_live->binds.empty() || m_live->usesContext);
+}
 
 sk_sp<SkShader> Material::asShader() const {
   // A live material's m_shader snapshot predates its binds — rebuild fresh so

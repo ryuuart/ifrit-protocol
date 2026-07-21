@@ -79,7 +79,10 @@ public:
                         const SkMatrix &local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
-   *  once; bind live uniforms with uniform(name, &output) below. */
+   *  once; bind live uniforms with uniform(name, &output) below. An effect
+   *  that declares `uTime`, `uResolution`, or `uContentScale` automatically
+   *  takes the LIVE path (re-resolved each frame with the PaintContext) —
+   *  reading the clock IS the volatility declaration. */
   static Material sksl(sk_sp<SkRuntimeEffect> effect,
                        std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */

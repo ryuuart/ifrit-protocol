@@ -137,6 +137,18 @@ Effect display(std::string_view config, std::string_view displayName,
              (int)config.size(), config.data(), (int)displayName.size(),
              displayName.data(), (int)viewName.size(), viewName.data(),
              e.what());
+    // Fail soft AND helpfully: list what the config actually offers.
+    try {
+      OCIO::ConstConfigRcPtr cfg = loadConfig(config);
+      for (int d = 0; d < cfg->getNumDisplays(); ++d) {
+        const char *disp = cfg->getDisplay(d);
+        SkDebugf("  display \"%s\": views:", disp);
+        for (int v = 0; v < cfg->getNumViews(disp); ++v)
+          SkDebugf(" \"%s\"", cfg->getView(disp, v));
+        SkDebugf("\n");
+      }
+    } catch (...) {
+    }
     return {};
   }
 }
