@@ -160,6 +160,9 @@ sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
   s.shaping.fontSize = size;
   s.shaping.letterSpacing = -0.08f * size; // §1 tracking ≈ −0.14em (Rodin);
                                            // Avenir Cond is tighter already
+  s.shaping.scaleX = 0.94f; // condense() the last stretch to the Rodin
+                            // proportion (§1 ×0.82 vs regular; Avenir
+                            // Condensed already carries most of it)
   s.paint.foreground.setColor(fill.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   if (ringW > 0)
@@ -410,9 +413,11 @@ struct P3RStudy : sketch::Sketch {
         // ---- giant rotated index numeral, behind the menu (§1 chrome) ----
         .child(text(toU8("04"), [] {
                  auto s = menuType(220, kNumeral, 0, false);
-                 // §1 says −0.2em (FOT-Rodin); Avenir's digits collide into
-                 // a blob there — −0.02em keeps the overlapped-pair legible.
-                 s.shaping.letterSpacing = -0.02f * 220;
+                 // §1 says −0.2em (FOT-Rodin). Avenir's digit shapes merge
+                 // sooner than Rodin's: ×0.88 condensation + −0.05em is the
+                 // deepest overlap that keeps "04" reading as two digits.
+                 s.shaping.scaleX = 0.88f;
+                 s.shaping.letterSpacing = -0.05f * 220;
                  return s;
                }())
                    .centerAt({480, 306}).rotate(90).zIndex(1)
