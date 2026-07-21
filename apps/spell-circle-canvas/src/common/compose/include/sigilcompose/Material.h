@@ -7,20 +7,23 @@
  * kernel's three-case `Fill` as the authoring value for `fill()`; `Fill`
  * stays as the low-level {none,color,shader} carrier the reconciler stores.
  *
- * This is the LEAN first cut (the "static" vocabulary): every constructor
- * resolves eagerly to a color or shader, so a Material collapses to a `Fill`
- * (`toFill()`) and rides the existing caching/prune/paint path unchanged. The
- * new power over `Fill` + `util` gradients is real: N-stop ramps, sprite/image
- * fills, an SkSL escape, and — the headline — `blend()`, which flattens a
- * layered, per-layer-blended stack into a single cacheable shader (the
- * saveLayer-free path DESIGN.md asks for). Live (ch::Output-bound) uniforms
- * and structural-signature pruning are the next cut; the OCIO working-space /
- * view transform is a Composer output stage (see color::View), orthogonal to
- * Material the way SigilLoader is to SigilImage.
+ * A Material is either STATIC or LIVE:
+ *  - STATIC (solid, gradient ramp, image/sprite, blend, sksl with only
+ *    constant uniforms): resolves eagerly to a color or shader, so it
+ *    collapses to a `Fill` (toFill()) and rides the kernel's existing
+ *    caching/prune/paint path unchanged.
+ *  - LIVE (an sksl() material with at least one ch::Output-bound uniform):
+ *    carries the runtime-effect recipe and is re-resolved every frame from
+ *    the current uniform values (resolve()); its node is declared volatile
+ *    exactly like a bound fill, so it paints live and never freezes into a
+ *    cache. This is what makes `.uniform(name, &output)` actually drive
+ *    pixels — see the note on uniform() below.
  *
- * Node names mirror the MaterialX standard library (solid/mix/ramp/image/
- * blend) so a MaterialX document importer is a clean later addition — but no
- * MaterialX dependency is pulled; we own the SkSL/SkShader backend.
+ * The material vocabulary (solid/mix/ramp/image/blend) mirrors the MaterialX
+ * standard library so a MaterialX document importer is a clean later addition;
+ * no MaterialX dependency is pulled — we own the SkSL/SkShader backend. The
+ * OCIO working-space / view transform is a Composer output stage (color::View),
+ * orthogonal to Material the way SigilLoader is to SigilImage.
  */
 
 #include "sigilcompose/Compose.h"
@@ -31,14 +34,15 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkShader.h> // sk_sp<SkShader> data member
 #include <include/core/SkTileMode.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 class SkImage;
-class SkShader;
 class SkRuntimeEffect;
 
 namespace sigil::compose {
@@ -52,8 +56,7 @@ struct Stop {
 };
 
 /** The polymorphic paint value. Construct via the static factories; pass to
- *  Element::fill(). Resolves eagerly (this cut) to a solid color or one
- *  flattened SkShader. */
+ *  Element::fill(). */
 class Material {
 public:
   Material() = default; // none (fully transparent — draws nothing)
@@ -75,11 +78,10 @@ public:
                         SkTileMode ty = SkTileMode::kClamp,
                         const SkMatrix &local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
-  /** The one raw escape: an SkSL runtime effect as a shader, with constant
-   *  float uniforms set by name. (ch::Output-bound uniforms are the next
-   *  cut.) */
+  /** An SkSL runtime effect as a shader. `constants` set named float uniforms
+   *  once; bind live uniforms with uniform(name, &output) below. */
   static Material sksl(sk_sp<SkRuntimeEffect> effect,
-                       std::vector<std::pair<std::string, float>> uniforms = {});
+                       std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
   static Material shader(sk_sp<SkShader> shader);
 
@@ -87,32 +89,79 @@ public:
   /** Layer materials into ONE flattened shader: layers paint bottom-to-top,
    *  each composited over the accumulation with its SkBlendMode (the first
    *  layer's mode is the base and ignored). Nested SkShaders::Blend — one
-   *  draw, fully picture-cacheable, no saveLayer. */
+   *  draw, fully picture-cacheable, no saveLayer. Layers are snapshotted at
+   *  build time: a live layer contributes a shader sampling its bound
+   *  Outputs at their values NOW (the blend itself is static — rebuild the
+   *  blend to re-sample, or keep the live material un-flattened for
+   *  per-frame animation). */
   static Material blend(std::vector<std::pair<Material, SkBlendMode>> layers);
 
+  // ---- uniforms ------------------------------------------------------------
+  /** Set / bind a NAMED uniform. This is meaningful ONLY on an sksl()
+   *  material — the one kind that has named uniforms to hook against:
+   *   - `uniform(name, value)` bakes a constant in; the material stays static.
+   *   - `uniform(name, &output)` binds a ch::Output; the material becomes LIVE
+   *     (re-resolved every frame from the Output's current value, and its node
+   *     is declared volatile so it paints live — this is how a material
+   *     animates).
+   *  Additionally, `uTime` (float seconds), `uResolution` (float2 px), and
+   *  `uContentScale` (float) are auto-injected each frame IF the effect
+   *  declares them (at the matching size).
+   *
+   *  Guardrails: a name the effect doesn't declare as a float uniform is
+   *  warned and IGNORED (never a debug abort — one sketch typo must not kill
+   *  the hot-reload host). On any other material kind (solid/gradient/image/
+   *  blend) there is nothing to bind: the call is a no-op with a warning.
+   *  Reach for sksl() when you want animatable uniforms. Materials are
+   *  VALUES: uniform() copies-on-write, so binding on a copy never affects
+   *  the material it was copied from. */
+  Material &uniform(std::string name, float value);
+  Material &uniform(std::string name, const choreograph::Output<float> *output);
+
   // ---- resolution ----------------------------------------------------------
-  bool isNone() const { return !m_isSolid && !m_shader; }
+  /** True once any ch::Output uniform is bound: the material re-resolves per
+   *  frame and its node must stay volatile (Element::fill routes it to the
+   *  live path; computeVolatile marks it). */
+  bool isLive() const;
+  /** Declared-volatility hook (mirrors DecorationScheme::animated()). */
+  bool animated() const { return isLive(); }
+
+  bool isNone() const { return !m_isSolid && !m_shader && !m_live; }
   bool isSolid() const { return m_isSolid; }
   SkColor4f solidColor() const { return m_solid; }
   /** Always produces a shader (a solid becomes SkShaders::Color) — what
-   *  blend() composes and what a shader-only fill uses. */
+   *  blend() composes. For a live material this builds a fresh shader
+   *  sampling bound Outputs at their CURRENT values (a snapshot, not a
+   *  binding); use resolve() for the per-frame paint path. */
   sk_sp<SkShader> asShader() const;
-  /** The static collapse the Composer stores: none/solid/shader Fill, so a
-   *  Material rides the existing fill caching/prune path. */
+  /** The static collapse the Composer stores for a NON-live material, so it
+   *  rides the existing fill caching/prune path. */
   Fill toFill() const;
+  /** The current-frame fill: for a live material, rebuilds the shader from the
+   *  bound Outputs + the PaintContext (uTime/uResolution/uContentScale); for a
+   *  static one, exactly toFill(). What the painter calls for a live fill. */
+  Fill resolve(const PaintContext &ctx) const;
 
-  /** Value equality (solid by color, shader by pointer identity — matching
-   *  Fill's own operator==; structural-signature pruning of gradients is the
-   *  next cut). */
+  /** Value equality (solid by color, shader by pointer, live recipe by
+   *  identity — matching Fill's own pointer-based operator==; structural-
+   *  signature pruning of gradients/recipes is a later cut). */
   bool operator==(const Material &o) const {
     return m_isSolid == o.m_isSolid && m_solid == o.m_solid &&
-           m_shader == o.m_shader;
+           m_shader == o.m_shader && m_live == o.m_live;
   }
 
 private:
+  struct Live; // the sksl recipe (effect + constants + Output bindings); the
+               // shared_ptr is opaque here and constructed in Material.cpp
+  static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx);
+  void detachLive(); // copy-on-write before any recipe mutation
+
   bool m_isSolid = false;
   SkColor4f m_solid = {0, 0, 0, 0};
-  sk_sp<SkShader> m_shader; // null when solid/none
+  sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
+                                // sksl a constants-only snapshot (live paint
+                                // ignores it and goes through resolve())
+  std::shared_ptr<Live> m_live; // sksl recipe; LIVE iff it has Output bindings
 };
 
 } // namespace sigil::compose

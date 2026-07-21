@@ -3,6 +3,7 @@
 // the builders (Compose.cpp) and the reconciler (Composer.cpp).
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Material.h"
 
 #include <sigilweave/Paragraph.h>
 
@@ -74,6 +75,11 @@ struct ElementNode {
   // Layer effects
   std::optional<Effect> layerEffect;
   std::optional<Effect> backdropEffect;
+
+  // Live material fill: a Material with a ch::Output-bound uniform, resolved
+  // per frame. Supersedes paint.fill when present (a static Material collapses
+  // to paint.fill instead). Declares the node volatile (computeVolatile).
+  std::optional<Material> liveMaterial;
 
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;

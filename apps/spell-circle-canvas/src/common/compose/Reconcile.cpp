@@ -125,6 +125,12 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (pa.fill && !propEqual(*pa.fill, *pb.fill))
     return false;
+  // Live materials (bound-uniform sksl) re-resolve every frame — volatile,
+  // never prune (conservative, like an incomparable callable).
+  if (a.liveMaterial.has_value() != b.liveMaterial.has_value())
+    return false;
+  if (a.liveMaterial)
+    return false;
   if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||

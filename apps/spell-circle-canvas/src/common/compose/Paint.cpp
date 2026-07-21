@@ -56,6 +56,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       std::holds_alternative<const choreograph::Output<Fill> *>(
           *node.paint.fill))
     ownContent = true;
+  if (node.liveMaterial) // a bound-uniform material re-resolves every frame
+    ownContent = true;
   if (node.cacheMode == Cache::None)
     ownContent = true;
   for (const Decoration &d : node.backgrounds)
@@ -149,8 +151,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   for (const Decoration &decoration : node.backgrounds)
     decoration.paint(canvas, paintCtx);
 
-  // Fill (background)
-  if (node.paint.fill) {
+  // Fill (background): a live material resolves per frame from its bound
+  // uniforms + the PaintContext; otherwise the stored Fill (binding, lerp, or
+  // plain).
+  std::optional<Fill> resolvedFill;
+  if (node.liveMaterial) {
+    resolvedFill = node.liveMaterial->resolve(paintCtx);
+  } else if (node.paint.fill) {
     Fill fill;
     if (const auto *binding =
             std::get_if<const choreograph::Output<Fill> *>(&*node.paint.fill))
@@ -171,24 +178,26 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           resolveProp(*node.paint.fill, node.nodeTransition);
       fill = resolved.target;
     }
+    resolvedFill = fill;
+  }
 
-    if (fill.kind != Fill::Kind::None) {
-      SkPaint paint;
-      paint.setAntiAlias(true);
-      if (fill.kind == Fill::Kind::Color)
-        paint.setColor4f(fill.colorValue, nullptr);
-      else
-        paint.setShader(fill.shaderValue);
-      // Leaf fast path: paint() proved a layer is unnecessary and routed the
-      // node's blend/opacity straight onto the fill.
-      paint.setBlendMode(leafBlend);
-      if (leafOpacity < 1.0f)
-        paint.setAlphaf(paint.getAlphaf() * leafOpacity);
-      if (customShape)
-        canvas.drawPath(paintCtx.outline, paint);
-      else
-        canvas.drawRRect(rrect, paint);
-    }
+  if (resolvedFill && resolvedFill->kind != Fill::Kind::None) {
+    const Fill &fill = *resolvedFill;
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    if (fill.kind == Fill::Kind::Color)
+      paint.setColor4f(fill.colorValue, nullptr);
+    else
+      paint.setShader(fill.shaderValue);
+    // Leaf fast path: paint() proved a layer is unnecessary and routed the
+    // node's blend/opacity straight onto the fill.
+    paint.setBlendMode(leafBlend);
+    if (leafOpacity < 1.0f)
+      paint.setAlphaf(paint.getAlphaf() * leafOpacity);
+    if (customShape)
+      canvas.drawPath(paintCtx.outline, paint);
+    else
+      canvas.drawRRect(rrect, paint);
   }
 
   // Content

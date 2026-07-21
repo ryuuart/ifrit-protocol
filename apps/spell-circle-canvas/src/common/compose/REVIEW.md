@@ -13,12 +13,20 @@ brushes, Inigo Quilez 2D SDF, LOOM/transit-map research, tldraw/Excalidraw
 bindings, litegraph/React Flow/Cytoscape, Alacritty, GSAP). Named sources are
 cited inline so each recommendation is traceable.
 
+**Verification (2026-07-21):** every load-bearing claim in this document was
+re-checked by an adversarial Fable 5 pass against primary sources (60+
+verdicts across all 8 domains, plus a read-only code audit of the landed
+work): **zero design-level refutations** — citation-level corrections are
+folded into the text below. The §9 split was independently verified
+behavior-preserving against the pre-split monolith by normalized
+function-body comparison.
+
 ---
 
 ## 0. TL;DR
 
 Compose is **strong on one axis and nearly empty on the other, and the two
-are entangled in one 1489-line file.**
+were — until the P0 split landed — entangled in one 1489-line file.**
 
 - **Strong axis — the retained structural spine.** Keyed reconciliation,
   `memo`, the structural prune, Yoga layout with SigilWeave-measured text,
@@ -71,7 +79,8 @@ The kernel already owns, and owns well:
 | Effect | `.effect()`/`.backdrop()` SkImageFilter + SkSL | present |
 | Query | `bounds()`, `paragraphLayout()`, `hitTest()`, `snapshot()` | solid |
 
-56 unit tests pin these behaviors; the perf gate reads well (cached 100-row
+66 unit tests pin these behaviors (56 at review time; P0/P1 added 10); the
+perf gate reads well (cached 100-row
 draw ~0.4 ms raster, ~0.31 ms Graphite; 1M plus-blended sprites at 3.7
 ms/frame on Graphite as one `drawAtlas` leaf).
 
@@ -109,12 +118,16 @@ model and hand-writes Skia:
   composition* that shows the library is worth reaching for. (You already flagged
   this; agreed — toss and rewrite, §11.)
 
-This is exactly the anti-pattern every mature system refuses. Slate, Noesis,
-Godot, Flutter (`CustomPainter` + `shouldRepaint`), and Skia (`SkDrawable`)
-all reject the *unbounded raw-canvas callback* because it has no bounds
-(breaks cull/hitTest), no cache, no invalidation signal, and no batching — and
-worse, an un-boundaried one **forces its ancestors to re-record** (which is
-literally what happens today — see §8.1).
+This is exactly the anti-pattern every mature system bounds and brackets
+rather than leaving open. Slate, Noesis, Godot, Flutter (`CustomPainter` +
+`shouldRepaint`), and Skia (`SkDrawable`) all refuse the *unbounded*
+raw-canvas callback: bounds are mandatory (`SkDrawable::onGetBounds` is pure
+virtual), invalidation is a declared contract, and richness routes through
+typed retained elements (escape hatches exist — Slate `MakeCustom`, SwiftUI
+`Canvas`, Compose `drawBehind` — but always bracketed). The unbounded form has
+no bounds (breaks cull/hitTest), no cache, no invalidation signal, and no
+batching — and worse, an un-boundaried one **forces its ancestors to
+re-record** (which is literally what happens today — see §8.1).
 
 **Reframe:** the fix is not fewer concepts in the kernel. It is (1) a *material
 vocabulary* so richness is a value, not a lambda; (2) making the *box* one
@@ -214,7 +227,8 @@ public:
   // Layered stack: nested SkShaders::Blend, ONE flattened program, ONE
   // draw — never stacked saveLayer (the design doc's own flagged risk).
   static Material blend(std::vector<std::pair<Material, SkBlendMode>>);
-  Material &recolor(Ramp lut);         // 1-D LUT recolor by luminance (Valve gradient-map)
+  Material &recolor(Ramp lut);         // 1-D LUT gradient-map recolor (the L4D2
+                                       // zombie-variation shader — Grimes/Valve, GDC 2010)
   Material &below();                   // sample the sibling-snapshot beneath (§4.5)
 
   // ---- animation -----------------------------------------------------
@@ -286,10 +300,12 @@ Two lessons the current `Slice` misses:
   insets. Feed `contentInsets` into the Derive phase as padding so **chrome
   reserves its own interior automatically** — an ornate frame stops needing a
   hand-tuned inner `.padding()`.
-- **Per-axis tile mode** (Godot `axis_stretch_mode`, Slate
-  `ESlateBrushTileType`): filigree edges must **tile**, not stretch, or they
-  smear. Add `TileMode::{Stretch, Tile, TileFit}` per axis (`TileFit` slightly
-  scales so tiles seam — the reason it exists).
+- **Per-axis tile mode** (Godot `axis_stretch_horizontal/vertical` —
+  Stretch/Tile/TileFit; note Slate's `ESlateBrushTileType` applies only to
+  Image-mode brushes, not Box-mode 9-slice cells, so per-axis cell tiling +
+  TileFit are the Godot lesson): filigree edges must **tile**, not stretch, or
+  they smear. Add `TileMode::{Stretch, Tile, TileFit}` per axis (`TileFit`
+  slightly scales so tiles seam — the reason it exists).
 
 A named **`Atlas`** table (RmlUi `@spritesheet`: one image, many named
 sub-rects) gives one GPU bind for a whole ARPG chrome set, which is the
@@ -305,8 +321,10 @@ Encode the cost cliff in the type (Noesis brush-shader vs ShaderEffect):
 - **True `.backdrop()`** (already exists): live destination readback, breaks
   `Cache::Texture` — reserve for when semantically required (Flutter had to add
   `BackdropGroup` to make this rare). *Non-separable modes* (Hue/Sat/Color/
-  Luminosity) inherently need the backdrop and can't be a pure src/dst shader —
-  route them here.
+  Luminosity) are, per the W3C compositing spec, still pure per-pixel functions
+  of (src, dst) — inside `Material::blend` the lower layers ARE the dst shader,
+  so they work fine in the flattened path; only blending against the
+  *destination framebuffer* forces the live backdrop route.
 
 ### 4.6 Before / after — the RPG health bar
 
@@ -347,7 +365,10 @@ seams.
 ### 5.1 `GeometryScheme` — an ordered path-modifier stack
 
 Model 1:1 on Skia's own `sksg::GeometryEffect` (pure `SkPath → SkPath`
-decorators, each memoizing its output):
+decorators, each memoizing its output — the shipped set is Trim/Round/Offset/
+Dash plus GeometryTransform and FillTypeOverride; boolean merge lives one
+level up as `sksg::Merge`, a multi-child GeometryNode, which is also where
+`mergePaths()` over children shapes belongs here):
 
 ```cpp
 Element &trim(PropValue<float> start, PropValue<float> end, float offset = 0);
@@ -389,8 +410,11 @@ Its resolved polyline becomes `PaintContext::outline` exactly as `connector()`
 does today, so `PathFormat`/`ContourWalk`/materials dress it unchanged. Two
 things to steal precisely:
 
-- **Anchors, never absolute endpoints** (tldraw bindings, Excalidraw
-  `focus`/`gap`; "the #1 diagramming mistake"). Resolve `Anchor` in Derive
+- **Anchors, never absolute endpoints** (tldraw `TLArrowBinding` with a
+  normalized 0–1 `normalizedAnchor`; Excalidraw's current `FixedPointBinding`
+  likewise replaced its legacy focus/gap model with a normalized fixedPoint —
+  both editors converged on exactly the `Anchor.norm` form proposed here;
+  absolute endpoints remain "the #1 diagramming mistake"). Resolve `Anchor` in Derive
   against keyed node bounds, and keep a **node → routes back-index** so moving
   one node re-derives only its incident lines — the fine-grained invalidation
   seam.
@@ -398,8 +422,11 @@ things to steal precisely:
   routes over one segment offset in parallel with a per-segment ordering. That
   is what makes a transit map read.
 
-*Pitfall:* `zIndex` on an edge does nothing unless it changes actual paint
-order (React Flow notes this for SVG) — edges are ordinary stacking children.
+*Pitfall:* inside one SVG document paint order is document order and CSS
+z-index is inert (the SVG rendering model — React Flow's edge `zIndex` option
+works only because the library regroups edges into stacked containers). Our
+edges are ordinary stacking children, so `zIndex` reorders them natively —
+keep it that way.
 
 ### 5.3 Arc-length as the one placement coordinate
 
@@ -454,12 +481,16 @@ Element instances(std::span<const Datum> data,
   visuals.
 - **Virtualize** (Flutter Slivers): materialize only viewport + overscan,
   compute cell rects arithmetically, cull at the *data* level. Keeps
-  Describe/Layout O(visible). *Pitfall:* culling is a **net loss** on
-  small/medium counts (React Flow) — gate it past a threshold.
-- **Repeater** (skottie `RepeaterAdapter`): clone a cached snapshot N times
-  with an accumulating transform (linear translate/rotate, *exponential* scale
-  `pow(s,t)`, start→end opacity). Radial menus, tick arrays, equalizer bars,
-  dotted borders at O(1) layout cost — unify with `snapshot()`-as-brush.
+  Describe/Layout O(visible). *Pitfall:* culling carries an unconditional
+  bookkeeping overhead and only pays off at large counts (React Flow documents
+  exactly this tradeoff for `onlyRenderVisibleElements`) — gate it past a
+  threshold.
+- **Repeater** (skottie `RepeaterAdapter` transform math — linear
+  translate/rotate, *exponential* `pow(s,t)` scale, start→end opacity lerp;
+  note skottie replays the retained subtree per copy — cloning a cached
+  *snapshot* is our improvement over it). Radial menus, tick arrays,
+  equalizer bars, dotted borders at O(1) layout cost — unify with
+  `snapshot()`-as-brush.
 
 ### 6.2 `console()` — the streaming log, the cleanest proof
 
@@ -498,10 +529,15 @@ charsets stay a Paint-only atlas swap; a proportional charset changes advances
 → reshape → route to Derive. Tag that in the API.
 
 Editorial companions from the same survey: a `BaselineGrid` `LayoutScheme`
-(snap first-baseline to a rhythm, leading-trim; Müller-Brockmann) and
-`VariationDrive` (animate fvar axes via `SkFontArguments`, tagging metric axes
-`wdth`/`opsz` — reshape — distinctly from paint-safe `wght`/`slnt`/`GRAD` —
-cheap font swap). Both deterministic, cache-stable, orthogonal to flexbox.
+(snap first-baseline to a rhythm, text-box-trim — the property's current CSS
+name; Müller-Brockmann) and
+`VariationDrive` (animate fvar axes via `SkFontArguments`). An axis's metric
+impact is per-FONT, not per-registry: `wght` typically CHANGES advance widths
+(the OpenType registry explicitly permits glyph-width variation under weight —
+`GRAD` exists precisely as the advance-invariant weight substitute), so
+VariationDrive must PROBE each axis (measure advances at the extremes once per
+font) and tag it reshape-vs-paint-safe from measurement, never from a fixed
+axis list. Both deterministic, cache-stable, orthogonal to flexbox.
 
 ---
 
@@ -535,41 +571,38 @@ Slate `MakeCustomVerts`), never an opaque lambda. `custom()` stays for the last
 
 ## 8. Performance
 
-### 8.1 THE issue: the structural prune is defeated by any callable
+### 8.1 THE issue: the prune vs callables (decorations: **FIXED in P0**)
 
-`Composer.cpp::propsEqual` (lines ~126–175) bails to "unequal" the moment a
-node carries *any* callable or decoration:
+At review time, `propsEqual` bailed to "unequal" the moment a node carried
+*any* callable **or decoration** — so every decorated node re-patched on each
+`render()`, `markPaintDirtyUp()` staled its whole ancestor chain, and
+`contentDirty` stuck. P0 (`b02c98e`, now `Reconcile.cpp`) fixed the decoration
+half: `Decoration` carries type-erased equality, `PathFormat`/`Slice`/`Shadow`
+are comparable values, and `propsEqual` compares decoration vectors
+element-wise. Measured: a 100-row static decorated scene under the standard
+`if (dirty()) draw()` host loop dropped **10.96 ms → 0.13 ms/frame** (draws
+100% → 0%; re-records 101 → 0 per frame). What still bails, deliberately
+conservative:
 
 ```cpp
 if (a.shapeFn || b.shapeFn || a.program || b.program || a.placeFn ||
-    b.placeFn || a.router || b.router)             return false;   // ~130
-if (!a.backgrounds.empty() || !b.backgrounds.empty() ||
-    !a.foregrounds.empty() || !b.foregrounds.empty()) return false; // ~133
+    b.placeFn || a.router || b.router)
+  return false;                        // raw callables: incomparable
 ```
 
-Consequence: **every `custom()` leaf, every `outline()` shape, every decorated
-node, every connector re-patches on each `render()`** — which calls
-`markPaintDirtyUp()` and resets the picture on that node **and its whole
-ancestor chain**, and sets `contentDirty = true`. The game/graph/console/poster
-trees — which are *entirely* custom/decorated — never keep their auto-cache
-across a data tick. `RpgHudScene` re-records nearly its whole tree every 1.1 s
-combat event; a host that naively re-renders per frame never caches anything
-custom at all. **This is the biggest perf issue for exactly the use cases you
-care about**, and it is the direct cost of the missing material layer (raw
-lambdas *can't* be compared; `Material` values *can*).
-
-Fixes, in order:
-1. **Make value-typed decorations/materials equality-comparable** so the
-   no-memo prune covers them (`PathFormat`, `Slice`, `ContourWalk`, `Material`
-   are aggregates — give them `operator==`; a `Material` compares by structural
-   signature + uniform bindings). This alone lets the common chrome-heavy node
-   prune for free.
-3. **Give `program`/`shapeFn` an optional identity/version token** (the
+So a raw `custom()` leaf or `outline()` shape still re-patches per `render()`
+— the direct cost of look-as-lambda (raw lambdas *can't* be compared;
+`Material` values *can*). Remaining fixes, in order:
+1. **Material structural-signature equality** — gradient/sksl materials
+   rebuild a fresh `SkShader` per describe, so their collapsed `Fill` compares
+   unequal by pointer and doesn't prune across re-render (they still
+   draw-cache within a render). Compare the recipe (ramp stops, effect +
+   uniform values/bindings), not the shader pointer.
+2. **Give `program`/`shapeFn` an optional identity/version token** (the
    `custom()` deps digest from §7) so an unchanged custom leaf compares equal.
-2. **Document the current workaround loudly:** `memo(...)` *does* fully prune a
-   custom subtree today (payload pointer identity short-circuits `patch` at
-   line ~444) — so "wrap every `custom()`/decorated node in `memo`" is the
-   present-day rule, and it is currently undocumented and sharp.
+3. **The `memo` rule is now documented** on `custom()`/`outline()`:
+   `memo(...)` fully prunes a callable subtree (payload pointer identity
+   short-circuits `patch`).
 
 ### 8.2 The rest of the list (highest leverage first)
 
@@ -585,21 +618,28 @@ Fixes, in order:
 | 8 | snapshot pooling | reuse one snapshot Composer for animated `ContourWalk` stamps | `animatedWalk` currently builds a Composer+Ticker per frame |
 
 *Avoid-list (the recurring traps):* over-caching a cheap subtree (record + BBH
-+ blit loses to redraw — gate on complexity **and** N-frame stability);
++ blit loses to redraw — gate on N-frame stability and explicit boundaries,
+and treat complexity scores as unreliable: Flutter disabled complexity-based
+raster caching outright, #131206 — "texture sampling can be multiple times
+slower than executing the original shaders" — and Impeller ships no raster
+cache at all);
 `saveLayer`-per-layer; animating a uniform by rebuilding the shader tree or
-reshaping text every frame (the Lottie CPU-tessellation cliff); running NP-hard
+reshaping text every frame (the Lottie CPU-renderer cliff — per Airbnb's own
+docs the cost concentrates in masks/mattes and merge-path `Path.Op`,
+re-evaluated per frame); running NP-hard
 graph solves (crossing-min, octilinear MIP, Sugiyama, edge-bundling) in paint
 instead of memoizing them in Layout/Derive.
 
 ---
 
-## 9. Splitting `Composer.cpp` (1489 lines → cohesive TUs)
+## 9. The `Composer.cpp` split (1489 → 210-line facade — **landed, P0**)
 
-The file already hides everything behind `Composer::Impl` + `detail::Instance`,
-so this is a **mechanical, low-risk** split — the 56 tests + goldens pin
-behavior. Move the `Instance`/`Impl` declarations into a private
-`ComposeRuntime.h` (next to `ComposeInternal.h`, which keeps `ElementNode`),
-then partition the definitions by phase:
+Landed in `b02c98e` and independently verified behavior-preserving against
+the pre-split monolith (normalized function-body comparison; only whitespace
+deltas plus the intentional §8.1 decorations hunk). The `Instance`/`Impl`
+declarations live in the private `ComposeRuntime.h` (next to
+`ComposeInternal.h`, which keeps `ElementNode`); the definitions partition by
+phase — the map of where things live:
 
 | New TU | Contents (current line ranges) |
 | --- | --- |
@@ -686,13 +726,19 @@ it just needs a real vocabulary to call.
 
 Sequenced so each phase is independently valuable and de-risks the next:
 
-- **P0 — Split + prune fix (low risk, unblocks everything).** §9 file split;
-  §8.1 comparable decorations + `custom()` deps token + document the `memo`
-  rule. No new surface; big correctness/perf win for the target modes.
-- **P1 — Material / Brush (the unlock).** §4: `Material` value replacing
-  `Fill`, uniforms bound to `ch::Output`, `SkShaders::Blend` layering, the SDF
-  node, `Sprite`/dual-inset 9-slice, `below()`. Keep `Fill::color/shader` as
-  thin aliases for migration. This is the change that kills `custom()`-for-look.
+- **P0 — Split + prune fix. LANDED** (`b02c98e`): §9 file split (verified
+  behavior-preserving); comparable decorations prune without memo (measured
+  10.96 → 0.13 ms/frame on the dirty()-gated loop); `memo` rule documented on
+  `custom()`/`outline()`. Still open from P0: the `custom()` deps token
+  (folds into the §7 isolation-boundary work).
+- **P1 — Material / Brush (the unlock). Lean core LANDED** (`511a948` +
+  follow-up): `Material` value (solid/gradient ramps/image/sksl/blend-as-one-
+  shader), live `ch::Output` uniforms with copy-on-write value semantics and
+  warn-don't-abort uniform validation, `fill(Material)` with last-wins setter
+  symmetry — all Fable-audited. Open: SDF node, `Sprite`/dual-inset 9-slice,
+  `below()`, gradient/recipe structural-signature pruning (§8.1), the OCIO
+  `color::View` output stage. `Fill::color/shader` remain as the low-level
+  carrier.
 - **P2 — Geometry beyond boxes.** §5: `GeometryScheme` modifier stack (Trim
   first), `route()`/`rail()` + N-anchor `Router` + anchor-binding + node→routes
   back-index, arc-length unification of along-edge motion.
@@ -736,9 +782,9 @@ concentrated." The concepts are fine; they were just all presented at once.
 | SDF material (shape+border+glow+shadow) | Inigo Quilez 2D SDF primitives/operators; MSDF (Chlumský) |
 | layer via `SkShaders::Blend` not `saveLayer` | Skia flatten-to-one-program; `DESIGN.md` saveLayer risk |
 | `below()` sibling snapshot vs live backdrop | Noesis brush-shader vs ShaderEffect; Flutter `BackdropGroup` |
-| dual-inset 9-slice + per-axis tile | Android 9-patch; CSS `border-image`; Godot `axis_stretch_mode`; Slate `ESlateBrushTileType` |
+| dual-inset 9-slice + per-axis tile | Android 9-patch; CSS `border-image`; Godot `axis_stretch_mode` (per-axis cell tiling + TileFit are Godot-only; Slate's tiling is Image-mode-only) |
 | `Sprite`/`Atlas` | RmlUi `@spritesheet`; ARPG icon/frame libraries |
-| `GeometryScheme` modifier stack; Trim; morph | skottie `sksg::GeometryEffect`; `SkTrimPathEffect`; Lottie trim/repeater |
+| `GeometryScheme` modifier stack; Trim; morph | skottie `sksg::GeometryEffect` (Trim/Round/Offset/Dash; boolean merge via `sksg::Merge`); `SkTrimPathEffect`; Lottie trim/repeater |
 | `route()`/`rail()` + anchors + bundle | LOOM line-graph; GTFS; tldraw/Excalidraw bindings; React Flow/Cytoscape/Graphviz routers; Nöllenburg–Wolff octilinear |
 | arc-length placement / along-edge flow | `SkPathMeasure::getMatrix`; mxGraph relative geometry; TouchDesigner cooking-wire flow |
 | `instances()` SoA + `drawAtlas` flyweight | PixiJS `ParticleContainer`; Godot `MultiMesh`; Cytoscape sprite-sheet; skottie `RepeaterAdapter` |

@@ -624,6 +624,126 @@ TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
 
+#include <include/core/SkString.h>
+#include <include/effects/SkRuntimeEffect.h>
+
+TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
+  // A ch::Output-bound uniform makes an sksl() Material LIVE: it re-resolves
+  // every frame from the Output (no re-render), and its node paints live
+  // (never freezes into a cache). This is what gives uniform(name, &output)
+  // something to hook against.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uK;"
+               "half4 main(float2 p) { return half4(uK, 0, 0, 1); }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  choreograph::Output<float> k{0.0f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(
+          Material::sksl(effect).uniform("uK", &k))));
+  host.frame();
+  const SkColor c0 = host.pixel(20, 20);
+  k = 1.0f;     // change the bound uniform — NO re-render
+  host.frame(); // the live material re-resolves from k
+  const SkColor c1 = host.pixel(20, 20);
+  EXPECT_LT(SkColorGetR(c0), 40u);  // uK=0 → black
+  EXPECT_GT(SkColorGetR(c1), 200u); // uK=1 → red
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u); // volatile: paints live
+}
+
+TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
+  // uniform() on a material with no named uniforms (a solid) has nothing to
+  // hook against: it is ignored, the material stays static and non-live.
+  Material m = Material::solid({0, 1, 0, 1}).uniform("uK", 0.5f);
+  EXPECT_FALSE(m.isLive());
+  EXPECT_TRUE(m.isSolid());
+}
+
+namespace {
+sk_sp<SkRuntimeEffect> ukEffect() {
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uK;"
+               "half4 main(float2 p) { return half4(uK, 0, 0, 1); }"));
+  return effect;
+}
+} // namespace
+
+TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
+  // Materials are VALUES: binding a uniform on a copy must not contaminate
+  // the base or sibling copies (the audit's aliasing defect — a shared HUD
+  // base material bound to two different Outputs).
+  Material base = Material::sksl(ukEffect());
+  choreograph::Output<float> low{0.2f}, high{1.0f};
+  Material a = base;
+  a.uniform("uK", &low);
+  Material b = base;
+  b.uniform("uK", &high);
+  EXPECT_FALSE(base.isLive()); // base untouched
+  EXPECT_TRUE(a.isLive());
+  EXPECT_TRUE(b.isLive());
+
+  Host host;
+  host.composer.render(
+      box()
+          .child(box().width(40).height(40).inset(0, 0, 160, 160).absolute()
+                     .fill(a))
+          .child(box().width(40).height(40).inset(60, 0, 100, 160).absolute()
+                     .fill(b)));
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 90u);  // a: uK=0.2
+  EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u); // b: uK=1.0 — not aliased
+}
+
+TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
+  // Fill setters are last-wins in BOTH directions: a plain fill() after a
+  // live-material fill() must take effect (the audit's stale-liveMaterial
+  // defect — pre-fix the later fill was silently ignored).
+  choreograph::Output<float> k{1.0f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(0, 0, 160, 160).absolute()
+          .fill(Material::sksl(ukEffect()).uniform("uK", &k)) // live red
+          .fill(Fill::color({0, 1, 0, 1}))));                 // then plain green
+  host.frame();
+  const SkColor c = host.pixel(20, 20);
+  EXPECT_GT(SkColorGetG(c), 200u); // green won
+  EXPECT_LT(SkColorGetR(c), 40u);
+}
+
+TEST(ComposeMaterial, BlendSnapshotsLiveLayerAtCurrentValue) {
+  // blend() flattens; a live layer contributes its bound Outputs at their
+  // values NOW (the audit's stale-snapshot defect — pre-fix it baked SkSL
+  // defaults, rendering uK=0 regardless of the Output).
+  choreograph::Output<float> k{0.8f};
+  Material m = Material::blend({
+      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
+  });
+  EXPECT_FALSE(m.isLive()); // the flattened blend is static
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
+  host.frame();
+  const uint32_t r = SkColorGetR(host.pixel(20, 20));
+  EXPECT_GT(r, 170u); // ~0.8 * 255 = 204, not the SkSL default 0
+  EXPECT_LT(r, 240u);
+}
+
+TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
+  // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
+  // host in debug): unknown names are warned and dropped, at sksl() and at
+  // uniform(), constant and bound alike.
+  Material m = Material::sksl(ukEffect(), {{"uTypo", 1.0f}});
+  choreograph::Output<float> o{1.0f};
+  m.uniform("uAlsoMissing", &o); // dropped → still not live
+  EXPECT_FALSE(m.isLive());
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
+  host.frame(); // paints with uK at its SkSL default (0) — and does not crash
+  EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
+}
+
 namespace {
 sigil::weave::TextStyle whiteStyle(float size) {
   sigil::weave::TextStyle s = styleAt(size);
