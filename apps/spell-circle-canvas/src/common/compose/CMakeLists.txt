@@ -14,9 +14,11 @@ add_library(SigilCompose STATIC
   Paint.cpp
   Transitions.cpp
   Query.cpp
+  Material.cpp
   ComposeInternal.h
   ComposeRuntime.h
   include/sigilcompose/Compose.h
+  include/sigilcompose/Material.h
   include/sigilcompose/Decorations.h
   include/sigilcompose/Layouts.h
   include/sigilcompose/Routers.h

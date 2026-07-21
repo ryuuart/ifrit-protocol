@@ -574,6 +574,56 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
 
+#include <sigilcompose/Material.h>
+
+TEST(ComposeMaterial, LinearGradientFillPaints) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(20).inset(0, 0, 100, 180).absolute()
+          .fill(Material::linear({0, 0}, {100, 0},
+                                 {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
+  host.frame();
+  const SkColor left = host.pixel(2, 10);
+  const SkColor right = host.pixel(98, 10);
+  EXPECT_GT(SkColorGetR(left), 200u); // red end
+  EXPECT_LT(SkColorGetB(left), 70u);
+  EXPECT_GT(SkColorGetB(right), 200u); // blue end
+  EXPECT_LT(SkColorGetR(right), 70u);
+}
+
+TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
+  // Two solids blended kPlus → additive brighten in ONE flattened shader
+  // (no saveLayer). red + green = yellow.
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(
+          Material::blend({
+              {Material::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
+              {Material::solid({0, 1, 0, 1}), SkBlendMode::kPlus},
+          }))));
+  host.frame();
+  const SkColor c = host.pixel(20, 20);
+  EXPECT_GT(SkColorGetR(c), 200u);
+  EXPECT_GT(SkColorGetG(c), 200u);
+  EXPECT_LT(SkColorGetB(c), 70u);
+}
+
+TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
+  // A gradient Material is static → collapses to Fill::shader → the parent
+  // picture-caches like any static subtree: records once, replays on later
+  // draws. (Structural-signature pruning across re-render is a later cut —
+  // rebuilding the ramp yields a new shader pointer, so this only exercises
+  // the draw-side cache, not the reconcile prune.)
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).fill(Material::radial(
+          {30, 30}, 30, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}}))));
+  host.frame(); // records
+  EXPECT_GE(host.composer.stats().picturesLive, 1u);
+  host.frame(); // no re-render — replays the cached picture
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
 namespace {
 sigil::weave::TextStyle whiteStyle(float size) {
   sigil::weave::TextStyle s = styleAt(size);

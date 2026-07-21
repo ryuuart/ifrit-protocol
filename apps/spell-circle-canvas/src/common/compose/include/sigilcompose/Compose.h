@@ -58,6 +58,10 @@ struct ElementNode;
 struct Instance;
 } // namespace detail
 
+// The polymorphic paint value (<sigilcompose/Material.h>) — supersedes Fill as
+// the authoring value for fill(); a static Material collapses to a Fill.
+class Material;
+
 // ---------------------------------------------------------------------------
 // Animation values
 
@@ -360,6 +364,10 @@ public:
 
   // ---- paint ----
   Element &fill(PropValue<Fill> f);
+  /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
+   *  richer authoring value. A static Material collapses to a Fill, so it
+   *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
+  Element &fill(Material m);
   /** Decoration layers: backgrounds paint below content/children (in
    *  declaration order), foregrounds above. fill() is the transitionable
    *  first background; custom() is a box with one background program. */
