@@ -147,7 +147,8 @@ struct GlyphRSXformBatches {
         continue;
       total += static_cast<int>(batch.glyphs.size());
       paint.setColor(batch.color);
-      SkFont font = makeFont(batch.font->typeface, batch.font->fontSize);
+      SkFont font = makeFont(batch.font->typeface, batch.font->fontSize,
+                             batch.font->scaleX);
       // Tumbling letters move whole pixels every frame; subpixel phases
       // would only multiply each (glyph, angle) into fresh atlas strikes —
       // per-frame mask rasterization is exactly what caps these effects.

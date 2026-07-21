@@ -108,6 +108,12 @@ struct ShapingStyle {
   float fontSize = 16.0f;     ///< pixels in the target canvas coordinate space
   float letterSpacing = 0.0f; ///< px of tracking added after each cluster
                               ///< (in vertical text this is JIS "aki")
+  /// Horizontal glyph condensation (CSS font-stretch by transform): glyph
+  /// shapes AND advances scale by this on the x axis — the condensed
+  /// display voice (ATLUS menus run ≈0.82) for faces without a wdth axis.
+  /// Letter-spacing is NOT scaled (matches CSS). Part of the shape-cache
+  /// key; vertical text condenses glyph width only, never column advance.
+  float scaleX = 1.0f;
   /// Extra px added to each word's trailing-whitespace glue (CSS
   /// word-spacing). Applied after the whitespace is measured, so changing
   /// it re-derives words at pure shape-cache-hit cost — it is compared for
@@ -140,6 +146,7 @@ struct ShapingStyle {
   bool operator==(const ShapingStyle &other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
+           scaleX == other.scaleX &&
            wordSpacing == other.wordSpacing &&
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&
@@ -394,6 +401,12 @@ struct TextStyle {
   TextStyle &weight(float wght) { return variation("wght", wght); }
   /** The optical-size axis, fluently: `style.opticalSize(72)`. */
   TextStyle &opticalSize(float opsz) { return variation("opsz", opsz); }
+  /** Horizontal condensation, fluently: `style.condense(0.82f)` — the
+   *  ATLUS voice (see ShapingStyle::scaleX). */
+  TextStyle &condense(float sx) {
+    shaping.scaleX = sx;
+    return *this;
+  }
 
   /** Compares both shaping and paint configuration. */
   bool operator==(const TextStyle &other) const {

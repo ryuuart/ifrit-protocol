@@ -8,8 +8,11 @@
 
 namespace sigil::weave {
 
-SkFont makeFont(const sk_sp<SkTypeface> &typeface, float fontSize) {
+SkFont makeFont(const sk_sp<SkTypeface> &typeface, float fontSize,
+                float scaleX) {
   SkFont font(typeface, fontSize);
+  if (scaleX != 1.0f)
+    font.setScaleX(scaleX);
   font.setEdging(SkFont::Edging::kAntiAlias);
   // Subpixel positioning only where it's visible (small text). At large
   // sizes it multiplies every glyph into per-phase atlas entries, and
@@ -32,6 +35,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   view.typefaceId = typeface ? typeface->uniqueID() : 0;
   std::memcpy(&view.fontSizeBits, &style.fontSize, sizeof(float));
   std::memcpy(&view.letterSpacingBits, &style.letterSpacing, sizeof(float));
+  std::memcpy(&view.scaleXBits, &style.scaleX, sizeof(float));
   view.script = script;
   view.rightToLeft = rightToLeft;
   view.vertical = vertical;
@@ -50,6 +54,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   key.typefaceId = view.typefaceId;
   key.fontSizeBits = view.fontSizeBits;
   key.letterSpacingBits = view.letterSpacingBits;
+  key.scaleXBits = view.scaleXBits;
   key.script = script;
   key.rightToLeft = rightToLeft;
   key.vertical = vertical;
@@ -61,6 +66,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   auto shapedWord = std::make_shared<ShapedWord>();
   shapedWord->typeface = typeface;
   shapedWord->fontSize = style.fontSize;
+  shapedWord->scaleX = style.scaleX;
   shapedWord->vertical = vertical;
 
   if (!typeface || text.empty()) {
@@ -114,6 +120,10 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
 
   const float scale =
       style.fontSize / static_cast<float>(typefaceRecord.unitsPerEm);
+  // Condensation: x-axis quantities shrink by scaleX (glyph shapes condense
+  // via SkFont::setScaleX at draw). Vertical columns keep their advance —
+  // only the glyph's horizontal centering condenses. Tracking is unscaled.
+  const float scaleXAxis = scale * style.scaleX;
 
   shapedWord->glyphs.reserve(glyphCount);
   shapedWord->positions.reserve(glyphCount);
@@ -129,9 +139,9 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   float penPosition = 0;
   for (unsigned glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
     // (y-down canvas: HarfBuzz y advances/offsets point up, so they negate.)
-    float glyphAdvance = (vertical ? -glyphPositions[glyphIndex].y_advance
-                                   : glyphPositions[glyphIndex].x_advance) *
-                         scale;
+    float glyphAdvance =
+        vertical ? -glyphPositions[glyphIndex].y_advance * scale
+                 : glyphPositions[glyphIndex].x_advance * scaleXAxis;
     // Tracking applies once per cluster, on the cluster's last glyph.
     const bool clusterEnd = glyphIndex + 1 == glyphCount ||
                             glyphInformation[glyphIndex + 1].cluster !=
@@ -143,11 +153,11 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
         static_cast<uint16_t>(glyphInformation[glyphIndex].codepoint));
     if (vertical)
       shapedWord->positions.push_back(
-          {glyphPositions[glyphIndex].x_offset * scale,
+          {glyphPositions[glyphIndex].x_offset * scaleXAxis,
            penPosition - glyphPositions[glyphIndex].y_offset * scale});
     else
       shapedWord->positions.push_back(
-          {penPosition + glyphPositions[glyphIndex].x_offset * scale,
+          {penPosition + glyphPositions[glyphIndex].x_offset * scaleXAxis,
            -glyphPositions[glyphIndex].y_offset * scale});
     shapedWord->advances.push_back(glyphAdvance);
     shapedWord->clusters.push_back(glyphInformation[glyphIndex].cluster);
@@ -164,7 +174,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
 const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word) {
   if (!word.blobCache && !word.glyphs.empty()) {
     SkTextBlobBuilder builder;
-    const SkFont font = makeFont(word.typeface, word.fontSize);
+    const SkFont font = makeFont(word.typeface, word.fontSize, word.scaleX);
     const auto &blobRun =
         builder.allocRunPos(font, static_cast<int>(word.glyphs.size()));
     std::memcpy(blobRun.glyphs, word.glyphs.data(),
