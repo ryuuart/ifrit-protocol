@@ -7,6 +7,8 @@
 
 #include <sigilimage/ImageAsset.h>
 
+#include <sigilweave/Choreograph.h>
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
@@ -74,6 +76,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent |= boundOrRunning(Instance::kTrimStart, node.trimStart);
     ownContent |= boundOrRunning(Instance::kTrimEnd, node.trimEnd);
   }
+  if (node.glyphFx) // moving glyph progress rebuilds the glyph transforms
+    ownContent |= boundOrRunning(Instance::kGlyphProgress,
+                                 node.glyphFx->progress);
 
   bool childrenVolatile = false;
   for (auto &child : inst.children)
@@ -105,6 +110,69 @@ const SkPath &Composer::Impl::resolveOutline(Instance &inst, SkSize size) const 
     inst.outlineCacheSize = size;
   }
   return inst.outlineCache;
+}
+
+// ---------------------------------------------------------------------------
+// Kinetic typography: master progress → stagger remap → per-glyph mods →
+// batched RSXform draws (one per font/color bucket — never per glyph).
+
+void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
+                                      const GlyphFx &fx) {
+  const float master = std::clamp(
+      inst.resolveFloat(Instance::kGlyphProgress, fx.progress), 0.0f, 1.0f);
+
+  size_t count = 0;
+  sigil::weave::forEachPlacedGlyph(inst.textLayout, *inst.paragraph,
+                                   [&](auto &&...) { ++count; });
+  if (count == 0)
+    return;
+
+  const float each = std::max(fx.stagger.eachMs, 0.0f);
+  const float duration = std::max(fx.stagger.durationMs, 1.0f);
+  const float total = duration + each * (float)(count - 1);
+
+  static thread_local sigil::weave::GlyphRSXformBatches batches;
+  batches.clear();
+
+  size_t i = 0;
+  sigil::weave::forEachPlacedGlyph(
+      inst.textLayout, *inst.paragraph,
+      [&](const sigil::weave::ShapedWord *font, SkGlyphID glyph, float advance,
+          SkColor color, SkPoint rest) {
+        float order = (float)i;
+        switch (fx.stagger.from) {
+        case Stagger::From::End:
+          order = (float)(count - 1 - i);
+          break;
+        case Stagger::From::Center:
+          order = std::abs((float)i - (float)(count - 1) * 0.5f) * 2.0f;
+          break;
+        case Stagger::From::Start:
+          break;
+        }
+        const float t = std::clamp(
+            (master * total - order * each) / duration, 0.0f, 1.0f);
+        const GlyphMod mod = fx.effect(GlyphInfo{i, count, rest, advance}, t);
+        ++i;
+        if (mod.alpha <= 0.003f || mod.scale <= 0.001f)
+          return;
+        // Quantize alpha so fades don't mint a batch bucket per glyph.
+        const float alpha =
+            std::round(std::clamp(mod.alpha, 0.0f, 1.0f) * 32.0f) / 32.0f;
+        const SkColor tinted = SkColorSetA(
+            color, (U8CPU)((float)SkColorGetA(color) * alpha + 0.5f));
+        float cosv = 1.0f, sinv = 0.0f;
+        if (mod.rotateDeg != 0)
+          sigil::weave::quantizeAngle(mod.rotateDeg * 0.017453293f, cosv,
+                                      sinv);
+        cosv *= mod.scale;
+        sinv *= mod.scale;
+        batches.addGlyph(font, tinted, glyph, advance * 0.5f,
+                         {rest.x() + mod.dx + advance * 0.5f,
+                          rest.y() + mod.dy},
+                         cosv, sinv);
+      });
+  batches.draw(&canvas);
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +312,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       // resolved width so such text still paints.
       if (inst.measuredRev != inst.contentRev)
         layoutText(inst, bounds.width());
-      inst.textLayout.drawBatched(&canvas, *inst.paragraph);
+      if (node.glyphFx && node.glyphFx->effect)
+        paintKineticText(inst, canvas, *node.glyphFx);
+      else
+        inst.textLayout.drawBatched(&canvas, *inst.paragraph);
     }
     break;
   case Kind::Image:

@@ -90,6 +90,13 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
     transitionFloat(*this, inst, Instance::kTrimEnd, prev.trimEnd,
                     next.trimEnd, nd);
   }
+  if (next.glyphFx || prev.glyphFx) {
+    static const PropValue<float> kFullProgress = 1.0f;
+    transitionFloat(*this, inst, Instance::kGlyphProgress,
+                    prev.glyphFx ? prev.glyphFx->progress : kFullProgress,
+                    next.glyphFx ? next.glyphFx->progress : kFullProgress,
+                    nd);
+  }
 
   // Fill: color→color lerp via a progress output. A next fill with NO
   // transition is a plain snap — disconnect any in-flight lerp so the

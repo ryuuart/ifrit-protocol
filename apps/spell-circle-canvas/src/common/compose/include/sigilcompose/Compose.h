@@ -175,6 +175,52 @@ private:
   sk_sp<SkImageFilter> m_filter;
 };
 
+// ---------------------------------------------------------------------------
+// Kinetic typography (the per-glyph seam; presets in <sigilcompose/Kinetic.h>)
+
+/** What a glyph effect sees for one glyph. Enumeration order is stable
+ *  across relayouts while the text is unchanged (SigilWeave contract). */
+struct GlyphInfo {
+  size_t index = 0;   ///< glyph position in the paragraph
+  size_t count = 1;   ///< total glyphs
+  SkPoint rest;       ///< the glyph's laid-out origin (pen position)
+  float advance = 0;  ///< the glyph's advance width
+};
+
+/** One glyph's deviation from rest — what an effect returns for local
+ *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely. */
+struct GlyphMod {
+  float dx = 0, dy = 0;
+  float scale = 1;
+  float rotateDeg = 0;
+  float alpha = 1;
+};
+
+/** A pure value: (glyph, local progress) → deviation. Compose freely. */
+using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo &, float)>;
+
+/** The per-glyph time remap (the GSAP stagger model): the element's master
+ *  progress [0,1] spans `durationMs + eachMs·(N−1)` of virtual time; glyph i
+ *  starts after its delay and runs for durationMs. */
+struct Stagger {
+  float eachMs = 30;
+  float durationMs = 450;
+  enum class From : uint8_t { Start, Center, End } from = From::Start;
+  bool operator==(const Stagger &) const = default;
+};
+
+/** Kinetic text: attach to a text() element with Element::glyphFx(). The
+ *  master `progress` takes the full PropValue treatment — plain, with()
+ *  transitions (retarget-safe), or a ch::Output binding (loops: bind a
+ *  wrapping phase). While progress moves the node paints live; settled
+ *  kinetic text caches like any static leaf. All glyphs render through
+ *  batched RSXform draws — one draw per (font, color), never per glyph. */
+struct GlyphFx {
+  GlyphEffectFn effect;
+  Stagger stagger;
+  PropValue<float> progress = 1.0f;
+};
+
 /** Anything with paint(canvas, PaintContext) — decorations, effects
  *  bodies. An optional `bool animated() const` declares per-frame
  *  volatility (the single declared-volatility rule). */
@@ -427,6 +473,10 @@ public:
    *  regions, in source pixels) instead of the whole image. Strictly
    *  constrained — neighboring atlas cells never bleed in. */
   Element &region(SkRect sourceRect);
+
+  /** Kinetic typography on a text() element: a per-glyph effect staggered
+   *  across the glyphs and driven by a master progress (see GlyphFx). */
+  Element &glyphFx(GlyphFx fx);
 
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);

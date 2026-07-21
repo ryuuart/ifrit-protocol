@@ -248,6 +248,11 @@ Element custom(PaintProgram program) {
   return e;
 }
 
+Element &Element::glyphFx(GlyphFx fx) {
+  m_node->glyphFx = std::move(fx);
+  return *this;
+}
+
 Element &Element::flowAround(std::string_view key, float margin) {
   m_node->flowAroundKeys.push_back(std::string(key));
   m_node->flowAroundMargin = margin;

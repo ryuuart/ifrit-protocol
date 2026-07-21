@@ -102,6 +102,51 @@ struct AlongPath {
 /** Seeded chaotic placement: children scatter over the container on a
  *  jittered grid — deterministic per seed (same seed, same chaos,
  *  fully cacheable), never escaping the container. */
+/** The Müller-Brockmann MODULAR grid (Grid Systems in Graphic Design):
+ *  columns × rows of modules separated by gutters; each child occupies a
+ *  cell SPAN (col, row, colSpan, rowSpan) — spans are given per child in
+ *  declaration order, and children beyond the span list auto-flow one cell
+ *  each, left→right, top→bottom. Children are SIZED to their span (the
+ *  grid disciplines the composition; content answers to the module). Pair
+ *  with BaselineGrid inside text cells for the full Swiss discipline. */
+struct ModularGrid {
+  int columns = 4;
+  int rows = 6;
+  float gutter = 12.0f;
+
+  struct Span {
+    int col = 0, row = 0, colSpan = 1, rowSpan = 1;
+    bool operator==(const Span &) const = default;
+  };
+  std::vector<Span> spans; // per-child; missing entries auto-flow
+
+  std::vector<SkRect> place(const LayoutInput &in) const {
+    const int cols = std::max(columns, 1), rws = std::max(rows, 1);
+    const float cw =
+        (in.container.width() - gutter * (float)(cols - 1)) / (float)cols;
+    const float rh =
+        (in.container.height() - gutter * (float)(rws - 1)) / (float)rws;
+    std::vector<SkRect> rects(in.childSizes.size());
+    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+      Span s;
+      if (i < spans.size()) {
+        s = spans[i];
+      } else { // auto-flow the overflow, one module each
+        const size_t k = i - spans.size();
+        s.col = (int)(k % (size_t)cols);
+        s.row = (int)(k / (size_t)cols);
+      }
+      s.colSpan = std::max(s.colSpan, 1);
+      s.rowSpan = std::max(s.rowSpan, 1);
+      rects[i] = SkRect::MakeXYWH(
+          (cw + gutter) * (float)s.col, (rh + gutter) * (float)s.row,
+          cw * (float)s.colSpan + gutter * (float)(s.colSpan - 1),
+          rh * (float)s.rowSpan + gutter * (float)(s.rowSpan - 1));
+    }
+    return rects;
+  }
+};
+
 struct BaselineGrid {
   /** The editorial baseline rhythm (Müller-Brockmann): children stack
    *  vertically at x = 0, and each is shifted DOWN so its anchor — the

@@ -73,6 +73,9 @@ struct ElementNode {
   // Custom
   PaintProgram program;
 
+  // Kinetic typography (text leaves)
+  std::optional<GlyphFx> glyphFx;
+
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;
   std::vector<Decoration> foregrounds;

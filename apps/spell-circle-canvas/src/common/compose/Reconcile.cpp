@@ -117,6 +117,10 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent || a.cacheMode != b.cacheMode)
     return false;
+  if (a.glyphFx.has_value() != b.glyphFx.has_value())
+    return false;
+  if (a.glyphFx)
+    return false; // effect is a callable — memo covers settled kinetic text
   if (a.hasTrim != b.hasTrim)
     return false;
   if (a.hasTrim && (!propEqual(a.trimStart, b.trimStart) ||

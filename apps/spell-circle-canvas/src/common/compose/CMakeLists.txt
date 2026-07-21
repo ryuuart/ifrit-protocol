@@ -20,6 +20,7 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Brushes.h
   include/sigilcompose/Compose.h
   include/sigilcompose/Console.h
+  include/sigilcompose/Kinetic.h
   include/sigilcompose/LayerStyles.h
   include/sigilcompose/Material.h
   include/sigilcompose/Pattern.h

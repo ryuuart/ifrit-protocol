@@ -53,7 +53,7 @@ struct Instance {
   // Transition state, keyed by property slot
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kTrimStart, kTrimEnd,
+    kTrimStart, kTrimEnd, kGlyphProgress,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
@@ -192,6 +192,8 @@ struct Composer::Impl {
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f; // device px per layout px at draw() entry
   void paint(detail::Instance &inst, SkCanvas &canvas);
+  void paintKineticText(detail::Instance &inst, SkCanvas &canvas,
+                        const GlyphFx &fx);
   void paintContent(detail::Instance &inst, SkCanvas &canvas, float contentScale,
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
                     float leafOpacity = 1.0f);

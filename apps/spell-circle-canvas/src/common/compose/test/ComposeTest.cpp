@@ -2102,6 +2102,99 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   }
 }
 
+// ---- kinetic typography ------------------------------------------------------
+
+#include <sigilcompose/Kinetic.h>
+
+TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
+  // The stagger law: at mid-progress the early glyphs are fully revealed
+  // while the late ones haven't started — the canonical staggered reveal,
+  // rendered through batched RSXform draws.
+  Host host;
+  auto tree = [](PropValue<float> progress) {
+    GlyphFx fx;
+    fx.effect = glyphfx::rise(24);
+    fx.stagger = {.eachMs = 40, .durationMs = 200};
+    fx.progress = std::move(progress);
+    return box().padding(10).child(
+        text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k")
+            .glyphFx(std::move(fx)));
+  };
+  host.composer.render(tree(0.0f));
+  host.frame();
+  auto b = host.composer.bounds("k");
+  ASSERT_TRUE(b.has_value());
+  const SkIRect leftEdge = SkIRect::MakeLTRB(
+      (int)b->left(), (int)b->top(), (int)b->left() + 24, (int)b->bottom());
+  const SkIRect rightEdge = SkIRect::MakeLTRB(
+      (int)b->right() - 24, (int)b->top(), (int)b->right(),
+      (int)b->bottom());
+  EXPECT_FALSE(anyWhiteIn(host, leftEdge)); // progress 0: nothing revealed
+  host.composer.render(tree(0.45f));
+  host.frame();
+  EXPECT_TRUE(anyWhiteIn(host, leftEdge));   // head fully in
+  EXPECT_FALSE(anyWhiteIn(host, rightEdge)); // tail not started
+  host.composer.render(tree(1.0f));
+  host.frame();
+  EXPECT_TRUE(anyWhiteIn(host, rightEdge)); // everything landed
+}
+
+TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
+  // The master progress takes the full PropValue treatment: a with()
+  // transition animates the reveal and the node paints live while moving.
+  Host host;
+  auto tree = [](PropValue<float> progress) {
+    GlyphFx fx;
+    fx.effect = glyphfx::pop();
+    fx.stagger = {.eachMs = 20, .durationMs = 150};
+    fx.progress = std::move(progress);
+    return box().padding(10).child(
+        text(u8"POP", whiteStyle(40)).key("k").glyphFx(std::move(fx)));
+  };
+  host.composer.render(tree(0.001f));
+  host.frame();
+  host.composer.render(tree(with(1.0f, {400ms, &choreograph::easeNone})));
+  host.frame(0.2); // mid-ramp
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u); // live while animating
+  host.frame(0.3); // settle
+  auto b = host.composer.bounds("k");
+  ASSERT_TRUE(b.has_value());
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(),
+                                                 (int)b->top(),
+                                                 (int)b->right(),
+                                                 (int)b->bottom())));
+}
+
+TEST(ComposeLayouts, ModularGridSpansAndAutoFlow) {
+  // 4×4 modules, gutter 8, container 200×200 → module 44×44. Child 0 spans
+  // 2×1 from (0,0); child 1 spans 1×3 from (3,0); children 2..3 auto-flow.
+  Host host;
+  layouts::ModularGrid grid;
+  grid.columns = 4;
+  grid.rows = 4;
+  grid.gutter = 8;
+  grid.spans = {{0, 0, 2, 1}, {3, 0, 1, 3}};
+  host.composer.render(box().child(
+      layout(grid).width(pct(100)).grow(1)
+          .child(box().key("a").fill(red()))
+          .child(box().key("b").fill(blue()))
+          .child(box().key("c").fill(green()))
+          .child(box().key("d").fill(red()))));
+  host.frame();
+  auto a = host.composer.bounds("a");
+  auto b = host.composer.bounds("b");
+  auto c = host.composer.bounds("c");
+  auto d = host.composer.bounds("d");
+  ASSERT_TRUE(a && b && c && d);
+  EXPECT_NEAR(a->width(), 44 * 2 + 8, 0.01f); // 2-module span + gutter
+  EXPECT_NEAR(a->left(), 0, 0.01f);
+  EXPECT_NEAR(b->left(), (44 + 8) * 3, 0.01f); // 4th column
+  EXPECT_NEAR(b->height(), 44 * 3 + 16, 0.01f); // 3 rows + 2 gutters
+  EXPECT_NEAR(c->left(), 0, 0.01f); // auto-flow starts at (0,0)… of the flow
+  EXPECT_NEAR(c->width(), 44, 0.01f);
+  EXPECT_NEAR(d->left(), 44 + 8, 0.01f); // next module across
+}
+
 TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   // Non-text children anchor by BOTTOM: heights 15 & 27 on rhythm 20 land
   // their bottoms on grid lines 20 and 60 (flow 20+27=47 rounds up).
