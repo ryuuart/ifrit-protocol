@@ -458,6 +458,131 @@ inline Restyled restyle(ops::PathOp op, Decoration inner,
   return Restyled{std::move(op), std::move(inner), extraBleed};
 }
 
+/** WHERE instances land along a path — the QGIS marker-line placement
+ *  grammar (Interval | Vertex | FirstVertex | LastVertex | InnerVertices |
+ *  CentralPoint | SegmentCenter), verified in REFERENCES.md §9. Vertex
+ *  modes read the path's REAL verbs (the route's bends), not tangent
+ *  sampling; `interval` > 1 is px, ≤ 1 is a FRACTION of each contour
+ *  (the decorator px-or-% spec). */
+struct Placement {
+  enum class Mode : uint8_t {
+    Interval,      ///< every `interval` px (or fraction), phase `offset`
+    Vertex,        ///< every path vertex (bends + endpoints)
+    FirstVertex,   ///< each contour's first point
+    LastVertex,    ///< each contour's last point
+    InnerVertices, ///< bends only — no endpoints
+    CentralPoint,  ///< the arc-length midpoint of each contour
+    SegmentCenter, ///< the midpoint of every straight segment
+  };
+  Mode mode = Mode::Interval;
+  float interval = 24.0f; ///< px, or contour fraction when ≤ 1
+  float offset = 0.0f;    ///< leading phase for Interval (same units)
+  bool operator==(const Placement &) const = default;
+};
+
+namespace detail {
+/** Resolve a Placement into concrete samples (position + tangent). */
+inline std::vector<PathSample> placementSamples(const SkPath &path,
+                                                const Placement &p) {
+  std::vector<PathSample> out;
+  using Mode = Placement::Mode;
+  if (p.mode == Mode::Interval || p.mode == Mode::CentralPoint) {
+    SkContourMeasureIter iter(path, false);
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      const float step = p.interval <= 1.0f ? len * std::max(p.interval, 0.001f)
+                                            : p.interval;
+      const float phase =
+          p.offset <= 1.0f && p.offset >= -1.0f && p.mode == Mode::Interval &&
+                  p.interval <= 1.0f
+              ? len * p.offset
+              : p.offset;
+      auto sampleAt = [&](float d) {
+        SkPoint pos;
+        SkVector tan;
+        if (contour->getPosTan(std::clamp(d, 0.0f, len), &pos, &tan))
+          out.push_back({pos, tan, d, len > 0 ? d / len : 0});
+      };
+      if (p.mode == Mode::CentralPoint) {
+        sampleAt(len * 0.5f);
+      } else {
+        for (float d = phase + step * 0.5f; d < len; d += step)
+          sampleAt(d);
+      }
+    }
+    return out;
+  }
+  // Vertex family: walk the REAL verbs per contour.
+  std::vector<std::vector<SkPoint>> contours;
+  SkPath::RawIter it(path);
+  SkPoint pts[4];
+  for (SkPath::Verb v = it.next(pts); v != SkPath::kDone_Verb;
+       v = it.next(pts)) {
+    switch (v) {
+    case SkPath::kMove_Verb:
+      contours.push_back({pts[0]});
+      break;
+    case SkPath::kLine_Verb:
+      contours.back().push_back(pts[1]);
+      break;
+    case SkPath::kQuad_Verb:
+      contours.back().push_back(pts[2]);
+      break;
+    case SkPath::kConic_Verb:
+      contours.back().push_back(pts[2]);
+      break;
+    case SkPath::kCubic_Verb:
+      contours.back().push_back(pts[3]);
+      break;
+    default:
+      break;
+    }
+  }
+  for (const auto &c : contours) {
+    if (c.empty())
+      continue;
+    auto tangentAt = [&](size_t i) {
+      const SkPoint prev = c[i > 0 ? i - 1 : i];
+      const SkPoint next = c[i + 1 < c.size() ? i + 1 : i];
+      SkVector t{next.x() - prev.x(), next.y() - prev.y()};
+      const float m = std::hypot(t.x(), t.y());
+      return m > 1e-4f ? SkVector{t.x() / m, t.y() / m} : SkVector{1, 0};
+    };
+    const float n = (float)c.size();
+    switch (p.mode) {
+    case Mode::Vertex:
+      for (size_t i = 0; i < c.size(); ++i)
+        out.push_back({c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+      break;
+    case Mode::FirstVertex:
+      out.push_back({c.front(), tangentAt(0), 0, 0});
+      break;
+    case Mode::LastVertex:
+      out.push_back({c.back(), tangentAt(c.size() - 1), 0, 1});
+      break;
+    case Mode::InnerVertices:
+      for (size_t i = 1; i + 1 < c.size(); ++i)
+        out.push_back({c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+      break;
+    case Mode::SegmentCenter:
+      for (size_t i = 0; i + 1 < c.size(); ++i) {
+        const SkPoint mid{(c[i].x() + c[i + 1].x()) / 2,
+                          (c[i].y() + c[i + 1].y()) / 2};
+        SkVector t{c[i + 1].x() - c[i].x(), c[i + 1].y() - c[i].y()};
+        const float m = std::hypot(t.x(), t.y());
+        if (m > 1e-4f)
+          out.push_back({mid, {t.x() / m, t.y() / m}, 0,
+                         n > 1 ? ((float)i + 0.5f) / (n - 1) : 0});
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  return out;
+}
+} // namespace detail
+
 /** One placed instance's deviation from its slot — the programmatic twist
  *  (mirrors GlyphMod; return {.skip = true} to drop a slot). */
 struct StampMod {
@@ -504,7 +629,11 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  the value incomparable (memo the host). */
 struct ScatterBrush {
   Element art;
-  float spacing = 24.0f;
+  float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
+  /** Full placement grammar — set `place.mode` for Vertex/SegmentCenter/
+   *  CentralPoint… families; `spacing` feeds Interval when place is
+   *  default-constructed. */
+  Placement place{};
   uint32_t seed = 0; ///< 0 = a regular run, no jitter roll
   float jitterAlong = 0, jitterNormal = 0; ///< ±px
   float jitterScale = 0;                   ///< ±fraction of 1
@@ -518,7 +647,8 @@ struct ScatterBrush {
   float bleed() const { return reach; }
   bool operator==(const ScatterBrush &o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
-           seed == o.seed && jitterAlong == o.jitterAlong &&
+           place == o.place && seed == o.seed &&
+           jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
            jitterRotateDeg == o.jitterRotateDeg &&
            alignToPath == o.alignToPath && reach == o.reach && !mod &&
@@ -543,17 +673,11 @@ struct ScatterBrush {
     if (!cache->pic)
       return;
 
-    std::vector<PathSample> samples;
-    SkContourMeasureIter iter(ctx.outline, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      for (float d = spacing * 0.5f; d < len; d += spacing) {
-        SkPoint pos;
-        SkVector tan;
-        if (contour->getPosTan(d, &pos, &tan))
-          samples.push_back({pos, tan, d, len > 0 ? d / len : 0});
-      }
-    }
+    Placement resolved = place;
+    if (resolved.mode == Placement::Mode::Interval && resolved.interval == 24.0f)
+      resolved.interval = spacing; // the spacing sugar feeds Interval
+    std::vector<PathSample> samples =
+        detail::placementSamples(ctx.outline, resolved);
     for (size_t i = 0; i < samples.size(); ++i) {
       StampMod m;
       if (mod)

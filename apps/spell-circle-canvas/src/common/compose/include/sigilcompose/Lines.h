@@ -23,6 +23,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Material.h" // Stop — the along-arc gradient ramp
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
@@ -237,6 +238,14 @@ struct Line {
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
 
+  /** Along-arc gradient (mapbox line-gradient, §9): color as a ramp over
+   *  the run's arc fraction — the energy fade, the elevation-colored
+   *  trail. Rendered as ~48 arc chunks per contour, each solid at its
+   *  interpolated color (round joins hide the seams); overrides `fill`'s
+   *  color when non-empty. Not composable with parallels>1 or dashes in
+   *  this cut (single-run gradients only — casings keep flat color). */
+  std::vector<Stop> alongStops;
+
   bool operator==(const Line &) const = default;
 
   /** Paint reach beyond the outline (cull growth): outer parallels, tie
@@ -289,6 +298,46 @@ struct Line {
       stroke.setPathEffect(SkDashPathEffect::Make(
           SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase));
 
+    // 1b. The along-arc gradient: chunked solid strokes (single run only).
+    if (!alongStops.empty() && parallels <= 1 && dashIntervals.empty()) {
+      SkPaint chunk;
+      chunk.setAntiAlias(true);
+      chunk.setStyle(SkPaint::kStroke_Style);
+      chunk.setStrokeWidth(width);
+      chunk.setStrokeCap(SkPaint::kRound_Cap);
+      chunk.setStrokeJoin(SkPaint::kRound_Join);
+      auto rampAt = [&](float t) {
+        if (t <= alongStops.front().pos)
+          return alongStops.front().color;
+        for (size_t i = 1; i < alongStops.size(); ++i)
+          if (t <= alongStops[i].pos) {
+            const float span = alongStops[i].pos - alongStops[i - 1].pos;
+            const float k =
+                span > 1e-6f ? (t - alongStops[i - 1].pos) / span : 1.0f;
+            const SkColor4f &a = alongStops[i - 1].color;
+            const SkColor4f &b2 = alongStops[i].color;
+            return SkColor4f{a.fR + (b2.fR - a.fR) * k,
+                             a.fG + (b2.fG - a.fG) * k,
+                             a.fB + (b2.fB - a.fB) * k,
+                             a.fA + (b2.fA - a.fA) * k};
+          }
+        return alongStops.back().color;
+      };
+      SkContourMeasureIter iter(body, false);
+      while (sk_sp<SkContourMeasure> contour = iter.next()) {
+        const float len = contour->length();
+        const int chunks = std::clamp((int)(len / 6.0f), 8, 48);
+        for (int i = 0; i < chunks; ++i) {
+          const float a = len * (float)i / (float)chunks;
+          const float b2 = len * (float)(i + 1) / (float)chunks;
+          SkPathBuilder seg;
+          contour->getSegment(a, b2, &seg, true);
+          chunk.setColor4f(rampAt(((float)i + 0.5f) / (float)chunks), nullptr);
+          canvas.drawPath(seg.detach(), chunk);
+        }
+      }
+      // Ties/caps still run below; skip the flat body strokes.
+    } else
     // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction
     //    (exact parallel curves on bends; round joins + Simplify() kill
     //    the miter spikes and tight-bend knots the references repair by

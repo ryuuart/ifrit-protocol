@@ -3733,3 +3733,55 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   EXPECT_NEAR(last.y(), 0, 0.5f); // zero-phase exit
   EXPECT_NEAR(last.x(), 320, 1.0f);
 }
+
+TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
+  // Vertex family reads the path's actual verbs — stamps sit ON the bends.
+  Host host;
+  brushes::ScatterBrush b;
+  b.art = box().width(8).height(8).fill(red());
+  b.place = {brushes::Placement::Mode::InnerVertices};
+  b.alignToPath = false;
+  host.composer.render(box().child(
+      box().absolute().inset(40, 40, 40, 40).outline([](SkSize s) {
+        SkPathBuilder p; // three segments, two bends
+        p.moveTo(0, s.height());
+        p.lineTo(60, s.height());
+        p.lineTo(60, 0);
+        p.lineTo(s.width(), 0);
+        return p.detach();
+      }).stroke(std::move(b))));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 160), SK_ColorRED); // bend 1 (60,120)+40
+  EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);  // bend 2 (60,0)+40
+  EXPECT_EQ(host.pixel(40, 160), SK_ColorBLACK); // endpoints excluded
+
+  Host centers;
+  brushes::ScatterBrush c;
+  c.art = box().width(8).height(8).fill(blue());
+  c.place = {brushes::Placement::Mode::SegmentCenter};
+  c.alignToPath = false;
+  centers.composer.render(box().child(
+      box().absolute().inset(40, 40, 40, 40).outline([](SkSize s) {
+        SkPathBuilder p;
+        p.moveTo(0, 0);
+        p.lineTo(s.width(), 0);
+        return p.detach();
+      }).stroke(std::move(c))));
+  centers.frame();
+  EXPECT_EQ(centers.pixel(100, 40), SK_ColorBLUE); // the segment midpoint
+}
+
+TEST(ComposeBrushEngine, AlongGradientRampsOverTheArc) {
+  Host host;
+  lines::Line grad;
+  grad.width = 8;
+  grad.alongStops = {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  host.composer.render(straightRun(std::move(grad)));
+  host.frame();
+  const SkColor start = host.pixel(30, 100);
+  const SkColor end = host.pixel(170, 100);
+  EXPECT_GT(SkColorGetR(start), 200u); // red end
+  EXPECT_LT(SkColorGetB(start), 60u);
+  EXPECT_GT(SkColorGetB(end), 200u);   // blue end
+  EXPECT_LT(SkColorGetR(end), 60u);
+}
