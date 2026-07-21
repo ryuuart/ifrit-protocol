@@ -707,12 +707,26 @@ public:
   }
 
   /** @private reconciler access */
-  const std::shared_ptr<detail::ElementNode> &node() const { return m_node; }
+  const std::shared_ptr<detail::ElementNode> &node() const {
+    return m_node.value;
+  }
   explicit Element(std::shared_ptr<detail::ElementNode> n)
       : m_node(std::move(n)) {}
 
 private:
-  std::shared_ptr<detail::ElementNode> m_node;
+  /** Copy-on-write handle: Element stays a cheap value, but fluent mutation
+   *  can never alter another copy or a description retained by Composer. */
+  struct NodeHandle {
+    explicit NodeHandle(std::shared_ptr<detail::ElementNode> node)
+        : value(std::move(node)) {}
+
+    detail::ElementNode *operator->();
+    const detail::ElementNode *operator->() const;
+
+    std::shared_ptr<detail::ElementNode> value;
+  };
+
+  NodeHandle m_node;
 };
 
 // ---- factories -----------------------------------------------------------

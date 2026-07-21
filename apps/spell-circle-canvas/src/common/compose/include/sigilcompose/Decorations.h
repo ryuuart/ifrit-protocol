@@ -122,10 +122,14 @@ struct PathFormat {
       while (sk_sp<SkContourMeasure> contour = iter.next()) {
         const float len = contour->length();
         if (s < e) {
-          contour->getSegment(s * len, e * len, &window, true);
-        } else if (s > e) { // seam-crossing: ONE stitched contour
-          contour->getSegment(s * len, len, &window, true);
-          contour->getSegment(0, e * len, &window, false);
+          (void)contour->getSegment(s * len, e * len, &window, true);
+        } else if (s > e) {
+          (void)contour->getSegment(s * len, len, &window, true);
+          // A closed contour has a real seam, so joining both pieces avoids
+          // doubled caps there. An open route has no seam: continuing without
+          // a moveTo would invent a straight chord from its end to its start.
+          (void)contour->getSegment(0, e * len, &window,
+                                    !contour->isClosed());
         }
       }
       windowed = window.detach();
@@ -224,6 +228,11 @@ struct ContourWalk {
 
     // Bake (or re-bake) the stamp element: once per description for
     // static stamps, once per paint for animated ones.
+    const void *stampNode = stamp ? stamp->node().get() : nullptr;
+    if (stampCache->bakedFor != stampNode) {
+      stampCache->picture.reset();
+      stampCache->bakedFor = stampNode;
+    }
     if (stamp && ctx.fonts && (!stampCache->picture || animatedWalk))
       stampCache->picture = snapshot(*stamp, *ctx.fonts);
     const sk_sp<SkPicture> &stampPicture = stampCache->picture;
@@ -259,6 +268,7 @@ struct ContourWalk {
    *  (Public to keep ContourWalk an aggregate for designated init.) */
   struct StampCache {
     sk_sp<SkPicture> picture;
+    const void *bakedFor = nullptr;
   };
   std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
 };

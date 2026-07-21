@@ -2949,8 +2949,8 @@ TEST(ComposeTrim, WrapSeamIsOneContour) {
   SkContourMeasureIter iter(boxPath, false);
   while (sk_sp<SkContourMeasure> c = iter.next()) {
     const float len = c->length();
-    c->getSegment(0.9f * len, len, &stitchedBuilder, true);
-    c->getSegment(0, 0.1f * len, &stitchedBuilder, false);
+    (void)c->getSegment(0.9f * len, len, &stitchedBuilder, true);
+    (void)c->getSegment(0, 0.1f * len, &stitchedBuilder, false);
   }
   SkPath stitched = stitchedBuilder.detach();
   int contours = 0;
@@ -3784,4 +3784,162 @@ TEST(ComposeBrushEngine, AlongGradientRampsOverTheArc) {
   EXPECT_LT(SkColorGetB(start), 60u);
   EXPECT_GT(SkColorGetB(end), 200u);   // blue end
   EXPECT_LT(SkColorGetR(end), 60u);
+}
+
+// Regression coverage added by the SigilCompose gallery/performance audit.
+
+TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
+  Host host;
+  Element panel = box().width(100).height(100).fill(red());
+
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+  // Composer retains the first description. Mutating the caller's value must
+  // create a new description so pointer-identity pruning cannot preserve the
+  // old cached picture.
+  panel.fill(blue());
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeElement, CopiedValuesMutateIndependently) {
+  Host host;
+  Element left = box().width(100).height(100).fill(red());
+  Element right = left;
+  right.fill(blue());
+
+  host.composer.render(box().row().child(left).child(right));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeLines, OffsetAlongClampsNonPositiveStep) {
+  SkPathBuilder builder;
+  builder.moveTo(10, 50);
+  builder.lineTo(190, 50);
+  const SkPath route = builder.detach();
+
+  for (float step : {0.0f, -4.0f}) {
+    const SkPath shifted = lines::offsetAlong(route, 10.0f, step);
+    ASSERT_FALSE(shifted.isEmpty()) << "step=" << step;
+    EXPECT_NEAR(shifted.getBounds().top(), 60.0f, 0.01f);
+    EXPECT_NEAR(shifted.getBounds().bottom(), 60.0f, 0.01f);
+  }
+}
+
+TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
+  auto art = [](Fill fill) { return box().width(12).height(12).fill(fill); };
+  brushes::PatternBrush base;
+  base.side = box().width(16).height(4).fill(green());
+  base.start = art(red());
+  base.end = art(red());
+  base.corner = art(red());
+  base.advance = 16;
+
+  // Aggregate copies intentionally share the memoization cache. The cache
+  // therefore has to key every art slot, not only the side tile.
+  brushes::PatternBrush variant = base;
+  variant.start = art(blue());
+  variant.end = art(blue());
+  variant.corner = art(blue());
+
+  auto lRun = [](brushes::PatternBrush brush) {
+    return box().child(box()
+                           .absolute()
+                           .inset(30)
+                           .outline([](SkSize size) {
+                             SkPathBuilder path;
+                             path.moveTo(0, 0);
+                             path.lineTo(size.width(), 0);
+                             path.lineTo(size.width(), size.height());
+                             return path.detach();
+                           })
+                           .stroke(std::move(brush)));
+  };
+
+  Host donor;
+  donor.composer.render(lRun(base));
+  donor.frame(); // primes the shared cache with red start/end/corner art
+  EXPECT_EQ(donor.pixel(38, 30), SK_ColorRED);
+  EXPECT_EQ(donor.pixel(170, 162), SK_ColorRED);
+
+  Host changed;
+  changed.composer.render(lRun(variant));
+  changed.frame();
+  EXPECT_EQ(changed.pixel(38, 30), SK_ColorBLUE);   // changed start art
+  EXPECT_EQ(changed.pixel(170, 32), SK_ColorBLUE);  // changed corner art
+  EXPECT_EQ(changed.pixel(170, 162), SK_ColorBLUE); // changed end art
+}
+
+TEST(ComposeDecorations, ContourWalkCopyRebakesChangedStamp) {
+  ContourWalk base;
+  base.spacing = 1000.0f; // one stamp at the open route's first point
+  base.stamp = box().width(12).height(12).fill(red());
+  ContourWalk variant = base;
+  variant.stamp = box().width(12).height(12).fill(blue());
+
+  Host donor;
+  donor.composer.render(straightRun(base));
+  donor.frame(); // primes the shared cache with the red stamp
+  EXPECT_EQ(donor.pixel(20, 100), SK_ColorRED);
+
+  Host changed;
+  changed.composer.render(straightRun(variant));
+  changed.frame();
+  EXPECT_EQ(changed.pixel(20, 100), SK_ColorBLUE);
+}
+
+TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
+  // PathFormat owns a separate wrapping trim window. It must apply the same
+  // open-contour rule as node-level trim instead of connecting both pieces.
+  Host host;
+  PathFormat format;
+  format.width = 6;
+  format.strokeFill = green();
+  format.trimStart = 0.9f;
+  format.trimEnd = 1.2f;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20, 80, 20, 80)
+                                       .outline([](SkSize s) {
+                                         SkPathBuilder b;
+                                         b.moveTo(0, s.height() / 2);
+                                         b.lineTo(s.width(), s.height() / 2);
+                                         return b.detach();
+                                       })
+                                       .stroke(format)));
+  host.frame();
+  EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN); // tail piece [0.9, 1]
+  EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);  // head piece [0, 0.2]
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO invented chord
+}
+
+TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
+  Host host;
+  brushes::PatternBrush brush;
+  brush.side = box().width(20).height(2).fill(red());
+  // A thin bar exposes orientation: the rect seam exits upward and enters
+  // rightward, so its corner bisector points up-right (-45 degrees).
+  brush.corner = box().width(20).height(4).fill(blue());
+  brush.advance = 20;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50)
+                                       .outline([](SkSize size) {
+                                         SkPathBuilder path;
+                                         path.moveTo(0, 0);
+                                         path.lineTo(size.width(), 0);
+                                         path.lineTo(size.width(),
+                                                     size.height());
+                                         path.lineTo(0, size.height());
+                                         path.close();
+                                         return path.detach();
+                                       })
+                                       .stroke(std::move(brush))));
+  host.frame();
+  EXPECT_EQ(host.pixel(56, 44), SK_ColorBLUE);
 }

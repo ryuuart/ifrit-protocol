@@ -114,7 +114,6 @@ void Composer::render(Element root) {
   else
     impl.patch(*impl.root, root.node());
 
-  impl.computeVolatile(*impl.root);
   impl.volatileDirty = true; // transitions may have started
   impl.rebuildKeyIndex();
 }
@@ -140,8 +139,6 @@ void Composer::renderSlot(std::string_view name, Element content) {
   slotInst.markPaintDirtyUp();
   impl.contentDirty = true;
   impl.volatileDirty = true;
-  if (impl.root)
-    impl.computeVolatile(*impl.root);
   impl.rebuildKeyIndex();
 }
 

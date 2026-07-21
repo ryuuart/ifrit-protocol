@@ -1,6 +1,6 @@
-// Element value builders — thin mutations of the shared description
-// payload. Nothing here talks to Yoga, Skia surfaces, or Choreograph;
-// that is the Composer's job.
+// Element value builders — copy-on-write mutations of description payloads.
+// Nothing here talks to Yoga, Skia surfaces, or Choreograph; that is the
+// Composer's job.
 
 #include "ComposeInternal.h"
 
@@ -22,6 +22,18 @@ Fill Fill::shader(sk_sp<SkShader> s) {
 }
 
 Element::Element() : m_node(std::make_shared<ElementNode>()) {}
+
+ElementNode *Element::NodeHandle::operator->() {
+  if (!value)
+    value = std::make_shared<ElementNode>();
+  else if (value.use_count() != 1)
+    value = std::make_shared<ElementNode>(*value);
+  return value.get();
+}
+
+const ElementNode *Element::NodeHandle::operator->() const {
+  return value.get();
+}
 
 // ---- layout ---------------------------------------------------------------
 

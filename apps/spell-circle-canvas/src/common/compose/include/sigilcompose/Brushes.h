@@ -729,16 +729,30 @@ struct PatternBrush {
 
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
-    const void *bakedFor = nullptr; // side-art identity; swap → full re-bake
+    const void *bakedSide = nullptr;
+    const void *bakedStart = nullptr;
+    const void *bakedEnd = nullptr;
+    const void *bakedCorner = nullptr;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     if (!ctx.fonts)
       return;
-    if (cache->bakedFor != side.node().get()) {
+    auto node = [](const std::optional<Element> &e) -> const void * {
+      return e ? e->node().get() : nullptr;
+    };
+    const void *sideNode = side.node().get();
+    const void *startNode = node(start);
+    const void *endNode = node(end);
+    const void *cornerNode = node(corner);
+    if (cache->bakedSide != sideNode || cache->bakedStart != startNode ||
+        cache->bakedEnd != endNode || cache->bakedCorner != cornerNode) {
       *cache = Cache{};
-      cache->bakedFor = side.node().get();
+      cache->bakedSide = sideNode;
+      cache->bakedStart = startNode;
+      cache->bakedEnd = endNode;
+      cache->bakedCorner = cornerNode;
     }
     auto bake = [&](const std::optional<Element> &e, sk_sp<SkPicture> &slot) {
       if (e && !slot) // shell box: snapshot ignores the ROOT's own dims
@@ -841,8 +855,15 @@ struct PatternBrush {
           SkVector before, after;
           if (!contour->getPosTan(d, &pos, nullptr))
             continue;
-          contour->getPosTan(std::max(d - 2.0f, 0.0f), nullptr, &before);
-          contour->getPosTan(std::min(d + 2.0f, len), nullptr, &after);
+          auto sampleDistance = [closed, len](float at) {
+            if (!closed || len <= 0.0f)
+              return std::clamp(at, 0.0f, len);
+            at = std::fmod(at, len);
+            return at < 0.0f ? at + len : at;
+          };
+          if (!contour->getPosTan(sampleDistance(d - 2.0f), nullptr, &before) ||
+              !contour->getPosTan(sampleDistance(d + 2.0f), nullptr, &after))
+            continue;
           const SkVector bis{before.x() + after.x(), before.y() + after.y()};
           caps.push_back({{pos, bis, d, len > 0 ? d / len : 0},
                           cache->corner.get()});

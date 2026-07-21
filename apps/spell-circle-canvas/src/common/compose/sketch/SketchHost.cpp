@@ -125,7 +125,11 @@ SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
 SketchHost::~SketchHost() {
   if (m_compile.valid())
     m_compile.wait();
-  m_sketch.reset(); // destroy before its library would go away
+  // Retained descriptions and animations may point into sketch-owned state.
+  // Release consumers first; loaded dylibs intentionally remain mapped.
+  m_composer.reset();
+  m_ticker.reset();
+  m_sketch.reset();
   std::error_code ec;
   std::filesystem::remove_all(m_buildDir, ec);
 }
@@ -198,6 +202,10 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   // Fresh world for the new sketch; the clock keeps running so time is
   // continuous across reloads. The canvas spec resets to defaults —
   // each sketch declares its own via ctx.canvas()/ctx.background().
+  // The old Composer retains programs/bindings supplied by the old sketch;
+  // destroy it (and its motions) before destroying their owner.
+  m_composer.reset();
+  m_ticker.reset();
   m_sketch.reset();
   m_canvasSpec = CanvasSpec{};
   m_ticker = std::make_unique<sigil::motion::Ticker>();

@@ -146,12 +146,16 @@ inline SkPath displaceSquare(const SkPath &src, float amplitude,
 inline SkPath offsetAlong(const SkPath &src, float offset, float step = 4.0f) {
   if (offset == 0)
     return src;
+  // `step` is public authoring data (and ops::Offset forwards it directly).
+  // Never let a zero/negative/non-finite value stall the sampling loop.
+  const float stride =
+      std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
   SkPathBuilder out;
   SkContourMeasureIter iter(src, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();
     bool first = true;
-    for (float d = 0;; d += step) {
+    for (float d = 0;; d += stride) {
       const float at = std::min(d, len);
       SkPoint pos;
       SkVector tan;
@@ -278,11 +282,11 @@ struct Line {
         const float len = contour->length();
         if (contour->isClosed()) {
           // Closed contours have no terminals — keep whole.
-          contour->getSegment(0, len, &trimmed, true);
+          (void)contour->getSegment(0, len, &trimmed, true);
         } else {
-          contour->getSegment(std::min(tailTrim, len * 0.4f),
-                              len - std::min(headTrim, len * 0.4f), &trimmed,
-                              true);
+          (void)contour->getSegment(
+              std::min(tailTrim, len * 0.4f),
+              len - std::min(headTrim, len * 0.4f), &trimmed, true);
         }
       }
       body = trimmed.detach();
@@ -331,7 +335,7 @@ struct Line {
           const float a = len * (float)i / (float)chunks;
           const float b2 = len * (float)(i + 1) / (float)chunks;
           SkPathBuilder seg;
-          contour->getSegment(a, b2, &seg, true);
+          (void)contour->getSegment(a, b2, &seg, true);
           chunk.setColor4f(rampAt(((float)i + 0.5f) / (float)chunks), nullptr);
           canvas.drawPath(seg.detach(), chunk);
         }

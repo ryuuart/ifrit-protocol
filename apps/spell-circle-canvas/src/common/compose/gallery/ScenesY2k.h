@@ -321,7 +321,11 @@ struct Y2kChromeScene final : Scene {
     // Aero glow on a LIGHT ground: saturated aero-blue core, white-hot
     // tight glow, wide cyan bloom - the chained double textGlow.
     Element tagline =
-        box().row().justify(Justify::Center).margin(0, 12, 0, 0)
+        // Compensated padding preserves the original y/height while giving
+        // the cached raster 24px of transparent room for its 7px glow.
+        box().row().justify(Justify::Center).padding(0, 24)
+            .margin(0, -12, 0, -24)
+            .cache(Cache::Texture)
             .opacity(withFrom(0.0f, 1.0f, {400ms}))
             .child(text(toU8("\xc2\xb7 t h e   f u t u r e   i s   "
                              "c h r o m e \xc2\xb7"),
@@ -372,19 +376,30 @@ struct Y2kChromeScene final : Scene {
             .child(box().width(1).height(11).fill(Fill::color(yc::C(0xA6ADB4))))
             .child(text(toU8("56K"), yc::type(10, yc::C(0x6A737D), 1.0f, 700)));
 
+    // The window's large blurred shadow is static, but the old combined node
+    // inherited volatility from the marquee. Split only its backplate so the
+    // filter bakes once; the identically rounded live content still clips and
+    // keeps the border in its original foreground paint order.
+    Element windowBackplate =
+        box().absolute()
+            .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
+            .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
+            .fill(Fill::color(yc::C(0xE9EBEE)))
+            .corners({6})
+            .cache(Cache::Texture);
+
     // ---- assembly ---------------------------------------------------------
     return stack()
         .fill(Material::linear({0, 0}, {0, yc::kH},
                                {{0.0f, yc::C(0xB9BFC7)},
                                 {1.0f, yc::C(0xA2A8B1)}}))
         .child(box().absolute().inset(0).fill(weave))
+        .child(windowBackplate)
         // the window
         .child(
             box().absolute()
                 .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                 .column()
-                .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
-                .fill(Fill::color(yc::C(0xE9EBEE)))
                 .corners({6}).clip()
                 .stroke(util::stroke(1, Fill::color(yc::C(0x70777E))))
                 .child(titleBar)

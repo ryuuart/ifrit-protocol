@@ -162,6 +162,24 @@ struct KineticCardScene final : Scene {
             .then(styles::textGlow(
                 {kc::kAccent.fR, kc::kAccent.fG, kc::kAccent.fB, 0.30f}, 10));
 
+    // Keep enough transparent raster space for the 10px double glow. The
+    // negative margins exactly cancel this wrapper's vertical padding, so
+    // the line keeps its original layout position/height. While the glyph
+    // entrance is active subtree volatility bypasses the texture; once it
+    // settles the expensive filter result becomes one cached blit.
+    Element popLine =
+        box().width(pct(100))
+            .padding(0, 32)
+            .margin(0, -6, 0, -32)
+            .cache(Cache::Texture)
+            .child(text(toU8("STAGGERED \xc2\xb7 POPPED \xc2\xb7 WAVED"),
+                        kc::type(26, kc::kAccent, 4))
+                       .key("popline")
+                       .width(pct(100))
+                       .textAlign(sigil::weave::TextAlignment::kCenter)
+                       .glyphFx(std::move(popFx))
+                       .effect(glow));
+
     return stack()
         .fill(ground)
         .child(
@@ -203,14 +221,7 @@ struct KineticCardScene final : Scene {
                                       .opacity(withFrom(
                                           0.0f, 1.0f,
                                           {500ms, &ch::easeOutQuad, 1500ms}))))
-                .child(text(toU8("STAGGERED \xc2\xb7 POPPED \xc2\xb7 WAVED"),
-                            kc::type(26, kc::kAccent, 4))
-                           .key("popline")
-                           .width(pct(100))
-                           .textAlign(sigil::weave::TextAlignment::kCenter)
-                           .glyphFx(std::move(popFx))
-                           .effect(glow)
-                           .margin(0, 26, 0, 0))
+                .child(std::move(popLine))
                 .child(text(toU8("floating on a 1.6 s sine \xe2\x80\x94 "
                                  "amplitude 0.10 em \xc2\xb7 phase 0.5 rad "
                                  "per glyph"),

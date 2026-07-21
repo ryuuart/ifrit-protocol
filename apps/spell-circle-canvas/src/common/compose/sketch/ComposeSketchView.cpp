@@ -4,6 +4,7 @@
 #include <include/core/SkSurface.h>
 
 #include <QtGui/QPainter>
+#include <QtCore/QMutexLocker>
 #include <QtQuick/QQuickWindow>
 
 #include <algorithm>
@@ -19,6 +20,7 @@ ComposeSketchView::ComposeSketchView(QQuickItem *parent)
     : QQuickPaintedItem(parent) {
   m_timer.setInterval(16);
   QObject::connect(&m_timer, &QTimer::timeout, this, [this] {
+    QMutexLocker lock(&m_hostMutex);
     if (!host)
       return;
     host->poll();
@@ -48,6 +50,7 @@ ComposeSketchView::ComposeSketchView(QQuickItem *parent)
 }
 
 QString ComposeSketchView::capture() {
+  QMutexLocker lock(&m_hostMutex);
   if (!host || !host->live())
     return {};
   namespace fs = std::filesystem;
@@ -67,6 +70,7 @@ QString ComposeSketchView::capture() {
 }
 
 void ComposeSketchView::paint(QPainter *painter) {
+  QMutexLocker lock(&m_hostMutex);
   if (!host)
     return;
   const qreal dpr =

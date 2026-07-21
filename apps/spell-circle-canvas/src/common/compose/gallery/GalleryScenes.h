@@ -86,6 +86,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 15: return std::make_unique<TileScene>();
   case 16: return std::make_unique<DeriveScene>();
   case 17: return std::make_unique<OrganicScene>();
+  case 18: return std::make_unique<FlourishScene>();
   case 19: return std::make_unique<KineticCardScene>();
   case 20: return std::make_unique<NightNetworkScene>();
   case 21: return std::make_unique<PersonaMenuScene>();
@@ -93,7 +94,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 23: return std::make_unique<Y2kChromeScene>();
   case 24: return std::make_unique<SkillTreeScene>();
   case 25: return std::make_unique<DaemonConsoleScene>();
-  default: return std::make_unique<FlourishScene>();
+  default: return nullptr;
   }
 }
 

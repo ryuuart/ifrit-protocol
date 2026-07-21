@@ -3,6 +3,7 @@
 #include "SketchHost.h"
 
 #include <QtCore/QTimer>
+#include <QtCore/QMutex>
 #include <QtGui/QImage>
 #include <QtQuick/QQuickPaintedItem>
 
@@ -42,6 +43,10 @@ signals:
   void metricsChanged();
 
 private:
+  // QQuickPaintedItem::paint may run on Qt's render thread while the timer
+  // polls/reloads on the GUI thread. Serialize all access until this host is
+  // migrated to the same render-owned RHI architecture as ComposeGallery.
+  QMutex m_hostMutex;
   QTimer m_timer;
   QImage m_frame;
   QString m_status;

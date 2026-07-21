@@ -172,7 +172,8 @@ static void BM_Render_100Rows_Cold(benchmark::State &state) {
   for (auto _ : state) {
     Host host;
     host.composer.render(scoreboard(rows));
-    benchmark::DoNotOptimize(host.composer.stats().instances);
+    size_t instances = host.composer.stats().instances;
+    benchmark::DoNotOptimize(instances);
   }
 }
 BENCHMARK(BM_Render_100Rows_Cold);
@@ -342,69 +343,95 @@ BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 namespace {
 
-SkiaGraphiteContext &graphite() {
+SkiaGraphiteContext *graphite() {
   static std::unique_ptr<SkiaGraphiteContext> ctx =
       SkiaGraphiteContext::createMetal(sigil::compose::bench::gpuDevice(),
                                        sigil::compose::bench::gpuQueue());
-  return *ctx;
+  return ctx.get();
 }
 
-void submitGraphite() {
-  auto recording = graphite().recorder()->snap();
+void submitGraphite(SkiaGraphiteContext &graphiteContext) {
+  auto recording = graphiteContext.recorder()->snap();
   if (!recording)
     return;
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
-  graphite().context()->insertRecording(info);
-  graphite().context()->submit();
+  graphiteContext.context()->insertRecording(info);
+  graphiteContext.context()->submit();
 }
 
 } // namespace
 
 static void BM_Draw_100Rows_Cached_Graphite(benchmark::State &state) {
-  Host host;
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite().recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host;
   host.composer.render(scoreboard(makeRows(100)));
   host.composer.draw(*surface->getCanvas());
-  submitGraphite();
+  submitGraphite(*graphiteContext);
   for (auto _ : state) {
     host.composer.draw(*surface->getCanvas());
-    submitGraphite();
+    submitGraphite(*graphiteContext);
   }
 }
 BENCHMARK(BM_Draw_100Rows_Cached_Graphite);
 
 static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State &state) {
-  Host host(900, 300);
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite().recorder(), SkImageInfo::MakeN32Premul(900, 300));
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(900, 300));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(900, 300);
   host.composer.render(bloomBlock(Cache::Picture));
   host.composer.draw(*surface->getCanvas());
-  submitGraphite();
+  submitGraphite(*graphiteContext);
   for (auto _ : state) {
     host.composer.draw(*surface->getCanvas());
-    submitGraphite();
+    submitGraphite(*graphiteContext);
   }
 }
 BENCHMARK(BM_Draw_Bloom_PictureReplay_Graphite);
 
 static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
-  Host host(900, 300);
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite().recorder(), SkImageInfo::MakeN32Premul(900, 300));
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(900, 300));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(900, 300);
   host.composer.render(bloomBlock(Cache::Texture));
   host.composer.draw(*surface->getCanvas());
-  submitGraphite();
+  submitGraphite(*graphiteContext);
   for (auto _ : state) {
     host.composer.draw(*surface->getCanvas());
-    submitGraphite();
+    submitGraphite(*graphiteContext);
   }
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
 
 #endif // COMPOSE_BENCH_GRAPHITE
-
 
 // ---- "UI as particles": the scale answer ----------------------------------
 // Millions of visual items are ONE element, not a million elements: an
@@ -514,34 +541,42 @@ static void BM_Particles_DrawCircleLoop(benchmark::State &state) {
 }
 BENCHMARK(BM_Particles_DrawCircleLoop)->Arg(10000);
 
-
 #ifdef COMPOSE_BENCH_GRAPHITE
 /** The same particle frame against a Graphite Metal target: drawAtlas
  *  becomes an instanced GPU batch; the CPU cost is building RSXforms. */
 static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State &state) {
   const size_t count = (size_t)state.range(0);
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 800));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
-  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite().recorder(), SkImageInfo::MakeN32Premul(800, 800));
-  host.composer.render(box().child(
-      custom([particles](SkCanvas &c, const PaintContext &) {
-        particles->draw(c);
-      }).inset(0).cache(Cache::None)));
+  host.composer.render(
+      box().child(custom([particles](SkCanvas &c, const PaintContext &) {
+                    particles->draw(c);
+                  })
+                      .inset(0)
+                      .cache(Cache::None)));
   host.composer.draw(*surface->getCanvas());
-  submitGraphite();
+  submitGraphite(*graphiteContext);
   for (auto _ : state) {
     particles->step(1.0f / 120.0f);
     host.composer.draw(*surface->getCanvas());
-    submitGraphite();
+    submitGraphite(*graphiteContext);
   }
-  state.counters["perParticleNs"] =
-      benchmark::Counter((double)count,
-                         benchmark::Counter::kIsIterationInvariantRate |
-                             benchmark::Counter::kInvert);
+  state.counters["perParticleNs"] = benchmark::Counter(
+      (double)count, benchmark::Counter::kIsIterationInvariantRate |
+                         benchmark::Counter::kInvert);
 }
-BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)
-    ->Arg(100000)->Arg(1000000);
+BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)->Arg(100000)->Arg(1000000);
 #endif
 
 BENCHMARK_MAIN();
