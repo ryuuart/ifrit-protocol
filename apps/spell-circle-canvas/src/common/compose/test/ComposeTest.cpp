@@ -2183,6 +2183,33 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
                                                  (int)b->bottom())));
 }
 
+TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
+  // Regression probe for the beethoven-sketch report: text inside a
+  // BaselineGrid nested in an absolute column inside a stack() must paint.
+  // (The sketch symptom was black-on-black over an arc band, not a layout
+  // failure — this pins the layout path anyway.)
+  Host host;
+  host.composer.render(
+      stack().child(
+          box().column().absolute().inset(10, 10, 10, 10).child(
+              layout(layouts::BaselineGrid{.rhythm = 24})
+                  .width(pct(100))
+                  .child(text(u8"probe", whiteStyle(28)).key("p")))));
+  host.frame();
+  auto b = host.composer.bounds("p");
+  ASSERT_TRUE(b.has_value());
+  EXPECT_GT(b->width(), 5.0f) << "placed rect " << b->left() << ","
+                              << b->top() << " " << b->width() << "x"
+                              << b->height();
+  EXPECT_GT(b->height(), 5.0f);
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB((int)b->left(),
+                                                 (int)b->top(),
+                                                 (int)b->right(),
+                                                 (int)b->bottom())))
+      << "placed rect " << b->left() << "," << b->top() << " " << b->width()
+      << "x" << b->height();
+}
+
 TEST(ComposeLayouts, ModularGridSpansAndAutoFlow) {
   // 4×4 modules, gutter 8, container 200×200 → module 44×44. Child 0 spans
   // 2×1 from (0,0); child 1 spans 1×3 from (3,0); children 2..3 auto-flow.

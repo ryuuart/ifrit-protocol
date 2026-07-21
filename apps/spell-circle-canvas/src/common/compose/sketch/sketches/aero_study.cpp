@@ -1,0 +1,457 @@
+// aero_study.cpp — a STUDY of Windows 7 Aero glass (DWM).
+// REFERENCES.md §6 — the recovered colorization formula
+//   out.rgb = tint·colorBalance + tint·luma(blur)·afterglowBalance
+//             + blur·blurBalance
+// approximated as Element::backdrop(blur σ=3, the registry's tight
+// blurdeviation 30) + a Material::blend tint stack in the Win7 "Sky"
+// accent (#74B8FC α≈42%, balances 8/43/49). Frame anatomy per §6:
+// 1px black α.65 silhouette, 1px white α.55 glass edge inside it,
+// client hole ringed 1px black α.35 then 1px white α.45, top corners
+// r≈6, radial white corner glows (α.35→0 over ~30px), one diagonal
+// desktop-space sheen (peak α≈.2). Caption text = black over the
+// DrawThemeTextEx white haze (blur σ≈5, α.9). Close-button hover
+// bloom radial rgba(255,196,180,.95)→(230,110,90,.9)@35%→
+// (190,25,20,.85)@70%→0. Start orb: radial base #163A5F→#0B2340@70%
+// →#04101E, rim strokes, top lens.
+//
+// Headless: ComposeSketch <this> --frame aero.png --at 1.0
+
+#include <sigilsketch/Sketch.h>
+
+#include <sigilcompose/Material.h>
+
+#include <include/core/SkString.h>
+#include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
+
+#include <cmath>
+
+using namespace sigil::compose;
+using namespace sigil::compose::util;
+namespace ch = choreograph;
+
+namespace {
+
+constexpr float W = 960, H = 600;
+
+// Window geometry (desktop space).
+constexpr float WX = 170, WY = 80, WW = 620, WH = 420;
+constexpr float kCaption = 30; // caption band height
+// Client hole (window-local): glass border 9px, caption above.
+constexpr float kCL = 9, kCT = kCaption + 1, kCR = 9, kCB = 9;
+
+// Win7 "Sky" accent (registry): #74B8FC.
+constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
+constexpr SkColor4f kWhite{1, 1, 1, 1};
+
+sigil::weave::TextStyle type(float size, SkColor4f color,
+                             float tracking = 0) {
+  sigil::weave::TextStyle s;
+  s.shaping.fontSize = size;
+  s.shaping.letterSpacing = tracking;
+  s.paint.foreground.setColor(color.toSkColor());
+  s.paint.foreground.setAntiAlias(true);
+  return s;
+}
+
+// The aurora wallpaper: deep vertical ground, flowing diagonal light
+// bands, fine filaments + speckle stars (high-frequency detail so the
+// tight σ=3 glass blur actually READS through the frame).
+sk_sp<SkRuntimeEffect> auroraEffect() {
+  static const char *kSkSL = R"(
+    uniform float uTime;
+    uniform float2 uResolution;
+    half4 main(float2 p) {
+      float2 uv = p / uResolution;
+      // deep ground: navy into teal night
+      float3 col = mix(float3(0.008, 0.030, 0.085),
+                       float3(0.015, 0.100, 0.155), uv.y);
+      // diagonal band coordinate (~35 deg), slow drift
+      float d = uv.x * 0.75 - uv.y * 0.66;
+      float t = uTime * 0.11;
+      float b1 = exp(-pow((d - 0.10 + 0.05 * sin(t)) * 5.5, 2.0));
+      float b2 = exp(-pow((d + 0.28 + 0.04 * cos(t * 0.7)) * 4.5, 2.0));
+      float b3 = exp(-pow((d - 0.52) * 8.0, 2.0));
+      col += float3(0.10, 0.52, 0.62) * b1 * 0.60;
+      col += float3(0.16, 0.30, 0.70) * b2 * 0.38;
+      col += float3(0.22, 0.72, 0.50) * b3 * 0.34;
+      // fine filaments riding the bands
+      float f = 0.5 + 0.5 * sin(d * 210.0 + uTime * 0.5);
+      col += float3(0.45, 0.95, 0.95) * pow(f, 22.0) * (b1 * 0.5 + b3) * 0.45;
+      float f2 = 0.5 + 0.5 * sin(d * 90.0 - uTime * 0.3 + 1.7);
+      col += float3(0.30, 0.60, 0.95) * pow(f2, 30.0) * b2 * 0.5;
+      // speckle stars
+      float2 cell = floor(p / 5.0);
+      float h = fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
+      float star = step(0.9955, h);
+      col += float3(0.85, 0.92, 1.0) * star *
+             (0.25 + 0.55 * fract(h * 91.7)) * (1.0 - uv.y * 0.5);
+      col = clamp(col, 0.0, 1.0);
+      return half4(half3(col), 1.0);
+    }
+  )";
+  static auto effect = [] {
+    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
+    if (!fx)
+      SkDebugf("aurora shader: %s\n", err.c_str());
+    return fx;
+  }();
+  return effect;
+}
+
+// The DWM colorization approximated as ONE flattened shader stack over
+// the blurred backdrop: Sky tint (colorBalance+afterglow read), a top
+// glass sheen, and the diagonal desktop reflection (screen, peak α≈.2).
+Material glassTint(float w, float h) {
+  return Material::blend({
+      // tint·colorBalance — the flat Sky wash
+      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.44f}),
+       SkBlendMode::kSrcOver},
+      // afterglow stand-in: brighter accent breathing down from the top
+      {Material::linear({0, 0}, {0, h},
+                        {{0.00f, {0.62f, 0.82f, 1.00f, 0.38f}},
+                         {0.10f, {0.55f, 0.78f, 1.00f, 0.18f}},
+                         {0.30f, {0.45f, 0.72f, 0.99f, 0.05f}},
+                         {1.00f, {0.45f, 0.72f, 0.99f, 0.12f}}}),
+       SkBlendMode::kSrcOver},
+      // the desktop-space diagonal sheen (~30°, peak α≈.2)
+      {Material::linear({0, h * 0.85f}, {w, h * 0.15f},
+                        {{0.00f, {1, 1, 1, 0.00f}},
+                         {0.42f, {1, 1, 1, 0.00f}},
+                         {0.52f, {1, 1, 1, 0.20f}},
+                         {0.62f, {1, 1, 1, 0.00f}},
+                         {1.00f, {1, 1, 1, 0.00f}}}),
+       SkBlendMode::kScreen},
+  });
+}
+
+// Radial white corner glow, α.35→0 over ~30px, centered on a top corner.
+Material cornerGlow(SkPoint center) {
+  return Material::radial(center, 34,
+                          {{0.0f, {1, 1, 1, 0.35f}},
+                           {1.0f, {1, 1, 1, 0.0f}}});
+}
+
+// §6 close-button hover bloom.
+Material closeBloom(float w, float h) {
+  return Material::radial(
+      {w * 0.5f, h * 0.55f}, w * 0.62f,
+      {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
+       {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
+       {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
+       {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
+}
+
+// Caption-button glass base (idle): faint vertical white gradient.
+Material buttonBase(float h) {
+  return Material::linear({0, 0}, {0, h},
+                          {{0.00f, {1, 1, 1, 0.28f}},
+                           {0.45f, {1, 1, 1, 0.10f}},
+                           {0.50f, {1, 1, 1, 0.04f}},
+                           {1.00f, {1, 1, 1, 0.12f}}});
+}
+
+} // namespace
+
+struct AeroStudy : sketch::Sketch {
+  ch::Output<float> bloom{0};    // close-button hover bloom fade-in
+  ch::Output<float> orbGlow{0};  // start-orb ambient breathing
+
+  void setup(sketch::SketchContext &ctx) override {
+    ctx.canvas(W, H);
+    ctx.background({0.01f, 0.03f, 0.08f, 1});
+
+    auto &tl = ctx.ticker.timeline();
+    bloom = 0.0f;
+    tl.apply(&bloom)
+        .then<ch::Hold>(0.0f, 0.45f)
+        .then<ch::RampTo>(1.0f, 0.10f, &ch::easeOutQuad); // ~100ms in (§6)
+
+    ctx.ticker.add([this, t = 0.0](double dt) mutable {
+      t += dt;
+      orbGlow = 0.55f + 0.25f * (float)std::sin(t * 1.4);
+      return true;
+    });
+
+    ctx.composer.render(describe());
+  }
+
+  // ---- caption buttons -----------------------------------------------
+  Element buttonGlyphMinimize() {
+    return box().absolute().inset(10, 12, 10, 4)
+        .fill(Fill::color({1, 1, 1, 0.95f}))
+        .corners({0.5f});
+  }
+  Element buttonGlyphMaximize() {
+    return box().absolute().inset(9, 5, 9, 5)
+        .stroke(stroke(1.2f, Fill::color({1, 1, 1, 0.95f})));
+  }
+  Element buttonGlyphClose(float w, float h) {
+    const float cx = w * 0.5f, cy = h * 0.5f;
+    auto bar = [&](float deg) {
+      return box().absolute()
+          .inset(cx - 5.5f, cy - 1.0f, w - cx - 5.5f, h - cy - 1.0f)
+          .fill(Fill::color({1, 1, 1, 0.97f}))
+          .corners({1})
+          .rotate(deg);
+    };
+    return stack().absolute().inset(0)
+        .child(bar(45))
+        .child(bar(-45));
+  }
+
+  Element captionButton(float w, float h, Corners c, Element glyph,
+                        bool hovered) {
+    auto b = box().absolute().corners(c).clip()
+        .fill(buttonBase(h))
+        .stroke(stroke(1, Fill::color({1, 1, 1, 0.40f})));
+    if (hovered)
+      b.child(box().absolute().inset(0).corners(c)
+                  .fill(closeBloom(w, h))
+                  .opacity(&bloom));
+    // faint inner top light
+    b.child(box().absolute().inset(1, 1, 1, h - 2)
+                .fill(Fill::color({1, 1, 1, 0.22f})));
+    b.child(std::move(glyph));
+    return b;
+  }
+
+  Element captionButtons() {
+    const float bh = 19;
+    const float wMin = 29, wMax = 27, wClose = 47;
+    const float gx = WW - 8 - (wMin + wMax + wClose + 2);
+    return box().absolute().inset(gx, 1, 0, 0).row()
+        // group silhouette: 1px dark edge under the three buttons
+        .child(captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize(),
+                             false)
+                   .inset(0, 0, 0, 0).width(wMin).height(bh))
+        .child(box().width(1).height(bh)
+                   .fill(Fill::color({0, 0, 0, 0.35f})).absolute()
+                   .inset(wMin, 0, 0, 0))
+        .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize(), false)
+                   .inset(wMin + 1, 0, 0, 0).width(wMax).height(bh))
+        .child(box().width(1).height(bh)
+                   .fill(Fill::color({0, 0, 0, 0.35f})).absolute()
+                   .inset(wMin + 1 + wMax, 0, 0, 0))
+        .child(captionButton(wClose, bh, {0, 0, 4, 0},
+                             buttonGlyphClose(wClose, bh), true)
+                   .inset(wMin + 1 + wMax + 1, 0, 0, 0)
+                   .width(wClose).height(bh));
+  }
+
+  // ---- caption text with the white haze halo --------------------------
+  Element captionText() {
+    auto halo = [](const char *s) {
+      return text(toU8(s), type(12.5f, {1, 1, 1, 0.90f}))
+          .absolute().inset(0, 0, 0, 0)
+          .effect(Effect::filter(SkImageFilters::Blur(2.6f, 2.6f, nullptr)));
+    };
+    return box().absolute().inset(36, 8, 130, WH - kCaption)
+        .child(halo("Aurora Borealis — Aero Glass"))
+        .child(halo("Aurora Borealis — Aero Glass")) // double for density
+        .child(text(toU8("Aurora Borealis — Aero Glass"),
+                    type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
+                   .absolute().inset(0, 0, 0, 0));
+  }
+
+  // ---- the client area (white, so the glass frame reads) --------------
+  Element clientArea() {
+    auto gray = [](float size, float g, float a = 1.0f) {
+      return type(size, {g, g, g, a});
+    };
+    return box().absolute().inset(kCL, kCT, kCR, kCB)
+        .fill(Fill::color({1, 1, 1, 1}))
+        .clip()
+        // toolbar strip
+        .child(box().absolute().inset(0, 0, 0, WH - kCT - kCB - 34)
+                   .fill(Material::linear(
+                       {0, 0}, {0, 34},
+                       {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
+                        {1.0f, {0.867f, 0.906f, 0.949f, 1}}})))
+        .child(box().absolute().inset(0, 34, 0, WH - kCT - kCB - 35)
+                   .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})))
+        .child(text(toU8("Organize ▾      Share with ▾      Burn"),
+                    gray(12, 0.28f))
+                   .absolute().inset(14, 9, 0, 0))
+        // left navigation pane
+        .child(box().absolute().inset(0, 35, 0, 0).width(150)
+                   .fill(Fill::color({0.965f, 0.973f, 0.984f, 1})))
+        .child(box().absolute().inset(150, 35, 0, 0).width(1)
+                   .fill(Fill::color({0.88f, 0.90f, 0.93f, 1})))
+        .child(text(toU8("★ Favorites"), gray(12, 0.25f))
+                   .absolute().inset(12, 48, 0, 0))
+        .child(text(toU8("Desktop"), gray(12, 0.42f))
+                   .absolute().inset(30, 70, 0, 0))
+        .child(text(toU8("Downloads"), gray(12, 0.42f))
+                   .absolute().inset(30, 90, 0, 0))
+        .child(text(toU8("▣ Libraries"), gray(12, 0.25f))
+                   .absolute().inset(12, 118, 0, 0))
+        .child(text(toU8("Documents"), gray(12, 0.42f))
+                   .absolute().inset(30, 140, 0, 0))
+        .child(text(toU8("Pictures"), gray(12, 0.42f))
+                   .absolute().inset(30, 160, 0, 0))
+        // main pane: a selected row + file rows
+        .child(box().absolute().inset(162, 50, 12, 0).height(22)
+                   .corners({2})
+                   .fill(Material::linear(
+                       {0, 0}, {0, 22},
+                       {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
+                        {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
+                   .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))))
+        .child(text(toU8("aurora_over_tromso.jpg"), gray(12, 0.15f))
+                   .absolute().inset(172, 54, 0, 0))
+        .child(text(toU8("colorization_formula.txt"), gray(12, 0.35f))
+                   .absolute().inset(172, 82, 0, 0))
+        .child(text(toU8("blurdeviation_30.reg"), gray(12, 0.35f))
+                   .absolute().inset(172, 106, 0, 0))
+        .child(text(toU8("sky_74B8FC_balances_8_43_49.theme"),
+                    gray(12, 0.35f))
+                   .absolute().inset(172, 130, 0, 0));
+  }
+
+  // ---- the window ------------------------------------------------------
+  Element window() {
+    auto frame =
+        box().absolute().inset(WX, WY, W - WX - WW, H - WY - WH)
+            .corners({6, 6, 0, 0})
+            .clip()
+            // the DWM pass: blur what's behind (σ=3, tight — §6)…
+            .backdrop(Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))
+            // …then the colorization tint stack over it
+            .fill(glassTint(WW, WH))
+            // 1px white glass edge INSIDE the silhouette
+            .child(box().absolute().inset(1).corners({5, 5, 0, 0})
+                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}))))
+            // top-corner radial glows
+            .child(box().absolute().inset(0, 0, WW - 70, WH - 46)
+                       .fill(cornerGlow({0, 0})))
+            .child(box().absolute().inset(WW - 70, 0, 0, WH - 46)
+                       .fill(cornerGlow({70, 0})))
+            // client hole rings: 1px black α.35 then 1px white α.45
+            .child(box().absolute()
+                       .inset(kCL - 2, kCT - 2, kCR - 2, kCB - 2)
+                       .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}))))
+            .child(box().absolute()
+                       .inset(kCL - 1, kCT - 1, kCR - 1, kCB - 1)
+                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}))))
+            .child(clientArea())
+            // window icon
+            .child(box().absolute().inset(14, 8, WW - 30, WH - 24)
+                       .corners({3})
+                       .fill(Material::linear(
+                           {0, 0}, {0, 16},
+                           {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
+                            {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
+                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))))
+            .child(captionText())
+            .child(captionButtons());
+    // the 1px black α.65 silhouette sits OUTSIDE the clip
+    return stack().absolute().inset(0)
+        .child(box().absolute()
+                   .inset(WX - 1, WY - 1, W - WX - WW - 1, H - WY - WH - 1)
+                   .corners({7, 7, 0, 0})
+                   .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}))))
+        .child(std::move(frame));
+  }
+
+  // ---- Start orb + taskbar ---------------------------------------------
+  Element startOrb() {
+    // 34px sphere, window-local to the taskbar strip.
+    const float d = 34;
+    return box().absolute().inset(14, 3, 0, 0).width(d).height(d)
+        // ambient aqua glow behind the orb (breathing)
+        .child(box().absolute().inset(-8)
+                   .fill(Material::radial({d / 2 + 8, d / 2 + 8}, d / 2 + 8,
+                                          {{0.0f, {0.35f, 0.75f, 1.0f, 0.35f}},
+                                           {1.0f, {0.35f, 0.75f, 1.0f, 0}}}))
+                   .opacity(&orbGlow))
+        .child(
+            box().absolute().inset(0).corners({d / 2}).clip()
+                // §6 radial base
+                .fill(Material::radial(
+                    {d * 0.5f, d * 0.42f}, d * 0.62f,
+                    {{0.00f, {0.086f, 0.227f, 0.373f, 1}},   // #163A5F
+                     {0.70f, {0.043f, 0.137f, 0.251f, 1}},   // #0B2340
+                     {1.00f, {0.016f, 0.063f, 0.118f, 1}}})) // #04101E
+                // rim strokes
+                .stroke(stroke(1.2f, Fill::color({0.55f, 0.78f, 1.0f, 0.55f})))
+                // the four-pane flag, gently rotated
+                .child(box().absolute()
+                           .inset(d / 2 - 8, d / 2 - 7, 0, 0)
+                           .width(16).height(14).rotate(-8.0f)
+                           .child(box().absolute().inset(0, 0, 8.5f, 7.5f)
+                                      .corners({1.5f})
+                                      .fill(Fill::color({0.91f, 0.31f, 0.22f, 1})))
+                           .child(box().absolute().inset(8.5f, 0, 0, 7.5f)
+                                      .corners({1.5f})
+                                      .fill(Fill::color({0.50f, 0.76f, 0.24f, 1})))
+                           .child(box().absolute().inset(0, 7.5f, 8.5f, 0)
+                                      .corners({1.5f})
+                                      .fill(Fill::color({0.22f, 0.63f, 0.87f, 1})))
+                           .child(box().absolute().inset(8.5f, 7.5f, 0, 0)
+                                      .corners({1.5f})
+                                      .fill(Fill::color({0.98f, 0.74f, 0.10f, 1}))))
+                // top lens
+                .child(box().absolute().inset(4, 1.5f, 4, d * 0.52f)
+                           .corners({d * 0.36f, d * 0.36f, d * 0.20f,
+                                     d * 0.20f})
+                           .fill(Material::linear(
+                               {0, 0}, {0, d * 0.46f},
+                               {{0.0f, {1, 1, 1, 0.55f}},
+                                {1.0f, {1, 1, 1, 0.04f}}}))));
+  }
+
+  Element taskbar() {
+    const float th = 40;
+    return box().absolute().inset(0, H - th, 0, 0)
+        .backdrop(Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))
+        .fill(Material::blend({
+            {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
+             SkBlendMode::kSrcOver},
+            {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.16f}),
+             SkBlendMode::kSrcOver},
+            {Material::linear({0, 0}, {0, th},
+                              {{0.00f, {1, 1, 1, 0.22f}},
+                               {0.08f, {1, 1, 1, 0.05f}},
+                               {0.55f, {1, 1, 1, 0.00f}},
+                               {1.00f, {0, 0, 0, 0.18f}}}),
+             SkBlendMode::kSrcOver},
+        }))
+        // 1px light top edge over a dark seam
+        .child(box().absolute().inset(0, 0, 0, th - 1)
+                   .fill(Fill::color({1, 1, 1, 0.30f})))
+        .child(startOrb())
+        // one running-app glass button
+        .child(box().absolute().inset(62, 4, 0, 4).width(54)
+                   .corners({3})
+                   .fill(Material::linear({0, 0}, {0, th - 8},
+                                          {{0.0f, {1, 1, 1, 0.26f}},
+                                           {0.5f, {1, 1, 1, 0.08f}},
+                                           {1.0f, {1, 1, 1, 0.16f}}}))
+                   .stroke(stroke(1, Fill::color({1, 1, 1, 0.35f})))
+                   .child(box().absolute().inset(19, 9, 0, 0)
+                              .width(16).height(13).corners({2})
+                              .fill(Material::linear(
+                                  {0, 0}, {0, 13},
+                                  {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
+                                   {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
+                              .stroke(stroke(1, Fill::color(
+                                  {0.55f, 0.40f, 0.10f, 0.8f})))))
+        // clock
+        .child(text(toU8("4:20 PM"), type(12, {1, 1, 1, 0.92f}))
+                   .absolute().inset(W - 66, 13, 0, 0))
+        .child(text(toU8("7/20/2026"), type(10, {1, 1, 1, 0.65f}))
+                   .absolute().inset(W - 66, 27, 0, 0));
+  }
+
+  Element describe() {
+    return stack()
+        .fill(Material::sksl(auroraEffect())) // uTime keeps it alive
+        .child(window())
+        .child(taskbar());
+  }
+
+  void update(double, sketch::SketchContext &) override {}
+};
+
+SIGIL_SKETCH(AeroStudy)

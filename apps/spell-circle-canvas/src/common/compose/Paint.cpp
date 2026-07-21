@@ -475,6 +475,12 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                          SkSamplingOptions(SkFilterMode::kLinear));
   } else if (!liveOnly && !inst.subtreeVolatile &&
              node.cacheMode != Cache::None &&
+             // A zero-sized node (auto-height layout() containers, spacer
+             // shims) must NOT record: SkPictureRecorder with an EMPTY cull
+             // rect rejects every op, silently swallowing overflowing
+             // children. Painted live instead — its children keep their own
+             // per-node caches, so the cost is one traversal shim.
+             rect.width() >= 0.5f && rect.height() >= 0.5f &&
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
               !node.backgrounds.empty() || !node.foregrounds.empty() ||
