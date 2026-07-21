@@ -345,3 +345,15 @@ SegmentCenter); one-sided offset lines (mapbox line-offset: + = right of
 travel — landed as lines::offsetAlong); line-pattern (sprite tiled along
 the run); line gradients across the width (QGIS lineburst — fill the
 stroke loop with a shader) and along the arc (mapbox line-gradient).
+
+**Schematic water (verified on the official artefacts):** the river is an
+orientation anchor drawn in the map's OWN geometric language at background
+salience — never organic on an octilinear map. TfL Thames (April-2026 PDF,
+measured): octilinear band ≈3.9× route weight, thin bank edges ≈0.3×, fill
+20%-cyan (#C7EAFB) w/ #43C8F4 banks on white, routes drawn OVER;
+d3-tube-map encodes the same rule (river = one more octilinear line,
+1.8× width, #CCECF4, underneath). Paris (IDFM Jan-2026): CURVILINEAR map →
+curvilinear water-lining (~7 alternating #8ED8F8/#C7EAFB strands). Berlin
+BVG: no water at all (the documented counterexample — it's optional).
+Rule: same angle grammar as the routes, 2–4× route weight, pale
+cyan-family tint, no competing detail.

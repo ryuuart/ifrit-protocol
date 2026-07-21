@@ -177,16 +177,24 @@ struct Transit : sketch::Sketch {
                         .midCap = lines::Cap::Arrow,
                         .midSpacing = 96.0f};
 
-    // -- 4. SMOKEWATER: geometry pipeline (meander wave, then hand-drawn
-    //    jitter) under a soft three-layer band + dashed current thread.
+    // -- 4. SMOKEWATER: the VERIFIED schematic-water convention (TfL
+    //    Thames, measured off the official April-2026 map; d3-tube-map
+    //    encodes the same rule): the river speaks the map's OWN octilinear
+    //    language — never organic — as a pale band ≈3.9× the route weight
+    //    with thin bank edges ≈0.3×, routes drawn OVER it. Structure
+    //    verbatim; the cyan family lightness-inverted for the dark ground.
+    //    The bank edges are per-leg ops::Offset legs — one Brush, one
+    //    material: "a river with two banks".
+    const float routeW = 3.0f;
     Brush river;
-    river.op(ops::Wave{.amplitude = 6.0f, .wavelength = 120.0f});
-    river.op(SketchyOpen{.segLength = 14.0f, .deviation = 1.6f, .seed = 11});
-    river.leg(LayeredBrush{{
-        {30.0f, kRiverDeep, 8.0f},
-        {15.0f, kRiverMid, 3.0f},
-        {2.2f, kRiverLite, 0.0f, {16, 12}},
-    }});
+    river.leg(lines::Line{.width = routeW * 3.9f,
+                          .fill = Fill::color({0.13f, 0.27f, 0.40f, 0.9f})});
+    river.leg(lines::Line{.width = routeW * 0.3f,
+                          .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
+              {ops::Offset{.px = routeW * 1.95f}});
+    river.leg(lines::Line{.width = routeW * 0.3f,
+                          .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
+              {ops::Offset{.px = -routeW * 1.95f}});
 
     // -- 5. NIGHT BUS: asymmetric casing from ops::Offset legs. Positive
     //    offset = RIGHT of travel (mapbox line-offset semantics): amber
@@ -237,7 +245,8 @@ struct Transit : sketch::Sketch {
                                {{0.0f, kInkHigh}, {0.5f, kInk}, {1.0f, kInk}}))
         // ---- the waterway, beneath everything ----
         .child(rail({{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
-                    routers::polyline(70))
+                    routers::octilinear(26)) // the Thames rule: the river
+                                             // rides the routes' own grid
                    .absolute().inset(0).stroke(river).zIndex(1))
         // ---- the bus corridor (bridges the river) ----
         .child(rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
@@ -312,7 +321,7 @@ struct Transit : sketch::Sketch {
                          194))
         .child(legendRow("NIGHT BUS", "offset legs: lane + curb", kAmber,
                          216))
-        .child(legendRow("SMOKEWATER", "wave + sketchy pipeline",
+        .child(legendRow("SMOKEWATER", "TfL Thames rule: octilinear band + banks",
                          {0.45f, 0.62f, 0.78f, 1}, 238));
   }
 
