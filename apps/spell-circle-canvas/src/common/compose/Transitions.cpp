@@ -60,12 +60,15 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
     anim = std::make_unique<AnimatedFloat>();
   anim->value = current; // seed the retarget start point
   anim->started = true;
-  impl.ticker.timeline()
-      .apply(&anim->value)
-      .then<choreograph::RampTo>(
-          next.target,
-          std::chrono::duration<float>(next.transition->duration).count(),
-          next.transition->ease);
+  auto motion = impl.ticker.timeline().apply(&anim->value);
+  const float delay =
+      std::chrono::duration<float>(next.transition->delay).count();
+  if (delay > 0)
+    motion.then<choreograph::Hold>(current, delay); // the stagger primitive
+  motion.then<choreograph::RampTo>(
+      next.target,
+      std::chrono::duration<float>(next.transition->duration).count(),
+      next.transition->ease);
   return true;
 }
 
@@ -89,11 +92,13 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       anim = std::make_unique<AnimatedFloat>();
     anim->value = *tr->from;
     anim->started = true;
-    ticker.timeline()
-        .apply(&anim->value)
-        .then<choreograph::RampTo>(
-            tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
-            tr->spec.ease);
+    auto motion = ticker.timeline().apply(&anim->value);
+    const float delay = std::chrono::duration<float>(tr->spec.delay).count();
+    if (delay > 0) // stagger: hold the `from` before entering
+      motion.then<choreograph::Hold>(*tr->from, delay);
+    motion.then<choreograph::RampTo>(
+        tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
+        tr->spec.ease);
   };
   entrance(Instance::kOpacity, node.paint.opacity);
   entrance(Instance::kTx, node.paint.translateX);
@@ -123,11 +128,13 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
         anim = std::make_unique<AnimatedFloat>();
       anim->value = 0.0f;
       anim->started = true;
-      ticker.timeline()
-          .apply(&anim->value)
-          .then<choreograph::RampTo>(
-              1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
-              tr->spec.ease);
+      auto motion = ticker.timeline().apply(&anim->value);
+      const float delay = std::chrono::duration<float>(tr->spec.delay).count();
+      if (delay > 0)
+        motion.then<choreograph::Hold>(0.0f, delay);
+      motion.then<choreograph::RampTo>(
+          1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
+          tr->spec.ease);
     }
   }
 }
@@ -204,13 +211,15 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
         anim = std::make_unique<AnimatedFloat>();
       anim->value = 0.0f;
       anim->started = true;
-      ticker.timeline()
-          .apply(&anim->value)
-          .then<choreograph::RampTo>(
-              1.0f,
-              std::chrono::duration<float>(nextFill.transition->duration)
-                  .count(),
-              nextFill.transition->ease);
+      auto motion = ticker.timeline().apply(&anim->value);
+      const float delay =
+          std::chrono::duration<float>(nextFill.transition->delay).count();
+      if (delay > 0)
+        motion.then<choreograph::Hold>(0.0f, delay);
+      motion.then<choreograph::RampTo>(
+          1.0f,
+          std::chrono::duration<float>(nextFill.transition->duration).count(),
+          nextFill.transition->ease);
     }
   }
 }

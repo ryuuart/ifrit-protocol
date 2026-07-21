@@ -74,6 +74,12 @@ struct Shadow {
   const choreograph::Output<float> *bindOffsetY = nullptr;
   float maxBind = 0.0f;
 
+  /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
+   *  shadow, so nothing paints under the node — translucent glass over a
+   *  knocked-out shadow stays clear instead of sampling its own murk (the
+   *  aero-study backdrop finding). */
+  bool knockout = false;
+
   bool operator==(const Shadow &) const = default;
   bool animated() const { return bindOffsetX || bindOffsetY; }
   /** Paint reach beyond the node's bounds (recording cull grows by this) —
@@ -91,6 +97,8 @@ struct Shadow {
     if (blur > 0)
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
     canvas.save();
+    if (knockout)
+      canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
     canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x(),
                      bindOffsetY ? bindOffsetY->value() : offset.y());
     canvas.drawPath(ctx.outline, p);

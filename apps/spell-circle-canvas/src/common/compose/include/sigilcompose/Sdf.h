@@ -195,7 +195,10 @@ inline const sk_sp<SkRuntimeEffect> &effectFor(Kind kind) {
 /** The pad the style reserves inside the node's box (border half-width +
  *  glow/shadow reach). PUBLIC so callers can size a node by its VISIBLE
  *  silhouette: box dimension = visible diameter + 2·sdf::pad(style)
- *  (the poe-study ask — never hand-copy the formula). */
+ *  (the poe-study ask — never hand-copy the formula). Note: pad affects
+ *  LAYOUT RESERVE only, never the rendered glow's falloff — the visible
+ *  spread is governed by exp(-d/glowRadius); a bigger pad just guarantees
+ *  the box never crops it. */
 inline float pad(const Style &style) {
   const float glowPad = style.glowRadius > 0 ? style.glowRadius * 3.2f : 0.0f;
   const float shadowPad =

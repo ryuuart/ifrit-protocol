@@ -110,6 +110,11 @@ Element &Element::bottom(Dim d) {
   m_node->layout.insets.bottom = d;
   return *this;
 }
+Element &Element::centerAt(SkPoint p) {
+  m_node->layout.absolute = true;
+  m_node->layout.centerAt = p;
+  return *this;
+}
 
 // ---- shape ----------------------------------------------------------------
 
@@ -230,6 +235,13 @@ Element &Element::skewY(PropValue<float> v) {
 Element &Element::transformOrigin(float fx, float fy) {
   m_node->paint.originX = fx;
   m_node->paint.originY = fy;
+  m_node->paint.originPx = false;
+  return *this;
+}
+Element &Element::transformOriginPx(SkPoint p) {
+  m_node->paint.originX = p.x();
+  m_node->paint.originY = p.y();
+  m_node->paint.originPx = true;
   return *this;
 }
 Element &Element::zIndex(int z) { m_node->paint.zIndex = z; return *this; }

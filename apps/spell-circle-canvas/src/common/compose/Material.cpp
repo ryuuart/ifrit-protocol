@@ -460,6 +460,11 @@ Fill Material::resolve(const PaintContext &ctx) const {
   return toFill();
 }
 
+Element &Element::textFill(Material m) {
+  m_node->textMetricFill = std::move(m);
+  return *this;
+}
+
 Element &Element::fill(Material m) {
   if (m.isLive() || m.geometryDependent()) {
     // Live materials re-resolve per frame; geometry-dependent ones resolve

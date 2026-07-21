@@ -80,6 +80,10 @@ void Composer::Impl::ensureLayout() {
   // Custom layout() containers: a bounded second pass — children were
   // measured by pass one; scheme.place() pins them, pass two resolves.
   bool repass = hasCustomLayout && applyCustomLayouts(*root);
+  // centerAt() pins: measured sizes are known now — place each pinned
+  // node's center ON its point (the same bounded-second-pass pattern).
+  if (hasCenterPins)
+    repass |= applyCenterPins(*root);
   // Derive phase: geometry-consuming content (exclusions, connectors).
   if (hasDerived)
     repass |= resolveDerived(*root);
@@ -113,6 +117,37 @@ void Composer::Impl::syncLayoutRects(Instance &inst) {
     syncLayoutRects(*child);
 }
 
+/** centerAt(): set the pinned node's left/top so its MEASURED box centers
+ *  on the point. Runs post-measure; idempotent (only dirties when the
+ *  target position actually changed), so the bounded repass converges. */
+bool Composer::Impl::applyCenterPins(Instance &inst) {
+  bool applied = false;
+  if (inst.desc->layout.centerAt) {
+    const SkPoint p = *inst.desc->layout.centerAt;
+    // Correct by the observed layout delta rather than writing the target
+    // into the style directly — converges whatever reference box Yoga
+    // resolves absolute positions against (padding, borders).
+    const float dl = (p.x() - YGNodeLayoutGetWidth(inst.yoga) / 2) -
+                     YGNodeLayoutGetLeft(inst.yoga);
+    const float dt = (p.y() - YGNodeLayoutGetHeight(inst.yoga) / 2) -
+                     YGNodeLayoutGetTop(inst.yoga);
+    if (std::abs(dl) > 0.25f || std::abs(dt) > 0.25f) {
+      auto styleBase = [&](YGEdge edge) {
+        const YGValue v = YGNodeStyleGetPosition(inst.yoga, edge);
+        return v.unit == YGUnitPoint ? v.value : 0.0f;
+      };
+      YGNodeStyleSetPositionType(inst.yoga, YGPositionTypeAbsolute);
+      YGNodeStyleSetPosition(inst.yoga, YGEdgeLeft,
+                             styleBase(YGEdgeLeft) + dl);
+      YGNodeStyleSetPosition(inst.yoga, YGEdgeTop, styleBase(YGEdgeTop) + dt);
+      applied = true;
+    }
+  }
+  for (const auto &child : inst.children)
+    applied |= applyCenterPins(*child);
+  return applied;
+}
+
 bool Composer::Impl::applyCustomLayouts(Instance &inst) {
   bool applied = false;
   if (inst.desc->placeFn && !inst.children.empty()) {
@@ -140,6 +175,29 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
       YGNodeStyleSetPosition(child, YGEdgeTop, rects[i].top());
       YGNodeStyleSetWidth(child, rects[i].width());
       YGNodeStyleSetHeight(child, rects[i].height());
+    }
+    // Auto-size an ABSOLUTE container from the placed extent, per axis,
+    // when the author left that axis open (no explicit dim, no
+    // opposing-inset pair). The hand-guessed `.width(340).height(360)` on
+    // a pinned Diagonal battery becomes unnecessary; flex-embedded
+    // layout() containers keep sizing by flex/stretch rules untouched.
+    const LayoutProps &l = inst.desc->layout;
+    if (l.absolute) {
+      SkRect extent = SkRect::MakeEmpty();
+      for (size_t i = 0; i < count; ++i)
+        extent.join(rects[i]);
+      const bool widthPinned = l.hasInsets &&
+                               l.insets.left.unit != Dim::Unit::Auto &&
+                               l.insets.right.unit != Dim::Unit::Auto;
+      const bool heightPinned = l.hasInsets &&
+                                l.insets.top.unit != Dim::Unit::Auto &&
+                                l.insets.bottom.unit != Dim::Unit::Auto;
+      if (l.width.unit == Dim::Unit::Auto && !widthPinned &&
+          extent.right() > 0)
+        YGNodeStyleSetWidth(inst.yoga, extent.right());
+      if (l.height.unit == Dim::Unit::Auto && !heightPinned &&
+          extent.bottom() > 0)
+        YGNodeStyleSetHeight(inst.yoga, extent.bottom());
     }
     applied = true;
   }

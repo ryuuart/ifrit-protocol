@@ -66,7 +66,8 @@ bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
 }
 
 bool transitionEqual(const Transition &a, const Transition &b) {
-  return a.duration == b.duration && easeEqual(a.ease, b.ease);
+  return a.duration == b.duration && a.delay == b.delay &&
+         easeEqual(a.ease, b.ease);
 }
 
 template <typename T>
@@ -161,13 +162,23 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     if (!(*a.liveMaterial == *b.liveMaterial))
       return false;
   }
+  // textFill(): same rules as the material slot — live never prunes,
+  // static compares by recipe.
+  if (a.textMetricFill.has_value() != b.textMetricFill.has_value())
+    return false;
+  if (a.textMetricFill) {
+    if (a.textMetricFill->isLive() || b.textMetricFill->isLive())
+      return false;
+    if (!(*a.textMetricFill == *b.textMetricFill))
+      return false;
+  }
   if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||
       !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
       !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
       pa.originX != pb.originX || pa.originY != pb.originY ||
-      pa.zIndex != pb.zIndex)
+      pa.originPx != pb.originPx || pa.zIndex != pb.zIndex)
     return false;
   if (!effectEqual(a.layerEffect, b.layerEffect) ||
       !effectEqual(a.backdropEffect, b.backdropEffect))
@@ -265,6 +276,10 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     }
 
     applyLayoutProps(inst);
+    // centerAt lives outside Yoga's style set (resolved in ensureLayout's
+    // second pass), so a moved pin must force the layout pass itself.
+    if (!prev || prev->layout.centerAt != resolved->layout.centerAt)
+      needsLayout = true;
 
     if (resolved->kind == Kind::Text) {
       const bool textChanged =
@@ -312,6 +327,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     hasDerived = true;
   if (resolved->placeFn)
     hasCustomLayout = true;
+  if (resolved->layout.centerAt)
+    hasCenterPins = true;
 
   // Slot content is owned by renderSlot(), not the description.
   if (resolved->kind != Kind::Slot)

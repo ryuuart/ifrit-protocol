@@ -2732,3 +2732,249 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   EXPECT_EQ(host.pixel(135, 90), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(65, 90), SK_ColorBLACK);
 }
+
+TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
+  // A hard two-stop ramp authored in [0,1]: red above the midline, blue
+  // below. textFill maps it to the CAP BAND, so the switch happens INSIDE
+  // the glyphs — capitals read red on top, blue underneath.
+  Host host(300, 120);
+  host.composer.render(box().padding(20).child(
+      text(u8"HHH", whiteStyle(64))
+          .textFill(Material::linear({0, 0}, {0, 1},
+                                     {{0.0f, {1, 0, 0, 1}},
+                                      {0.499f, {1, 0, 0, 1}},
+                                      {0.501f, {0, 0, 1, 1}},
+                                      {1.0f, {0, 0, 1, 1}}}))));
+  host.frame();
+  // Find the lit band first, then judge its top vs bottom thirds — the
+  // ramp midline lives at the CAP BAND's middle, not the canvas's.
+  int yMin = 120, yMax = 0;
+  for (int y = 0; y < 120; ++y)
+    for (int x = 0; x < 300; x += 2)
+      if (host.pixel(x, y) != SK_ColorBLACK) {
+        yMin = std::min(yMin, y);
+        yMax = std::max(yMax, y);
+      }
+  ASSERT_LT(yMin, yMax);
+  const int third = std::max((yMax - yMin) / 3, 1);
+  int topR = 0, topB = 0, botR = 0, botB = 0;
+  for (int y = yMin; y <= yMax; ++y)
+    for (int x = 0; x < 300; x += 2) {
+      const SkColor c = host.pixel(x, y);
+      if (c == SK_ColorBLACK)
+        continue;
+      const bool reddish = SkColorGetR(c) > SkColorGetB(c) + 64;
+      const bool bluish = SkColorGetB(c) > SkColorGetR(c) + 64;
+      if (y < yMin + third) {
+        topR += reddish;
+        topB += bluish;
+      } else if (y > yMax - third) {
+        botR += reddish;
+        botB += bluish;
+      }
+    }
+  EXPECT_GT(topR, 20);       // upper glyph pixels are red…
+  EXPECT_GT(botB, 20);       // …lower ones blue…
+  EXPECT_LT(topB, topR / 4); // …and barely mixed
+  EXPECT_LT(botR, botB / 4);
+}
+
+// ---------------------------------------------------------------------------
+// Round-2b: fleet feedback landed at the API level — delay staggers,
+// unclipped decorations, knockout shadows, px origins, centerAt, wrapped
+// stroke windows, one-contour wrap.
+
+TEST(ComposeMotion, DelayStaggersTheEntrance) {
+  Host host;
+  auto card = [](float delaySec) {
+    return box().width(60).height(30).fill(red()).opacity(
+        withFrom(0.0f, 1.0f,
+                 {200ms, &choreograph::easeNone,
+                  std::chrono::milliseconds((int)(delaySec * 1000))}));
+  };
+  host.composer.render(
+      box().column().gap(10).child(card(0.0f)).child(card(0.4f)));
+  host.frame(0.3); // first card done, second still holding its `from`
+  EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
+  EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);
+  host.frame(0.5); // 0.8s total: both settled
+  EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
+}
+
+TEST(ComposePaint, ClipSparesDecorations) {
+  // clip() bounds fill/content/children; decorations dress the outline —
+  // an Outer stroke and a shadow survive on a clipped node.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(60, 60, 60, 60)
+          .clip(true)
+          .fill(blue())
+          .stroke(util::stroke(10, green(), PathFormat::Align::Outer))
+          .child(box().width(200).height(10).fill(red()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN); // outer stroke intact
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE); // fill clipped area
+  EXPECT_EQ(host.pixel(150, 65), SK_ColorBLACK); // child clipped at 140
+}
+
+TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
+  Host host;
+  util::Shadow s;
+  s.color = {0, 1, 0, 1};
+  s.offset = {20, 0};
+  s.knockout = true;
+  host.composer.render(box().child(
+      box().absolute().inset(60, 60, 80, 80).background(s)));
+  host.frame();
+  EXPECT_EQ(host.pixel(130, 90), SK_ColorGREEN); // shadow right of the box
+  EXPECT_EQ(host.pixel(100, 90), SK_ColorBLACK); // footprint knocked out
+}
+
+TEST(ComposeTransform, PixelOriginPivotsWhereTold) {
+  // Two hosts: fractional center origin vs px origin at the box's own
+  // top-left corner; rotate 90° and the box lands in different places.
+  Host frac, px;
+  auto tree = [](Element inner) {
+    return box().child(std::move(inner));
+  };
+  frac.composer.render(tree(box()
+                                .absolute()
+                                .inset(80, 80, 80, 80)
+                                .fill(red())
+                                .rotate(90.0f))); // pivots on its center
+  px.composer.render(tree(box()
+                              .absolute()
+                              .inset(80, 80, 80, 80)
+                              .fill(red())
+                              .rotate(90.0f)
+                              .transformOriginPx({0, 0}))); // pivots top-left
+  frac.frame();
+  px.frame();
+  EXPECT_EQ(frac.pixel(100, 100), SK_ColorRED); // unchanged footprint
+  EXPECT_EQ(px.pixel(100, 100), SK_ColorBLACK); // swung away
+  EXPECT_EQ(px.pixel(65, 100), SK_ColorRED);    // now left of the pivot
+}
+
+TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
+  Host host;
+  host.composer.render(box().child(
+      box().centerAt({120, 80}).width(40).height(20).fill(red()).key("s")));
+  host.frame();
+  auto b = host.composer.bounds("s");
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(*b, SkRect::MakeXYWH(100, 70, 40, 20));
+  EXPECT_EQ(host.pixel(120, 80), SK_ColorRED);
+}
+
+TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
+  // The pinned battery no longer needs hand-guessed dims: the container
+  // takes the placed extent.
+  Host host;
+  host.composer.render(box().child(
+      Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
+          .key("battery")
+          .absolute()
+          .left(Dim(30.0f))
+          .top(Dim(20.0f))
+          .child(box().width(80).height(24).fill(red()))
+          .child(box().width(80).height(24).fill(blue()))
+          .child(box().width(80).height(24).fill(green()))));
+  host.frame();
+  auto b = host.composer.bounds("battery");
+  ASSERT_TRUE(b.has_value());
+  // Three rows: height 3*24 + 2*10 = 92; x-drift = tan(20°)*68 ≈ 24.7 +
+  // 80 wide rows → width ≈ 104.7.
+  EXPECT_NEAR(b->height(), 92, 1.0f);
+  EXPECT_NEAR(b->width(), 104.7f, 2.0f);
+}
+
+TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
+  // One node: full static band + a bound marching sliver — no overlay box.
+  Host host;
+  choreograph::Output<float> phase{0.0f};
+  PathFormat band;
+  band.width = 4;
+  band.strokeFill = green();
+  PathFormat sliver;
+  sliver.width = 8;
+  sliver.strokeFill = red();
+  sliver.trimStart = 0.0f;
+  sliver.trimEnd = 0.1f;
+  sliver.trimPhase = &phase;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 50, 50)
+                                       .stroke(band)
+                                       .stroke(sliver)));
+  host.frame();
+  std::vector<SkIPoint> redNow;
+  int greenCount = 0;
+  for (int y = 40; y < 160; y += 2)
+    for (int x = 40; x < 160; x += 2) {
+      if (host.pixel(x, y) == SK_ColorRED)
+        redNow.push_back({x, y});
+      greenCount += host.pixel(x, y) == SK_ColorGREEN;
+    }
+  ASSERT_GT(redNow.size(), 4u); // the sliver painted
+  ASSERT_GT(greenCount, 50);    // the band painted everywhere else
+  phase = 0.5f;                 // march — no render()
+  host.frame();
+  int still = 0;
+  for (const SkIPoint &p : redNow)
+    still += host.pixel(p.x(), p.y()) == SK_ColorRED;
+  EXPECT_LT((float)still, 0.25f * (float)redNow.size());
+}
+
+TEST(ComposeTrim, WrapSeamIsOneContour) {
+  // A seam-crossing wrap window must be ONE contour: two pieces would
+  // double-hit round caps / additive brushes at the joint.
+  Host host;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 50, 50)
+                                       .trim(0.9f, 1.1f, 0.0f, TrimMode::Wrap)
+                                       .foreground(util::stroke(4, green()))));
+  host.frame(); // renders — and the contour count proves the stitch:
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(100, 100));
+  SkPath boxPath = b.detach();
+  SkPathBuilder stitchedBuilder;
+  SkContourMeasureIter iter(boxPath, false);
+  while (sk_sp<SkContourMeasure> c = iter.next()) {
+    const float len = c->length();
+    c->getSegment(0.9f * len, len, &stitchedBuilder, true);
+    c->getSegment(0, 0.1f * len, &stitchedBuilder, false);
+  }
+  SkPath stitched = stitchedBuilder.detach();
+  int contours = 0;
+  SkContourMeasureIter check(stitched, false);
+  while (check.next())
+    ++contours;
+  EXPECT_EQ(contours, 1);
+}
+
+TEST(ComposePatterns, HalftoneRampBandRemaps) {
+  // rampFrom/rampTo confine the swell: with the band pushed to the bottom
+  // half, the top half stays at rMin everywhere.
+  Host host(100, 100);
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(patterns::halftoneRamp(
+          10, 0.8f, 4.0f, {1, 1, 1, 1}, 0.0f, 0.5f, 1.0f))));
+  host.frame();
+  int band20 = 0, band45 = 0;
+  for (int y = 10; y < 20; ++y)
+    for (int x = 0; x < 100; ++x)
+      band20 += host.pixel(x, y) != SK_ColorBLACK;
+  for (int y = 38; y < 48; ++y)
+    for (int x = 0; x < 100; ++x)
+      band45 += host.pixel(x, y) != SK_ColorBLACK;
+  // Both bands sit above the ramp start → same tiny dots, no swell yet.
+  EXPECT_NEAR(band20, band45, band20 / 2 + 12);
+  int bandBottom = 0;
+  for (int y = 88; y < 98; ++y)
+    for (int x = 0; x < 100; ++x)
+      bandBottom += host.pixel(x, y) != SK_ColorBLACK;
+  EXPECT_GT(bandBottom, band20 * 2); // full swell at the bottom
+}

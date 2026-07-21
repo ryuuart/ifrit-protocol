@@ -121,9 +121,14 @@ inline Pattern speckle(float tileSize, int count, float rMin, float rMax,
  *  records, cached between layouts). `angleDeg` rotates the dot grid; the
  *  ramp stays vertical. To DRIFT the field (the menu idle), bind uDriftX /
  *  uDriftY: `.uniform("uDriftX", &phase)` — the material goes live and the
- *  dots slide under the fixed ramp. */
+ *  dots slide under the fixed ramp. Drift wraps seamlessly at a period of
+ *  2·spacing·√2 px along a 45° grid (d·cosθ ≡ 0 mod 2·spacing generally).
+ *  `rampFrom`/`rampTo` remap where the swell runs as fractions of the
+ *  node's height (0.25→0.9 confines it to the lower band). Keep
+ *  rMax ≲ 0.45·spacing or neighboring dots fuse. */
 inline Material halftoneRamp(float spacing, float rMin, float rMax,
-                             SkColor4f color, float angleDeg = 0.0f) {
+                             SkColor4f color, float angleDeg = 0.0f,
+                             float rampFrom = 0.0f, float rampTo = 1.0f) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
@@ -133,9 +138,12 @@ inline Material halftoneRamp(float spacing, float rMin, float rMax,
       uniform float  uAngle;   // radians
       uniform float  uDriftX;  // px — bind for the idle drift
       uniform float  uDriftY;
+      uniform float  uRamp0;   // swell band, fractions of height
+      uniform float  uRamp1;
       uniform float4 uColor;
       half4 main(float2 xy) {
-        float t = clamp(xy.y / max(uResolution.y, 1.0), 0.0, 1.0);
+        float ty = xy.y / max(uResolution.y, 1.0);
+        float t = clamp((ty - uRamp0) / max(uRamp1 - uRamp0, 0.001), 0.0, 1.0);
         float2 p = xy + float2(uDriftX, uDriftY);
         float cs = cos(uAngle); float sn = sin(uAngle);
         p = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
@@ -160,7 +168,9 @@ inline Material halftoneRamp(float spacing, float rMin, float rMax,
                              {"uRMax", rMax},
                              {"uAngle", angleDeg * 0.017453293f},
                              {"uDriftX", 0.0f},
-                             {"uDriftY", 0.0f}})
+                             {"uDriftY", 0.0f},
+                             {"uRamp0", rampFrom},
+                             {"uRamp1", rampTo}})
       .uniform("uColor", color);
 }
 

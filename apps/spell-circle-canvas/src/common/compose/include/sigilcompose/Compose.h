@@ -66,10 +66,15 @@ class Material;
 // ---------------------------------------------------------------------------
 // Animation values
 
-/** How a reconciled property change animates instead of snapping. */
+/** How a reconciled property change animates instead of snapping.
+ *  `delay` holds the CURRENT value (the `from`, for withFrom entrances)
+ *  before the ramp starts — the stagger primitive: describe a battery of
+ *  children whose delays step by 60–90ms and the cascade is data, not
+ *  bookkeeping (the §8 stagger law at the Element level). */
 struct Transition {
   std::chrono::milliseconds duration{250};
   choreograph::EaseFn ease = &choreograph::easeOutQuad;
+  std::chrono::milliseconds delay{0};
 };
 
 template <typename T> struct Transitioned {
@@ -469,6 +474,11 @@ public:
   Element &top(Dim d);
   Element &right(Dim d);
   Element &bottom(Dim d);
+  /** Center this absolute node ON a parent-space point — the dominant
+   *  placement in node-graph scenes (sockets on orbit positions, badges
+   *  on markers). Resolved after measurement, so intrinsic-size nodes
+   *  center correctly; implies absolute(). */
+  Element &centerAt(SkPoint p);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
@@ -484,8 +494,12 @@ public:
    *  TrimMode::Wrap, bind it to a wrapping phase Output and a fixed
    *  window marches around a closed outline forever (marching ants, the
    *  orbiting comet); under Clamp (default) fractions pin to [0,1].
-   *  Clipping and hit-testing keep the UNtrimmed shape — trim is a
-   *  paint-phase reveal, not a layout change. */
+   *  The wrap SEAM (fraction 0) is the outline's own start point — SkPath
+   *  convention (a corner box starts at its top-left; addCircle at
+   *  3 o'clock, clockwise); seam-crossing windows stitch into ONE contour
+   *  so caps and additive brushes never double-hit there. Clipping and
+   *  hit-testing keep the UNtrimmed shape — trim is a paint-phase reveal,
+   *  not a layout change. */
   Element &trim(PropValue<float> start, PropValue<float> end,
                 PropValue<float> offset = 0.0f,
                 TrimMode mode = TrimMode::Clamp);
@@ -497,6 +511,9 @@ public:
    *  generator is an incomparable callable — memo() such a node (or keep it
    *  pointer-stable) to prune it while its size and inputs are unchanged. */
   Element &outline(std::function<SkPath(SkSize)> shape);
+  /** Clip fill, content, and children to the node's shape. Decorations
+   *  are NOT clipped — they dress the outline (outer strokes, shadows,
+   *  glows keep their reach); hit-testing still bounds the subtree. */
   Element &clip(bool on = true);
 
   // ---- paint ----
@@ -508,8 +525,12 @@ public:
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element &fill(SkColor4f color) { return fill(PropValue<Fill>{Fill::color(color)}); }
   /** Decoration layers: backgrounds paint below content/children (in
-   *  declaration order), foregrounds above. fill() is the transitionable
-   *  first background; custom() is a box with one background program. */
+   *  declaration order), foregrounds above; repeated calls APPEND (the
+   *  Photoshop stacked-strokes model — two stroke() calls are two rings).
+   *  fill() is the transitionable first background; custom() is a box
+   *  with one background program. Decorations dress the OUTLINE: clip()
+   *  does not clip them (it bounds fill/content/children only), so outer
+   *  strokes and shadows survive on clipped nodes. */
   Element &background(Decoration d);
   Element &foreground(Decoration d);
   /** fill's peer (the Photoshop/Illustrator mental model): dress the
@@ -571,6 +592,10 @@ public:
     return skewY(PropValue<float>((float)deg));
   }
   Element &transformOrigin(float fx, float fy);
+  /** Pixel-valued transform origin (node-local px) — for pivots that
+   *  aren't a fraction of THIS node's box, e.g. zooming a window that
+   *  lives inside a full-canvas overlay around its own center. */
+  Element &transformOriginPx(SkPoint p);
   Element &zIndex(int z);
 
   // ---- derive phase (inputs are resolved geometry) ----
@@ -598,6 +623,17 @@ public:
    *  node is WIDER than its text (explicit width, grow, stack stretch);
    *  intrinsic-width text has nothing to align within. */
   Element &textAlign(sigil::weave::TextAlignment a);
+
+  /** Text leaves only: paint the GLYPHS with this material, mapped to
+   *  TEXT-METRIC space — the material's unit square lands with x across
+   *  the widest line and y from the first line's CAP TOP (real cap height
+   *  from the face's metrics) to the last line's baseline. The chrome-type
+   *  primitive (REFERENCES.md §2): author the sunset ramp once in [0,1]
+   *  and its horizon crosses the capitals at any font size — no
+   *  hand-positioned gradients. Supersedes the style's foreground paint;
+   *  a live material re-resolves per frame (animated chrome); glyphFx
+   *  wins when both are set (kinetic text draws its own buckets). */
+  Element &textFill(Material m);
 
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);

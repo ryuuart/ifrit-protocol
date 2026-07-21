@@ -157,20 +157,33 @@ struct ModularGrid {
 struct Diagonal {
   float skewDeg = -12.0f;
   float gap = 8.0f;
+  /** Start (default) marches LEFT edges along the shear line; End mirrors
+   *  the battery so RIGHT edges ride it (right-anchored menus) — aligned
+   *  to the container's right when it has a width, else to the run's own
+   *  extent. */
+  enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
   std::vector<SkRect> place(const LayoutInput &in) const {
     const float k = std::tan(skewDeg * SK_FloatPI / 180.0f);
     std::vector<SkRect> rects(in.childSizes.size());
-    float y = 0.0f, minX = 0.0f;
+    float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
       const float x = k * y;
       rects[i] = SkRect::MakeXYWH(x, y, in.childSizes[i].width(),
                                   in.childSizes[i].height());
       minX = std::min(minX, x);
+      maxRight = std::max(maxRight, rects[i].right());
       y += in.childSizes[i].height() + gap;
     }
     for (SkRect &r : rects)
       r.offset(-minX, 0);
+    if (anchor == Anchor::End) {
+      // Mirror horizontally: each row's RIGHT edge rides the shear line.
+      const float extent =
+          in.container.width() > 0 ? in.container.width() : maxRight - minX;
+      for (SkRect &r : rects)
+        r.offsetTo(extent - r.right(), r.top());
+    }
     return rects;
   }
 };

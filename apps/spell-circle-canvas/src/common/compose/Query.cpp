@@ -57,8 +57,8 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
   const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
   const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
   if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
-    const SkPoint origin = {rect.width() * node.paint.originX,
-                            rect.height() * node.paint.originY};
+    const SkPoint origin =
+        resolveOrigin(node.paint, rect.width(), rect.height());
     SkPoint v{local.x() - origin.x(), local.y() - origin.y()};
     // Inverse of paint()'s rotate→scale→skew, applied in reverse order.
     if (skx != 0 || sky != 0) {

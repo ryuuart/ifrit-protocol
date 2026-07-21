@@ -36,6 +36,8 @@ struct LayoutProps {
   bool absolute = false;
   bool hasInsets = false;
   EdgeDims insets;
+  std::optional<SkPoint> centerAt; // absolute: center ON this point
+                                   // (resolved post-measure)
   bool operator==(const LayoutProps &) const = default;
 };
 
@@ -47,6 +49,7 @@ struct PaintProps {
   PropValue<float> rotate = 0.0f, scale = 1.0f;
   PropValue<float> skewX = 0.0f, skewY = 0.0f; // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
+  bool originPx = false; // origin in node-local px instead of fractions
   int zIndex = 0;
 };
 
@@ -100,6 +103,11 @@ struct ElementNode {
   // fill(Material): propsEqual compares this structurally, so a re-described
   // material fill prunes even though each describe minted a fresh shader.
   std::optional<Material> staticMaterial;
+
+  // textFill(): glyph paint in text-metric space (unit square → cap band).
+  // Resolved at paint from the line metrics; live materials re-resolve per
+  // frame; static ones compare by recipe for the prune.
+  std::optional<Material> textMetricFill;
 
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;

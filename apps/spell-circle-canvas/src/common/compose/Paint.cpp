@@ -8,8 +8,10 @@
 #include <sigilimage/ImageAsset.h>
 
 #include <sigilweave/Choreograph.h>
+#include <sigilweave/Shaper.h> // makeFont — textFill's cap-height metrics
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -66,6 +68,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.liveMaterial && node.liveMaterial->isLive())
     ownContent = true; // truly live (bound/uTime) — geometry-dependent
                        // materials resolve at record time and stay cacheable
+  if (node.textMetricFill && node.textMetricFill->isLive())
+    ownContent = true; // animated chrome type paints per frame
   if (node.cacheMode == Cache::None)
     ownContent = true;
   for (const Decoration &d : node.backgrounds)
@@ -219,8 +223,8 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     const float sky = child->resolveFloat(Instance::kSkewY, cn.paint.skewY);
     SkMatrix m = SkMatrix::Translate(crect.left() + tx, crect.top() + ty);
     if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
-      const SkPoint origin = {crect.width() * cn.paint.originX,
-                              crect.height() * cn.paint.originY};
+      const SkPoint origin =
+          resolveOrigin(cn.paint, crect.width(), crect.height());
       m.preTranslate(origin.x(), origin.y());
       if (rot != 0)
         m.preRotate(rot);
@@ -261,13 +265,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     outlinePath = outlineBuilder.detach();
   }
 
-  if (node.clipContent) {
-    // Clip keeps the UNtrimmed shape — trim is a paint reveal, not a bound.
-    if (customShape)
-      canvas.clipPath(outlinePath, true);
-    else
-      canvas.clipRRect(rrect, true);
-  }
+  // (clip() applies AFTER the decorations' outline is settled — see below:
+  // decorations dress the outline and stay unclipped; fill/content/children
+  // clip. The clip keeps the UNtrimmed shape — trim is a paint reveal.)
+  const SkPath clipShape = outlinePath;
 
   // Trim Path: reveal [start, end] of the outline's arc length. Applied
   // before PaintContext is built, so the fill and every outline-following
@@ -290,10 +291,26 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       } else if (span < 1.0f) {
         const float s = s0 - std::floor(s0);
         const float e = e0 - std::floor(e0);
-        if (s < e)
+        if (s < e) {
           fx = SkTrimPathEffect::Make(s, e);
-        else if (s > e)
-          fx = SkTrimPathEffect::Make(e, s, SkTrimPathEffect::Mode::kInverted);
+        } else if (s > e) {
+          // Seam-crossing window: stitch [s,1]+[0,e] into ONE contour per
+          // source contour (segment 2 appended without a moveTo — its
+          // start coincides with segment 1's end at the seam). Two pieces
+          // would double-hit round caps and additive halo brushes there.
+          SkPathBuilder stitched;
+          SkContourMeasureIter iter(outlinePath, false);
+          while (sk_sp<SkContourMeasure> contour = iter.next()) {
+            const float len = contour->length();
+            contour->getSegment(s * len, len, &stitched, true);
+            contour->getSegment(0, e * len, &stitched, false);
+          }
+          SkPath stitchedPath = stitched.detach();
+          if (!stitchedPath.isEmpty()) {
+            outlinePath = std::move(stitchedPath);
+            trimmed = true;
+          }
+        }
         // s == e with 0 < span < 1 is float noise on a full wrap; keep all.
       } // span >= 1: the window covers the whole cycle — no trim.
     } else {
@@ -333,9 +350,21 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                               &fonts};
 
   // Background decorations paint beneath the fill (the CSS box-shadow
-  // ordering): shadow/pattern layers first, then the surface.
+  // ordering): shadow/pattern layers first, then the surface. Decorations
+  // are NEVER clipped — they dress the outline (shadows keep their
+  // reach, outer strokes survive on clipped nodes; the aero-study fix).
   for (const Decoration &decoration : node.backgrounds)
     decoration.paint(canvas, paintCtx);
+
+  // clip() bounds the fill, the content, and the children — not the
+  // decorations (above and below), which trace the outline itself.
+  if (node.clipContent) {
+    canvas.save();
+    if (customShape || routed)
+      canvas.clipPath(clipShape, true);
+    else
+      canvas.clipRRect(rrect, true);
+  }
 
   // Fill (background): a live material resolves per frame from its bound
   // uniforms + the PaintContext; otherwise the stored Fill (binding, lerp, or
@@ -401,10 +430,60 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                sigil::weave::TextAlignment::kStart &&
            inst.measuredForWidth != bounds.width()))
         layoutText(inst, bounds.width());
-      if (node.glyphFx && node.glyphFx->effect)
+      if (node.glyphFx && node.glyphFx->effect) {
         paintKineticText(inst, canvas, *node.glyphFx);
-      else
+      } else if (node.textMetricFill) {
+        // Chrome type: the material's unit square mapped to the text's
+        // metric band — x across the widest line, y from the first line's
+        // cap top (real cap height when the face reports one) to the last
+        // line's baseline.
+        sigil::weave::PaintStyle metric;
+        bool havePaint = false;
+        const Fill f = (node.textMetricFill->isLive() ||
+                        node.textMetricFill->geometryDependent())
+                           ? node.textMetricFill->resolve(paintCtx)
+                           : node.textMetricFill->toFill();
+        if (f.kind == Fill::Kind::Shader && f.shaderValue &&
+            !inst.lines.empty()) {
+          const sigil::weave::ShapedWord *firstFont = nullptr;
+          sigil::weave::forEachPlacedGlyph(
+              inst.textLayout, *inst.paragraph,
+              [&](const sigil::weave::ShapedWord *font, SkGlyphID, float,
+                  SkColor, SkPoint) {
+                if (!firstFont)
+                  firstFont = font;
+              });
+          float capH = 0;
+          if (firstFont && firstFont->typeface) {
+            SkFontMetrics fm;
+            sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
+                .getMetrics(&fm);
+            capH = fm.fCapHeight;
+          }
+          const sigil::weave::LineMetrics &first = inst.lines.front();
+          if (capH <= 0)
+            capH = first.ascent; // face reports none — the ascent band
+          float left = first.left, right = first.right;
+          for (const sigil::weave::LineMetrics &line : inst.lines) {
+            left = std::min(left, line.left);
+            right = std::max(right, line.right);
+          }
+          const float top = first.baseline - capH;
+          const float bottom = inst.lines.back().baseline;
+          SkMatrix map = SkMatrix::Translate(left, top);
+          map.preScale(std::max(right - left, 1.0f),
+                       std::max(bottom - top, 1.0f));
+          metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+          havePaint = true;
+        } else if (f.kind == Fill::Kind::Color) {
+          metric.foreground.setColor4f(f.colorValue, nullptr);
+          havePaint = true;
+        }
+        inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                    havePaint ? &metric : nullptr);
+      } else {
         inst.textLayout.drawBatched(&canvas, *inst.paragraph);
+      }
     }
     break;
   case Kind::Image:
@@ -435,6 +514,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // picture — ancestor re-records don't repaint clean subtrees).
   for (size_t index : inst.paintOrder)
     paint(*inst.children[index], canvas);
+
+  if (node.clipContent)
+    canvas.restore(); // decorations below stay unclipped
 
   for (const Decoration &decoration : node.foregrounds)
     decoration.paint(canvas, paintCtx);
@@ -469,8 +551,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   if (tx != 0 || ty != 0)
     canvas.translate(tx, ty);
   if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
-    const SkPoint origin = {rect.width() * node.paint.originX,
-                            rect.height() * node.paint.originY};
+    const SkPoint origin =
+        resolveOrigin(node.paint, rect.width(), rect.height());
     canvas.translate(origin.x(), origin.y());
     if (rot != 0)
       canvas.rotate(rot);

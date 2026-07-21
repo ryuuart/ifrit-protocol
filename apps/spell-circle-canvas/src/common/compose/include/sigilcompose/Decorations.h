@@ -23,8 +23,10 @@
 #include <sigilimage/ImageAsset.h>
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkClipOp.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
@@ -62,6 +64,15 @@ struct PathFormat {
   /** Escape hatch: any SkPathEffect; overrides dash/stamp when set. */
   sk_sp<SkPathEffect> effect;
 
+  /** Per-DECORATION trim window (fractions of arc length) — one node can
+   *  carry a full static band AND a marching sliver as two strokes. Wraps
+   *  like TrimMode::Wrap (seam-crossing windows stitch into one contour).
+   *  Bind `trimPhase` to a wrapping Output and THIS stroke marches while
+   *  its siblings hold still (declares the decoration animated). */
+  float trimStart = 0.0f, trimEnd = 1.0f;
+  float trimOffset = 0.0f;
+  const choreograph::Output<float> *trimPhase = nullptr; // replaces offset
+
   /** Structural equality so a static stroked/dashed/stamped border prunes
    *  without memo (the custom SkPathEffect compares by pointer identity). */
   bool operator==(const PathFormat &) const = default;
@@ -72,6 +83,8 @@ struct PathFormat {
            : align == Align::Outer ? width
                                    : width * 0.5f;
   }
+  /** A bound trim phase repaints per frame (declared volatility). */
+  bool animated() const { return trimPhase != nullptr; }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     SkPaint p;
@@ -94,16 +107,44 @@ struct PathFormat {
       chosen = SkDashPathEffect::Make(
           SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase);
     p.setPathEffect(std::move(chosen));
+
+    // The decoration's own trim window (wrapping; the marching sliver).
+    const SkPath *drawn = &ctx.outline;
+    SkPath windowed;
+    const float off = trimPhase ? trimPhase->value() : trimOffset;
+    const float s0 = trimStart + off, e0 = trimEnd + off;
+    const float span = e0 - s0;
+    if (span > 0.0f && span < 1.0f) {
+      const float s = s0 - std::floor(s0);
+      const float e = e0 - std::floor(e0);
+      SkPathBuilder window;
+      SkContourMeasureIter iter(ctx.outline, false);
+      while (sk_sp<SkContourMeasure> contour = iter.next()) {
+        const float len = contour->length();
+        if (s < e) {
+          contour->getSegment(s * len, e * len, &window, true);
+        } else if (s > e) { // seam-crossing: ONE stitched contour
+          contour->getSegment(s * len, len, &window, true);
+          contour->getSegment(0, e * len, &window, false);
+        }
+      }
+      windowed = window.detach();
+      if (!windowed.isEmpty())
+        drawn = &windowed;
+    } else if (span <= 0.0f) {
+      return; // empty window — nothing to stroke
+    }
+
     if (aligned) {
       canvas.save();
       canvas.clipPath(ctx.outline, align == Align::Inner
                                        ? SkClipOp::kIntersect
                                        : SkClipOp::kDifference,
                       true);
-      canvas.drawPath(ctx.outline, p);
+      canvas.drawPath(*drawn, p);
       canvas.restore();
     } else {
-      canvas.drawPath(ctx.outline, p);
+      canvas.drawPath(*drawn, p);
     }
   }
 };

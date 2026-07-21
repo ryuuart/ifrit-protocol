@@ -107,6 +107,14 @@ struct Instance {
 
 // ---- cross-TU paint/shape helpers -----------------------------------------
 
+/** The paint-transform pivot: fractional by default, node-local px under
+ *  transformOriginPx(). One definition for paint(), recordBounds(), and
+ *  the hit-test inverse. */
+inline SkPoint resolveOrigin(const PaintProps &p, float w, float h) {
+  return p.originPx ? SkPoint{p.originX, p.originY}
+                    : SkPoint{w * p.originX, h * p.originY};
+}
+
 inline SkRRect cornersRRect(const SkRect &bounds, const Corners &c) {
   const SkVector radii[4] = {{c.topLeft, c.topLeft},
                              {c.topRight, c.topRight},
@@ -143,6 +151,7 @@ struct Composer::Impl {
   bool tickerWasActive = false;
   bool hasDerived = false; // any flowAround/connector in the tree
   bool hasCustomLayout = false;
+  bool hasCenterPins = false; // any centerAt() in the tree
   bool liveOnly = false; // snapshot(): skip per-node caches
   Effect view;           // output view transform (null filter = pass-through)
 
@@ -182,6 +191,7 @@ struct Composer::Impl {
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance &inst);
+  bool applyCenterPins(detail::Instance &inst);
   void ensureLayout();
   void syncLayoutRects(detail::Instance &inst);
   void layoutText(detail::Instance &inst, float constraint);
