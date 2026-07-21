@@ -80,6 +80,10 @@ struct ElementNode {
   // per frame. Supersedes paint.fill when present (a static Material collapses
   // to paint.fill instead). Declares the node volatile (computeVolatile).
   std::optional<Material> liveMaterial;
+  // The comparable recipe behind paint.fill when it was set via
+  // fill(Material): propsEqual compares this structurally, so a re-described
+  // material fill prunes even though each describe minted a fresh shader.
+  std::optional<Material> staticMaterial;
 
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;

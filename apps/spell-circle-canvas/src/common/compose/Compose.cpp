@@ -99,8 +99,10 @@ Element &Element::fill(PropValue<Fill> f) {
   m_node->paint.fill = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
-  // the node from the live-volatile path).
+  // the node from the live-volatile path). staticMaterial must drop too, or
+  // a stale equal-comparing recipe would over-prune this new fill.
   m_node->liveMaterial.reset();
+  m_node->staticMaterial.reset();
   return *this;
 }
 Effect Effect::filter(sk_sp<SkImageFilter> f) {

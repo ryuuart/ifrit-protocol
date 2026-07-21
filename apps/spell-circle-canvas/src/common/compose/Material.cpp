@@ -27,6 +27,45 @@ struct Material::Live {
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
 };
 
+/** The comparable build recipe behind gradient/image/blend materials — the
+ *  structural signature that lets two independently built materials compare
+ *  equal (the §8.1 prune). Solid/raw-shader/sksl compare via Material's own
+ *  state instead. */
+struct Material::Recipe {
+  enum class Kind : uint8_t { Linear, Radial, Sweep, Image, Blend };
+  Kind kind = Kind::Linear;
+  // Gradients: endpoints/center + radius or sweep degrees + ramp.
+  SkPoint p0 = {0, 0}, p1 = {0, 0};
+  float f0 = 0.0f, f1 = 0.0f; // radius / (startDeg, endDeg)
+  std::vector<Stop> stops;
+  SkTileMode tile = SkTileMode::kClamp;
+  // Image: pointer identity + mapping.
+  sk_sp<SkImage> image;
+  SkTileMode tx = SkTileMode::kClamp, ty = SkTileMode::kClamp;
+  SkMatrix local = SkMatrix::I();
+  SkSamplingOptions sampling;
+  // Blend: layer materials (recursive Material equality) + modes.
+  std::vector<std::pair<Material, SkBlendMode>> layers;
+
+  bool operator==(const Recipe &o) const {
+    if (kind != o.kind)
+      return false;
+    switch (kind) {
+    case Kind::Linear:
+    case Kind::Radial:
+    case Kind::Sweep:
+      return p0 == o.p0 && p1 == o.p1 && f0 == o.f0 && f1 == o.f1 &&
+             stops == o.stops && tile == o.tile;
+    case Kind::Image:
+      return image == o.image && tx == o.tx && ty == o.ty &&
+             local == o.local && sampling == o.sampling;
+    case Kind::Blend:
+      return layers == o.layers;
+    }
+    return false;
+  }
+};
+
 namespace {
 
 struct RampArrays {
@@ -118,28 +157,61 @@ Material Material::linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
                           SkTileMode tile) {
   RampArrays r = split(stops);
   const SkPoint pts[2] = {a, b};
-  return shader(SkShaders::LinearGradient(pts, makeGradient(r, tile)));
+  Material m = shader(SkShaders::LinearGradient(pts, makeGradient(r, tile)));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Linear;
+  rec->p0 = a;
+  rec->p1 = b;
+  rec->stops = std::move(stops);
+  rec->tile = tile;
+  m.m_recipe = std::move(rec);
+  return m;
 }
 
 Material Material::radial(SkPoint center, float radius, std::vector<Stop> stops,
                           SkTileMode tile) {
   RampArrays r = split(stops);
-  return shader(
-      SkShaders::RadialGradient(center, radius, makeGradient(r, tile)));
+  Material m =
+      shader(SkShaders::RadialGradient(center, radius, makeGradient(r, tile)));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Radial;
+  rec->p0 = center;
+  rec->f0 = radius;
+  rec->stops = std::move(stops);
+  rec->tile = tile;
+  m.m_recipe = std::move(rec);
+  return m;
 }
 
 Material Material::sweep(SkPoint center, std::vector<Stop> stops, float startDeg,
                          float endDeg) {
   RampArrays r = split(stops);
-  return shader(SkShaders::SweepGradient(center, startDeg, endDeg,
-                                         makeGradient(r, SkTileMode::kClamp)));
+  Material m = shader(SkShaders::SweepGradient(
+      center, startDeg, endDeg, makeGradient(r, SkTileMode::kClamp)));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Sweep;
+  rec->p0 = center;
+  rec->f0 = startDeg;
+  rec->f1 = endDeg;
+  rec->stops = std::move(stops);
+  m.m_recipe = std::move(rec);
+  return m;
 }
 
 Material Material::image(sk_sp<SkImage> image, SkTileMode tx, SkTileMode ty,
                          const SkMatrix &local, SkSamplingOptions sampling) {
   if (!image)
     return {};
-  return shader(SkShaders::Image(std::move(image), tx, ty, sampling, &local));
+  Material m = shader(SkShaders::Image(image, tx, ty, sampling, &local));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Image;
+  rec->image = std::move(image);
+  rec->tx = tx;
+  rec->ty = ty;
+  rec->local = local;
+  rec->sampling = sampling;
+  m.m_recipe = std::move(rec);
+  return m;
 }
 
 Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
@@ -174,7 +246,37 @@ Material Material::blend(std::vector<std::pair<Material, SkBlendMode>> layers) {
       continue;
     acc = SkShaders::Blend(layers[i].second, std::move(acc), std::move(src));
   }
-  return shader(std::move(acc));
+  Material m = shader(std::move(acc));
+  // Keep the layer materials as the comparable recipe (recursive equality) —
+  // a blend containing a live layer compares by that layer's identity, so it
+  // stays conservatively un-pruned, as it must (the snapshot sampled Outputs).
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Blend;
+  rec->layers = std::move(layers);
+  m.m_recipe = std::move(rec);
+  return m;
+}
+
+bool Material::operator==(const Material &o) const {
+  if (m_isSolid != o.m_isSolid)
+    return false;
+  if (m_isSolid)
+    return m_solid == o.m_solid;
+  // sksl-backed: static recipes compare structurally (effect pointer +
+  // constant values); live ones by identity — conservative, they never prune.
+  if ((m_live != nullptr) != (o.m_live != nullptr))
+    return false;
+  if (m_live) {
+    if (isLive() || o.isLive())
+      return m_live == o.m_live;
+    return m_live->effect == o.m_live->effect &&
+           m_live->constants == o.m_live->constants;
+  }
+  if ((m_recipe != nullptr) != (o.m_recipe != nullptr))
+    return false;
+  if (m_recipe)
+    return *m_recipe == *o.m_recipe;
+  return m_shader == o.m_shader; // raw shader wrap / none
 }
 
 // uniform() mutations copy-on-write the recipe: Material is a VALUE — copies
@@ -255,8 +357,10 @@ Element &Element::fill(Material m) {
     // clear any static fill so the painter reads the material.
     m_node->liveMaterial = std::move(m);
     m_node->paint.fill.reset();
+    m_node->staticMaterial.reset();
   } else {
     m_node->paint.fill = PropValue<Fill>{m.toFill()};
+    m_node->staticMaterial = std::move(m); // the prune signature
     m_node->liveMaterial.reset();
   }
   return *this;

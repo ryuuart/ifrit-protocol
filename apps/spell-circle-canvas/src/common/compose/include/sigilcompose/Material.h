@@ -142,17 +142,21 @@ public:
    *  static one, exactly toFill(). What the painter calls for a live fill. */
   Fill resolve(const PaintContext &ctx) const;
 
-  /** Value equality (solid by color, shader by pointer, live recipe by
-   *  identity — matching Fill's own pointer-based operator==; structural-
-   *  signature pruning of gradients/recipes is a later cut). */
-  bool operator==(const Material &o) const {
-    return m_isSolid == o.m_isSolid && m_solid == o.m_solid &&
-           m_shader == o.m_shader && m_live == o.m_live;
-  }
+  /** STRUCTURAL value equality — the prune signature (§8.1 fix #1). Two
+   *  materials compare equal when they were built from the same recipe:
+   *  solids by color; gradients by geometry + stops + tile; images by
+   *  (image pointer, tiles, matrix, sampling); static sksl by (effect
+   *  pointer, constant values); blend stacks recursively by (layer recipes,
+   *  modes). Rebuilding the same describe code therefore yields EQUAL
+   *  materials even though each build minted a fresh SkShader — which is
+   *  what lets a material-filled node prune across re-renders. Raw
+   *  shader() wraps compare by pointer; live (Output-bound) materials
+   *  compare by recipe identity only (they never prune anyway). */
+  bool operator==(const Material &o) const;
 
 private:
-  struct Live; // the sksl recipe (effect + constants + Output bindings); the
-               // shared_ptr is opaque here and constructed in Material.cpp
+  struct Live;   // sksl recipe (effect + constants + Output bindings)
+  struct Recipe; // comparable build recipe (gradients/image/blend)
   static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx);
   void detachLive(); // copy-on-write before any recipe mutation
 
@@ -162,6 +166,9 @@ private:
                                 // sksl a constants-only snapshot (live paint
                                 // ignores it and goes through resolve())
   std::shared_ptr<Live> m_live; // sksl recipe; LIVE iff it has Output bindings
+  std::shared_ptr<const Recipe> m_recipe; // comparable recipe (null for
+                                          // solid/none/raw-shader/sksl —
+                                          // those compare by their own state)
 };
 
 } // namespace sigil::compose

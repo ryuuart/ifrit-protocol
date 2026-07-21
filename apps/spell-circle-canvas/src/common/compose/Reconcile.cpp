@@ -123,8 +123,18 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (pa.fill.has_value() != pb.fill.has_value())
     return false;
-  if (pa.fill && !propEqual(*pa.fill, *pb.fill))
+  // Material-set fills compare by RECIPE (the structural signature): equal
+  // recipes mean interchangeable shaders, even though each describe minted a
+  // fresh one — the §8.1 "materials CAN be compared" payoff. Everything else
+  // falls through to the plain fill compare (color values, shader pointers).
+  if (a.staticMaterial.has_value() != b.staticMaterial.has_value())
     return false;
+  if (a.staticMaterial) {
+    if (!(*a.staticMaterial == *b.staticMaterial))
+      return false;
+  } else if (pa.fill && !propEqual(*pa.fill, *pb.fill)) {
+    return false;
+  }
   // Live materials (bound-uniform sksl) re-resolve every frame — volatile,
   // never prune (conservative, like an incomparable callable).
   if (a.liveMaterial.has_value() != b.liveMaterial.has_value())

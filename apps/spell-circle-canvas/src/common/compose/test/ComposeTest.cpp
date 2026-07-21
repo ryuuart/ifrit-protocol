@@ -611,9 +611,8 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
 TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
   // A gradient Material is static → collapses to Fill::shader → the parent
   // picture-caches like any static subtree: records once, replays on later
-  // draws. (Structural-signature pruning across re-render is a later cut —
-  // rebuilding the ramp yields a new shader pointer, so this only exercises
-  // the draw-side cache, not the reconcile prune.)
+  // draws. (Reconcile-side pruning across re-render is pinned separately by
+  // StaticMaterialPrunesAcrossRerender.)
   Host host;
   host.composer.render(box().child(
       box().width(60).height(60).fill(Material::radial(
@@ -727,6 +726,50 @@ TEST(ComposeMaterial, BlendSnapshotsLiveLayerAtCurrentValue) {
   const uint32_t r = SkColorGetR(host.pixel(20, 20));
   EXPECT_GT(r, 170u); // ~0.8 * 255 = 204, not the SkSL default 0
   EXPECT_LT(r, 240u);
+}
+
+TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
+  // The §8.1 payoff: re-describing the SAME material recipe prunes even
+  // though every describe builds a fresh SkShader — gradients and blend
+  // stacks compare by recipe, not by pointer. Pre-fix this tree re-patched
+  // and re-recorded on every render().
+  Host host;
+  auto tree = [] {
+    return box()
+        .child(box().width(60).height(60).fill(Material::linear(
+            {0, 0}, {60, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))
+        .child(box().width(40).height(40).fill(Material::blend({
+            {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+            {Material::radial({20, 20}, 20,
+                              {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}}),
+             SkBlendMode::kPlus},
+        })));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree()); // brand-new shaders, identical recipes
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
+TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
+  // Over-prune guard: a changed ramp color is a different recipe — the node
+  // patches and repaints.
+  Host host;
+  auto tree = [](SkColor4f c) {
+    return box().child(
+        box().key("g").width(60).height(60).fill(
+            Material::linear({0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}})));
+  };
+  host.composer.render(tree({1, 0, 0, 1}));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+  host.composer.render(tree({0, 1, 0, 1}));
+  EXPECT_TRUE(host.composer.dirty());
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
 }
 
 TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
