@@ -210,6 +210,14 @@ inline float pad(const Style &style) {
   return style.borderWidth * 0.5f + std::max(glowPad, shadowPad) + 1.0f;
 }
 
+/** The box dimension that leaves @p contentPx of VISIBLE interior after
+ *  the style's pad on both sides — size nodes with this instead of
+ *  discovering that a 20px box with a 5px glow has zero interior (the
+ *  transit study's invisible stations). */
+inline float minBoxFor(const Style &style, float contentPx) {
+  return contentPx + 2.0f * pad(style);
+}
+
 /** The SDF material: shape + style, one shader pass. The style's outer
  *  treatments (border half-width, glow falloff, shadow reach) reserve a pad
  *  inside the node's box so nothing clips; bindable uniforms animate within

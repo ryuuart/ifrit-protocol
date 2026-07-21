@@ -218,11 +218,32 @@ inline PathOp sketchy(float segLength = 8.0f, float deviation = 2.0f,
                       uint32_t seed = 7) {
   return [segLength, deviation, seed](const SkPath &p) {
     SkPathBuilder out;
-    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
+    // open contours — the transit study's phantom river channel (the
+    // return chord braided the real run under jitter divergence).
+    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
     if (sk_sp<SkPathEffect> fx =
             SkDiscretePathEffect::Make(segLength, deviation, seed);
         fx && fx->filterPath(&out, p, &rec))
       return out.detach();
+    return p;
+  };
+}
+
+/** Dump the path's contour census (count/lengths/closedness/bounds) to
+ *  stderr and pass it through unchanged — drop into any pipeline position
+ *  when a construction misbehaves. */
+inline PathOp debug(const char *tag = "brush") {
+  std::string t = tag;
+  return [t](const SkPath &p) {
+    const SkRect b = p.getBounds();
+    SkDebugf("[ops::debug %s] bounds (%.1f,%.1f %.1fx%.1f)\n", t.c_str(),
+             b.left(), b.top(), b.width(), b.height());
+    SkContourMeasureIter iter(p, false);
+    int i = 0;
+    while (sk_sp<SkContourMeasure> c = iter.next())
+      SkDebugf("  contour %d: len %.1f %s\n", i++, c->length(),
+               c->isClosed() ? "CLOSED" : "open");
     return p;
   };
 }
@@ -304,7 +325,7 @@ struct Rounded {
   bool operator==(const Rounded &) const = default;
   SkPath apply(const SkPath &p) const { return rounded(radius)(p); }
 };
-struct Sketchy {
+struct Sketchy { // open contours STAY open (hairline rec — see sketchy())
   float segLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
   bool operator==(const Sketchy &) const = default;
@@ -339,15 +360,27 @@ struct Offset {
  *  styled connector prunes and caches as ONE value. animated legs declare
  *  volatility through; bleed aggregates pipeline reach + leg reach. */
 struct Brush {
+  /** One paint leg: a Decoration plus its own pipeline SUFFIX (applied
+   *  after the shared pipeline, this leg only) — the asymmetric-casing
+   *  ask: one Brush reads as one material ("road with lane and curb"),
+   *  each side riding its own ops::Offset. */
+  struct Leg {
+    Decoration dec;
+    std::vector<GeometryOp> ops;
+    bool operator==(const Leg &o) const {
+      return dec == o.dec && ops == o.ops;
+    }
+  };
+
   std::vector<GeometryOp> pipeline;
-  std::vector<Decoration> legs;
+  std::vector<Leg> legs;
 
   Brush &op(GeometryOp g) {
     pipeline.push_back(std::move(g));
     return *this;
   }
-  Brush &leg(Decoration d) {
-    legs.push_back(std::move(d));
+  Brush &leg(Decoration d, std::vector<GeometryOp> legOps = {}) {
+    legs.push_back(Leg{std::move(d), std::move(legOps)});
     return *this;
   }
 
@@ -355,29 +388,38 @@ struct Brush {
     return pipeline == o.pipeline && legs == o.legs;
   }
   bool animated() const {
-    for (const Decoration &d : legs)
-      if (d.animated())
+    for (const Leg &l : legs)
+      if (l.dec.animated())
         return true;
     return false;
   }
   float bleed() const {
-    float ops = 0, leg = 0;
+    float shared = 0;
     for (const GeometryOp &g : pipeline)
-      ops += g.bleed(); // pipeline reaches compound (offset THEN wave)
-    for (const Decoration &d : legs)
-      leg = std::max(leg, d.bleed());
-    return ops + leg;
+      shared += g.bleed(); // pipeline reaches compound (offset THEN wave)
+    float worst = 0;
+    for (const Leg &l : legs) {
+      float legReach = l.dec.bleed();
+      for (const GeometryOp &g : l.ops)
+        legReach += g.bleed();
+      worst = std::max(worst, legReach);
+    }
+    return shared + worst;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     SkPath styled = ctx.outline;
     for (const GeometryOp &g : pipeline)
       styled = g.apply(styled);
-    const PaintContext restyled{ctx.size,        std::move(styled),
-                                ctx.elapsedSeconds, ctx.contentScale,
-                                ctx.animating,   ctx.fonts};
-    for (const Decoration &d : legs)
-      d.paint(c, restyled);
+    for (const Leg &l : legs) {
+      SkPath legPath = styled;
+      for (const GeometryOp &g : l.ops)
+        legPath = g.apply(legPath);
+      const PaintContext restyled{ctx.size,        std::move(legPath),
+                                  ctx.elapsedSeconds, ctx.contentScale,
+                                  ctx.animating,   ctx.fonts};
+      l.dec.paint(c, restyled);
+    }
   }
 };
 

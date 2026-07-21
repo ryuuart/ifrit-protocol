@@ -172,7 +172,9 @@ struct Line {
 
   /** One-sided offset of the whole run (Mapbox line-offset semantics:
    *  positive = right of travel) — bus lanes beside the road, half-side
-   *  hachures. */
+   *  hachures. (Same semantics as ops::Offset in a Brush pipeline — use
+   *  the op when several legs share one offset, this field for a single
+   *  Line.) */
   float offset = 0.0f;
 
   /** Terminal caps per contour (start = the path's first point). The

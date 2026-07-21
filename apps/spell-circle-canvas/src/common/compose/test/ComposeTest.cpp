@@ -3683,3 +3683,35 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
+
+TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
+  // Under a fill StrokeRec, SkDiscretePathEffect force-closes open
+  // contours — the phantom-channel bug. Hairline rec keeps them open.
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(300, 0);
+  const SkPath jittered = ops::Sketchy{8, 2, 11}.apply(b.detach());
+  SkContourMeasureIter iter(jittered, false);
+  float total = 0;
+  bool anyClosed = false;
+  while (sk_sp<SkContourMeasure> c = iter.next()) {
+    total += c->length();
+    anyClosed |= c->isClosed();
+  }
+  EXPECT_FALSE(anyClosed);
+  EXPECT_LT(total, 400.0f); // a closed loop would be ~2× the 300px run
+}
+
+TEST(ComposeBrushEngine, PerLegOpsRideTheSharedPipeline) {
+  // One Brush, two legs offset to opposite sides — the asymmetric casing
+  // as a single material value.
+  Host host;
+  Brush b;
+  b.leg(util::stroke(3, green()), {ops::Offset{-12}})
+      .leg(util::stroke(3, blue()), {ops::Offset{12}});
+  host.composer.render(straightRun(std::move(b)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 88), SK_ColorGREEN);  // left-of-travel rail
+  EXPECT_EQ(host.pixel(100, 112), SK_ColorBLUE);  // right-of-travel rail
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // nothing on the axis
+}
