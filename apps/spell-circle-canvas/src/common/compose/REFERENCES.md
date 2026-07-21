@@ -9,38 +9,88 @@ never an invented aesthetic. When adding an example, cite its section here.
 
 ## 1. Persona 3 Reload — the ATLUS "sexy UI" grammar
 
-**Palette:** abyss navy ground `#061030→#0B2A5E` (vertical); primary blue
-`#1269CC`; cyan highlight `#51EEFC` (selection — cyan chosen so cyan+red
-armband light = white); de-emphasis sea-blue `#6D9AC7`; paper `#FFFFFF`; ink
-`#14161F–#303030`. Red is scarce (danger only). P5R swaps the axis to
-`#E60012`/black/white.
+**Recreation-verified (2026-07-21):** cross-checked against four
+independent P3R pause-menu recreations with source (Ultipuk Godot ★23 —
+frame-by-frame study; deltea Svelte — ships the REAL fonts; LuisArteaga02
+CSS; emanoelqueiroz CSS) plus P5 recreations for the shared grammar.
+File-level citations in the session archive. P3R-specific vs P5-inherited
+is now split — several earlier claims were P5 bleeding into P3R.
 
-**Sticker stack (the hard shadow):** zero-blur only. Bottom→top: (a) solid
-ink duplicate offset +6..+10px; (b) optional cyan/white sliver offset +3
-(misprint edge); (c) 4–8px white outer stroke; (d) fill. One light direction
-per screen (upper-left). Selection animates offset +2px, may recolor cyan.
+**Palette (pause):** ground `#015FCC` blue over dark `#031F64`; unselected
+menu text cycles THREE cyans `#16CFFB / #7DE6FD / #77FEFC`; paper white;
+ink black. Selection accents are PINK `#FD77D9` + RED `#F00` (see below).
+P5R swaps the axis to `#E60012`/black/white. Field-HUD cyan `#51EEFC` +
+blue `#1269CC` stay for gauges.
 
-**Diagonal slash:** P3R skew −8°..−14° (P5R −15°..−25°, papercut edges);
-lists stack along the diagonal, each row x-offset by `rowHeight·tan(skew)`;
-never center — anchor corners, let the diagonal carry the eye.
+**Sticker SCATTER (corrects the uniform-skew claim):** each menu row gets
+its OWN rotation, magnitude decaying down the stack, LAST item flipped
+positive — three independent traces agree: deltea −25,−15,−20,−15,0,−14,
+−8,−5,+8; Ultipuk −24.6,−9.2,−17.9,−17.4,+1.8,−12.6,−7.5,−1.5,+12.5;
+Luis −28,−14,−20,−18,0,−12,−6,−4,+8. Plus per-item x-jitter (0..−80px),
+y-jitter (0..+55px), overlapping stacks (rows overlap ~40% of height),
+shuffled z. The grammar is "scattered stickers converging to straight",
+not one skew. The clean ~11° diagonal DOES exist — as the white side
+panel's edge (x = .210 + .194·y). Menu type: 84px, ×0.82 condensed,
+italic, tracking ≈ −0.14em (real fonts: FOT-Rodin Pro EB/DB/UB, NewRodin
+Pro DB, Skip Std B; free stand-ins: Montserrat XBold Italic).
 
-**Halftone fields:** 45°-rotated dot grid, spacing 8–14px, radius modulated
-0→0.45·spacing by a gradient across the field; drifts along the grid
-diagonal ~8–12px/s forever. Ink-on-blue or cyan-on-navy, 15–35% alpha.
+**Shadows (corrects the sticker-stack claim for P3R pause):** chrome text
+carries SOFT under-glow (0 ±1px 6px black 50%, four directions + 2px
+`#5D6A88` outline ring); the ONLY hard offset is the red misprint echo
+(`3px −6px 0 #F00`). Zero-blur multi-offset sticker stacks are P5
+grammar (P5 recs: 4px 4px 0 / 6px 6px 0).
 
-**Selection = invert + splash:** card floods `#1269CC→#51EEFC`, text snaps
-white w/ cyan stroke; 8–14 teardrop droplets eject 20–60px fading 250ms; a
-white crescent sweeps through a clip ~200ms plus-blend 40%; scale
-1.0→1.12→1.04 overshoot ~150ms. Cursor response <100ms — snap or flow
-(200–400ms ease-out-back), nothing meanders; exits ~0.7× entrance time.
+**Selection (pause menu — corrects "cyan flood"):** text snaps BLACK; a
+white sliver-triangle WEDGE slides behind (width ≈ 0.5·chars+1.5 em,
+rotate ≈ +8°) over a pink `#FD77D9` back-wedge; a RED text echo clipped
+to the wedge (mask). Scale 1→1.5 in 100ms spring/back-out; deselect
+instant; cursor move 60ms. Idle heartbeat: wedge 1→1.05 (100ms) →1
+(50ms) every 600ms. Two-triangle cursor: red under white, offset ~(1,5)px
++2° (misprint), root −16°, additive. (The cyan card-flood belongs to
+LIST SUBMENUS at best — no recreation implements it; treat as
+unverified.)
 
-**Sea-of-soul ground:** render → desaturate → posterize 5–7 levels (banding
-deliberate) → duotone `#0A2038→#2FB9D8` → two summed sine UV displacements
-(A≈1%, 3–5 waves/screen, 2.5–4s period; second at 1.7×f, 0.4×A) + rising
-bubbles + 2–3 god-ray wedges (plus, 4–8%).
+**Entrance choreography:** items fade + DROP from −30px over 0.4s,
+staggered 33ms per item BOTTOM-UP; cursor spawns at +0.4s with a damped
+diagonal overshoot along (1,−1): +40 → −20 (0.2s) → +10 (0.1s) → 0
+(0.1s). Menu-open "swoosh" = hand-drawn 10-frame flipbook at 50ms/frame,
+frames 1–5 masking the FROZEN gameplay frame into the sweep.
 
-**Gauges:** sheared capsules on ink quads; fill 2-stop ramp (HP
-`#51EEFC→#1269CC`); white ghost bar at 40% lags ~300ms; hard 2px ink line.
+**Sea-of-souls backdrop (exact layer order, Ultipuk):** frozen frame →
+5-stop luminance LUT (0/.309/.480/.768/.813 = `#060A2B #0C124C #1B38F0
+#3351FF #FCFEFE`) → sine UV distortion (amp 2%, ~2 waves/screen, ~12.6s
+period) → flat tint mix toward `#007FD2` at 82% → two caustic layers
+(same noise texture offset .5 UV, alpha = step(cut, |p1−p2|-diff): light
+cut .48 α.47 `#96E3F0`; bubbles cut .79 α.255 `#54EDEA`, rising .07–.13
+UV/s) → gaussian σ1.4 at ⅓ res → dark `#00106D` gradient bottom + cyan
+`#00FCF2` α.39 gradient top. CRITICAL TEXTURE: caustics step time at
+6 Hz (floor(t·6)/6) — the water is QUANTIZED, "we imagine the
+interpolation ourselves". Unselected text ripples (amp .004, sin(y·100 +
+t)) + an additive flare scrolling .05 UV/s.
+
+**Submenu transitions:** the blot wipe — a wavy circle (edge = .1·sin(5·
+(angle − progress·.4π)), 5 waves rotating as it grows), outer 0.3s, inner
+copy delayed .15s over .2s showing the scene at ×0.6 UV tinted (r×.25,
+g×.5, b). Back = double-circle mask, inner radius 0.8×.
+
+**Chrome:** giant rotated index numeral of the selection (≈37vh, rotate
+90°, gray `#787878–#808080`, tracking −0.2em); right-anchored tooltip
+title over a "Command ────" rule tracking the title width; button prompts
+= 32px circles `#031F64`/80% w/ 3px white + 3px `#5D6A88` rings; money =
+white card, 2px black border. Clock/date/moon-phase are FIELD-HUD, not
+pause chrome.
+
+**P5-inherited (shared) vs P3R:** shared — ~100ms scale-overshoot
+selection, idle pulse, per-item tilt, wedges, staggered overshoot
+entrances. P5-only — `#E60012` axis, zero-blur sticker stacks, wiggling
+clip-path selection blobs (3-pose polygon morph 0.4s), skewed flood bars
+(skewX −16°, scaleX 0→1 in 0.18s cubic-bezier(.7,0,.3,1)), halftone
+drift (bg-position ~6.6px/s diagonal — NO P3R recreation builds halftone;
+our halftoneRamp backdrop is a P5 borrowing, keep it deliberate).
+
+**Gauges (field HUD, unchanged):** sheared capsules on ink quads; fill
+2-stop ramp (HP `#51EEFC→#1269CC`); white ghost bar at 40% lags ~300ms;
+hard 2px ink line.
 
 ## 2. Y2K web / graphic design (1998–2005)
 
