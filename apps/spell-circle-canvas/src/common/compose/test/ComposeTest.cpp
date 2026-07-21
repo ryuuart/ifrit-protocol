@@ -3420,3 +3420,57 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
   EXPECT_GT(off, 15);
   EXPECT_EQ(offFlat, 0);
 }
+
+// ---------------------------------------------------------------------------
+// Review-workflow findings (self-verified after the fleet hit usage limits).
+
+TEST(ComposeReconcile, RemovedDimsAndInsetsRelease) {
+  // Patch reuses the yoga node: dims/aspect/insets REMOVED from the
+  // description must actually unset, not linger from the last describe.
+  Host host;
+  host.composer.render(box().row().child(
+      box().width(120).height(40).fill(red()).key("b")));
+  host.frame();
+  ASSERT_EQ(host.composer.bounds("b")->width(), 120);
+  host.composer.render(box().row().child(
+      box().height(40).fill(red()).key("b").child(box().width(30))));
+  host.frame();
+  EXPECT_EQ(host.composer.bounds("b")->width(), 30); // released to content
+
+  Host pins;
+  pins.composer.render(box().child(
+      box().inset(10, 10, 10, 10).fill(blue()).key("p")));
+  pins.frame();
+  ASSERT_EQ(pins.composer.bounds("p")->width(), 180);
+  pins.composer.render(box().child(box()
+                                       .left(Dim(20.0f))
+                                       .top(Dim(20.0f))
+                                       .width(50)
+                                       .height(20)
+                                       .fill(blue())
+                                       .key("p")));
+  pins.frame();
+  EXPECT_EQ(*pins.composer.bounds("p"), SkRect::MakeXYWH(20, 20, 50, 20));
+}
+
+TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
+  // Mid-entrance, changing an UNRELATED prop must leave the running
+  // motion alone — before the fix, transitionFloat rebuilt the ramp and
+  // RE-HELD its delay from the current value.
+  Host host;
+  auto tree = [](Fill f) {
+    return box().child(
+        box().width(80).height(80).fill(f).opacity(withFrom(
+            0.0f, 1.0f,
+            {std::chrono::milliseconds(400), &choreograph::easeNone,
+             std::chrono::milliseconds(300)})));
+  };
+  host.composer.render(tree(red()));
+  host.frame(0.35); // 50ms into the ramp (after the 300ms hold)
+  host.composer.render(tree(blue())); // fill changes; opacity prop identical
+  host.frame(0.2);  // t = 0.55 → ramp fraction (0.55-0.3)/0.4 = 0.625
+  const SkColor c = host.pixel(40, 40);
+  // Continuing motion: strong blue. A restarted+re-held ramp would still
+  // sit at the 0.125 it had when the patch landed.
+  EXPECT_GT(SkColorGetB(c), 120u);
+}

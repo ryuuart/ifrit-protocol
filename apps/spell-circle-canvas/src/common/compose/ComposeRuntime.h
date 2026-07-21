@@ -30,6 +30,9 @@ namespace sigil::compose::detail {
 struct AnimatedFloat {
   choreograph::Output<float> value{0.0f};
   bool started = false;
+  // Where the running motion is headed — lets a patch that does not change
+  // this slot's target leave the motion ALONE (no hitch, no re-held delay).
+  float target = 0.0f;
 };
 
 struct Instance {

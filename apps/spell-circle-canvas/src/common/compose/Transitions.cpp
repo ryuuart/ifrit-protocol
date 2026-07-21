@@ -51,6 +51,12 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
   }
 
   auto &anim = inst.anims[slot];
+  // A running motion already headed at this exact target keeps flying —
+  // an unrelated prop patch mid-entrance must not restart it (and must
+  // never re-hold its delay).
+  if (anim && anim->started && anim->value.isConnected() &&
+      anim->target == next.target)
+    return true;
   const float current =
       anim && anim->started ? anim->value.value() : prev.target;
   if (current == next.target)
@@ -60,6 +66,7 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
     anim = std::make_unique<AnimatedFloat>();
   anim->value = current; // seed the retarget start point
   anim->started = true;
+  anim->target = next.target;
   auto motion = impl.ticker.timeline().apply(&anim->value);
   const float delay =
       std::chrono::duration<float>(next.transition->delay).count();
@@ -96,6 +103,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       const float first = tr->waypoints.front().second;
       anim->value = first;
       anim->started = true;
+      anim->target = tr->waypoints.back().second;
       auto motion = ticker.timeline().apply(&anim->value);
       const float lead =
           std::chrono::duration<float>(tr->spec.delay).count() +
@@ -120,6 +128,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       anim = std::make_unique<AnimatedFloat>();
     anim->value = *tr->from;
     anim->started = true;
+    anim->target = tr->value;
     auto motion = ticker.timeline().apply(&anim->value);
     const float delay =
         std::chrono::duration<float>(tr->spec.delay).count() +

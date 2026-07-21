@@ -43,7 +43,12 @@ void applyDim(YGNodeRef node, const Dim &d, void (*setPx)(YGNodeRef, float),
   switch (d.unit) {
   case Dim::Unit::Px: setPx(node, d.value); break;
   case Dim::Unit::Pct: setPct(node, d.value); break;
-  case Dim::Unit::Auto: break;
+  case Dim::Unit::Auto:
+    // Patch reuses the yoga node: a dim REMOVED from the description must
+    // actually release (YGUndefined = unset), or last describe's value
+    // sticks forever — the review-workflow staleness finding.
+    setPx(node, YGUndefined);
+    break;
   }
 }
 
@@ -469,8 +474,7 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
            &YGNodeStyleSetMinHeightPercent);
   applyDim(n, l.maxHeight, &YGNodeStyleSetMaxHeight,
            &YGNodeStyleSetMaxHeightPercent);
-  if (l.aspect > 0)
-    YGNodeStyleSetAspectRatio(n, l.aspect);
+  YGNodeStyleSetAspectRatio(n, l.aspect > 0 ? l.aspect : YGUndefined);
   YGNodeStyleSetFlexGrow(n, l.grow);
   YGNodeStyleSetFlexShrink(n, l.shrink);
   applyDim(n, l.basis, &YGNodeStyleSetFlexBasis, &YGNodeStyleSetFlexBasisPercent);
@@ -515,6 +519,12 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
     applyInset(YGEdgeTop, l.insets.top);
     applyInset(YGEdgeRight, l.insets.right);
     applyInset(YGEdgeBottom, l.insets.bottom);
+  } else {
+    // Insets REMOVED since the last describe must release too.
+    YGNodeStyleSetPosition(n, YGEdgeLeft, YGUndefined);
+    YGNodeStyleSetPosition(n, YGEdgeTop, YGUndefined);
+    YGNodeStyleSetPosition(n, YGEdgeRight, YGUndefined);
+    YGNodeStyleSetPosition(n, YGEdgeBottom, YGUndefined);
   }
 }
 
