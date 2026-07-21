@@ -28,6 +28,11 @@ inline float easeOutCubic(float t) {
   const float u = 1 - t;
   return 1 - u * u * u;
 }
+/** THE modern reveal curve (REFERENCES.md §8): ease-out-expo,
+ *  cubic-bezier(0.16, 1, 0.3, 1) ≡ 1 − 2^(−10t). */
+inline float easeOutExpo(float t) {
+  return t >= 1.0f ? 1.0f : 1.0f - std::pow(2.0f, -10.0f * t);
+}
 inline float easeOutBack(float t, float s = 1.70158f) {
   const float u = t - 1;
   return 1 + (s + 1) * u * u * u + s * u * u;
@@ -35,12 +40,14 @@ inline float easeOutBack(float t, float s = 1.70158f) {
 } // namespace detail
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
- *  rest while fading in (ease-out-cubic). */
+ *  rest while fading in. Ease-out-expo motion; alpha completes over the
+ *  first 35% of local progress (the community composition law: opaque
+ *  while still moving, never overshooting alpha). */
 inline GlyphEffectFn rise(float distancePx = 26) {
   return [distancePx](const GlyphInfo &, float t) {
     GlyphMod m;
-    m.dy = (1 - detail::easeOutCubic(t)) * distancePx;
-    m.alpha = std::min(1.0f, t * 1.7f);
+    m.dy = (1 - detail::easeOutExpo(t)) * distancePx;
+    m.alpha = std::min(1.0f, t / 0.35f);
     return m;
   };
 }
