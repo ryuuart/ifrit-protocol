@@ -12,6 +12,7 @@
 #include "ScenesMotion.h"
 #include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
+#include "ScenesKinetic.h"
 #include "ScenesScale.h"
 
 #include <include/core/SkBitmap.h>
@@ -48,6 +49,7 @@ inline constexpr SceneInfo kScenes[] = {
     {"derive", "Derive", "#7 #12"},
     {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Showcase", "the whole surface, at once"},
+    {"kinetic card", "Showcase", "\xc2\xa7""8 kinetic grammar (study port)"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -72,6 +74,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 15: return std::make_unique<TileScene>();
   case 16: return std::make_unique<DeriveScene>();
   case 17: return std::make_unique<OrganicScene>();
+  case 19: return std::make_unique<KineticCardScene>();
   default: return std::make_unique<FlourishScene>();
   }
 }
