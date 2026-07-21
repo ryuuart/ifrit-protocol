@@ -18,6 +18,7 @@ add_library(SigilCompose STATIC
   ComposeInternal.h
   ComposeRuntime.h
   include/sigilcompose/Compose.h
+  include/sigilcompose/Console.h
   include/sigilcompose/Material.h
   include/sigilcompose/Sdf.h
   include/sigilcompose/Decorations.h

@@ -591,6 +591,7 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
 }
 
 #include <sigilcompose/Material.h>
+#include <sigilcompose/Shapes.h>
 
 TEST(ComposeMaterial, LinearGradientFillPaints) {
   Host host;
@@ -773,6 +774,75 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   // the frozen-snapshot failure mode this test guards).
   EXPECT_LT(r0, 30u);
   EXPECT_GT(host.composer.stats().nodesPainted, 0u); // live, not cached
+}
+
+TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
+  // Audit gap: live material × custom outline() — the resolved shader must
+  // fill the SHAPE (drawPath), not the box, and track the Output.
+  choreograph::Output<float> k{1.0f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute()
+          .outline(shapes::star(4, 0.3f))
+          .fill(Material::sksl(ukEffect()).uniform("uK", &k))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u); // star body
+  EXPECT_LT(SkColorGetR(host.pixel(8, 8)), 30u);    // outside the arms
+  k = 0.2f; // no render()
+  host.frame();
+  const uint32_t dim = SkColorGetR(host.pixel(50, 50));
+  EXPECT_GT(dim, 25u);
+  EXPECT_LT(dim, 90u); // tracked the Output inside the shape
+}
+
+TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
+  // Audit gap: the leaf fast path routes blend onto the fill paint — a
+  // live-material leaf with .blend(kPlus) must composite additively.
+  choreograph::Output<float> k{1.0f}; // red
+  Host host;
+  host.composer.render(
+      stack()
+          .child(box().width(40).height(40).inset(0, 0, 160, 160).absolute()
+                     .fill(Fill::color({0, 1, 0, 1}))) // green under
+          .child(box().width(40).height(40).inset(0, 0, 160, 160).absolute()
+                     .fill(Material::sksl(ukEffect()).uniform("uK", &k))
+                     .blend(SkBlendMode::kPlus)));
+  host.frame();
+  const SkColor c = host.pixel(20, 20); // red + green = yellow
+  EXPECT_GT(SkColorGetR(c), 200u);
+  EXPECT_GT(SkColorGetG(c), 200u);
+  EXPECT_LT(SkColorGetB(c), 60u);
+}
+
+TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
+  // Audit gap: snapshot() (the element-tree-as-a-brush bake) samples live
+  // materials at their CURRENT Output values.
+  choreograph::Output<float> k{1.0f};
+  sk_sp<SkPicture> pic = snapshot(
+      box().width(60).height(60).fill(
+          Material::sksl(ukEffect()).uniform("uK", &k)),
+      fonts());
+  ASSERT_TRUE(pic);
+  Host host;
+  host.surface->getCanvas()->clear(SK_ColorBLACK);
+  host.surface->getCanvas()->drawPicture(pic);
+  EXPECT_GT(SkColorGetR(host.pixel(30, 30)), 200u); // k=1 sampled at bake
+}
+
+TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
+  // Audit gap: a live material mounted through renderSlot() animates like
+  // any other — the slot path wires volatility identically.
+  choreograph::Output<float> k{0.0f};
+  Host host;
+  host.composer.render(box().child(slot("s").width(40).height(40)));
+  host.composer.renderSlot(
+      "s", box().width(40).height(40).fill(
+               Material::sksl(ukEffect()).uniform("uK", &k)));
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 30u); // k=0
+  k = 1.0f; // no render, no renderSlot
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u); // live through the slot
 }
 
 TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
@@ -1170,6 +1240,36 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   const uint32_t lit = SkColorGetR(host.pixel(77, 50));
   EXPECT_LT(dim, 25u);  // exp(-8/0.01) ≈ 0
   EXPECT_GT(lit, 90u);  // exp(-8/12) ≈ 0.51 → ~131
+}
+
+// ---- console(): the streaming log ------------------------------------------
+
+#include <sigilcompose/Console.h>
+
+TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
+  // The seq-id-key law: an append shifts nothing — surviving lines prune
+  // (zero patches) and keep their pictures; only the new tail mounts and the
+  // scrolled-out head unmounts. Index keys would re-patch all ten.
+  console::LineRing ring;
+  for (int i = 0; i < 30; ++i)
+    ring.append(sigil::compose::util::toU8("boot sequence line " +
+                                           std::to_string(i)));
+  console::Style st;
+  st.text = styleAt(12);
+  st.visibleLines = 10;
+  Host host(200, 400);
+  auto describe = [&] {
+    return box().padding(6).child(console::console(ring, st));
+  };
+  host.composer.render(describe());
+  host.frame(); // records the visible window
+  ring.append(sigil::compose::util::toU8("intrusion detected"));
+  host.composer.render(describe());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u); // the new tail only
+  host.frame();
+  // Ancestor chain re-records + the tail's own picture; the nine surviving
+  // lines replay their cached pictures untouched.
+  EXPECT_LE(host.composer.stats().picturesRecorded, 4u);
 }
 
 #ifdef SIGILCOMPOSE_ENABLE_OCIO
