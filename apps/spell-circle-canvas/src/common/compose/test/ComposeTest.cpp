@@ -1298,6 +1298,52 @@ TEST(ComposePattern, ElementTreeAsTile) {
   EXPECT_EQ(host.pixel(25, 5), SK_ColorRED); // the repeat
 }
 
+#include <sigilcompose/Brushes.h>
+
+TEST(ComposePattern, Girih8IsTheRealStarAndCross) {
+  // REFERENCES.md §4: Hankin PIC on 4.8.8 at θ=45 — khatam star at the tile
+  // center (star color), cross ground at the tile edge midpoint's flanks,
+  // strap ribbon on the khatam chord.
+  patterns::GirihPalette pal = patterns::fezPalette();
+  Pattern zellige = patterns::girih8(24, pal);
+  const float s = 24 * (1 + 1.41421356f); // tile spacing ≈ 57.9
+  Host host;
+  host.composer.render(box().child(
+      box().width(120).height(120).inset(0, 0, 80, 80).absolute()
+          .fill(zellige.material())));
+  host.frame();
+  // Tile center = khatam star fill (blue).
+  const SkColor center = host.pixel((int)(s / 2), (int)(s / 2));
+  EXPECT_GT(SkColorGetB(center), 100u);
+  EXPECT_LT(SkColorGetR(center), 80u);
+  // Near the tile corner (inside the corner filler) = ground (teal).
+  const SkColor corner = host.pixel(3, 3);
+  EXPECT_GT(SkColorGetG(corner), 80u);
+  EXPECT_LT(SkColorGetR(corner), 80u);
+  EXPECT_LT(SkColorGetB(corner), SkColorGetG(corner)); // teal, not blue
+}
+
+TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
+  // REFERENCES.md §5: the Ori filament — white-hot core, additive glow
+  // envelope falling off around it — as a value brush on a rail.
+  Host host;
+  host.composer.render(
+      stack()
+          .child(station("a", 10, 90))
+          .child(station("b", 170, 90))
+          .child(rail({{"a"}, {"b"}}).absolute().inset(0)
+                     .stroke(brushes::filament())));
+  host.frame();
+  const SkColor core = host.pixel(100, 100); // on the line (y=100)
+  EXPECT_GT(SkColorGetR(core), 180u);        // near-white core
+  EXPECT_GT(SkColorGetB(core), 220u);
+  const SkColor glow = host.pixel(100, 106); // 6px off the line
+  EXPECT_GT(SkColorGetB(glow), 25u);         // inside the glow envelope
+  EXPECT_LT(SkColorGetB(glow), SkColorGetB(core));
+  const SkColor far = host.pixel(100, 140); // well outside
+  EXPECT_LT(SkColorGetB(far), 12u);
+}
+
 // ---- layer styles: the Photoshop route --------------------------------------
 
 TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {

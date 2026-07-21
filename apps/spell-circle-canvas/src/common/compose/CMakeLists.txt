@@ -17,6 +17,7 @@ add_library(SigilCompose STATIC
   Material.cpp
   ComposeInternal.h
   ComposeRuntime.h
+  include/sigilcompose/Brushes.h
   include/sigilcompose/Compose.h
   include/sigilcompose/Console.h
   include/sigilcompose/LayerStyles.h
