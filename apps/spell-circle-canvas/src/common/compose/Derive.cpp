@@ -5,11 +5,30 @@
 
 #include "ComposeRuntime.h"
 
+#include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathUtils.h>
+
+#include <algorithm>
 
 namespace sigil::compose {
 
 using namespace detail;
+
+namespace {
+
+/** Routed elements hit near their PATH, not their layout box (an inset(0)
+ *  rail must not eclipse the scene): expand the route by a ±6px tolerance
+ *  once at derive time; Query.cpp tests containment against it. */
+SkPath expandForHit(const SkPath &route) {
+  SkPaint p;
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(12.0f);
+  p.setStrokeCap(SkPaint::kRound_Cap);
+  return skpathutils::FillPathWithPaint(route, p);
+}
+
+} // namespace
 
 /** The derive pass: content whose input is resolved geometry. Returns true
  *  when a text exclusion changed (second layout pass needed). */
@@ -63,6 +82,7 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
           b.lineTo(to.centerX(), to.centerY());
           inst.connectorPath = b.detach();
         }
+        inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();
       }
     }
@@ -92,17 +112,29 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
                      target.top() + target.height() * anchor.norm.y() -
                          own.top()});
     }
-    if (resolvedAll && pts.size() >= 2) {
-      // Terminal gaps: pull the rail's ends back along their segments.
+    if (!resolvedAll) {
+      // An anchor vanished (station unmounted) or went cyclic: the rail
+      // goes with it — a stale path pointing at ghosts must not replay.
+      if (!inst.connectorPath.isEmpty()) {
+        inst.connectorPath.reset();
+        inst.routedHitPath.reset();
+        inst.railPoints.clear();
+        inst.markPaintDirtyUp();
+      }
+    } else if (pts.size() >= 2) {
+      // Terminal gaps: pull the rail's ends back along their segments,
+      // clamped so short segments keep a visible run (and a two-point rail
+      // pulled from both ends can't invert).
       auto pullIn = [](SkPoint &end, const SkPoint &next, float gap) {
         if (gap <= 0)
           return;
         SkVector d = next - end;
         const float len = d.length();
-        if (len > gap) {
-          d.scale(gap / len);
-          end += d;
-        }
+        if (len < 1e-3f)
+          return;
+        const float pull = std::min(gap, len * 0.45f);
+        d.scale(pull / len);
+        end += d;
       };
       pullIn(pts.front(), pts[1], node.railAnchors.front().gap);
       pullIn(pts.back(), pts[pts.size() - 2], node.railAnchors.back().gap);
@@ -118,6 +150,7 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
             b.lineTo(inst.railPoints[i]);
           inst.connectorPath = b.detach();
         }
+        inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();
       }
     }

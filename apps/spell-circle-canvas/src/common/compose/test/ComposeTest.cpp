@@ -725,23 +725,28 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
   EXPECT_LT(SkColorGetR(c), 40u);
 }
 
-TEST(ComposeMaterial, BlendSnapshotsLiveLayerAtCurrentValue) {
-  // blend() flattens; a live layer contributes its bound Outputs at their
-  // values NOW (the audit's stale-snapshot defect — pre-fix it baked SkSL
-  // defaults, rendering uK=0 regardless of the Output).
+TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
+  // A blend inherits its layers' volatility tier (the review's deferred-
+  // flatten fix): a live layer makes the whole blend LIVE, so it re-resolves
+  // per frame and TRACKS the bound Output — no stale build-time snapshot
+  // (pre-fix the eager flatten baked SkSL defaults, uK=0 forever).
   choreograph::Output<float> k{0.8f};
   Material m = Material::blend({
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
       {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
   });
-  EXPECT_FALSE(m.isLive()); // the flattened blend is static
+  EXPECT_TRUE(m.isLive()); // inherited from the bound layer
   Host host;
   host.composer.render(box().child(
       box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
   host.frame();
-  const uint32_t r = SkColorGetR(host.pixel(20, 20));
-  EXPECT_GT(r, 170u); // ~0.8 * 255 = 204, not the SkSL default 0
-  EXPECT_LT(r, 240u);
+  const uint32_t bright = SkColorGetR(host.pixel(20, 20));
+  EXPECT_GT(bright, 170u); // ~0.8 * 255 = 204
+  k = 0.3f;                // no render() — the blend follows the Output
+  host.frame();
+  const uint32_t dim = SkColorGetR(host.pixel(20, 20));
+  EXPECT_GT(dim, 50u);  // ~0.3 * 255 = 77
+  EXPECT_LT(dim, 110u);
 }
 
 TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
@@ -908,6 +913,84 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
   EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);   // NOT the direct line
 }
 
+TEST(ComposeRail, ReRoutesOnRouterOnlyChange) {
+  // Review fix: a rail whose DESCRIPTION changes (router swap) must
+  // re-derive even though no station moved — the derive guards key resolved
+  // geometry, not the description.
+  Host host;
+  auto scene = [](RailRouter router) {
+    return stack()
+        .child(station("a", 10, 40))   // center (20, 50)
+        .child(station("b", 130, 100)) // center (140, 110)
+        .child(rail({{"a"}, {"b"}}, std::move(router))
+                   .absolute().inset(0).foreground(railLine()));
+  };
+  host.composer.render(scene({})); // default straight polyline
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorGREEN); // on the direct line
+  host.composer.render(scene(routers::octilinear(0.0f))); // router swap only
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN); // the 45° leg
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK); // direct line gone
+}
+
+TEST(ComposeRail, ReRoutesOnAnchorNormChange) {
+  // Same fix, anchor half: changing only a norm re-derives.
+  Host host;
+  auto scene = [](float ny) {
+    return stack()
+        .child(station("a", 10, 40))
+        .child(station("b", 170, 40))
+        .child(rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
+                   .absolute().inset(0).foreground(railLine()));
+  };
+  host.composer.render(scene(0.5f)); // through centers: y = 50
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
+  host.composer.render(scene(0.0f)); // through box tops: y = 40
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 40), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(100, 52), SK_ColorBLACK); // old run gone (stroke ±2)
+}
+
+TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
+  // Review fix: an unmounted station takes its rail with it — no ghost path.
+  Host host;
+  auto scene = [](bool withB) {
+    auto s = stack().child(station("a", 10, 40));
+    if (withB)
+      s.child(station("b", 170, 40));
+    s.child(rail({{"a"}, {"b"}}).absolute().inset(0).foreground(railLine()));
+    return s;
+  };
+  host.composer.render(scene(true));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
+  host.composer.render(scene(false)); // station b unmounts
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK); // rail vanished, not stale
+}
+
+TEST(ComposeRail, HitsNearPathOnlyNotItsLayoutBox) {
+  // Review fix: rails are Kind::Custom over inset(0) — hitTest must hit
+  // near the routed PATH, not eclipse the whole canvas with the layout box.
+  Host host;
+  host.composer.render(
+      stack()
+          .child(station("s1", 10, 40))
+          .child(rail({{"s1"}, {"s2"}}).key("line").absolute().inset(0)
+                     .foreground(railLine()))
+          .child(station("s2", 170, 40)));
+  host.frame();
+  auto onPath = host.composer.hitTest({100, 50});
+  ASSERT_TRUE(onPath.has_value());
+  EXPECT_EQ(*onPath, "line");
+  auto onStation = host.composer.hitTest({180, 50});
+  ASSERT_TRUE(onStation.has_value());
+  EXPECT_EQ(*onStation, "s2"); // stations still win over the rail overlay
+  EXPECT_FALSE(host.composer.hitTest({30, 150}).has_value()); // empty canvas
+}
+
 // ---- Trim Path (draw-on reveals) -------------------------------------------
 
 TEST(ComposeTrim, PartialOutlineStrokesOnlyRevealedStretch) {
@@ -967,6 +1050,55 @@ TEST(ComposeTrim, BoundTrimRevealsWithoutRender) {
 }
 
 #include <sigilcompose/Sdf.h>
+
+TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
+  // Review fix (kernel-wide shadow): describing a PLAIN value after a
+  // transition must actually land — the lingering ramp used to shadow the
+  // description forever.
+  Host host;
+  auto at = [](PropValue<float> x) {
+    return box().child(box().key("m").width(50).height(50).fill(red())
+                           .translateX(std::move(x)));
+  };
+  host.composer.render(at(0.0f));
+  host.frame();
+  host.composer.render(at(with(100.0f, {400ms, &choreograph::easeNone})));
+  host.frame(0.2); // mid-ramp, box around x=50..100
+  EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
+  host.composer.render(at(0.0f)); // PLAIN: must snap home
+  host.frame();
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorRED);
+  EXPECT_EQ(host.pixel(75, 25), SK_ColorBLACK); // not stuck mid-ramp
+}
+
+TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
+  // uContentScale tracks the HOST's zoom, not the node — it must take the
+  // live tier (the pre-tier-split behavior), unlike uResolution.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uContentScale;"
+               "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  EXPECT_TRUE(Material::sksl(effect).isLive());
+}
+
+TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
+  // Review fix: blend() containing a geometry-dependent (SDF) layer defers
+  // its flatten to resolve time — the eager snapshot baked uResolution=(0,0)
+  // and rendered a degenerate speck.
+  Material m = Material::blend({
+      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1}}),
+       SkBlendMode::kPlus},
+  });
+  EXPECT_TRUE(m.geometryDependent()); // inherited from the SDF layer
+  EXPECT_FALSE(m.isLive());           // still cacheable
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(m)));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 150u); // circle body visible
+  EXPECT_LT(SkColorGetR(host.pixel(3, 3)), 40u);    // corner outside circle
+}
 
 TEST(ComposeSdf, StarFillsCenterMissesCorners) {
   // The analytic N-star: fill covers the body, the box corners lie outside

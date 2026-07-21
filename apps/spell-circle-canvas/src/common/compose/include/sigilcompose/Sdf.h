@@ -24,6 +24,13 @@
  * star tips at very small sizes want MSDF (median-of-3); this analytic
  * evaluation is exact at any zoom and needs no atlas.
  *
+ * Known tradeoff: the anti-alias half-width is 0.75 LOCAL px, so a
+ * recording replayed under a scaled host softens edges slightly (the
+ * kernel's recordings are best-effort on host scale by contract).
+ * Declaring uContentScale would track zoom exactly but makes a material
+ * LIVE (per-frame paint) — this header deliberately chooses cacheability;
+ * re-records on layout change re-crisp the edges.
+ *
  * The SDF paints the node's LOOK; hit-testing and clipping still use the
  * node's geometry — pair with `.outline(shapes::star(...))` when hits/clips
  * should match the silhouette.

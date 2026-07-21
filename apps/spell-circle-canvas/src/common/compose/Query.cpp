@@ -17,7 +17,13 @@ using namespace detail;
 bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
                                    SkSize size) const {
   const ElementNode &node = *inst.desc;
-  if (node.shapeFn && node.connectFrom.empty())
+  // Routed elements (rails, connectors) hit near their PATH, not their
+  // layout box — a rail placed absolute().inset(0) must not eclipse the
+  // scene. The stroke-expanded hit path is built at derive time.
+  if (!node.connectFrom.empty() || !node.railAnchors.empty())
+    return !inst.routedHitPath.isEmpty() &&
+           inst.routedHitPath.contains(local.x(), local.y());
+  if (node.shapeFn)
     return resolveOutline(inst, size).contains(local.x(), local.y());
   const SkRect bounds = SkRect::MakeWH(size.width(), size.height());
   if (!bounds.contains(local.x(), local.y()))

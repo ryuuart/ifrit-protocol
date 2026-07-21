@@ -79,10 +79,12 @@ public:
                         const SkMatrix &local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
-   *  once; bind live uniforms with uniform(name, &output) below. An effect
-   *  that declares `uTime`, `uResolution`, or `uContentScale` automatically
-   *  takes the LIVE path (re-resolved each frame with the PaintContext) —
-   *  reading the clock IS the volatility declaration. */
+   *  once; bind live uniforms with uniform(name, &output) below. Declaring
+   *  `uTime` or `uContentScale` takes the LIVE path (re-resolved each frame:
+   *  the clock ticks and the host's zoom changes independently of the node —
+   *  reading them IS the volatility declaration); declaring only
+   *  `uResolution` takes the cheaper GEOMETRY tier (resolved when the node
+   *  records, cached between layouts — see geometryDependent()). */
   static Material sksl(sk_sp<SkRuntimeEffect> effect,
                        std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
@@ -92,11 +94,12 @@ public:
   /** Layer materials into ONE flattened shader: layers paint bottom-to-top,
    *  each composited over the accumulation with its SkBlendMode (the first
    *  layer's mode is the base and ignored). Nested SkShaders::Blend — one
-   *  draw, fully picture-cacheable, no saveLayer. Layers are snapshotted at
-   *  build time: a live layer contributes a shader sampling its bound
-   *  Outputs at their values NOW (the blend itself is static — rebuild the
-   *  blend to re-sample, or keep the live material un-flattened for
-   *  per-frame animation). */
+   *  draw, fully picture-cacheable, no saveLayer. A blend whose layers are
+   *  all static flattens eagerly; one containing a LIVE or geometry-
+   *  dependent layer DEFERS the flatten to resolve time (per frame / per
+   *  record respectively), so bound uniforms and SDF layers contribute
+   *  their correct current form — the blend simply inherits its layers'
+   *  volatility tier. */
   static Material blend(std::vector<std::pair<Material, SkBlendMode>> layers);
 
   // ---- uniforms ------------------------------------------------------------
@@ -125,14 +128,16 @@ public:
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
   // ---- resolution ----------------------------------------------------------
-  /** True once any ch::Output uniform is bound OR the effect reads uTime:
-   *  the material re-resolves per frame and its node must stay volatile
-   *  (Element::fill routes it to the live path; computeVolatile marks it). */
+  /** True once any ch::Output uniform is bound OR the effect reads uTime or
+   *  uContentScale (both change independently of the node): the material
+   *  re-resolves per frame and its node stays volatile. A blend() inherits
+   *  liveness from its layers. */
   bool isLive() const;
-  /** True when the effect declares uResolution/uContentScale: the material
-   *  needs PaintContext at resolve, but is stable between layouts — it
-   *  resolves when its node records, CACHES like static content, and
-   *  re-records on size change. (The middle tier between static and live.) */
+  /** True when the effect declares uResolution (the node's layout size):
+   *  the material needs PaintContext at resolve, but is stable between
+   *  layouts — it resolves when its node records, CACHES like static
+   *  content, and re-records on size change. A blend() inherits this from
+   *  its layers (the flatten defers to resolve time). */
   bool geometryDependent() const;
   /** Declared-volatility hook (mirrors DecorationScheme::animated()). */
   bool animated() const { return isLive(); }

@@ -26,13 +26,15 @@ struct Material::Live {
   std::vector<std::pair<std::string, float>> constants;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
-  // Two context tiers (the REVIEW rule, refined):
-  //  - usesTime: declaring uTime IS the per-frame volatility declaration —
-  //    the material is LIVE, its node paints live every frame.
-  //  - usesGeometry: declaring uResolution/uContentScale needs PaintContext
-  //    at resolve but is stable between layouts — resolved when the node
-  //    records, cached like static content, invalidated on size change.
+  // Context tiers (the REVIEW rule, refined by the leg review):
+  //  - usesTime / usesScale: uTime changes every frame and uContentScale
+  //    changes with the HOST's canvas scale (zoom) — neither is a function
+  //    of the node, so both make the material LIVE (per-frame resolve).
+  //  - usesGeometry: uResolution is the node's layout size — stable between
+  //    layouts, so the material resolves when the node RECORDS, caches, and
+  //    re-records on size change (syncLayoutRects).
   bool usesTime = false;
+  bool usesScale = false;
   bool usesGeometry = false;
 };
 
@@ -240,9 +242,10 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
     m.m_live->constants.emplace_back(std::move(name), value);
   }
   m.m_live->usesTime = validUniform(m.m_live->effect, "uTime", sizeof(float));
-  m.m_live->usesGeometry =
-      validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float)) ||
+  m.m_live->usesScale =
       validUniform(m.m_live->effect, "uContentScale", sizeof(float));
+  m.m_live->usesGeometry =
+      validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float));
   m.m_shader = build(*m.m_live, nullptr); // static snapshot (constants only)
   return m;
 }
@@ -339,11 +342,25 @@ Material &Material::uniform(std::string name,
 }
 
 bool Material::isLive() const {
-  return m_live && (!m_live->binds.empty() || m_live->usesTime);
+  if (m_live &&
+      (!m_live->binds.empty() || m_live->usesTime || m_live->usesScale))
+    return true;
+  // A blend inherits liveness from its layers (deferred fold in resolve()).
+  if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
+    for (const auto &layer : m_recipe->layers)
+      if (layer.first.isLive())
+        return true;
+  return false;
 }
 
 bool Material::geometryDependent() const {
-  return m_live && m_live->usesGeometry;
+  if (m_live && m_live->usesGeometry)
+    return true;
+  if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
+    for (const auto &layer : m_recipe->layers)
+      if (layer.first.geometryDependent())
+        return true;
+  return false;
 }
 
 Material &Material::uniform(std::string name, SkColor4f value) {
@@ -387,6 +404,36 @@ Fill Material::toFill() const {
 }
 
 Fill Material::resolve(const PaintContext &ctx) const {
+  // Deferred blend: when any layer needs the PaintContext (live uniforms,
+  // SDF uResolution), the flatten happens HERE, per resolve, so every layer
+  // contributes its correct current form — the eager snapshot from blend()
+  // would have baked those layers with a null context (uResolution = 0,0).
+  if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
+      (isLive() || geometryDependent())) {
+    sk_sp<SkShader> acc;
+    bool first = true;
+    for (const auto &[mat, mode] : m_recipe->layers) {
+      Fill f = mat.resolve(ctx);
+      sk_sp<SkShader> src;
+      if (f.kind == Fill::Kind::Shader)
+        src = f.shaderValue;
+      else if (f.kind == Fill::Kind::Color)
+        src = SkShaders::Color(f.colorValue, nullptr);
+      if (first) {
+        acc = std::move(src);
+        first = false;
+        continue;
+      }
+      if (!acc) {
+        acc = std::move(src);
+        continue;
+      }
+      if (!src)
+        continue;
+      acc = SkShaders::Blend(mode, std::move(acc), std::move(src));
+    }
+    return Fill::shader(std::move(acc));
+  }
   if (isLive() || geometryDependent())
     return Fill::shader(build(*m_live, &ctx));
   return toFill();

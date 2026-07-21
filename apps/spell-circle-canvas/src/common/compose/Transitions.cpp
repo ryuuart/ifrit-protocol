@@ -32,10 +32,23 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
                      const std::optional<Transition> &nodeDefault) {
   ResolvedProp<float> prev = resolveProp(prevValue, nodeDefault);
   ResolvedProp<float> next = resolveProp(nextValue, nodeDefault);
-  if (next.binding || !next.transition)
+  // Snap semantics must actually LAND: a lingering ramp from an earlier
+  // transition would shadow the plain description forever (resolveFloat
+  // prefers a started anim), so the snap paths disconnect it.
+  auto snapAnim = [&] {
+    if (auto &anim = inst.anims[slot]; anim && anim->started) {
+      anim->value.disconnect();
+      anim->started = false;
+    }
+  };
+  if (next.binding || !next.transition) {
+    snapAnim();
     return false; // bound, or plain snap
-  if (prev.binding)
+  }
+  if (prev.binding) {
+    snapAnim();
     return false; // binding → constant: snap (no meaningful "from")
+  }
 
   auto &anim = inst.anims[slot];
   const float current =
@@ -78,7 +91,21 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                     next.trimEnd, nd);
   }
 
-  // Fill: color→color lerp via a progress output.
+  // Fill: color→color lerp via a progress output. A next fill with NO
+  // transition is a plain snap — disconnect any in-flight lerp so the
+  // description lands (the same shadow rule as the float slots).
+  bool nextFillTransitions = false;
+  if (next.paint.fill) {
+    ResolvedProp<Fill> nf = resolveProp(*next.paint.fill, nd);
+    nextFillTransitions = !nf.binding && nf.transition != nullptr;
+  }
+  if (!nextFillTransitions) {
+    if (auto &anim = inst.anims[Instance::kFillLerp];
+        anim && anim->started) {
+      anim->value.disconnect();
+      anim->started = false;
+    }
+  }
   if (prev.paint.fill && next.paint.fill) {
     ResolvedProp<Fill> prevFill = resolveProp(*prev.paint.fill, nd);
     ResolvedProp<Fill> nextFill = resolveProp(*next.paint.fill, nd);

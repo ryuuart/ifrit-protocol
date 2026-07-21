@@ -65,6 +65,7 @@ struct Instance {
   SkRect connectorFrom = SkRect::MakeEmpty(),
          connectorTo = SkRect::MakeEmpty();
   std::vector<SkPoint> railPoints;     // last resolved rail waypoints
+  SkPath routedHitPath;                // stroke-expanded route (hit testing)
 
   // Caching
   sk_sp<SkPicture> picture;

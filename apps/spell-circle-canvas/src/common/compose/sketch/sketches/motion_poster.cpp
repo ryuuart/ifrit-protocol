@@ -112,7 +112,7 @@ sk_sp<SkRuntimeEffect> grainEffect() {
       float n = fract(sin(dot(p + fract(uTime) * 61.7,
                               float2(12.9898, 78.233))) * 43758.5453);
       half g = half(0.5 + 0.5 * n);
-      return half4(g, g, g, 0.06);
+      return half4(g * 0.06, g * 0.06, g * 0.06, 0.06); // premultiplied
     }
   )";
   static auto effect = [] {

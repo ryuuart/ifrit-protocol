@@ -276,6 +276,19 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
 
     if (prev)
       applyTransitions(inst, *prev, *resolved);
+
+    // A re-described ROUTE must re-derive even when no geometry moved: the
+    // derive guards key cached geometry (resolved points/rects), not the
+    // description — a router swap or an anchor-norm change would otherwise
+    // keep replaying the stale path. Clearing the cached inputs defeats the
+    // guards, and needsLayout makes ensureLayout run the derive pass.
+    if (!resolved->railAnchors.empty() ||
+        (!resolved->connectFrom.empty() && !resolved->connectTo.empty())) {
+      inst.railPoints.clear();
+      inst.connectorFrom = SkRect::MakeLTRB(-1, -1, -1, -1);
+      inst.connectorTo = SkRect::MakeLTRB(-1, -1, -1, -1);
+      needsLayout = true;
+    }
   }
 
   if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty() ||
