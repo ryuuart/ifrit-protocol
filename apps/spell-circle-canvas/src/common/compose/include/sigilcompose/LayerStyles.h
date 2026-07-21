@@ -209,48 +209,75 @@ inline Effect textGlow(SkColor4f color, float sigma) {
 // ---------------------------------------------------------------------------
 // Preset bundles (REFERENCES.md §2–3) — LayerStyle values for Element::style()
 
-/** The Aqua pill body (REFERENCES.md §3 "Aqua Gel", height-relative): flat
- *  tint, a dark inner band recessed from the top (d=.08H s=.25H), a pale
- *  lift along the bottom (s=.3H), and the drop (d=.06H s=.2H) — everything
- *  computed from the node's size at paint, so one value dresses any pill.
- *  Value-comparable: a static aqua button prunes without memo. */
+/** Knobs the Aqua bundle exposes (defaults = the §2 measured pill). */
+struct AquaGelOptions {
+  float lensAlphaTop = 0.72f;   ///< §2: white .72→0
+  float lensBottomFrac = 0.52f; ///< §2: lens y ∈ [4%, 52%]
+  float lensInsetXFrac = 0.05f; ///< §2: x ∈ [5%, 95%]; ~0.16 on spheres
+  float bottomGlow = 0.85f;     ///< the light-from-below strength (screen)
+  bool halo = true;             ///< §2 luminous halo drop (vs no shadow)
+  /** bleed() can't see the future layout size — reserve cull reach for
+   *  gel up to this tall (raise for hero scale; the halo reaches .65H). */
+  float expectedHeight = 64.0f;
+  bool operator==(const AquaGelOptions &) const = default;
+};
+
+/** The Aqua pill body (REFERENCES.md §2/§3, height-relative): deep→light
+ *  vertical body ramp, a dark band recessed from the top, the SCREEN
+ *  bottom glow (the Aqua signature — light emerging from below), and the
+ *  luminous tint halo underneath. Everything computed from the node's
+ *  size at paint, so one value dresses any pill; value-comparable, so a
+ *  static aqua button prunes without memo. */
 struct AquaBody {
   SkColor4f tint = detail::rgb(0x1E8FFF);
-  bool dropShadow = true;
-  /** bleed() can't see the future layout size — reserve cull reach for
-   *  pills up to this tall (raise it for hero-scale gel). */
-  float expectedHeight = 64.0f;
+  AquaGelOptions opts;
 
   bool operator==(const AquaBody &) const = default;
-  float bleed() const { return dropShadow ? expectedHeight * 0.30f : 0.0f; }
+  float bleed() const {
+    return opts.halo ? opts.expectedHeight * 0.65f : 0.0f;
+  }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     const float H = ctx.size.height();
-    if (dropShadow) {
-      util::Shadow{detail::scale(tint, 0.28f, 0.55f),
-                   {0, H * 0.06f},
-                   H * 0.20f}
+    if (opts.halo) { // §2: rgba(66,140,240,.5) (0,10) blur16 on a 40px pill
+      util::Shadow{detail::toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f),
+                   {0, H * 0.25f},
+                   H * 0.40f}
           .paint(c, ctx);
     }
-    SkPaint body;
+    SkPaint body; // §2 body: deep at top → saturated → light at bottom
     body.setAntiAlias(true);
-    body.setColor4f(tint, nullptr);
+    body.setShader(detail::vRamp(
+        0, H,
+        {detail::scale(tint, 0.55f, 0.9f), tint,
+         detail::toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)},
+        {0.0f, 0.55f, 1.0f}));
     c.drawPath(ctx.outline, body);
     InnerShadow{detail::scale(tint, 0.30f, 0.45f), {0, H * 0.08f}, H * 0.25f}
         .paint(c, ctx);
-    InnerShadow{detail::toward(tint, {1, 1, 1, 1}, 0.75f, 0.35f),
-                {0, -H * 0.10f},
-                H * 0.30f}
-        .paint(c, ctx); // the bottom refraction lift
+    if (opts.bottomGlow > 0) { // §2: bottom glow, screen, fading by 45%H
+      SkPaint glow;
+      glow.setAntiAlias(true);
+      glow.setBlendMode(SkBlendMode::kScreen);
+      glow.setShader(detail::vRamp(
+          H * 0.55f, H,
+          {{1, 1, 1, 0},
+           detail::toward(tint, {1, 1, 1, 1}, 0.80f, opts.bottomGlow)},
+          {0.0f, 1.0f}));
+      c.save();
+      c.clipPath(ctx.outline, true);
+      c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);
+      c.restore();
+    }
   }
 };
 
 /** The Aqua highlight lens: a white ramp lens across the top half of the
  *  shape (clipped inside), the signature "wet" specular. */
 struct AquaGloss {
-  float insetXFrac = 0.06f;
-  float topFrac = 0.05f, bottomFrac = 0.48f;
-  float alphaTop = 0.85f, alphaBottom = 0.08f;
+  float insetXFrac = 0.05f;
+  float topFrac = 0.04f, bottomFrac = 0.52f;
+  float alphaTop = 0.72f, alphaBottom = 0.0f;
 
   bool operator==(const AquaGloss &) const = default;
 
@@ -271,48 +298,153 @@ struct AquaGloss {
   }
 };
 
-/** The drop-in Aqua Gel bundle (§3 preset): body + gloss + hairline. Use on
- *  a pill — `box().corners({h/2}).style(styles::aquaGel(tint))` — with no
- *  fill() (the body paints it). */
-inline LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF)) {
+/** The drop-in Aqua Gel bundle (§2/§3): body + gloss + hairline. Use on a
+ *  pill — `box().corners({h/2}).style(styles::aquaGel(tint))` — with no
+ *  fill() (the body paints it). Pass options to retune the lens/glow. */
+inline LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
+                          AquaGelOptions opts = {}) {
   PathFormat hairline;
   hairline.width = 1.0f;
   hairline.strokeFill = Fill::color(detail::scale(tint, 0.45f, 0.6f));
   hairline.align = PathFormat::Align::Inner;
-  return LayerStyle{{Decoration(AquaBody{tint})},
-                    {Decoration(AquaGloss{}), Decoration(hairline)}};
+  return LayerStyle{{Decoration(AquaBody{tint, opts})},
+                    {Decoration(AquaGloss{opts.lensInsetXFrac, 0.04f,
+                                          opts.lensBottomFrac,
+                                          opts.lensAlphaTop, 0.0f}),
+                     Decoration(hairline)}};
 }
 
-/** The Y2K chrome body (§3 preset, exact ramp): the sunset-chrome vertical
- *  gradient with its hard horizon at 49/51%, clipped to the shape. */
+/** The sphere-tuned Aqua bundle: dome lens (16% inset, upper half) and a
+ *  hotter bottom glow — the Aqua orb / traffic-light geometry. */
+inline LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
+                          float expectedDiameter = 128.0f) {
+  AquaGelOptions opts;
+  opts.lensInsetXFrac = 0.16f;
+  opts.lensBottomFrac = 0.50f;
+  opts.bottomGlow = 0.95f;
+  opts.expectedHeight = expectedDiameter;
+  return aquaGel(tint, opts);
+}
+
+/** Which chrome the Y2K bundle wears (both from §2/§3, exact stops). */
+struct ChromeOptions {
+  enum class Palette : uint8_t {
+    Steel, ///< the §3 dark preset ramp (logo plates)
+    Silver ///< the §2 silver window-chrome ramp
+  };
+  Palette palette = Palette::Steel;
+  bool horizonSliver = true; ///< white specular sliver straddling 50%
+  float keylineWidth = 2.0f;
+  SkColor4f keyline = detail::rgb(0x10141A);
+  float bevelDepth = 3.0f, bevelSize = 5.0f;
+  bool operator==(const ChromeOptions &) const = default;
+};
+
+/** The chrome horizon: the hard ramp stop sits at half height. Position
+ *  hand-added glints against `y = kChromeHorizonFrac * H`. */
+inline constexpr float kChromeHorizonFrac = 0.50f;
+
+/** The Y2K chrome body: the palette's vertical ramp with its hard horizon,
+ *  clipped to the shape. */
 struct ChromeBody {
+  ChromeOptions::Palette palette = ChromeOptions::Palette::Steel;
   bool operator==(const ChromeBody &) const = default;
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
-    p.setShader(detail::vRamp(
-        0, ctx.size.height(),
-        {detail::rgb(0xF4F7FA), detail::rgb(0x97A1AC), detail::rgb(0x3A4654),
-         detail::rgb(0x1E2833), detail::rgb(0x5C6B7C), detail::rgb(0xDCE4EA)},
-        {0.0f, 0.35f, 0.49f, 0.51f, 0.62f, 1.0f}));
+    if (palette == ChromeOptions::Palette::Silver) {
+      p.setShader(detail::vRamp(
+          0, ctx.size.height(),
+          {detail::rgb(0xFDFDFD), detail::rgb(0xD2D8DD), detail::rgb(0xA5ADB5),
+           detail::rgb(0x6F7880), detail::rgb(0xE9ECEF), detail::rgb(0xC6CDD3),
+           detail::rgb(0x9BA3AC)},
+          {0.0f, 0.2f, 0.48f, 0.5f, 0.52f, 0.8f, 1.0f}));
+    } else {
+      p.setShader(detail::vRamp(
+          0, ctx.size.height(),
+          {detail::rgb(0xF4F7FA), detail::rgb(0x97A1AC), detail::rgb(0x3A4654),
+           detail::rgb(0x1E2833), detail::rgb(0x5C6B7C), detail::rgb(0xDCE4EA)},
+          {0.0f, 0.35f, 0.49f, 0.51f, 0.62f, 1.0f}));
+    }
     c.drawPath(ctx.outline, p);
   }
 };
 
-/** The drop-in Y2K Chrome bundle (§3 preset): drop shadow, chrome ramp,
- *  inner shade, chisel bevel, dark keyline outside. */
-inline LayerStyle y2kChrome() {
+/** The §2 finishing pass: 1px white top edge + the white specular sliver
+ *  straddling the horizon (both clipped inside). */
+struct ChromeSliver {
+  float horizonFrac = kChromeHorizonFrac;
+  bool operator==(const ChromeSliver &) const = default;
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    const float W = ctx.size.width(), H = ctx.size.height();
+    c.save();
+    c.clipPath(ctx.outline, true);
+    SkPaint p;
+    p.setColor4f({1, 1, 1, 0.9f}, nullptr);
+    c.drawRect(SkRect::MakeXYWH(0, 0, W, 1), p); // the top edge
+    const float horizon = H * horizonFrac;
+    p.setColor4f({1, 1, 1, 0.85f}, nullptr);
+    c.drawRect(SkRect::MakeXYWH(W * 0.04f, horizon - 1, W * 0.92f, 1), p);
+    p.setColor4f({1, 1, 1, 0.25f}, nullptr);
+    c.drawRect(SkRect::MakeXYWH(W * 0.04f, horizon, W * 0.92f, 2), p);
+    c.restore();
+  }
+};
+
+/** The drop-in Y2K Chrome bundle (§2/§3): drop shadow, palette ramp,
+ *  horizon sliver, chisel bevel, dark keyline outside. Silver skips the
+ *  dark top band (§2 silver wants the white top edge instead). */
+inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
   PathFormat keyline;
-  keyline.width = 2.0f;
-  keyline.strokeFill = Fill::color(detail::rgb(0x10141A));
+  keyline.width = opts.keylineWidth;
+  keyline.strokeFill = Fill::color(opts.keyline);
   keyline.align = PathFormat::Align::Outer;
-  return LayerStyle{
-      {Decoration(util::Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
-       Decoration(ChromeBody{})},
-      {Decoration(InnerShadow{detail::rgb(0x001020, 0.30f), {0, 3}, 4}),
-       Decoration(BevelEmboss{3, 5, 120, {1, 1, 1, 0.5f}, {0, 0, 0, 0.65f}}),
-       Decoration(keyline)}};
+  LayerStyle bundle;
+  bundle.under = {Decoration(util::Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
+                  Decoration(ChromeBody{opts.palette})};
+  if (opts.palette == ChromeOptions::Palette::Steel)
+    bundle.over.push_back(
+        Decoration(InnerShadow{detail::rgb(0x001020, 0.30f), {0, 3}, 4}));
+  if (opts.horizonSliver)
+    bundle.over.push_back(Decoration(ChromeSliver{}));
+  bundle.over.push_back(Decoration(BevelEmboss{
+      opts.bevelDepth, opts.bevelSize, 120, {1, 1, 1, 0.5f},
+      {0, 0, 0, 0.65f}}));
+  if (opts.keylineWidth > 0)
+    bundle.over.push_back(Decoration(keyline));
+  return bundle;
+}
+
+// ---------------------------------------------------------------------------
+// Chrome type (§2) — unit-space Materials for Element::textFill()
+
+/** The §2 sunset-chrome ramp in UNIT space: feed straight to textFill()
+ *  and the hard horizon crosses the capitals at half cap height —
+ *  `text(u8"CHROME", display).textFill(styles::sunsetChromeText())`. */
+inline Material sunsetChromeText() {
+  return Material::linear({0, 0}, {0, 1},
+                          {{0.0f, detail::rgb(0xEAF6FF)},
+                           {0.12f, detail::rgb(0x9CCFF3)},
+                           {0.35f, detail::rgb(0x3C7FC0)},
+                           {0.495f, detail::rgb(0x0B2A52)},
+                           {0.505f, detail::rgb(0x7A4A1A)},
+                           {0.62f, detail::rgb(0xB98A46)},
+                           {0.82f, detail::rgb(0xE8CE9A)},
+                           {1.0f, detail::rgb(0xFDF6E3)}});
+}
+
+/** The §2 silver-chrome ramp in unit space, for textFill(). */
+inline Material silverChromeText() {
+  return Material::linear({0, 0}, {0, 1},
+                          {{0.0f, detail::rgb(0xFDFDFD)},
+                           {0.2f, detail::rgb(0xD2D8DD)},
+                           {0.48f, detail::rgb(0xA5ADB5)},
+                           {0.5f, detail::rgb(0x6F7880)},
+                           {0.52f, detail::rgb(0xE9ECEF)},
+                           {0.8f, detail::rgb(0xC6CDD3)},
+                           {1.0f, detail::rgb(0x9BA3AC)}});
 }
 
 } // namespace sigil::compose::styles

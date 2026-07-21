@@ -1,33 +1,41 @@
-// aero_study.cpp — a STUDY of Windows 7 Aero glass (DWM).
+// aero_study.cpp — a STUDY of Windows 7 Aero glass (DWM). Round 2:
+// exercises the mount-transition / aligned-stroke / textGlow API.
 // REFERENCES.md §6 — the recovered colorization formula
 //   out.rgb = tint·colorBalance + tint·luma(blur)·afterglowBalance
 //             + blur·blurBalance
 // approximated as Element::backdrop(blur σ=3, the registry's tight
 // blurdeviation 30) + a Material::blend tint stack in the Win7 "Sky"
 // accent (#74B8FC α≈42%, balances 8/43/49). Frame anatomy per §6:
-// 1px black α.65 silhouette, 1px white α.55 glass edge inside it,
-// client hole ringed 1px black α.35 then 1px white α.45, top corners
-// r≈6, radial white corner glows (α.35→0 over ~30px), one diagonal
-// desktop-space sheen (peak α≈.2). Caption text = black over the
-// DrawThemeTextEx white haze (blur σ≈5, α.9). Close-button hover
-// bloom radial rgba(255,196,180,.95)→(230,110,90,.9)@35%→
-// (190,25,20,.85)@70%→0. Start orb: radial base #163A5F→#0B2340@70%
-// →#04101E, rim strokes, top lens.
+// 1px black α.65 silhouette (stroke align Outer on the frame outline),
+// 1px white α.55 glass edge inside it (align Inner, same outline),
+// client hole ringed 1px black α.35 / 1px white α.45 (one ring box,
+// Outer+Inner), top corners r≈6, radial white corner glows (α.35→0
+// over ~30px), one diagonal desktop-space sheen (peak α≈.2). Caption
+// text = black over the DrawThemeTextEx white haze — styles::textGlow.
+// Close-button hover bloom radial rgba(255,196,180,.95)→
+// (230,110,90,.9)@35%→(190,25,20,.85)@70%→0. Start orb: radial base
+// #163A5F→#0B2340@70%→#04101E, rim strokes, top lens.
+// Window-open: .scale(withFrom(.96→1, 220ms)) + .opacity(withFrom(0→1,
+// 180ms)) on the window stack — capture mid-open with --at 0.08.
 //
-// Headless: ComposeSketch <this> --frame aero.png --at 1.0
+// Headless: ComposeSketch <this> --frame aero.png --at 2.5
+//           ComposeSketch <this> --frame aero_open.png --at 0.08
 
 #include <sigilsketch/Sketch.h>
 
+#include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 
+#include <chrono>
 #include <cmath>
 
 using namespace sigil::compose;
 using namespace sigil::compose::util;
+using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace {
@@ -153,8 +161,11 @@ Material closeBloom(float w, float h) {
 }
 
 // The DWM window shadow: a rounded-box SDF falloff painted INSIDE its
-// own node bounds (a blur decoration would be culled at the cache
-// bounds; an SDF ring needs no overflow at all). Margins are uniforms.
+// own node bounds. Still a shader (not util::Shadow) on purpose: the
+// glass is translucent, so the shadow must be HOLLOW under the window
+// (the smoothstep knockout below) or the backdrop blur samples its own
+// black core and the whole pane goes murky. util::Shadow has no
+// knockout — see the friction note in the study report.
 sk_sp<SkRuntimeEffect> windowShadowEffect() {
   static const char *kSkSL = R"(
     uniform float2 uResolution;
@@ -241,9 +252,12 @@ struct AeroStudy : sketch::Sketch {
 
   Element captionButton(float w, float h, Corners c, Element glyph,
                         bool hovered) {
-    auto b = box().absolute().corners(c).clip()
+    // Inner-aligned edge: the full 1px lands inside the clip (a Center
+    // stroke under clip() kept only its inner half).
+    auto b = box().width(w).height(h).corners(c).clip()
         .fill(buttonBase(h))
-        .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f})));
+        .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
+                       PathFormat::Align::Inner));
     if (hovered)
       b.child(box().absolute().inset(0).corners(c)
                   .fill(closeBloom(w, h))
@@ -258,39 +272,32 @@ struct AeroStudy : sketch::Sketch {
   Element captionButtons() {
     const float bh = 19;
     const float wMin = 29, wMax = 27, wClose = 47;
-    const float gx = WW - 8 - (wMin + wMax + wClose + 2);
-    return box().absolute().inset(gx, 1, 0, 0).row()
-        // group silhouette: 1px dark edge under the three buttons
+    auto seam = [&] { // 1px dark seam between the glass buttons
+      return box().width(1).height(bh).fill(Fill::color({0, 0, 0, 0.35f}));
+    };
+    // Pinned, not stretched: top/right only — the row shrink-wraps.
+    return box().row().top(1).right(8)
         .child(captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize(),
-                             false)
-                   .inset(0, 0, 0, 0).width(wMin).height(bh))
-        .child(box().width(1).height(bh)
-                   .fill(Fill::color({0, 0, 0, 0.35f})).absolute()
-                   .inset(wMin, 0, 0, 0))
-        .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize(), false)
-                   .inset(wMin + 1, 0, 0, 0).width(wMax).height(bh))
-        .child(box().width(1).height(bh)
-                   .fill(Fill::color({0, 0, 0, 0.35f})).absolute()
-                   .inset(wMin + 1 + wMax, 0, 0, 0))
+                             false))
+        .child(seam())
+        .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize(), false))
+        .child(seam())
         .child(captionButton(wClose, bh, {0, 0, 4, 0},
-                             buttonGlyphClose(wClose, bh), true)
-                   .inset(wMin + 1 + wMax + 1, 0, 0, 0)
-                   .width(wClose).height(bh));
+                             buttonGlyphClose(wClose, bh), true));
   }
 
-  // ---- caption text with the white haze halo --------------------------
+  // ---- caption text over the DrawThemeTextEx white haze ---------------
   Element captionText() {
-    auto halo = [](const char *s) {
-      return text(toU8(s), type(12.5f, {1, 1, 1, 0.90f}))
-          .absolute().inset(0, 0, 0, 0)
-          .effect(Effect::filter(SkImageFilters::Blur(2.6f, 2.6f, nullptr)));
-    };
+    // §6: black text, white backplate blur σ≈5 α.9 — textGlow re-emits
+    // the glyph layer blurred beneath itself; a tight+wide chain gives
+    // the dense core with the soft 6–8px falloff.
     return box().absolute().inset(36, 8, 130, WH - kCaption)
-        .child(halo("Aurora Borealis — Aero Glass"))
-        .child(halo("Aurora Borealis — Aero Glass")) // double for density
         .child(text(toU8("Aurora Borealis — Aero Glass"),
                     type(12.5f, {0.05f, 0.05f, 0.05f, 1}))
-                   .absolute().inset(0, 0, 0, 0));
+                   .absolute().inset(0, 0, 0, 0)
+                   .effect(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
+                               .then(styles::textGlow({1, 1, 1, 0.50f},
+                                                      4.5f))));
   }
 
   // ---- the client area (white, so the glass frame reads) --------------
@@ -350,29 +357,28 @@ struct AeroStudy : sketch::Sketch {
 
   // ---- the window ------------------------------------------------------
   Element window() {
-    auto frame =
-        box().absolute().inset(WX, WY, W - WX - WW, H - WY - WH)
-            .corners({6, 6, 0, 0})
-            .clip()
+    // The clipped glass pane: backdrop blur + colorization, children in
+    // window-local coordinates.
+    auto glass =
+        box().absolute().inset(0).corners({6, 6, 0, 0}).clip()
             // the DWM pass: blur what's behind (σ=3, tight — §6)…
             .backdrop(Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))
             // …then the colorization tint stack over it
             .fill(glassTint(WW, WH))
-            // 1px white glass edge INSIDE the silhouette
-            .child(box().absolute().inset(1).corners({5, 5, 0, 0})
-                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}))))
             // top-corner radial glows
             .child(box().absolute().inset(0, 0, WW - 70, WH - 46)
                        .fill(cornerGlow({0, 0})))
             .child(box().absolute().inset(WW - 70, 0, 0, WH - 46)
                        .fill(cornerGlow({70, 0})))
-            // client hole rings: 1px black α.35 then 1px white α.45
-            .child(box().absolute()
-                       .inset(kCL - 2, kCT - 2, kCR - 2, kCB - 2)
-                       .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}))))
+            // client hole rings on ONE box: 1px black α.35 outside its
+            // outline, 1px white α.45 inside it (stroke align does the
+            // -2/-1 inset bookkeeping the old version did by hand)
             .child(box().absolute()
                        .inset(kCL - 1, kCT - 1, kCR - 1, kCB - 1)
-                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}))))
+                       .stroke(stroke(1, Fill::color({0, 0, 0, 0.35f}),
+                                      PathFormat::Align::Outer))
+                       .stroke(stroke(1, Fill::color({1, 1, 1, 0.45f}),
+                                      PathFormat::Align::Inner)))
             .child(clientArea())
             // window icon
             .child(box().absolute().inset(14, 8, WW - 30, WH - 24)
@@ -384,8 +390,26 @@ struct AeroStudy : sketch::Sketch {
                        .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))))
             .child(captionText())
             .child(captionButtons());
-    // the 1px black α.65 silhouette sits OUTSIDE the clip
+
+    // The frame wrapper is UNclipped and carries both 1px edges on one
+    // outline: black α.65 silhouette Outer, white α.55 glass edge Inner.
+    // (clip() clips foreground decorations too, so the Outer stroke must
+    // live on this wrapper, not on the clipped glass node.)
+    auto frame =
+        box().absolute().inset(WX, WY, W - WX - WW, H - WY - WH)
+            .corners({6, 6, 0, 0})
+            .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}),
+                           PathFormat::Align::Outer))
+            .stroke(stroke(1, Fill::color({1, 1, 1, 0.55f}),
+                           PathFormat::Align::Inner))
+            .child(std::move(glass));
+
+    // The Win7 window-open zoom: shadow + frame scale up from 96% while
+    // fading in — mount transitions, so a re-describe prunes clean.
     return stack().absolute().inset(0)
+        .transformOrigin((WX + WW * 0.5f) / W, (WY + WH * 0.5f) / H)
+        .scale(withFrom(0.96f, 1.0f, {220ms}))
+        .opacity(withFrom(0.0f, 1.0f, {180ms}))
         // the DWM soft drop shadow (SDF ring — no filter, no overflow)
         .child(box().absolute()
                    .inset(WX - 34, WY - 30, W - WX - WW - 34,
@@ -393,10 +417,6 @@ struct AeroStudy : sketch::Sketch {
                    .fill(Material::sksl(windowShadowEffect())
                              .uniform("uMargins",
                                       SkColor4f{34, 30, 34, 40})))
-        .child(box().absolute()
-                   .inset(WX - 1, WY - 1, W - WX - WW - 1, H - WY - WH - 1)
-                   .corners({7, 7, 0, 0})
-                   .stroke(stroke(1, Fill::color({0, 0, 0, 0.65f}))))
         .child(std::move(frame));
   }
 
@@ -483,11 +503,11 @@ struct AeroStudy : sketch::Sketch {
                                    {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
                               .stroke(stroke(1, Fill::color(
                                   {0.55f, 0.40f, 0.10f, 0.8f})))))
-        // clock
+        // tray clock, pinned to the right edge (right-aligned for free)
         .child(text(toU8("4:20 PM"), type(12, {1, 1, 1, 0.92f}))
-                   .absolute().inset(W - 66, 13, 0, 0))
+                   .top(13).right(10))
         .child(text(toU8("7/20/2026"), type(10, {1, 1, 1, 0.65f}))
-                   .absolute().inset(W - 66, 27, 0, 0));
+                   .top(27).right(10));
   }
 
   // Desktop icons: white label over a soft dark shadow (the Win7 look).

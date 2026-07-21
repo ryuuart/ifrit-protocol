@@ -257,6 +257,10 @@ Element &Element::transition(Transition t) {
   m_node->nodeTransition = std::move(t);
   return *this;
 }
+Element &Element::staggerChildren(std::chrono::milliseconds each) {
+  m_node->staggerChildrenMs = (float)each.count();
+  return *this;
+}
 
 Element &Element::child(Element e) {
   m_node->children.push_back(std::move(e));

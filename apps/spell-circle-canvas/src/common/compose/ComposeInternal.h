@@ -69,6 +69,7 @@ struct ElementNode {
   TrimMode trimMode = TrimMode::Clamp;
   Cache cacheMode = Cache::Auto;
   std::optional<Transition> nodeTransition;
+  float staggerChildrenMs = 0; // extra i·each mount delay per child subtree
 
   // Text
   std::u8string textUtf8;

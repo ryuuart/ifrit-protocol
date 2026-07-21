@@ -134,6 +134,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (a.nodeTransition && !transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
+  if (a.staggerChildrenMs != b.staggerChildrenMs)
+    return false;
   // Paint.
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (pa.fill.has_value() != pb.fill.has_value())
@@ -366,6 +368,7 @@ void Composer::Impl::patchChildren(Instance &inst,
   inst.children.clear();
 
   size_t unkeyedCursor = 0;
+  size_t childOrdinal = 0;
   for (const Element &childElement : newChildren) {
     const std::shared_ptr<ElementNode> &node = childElement.node();
     std::unique_ptr<Instance> match;
@@ -383,9 +386,18 @@ void Composer::Impl::patchChildren(Instance &inst,
       patch(*match, node);
       inst.children.push_back(std::move(match));
     } else {
+      // staggerChildren(): child i's whole subtree mounts with i·each of
+      // extra entrance delay (saved/restored so siblings don't leak, and
+      // nested staggered containers compound).
+      const float saved = mountDelayCarryMs;
+      if (inst.desc->staggerChildrenMs > 0)
+        mountDelayCarryMs +=
+            inst.desc->staggerChildrenMs * (float)childOrdinal;
       inst.children.push_back(mount(node, &inst));
+      mountDelayCarryMs = saved;
       needsLayout = true;
     }
+    ++childOrdinal;
     Instance &placed = *inst.children.back();
     // Stack children overlap: absolute unless they positioned themselves.
     if (inst.desc->kind == Kind::Stack)

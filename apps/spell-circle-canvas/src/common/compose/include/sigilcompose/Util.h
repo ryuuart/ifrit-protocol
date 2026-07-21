@@ -130,6 +130,27 @@ inline Element marquee(Element content,
                                     .child(content));
 }
 
+/** The width-pinned marquee: each copy rides in a fixed `contentWidth`
+ *  box, so text content can NEVER wrap against the clip viewport (the
+ *  kinetic-study bug: an unpinned strip resolves against the clip box and
+ *  wraps to two lines). Measure once — `ctx.measure(strip).width()` — and
+ *  pass it here; wrap the phase over [-(contentWidth + gap), 0]. */
+inline Element marquee(Element content, float contentWidth,
+                       const choreograph::Output<float> *phase,
+                       float gap = 0.0f) {
+  auto pinned = [&] {
+    return box().width(Dim(contentWidth)).shrink(0).child(content);
+  };
+  return box().clip(true).child(box()
+                                    .row()
+                                    .gap(gap)
+                                    .shrink(0)
+                                    .alignSelf(Align::Start)
+                                    .translateX(phase)
+                                    .child(pinned())
+                                    .child(pinned()));
+}
+
 /**
  * The three-line host bundle for the common loop: owns
  * FrameClock + Ticker + Composer, wired together (composer clocked by

@@ -2664,14 +2664,19 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   };
   host.composer.render(tree());
   host.frame();
-  // Aqua pill: body painted, gloss brighter near the top than the bottom.
-  const SkColor aquaTop = host.pixel(80, 28), aquaBottom = host.pixel(80, 58);
+  // Aqua pill — the §2 gloss physics: bright lens at the top, the
+  // saturated dark band just under it, and the LIGHT-FROM-BELOW glow at
+  // the bottom (both ends beat the midband).
+  const SkColor aquaTop = host.pixel(80, 28);
+  const SkColor aquaMid = host.pixel(80, 47);
+  const SkColor aquaBottom = host.pixel(80, 60);
   EXPECT_NE(aquaTop, SK_ColorBLACK);
-  EXPECT_NE(aquaBottom, SK_ColorBLACK);
+  EXPECT_NE(aquaMid, SK_ColorBLACK);
   auto lum = [](SkColor c) {
     return SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c);
   };
-  EXPECT_GT(lum(aquaTop), lum(aquaBottom));
+  EXPECT_GT(lum(aquaTop), lum(aquaMid));
+  EXPECT_GT(lum(aquaBottom), lum(aquaMid));
   // Chrome bar: the §3 ramp's hard horizon — brighter above it than below.
   const SkColor chromeTop = host.pixel(220, 28);
   const SkColor chromeMid = host.pixel(220, 42);
@@ -2977,4 +2982,25 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
     for (int x = 0; x < 100; ++x)
       bandBottom += host.pixel(x, y) != SK_ColorBLACK;
   EXPECT_GT(bandBottom, band20 * 2); // full swell at the bottom
+}
+
+TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
+  // One container call replaces per-child delay arithmetic: child i's
+  // subtree enters i·each later (three studies asked independently).
+  Host host;
+  auto card = [] {
+    return box().width(60).height(30).fill(red()).opacity(
+        withFrom(0.0f, 1.0f, {200ms, &choreograph::easeNone}));
+  };
+  host.composer.render(box()
+                           .column()
+                           .gap(10)
+                           .staggerChildren(400ms)
+                           .child(card())
+                           .child(card()));
+  host.frame(0.3); // child 0 settled; child 1 still holding its `from`
+  EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
+  EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);
+  host.frame(0.5); // 0.8s: the cascade completed
+  EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
 }

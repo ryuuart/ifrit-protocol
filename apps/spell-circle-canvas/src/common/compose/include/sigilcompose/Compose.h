@@ -639,6 +639,12 @@ public:
   Element &key(std::string_view k);
   Element &cache(Cache c);
   Element &transition(Transition t); // node default for plain constants
+  /** GSAP-style container stagger: child i's subtree enters with an EXTRA
+   *  i·each delay on all its withFrom() mount transitions (compounding
+   *  through nested staggered containers). The battery cascade as one
+   *  call — no per-child delay arithmetic:
+   *  `column().staggerChildren(80ms).children(cards)`. */
+  Element &staggerChildren(std::chrono::milliseconds each);
 
   // ---- composition ----
   Element &child(Element e);

@@ -1,34 +1,52 @@
-// kinetic_study.cpp — contemporary kinetic typography study (REFERENCES.md §8,
-// "the community grammar"). A motion title card cycling the canonical moves
-// with the researched parameters:
+// kinetic_study.cpp — contemporary kinetic typography, ROUND 2 (REFERENCES.md
+// §8, "the community grammar"). The whole card now enters via withFrom()
+// MOUNT choreography — no hand-driven timeline ramps — so the §8 composition
+// laws are enforced by construction:
 //
-//   hero ....... staggered MaskedRise — glyphfx::rise under line-box clips,
-//                chars 30ms each / 500ms dur (the fluid band), master
-//                progress a LINEAR timeline ramp sized to the virtual span
-//                (distribution ease belongs to start times, not motion);
-//                lines staggered 0.12s, rise distance 1.05 x line-height
-//   subline .... CharPop — glyphfx::pop back.out(1.7) from 'start'; alpha
-//                completes early (composition law: opaque while moving,
-//                never overshoot alpha); entrance total kept <= 1.2s budget
-//   wave ....... WaveFloat loop — glyphfx::waveLoop bound to a WRAPPING
-//                phase Output (steppable t += dt, phase = fract(t / 1.6));
-//                dy = 0.1em * sin(2*pi*t/1.6 - 0.5i)  ->  amplitude 0.1em,
-//                phasePerGlyph 0.5/(2*pi) ~= 0.08; loops run under the
-//                entrance amplitude (60-80% law)
-//   ticker ..... seamless strip — duplicated text row, translateX bound to
-//                -(v*t mod stripW), v = 90 px/s, LINEAR always (never eased,
-//                never hard-stopped); stripW measured live via
-//                composer.bounds() on the first unit
+//   ONE DOMINANT MOVE .. the hero MaskedRise (glyphfx::rise under line-box
+//                        clips); everything else is supporting cast
+//   ENTRANCE BUDGET .... every paragraph's spread uses Stagger::amountMs
+//                        (amount-mode clamps the total, §8: <= 1.2s), and
+//                        each withFrom duration = holdMs + virtual span so
+//                        the researched per-glyph timings play in real time
+//   SEQUENCE ........... Transition::delay (landed mid-round after this
+//                        study's friction report): withFrom holds `from`
+//                        through the delay, then ramps — real enter-after
+//                        choreography with no ease hacks
 //
-// Headless captures:
-//   ComposeSketch <this> --frame kinetic_mid.png --at 0.5   (reveal mid-flight)
-//   ComposeSketch <this> --frame kinetic.png     --at 3.0   (settled + loops)
+// The moves, all mount-transitioned:
+//   kicker ..... opacity + translateY withFrom (fade-drop, easeOutQuad) and
+//                a Fill color sweep on the bullet chip (bone -> accent)
+//   hero ....... two centered lines (textAlign kCenter — the poster lockup),
+//                staggered rise from +1.26 x fontSize under a clip; master
+//                progress LINEAR (distribution ease belongs to start times)
+//   rule ....... a 380px center rule that DRAWS ON via trim-end withFrom
+//                (§8's reveal curve ease-out-expo), then hosts a marching
+//                comet: fixed trim window + wrapping offset (TrimMode::Wrap)
+//   subline .... CharPop back.out(1.7) from CENTER (the lockup pops outward),
+//                amount-mode 700ms + 420ms dur = 1.12s span; double textGlow
+//                accent (the one neon element, kept under the type)
+//   wave ....... WaveFloat loop on a wrapping phase Output — loops stay
+//                subordinate: 0.10em amplitude, faded in after the entrance
+//   ticker ..... util::marquee (the seamless two-copy strip) with the wrap
+//                length taken from compose::measure() — no bounds() polling
+//
+// Headless captures (the entrance reads as a sequence):
+//   ComposeSketch <this> --frame kinetic_early.png --at 0.25
+//   ComposeSketch <this> --frame kinetic_mid.png   --at 0.6
+//   ComposeSketch <this> --frame kinetic.png       --at 3.0
 
 #include <sigilsketch/Sketch.h>
 
 #include <sigilcompose/Kinetic.h>
+#include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
+
+#include <include/core/SkPathBuilder.h>
+
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 
@@ -57,66 +75,68 @@ sigil::weave::TextStyle type(float size, SkColor4f color, float tracking = 0) {
 }
 
 constexpr float kW = 960, kH = 600;
-constexpr float kHeroSize = 116;
+constexpr float kHeroSize = 112;
 constexpr float kTickerH = 48;
 constexpr float kTickerSpeed = 90;   // px/s — the 50-120 circulating band
-constexpr float kTickerGap = 56;     // built into the unit via padding-right
+constexpr float kTickerGap = 56;     // between the two marquee copies
 constexpr float kWavePeriod = 1.6f;  // the WaveFloat community constant
+constexpr float kCometPeriod = 2.8f; // the marching-rule lap time
+constexpr float kRuleW = 380;
+
+/** The host's FontContext isn't exposed to sketches, so measure() gets its
+ *  own (same system font manager — identical metrics to the render path). */
+sigil::weave::FontContext &sketchFonts() {
+  static auto *context = new sigil::weave::FontContext(
+      sigil::weave::ports::systemFontManager());
+  return *context;
+}
 
 } // namespace
 
 struct KineticStudy : sketch::Sketch {
-  // Master progresses for the one-shot moves (LINEAR ramps — per-glyph
-  // easing lives inside the effects, GSAP semantics).
-  ch::Output<float> heroA{0}, heroB{0}, popP{0};
-  // Wrapping phase for the loop + the ticker offset.
-  ch::Output<float> wavePhase{0}, tickX{0};
-  // Chrome fades.
-  ch::Output<float> metaFade{0}, waveFade{0}, tickFade{0};
-
-  float stripW = 0; // measured from composer.bounds("tickunit") once painted
+  // Loop clocks only — every ONE-SHOT is a withFrom mount transition now.
+  ch::Output<float> wavePhase{0}, cometPhase{0}, tickX{0};
+  float unitW = 0;   // the content's intrinsic width, via compose::measure()
+  float wrapLen = 1; // marquee wrap length = unitW + gap
 
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kInk);
 
-    auto &tl = ctx.ticker.timeline();
+    // The marquee wrap length comes from compose::measure() — the round-1
+    // bounds()-polling dance (paint a frame, read bounds, then wrap) is gone.
+    // The measured width is then PINNED onto the content: inside the marquee
+    // the strip's auto width resolves against the clip viewport, and an
+    // unpinned text child wraps to it.
+    const SkSize unit = sigil::compose::measure(tickerContent(), sketchFonts());
+    unitW = std::ceil(unit.width());
+    wrapLen = unitW + kTickerGap;
 
-    // Hero MaskedRise: "KINETIC" = 7 glyphs -> virtual span 500 + 30*6 =
-    // 680ms. A linear master ramp of exactly that length plays the
-    // researched per-glyph timings in real time. Lines each 0.12s.
-    heroA = 0.0f;
-    heroB = 0.0f;
-    tl.apply(&heroA).then<ch::Hold>(0.0f, 0.10f).then<ch::RampTo>(
-        1.0f, 0.68f, &ch::easeNone);
-    tl.apply(&heroB).then<ch::Hold>(0.0f, 0.22f).then<ch::RampTo>(
-        1.0f, 0.68f, &ch::easeNone);
-
-    // CharPop subline: 26 glyphs at 30ms each + 420ms dur = 1.17s -- inside
-    // the <=1.2s paragraph entrance budget.
-    popP = 0.0f;
-    tl.apply(&popP).then<ch::Hold>(0.0f, 0.42f).then<ch::RampTo>(
-        1.0f, 1.17f, &ch::easeNone);
-
-    metaFade = 0.0f;
-    tl.apply(&metaFade).then<ch::RampTo>(1.0f, 0.45f, &ch::easeOutQuad);
-    waveFade = 0.0f;
-    tl.apply(&waveFade).then<ch::Hold>(0.0f, 0.85f).then<ch::RampTo>(
-        1.0f, 0.55f, &ch::easeOutQuad);
-    tickFade = 0.0f;
-    tl.apply(&tickFade).then<ch::Hold>(0.0f, 1.05f).then<ch::RampTo>(
-        1.0f, 0.50f, &ch::easeOutQuad);
-
-    // The loop clock: wrapping wave phase + the LINEAR ticker offset.
+    // Loop clock: wrapping wave/comet phases + the LINEAR ticker offset.
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       wavePhase = (float)std::fmod(t / kWavePeriod, 1.0);
-      if (stripW > 1)
-        tickX = -(float)std::fmod(t * kTickerSpeed, (double)stripW);
+      cometPhase = (float)std::fmod(t / kCometPeriod, 1.0);
+      tickX = -(float)std::fmod(t * kTickerSpeed, (double)wrapLen);
       return true;
     });
 
     ctx.composer.render(describe());
+  }
+
+  Element tickerContent() {
+    const char *unit = "WITHFROM MOUNT CHOREOGRAPHY   ●   EASE-OUT-EXPO "
+                       "0.16 / 1 / 0.3 / 1   ●   AMOUNT-MODE 700 MS   ●   "
+                       "BACK.OUT(1.7)   ●   WAVE 1.6 S · 0.10 EM   ●   "
+                       "TRIM WRAP COMET   ●   90 PX/S LINEAR";
+    // Keyless by contract — marquee mounts it twice. Once measured, the
+    // intrinsic width is pinned so the strip can't wrap the line.
+    Element content =
+        box().row().alignItems(Align::Center).height(Dim(kTickerH))
+            .child(text(toU8(unit), type(15, kAsh, 2)).shrink(0));
+    if (unitW > 0)
+      content.width(Dim(unitW)).shrink(0);
+    return content;
   }
 
   Element describe() {
@@ -124,93 +144,132 @@ struct KineticStudy : sketch::Sketch {
         {0, 0}, {0, kH},
         {{0.00f, kInk}, {0.62f, kInkLift}, {1.00f, kInkFoot}});
 
-    // -- hero: staggered rise under a line-box clip (the MaskedRise read) --
-    auto heroLine = [&](const char *s, const char *key,
-                        const ch::Output<float> *progress) {
+    // -- hero: staggered MaskedRise, centered lockup -----------------------
+    // Stagger amount-mode: 180ms TOTAL spread + 500ms per-glyph dur = 680ms
+    // virtual span, regardless of glyph count. withFrom duration is exactly
+    // that span (played 1:1, LINEAR — per-glyph easing lives inside
+    // glyphfx::rise); Transition::delay sequences the lines.
+    auto heroLine = [&](const char *s, const char *key, int delayMs) {
       GlyphFx fx;
-      // 1.05 x line-height below rest, chars 30ms each / 500ms dur.
       fx.effect = glyphfx::rise(kHeroSize * 1.26f);
-      fx.stagger = {.eachMs = 30, .durationMs = 500};
-      fx.progress = progress;
+      fx.stagger = {.amountMs = 180, .durationMs = 500};
+      fx.progress = withFrom(
+          0.0f, 1.0f,
+          {680ms, &ch::easeNone, std::chrono::milliseconds(delayMs)});
       return box().clip() // the line-box mask
           .child(text(toU8(s), type(kHeroSize, kBone, 2))
                      .key(key)
+                     .width(pct(100))
+                     .textAlign(sigil::weave::TextAlignment::kCenter)
                      .glyphFx(std::move(fx)));
     };
 
-    // -- subline: CharPop from 'start' ------------------------------------
+    // -- subline: CharPop from CENTER, double textGlow accent --------------
+    // Amount-mode budget: 700ms spread + 420ms dur = 1.12s <= the 1.2s law.
     GlyphFx popFx;
     popFx.effect = glyphfx::pop(0.35f, 1.70158f); // back.out(1.7)
-    popFx.stagger = {.eachMs = 30, .durationMs = 420,
-                     .from = Stagger::From::Start};
-    popFx.progress = &popP;
+    popFx.stagger = {.amountMs = 700, .durationMs = 420,
+                     .from = Stagger::From::Center};
+    popFx.progress = withFrom(0.0f, 1.0f, {1120ms, &ch::easeNone, 450ms});
 
     // -- wave line: endless float on the wrapping phase --------------------
     GlyphFx waveFx;
-    // amplitude 0.1em of the 19px face; phasePerGlyph 0.5 rad / 2*pi ~= 0.08.
-    waveFx.effect = glyphfx::waveLoop(1.9f, 0.08f);
+    waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f); // §8: 0.10em, 0.5 rad
     waveFx.stagger = {.eachMs = 0, .durationMs = 450}; // one master phase
     waveFx.progress = &wavePhase;
 
-    // -- ticker: duplicated units, hairline above, LINEAR drift ------------
-    const char *unit = "EASE-OUT-EXPO 0.16 / 1 / 0.3 / 1   ●   STAGGER "
-                       "30 MS PER CHAR   ●   BACK.OUT(1.7)   ●   "
-                       "WAVE 1.6 S   ●   90 PX/S LINEAR";
-    auto tickerUnit = [&](const char *key) {
-      return box().row().shrink(0).padding(0, 0, kTickerGap, 0).key(key)
-          .child(text(toU8(unit), type(15, kAsh, 2)).shrink(0));
+    // -- the center rule: draws on via trim withFrom, then hosts the comet -
+    auto lineOutline = [](SkSize s) {
+      SkPathBuilder b;
+      b.moveTo(0, s.height() * 0.5f);
+      b.lineTo(s.width(), s.height() * 0.5f);
+      return b.detach();
     };
+    PathFormat ruleFmt;
+    ruleFmt.width = 2;
+    ruleFmt.strokeFill = Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.8f});
+    PathFormat cometFmt;
+    cometFmt.width = 2;
+    cometFmt.strokeFill = Fill::color(kBone);
+
     PathFormat hairline;
     hairline.width = 1;
     hairline.strokeFill = Fill::color({0.93f, 0.92f, 0.89f, 0.22f});
+
+    // One neon accent, kept under the type: tight core + wide halo.
+    Effect glow = styles::textGlow({kAccent.fR, kAccent.fG, kAccent.fB, 0.55f}, 3)
+                      .then(styles::textGlow(
+                          {kAccent.fR, kAccent.fG, kAccent.fB, 0.30f}, 10));
 
     return stack()
         .fill(ground)
         // the editorial column
         .child(
             box().column().absolute().inset(64, 44, 64, kTickerH)
+                // kicker: fade-drop withFrom + the chip's color sweep
                 .child(box().row().alignItems(Align::Baseline)
-                           .opacity(&metaFade)
-                           .child(text(toU8("SIGIL — MOTION STUDY"),
+                           .opacity(withFrom(0.0f, 1.0f,
+                                             {450ms, &ch::easeOutQuad}))
+                           .translateY(withFrom(-14.0f, 0.0f,
+                                                {450ms, &ch::easeOutCubic}))
+                           .child(box().width(Dim(10.0f)).height(Dim(10.0f))
+                                      .alignSelf(Align::Center)
+                                      .margin(0, 0, 12, 0)
+                                      .fill(PropValue<Fill>(withFrom(
+                                          Fill::color(kBone),
+                                          Fill::color(kAccent),
+                                          {900ms, &ch::easeOutQuad}))))
+                           .child(text(toU8("SIGIL — MOTION STUDY II"),
                                        type(15, kAsh, 3)))
                            .child(box().grow(1))
-                           .child(text(toU8("REFERENCES §8"),
+                           .child(text(toU8("REFERENCES §8 — ENTRANCES"),
                                        type(15, kAccent, 3))))
                 .child(box().grow(1))
-                .child(heroLine("KINETIC", "hero1", &heroA))
-                .child(heroLine("GRAMMAR", "hero2", &heroB))
+                .child(heroLine("KINETIC", "hero1", 100))
+                .child(heroLine("GRAMMAR", "hero2", 220))
+                .child(box().width(Dim(kRuleW)).height(Dim(2.0f))
+                           .alignSelf(Align::Center)
+                           .margin(0, 30, 0, 0)
+                           .outline(lineOutline)
+                           .stroke(ruleFmt)
+                           // DRAW ON: trim end 0 -> 1, §8's reveal curve
+                           .trim(0.0f,
+                                 withFrom(0.0f, 1.0f,
+                                          {500ms, &ch::easeOutExpo, 360ms}))
+                           // the marching comet: fixed window, wrapping offset
+                           .child(box().absolute().inset(0, 0, 0, 0)
+                                      .outline(lineOutline)
+                                      .stroke(cometFmt)
+                                      .trim(0.0f, 0.06f, &cometPhase,
+                                            TrimMode::Wrap)
+                                      .opacity(withFrom(
+                                          0.0f, 1.0f,
+                                          {500ms, &ch::easeOutQuad, 1500ms}))))
                 .child(text(toU8("STAGGERED · POPPED · WAVED"),
                             type(26, kAccent, 4))
                            .key("popline")
+                           .width(pct(100))
+                           .textAlign(sigil::weave::TextAlignment::kCenter)
                            .glyphFx(std::move(popFx))
-                           .margin(0, 20, 0, 0))
+                           .effect(glow)
+                           .margin(0, 26, 0, 0))
                 .child(text(toU8("floating on a 1.6 s sine — amplitude "
                                  "0.10 em · phase 0.5 rad per glyph"),
                             type(19, kAsh, 1))
                            .key("waveline")
+                           .width(pct(100))
+                           .textAlign(sigil::weave::TextAlignment::kCenter)
                            .glyphFx(std::move(waveFx))
-                           .opacity(&waveFade)
-                           .margin(0, 18, 0, 34)))
-        // the seamless ticker strip
-        .child(
-            box().absolute().inset(0, kH - kTickerH, 0, 0).clip()
-                .opacity(&tickFade)
-                .foreground(shapes::onEdges(shapes::Edge::Top, hairline))
-                .child(box().row().absolute().inset(0, 0, -4200, 0)
-                           .alignItems(Align::Center)
-                           .translateX(&tickX)
-                           .child(tickerUnit("tickunit"))
-                           .child(tickerUnit("tick1"))
-                           .child(tickerUnit("tick2"))));
-  }
-
-  void update(double, sketch::SketchContext &ctx) override {
-    // Measure the ticker unit once it has painted; the steppable starts
-    // wrapping the offset as soon as stripW lands.
-    if (stripW <= 1) {
-      if (auto b = ctx.composer.bounds("tickunit"))
-        stripW = b->width();
-    }
+                           .opacity(withFrom(0.0f, 1.0f,
+                                             {560ms, &ch::easeOutQuad, 840ms}))
+                           .margin(0, 22, 0, 0))
+                .child(box().grow(1)))
+        // the seamless ticker: util::marquee over the measured wrap length
+        .child(util::marquee(tickerContent(), &tickX, kTickerGap)
+                   .absolute().inset(0, kH - kTickerH, 0, 0)
+                   .opacity(withFrom(0.0f, 1.0f,
+                                     {560ms, &ch::easeOutQuad, 1040ms}))
+                   .foreground(shapes::onEdges(shapes::Edge::Top, hairline)));
   }
 };
 

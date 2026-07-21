@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <fstream>
 #include <sstream>
 
 namespace sigil::compose::sketch {
@@ -35,6 +36,57 @@ int run(const std::string &command, std::string &output) {
   while (size_t n = fread(buffer, 1, sizeof buffer, pipe))
     output.append(buffer, n);
   return pclose(pipe);
+}
+
+// ---- header/host skew guard ------------------------------------------------
+// A sketch dylib compiled against framework headers NEWER than this host
+// binary loads into a host whose structs have the OLD layout — variant
+// dispatch corrupts and the crash points nowhere near the cause (it cost a
+// study agent an lldb session). kAbiVersion only guards deliberate
+// SketchContext changes; this guards every header edit: refuse to compile
+// while any repo header on the include path postdates the running binary.
+
+std::filesystem::file_time_type hostBinaryTime() {
+  Dl_info info{};
+  if (dladdr(reinterpret_cast<void *>(&hostBinaryTime), &info) &&
+      info.dli_fname) {
+    std::error_code ec;
+    auto t = std::filesystem::last_write_time(info.dli_fname, ec);
+    if (!ec)
+      return t;
+  }
+  return {};
+}
+
+/** First repo header on the flags file's -I paths newer than @p hostTime
+ *  (empty string when none). System/vcpkg include dirs are skipped. */
+std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
+                                std::filesystem::file_time_type hostTime) {
+  std::ifstream flags(flagsFile);
+  std::string token;
+  std::error_code ec;
+  while (flags >> token) {
+    if (token.size() > 2 && token.compare(0, 2, "-I") == 0)
+      token.erase(0, 2);
+    else
+      continue;
+    if (!token.empty() && token.front() == '"')
+      token = token.substr(1, token.size() - 2);
+    // Repo headers only — vcpkg/system trees are immutable in practice
+    // and huge to scan.
+    if (token.find("/src/") == std::string::npos)
+      continue;
+    for (auto it = std::filesystem::recursive_directory_iterator(token, ec);
+         !ec && it != std::filesystem::recursive_directory_iterator(); ++it) {
+      const std::filesystem::path &p = it->path();
+      if (p.extension() != ".h" && p.extension() != ".hpp")
+        continue;
+      auto t = std::filesystem::last_write_time(p, ec);
+      if (!ec && t > hostTime)
+        return p.string();
+    }
+  }
+  return {};
 }
 
 } // namespace
@@ -61,6 +113,22 @@ void SketchHost::startCompile() {
       std::filesystem::last_write_time(m_options.sketchPath, ec);
   m_everCompiled = true;
   m_compileStart = std::chrono::steady_clock::now();
+
+  // Skew guard: never hand a dylib built against newer framework headers
+  // to this (older) host — the crash it prevents is unattributable.
+  if (const auto hostTime = hostBinaryTime();
+      hostTime != std::filesystem::file_time_type{}) {
+    if (const std::string stale =
+            newerHeaderThanHost(m_options.flagsFile, hostTime);
+        !stale.empty()) {
+      m_errorLog =
+          "framework headers are NEWER than this host binary (" + stale +
+          ") — rebuild ComposeSketch before iterating; a sketch compiled "
+          "against skewed headers would corrupt the host ABI";
+      m_status = "stale host — rebuild ComposeSketch";
+      return; // keep the previous sketch alive, p5 style
+    }
+  }
   m_status = "compiling build " + std::to_string(m_generation + 1) +
              "…";
 
@@ -170,8 +238,8 @@ void SketchHost::poll() {
 }
 
 SketchContext SketchHost::makeContext() {
-  return SketchContext{*m_composer, *m_ticker, m_assets,
-                       m_canvasSpec.size, &m_canvasSpec};
+  return SketchContext{*m_composer,      *m_ticker,     m_assets,
+                       m_canvasSpec.size, &m_canvasSpec, &m_fonts};
 }
 
 void SketchHost::applyCanvasSpec() {

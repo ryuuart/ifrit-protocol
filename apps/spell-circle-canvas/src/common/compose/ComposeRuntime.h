@@ -154,6 +154,10 @@ struct Composer::Impl {
   bool hasCenterPins = false; // any centerAt() in the tree
   bool liveOnly = false; // snapshot(): skip per-node caches
   Effect view;           // output view transform (null filter = pass-through)
+  // staggerChildren(): the accumulated extra mount delay for the subtree
+  // being mounted right now (depth-first, saved/restored per child — a
+  // nested staggered container compounds on its parent's carry).
+  float mountDelayCarryMs = 0;
 
   mutable Stats stats;
 

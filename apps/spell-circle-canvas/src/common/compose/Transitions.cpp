@@ -93,7 +93,9 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
     anim->value = *tr->from;
     anim->started = true;
     auto motion = ticker.timeline().apply(&anim->value);
-    const float delay = std::chrono::duration<float>(tr->spec.delay).count();
+    const float delay =
+        std::chrono::duration<float>(tr->spec.delay).count() +
+        mountDelayCarryMs / 1000.0f; // staggerChildren() carry
     if (delay > 0) // stagger: hold the `from` before entering
       motion.then<choreograph::Hold>(*tr->from, delay);
     motion.then<choreograph::RampTo>(
@@ -129,7 +131,9 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       anim->value = 0.0f;
       anim->started = true;
       auto motion = ticker.timeline().apply(&anim->value);
-      const float delay = std::chrono::duration<float>(tr->spec.delay).count();
+      const float delay =
+          std::chrono::duration<float>(tr->spec.delay).count() +
+          mountDelayCarryMs / 1000.0f; // staggerChildren() carry
       if (delay > 0)
         motion.then<choreograph::Hold>(0.0f, delay);
       motion.then<choreograph::RampTo>(
