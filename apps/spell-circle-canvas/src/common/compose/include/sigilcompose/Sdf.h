@@ -147,8 +147,13 @@ half4 main(float2 xy) {
     float sb = max(uShadowBlur, aa);
     acc = overOp(acc, uShadow, 1.0 - smoothstep(-sb, sb, ds));
   }
-  if (uGlowR > 0.0)
-    acc = overOp(acc, uGlow, exp(-max(d, 0.0) / uGlowR));
+  if (uGlowR > 0.0) {
+    // Exponential falloff, forced to EXACT zero by the pad edge so the
+    // node's box never crops a visible square (the poe-study fix).
+    float g = exp(-max(d, 0.0) / uGlowR) *
+              max(0.0, 1.0 - max(d, 0.0) / max(uPad - 1.0, 1.0));
+    acc = overOp(acc, uGlow, g);
+  }
   acc = overOp(acc, uFill, 1.0 - smoothstep(-aa, aa, d));
   if (uBorderW > 0.0) {
     float hw = uBorderW * 0.5;
@@ -187,6 +192,21 @@ inline const sk_sp<SkRuntimeEffect> &effectFor(Kind kind) {
 
 } // namespace detail
 
+/** The pad the style reserves inside the node's box (border half-width +
+ *  glow/shadow reach). PUBLIC so callers can size a node by its VISIBLE
+ *  silhouette: box dimension = visible diameter + 2·sdf::pad(style)
+ *  (the poe-study ask — never hand-copy the formula). */
+inline float pad(const Style &style) {
+  const float glowPad = style.glowRadius > 0 ? style.glowRadius * 3.2f : 0.0f;
+  const float shadowPad =
+      style.shadowColor.fA > 0
+          ? std::max(std::abs(style.shadowOffset.fX),
+                     std::abs(style.shadowOffset.fY)) +
+                style.shadowBlur * 1.5f
+          : 0.0f;
+  return style.borderWidth * 0.5f + std::max(glowPad, shadowPad) + 1.0f;
+}
+
 /** The SDF material: shape + style, one shader pass. The style's outer
  *  treatments (border half-width, glow falloff, shadow reach) reserve a pad
  *  inside the node's box so nothing clips; bindable uniforms animate within
@@ -195,16 +215,8 @@ inline Material material(const Shape &shape, const Style &style) {
   const sk_sp<SkRuntimeEffect> &fx = detail::effectFor(shape.kind);
   if (!fx)
     return {};
-  const float glowPad = style.glowRadius > 0 ? style.glowRadius * 2.5f : 0.0f;
-  const float shadowPad =
-      style.shadowColor.fA > 0
-          ? std::max(std::abs(style.shadowOffset.fX),
-                     std::abs(style.shadowOffset.fY)) +
-                style.shadowBlur * 1.5f
-          : 0.0f;
-  const float pad =
-      style.borderWidth * 0.5f + std::max(glowPad, shadowPad) + 1.0f;
-  return Material::sksl(fx, {{"uPad", pad},
+  const float padPx = pad(style);
+  return Material::sksl(fx, {{"uPad", padPx},
                              {"uBorderW", style.borderWidth},
                              {"uGlowR", style.glowRadius},
                              {"uShadowOffX", style.shadowOffset.fX},

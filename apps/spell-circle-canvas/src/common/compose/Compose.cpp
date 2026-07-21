@@ -131,6 +131,16 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   return e;
 }
 
+Effect Effect::then(const Effect &next) const {
+  Effect e;
+  if (!m_filter)
+    return next;
+  if (!next.m_filter)
+    return *this;
+  e.m_filter = SkImageFilters::Compose(next.m_filter, m_filter);
+  return e;
+}
+
 Element &Element::background(Decoration d) {
   m_node->backgrounds.push_back(std::move(d));
   return *this;

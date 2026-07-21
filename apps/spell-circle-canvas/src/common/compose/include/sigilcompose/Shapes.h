@@ -152,6 +152,37 @@ inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
   };
 }
 
+/** A circular arc inscribed in the box, STARTING at @p startDeg (Skia
+ *  canvas convention: 0° = +x, clockwise) and sweeping @p sweepDeg — the
+ *  path begins at the arc's start, so `.trim(0, sweep/360)`-style reveals
+ *  and orbit connectors (the PoE Orbit idiom, REFERENCES.md §5) need no
+ *  wrap math. Stroke it; an unstroked open arc has no fillable area. */
+inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {
+  return [startDeg, sweepDeg](SkSize s) {
+    SkPathBuilder b;
+    b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
+             std::min(sweepDeg, 359.9f));
+    return b.detach();
+  };
+}
+
+/** A parallelogram leaning by @p skewDeg (the ATLUS slash, REFERENCES.md
+ *  §1: P3R ≈ −12°, P5R ≈ −20°): the top edge shifts by h·tan(skew) relative
+ *  to the bottom, staying inside the box. */
+inline OutlineFn parallelogram(float skewDeg) {
+  return [skewDeg](SkSize s) {
+    const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
+    const float l = std::max(0.0f, -lean), r = std::max(0.0f, lean);
+    SkPathBuilder b;
+    b.moveTo(l, 0);
+    b.lineTo(s.width() - r + l, 0); // top edge (shifted)
+    b.lineTo(s.width() - l, s.height());
+    b.lineTo(r - l >= 0 ? r : 0, s.height());
+    b.close();
+    return b.detach();
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Wrappers
 

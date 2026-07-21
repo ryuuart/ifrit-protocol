@@ -139,5 +139,21 @@ inline LayeredBrush rope(int state) {
   return b;
 }
 
+/** The §5 pulse-travel profile as a brush: plus-blended halo, colored
+ *  body, white-hot core. Stroke it on a SHORT trim window of a rail
+ *  (trim(&phase, &phaseEnd)) and march the window along the route —
+ *  the energy packet on any connector. */
+inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
+                          SkColor4f core = {1, 1, 1, 0.9f},
+                          float scale = 1.0f) {
+  SkColor4f body = halo;
+  body.fA = std::min(1.0f, halo.fA * 2.2f);
+  return LayeredBrush{{
+      {12 * scale, halo, 5 * scale, {}, 0, SkBlendMode::kPlus},
+      {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
+      {2 * scale, core},
+  }};
+}
+
 } // namespace brushes
 } // namespace sigil::compose

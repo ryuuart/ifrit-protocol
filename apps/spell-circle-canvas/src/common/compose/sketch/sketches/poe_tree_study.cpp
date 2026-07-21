@@ -110,9 +110,9 @@ Element socket(const char *key, SkPoint at, float dia, const sdf::Style &st,
  *  transparent → color → white core). */
 LayeredBrush pulseBrush() {
   return LayeredBrush{{
-      {14, {kHalo.fR, kHalo.fG, kHalo.fB, 0.14f}, 6, {}, 0, SkBlendMode::kPlus},
-      {5, {kSpec.fR, kSpec.fG, kSpec.fB, 0.95f}},
-      {1.8f, {1, 1, 1, 0.85f}},
+      {16, {kHalo.fR, kHalo.fG, kHalo.fB, 0.20f}, 6, {}, 0, SkBlendMode::kPlus},
+      {6, {kSpec.fR, kSpec.fG, kSpec.fB, 1.0f}},
+      {2.4f, {1, 1, 1, 1}},
   }};
 }
 
@@ -159,7 +159,7 @@ struct PoeTreeStudy : sketch::Sketch {
       breathA = 5.5f + 3.5f * (float)std::sin(t * 2.1);
       breathB = 5.5f + 3.5f * (float)std::sin(t * 2.1 + 2.2);
       const float cycle = (float)std::fmod(t, 2.6);
-      const float u = (cycle - 0.35f) / 1.15f; // travel starts at 0.35s
+      const float u = (cycle - 1.02f) / 1.15f; // travel starts at 1.02s
       const float s = -0.12f + u * 1.12f;
       pulseS = s;
       pulseE = s + 0.12f;
@@ -202,15 +202,25 @@ struct PoeTreeStudy : sketch::Sketch {
    *  star icon on notables). */
   void allocated(Element &parent, const char *key, SkPoint at, float dia,
                  bool notable) {
-    parent.child(socket(key, at, dia,
-                        {.fill = kSocket,
-                         .borderWidth = 3.0f,
-                         .borderColor = kGold,
-                         .glowRadius = 8,
-                         .glowColor = {kHalo.fR, kHalo.fG, kHalo.fB, 0.5f}}));
-    parent.child(socket(nullptr, at, dia - 11,
+    // Declared glowRadius reserves a generous pad (exp falloff reaches ~0
+    // before the box edge — no square cutoff); the ACTUAL halo runs at 6.5
+    // via a float uniform override.
+    Material m = sdf::material(
+        sdf::circle(), {.fill = kSocket,
+                        .borderWidth = 3.2f,
+                        .borderColor = kGold,
+                        .glowRadius = 13,
+                        .glowColor = {kHalo.fR, kHalo.fG, kHalo.fB, 0.5f}});
+    m.uniform("uGlowR", 6.5f);
+    const float pad = 3.2f * 0.5f + 13 * 2.5f + 1.0f;
+    const float boxSize = dia + 2 * pad, hh = boxSize * 0.5f;
+    parent.child(box().width(boxSize).height(boxSize)
+                     .inset(at.x() - hh, at.y() - hh, W - at.x() - hh,
+                            H - at.y() - hh)
+                     .absolute().key(key).fill(std::move(m)).zIndex(3));
+    parent.child(socket(nullptr, at, dia - 13,
                         {.fill = {0, 0, 0, 0},
-                         .borderWidth = 1.7f,
+                         .borderWidth = 1.8f,
                          .borderColor = kGold}));
     if (notable) {
       const float h = 8;
@@ -256,26 +266,26 @@ struct PoeTreeStudy : sketch::Sketch {
                    .zIndex(2));
 
     // --- sockets: the ring-state ladder ---
-    allocated(root, "a1", a1, 34, true);
-    allocated(root, "a2", a2, 28, false);
-    allocated(root, "a3", a3, 34, true);
+    allocated(root, "a1", a1, 40, true);
+    allocated(root, "a2", a2, 32, false);
+    allocated(root, "a3", a3, 40, true);
 
     const sdf::Style canAlloc{
         .fill = kSocket,
-        .borderWidth = 2.5f,
+        .borderWidth = 2.6f,
         .borderColor = kRimLit,
-        .glowRadius = 9, // pad reserve = the breathing bind's maximum
+        .glowRadius = 14, // generous pad reserve; the bind stays ≤ 9
         .glowColor = {kGold.fR, kGold.fG, kGold.fB, 0.45f}};
-    root.child(socket("c1", c1, 28, canAlloc, &breathA));
-    root.child(socket("c2", c2, 28, canAlloc, &breathB));
-    root.child(socket("c3", c3, 28, canAlloc, &breathA));
+    root.child(socket("c1", c1, 32, canAlloc, &breathA));
+    root.child(socket("c2", c2, 32, canAlloc, &breathB));
+    root.child(socket("c3", c3, 32, canAlloc, &breathA));
 
     const sdf::Style unalloc{.fill = kSocket,
                              .borderWidth = 2.0f,
                              .borderColor = kPewter};
-    root.child(socket("u1", u1, 24, unalloc));
-    root.child(socket("u2", u2, 24, unalloc));
-    root.child(socket("u3", u3, 26, unalloc));
+    root.child(socket("u1", u1, 27, unalloc));
+    root.child(socket("u2", u2, 27, unalloc));
+    root.child(socket("u3", u3, 29, unalloc));
 
     // --- title + the 3-state legend ---
     root.child(box().column().absolute().inset(40, 34, 0, 0).zIndex(5)

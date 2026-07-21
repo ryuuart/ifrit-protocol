@@ -96,13 +96,15 @@ inline GlyphEffectFn typeOn() {
 
 /** Endless float: glyph i bobs on a sine, phase-shifted per glyph. Bind
  *  progress to a WRAPPING phase Output (t = fract(seconds / period)) and
- *  set stagger.eachMs = 0 so every glyph reads the same master phase. */
-inline GlyphEffectFn waveLoop(float amplitudePx = 5,
-                              float phasePerGlyph = 0.18f) {
-  return [amplitudePx, phasePerGlyph](const GlyphInfo &g, float t) {
+ *  set stagger.eachMs = 0 so every glyph reads the same master phase.
+ *  Units follow the §8 law: amplitude in EM (≤ 0.15em or descenders
+ *  collide), phase in RADIANS per glyph (the researched 0.4–0.6). */
+inline GlyphEffectFn waveLoop(float amplitudeEm = 0.10f,
+                              float phaseRadPerGlyph = 0.5f) {
+  return [amplitudeEm, phaseRadPerGlyph](const GlyphInfo &g, float t) {
     GlyphMod m;
-    m.dy = std::sin(((float)g.index * phasePerGlyph + t) * 6.2831853f) *
-           amplitudePx;
+    m.dy = std::sin(t * 6.2831853f - (float)g.index * phaseRadPerGlyph) *
+           amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
     return m;
   };
 }

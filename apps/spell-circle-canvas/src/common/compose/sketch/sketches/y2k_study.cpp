@@ -63,7 +63,7 @@ sigil::weave::TextStyle type(float size, SkColor4f color, float tracking = 0,
   s.shaping.fontSize = size;
   s.shaping.letterSpacing = tracking;
   if (weight > 0)
-    s.shaping.variations = {{SkSetFourByteTag('w', 'g', 'h', 't'), weight}};
+    s.shaping.variations = {sigil::weave::FontVariation("wght", weight)};
   s.paint.foreground.setColor4f(color, nullptr);
   s.paint.foreground.setAntiAlias(true);
   return s;
@@ -87,10 +87,11 @@ sigil::weave::TextStyle chromeType(float size) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.shaping.letterSpacing = 3;
-  s.shaping.variations = {{SkSetFourByteTag('w', 'g', 'h', 't'), 800}};
-  // Map the ramp onto the glyph band: cap tops ~0.18·size below the line
-  // top, baseline ~0.98·size — so the hard horizon lands mid-letter.
-  s.paint.foreground.setShader(sunsetShader(size * 0.16f, size * 1.00f));
+  s.shaping.variations = {sigil::weave::FontVariation("wght", 800)};
+  // Map the ramp onto the glyph band (measured off the rendered line box:
+  // cap tops ≈0.16·size below the line top, baseline ≈0.80·size) — so the
+  // hard horizon lands mid-letter and the cream reaches the glyph feet.
+  s.paint.foreground.setShader(sunsetShader(size * 0.16f, size * 0.80f));
   s.paint.foreground.setAntiAlias(true);
   // Grounding shadow behind the chrome (the era set logos on soft drops).
   sigil::weave::PaintLayer drop;
@@ -157,11 +158,21 @@ Element aquaPill(std::string_view label, const PillTint &t, float w = 178,
                  .fill(Material::linear({0, 0}, {0, h * 0.48f},
                                         {{0.0f, {1, 1, 1, 0.72f}},
                                          {1.0f, {1, 1, 1, 0.0f}}})))
-      // label, centered, riding above the lens
+      // label, centered, riding above the lens (1px dark ground shadow)
       .child(box().absolute().inset(0).row().justify(Justify::Center)
                  .alignItems(Align::Center).zIndex(1)
-                 .child(text(toU8(std::string(label)),
-                             type(17, {1, 1, 1, 0.98f}, 1.0f, 650))));
+                 .child(text(toU8(std::string(label)), [&] {
+                   auto s = type(17, {1, 1, 1, 0.98f}, 1.0f, 650);
+                   sigil::weave::PaintLayer ground;
+                   ground.paint.setColor4f(
+                       {t.deep.fR * 0.4f, t.deep.fG * 0.4f, t.deep.fB * 0.4f,
+                        0.45f},
+                       nullptr);
+                   ground.paint.setAntiAlias(true);
+                   ground.offset = {0, 1.2f};
+                   s.paint.addUnderlay(ground);
+                   return s;
+                 }())));
 }
 
 // ---------------------------------------------------------------------------
@@ -178,20 +189,22 @@ Element aquaOrb(float d = 118) {
                          {1.00f, C(0x082B54)}}),
        SkBlendMode::kSrcOver},
       // the Aqua signature: glow rising from the bottom rim
-      {Material::radial({r, d * 0.94f}, r * 0.78f,
-                        {{0.0f, {0.75f, 0.94f, 1.0f, 0.9f}},
-                         {1.0f, {0.75f, 0.94f, 1.0f, 0.0f}}}),
+      {Material::radial({r, d * 0.92f}, r * 0.85f,
+                        {{0.0f, {0.78f, 0.95f, 1.0f, 0.95f}},
+                         {0.6f, {0.60f, 0.88f, 1.0f, 0.45f}},
+                         {1.0f, {0.60f, 0.88f, 1.0f, 0.0f}}}),
        SkBlendMode::kScreen},
   });
   return box().width(d).height(d).corners({r}).clip()
       .background(styles::dropShadow({66 / 255.f, 140 / 255.f, 240 / 255.f, 0.45f},
                                      {0, 8}, 14))
       .fill(body)
-      // top lens: x∈[15%,85%], y∈[5%,48%]
-      .child(box().absolute().inset(d * 0.15f, d * 0.05f, d * 0.15f, d * 0.52f)
-                 .corners({d * 0.215f})
-                 .fill(Material::linear({0, 0}, {0, d * 0.43f},
-                                        {{0.0f, {1, 1, 1, 0.80f}},
+      // top lens dome: x∈[16%,84%], y∈[5%,44%], a full capsule
+      .child(box().absolute().inset(d * 0.16f, d * 0.05f, d * 0.16f, d * 0.56f)
+                 .corners({d * 0.195f})
+                 .fill(Material::linear({0, 0}, {0, d * 0.39f},
+                                        {{0.0f, {1, 1, 1, 0.85f}},
+                                         {0.7f, {1, 1, 1, 0.18f}},
                                          {1.0f, {1, 1, 1, 0.0f}}})));
 }
 
@@ -200,10 +213,10 @@ Element aquaOrb(float d = 118) {
 
 Element plasticButton(std::string_view label) {
   styles::BevelEmboss bevel;
-  bevel.depth = 2;
-  bevel.size = 1.2f; // near-hard edges: the 2px outset look
-  bevel.highlight = {1, 1, 1, 0.85f};
-  bevel.shadow = {0, 0, 0, 0.50f};
+  bevel.depth = 3;
+  bevel.size = 0; // HARD edges: the era's 2px outset is unblurred
+  bevel.highlight = {1, 1, 1, 0.88f};
+  bevel.shadow = {0, 0, 0, 0.55f};
   return box().width(168).height(38)
       .fill(Fill::color(C(0x336699))) // flat web-safe fill
       .foreground(bevel)
@@ -216,7 +229,7 @@ Element plasticButton(std::string_view label) {
 Element chromeSquare(SkColor4f fill) {
   styles::BevelEmboss bevel;
   bevel.depth = 1.5f;
-  bevel.size = 1.0f;
+  bevel.size = 0;
   return box().width(15).height(14).fill(Fill::color(fill)).foreground(bevel).stroke(
       util::stroke(1, Fill::color({0.25f, 0.27f, 0.30f, 0.8f})));
 }
@@ -292,7 +305,7 @@ struct Y2kStudy : sketch::Sketch {
     const float typeSize = 96;
     // horizon (ramp .495–.505) in type-box space: lerp of the shader map
     const float horizonY = typeSize * 0.16f +
-                           0.5f * (typeSize * 1.00f - typeSize * 0.16f);
+                           0.5f * (typeSize * 0.80f - typeSize * 0.16f);
     Element chromeWord =
         box().height(typeSize * 1.16f).key("chrome-type")
             .translateY(&dropType).opacity(&fadeType)
@@ -333,6 +346,7 @@ struct Y2kStudy : sketch::Sketch {
                 .child(titleBar)
                 .child(
                     box().column().grow(1).padding(30, 18)
+                        .child(box().grow(0.55f))
                         .child(chromeWord)
                         // tagline under the horizon
                         .child(box().row().justify(Justify::Center)
@@ -348,6 +362,13 @@ struct Y2kStudy : sketch::Sketch {
                                    .child(aquaPill("HOT  LINKS", kRedPill))
                                    .child(aquaPill("GUESTBOOK", kGreenPill)))
                         .child(box().grow(1))
+                        // 3D groove rule — the <hr> of the period
+                        .child(box().height(2).margin(4, 0, 4, 14)
+                                   .opacity(&fadeFoot)
+                                   .fill(Material::linear(
+                                       {0, 0}, {0, 2},
+                                       {{0.0f, C(0x8F969D)}, {0.5f, C(0x8F969D)},
+                                        {0.501f, C(0xFFFFFF)}, {1.0f, C(0xFFFFFF)}})))
                         // footer: orb · caption · 1998 plastic button
                         .child(box().row().alignItems(Align::End)
                                    .opacity(&fadeFoot).key("footer")

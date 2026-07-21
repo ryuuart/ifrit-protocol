@@ -36,10 +36,15 @@ inline util::Shadow dropShadow(SkColor4f color = {0, 0, 0, 0.5f},
   return util::shadow(color, offset, size);
 }
 
-/** Inner Shadow: the shape's INVERSE, blurred and offset, clipped inside —
- *  the recessed/punched-in look (and one half of every fake bevel).
- *  `offset` follows Photoshop: the direction the shadow is CAST, so
- *  (0, 3) casts downward and the band hugs the TOP inner edge. */
+/** Inner Shadow: a blurred band hugging the inner edges — the recessed/
+ *  punched-in look (and one half of every fake bevel). `offset` follows
+ *  Photoshop: the direction the shadow is CAST, so (0, 3) casts downward
+ *  and the band hugs the TOP inner edge.
+ *
+ *  Implementation note (the y2k-study bug): this is a FINITE stroked band
+ *  clipped inside — never a mask-blurred inverse fill, whose bounds are
+ *  device-dependent and flood the whole interior when cached at a
+ *  non-origin offset. */
 struct InnerShadow {
   SkColor4f color = {0, 0, 0, 0.5f};
   SkVector offset = {0, 3};
@@ -50,17 +55,21 @@ struct InnerShadow {
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     c.save();
     c.clipPath(ctx.outline, true);
-    SkPath inverse = ctx.outline;
-    inverse.toggleInverseFillType();
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
+    p.setStyle(SkPaint::kStroke_Style);
+    const float reach =
+        std::max(size, 1.0f) +
+        std::max(std::abs(offset.fX), std::abs(offset.fY));
+    p.setStrokeWidth(reach);
     if (size > 0)
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, size * 0.5f));
-    // Cast semantics: the occluder (the inverse) shifts AGAINST the cast
-    // direction, so the band lands on the edge the shadow falls from.
-    c.translate(-offset.x(), -offset.y());
-    c.drawPath(inverse, p);
+    // Cast semantics (empirically pinned by the bevel tests): shifting the
+    // stroked ring WITH the cast thickens its in-clip half on the edge the
+    // shadow falls from — offset (0,3) casts down, band hugs the top.
+    c.translate(offset.fX, offset.fY);
+    c.drawPath(ctx.outline, p);
     c.restore();
   }
 };
@@ -78,6 +87,8 @@ struct OuterGlow {
   float spread = 0; // hard expansion before the blur, px
 
   bool operator==(const OuterGlow &) const = default;
+  /** Paint reach beyond the node's bounds (recording cull grows by this). */
+  float bleed() const { return size * 2 + spread; }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     SkPaint p;

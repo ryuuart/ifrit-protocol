@@ -168,6 +168,10 @@ public:
    *  the layer arrives as the child shader named "content". */
   static Effect shader(sk_sp<SkRuntimeEffect> effect,
                        std::vector<std::pair<std::string, float>> uniforms = {});
+  /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
+   *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
+   *  Effect::shader(colorize)). */
+  Effect then(const Effect &next) const;
 
   const sk_sp<SkImageFilter> &imageFilter() const { return m_filter; }
 
@@ -185,6 +189,7 @@ struct GlyphInfo {
   size_t count = 1;   ///< total glyphs
   SkPoint rest;       ///< the glyph's laid-out origin (pen position)
   float advance = 0;  ///< the glyph's advance width
+  float fontSize = 0; ///< the glyph's font size (em-relative effects)
 };
 
 /** One glyph's deviation from rest — what an effect returns for local
@@ -204,6 +209,10 @@ using GlyphEffectFn = std::function<GlyphMod(const GlyphInfo &, float)>;
  *  starts after its delay and runs for durationMs. */
 struct Stagger {
   float eachMs = 30;
+  /** GSAP amount-mode (XOR with eachMs; wins when > 0): the TOTAL spread
+   *  divided across all glyphs — the §8 budget law ("entrances ≤ 1.2s")
+   *  as a constant that survives copy changes. */
+  float amountMs = 0;
   float durationMs = 450;
   enum class From : uint8_t { Start, Center, End } from = From::Start;
   bool operator==(const Stagger &) const = default;
@@ -235,6 +244,14 @@ concept AnimatedDecoration = requires(const D &d) {
   { d.animated() } -> std::convertible_to<bool>;
 };
 
+/** Optional on a DecorationScheme: how far it paints BEYOND the node's
+ *  bounds (soft shadows, glows). The recording cull grows by the node's
+ *  max bleed so cached pictures never truncate overflowing chrome. */
+template <typename D>
+concept BleedingDecoration = requires(const D &d) {
+  { d.bleed() } -> std::convertible_to<float>;
+};
+
 /** Type-erased decoration: the kernel seam extension primitives
  *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A
  *  bare PaintProgram works too. */
@@ -247,6 +264,12 @@ public:
             return scheme.animated();
           else
             return false;
+        }()),
+        m_bleed([&] {
+          if constexpr (BleedingDecoration<D>)
+            return (float)scheme.bleed();
+          else
+            return 0.0f;
         }()) {
     // Value-comparable schemes (PathFormat, Slice, Shadow…) retain a
     // comparator so the reconciler can prune a static decorated node with no
@@ -270,6 +293,7 @@ public:
       m_paint(canvas, ctx);
   }
   bool animated() const { return m_animated; }
+  float bleed() const { return m_bleed; }
 
   /** Structural equality for the no-memo prune: true only when both wrap the
    *  same value-comparable scheme type and those values compare equal. A bare
@@ -282,6 +306,7 @@ public:
 
 private:
   bool m_animated = false;
+  float m_bleed = 0.0f;
   PaintProgram m_paint;
   std::any m_scheme;
   std::function<bool(const std::any &, const std::any &)> m_equals;
@@ -431,6 +456,8 @@ public:
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
   Element &fill(Material m);
+  /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
+  Element &fill(SkColor4f color) { return fill(PropValue<Fill>{Fill::color(color)}); }
   /** Decoration layers: backgrounds paint below content/children (in
    *  declaration order), foregrounds above. fill() is the transitionable
    *  first background; custom() is a box with one background program. */
@@ -463,6 +490,32 @@ public:
    *  values for the ATLUS lean); skewY slants horizontals. */
   Element &skewX(PropValue<float> degrees);
   Element &skewY(PropValue<float> degrees);
+  // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
+  // PropValue variant on its own, and the resulting error is unreadable).
+  // std::integral-constrained so FLOAT calls can never land here (a plain
+  // int overload would capture them via the standard float→int conversion
+  // and recurse); PropValue is constructed explicitly for the same reason.
+  template <std::integral T> Element &opacity(T v) {
+    return opacity(PropValue<float>((float)v));
+  }
+  template <std::integral T> Element &translateX(T v) {
+    return translateX(PropValue<float>((float)v));
+  }
+  template <std::integral T> Element &translateY(T v) {
+    return translateY(PropValue<float>((float)v));
+  }
+  template <std::integral T> Element &rotate(T deg) {
+    return rotate(PropValue<float>((float)deg));
+  }
+  template <std::integral T> Element &scale(T f) {
+    return scale(PropValue<float>((float)f));
+  }
+  template <std::integral T> Element &skewX(T deg) {
+    return skewX(PropValue<float>((float)deg));
+  }
+  template <std::integral T> Element &skewY(T deg) {
+    return skewY(PropValue<float>((float)deg));
+  }
   Element &transformOrigin(float fx, float fy);
   Element &zIndex(int z);
 

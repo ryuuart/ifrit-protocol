@@ -1225,21 +1225,23 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   // the glow breathes with the Output, no render() calls. The style's
   // glowRadius reserves the pad; the binding animates within it.
   choreograph::Output<float> glow{0.01f};
+  const sdf::Style style{.fill = {1, 0, 0, 1},
+                         .glowRadius = 12,
+                         .glowColor = {1, 1, 1, 1}};
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(
-          sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1},
-                                        .glowRadius = 12,
-                                        .glowColor = {1, 1, 1, 1}})
-              .uniform("uGlowR", &glow))));
+          sdf::material(sdf::circle(), style).uniform("uGlowR", &glow))));
   host.frame();
-  // pad = 12*2.5+1 = 31 → r = 19 at c=(50,50); sample 8px outside the edge.
-  const uint32_t dim = SkColorGetR(host.pixel(77, 50));
+  // Size the probe from the PUBLIC pad helper (no hand-copied formula):
+  // circle radius = 50 − pad; sample 6px outside the edge.
+  const int probeX = (int)(50.0f + (50.0f - sdf::pad(style)) + 6.0f);
+  const uint32_t dim = SkColorGetR(host.pixel(probeX, 50));
   glow = 12.0f; // brighten the falloff — no re-render
   host.frame();
-  const uint32_t lit = SkColorGetR(host.pixel(77, 50));
-  EXPECT_LT(dim, 25u);  // exp(-8/0.01) ≈ 0
-  EXPECT_GT(lit, 90u);  // exp(-8/12) ≈ 0.51 → ~131
+  const uint32_t lit = SkColorGetR(host.pixel(probeX, 50));
+  EXPECT_LT(dim, 25u); // exp(-6/0.01) ≈ 0
+  EXPECT_GT(lit, 80u); // exp(-6/12) · edge cutoff ≈ 0.51 → ~130
 }
 
 // ---- Pattern: runtime-procedural regenerable tiles --------------------------
@@ -1378,6 +1380,43 @@ TEST(ComposeStyles, OverlayAndStrokeSugar) {
   EXPECT_GT(SkColorGetR(c), 90u);
   EXPECT_GT(SkColorGetB(c), 90u);
   EXPECT_EQ(host.pixel(30, 1), SK_ColorGREEN); // stroked edge
+}
+
+TEST(ComposeStyles, BevelBandsEdgesWhenNested) {
+  // The y2k-study bug: with blur, the old inverse-fill inner shadow FLOODED
+  // the whole shape when the node sat at a non-origin offset inside a
+  // cached tree (the origin-anchored test passed while real layouts broke).
+  // The stroked-band implementation must band edges regardless of nesting.
+  Host host;
+  host.composer.render(box().padding(30).child(box().padding(10).child(
+      box().width(60).height(60)
+          .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
+          .foreground(styles::BevelEmboss{.depth = 4, .size = 3}))));
+  host.frame();
+  host.frame(); // the CACHED replay is the bug's trigger
+  const uint32_t top = SkColorGetR(host.pixel(70, 42));
+  const uint32_t mid = SkColorGetR(host.pixel(70, 70));
+  const uint32_t bot = SkColorGetR(host.pixel(70, 97));
+  EXPECT_GT(top, mid + 15); // lit band
+  EXPECT_LT(bot + 15, mid); // shaded band
+  EXPECT_GT(mid, 100u);     // the flood bug washed the body toward white
+  EXPECT_LT(mid, 160u);
+}
+
+TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
+  // The aero-study bug: a blurred shadow larger than its node was truncated
+  // at the picture-cache bounds. Decorations now declare bleed() and the
+  // recording cull grows to hold them.
+  Host host;
+  host.composer.render(box().padding(40).child(
+      box().width(60).height(40)
+          .background(
+              sigil::compose::util::shadow({1, 0, 0, 0.9f}, {0, 10}, 20))
+          .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
+  host.frame();
+  host.frame(); // cached replay
+  // Node spans y∈[40,80); sample 14px below it — the soft red reach.
+  EXPECT_GT(SkColorGetR(host.pixel(70, 94)), 25u);
 }
 
 TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {

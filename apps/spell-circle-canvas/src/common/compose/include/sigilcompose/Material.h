@@ -37,6 +37,7 @@
 #include <include/core/SkShader.h> // sk_sp<SkShader> data member
 #include <include/core/SkTileMode.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -122,6 +123,9 @@ public:
    *  VALUES: uniform() copies-on-write, so binding on a copy never affects
    *  the material it was copied from. */
   Material &uniform(std::string name, float value);
+  /** Constant float2 uniform (`uniform float2` in the SkSL) — offsets,
+   *  margins, direction vectors. */
+  Material &uniform(std::string name, std::array<float, 2> value);
   /** Constant float4 uniform set from a color (straight, not premultiplied —
    *  what the SkSL declares as `uniform float4`). */
   Material &uniform(std::string name, SkColor4f value);

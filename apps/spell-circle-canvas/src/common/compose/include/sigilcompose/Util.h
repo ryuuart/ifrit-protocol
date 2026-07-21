@@ -62,6 +62,12 @@ struct Shadow {
   float blur = 0;
 
   bool operator==(const Shadow &) const = default;
+  /** Paint reach beyond the node's bounds (recording cull grows by this) —
+   *  the aero-study fix: big soft shadows must not be culled at the node's
+   *  picture-cache bounds. */
+  float bleed() const {
+    return std::max(std::abs(offset.fX), std::abs(offset.fY)) + blur;
+  }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     SkPaint p;

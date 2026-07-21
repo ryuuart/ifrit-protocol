@@ -24,6 +24,7 @@ namespace sigil::compose {
 struct Material::Live {
   sk_sp<SkRuntimeEffect> effect;
   std::vector<std::pair<std::string, float>> constants;
+  std::vector<std::pair<std::string, std::array<float, 2>>> constants2;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
   // Context tiers (the REVIEW rule, refined by the leg review):
@@ -134,6 +135,8 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   SkRuntimeShaderBuilder b(live.effect);
   for (const auto &[name, value] : live.constants)
     b.uniform(name.c_str()) = value; // entries pre-validated at store time
+  for (const auto &[name, value] : live.constants2)
+    b.uniform(name.c_str()) = value;
   for (const auto &[name, value] : live.constants4)
     b.uniform(name.c_str()) = value;
   for (const auto &[name, out] : live.binds)
@@ -289,6 +292,7 @@ bool Material::operator==(const Material &o) const {
       return m_live == o.m_live;
     return m_live->effect == o.m_live->effect &&
            m_live->constants == o.m_live->constants &&
+           m_live->constants2 == o.m_live->constants2 &&
            m_live->constants4 == o.m_live->constants4;
   }
   if ((m_recipe != nullptr) != (o.m_recipe != nullptr))
@@ -361,6 +365,23 @@ bool Material::geometryDependent() const {
       if (layer.first.geometryDependent())
         return true;
   return false;
+}
+
+Material &Material::uniform(std::string name, std::array<float, 2> value) {
+  if (!m_live) {
+    SkDebugf("Material::uniform(\"%s\", float2): ignored — this material has "
+             "no named uniforms (only sksl() does)\n",
+             name.c_str());
+    return *this;
+  }
+  if (!validUniform(m_live->effect, name, 2 * sizeof(float))) {
+    warnUnknownUniform("uniform", name);
+    return *this;
+  }
+  detachLive();
+  m_live->constants2.emplace_back(std::move(name), value);
+  m_shader = build(*m_live, nullptr); // refresh the static snapshot
+  return *this;
 }
 
 Material &Material::uniform(std::string name, SkColor4f value) {

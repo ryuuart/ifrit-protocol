@@ -42,7 +42,6 @@ constexpr float kCL = 9, kCT = kCaption + 1, kCR = 9, kCB = 9;
 
 // Win7 "Sky" accent (registry): #74B8FC.
 constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
-constexpr SkColor4f kWhite{1, 1, 1, 1};
 
 sigil::weave::TextStyle type(float size, SkColor4f color,
                              float tracking = 0) {
@@ -63,29 +62,38 @@ sk_sp<SkRuntimeEffect> auroraEffect() {
     uniform float2 uResolution;
     half4 main(float2 p) {
       float2 uv = p / uResolution;
-      // deep ground: navy into teal night
-      float3 col = mix(float3(0.008, 0.030, 0.085),
-                       float3(0.015, 0.100, 0.155), uv.y);
-      // diagonal band coordinate (~35 deg), slow drift
-      float d = uv.x * 0.75 - uv.y * 0.66;
-      float t = uTime * 0.11;
-      float b1 = exp(-pow((d - 0.10 + 0.05 * sin(t)) * 5.5, 2.0));
-      float b2 = exp(-pow((d + 0.28 + 0.04 * cos(t * 0.7)) * 4.5, 2.0));
-      float b3 = exp(-pow((d - 0.52) * 8.0, 2.0));
-      col += float3(0.10, 0.52, 0.62) * b1 * 0.60;
-      col += float3(0.16, 0.30, 0.70) * b2 * 0.38;
-      col += float3(0.22, 0.72, 0.50) * b3 * 0.34;
-      // fine filaments riding the bands
-      float f = 0.5 + 0.5 * sin(d * 210.0 + uTime * 0.5);
-      col += float3(0.45, 0.95, 0.95) * pow(f, 22.0) * (b1 * 0.5 + b3) * 0.45;
-      float f2 = 0.5 + 0.5 * sin(d * 90.0 - uTime * 0.3 + 1.7);
-      col += float3(0.30, 0.60, 0.95) * pow(f2, 30.0) * b2 * 0.5;
-      // speckle stars
-      float2 cell = floor(p / 5.0);
+      // deep night ground, faint teal horizon at the bottom
+      float3 col = mix(float3(0.006, 0.014, 0.042),
+                       float3(0.014, 0.052, 0.096), uv.y);
+      col += float3(0.02, 0.10, 0.12) * smoothstep(0.55, 1.05, uv.y);
+      // aurora curtains: wide, soft, diagonal (~40 deg), drifting slowly
+      float d = uv.x * 0.62 - uv.y * 0.78;
+      float t = uTime * 0.09;
+      // curtain waviness — bands bend instead of staying ruler-straight
+      float wob = 0.045 * sin(uv.x * 5.1 + t * 2.0)
+                + 0.030 * sin(uv.y * 7.3 - t * 1.4);
+      float b1 = exp(-pow((d - 0.05 + wob) * 3.4, 2.0));
+      float b2 = exp(-pow((d + 0.34 - wob * 0.7) * 2.8, 2.0));
+      float b3 = exp(-pow((d - 0.46 + wob * 1.3) * 5.0, 2.0));
+      // curtains hang in the upper sky
+      float sky = 1.0 - smoothstep(0.35, 0.95, uv.y);
+      // the main green curtain shifts green→cyan along its run
+      float3 c1 = mix(float3(0.05, 0.48, 0.24), float3(0.07, 0.40, 0.46),
+                      uv.x);
+      col += c1 * b1 * 0.62 * (0.35 + 0.65 * sky);
+      col += float3(0.34, 0.24, 0.68) * b2 * 0.40 * (0.45 + 0.55 * sky);
+      col += float3(0.06, 0.34, 0.38) * b3 * 0.38 * (0.35 + 0.65 * sky);
+      // faint filaments inside the curtains (detail for the glass blur)
+      float f = 0.5 + 0.5 * sin(d * 150.0 + wob * 40.0 + uTime * 0.4);
+      col += float3(0.35, 0.90, 0.65) * pow(f, 18.0) * b1 * 0.20 * sky;
+      float f2 = 0.5 + 0.5 * sin(d * 95.0 - uTime * 0.25 + 1.7);
+      col += float3(0.55, 0.50, 0.95) * pow(f2, 24.0) * b2 * 0.16 * sky;
+      // sparse small stars, brighter high in the sky
+      float2 cell = floor(p / 3.0);
       float h = fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
-      float star = step(0.9955, h);
-      col += float3(0.85, 0.92, 1.0) * star *
-             (0.25 + 0.55 * fract(h * 91.7)) * (1.0 - uv.y * 0.5);
+      float star = step(0.9982, h);
+      col += float3(0.80, 0.88, 1.0) * star *
+             (0.12 + 0.45 * fract(h * 91.7)) * (1.0 - uv.y * 0.75);
       col = clamp(col, 0.0, 1.0);
       return half4(half3(col), 1.0);
     }
@@ -105,7 +113,7 @@ sk_sp<SkRuntimeEffect> auroraEffect() {
 Material glassTint(float w, float h) {
   return Material::blend({
       // tint·colorBalance — the flat Sky wash
-      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.44f}),
+      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.54f}),
        SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
       {Material::linear({0, 0}, {0, h},
@@ -117,9 +125,11 @@ Material glassTint(float w, float h) {
       // the desktop-space diagonal sheen (~30°, peak α≈.2)
       {Material::linear({0, h * 0.85f}, {w, h * 0.15f},
                         {{0.00f, {1, 1, 1, 0.00f}},
-                         {0.42f, {1, 1, 1, 0.00f}},
+                         {0.40f, {1, 1, 1, 0.00f}},
                          {0.52f, {1, 1, 1, 0.20f}},
-                         {0.62f, {1, 1, 1, 0.00f}},
+                         {0.66f, {1, 1, 1, 0.03f}},
+                         {0.78f, {1, 1, 1, 0.12f}},
+                         {0.88f, {1, 1, 1, 0.00f}},
                          {1.00f, {1, 1, 1, 0.00f}}}),
        SkBlendMode::kScreen},
   });
@@ -135,11 +145,40 @@ Material cornerGlow(SkPoint center) {
 // §6 close-button hover bloom.
 Material closeBloom(float w, float h) {
   return Material::radial(
-      {w * 0.5f, h * 0.55f}, w * 0.62f,
+      {w * 0.5f, h * 0.42f}, w * 0.60f,
       {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
        {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
        {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
        {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
+}
+
+// The DWM window shadow: a rounded-box SDF falloff painted INSIDE its
+// own node bounds (a blur decoration would be culled at the cache
+// bounds; an SDF ring needs no overflow at all). Margins are uniforms.
+sk_sp<SkRuntimeEffect> windowShadowEffect() {
+  static const char *kSkSL = R"(
+    uniform float2 uResolution;
+    uniform float4 uMargins; // l, t, r, b
+    half4 main(float2 p) {
+      float2 rectMin = uMargins.xy;
+      float2 rectMax = uResolution - uMargins.zw;
+      float2 center = (rectMin + rectMax) * 0.5 + float2(0.0, 5.0);
+      float2 halfSize = (rectMax - rectMin) * 0.5;
+      float2 q = abs(p - center) - halfSize + float2(7.0, 7.0);
+      float d = length(max(q, float2(0.0)))
+              + min(max(q.x, q.y), 0.0) - 7.0;
+      float a = exp(-pow(max(d, 0.0) / 12.0, 1.6)) * 0.55;
+      a *= smoothstep(-3.0, 3.0, d); // hollow under the glass
+      return half4(0.0, 0.0, 0.0, half(a));
+    }
+  )";
+  static auto effect = [] {
+    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
+    if (!fx)
+      SkDebugf("window shadow shader: %s\n", err.c_str());
+    return fx;
+  }();
+  return effect;
 }
 
 // Caption-button glass base (idle): faint vertical white gradient.
@@ -204,7 +243,7 @@ struct AeroStudy : sketch::Sketch {
                         bool hovered) {
     auto b = box().absolute().corners(c).clip()
         .fill(buttonBase(h))
-        .stroke(stroke(1, Fill::color({1, 1, 1, 0.40f})));
+        .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f})));
     if (hovered)
       b.child(box().absolute().inset(0).corners(c)
                   .fill(closeBloom(w, h))
@@ -347,6 +386,13 @@ struct AeroStudy : sketch::Sketch {
             .child(captionButtons());
     // the 1px black α.65 silhouette sits OUTSIDE the clip
     return stack().absolute().inset(0)
+        // the DWM soft drop shadow (SDF ring — no filter, no overflow)
+        .child(box().absolute()
+                   .inset(WX - 34, WY - 30, W - WX - WW - 34,
+                          H - WY - WH - 40)
+                   .fill(Material::sksl(windowShadowEffect())
+                             .uniform("uMargins",
+                                      SkColor4f{34, 30, 34, 40})))
         .child(box().absolute()
                    .inset(WX - 1, WY - 1, W - WX - WW - 1, H - WY - WH - 1)
                    .corners({7, 7, 0, 0})
@@ -444,9 +490,51 @@ struct AeroStudy : sketch::Sketch {
                    .absolute().inset(W - 66, 27, 0, 0));
   }
 
+  // Desktop icons: white label over a soft dark shadow (the Win7 look).
+  Element desktopIcon(float x, float y, Element glyph, const char *label) {
+    auto lbl = [&](SkColor4f c) {
+      return box().absolute().inset(0, 52, 0, 0).row()
+          .justify(Justify::Center)
+          .child(text(toU8(label), type(11.5f, c)));
+    };
+    return box().absolute().inset(x, y, 0, 0).width(92).height(72)
+        .child(box().absolute().inset(24, 2, 24, 26).child(std::move(glyph)))
+        .child(lbl({0, 0, 0, 0.85f})
+                   .effect(Effect::filter(SkImageFilters::Blur(1.6f, 1.6f,
+                                                               nullptr))))
+        .child(lbl({1, 1, 1, 0.95f}));
+  }
+
+  Element folderGlyph() {
+    return stack().absolute().inset(0)
+        .child(box().absolute().inset(2, 6, 4, 8).corners({2, 2, 3, 3})
+                   .fill(Material::linear({0, 0}, {0, 30},
+                                          {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
+                                           {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
+                   .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))))
+        .child(box().absolute().inset(2, 2, 22, 34).corners({2, 2, 0, 0})
+                   .fill(Fill::color({0.93f, 0.74f, 0.34f, 1})));
+  }
+
+  Element binGlyph() {
+    return stack().absolute().inset(0)
+        .child(box().absolute().inset(8, 10, 8, 4).corners({3, 3, 6, 6})
+                   .fill(Material::linear(
+                       {0, 0}, {28, 0},
+                       {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
+                        {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
+                        {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
+                   .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))))
+        .child(box().absolute().inset(5, 6, 5, 32).corners({2})
+                   .fill(Fill::color({0.60f, 0.76f, 0.90f, 0.7f}))
+                   .stroke(stroke(1, Fill::color({0.90f, 0.96f, 1.0f, 0.8f}))));
+  }
+
   Element describe() {
     return stack()
         .fill(Material::sksl(auroraEffect())) // uTime keeps it alive
+        .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
+        .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
         .child(window())
         .child(taskbar());
   }

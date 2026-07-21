@@ -129,7 +129,9 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
   if (count == 0)
     return;
 
-  const float each = std::max(fx.stagger.eachMs, 0.0f);
+  float each = std::max(fx.stagger.eachMs, 0.0f);
+  if (fx.stagger.amountMs > 0 && count > 1)
+    each = fx.stagger.amountMs / (float)(count - 1); // GSAP amount mode
   const float duration = std::max(fx.stagger.durationMs, 1.0f);
   const float total = duration + each * (float)(count - 1);
 
@@ -154,7 +156,8 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
         }
         const float t = std::clamp(
             (master * total - order * each) / duration, 0.0f, 1.0f);
-        const GlyphMod mod = fx.effect(GlyphInfo{i, count, rest, advance}, t);
+        const GlyphMod mod = fx.effect(
+            GlyphInfo{i, count, rest, advance, font->fontSize}, t);
         ++i;
         if (mod.alpha <= 0.003f || mod.scale <= 0.001f)
           return;
@@ -489,9 +492,19 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
     if (!inst.picture || inst.paintDirty) {
+      // Decorations that paint beyond the node (soft shadows, glows)
+      // declare their reach via bleed(); the recording cull grows to hold
+      // them, so cached chrome never truncates (the aero-study fix).
+      float bleed = 0;
+      for (const Decoration &d : node.backgrounds)
+        bleed = std::max(bleed, d.bleed());
+      for (const Decoration &d : node.foregrounds)
+        bleed = std::max(bleed, d.bleed());
+      SkRect cull = SkRect::MakeWH(rect.width(), rect.height());
+      if (bleed > 0)
+        cull.outset(bleed, bleed);
       SkPictureRecorder recorder;
-      SkCanvas *rec =
-          recorder.beginRecording(SkRect::MakeWH(rect.width(), rect.height()));
+      SkCanvas *rec = recorder.beginRecording(cull);
       paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
       inst.picture = recorder.finishRecordingAsPicture();
       inst.paintDirty = false;
