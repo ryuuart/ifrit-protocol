@@ -119,13 +119,21 @@ public:
    *  VALUES: uniform() copies-on-write, so binding on a copy never affects
    *  the material it was copied from. */
   Material &uniform(std::string name, float value);
+  /** Constant float4 uniform set from a color (straight, not premultiplied —
+   *  what the SkSL declares as `uniform float4`). */
+  Material &uniform(std::string name, SkColor4f value);
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
   // ---- resolution ----------------------------------------------------------
-  /** True once any ch::Output uniform is bound: the material re-resolves per
-   *  frame and its node must stay volatile (Element::fill routes it to the
-   *  live path; computeVolatile marks it). */
+  /** True once any ch::Output uniform is bound OR the effect reads uTime:
+   *  the material re-resolves per frame and its node must stay volatile
+   *  (Element::fill routes it to the live path; computeVolatile marks it). */
   bool isLive() const;
+  /** True when the effect declares uResolution/uContentScale: the material
+   *  needs PaintContext at resolve, but is stable between layouts — it
+   *  resolves when its node records, CACHES like static content, and
+   *  re-records on size change. (The middle tier between static and live.) */
+  bool geometryDependent() const;
   /** Declared-volatility hook (mirrors DecorationScheme::animated()). */
   bool animated() const { return isLive(); }
 

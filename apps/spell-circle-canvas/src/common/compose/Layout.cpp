@@ -87,7 +87,29 @@ void Composer::Impl::ensureLayout() {
     if (hasDerived)
       resolveDerived(*root); // refresh connectors post-move
   }
+  // Post-layout invalidation: recordings bake geometry (child offsets, text
+  // lines, geometry-material uResolution), so any rect that moved or resized
+  // must stale the recordings that captured it — even when NO prop changed
+  // (setSize, sibling growth, measured-text reflow). Runs only when layout
+  // ran; a stable layout is a no-op walk.
+  syncLayoutRects(*root);
   needsLayout = false;
+}
+
+void Composer::Impl::syncLayoutRects(Instance &inst) {
+  const SkRect r = instanceRect(inst);
+  if (r != inst.lastLayoutRect) {
+    const bool sizeChanged = r.width() != inst.lastLayoutRect.width() ||
+                             r.height() != inst.lastLayoutRect.height();
+    inst.lastLayoutRect = r;
+    if (sizeChanged)
+      inst.markPaintDirtyUp(); // own content baked the old bounds
+    else if (inst.parent)
+      inst.parent->markPaintDirtyUp(); // parent baked the old offset
+    contentDirty = true;
+  }
+  for (auto &child : inst.children)
+    syncLayoutRects(*child);
 }
 
 bool Composer::Impl::applyCustomLayouts(Instance &inst) {

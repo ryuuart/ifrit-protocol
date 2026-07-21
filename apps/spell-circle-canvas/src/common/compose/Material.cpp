@@ -24,11 +24,16 @@ namespace sigil::compose {
 struct Material::Live {
   sk_sp<SkRuntimeEffect> effect;
   std::vector<std::pair<std::string, float>> constants;
+  std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
-  // Declaring uTime/uResolution/uContentScale IS the volatility declaration
-  // (the REVIEW rule): such effects need PaintContext at resolve, so the
-  // material takes the live path even with no bound Outputs.
-  bool usesContext = false;
+  // Two context tiers (the REVIEW rule, refined):
+  //  - usesTime: declaring uTime IS the per-frame volatility declaration —
+  //    the material is LIVE, its node paints live every frame.
+  //  - usesGeometry: declaring uResolution/uContentScale needs PaintContext
+  //    at resolve but is stable between layouts — resolved when the node
+  //    records, cached like static content, invalidated on size change.
+  bool usesTime = false;
+  bool usesGeometry = false;
 };
 
 /** The comparable build recipe behind gradient/image/blend materials — the
@@ -126,7 +131,9 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
     return nullptr;
   SkRuntimeShaderBuilder b(live.effect);
   for (const auto &[name, value] : live.constants)
-    b.uniform(name.c_str()) = value; // user-named: a typo aborts in debug
+    b.uniform(name.c_str()) = value; // entries pre-validated at store time
+  for (const auto &[name, value] : live.constants4)
+    b.uniform(name.c_str()) = value;
   for (const auto &[name, out] : live.binds)
     if (out)
       b.uniform(name.c_str()) = out->value();
@@ -232,8 +239,8 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
     }
     m.m_live->constants.emplace_back(std::move(name), value);
   }
-  m.m_live->usesContext =
-      validUniform(m.m_live->effect, "uTime", sizeof(float)) ||
+  m.m_live->usesTime = validUniform(m.m_live->effect, "uTime", sizeof(float));
+  m.m_live->usesGeometry =
       validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float)) ||
       validUniform(m.m_live->effect, "uContentScale", sizeof(float));
   m.m_shader = build(*m.m_live, nullptr); // static snapshot (constants only)
@@ -278,7 +285,8 @@ bool Material::operator==(const Material &o) const {
     if (isLive() || o.isLive())
       return m_live == o.m_live;
     return m_live->effect == o.m_live->effect &&
-           m_live->constants == o.m_live->constants;
+           m_live->constants == o.m_live->constants &&
+           m_live->constants4 == o.m_live->constants4;
   }
   if ((m_recipe != nullptr) != (o.m_recipe != nullptr))
     return false;
@@ -331,7 +339,30 @@ Material &Material::uniform(std::string name,
 }
 
 bool Material::isLive() const {
-  return m_live && (!m_live->binds.empty() || m_live->usesContext);
+  return m_live && (!m_live->binds.empty() || m_live->usesTime);
+}
+
+bool Material::geometryDependent() const {
+  return m_live && m_live->usesGeometry;
+}
+
+Material &Material::uniform(std::string name, SkColor4f value) {
+  if (!m_live) {
+    SkDebugf("Material::uniform(\"%s\", color): ignored — this material has "
+             "no named uniforms (only sksl() does)\n",
+             name.c_str());
+    return *this;
+  }
+  if (!validUniform(m_live->effect, name, 4 * sizeof(float))) {
+    warnUnknownUniform("uniform", name);
+    return *this;
+  }
+  detachLive();
+  m_live->constants4.emplace_back(
+      std::move(name), std::array<float, 4>{value.fR, value.fG, value.fB,
+                                            value.fA});
+  m_shader = build(*m_live, nullptr); // refresh the static snapshot
+  return *this;
 }
 
 sk_sp<SkShader> Material::asShader() const {
@@ -356,15 +387,16 @@ Fill Material::toFill() const {
 }
 
 Fill Material::resolve(const PaintContext &ctx) const {
-  if (isLive())
+  if (isLive() || geometryDependent())
     return Fill::shader(build(*m_live, &ctx));
   return toFill();
 }
 
 Element &Element::fill(Material m) {
-  if (m.isLive()) {
-    // Live materials re-resolve per frame — route to the volatile path and
-    // clear any static fill so the painter reads the material.
+  if (m.isLive() || m.geometryDependent()) {
+    // Live materials re-resolve per frame; geometry-dependent ones resolve
+    // when the node records (and re-record on size change) — both route
+    // through the material slot so the painter resolves with PaintContext.
     m_node->liveMaterial = std::move(m);
     m_node->paint.fill.reset();
     m_node->staticMaterial.reset();

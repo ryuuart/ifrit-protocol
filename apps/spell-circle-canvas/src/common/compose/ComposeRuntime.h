@@ -68,6 +68,15 @@ struct Instance {
   bool paintDirty = true;
   bool subtreeVolatile = false;
 
+  // The layout rect this node was last painted/recorded at. ensureLayout's
+  // post-pass compares and invalidates: a SIZE change stales this node's own
+  // recording (its content baked the old bounds — text lines, geometry
+  // materials' uResolution, rrect geometry); a POSITION change stales the
+  // parent's recording (which baked the old offset). Without this, cached
+  // ancestors replay stale geometry after any relayout that wasn't caused by
+  // a prop patch — the latent resize-staleness gap.
+  SkRect lastLayoutRect = SkRect::MakeLTRB(-1, -1, -1, -1);
+
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
   // arbitrarily expensive — resolve once per (description, size). Desc pointer
   // identity keys invalidation: every patch swaps the description.
@@ -166,6 +175,7 @@ struct Composer::Impl {
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance &inst);
   void ensureLayout();
+  void syncLayoutRects(detail::Instance &inst);
   void layoutText(detail::Instance &inst, float constraint);
   SkRect instanceRect(const detail::Instance &inst) const;
   SkRect absoluteRect(const detail::Instance &inst) const;

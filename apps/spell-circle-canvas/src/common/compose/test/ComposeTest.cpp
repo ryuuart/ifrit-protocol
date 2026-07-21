@@ -187,6 +187,22 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
   EXPECT_GE(host.composer.stats().picturesLive, 1u);
 }
 
+TEST(ComposeCaching, RelayoutInvalidatesStaleRecordings) {
+  // The syncLayoutRects pass: setSize alone (no prop change, no re-render)
+  // resizes a pct-width child whose geometry was baked into cached
+  // recordings — the old bounds must not replay. Pre-fix, cached ancestors
+  // replayed the stale bake after any relayout not caused by a patch.
+  Host host;
+  host.composer.render(
+      box().child(box().width(pct(50)).height(40).fill(red())));
+  host.frame(); // child spans x∈[0,100) at 200-wide viewport; recorded
+  EXPECT_EQ(host.pixel(80, 20), SK_ColorRED);
+  host.composer.setSize({120, 200}); // child now spans x∈[0,60)
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 20), SK_ColorBLACK); // red = stale bake replayed
+  EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);   // new geometry painted
+}
+
 TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
   static int programRuns;
   programRuns = 0;
@@ -796,6 +812,80 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_TRUE(host.composer.dirty());
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
+}
+
+#include <sigilcompose/Sdf.h>
+
+TEST(ComposeSdf, StarFillsCenterMissesCorners) {
+  // The analytic N-star: fill covers the body, the box corners lie outside
+  // the arms. One shader pass, pixel-space distance.
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(
+          sdf::material(sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}}))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u); // body
+  const SkColor corner = host.pixel(4, 4);          // outside the arms
+  EXPECT_LT(SkColorGetR(corner), 30u);
+  EXPECT_LT(SkColorGetG(corner), 30u);
+}
+
+TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
+  // An SDF material reads uResolution (geometry-dependent) but binds no
+  // Outputs: it must CACHE like static content (0 live paints, 0 re-records)
+  // AND prune across an identical re-describe (recipe equality — same
+  // per-kind effect pointer, equal constants).
+  Host host;
+  auto tree = [] {
+    return box().child(box().width(80).height(60).fill(sdf::material(
+        sdf::roundBox(12), {.fill = {0, 1, 0, 1}, .borderWidth = 3})));
+  };
+  host.composer.render(tree());
+  host.frame(); // records
+  host.frame(); // replays
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.composer.stats().nodesPainted, 0u);
+  host.composer.render(tree()); // fresh describe, identical recipe
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+}
+
+TEST(ComposeSdf, ResizeReResolvesGeometry) {
+  // uResolution bakes into the recording; a size change must re-resolve —
+  // the materialSize invalidation, without any prop change.
+  Host host; // 200x200 surface
+  host.composer.render(
+      box().child(box().grow(1).fill(
+          sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1}}))));
+  host.frame(); // circle c=(100,100) r≈99
+  host.composer.setSize({120, 120});
+  host.frame(); // circle c=(60,60) r≈59
+  // (15,110): inside the OLD circle (dist≈85.6<99) but outside the new one
+  // (dist≈67.3>59) — red here means a stale bake replayed.
+  EXPECT_LT(SkColorGetR(host.pixel(15, 110)), 30u);
+  EXPECT_GT(SkColorGetR(host.pixel(60, 60)), 200u); // new body
+}
+
+TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
+  // Alive chrome: bind uGlowR to a ch::Output — the material goes live and
+  // the glow breathes with the Output, no render() calls. The style's
+  // glowRadius reserves the pad; the binding animates within it.
+  choreograph::Output<float> glow{0.01f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(
+          sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1},
+                                        .glowRadius = 12,
+                                        .glowColor = {1, 1, 1, 1}})
+              .uniform("uGlowR", &glow))));
+  host.frame();
+  // pad = 12*2.5+1 = 31 → r = 19 at c=(50,50); sample 8px outside the edge.
+  const uint32_t dim = SkColorGetR(host.pixel(77, 50));
+  glow = 12.0f; // brighten the falloff — no re-render
+  host.frame();
+  const uint32_t lit = SkColorGetR(host.pixel(77, 50));
+  EXPECT_LT(dim, 25u);  // exp(-8/0.01) ≈ 0
+  EXPECT_GT(lit, 90u);  // exp(-8/12) ≈ 0.51 → ~131
 }
 
 #ifdef SIGILCOMPOSE_ENABLE_OCIO

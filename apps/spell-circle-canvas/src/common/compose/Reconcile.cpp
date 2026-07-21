@@ -135,12 +135,18 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   } else if (pa.fill && !propEqual(*pa.fill, *pb.fill)) {
     return false;
   }
-  // Live materials (bound-uniform sksl) re-resolve every frame — volatile,
-  // never prune (conservative, like an incomparable callable).
+  // Material-slot fills: truly live ones (bound/uTime) never prune —
+  // conservative, like an incomparable callable. Geometry-dependent-but-
+  // static ones (SDF chrome and friends) compare by recipe, so identical
+  // re-describes prune like any other static material.
   if (a.liveMaterial.has_value() != b.liveMaterial.has_value())
     return false;
-  if (a.liveMaterial)
-    return false;
+  if (a.liveMaterial) {
+    if (a.liveMaterial->isLive() || b.liveMaterial->isLive())
+      return false;
+    if (!(*a.liveMaterial == *b.liveMaterial))
+      return false;
+  }
   if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||

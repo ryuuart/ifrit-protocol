@@ -56,8 +56,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       std::holds_alternative<const choreograph::Output<Fill> *>(
           *node.paint.fill))
     ownContent = true;
-  if (node.liveMaterial) // a bound-uniform material re-resolves every frame
-    ownContent = true;
+  if (node.liveMaterial && node.liveMaterial->isLive())
+    ownContent = true; // truly live (bound/uTime) — geometry-dependent
+                       // materials resolve at record time and stay cacheable
   if (node.cacheMode == Cache::None)
     ownContent = true;
   for (const Decoration &d : node.backgrounds)
@@ -256,6 +257,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
   if (opacity <= 0.0f)
     return;
+
+  // (Size-change invalidation for recordings — including geometry-dependent
+  // materials' baked uResolution — happens in ensureLayout's
+  // syncLayoutRects pass, which sees every relayout; paint() may never reach
+  // a node whose ancestor replays a cached picture.)
 
   canvas.save();
   canvas.translate(rect.left(), rect.top());
