@@ -12,7 +12,13 @@
 #include "ScenesMotion.h"
 #include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
+#include "ScenesAero.h"
+#include "ScenesConsole.h"
 #include "ScenesKinetic.h"
+#include "ScenesNetwork.h"
+#include "ScenesPersona.h"
+#include "ScenesSkillTree.h"
+#include "ScenesY2k.h"
 #include "ScenesScale.h"
 
 #include <include/core/SkBitmap.h>
@@ -50,6 +56,12 @@ inline constexpr SceneInfo kScenes[] = {
     {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Showcase", "the whole surface, at once"},
     {"kinetic card", "Showcase", "\xc2\xa7""8 kinetic grammar (study port)"},
+    {"night network", "Showcase", "the brush engine, ten constructions"},
+    {"persona menu", "Showcase", "\xc2\xa7""1 verified P3R grammar"},
+    {"aero desktop", "Showcase", "\xc2\xa7""6 glass + colorization"},
+    {"y2k chrome", "Showcase", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
+    {"passive tree", "Showcase", "\xc2\xa7""5 linework + orbit router"},
+    {"daemon console", "Showcase", "console() LineRing feed"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -75,6 +87,12 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 16: return std::make_unique<DeriveScene>();
   case 17: return std::make_unique<OrganicScene>();
   case 19: return std::make_unique<KineticCardScene>();
+  case 20: return std::make_unique<NightNetworkScene>();
+  case 21: return std::make_unique<PersonaMenuScene>();
+  case 22: return std::make_unique<AeroDesktopScene>();
+  case 23: return std::make_unique<Y2kChromeScene>();
+  case 24: return std::make_unique<SkillTreeScene>();
+  case 25: return std::make_unique<DaemonConsoleScene>();
   default: return std::make_unique<FlourishScene>();
   }
 }

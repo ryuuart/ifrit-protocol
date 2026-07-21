@@ -108,7 +108,7 @@ inline SkPath displaceSquare(const SkPath &src, float amplitude,
     const float len = contour->length();
     const float lambdaMax = std::max(wavelength, 2.0f);
     const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
-    auto emit = [&](float d, float disp, bool first) {
+    auto plot = [&](float d, float disp, bool first) {
       SkPoint pos;
       SkVector tan;
       if (!contour->getPosTan(std::min(d, len), &pos, &tan))
@@ -119,16 +119,16 @@ inline SkPath displaceSquare(const SkPath &src, float amplitude,
       else
         out.lineTo(p);
     };
-    emit(0, 0, true);
+    plot(0, 0, true);
     float cur = amplitude;
-    emit(0, cur, false);
+    plot(0, cur, false);
     for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
-      emit(d, cur, false);
+      plot(d, cur, false);
       cur = -cur;
-      emit(d, cur, false);
+      plot(d, cur, false);
     }
-    emit(len, cur, false);
-    emit(len, 0, false);
+    plot(len, cur, false);
+    plot(len, 0, false);
     if (contour->isClosed())
       out.close();
   }
