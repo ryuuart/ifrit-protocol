@@ -3715,3 +3715,21 @@ TEST(ComposeBrushEngine, PerLegOpsRideTheSharedPipeline) {
   EXPECT_EQ(host.pixel(100, 112), SK_ColorBLUE);  // right-of-travel rail
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // nothing on the axis
 }
+
+TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(320, 0);
+  const SkPath boxy = ops::Square{8, 80}.apply(b.detach());
+  // Plateaus hold ±8 for half-wavelength runs; endpoints return to 0.
+  const SkRect bounds = boxy.getBounds();
+  EXPECT_NEAR(bounds.top(), -8, 0.5f);
+  EXPECT_NEAR(bounds.bottom(), 8, 0.5f);
+  SkPoint last;
+  SkContourMeasureIter iter(boxy, false);
+  sk_sp<SkContourMeasure> c = iter.next();
+  ASSERT_TRUE(c);
+  ASSERT_TRUE(c->getPosTan(c->length(), &last, nullptr));
+  EXPECT_NEAR(last.y(), 0, 0.5f); // zero-phase exit
+  EXPECT_NEAR(last.x(), 320, 1.0f);
+}

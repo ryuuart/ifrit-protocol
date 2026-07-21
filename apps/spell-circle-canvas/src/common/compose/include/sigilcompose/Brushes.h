@@ -334,6 +334,14 @@ struct Sketchy { // open contours STAY open (hairline rec — see sketchy())
     return sketchy(segLength, deviation, seed)(p);
   }
 };
+struct Square { // boxy: battlement/meander-key displacement
+  float amplitude = 5.0f, wavelength = 32.0f;
+  bool operator==(const Square &) const = default;
+  float bleed() const { return amplitude; }
+  SkPath apply(const SkPath &p) const {
+    return lines::displaceSquare(p, amplitude, wavelength);
+  }
+};
 struct Offset {
   float px = 0.0f;
   float step = 4.0f;

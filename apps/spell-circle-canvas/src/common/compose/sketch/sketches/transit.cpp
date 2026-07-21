@@ -59,6 +59,7 @@ constexpr SkColor4f kCyan{0.36f, 0.86f, 0.96f, 1};
 constexpr SkColor4f kViolet{0.71f, 0.51f, 0.99f, 1};
 constexpr SkColor4f kSteel{0.52f, 0.53f, 0.58f, 1};
 constexpr SkColor4f kAmber{0.98f, 0.76f, 0.24f, 1};
+constexpr SkColor4f kRose{0.95f, 0.45f, 0.62f, 1};
 constexpr SkColor4f kAsphalt{0.23f, 0.25f, 0.32f, 1};
 constexpr SkColor4f kRiverDeep{0.10f, 0.22f, 0.34f, 0.55f};
 constexpr SkColor4f kRiverMid{0.16f, 0.34f, 0.50f, 0.85f};
@@ -228,6 +229,58 @@ struct Transit : sketch::Sketch {
                                       .alignToPath = false,
                                       .reach = 12.0f});
 
+    // -- 7. TWIN SERVICE: shared running as ALTERNATING two-color dashes
+    //    (the network-map convention for two services on one track): two
+    //    dashed legs, same body, complementary phases — dash geometry
+    //    shares one arc parameterization, so the colors interlock exactly.
+    Brush twin;
+    twin.leg(lines::Line{.width = 4.0f,
+                         .fill = Fill::color(kRose),
+                         .dashIntervals = {14, 14},
+                         .dashPhase = 0});
+    twin.leg(lines::Line{.width = 4.0f,
+                         .fill = Fill::color(kBone),
+                         .dashIntervals = {14, 14},
+                         .dashPhase = 14});
+
+    // -- 8. CABLEWAY: the STAMPED line (Sk1DPathEffect through
+    //    PathFormat::stampPath) — the cable-car map convention: a thin
+    //    support cable with rings stamped along it.
+    PathFormat cableRings;
+    cableRings.width = 1.4f;
+    cableRings.strokeFill = Fill::color(kBone);
+    cableRings.stampPath = SkPath::Circle(0, 0, 4.0f);
+    cableRings.stampAdvance = 24.0f;
+    Brush cableway;
+    cableway.leg(lines::Line{.width = 1.8f,
+                             .fill = Fill::color({0.66f, 0.68f, 0.74f, 0.95f})});
+    cableway.leg(cableRings);
+
+    // -- 9. MILLBROOK CREEK: the CALLIGRAPHIC leg — variable width the
+    //    way real maps use it: topographic rivers TAPER toward the source
+    //    (drawn mouth→source, wide→narrow), in the map's own octilinear
+    //    grammar per the Thames rule.
+    Brush creek;
+    creek.leg(brushes::taper(2.2f, 9.0f,
+                             Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
+
+    // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points —
+    //    only the geometry op differs (squiggly / zigzag / boxy). The
+    //    whole point of the pipeline: restyle the line, never the route.
+    auto demoRun = [](GeometryOp op, SkColor4f c) {
+      Brush b;
+      b.op(std::move(op));
+      b.leg(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
+      return b;
+    };
+    auto demoPath = [](SkSize sz) { // the SAME points for all three
+      SkPathBuilder b;
+      b.moveTo(0, sz.height());
+      b.lineTo(sz.width() * 0.62f, sz.height());
+      b.lineTo(sz.width(), 0);
+      return b.detach();
+    };
+
     // The interchange: breathing SDF star (glow bound within its reserve).
     Element hub =
         box().key("hub").width(72).height(72).centerAt({620, 400})
@@ -274,6 +327,35 @@ struct Transit : sketch::Sketch {
         .child(box().width(250).height(250).centerAt({620, 400})
                    .outline(shapes::arc(0.0f, 359.9f))
                    .trim(0.0f, &ringReveal).stroke(orbital).zIndex(5))
+        // ---- twin service (bottom-right strip) ----
+        .child(rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(12))
+                   .absolute().inset(0).stroke(twin).zIndex(2))
+        // ---- cableway (top gap) ----
+        .child(rail({{"cb_w"}, {"cb_e"}}, routers::polyline(0))
+                   .absolute().inset(0).stroke(cableway).zIndex(3))
+        // ---- millbrook creek (tapers INTO the smokewater) ----
+        .child(rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
+                    routers::octilinear(14)) // source→mouth: narrow→wide
+                   .absolute().inset(0).stroke(creek).zIndex(1))
+        // ---- the pipeline trio: identical points, different ops ----
+        .child(box().absolute().inset(70, 692, 1280 - 330, 800 - 726)
+                   .outline(demoPath)
+                   .stroke(demoRun(ops::Wave{.amplitude = 4, .wavelength = 36},
+                                   kCyan))
+                   .zIndex(3))
+        .child(box().absolute().inset(70, 724, 1280 - 330, 800 - 758)
+                   .outline(demoPath)
+                   .stroke(demoRun(ops::Wave{.amplitude = 4,
+                                             .wavelength = 36,
+                                             .zigzag = true},
+                                   kAmber))
+                   .zIndex(3))
+        .child(box().absolute().inset(70, 756, 1280 - 330, 800 - 790)
+                   .outline(demoPath)
+                   .stroke(demoRun(ops::Square{.amplitude = 4,
+                                               .wavelength = 36},
+                                   kViolet))
+                   .zIndex(3))
         // ---- waypoint pins (invisible) ----
         .child(pin("rv0", 985, 4))
         .child(pin("rv1", 930, 180))
@@ -284,6 +366,15 @@ struct Transit : sketch::Sketch {
         .child(pin("rd1", 520, 650))
         .child(pin("rd2", 900, 690))
         .child(pin("rd_e", 1170, 640))
+        .child(pin("tw_w", 520, 762))
+        .child(pin("tw1", 900, 762))
+        .child(pin("tw_e", 1180, 736))
+        .child(pin("cb_w", 430, 108))
+        .child(pin("cb_e", 700, 52))
+        .child(pin("ck_m", 824, 515))
+        .child(pin("ck1", 905, 515))
+        .child(pin("ck2", 962, 470))
+        .child(pin("ck_s", 1178, 470))
         // ---- stations ----
         .child(station("em_w", 140, 560))
         .child(station("em1", 380, 470))
@@ -293,7 +384,7 @@ struct Transit : sketch::Sketch {
         .child(station("rw1", 620, 150, 13))
         .child(station("rw2", 840, 150, 13))
         .child(station("rw_e", 1180, 205, 13))
-        .child(station("cy_w", 170, 300))
+        .child(station("cy_w", 150, 380))
         .child(station("cy1", 430, 325))
         .child(station("cy2", 860, 545))
         .child(station("cy_e", 1100, 625))
@@ -322,7 +413,15 @@ struct Transit : sketch::Sketch {
         .child(legendRow("NIGHT BUS", "offset legs: lane + curb", kAmber,
                          216))
         .child(legendRow("SMOKEWATER", "TfL Thames rule: octilinear band + banks",
-                         {0.45f, 0.62f, 0.78f, 1}, 238));
+                         {0.45f, 0.62f, 0.78f, 1}, 238))
+        .child(legendRow("TWIN SERVICE", "shared running: alternating dashes",
+                         kRose, 260))
+        .child(legendRow("CABLEWAY", "stamped rings on a support cable",
+                         kAsh, 282))
+        .child(legendRow("MILLBROOK", "topo taper: calligraphic ribbon",
+                         {0.36f, 0.66f, 0.86f, 1}, 304))
+        .child(legendRow("PIPELINE TRIO", "same points: wave / zigzag / square",
+                         kBone, 326));
   }
 
   void update(double, sketch::SketchContext &) override {}

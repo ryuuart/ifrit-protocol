@@ -94,6 +94,46 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
   return out.detach();
 }
 
+/** Square-wave (battlement/crenellation) displacement: the run holds at
+ *  +amp for half a wavelength, drops to −amp for the next — crisp
+ *  verticals from doubled points, zero at both endpoints, wavelength
+ *  snapped to fit like displace(). The BOXY member of the family: same
+ *  path points, meander-key geometry (the historic city-wall line). */
+inline SkPath displaceSquare(const SkPath &src, float amplitude,
+                             float wavelength) {
+  SkPathBuilder out;
+  SkContourMeasureIter iter(src, false);
+  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+    const float len = contour->length();
+    const float lambdaMax = std::max(wavelength, 2.0f);
+    const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
+    auto emit = [&](float d, float disp, bool first) {
+      SkPoint pos;
+      SkVector tan;
+      if (!contour->getPosTan(std::min(d, len), &pos, &tan))
+        return;
+      const SkPoint p{pos.x() - tan.y() * disp, pos.y() + tan.x() * disp};
+      if (first)
+        out.moveTo(p);
+      else
+        out.lineTo(p);
+    };
+    emit(0, 0, true);
+    float cur = amplitude;
+    emit(0, cur, false);
+    for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
+      emit(d, cur, false);
+      cur = -cur;
+      emit(d, cur, false);
+    }
+    emit(len, cur, false);
+    emit(len, 0, false);
+    if (contour->isClosed())
+      out.close();
+  }
+  return out.detach();
+}
+
 /** One-sided constant offset along the normal (Mapbox line-offset / QGIS
  *  line offset semantics: positive offsets to the RIGHT of the travel
  *  direction). A resampled approximation — exact on straights, smooth on
