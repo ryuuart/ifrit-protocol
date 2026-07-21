@@ -75,6 +75,9 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
       } else {
         disp = amplitude * std::sin(at * 6.2831853f / lambda);
       }
+      if (at >= len)
+        disp = 0; // both kinds are zero-phase at the endpoints — float
+                  // step accumulation must not spike the final vertex
       const SkPoint p{pos.x() + n.x() * disp, pos.y() + n.y() * disp};
       if (first) {
         out.moveTo(p);
@@ -85,6 +88,8 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
       if (at >= len)
         break;
     }
+    if (contour->isClosed())
+      out.close(); // keep closedness — trim/caps logic keys off it
   }
   return out.detach();
 }
@@ -93,7 +98,10 @@ inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
  *  line offset semantics: positive offsets to the RIGHT of the travel
  *  direction). A resampled approximation — exact on straights, smooth on
  *  gentle bends; also the dash-safe way to build parallel rails (each
- *  rail keeps the same arc parameterization, so dashes stay in phase). */
+ *  rail keeps the same arc parameterization, so dashes stay in phase).
+ *  Resampled at `step` px: crisp POLYGONAL routes get chamfered corners —
+ *  for exact polygon offsets use the casing loop (parallels without dash)
+ *  or offset the route's points before routing. */
 inline SkPath offsetAlong(const SkPath &src, float offset, float step = 4.0f) {
   if (offset == 0)
     return src;
@@ -207,6 +215,9 @@ struct Line {
     SkPath body = offset != 0 ? offsetAlong(ctx.outline, offset) : ctx.outline;
     if (waveAmplitude > 0)
       body = displace(body, waveAmplitude, waveLength, zigzag);
+    // Caps ride the FINAL geometry (offset + wave applied), not the raw
+    // outline — a head must sit on the line it terminates.
+    const SkPath capPath = body;
     const float headTrim = trimFor(endCap);
     const float tailTrim = trimFor(startCap);
     if (headTrim > 0 || tailTrim > 0) {
@@ -246,14 +257,29 @@ struct Line {
       stroke.setStrokeWidth(width);
       canvas.drawPath(body, stroke);
     } else if (!dashIntervals.empty()) {
-      stroke.setStrokeWidth(width);
+      // Dash FIRST, offset EACH DASH after: offsetting the continuous rail
+      // and then dashing shears phase on any curve (inner/outer rails have
+      // different arc lengths). Dashing the centerline once and offsetting
+      // the resulting dash segments keeps registration across all rails —
+      // the one-parameterization property the references get from shaders.
+      SkPath dashedBody = body;
+      if (sk_sp<SkPathEffect> dashFx = SkDashPathEffect::Make(
+              SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase)) {
+        SkPathBuilder dashed;
+        SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+        if (dashFx->filterPath(&dashed, body, &rec))
+          dashedBody = dashed.detach();
+      }
+      SkPaint p = stroke;
+      p.setPathEffect(nullptr); // geometry already dashed
       const int n = parallels;
       for (int i = 0; i < n; ++i) {
         const float o = gap * ((float)i - (float)(n - 1) * 0.5f);
-        SkPaint p = stroke;
-        if (parallels % 2 && i == n / 2)
-          p.setStrokeWidth(width * std::max(coreWidthFactor, 0.1f));
-        canvas.drawPath(o == 0 ? body : offsetAlong(body, o), p);
+        p.setStrokeWidth(parallels % 2 && i == n / 2
+                             ? width * std::max(coreWidthFactor, 0.1f)
+                             : width);
+        canvas.drawPath(o == 0 ? dashedBody : offsetAlong(dashedBody, o, 2.0f),
+                        p);
       }
     } else {
       const int pairs = parallels / 2;
@@ -313,21 +339,26 @@ struct Line {
       SkPaint head;
       head.setAntiAlias(true);
       applyFill(head);
-      SkContourMeasureIter iter(ctx.outline, false);
+      SkContourMeasureIter iter(capPath, false);
       while (sk_sp<SkContourMeasure> contour = iter.next()) {
         const float len = contour->length();
         SkPoint pos;
         SkVector tan;
-        if (!contour->isClosed()) {
+        const bool closed = contour->isClosed();
+        if (!closed) {
           if (endCap != Cap::None && contour->getPosTan(len, &pos, &tan))
             drawCap(canvas, head, endCap, pos, tan);
           if (startCap != Cap::None && contour->getPosTan(0, &pos, &tan))
             drawCap(canvas, head, startCap, pos, {-tan.x(), -tan.y()});
         }
-        if (midCap != Cap::None && midSpacing > 0)
-          for (float d = midSpacing; d < len - headTrim; d += midSpacing)
+        if (midCap != Cap::None && midSpacing > 0) {
+          // Closed contours have no terminals: chevrons run the full loop.
+          const float from = closed ? midSpacing : midSpacing + tailTrim;
+          const float until = closed ? len : len - headTrim;
+          for (float d = from; d < until; d += midSpacing)
             if (contour->getPosTan(d, &pos, &tan))
               drawCap(canvas, head, midCap, pos, tan);
+        }
       }
     }
   }

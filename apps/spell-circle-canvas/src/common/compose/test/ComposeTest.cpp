@@ -3474,3 +3474,164 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
   // sit at the 0.125 it had when the patch landed.
   EXPECT_GT(SkColorGetB(c), 120u);
 }
+
+// ---------------------------------------------------------------------------
+// Adversarial-review confirmations (workflow wf_15ac5a8b): the P1 batch.
+
+TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
+  // #18: retargeting a slot to its CURRENT value must disconnect a motion
+  // headed elsewhere — or the hold expires and fades to the stale target.
+  Host host;
+  auto tree = [](float op) {
+    return box().child(box()
+                           .width(80)
+                           .height(80)
+                           .fill(red())
+                           .transition({std::chrono::milliseconds(200),
+                                        &choreograph::easeNone,
+                                        std::chrono::milliseconds(300)})
+                           .opacity(op));
+  };
+  host.composer.render(tree(1.0f));
+  host.frame();
+  host.composer.render(tree(0.0f)); // starts Hold(1, .3s) + RampTo(0)
+  host.frame(0.1);                  // still holding at 1
+  host.composer.render(tree(1.0f)); // toggle back DURING the hold
+  host.frame(0.7);                  // any stale motion would have finished
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED); // description wins: opaque
+}
+
+TEST(ComposeCache, ConnectorWireSurvivesParentCaching) {
+  // #33: the routed path is not bounded by the connector's layout rect —
+  // the parent's recording cull must hold the wire.
+  Host host;
+  host.composer.render(
+      box()
+          .child(box().absolute().inset(20, 90, 160, 90).fill(red()).key("a"))
+          .child(box().absolute().inset(160, 90, 20, 90).fill(red()).key("b"))
+          .child(connector("a", "b").stroke(util::stroke(4, green()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN); // the wire, mid-span
+  host.frame(); // cached replay
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
+  // #32: Cache::Texture used to bake at exact node size.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(70, 70, 70, 70)
+          .cache(Cache::Texture)
+          .background(util::Shadow{{0, 1, 0, 1}, {30, 0}, 0})
+          .fill(red())));
+  host.frame();
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN); // shadow past the box
+}
+
+TEST(ComposeTrim, OpenContourWrapKeepsTwoPieces) {
+  // #31: stitching an OPEN contour's wrap window invented a chord.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(20, 80, 20, 80)
+          .outline([](SkSize s) { // open horizontal line
+            SkPathBuilder b;
+            b.moveTo(0, s.height() / 2);
+            b.lineTo(s.width(), s.height() / 2);
+            return b.detach();
+          })
+          .trim(0.9f, 1.2f, 0.0f, TrimMode::Wrap)
+          .stroke(util::stroke(6, green()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN); // tail piece [0.9, 1]
+  EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);  // head piece [0, 0.2]
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO chord between them
+}
+
+TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
+  // #9: a settled opacity transition must not leave the full-opacity
+  // recording baked with leafDirectBlend.
+  Host host;
+  auto tree = [](PropValue<float> op) {
+    return box().child(box()
+                           .width(80)
+                           .height(80)
+                           .fill(Fill::color({1, 0, 0, 1}))
+                           .opacity(std::move(op)));
+  };
+  host.composer.render(tree(1.0f));
+  host.frame();
+  host.composer.render(
+      tree(with(0.4f, {std::chrono::milliseconds(100), &choreograph::easeNone})));
+  host.frame(0.5); // settled at 0.4
+  host.frame();    // draw again from caches
+  const SkColor c = host.pixel(40, 40);
+  EXPECT_NEAR(SkColorGetR(c), 102, 12); // 0.4 · 255 on black
+}
+
+TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
+  // #34: backdrop() clipped the node's own decorations to its shape.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(60, 60, 60, 60)
+          .backdrop(Effect::filter(SkImageFilters::Blur(2, 2, nullptr)))
+          .stroke(util::stroke(10, green(), PathFormat::Align::Outer))));
+  host.frame();
+  EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN); // outer stroke intact
+}
+
+TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
+  // #20: an item appended to a LIVE staggered list must not inherit its
+  // full-list ordinal delay.
+  Host host;
+  auto card = [](std::string_view key) {
+    return box().width(60).height(20).fill(red()).key(key).opacity(
+        withFrom(0.0f, 1.0f, {std::chrono::milliseconds(100),
+                              &choreograph::easeNone}));
+  };
+  host.composer.render(box()
+                           .column()
+                           .gap(10)
+                           .staggerChildren(std::chrono::milliseconds(400))
+                           .child(card("a"))
+                           .child(card("b")));
+  host.frame(1.2); // initial cascade done
+  host.composer.render(box()
+                           .column()
+                           .gap(10)
+                           .staggerChildren(std::chrono::milliseconds(400))
+                           .child(card("a"))
+                           .child(card("b"))
+                           .child(card("c"))); // appended: only new mount
+  host.frame(0.15); // > its 100ms entrance, << 2·400ms ordinal delay
+  EXPECT_EQ(host.pixel(30, 70), SK_ColorRED); // "c" already in
+}
+
+TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
+  // #22: the seam of a closed contour is a corner too.
+  Host host;
+  brushes::PatternBrush b;
+  b.side = box().width(20).height(4).fill(red());
+  b.corner = box().width(12).height(12).fill(blue());
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(50, 50, 50, 50)
+          .outline([](SkSize s) { // closed rect starting at (0,0)
+            SkPathBuilder p;
+            p.moveTo(0, 0);
+            p.lineTo(s.width(), 0);
+            p.lineTo(s.width(), s.height());
+            p.lineTo(0, s.height());
+            p.close();
+            return p.detach();
+          })
+          .stroke(std::move(b))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE); // the seam corner tile
+}

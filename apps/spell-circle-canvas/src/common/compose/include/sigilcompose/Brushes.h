@@ -336,14 +336,19 @@ struct ScatterBrush {
 
   struct Cache {
     sk_sp<SkPicture> pic;
+    const void *bakedFor = nullptr; // the art node the bake belongs to —
+                                    // copies that swap art re-bake
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     if (spacing <= 0 || !ctx.fonts)
       return;
-    if (!cache->pic) // shell box: snapshot ignores the ROOT's own dims
+    if (!cache->pic || cache->bakedFor != art.node().get()) {
+      // shell box: snapshot ignores the ROOT's own dims
       cache->pic = snapshot(box().child(art), *ctx.fonts);
+      cache->bakedFor = art.node().get();
+    }
     if (!cache->pic)
       return;
 
@@ -386,7 +391,9 @@ struct PatternBrush {
   Element side;
   std::optional<Element> start, end, corner;
   float advance = 0;           ///< tile length along the path (0 → intrinsic)
-  float cornerAngleDeg = 35.0f;
+  float cornerAngleDeg = 35.0f; ///< PER-SAMPLE tangent break — gently
+                                ///< ROUNDED corners intentionally take no
+                                ///< corner tile (no hard break exists)
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
   StampModFn mod;              ///< side tiles only
@@ -407,12 +414,17 @@ struct PatternBrush {
 
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
+    const void *bakedFor = nullptr; // side-art identity; swap → full re-bake
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     if (!ctx.fonts)
       return;
+    if (cache->bakedFor != side.node().get()) {
+      *cache = Cache{};
+      cache->bakedFor = side.node().get();
+    }
     auto bake = [&](const std::optional<Element> &e, sk_sp<SkPicture> &slot) {
       if (e && !slot) // shell box: snapshot ignores the ROOT's own dims
         slot = snapshot(box().child(*e), *ctx.fonts);
@@ -446,11 +458,14 @@ struct PatternBrush {
         bool havePrev = false;
         const float cosThresh =
             std::cos(cornerAngleDeg * 0.017453293f);
+        SkVector tanAtStart{0, 0};
         for (float d = 0; d <= len; d += step) {
           SkPoint pos;
           SkVector tan;
           if (!contour->getPosTan(std::min(d, len), &pos, &tan))
             continue;
+          if (!havePrev)
+            tanAtStart = tan;
           if (havePrev) {
             const float dot = prev.x() * tan.x() + prev.y() * tan.y();
             if (dot < cosThresh &&
@@ -459,6 +474,16 @@ struct PatternBrush {
           }
           prev = tan;
           havePrev = true;
+        }
+        // The SEAM of a closed contour is a corner too when the exit and
+        // entry tangents break (a rectangle's start point) — the forward
+        // scan never compares across the wrap.
+        if (closed && havePrev) {
+          const float dot =
+              prev.x() * tanAtStart.x() + prev.y() * tanAtStart.y();
+          if (dot < cosThresh &&
+              (corners.empty() || corners.front() > tileLen * 0.5f))
+            corners.insert(corners.begin(), 0.0f);
         }
       }
 
@@ -542,7 +567,7 @@ struct Ribbon {
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
-  float step = 3.0f;
+  float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
   std::function<float(const PathSample &)> widthFn;
 
   float bleed() const { return std::max(widthStart, widthEnd); }
@@ -561,11 +586,12 @@ struct Ribbon {
     else if (fill.kind == Fill::Kind::Shader)
       p.setShader(fill.shaderValue);
 
+    const float stride = std::max(step, 0.5f);
     SkContourMeasureIter iter(ctx.outline, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float len = contour->length();
       std::vector<SkPoint> left, right;
-      for (float d = 0;; d += step) {
+      for (float d = 0;; d += stride) {
         const float at = std::min(d, len);
         SkPoint pos;
         SkVector tan;

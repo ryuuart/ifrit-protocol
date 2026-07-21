@@ -59,8 +59,17 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
     return true;
   const float current =
       anim && anim->started ? anim->value.value() : prev.target;
-  if (current == next.target)
+  if (current == next.target) {
+    // The value COINCIDES with the new target, but a connected motion that
+    // passed the keeps-flying guard is provably headed somewhere else —
+    // left alone it would carry the slot to a STALE target (permanent,
+    // since identical re-describes prune). Disconnect; the description's
+    // own value (== next.target) shows through.
+    if (anim && anim->started && anim->value.isConnected() &&
+        anim->target != next.target)
+      snapAnim();
     return anim && anim->value.isConnected();
+  }
 
   if (!anim)
     anim = std::make_unique<AnimatedFloat>();
@@ -219,7 +228,12 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
   bool nextFillTransitions = false;
   if (next.paint.fill) {
     ResolvedProp<Fill> nf = resolveProp(*next.paint.fill, nd);
-    nextFillTransitions = !nf.binding && nf.transition != nullptr;
+    // Only a COLOR target can continue a color lerp: a shader/none fill
+    // with a transition must still disconnect the running lerp, or the
+    // node keeps painting a color no description contains until the old
+    // motion self-expires (then pops).
+    nextFillTransitions = !nf.binding && nf.transition != nullptr &&
+                          nf.target.kind == Fill::Kind::Color;
   }
   if (!nextFillTransitions) {
     if (auto &anim = inst.anims[Instance::kFillLerp];

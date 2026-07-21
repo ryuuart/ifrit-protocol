@@ -319,6 +319,37 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     else
       applyMountTransitions(inst, *resolved); // withFrom() entrances
 
+    // flowAround changes (margin or key set) re-derive too: exclusions are
+    // cached per instance and the derive guards compare geometry, not the
+    // description.
+    if (prev && (prev->flowAroundKeys != resolved->flowAroundKeys ||
+                 prev->flowAroundMargin != resolved->flowAroundMargin)) {
+      inst.exclusionsLocal.clear();
+      inst.contentRev++; // relayout the text without exclusions, then derive
+      needsLayout = true;
+    }
+
+    // Full-control text: ParagraphLayoutOptions are not comparable, so a
+    // patched override node re-lays its text unconditionally — stale
+    // justification/hyphenation is worse than a relayout on describe
+    // (these nodes never prune anyway; hosts re-render on data change).
+    if (prev && resolved->paragraphOverride &&
+        prev->paragraphOverride == resolved->paragraphOverride) {
+      inst.contentRev++;
+      YGNodeMarkDirty(inst.yoga);
+      needsLayout = true;
+    }
+
+    // A container LOSING its custom layout must release the out-of-band
+    // yoga writes place() left on the children (absolute + pinned rects
+    // survive the structural prune otherwise — frozen children).
+    if (prev && prev->placeFn && !resolved->placeFn) {
+      for (auto &child : inst.children)
+        if (child)
+          applyLayoutProps(*child);
+      needsLayout = true;
+    }
+
     // A re-described ROUTE must re-derive even when no geometry moved: the
     // derive guards key cached geometry (resolved points/rects), not the
     // description — a router swap or an anchor-norm change would otherwise
@@ -378,6 +409,7 @@ void Composer::Impl::patchChildren(Instance &inst,
 
   size_t unkeyedCursor = 0;
   size_t childOrdinal = 0;
+  size_t mountOrdinal = 0; // order among children mounted THIS patch
   for (const Element &childElement : newChildren) {
     const std::shared_ptr<ElementNode> &node = childElement.node();
     std::unique_ptr<Instance> match;
@@ -402,8 +434,12 @@ void Composer::Impl::patchChildren(Instance &inst,
       // Center ripples outward.
       const float saved = mountDelayCarryMs;
       if (inst.desc->staggerChildrenMs > 0) {
+        // Order among NEWLY MOUNTED children: the initial cascade staggers
+        // the whole list, but one item appended to a LIVE list enters with
+        // no extra delay (it is the only new mount) instead of inheriting
+        // its full-list ordinal.
         const float n = (float)newChildren.size();
-        float order = (float)childOrdinal;
+        float order = (float)mountOrdinal;
         switch (inst.desc->staggerFrom) {
         case Stagger::From::End:
           order = n - 1.0f - order;
@@ -418,6 +454,7 @@ void Composer::Impl::patchChildren(Instance &inst,
       }
       inst.children.push_back(mount(node, &inst));
       mountDelayCarryMs = saved;
+      ++mountOrdinal;
       needsLayout = true;
     }
     ++childOrdinal;
@@ -464,8 +501,15 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   YGNodeStyleSetMargin(n, YGEdgeRight, l.margin.right);
   YGNodeStyleSetMargin(n, YGEdgeBottom, l.margin.bottom);
 
-  applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
-  applyDim(n, l.height, &YGNodeStyleSetHeight, &YGNodeStyleSetHeightPercent);
+  // Auto-sized layout() containers: applyCustomLayouts writes the placed
+  // extent as explicit W/H onto auto-dim absolute containers — releasing
+  // those here would zero the container every re-describe and feed
+  // place() a degenerate input for a pass.
+  const bool autoSized = inst.desc->placeFn && l.absolute;
+  if (!(autoSized && l.width.unit == Dim::Unit::Auto))
+    applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
+  if (!(autoSized && l.height.unit == Dim::Unit::Auto))
+    applyDim(n, l.height, &YGNodeStyleSetHeight, &YGNodeStyleSetHeightPercent);
   applyDim(n, l.minWidth, &YGNodeStyleSetMinWidth,
            &YGNodeStyleSetMinWidthPercent);
   applyDim(n, l.maxWidth, &YGNodeStyleSetMaxWidth,

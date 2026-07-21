@@ -77,20 +77,27 @@ void Composer::Impl::ensureLayout() {
     YGNodeStyleSetHeight(root->yoga, size.height());
   }
   YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
-  // Custom layout() containers: a bounded second pass — children were
-  // measured by pass one; scheme.place() pins them, pass two resolves.
-  bool repass = hasCustomLayout && applyCustomLayouts(*root);
-  // centerAt() pins: measured sizes are known now — place each pinned
-  // node's center ON its point (the same bounded-second-pass pattern).
-  if (hasCenterPins)
-    repass |= applyCenterPins(*root);
-  // Derive phase: geometry-consuming content (exclusions, connectors).
-  if (hasDerived)
-    repass |= resolveDerived(*root);
-  if (repass) {
-    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
+  // Bounded convergence rounds for the post-measure machinery: custom
+  // layout() placement, auto-sizing, centerAt pins, and the derive phase
+  // all react to RESOLVED geometry, and each can move what another read
+  // (an auto-sized container changes the box a pin centered in; a pinned
+  // node moves an anchor a rail routed through). Three rounds settle every
+  // legal composition; applyCustomLayouts/applyCenterPins report `changed`
+  // only on actual deltas, so stable layouts exit after one extra pass.
+  for (int round = 0; round < 3; ++round) {
+    bool changed = false;
+    if (hasCustomLayout)
+      changed |= applyCustomLayouts(*root);
+    if (hasCenterPins)
+      changed |= applyCenterPins(*root);
     if (hasDerived)
-      resolveDerived(*root); // refresh connectors post-move
+      changed |= resolveDerived(*root);
+    if (!changed)
+      break;
+    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined,
+                          YGDirectionLTR);
+    if (hasDerived)
+      resolveDerived(*root); // refresh routes against the moved geometry
   }
   // Post-layout invalidation: recordings bake geometry (child offsets, text
   // lines, geometry-material uResolution), so any rect that moved or resized
@@ -169,7 +176,20 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
     std::vector<SkRect> rects = inst.desc->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {
+      // A centerAt() child opts OUT of the scheme's placement — the pin
+      // wins (otherwise place() and the pin fight in a period-2
+      // oscillation that never settles).
+      if (inst.children[i]->desc->layout.centerAt)
+        continue;
       YGNodeRef child = inst.children[i]->yoga;
+      // Count a change only on an actual delta: the convergence loop in
+      // ensureLayout keys off this (idempotent writes are free).
+      const SkRect cur = instanceRect(*inst.children[i]);
+      if (std::abs(cur.left() - rects[i].left()) > 0.25f ||
+          std::abs(cur.top() - rects[i].top()) > 0.25f ||
+          std::abs(cur.width() - rects[i].width()) > 0.25f ||
+          std::abs(cur.height() - rects[i].height()) > 0.25f)
+        applied = true;
       YGNodeStyleSetPositionType(child, YGPositionTypeAbsolute);
       YGNodeStyleSetPosition(child, YGEdgeLeft, rects[i].left());
       YGNodeStyleSetPosition(child, YGEdgeTop, rects[i].top());
@@ -193,13 +213,19 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
                                 l.insets.top.unit != Dim::Unit::Auto &&
                                 l.insets.bottom.unit != Dim::Unit::Auto;
       if (l.width.unit == Dim::Unit::Auto && !widthPinned &&
-          extent.right() > 0)
+          extent.right() > 0 &&
+          std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
         YGNodeStyleSetWidth(inst.yoga, extent.right());
+        applied = true;
+      }
       if (l.height.unit == Dim::Unit::Auto && !heightPinned &&
-          extent.bottom() > 0)
+          extent.bottom() > 0 &&
+          std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) >
+              0.25f) {
         YGNodeStyleSetHeight(inst.yoga, extent.bottom());
+        applied = true;
+      }
     }
-    applied = true;
   }
   for (const auto &child : inst.children)
     applied |= applyCustomLayouts(*child);

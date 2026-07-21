@@ -212,6 +212,15 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
   if (bleed > 0)
     local.outset(bleed, bleed);
+  // Routed elements paint their derive-resolved PATH, which is not bounded
+  // by the layout rect (a connector's box is one thing, its wire another) —
+  // the cull must hold the route plus its stroke reach.
+  if ((!node.connectFrom.empty() || !node.railAnchors.empty()) &&
+      !inst.connectorPath.isEmpty()) {
+    SkRect route = inst.connectorPath.getBounds();
+    route.outset(bleed + 8.0f, bleed + 8.0f);
+    local.join(route);
+  }
   if (node.clipContent)
     return local;
   for (auto &child : inst.children) {
@@ -305,8 +314,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           SkContourMeasureIter iter(outlinePath, false);
           while (sk_sp<SkContourMeasure> contour = iter.next()) {
             const float len = contour->length();
+            // Closed contours stitch into ONE run through the seam; OPEN
+            // contours have no seam — joining the pieces would invent a
+            // straight chord from the end back to the start.
             contour->getSegment(s * len, len, &stitched, true);
-            contour->getSegment(0, e * len, &stitched, false);
+            contour->getSegment(0, e * len, &stitched,
+                                !contour->isClosed());
           }
           SkPath stitchedPath = stitched.detach();
           if (!stitchedPath.isEmpty()) {
@@ -599,6 +612,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool hasBackdrop =
       node.backdropEffect && node.backdropEffect->imageFilter();
   if (hasBackdrop) {
+    // The filtered backdrop composites as a CLOSED pass clipped to the
+    // node's shape — the node's own decorations and overflowing children
+    // then paint unclipped above it (CSS clips the FILTER REGION to the
+    // element, not the element's overflow).
     canvas.save();
     if (node.shapeFn)
       canvas.clipPath(resolveOutline(inst, {rect.width(), rect.height()}), true);
@@ -609,6 +626,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     SkCanvas::SaveLayerRec rec(nullptr, nullptr,
                                node.backdropEffect->imageFilter().get(), 0);
     canvas.saveLayer(rec);
+    canvas.restore(); // composite the filtered backdrop through the clip
+    canvas.restore(); // release the clip — content is NOT bounded by it
   }
 
   // Fill-only leaves route blend/opacity straight onto the fill paint instead
@@ -657,22 +676,28 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];
     for (float step : kBakeSteps)
       if (step >= raw) { scale = step; break; }
-    if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale) {
-      const int pw = std::max(1, (int)std::ceil(rect.width() * scale));
-      const int ph = std::max(1, (int)std::ceil(rect.height() * scale));
+    // Bake the full PAINT bounds, not just the box — decoration bleed and
+    // overflowing children truncate otherwise (same rule as the picture
+    // cull).
+    const SkRect bake = recordBounds(inst);
+    if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
+        inst.textureBakeRect != bake) {
+      const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
+      const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
       sk_sp<SkSurface> layer =
           canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
       if (!layer)
         layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
       layer->getCanvas()->scale(scale, scale);
+      layer->getCanvas()->translate(-bake.left(), -bake.top());
       paintContent(inst, *layer->getCanvas(), scale); // no leaf blend:
       inst.textureImage = layer->makeImageSnapshot(); // bakes isolate
       inst.textureScale = scale;
+      inst.textureBakeRect = bake;
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
-    canvas.drawImageRect(inst.textureImage,
-                         SkRect::MakeWH(rect.width(), rect.height()),
+    canvas.drawImageRect(inst.textureImage, bake,
                          SkSamplingOptions(SkFilterMode::kLinear));
   } else if (!liveOnly && !inst.subtreeVolatile &&
              node.cacheMode != Cache::None &&
@@ -689,7 +714,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // (Childless Image leaves deliberately absent: one drawImageRect is
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
-    if (!inst.picture || inst.paintDirty) {
+    if (!inst.picture || inst.paintDirty ||
+        inst.bakedLeafOpacity != leafOpacity ||
+        inst.bakedLeafBlend != leafBlend) {
       // The cull must hold everything the subtree paints: declared
       // decoration bleed (the aero-study fix) AND children that overflow
       // the box via layout or static transforms (recordBounds) — the
@@ -699,6 +726,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       SkCanvas *rec = recorder.beginRecording(cull);
       paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
       inst.picture = recorder.finishRecordingAsPicture();
+      inst.bakedLeafOpacity = leafOpacity; // a settled transition re-bakes
+      inst.bakedLeafBlend = leafBlend;     // (the recording froze them in)
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
@@ -711,10 +740,6 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
 
   if (needsLayer)
     canvas.restore();
-  if (hasBackdrop) {
-    canvas.restore(); // backdrop layer
-    canvas.restore(); // clip
-  }
   canvas.restore();
 }
 

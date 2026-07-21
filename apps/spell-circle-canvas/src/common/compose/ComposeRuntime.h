@@ -74,6 +74,9 @@ struct Instance {
   sk_sp<SkPicture> picture;
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
+  SkRect textureBakeRect = SkRect::MakeEmpty(); // bake covers paint bounds
+  float bakedLeafOpacity = 1.0f;               // frozen into the recording
+  SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
   bool subtreeVolatile = false;
 
