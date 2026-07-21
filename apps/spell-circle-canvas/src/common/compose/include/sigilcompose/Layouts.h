@@ -17,6 +17,7 @@
 
 #include <include/core/SkContourMeasure.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -101,6 +102,39 @@ struct AlongPath {
 /** Seeded chaotic placement: children scatter over the container on a
  *  jittered grid — deterministic per seed (same seed, same chaos,
  *  fully cacheable), never escaping the container. */
+struct BaselineGrid {
+  /** The editorial baseline rhythm (Müller-Brockmann): children stack
+   *  vertically at x = 0, and each is shifted DOWN so its anchor — the
+   *  first TEXT baseline when the child has one, its bottom edge otherwise
+   *  — lands exactly on the next grid line (multiples of `rhythm`, phased
+   *  by `offset`). A deterministic post-Yoga quantization: mixed type sizes
+   *  share one vertical rhythm, images/rules bottom-align to it, and the
+   *  result is cache-stable like any other layout. */
+  float rhythm = 24.0f;
+  float offset = 0.0f; // grid phase
+  float gap = 0.0f;    // extra space between children before snapping
+
+  std::vector<SkRect> place(const LayoutInput &in) const {
+    std::vector<SkRect> rects(in.childSizes.size());
+    const float step = std::max(rhythm, 1.0f);
+    float flowY = 0.0f;
+    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+      const SkSize size = in.childSizes[i];
+      const float anchor =
+          (i < in.childBaselines.size() && !std::isnan(in.childBaselines[i]))
+              ? in.childBaselines[i]
+              : size.height();
+      // Snap the anchor to the next grid line at or below its flow spot.
+      const float line =
+          offset + step * std::ceil((flowY + anchor - offset) / step - 1e-4f);
+      const float top = line - anchor;
+      rects[i] = SkRect::MakeXYWH(0, top, size.width(), size.height());
+      flowY = top + size.height() + gap;
+    }
+    return rects;
+  }
+};
+
 struct Scatter {
   uint32_t seed = 1;
   float jitter = 0.6f; // 0 = regular grid, 1 = up to half a cell off

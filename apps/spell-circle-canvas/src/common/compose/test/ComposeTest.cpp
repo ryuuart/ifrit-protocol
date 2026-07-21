@@ -1952,6 +1952,37 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   }
 }
 
+TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
+  // Non-text children anchor by BOTTOM: heights 15 & 27 on rhythm 20 land
+  // their bottoms on grid lines 20 and 60 (flow 20+27=47 rounds up).
+  Host host;
+  host.composer.render(box().child(
+      layout(layouts::BaselineGrid{.rhythm = 20})
+          .width(pct(100)).grow(1)
+          .child(box().key("a").width(40).height(15).fill(red()))
+          .child(box().key("b").width(40).height(27).fill(blue()))));
+  host.frame();
+  auto a = host.composer.bounds("a");
+  auto b = host.composer.bounds("b");
+  ASSERT_TRUE(a && b);
+  EXPECT_NEAR(a->bottom(), 20.0f, 0.01f);
+  EXPECT_NEAR(b->bottom(), 60.0f, 0.01f);
+
+  // A text child anchors by its FIRST BASELINE: with the baseline on the
+  // 200 grid line, (200 - top) equals the baseline offset — strictly LESS
+  // than the child's height (bottom-anchoring would make them equal).
+  // Font-metric independent.
+  host.composer.render(box().child(
+      layout(layouts::BaselineGrid{.rhythm = 200})
+          .width(pct(100)).grow(1)
+          .child(text(u8"Xylograph", styleAt(40)).key("t"))));
+  host.frame();
+  auto t = host.composer.bounds("t");
+  ASSERT_TRUE(t.has_value());
+  EXPECT_GT(200.0f - t->top(), 10.0f);                 // sane baseline
+  EXPECT_LT(200.0f - t->top(), t->height() - 0.5f);    // baseline, not bottom
+}
+
 TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
   auto centers = [&](uint32_t seed) {
     Host host;

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace sigil::compose {
 
@@ -118,9 +119,18 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
-    for (const auto &child : inst.children)
+    for (const auto &child : inst.children) {
       input.childSizes.push_back(
           {YGNodeLayoutGetWidth(child->yoga), YGNodeLayoutGetHeight(child->yoga)});
+      // First-baseline offset from the child's top — measured text only
+      // (pass one measured it); everything else has no baseline.
+      float baseline = std::numeric_limits<float>::quiet_NaN();
+      if (!child->lines.empty()) {
+        const sigil::weave::LineMetrics &first = child->lines.front();
+        baseline = first.baseline - first.rect().top();
+      }
+      input.childBaselines.push_back(baseline);
+    }
     std::vector<SkRect> rects = inst.desc->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {

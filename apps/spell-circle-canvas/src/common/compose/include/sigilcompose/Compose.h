@@ -288,11 +288,14 @@ enum class Cache : uint8_t { Auto, Picture, Texture, None };
 // ---------------------------------------------------------------------------
 // Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)
 
-/** What a custom layout sees: the container's resolved size and each
- *  child's measured size (text children measured by SigilWeave). */
+/** What a custom layout sees: the container's resolved size, each child's
+ *  measured size (text children measured by SigilWeave), and each child's
+ *  first-baseline offset from its own top (NaN for children without one) —
+ *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by. */
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;
+  std::vector<float> childBaselines; // NaN = no baseline (non-text)
 };
 
 /** A custom layout places children: one rect per child (position and
