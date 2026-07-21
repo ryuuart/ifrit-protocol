@@ -593,11 +593,11 @@ if (a.shapeFn || b.shapeFn || a.program || b.program || a.placeFn ||
 So a raw `custom()` leaf or `outline()` shape still re-patches per `render()`
 — the direct cost of look-as-lambda (raw lambdas *can't* be compared;
 `Material` values *can*). Remaining fixes, in order:
-1. **Material structural-signature equality** — gradient/sksl materials
-   rebuild a fresh `SkShader` per describe, so their collapsed `Fill` compares
-   unequal by pointer and doesn't prune across re-render (they still
-   draw-cache within a render). Compare the recipe (ramp stops, effect +
-   uniform values/bindings), not the shader pointer.
+1. ~~**Material structural-signature equality**~~ **LANDED** (`38ad4ce`):
+   materials carry a comparable Recipe (gradients by geometry+stops+tile,
+   images by pointer+mapping, sksl by effect+constants, blends recursively);
+   `propsEqual` compares it, so re-described material fills prune despite
+   fresh shader pointers.
 2. **Give `program`/`shapeFn` an optional identity/version token** (the
    `custom()` deps digest from §7) so an unchanged custom leaf compares equal.
 3. **The `memo` rule is now documented** on `custom()`/`outline()`:
@@ -731,17 +731,26 @@ Sequenced so each phase is independently valuable and de-risks the next:
   10.96 → 0.13 ms/frame on the dirty()-gated loop); `memo` rule documented on
   `custom()`/`outline()`. Still open from P0: the `custom()` deps token
   (folds into the §7 isolation-boundary work).
-- **P1 — Material / Brush (the unlock). Lean core LANDED** (`511a948` +
-  follow-up): `Material` value (solid/gradient ramps/image/sksl/blend-as-one-
-  shader), live `ch::Output` uniforms with copy-on-write value semantics and
-  warn-don't-abort uniform validation, `fill(Material)` with last-wins setter
-  symmetry — all Fable-audited. Open: SDF node, `Sprite`/dual-inset 9-slice,
-  `below()`, gradient/recipe structural-signature pruning (§8.1), the OCIO
-  `color::View` output stage. `Fill::color/shader` remain as the low-level
-  carrier.
-- **P2 — Geometry beyond boxes.** §5: `GeometryScheme` modifier stack (Trim
-  first), `route()`/`rail()` + N-anchor `Router` + anchor-binding + node→routes
-  back-index, arc-length unification of along-edge motion.
+- **P1 — Material / Brush (the unlock). LANDED through the SDF node**
+  (`511a948`→`763ccd1`): `Material` value (solid/gradient ramps/image/sksl/
+  blend-as-one-shader), live `ch::Output` uniforms (copy-on-write value
+  semantics, warn-don't-abort validation), recipe structural-signature
+  pruning (§8.1), the OCIO output stage (`Composer::setView` +
+  `<sigilcompose/Ocio.h>` LUT bake), "reading uTime IS the volatility
+  declaration", the geometry-dependent middle tier (uResolution → resolve at
+  record, cache between layouts), and `<sigilcompose/Sdf.h>` (IQ operators,
+  one pass, one effect per shape kind). Still open from P1:
+  `Sprite`/dual-inset 9-slice, `below()`, F16 intermediates for HDR-through-
+  ACES. `Fill::color/shader` remain as the low-level carrier.
+- **P2 — Geometry beyond boxes. Trim Path + rail() LANDED**
+  (`8a48681`, `5ba7283`): `Element::trim(start, end)` with full PropValue
+  treatment (draw-on borders; content volatility while moving), and
+  `rail(anchors, router)` — ordered normalized anchors resolved in Derive,
+  stock polyline/octilinear routers, trim×rail = the self-drawing line.
+  Still open: the remaining geometry modifiers (Round/Offset/Dash/Merge as
+  element seams), path morph, the node→routes back-index (today any layout
+  change re-derives all rails — fine at current scale), and arc-length
+  anchored placement / along-edge motion unification.
 - **P3 — Instancing + text.** §6: `instances()` + SoA + `drawAtlas` flyweight,
   `console()`/`LineRing`, `GlyphModBuffer` + `GlyphEffect` + `Stagger`,
   `BaselineGrid`/`VariationDrive`.
