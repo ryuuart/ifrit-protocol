@@ -68,6 +68,61 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
+  if (node.railAnchors.size() >= 2) {
+    std::vector<SkPoint> pts;
+    pts.reserve(node.railAnchors.size());
+    const SkRect own = absoluteRect(inst);
+    bool resolvedAll = true;
+    for (const Anchor &anchor : node.railAnchors) {
+      auto it = byKey.find(anchor.nodeKey);
+      if (it == byKey.end()) {
+        resolvedAll = false;
+        break;
+      }
+      bool cyclic = false; // the rail must not thread itself
+      for (Instance *p = it->second; p; p = p->parent)
+        if (p == &inst) { cyclic = true; break; }
+      if (cyclic) {
+        resolvedAll = false;
+        break;
+      }
+      const SkRect target = absoluteRect(*it->second);
+      pts.push_back({target.left() + target.width() * anchor.norm.x() -
+                         own.left(),
+                     target.top() + target.height() * anchor.norm.y() -
+                         own.top()});
+    }
+    if (resolvedAll && pts.size() >= 2) {
+      // Terminal gaps: pull the rail's ends back along their segments.
+      auto pullIn = [](SkPoint &end, const SkPoint &next, float gap) {
+        if (gap <= 0)
+          return;
+        SkVector d = next - end;
+        const float len = d.length();
+        if (len > gap) {
+          d.scale(gap / len);
+          end += d;
+        }
+      };
+      pullIn(pts.front(), pts[1], node.railAnchors.front().gap);
+      pullIn(pts.back(), pts[pts.size() - 2], node.railAnchors.back().gap);
+
+      if (pts != inst.railPoints) {
+        inst.railPoints = std::move(pts);
+        if (node.railRouter) {
+          inst.connectorPath = node.railRouter(inst.railPoints);
+        } else {
+          SkPathBuilder b; // default: the straight polyline
+          b.moveTo(inst.railPoints.front());
+          for (size_t i = 1; i < inst.railPoints.size(); ++i)
+            b.lineTo(inst.railPoints[i]);
+          inst.connectorPath = b.detach();
+        }
+        inst.markPaintDirtyUp();
+      }
+    }
+  }
+
   for (auto &child : inst.children)
     relayout |= resolveDerived(*child);
   return relayout;

@@ -61,9 +61,10 @@ struct Instance {
 
   // Derive-phase state
   std::vector<SkRect> exclusionsLocal; // flowAround rects, text-local
-  SkPath connectorPath;                // routed path, connector-local
+  SkPath connectorPath;                // routed path (connector OR rail), local
   SkRect connectorFrom = SkRect::MakeEmpty(),
          connectorTo = SkRect::MakeEmpty();
+  std::vector<SkPoint> railPoints;     // last resolved rail waypoints
 
   // Caching
   sk_sp<SkPicture> picture;

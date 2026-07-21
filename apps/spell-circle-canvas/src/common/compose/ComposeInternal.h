@@ -98,6 +98,8 @@ struct ElementNode {
   float flowAroundMargin = 0;
   std::string connectFrom, connectTo;
   Router router;
+  std::vector<Anchor> railAnchors; // rail(): ordered waypoints
+  RailRouter railRouter;
 
   // Memo (deferred description)
   bool isMemo = false;

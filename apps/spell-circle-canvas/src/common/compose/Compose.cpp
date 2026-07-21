@@ -261,6 +261,14 @@ Element connector(std::string_view fromKey, std::string_view toKey,
   return e;
 }
 
+Element rail(std::vector<Anchor> anchors, RailRouter router) {
+  Element e;
+  e.node()->kind = Kind::Custom; // painted via the derive-routed outline
+  e.node()->railAnchors = std::move(anchors);
+  e.node()->railRouter = std::move(router);
+  return e;
+}
+
 Element slot(std::string_view name) {
   Element e;
   e.node()->kind = Kind::Slot;

@@ -814,6 +814,100 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
 }
 
+// ---- rail(): the component that IS a line ----------------------------------
+
+#include <sigilcompose/Routers.h>
+
+namespace {
+/** A 20×20 keyed station box; center lands at (left+10, top+10). */
+Element station(const char *key, float left, float top) {
+  return box().key(key).width(20).height(20)
+      .inset(left, top, 180 - left, 160 - top).absolute()
+      .fill(blue());
+}
+PathFormat railLine() {
+  PathFormat line;
+  line.width = 4;
+  line.strokeFill = green();
+  return line;
+}
+} // namespace
+
+TEST(ComposeRail, ThreadsThroughAnchors) {
+  // Three stations, one rail through their centers: the routed polyline is
+  // the element; the PathFormat foreground dresses it.
+  Host host;
+  host.composer.render(
+      stack()
+          .child(station("s1", 10, 40))
+          .child(station("s2", 90, 40))
+          .child(station("s3", 170, 40))
+          .child(rail({{"s1"}, {"s2"}, {"s3"}})
+                     .absolute().inset(0)
+                     .foreground(railLine())));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);  // between s1 and s2
+  EXPECT_EQ(host.pixel(140, 50), SK_ColorGREEN); // between s2 and s3
+  EXPECT_EQ(host.pixel(60, 80), SK_ColorBLACK);  // off the rail
+}
+
+TEST(ComposeRail, ReRoutesWhenAnchorMoves) {
+  // Anchors are keys + normalized points, never absolute coordinates — move
+  // a station and the rail re-derives through its new bounds.
+  Host host;
+  auto scene = [](float top2) {
+    return stack()
+        .child(station("a", 10, 40))
+        .child(station("b", 90, top2))
+        .child(rail({{"a"}, {"b"}}).absolute().inset(0)
+                   .foreground(railLine()));
+  };
+  host.composer.render(scene(40));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN); // horizontal run
+  host.composer.render(scene(140));             // station b drops 100px
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorGREEN); // the new slanted run
+  EXPECT_EQ(host.pixel(60, 50), SK_ColorBLACK);  // old route gone
+}
+
+TEST(ComposeRail, DrawsOnWithTrim) {
+  // Composition, not new machinery: trim() on a rail = the self-drawing
+  // subway line. A bound reveal advances with no render() calls.
+  choreograph::Output<float> reveal{0.05f};
+  Host host;
+  host.composer.render(
+      stack()
+          .child(station("a", 10, 40))
+          .child(station("b", 170, 40))
+          .child(rail({{"a"}, {"b"}})
+                     .absolute().inset(0)
+                     .trim(0.0f, &reveal)
+                     .foreground(railLine())));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK); // reveal stops at ~x=28
+  reveal = 1.0f; // no render()
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN); // the whole line
+}
+
+TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
+  // The metro-map router: a 45° leg for the shorter delta, then straight —
+  // never the direct slanted line.
+  Host host;
+  host.composer.render(
+      stack()
+          .child(station("a", 10, 40))   // center (20, 50)
+          .child(station("b", 130, 100)) // center (140, 110)
+          .child(rail({{"a"}, {"b"}}, routers::octilinear(0.0f))
+                     .absolute().inset(0)
+                     .foreground(railLine())));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);   // on the 45° leg
+  EXPECT_EQ(host.pixel(110, 110), SK_ColorGREEN); // on the straight leg
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);   // NOT the direct line
+}
+
 // ---- Trim Path (draw-on reveals) -------------------------------------------
 
 TEST(ComposeTrim, PartialOutlineStrokesOnlyRevealedStretch) {

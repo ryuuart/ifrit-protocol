@@ -97,7 +97,9 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   // Incomparable callables → conservative inequality.
   if (a.shapeFn || b.shapeFn || a.program || b.program || a.placeFn ||
-      b.placeFn || a.router || b.router)
+      b.placeFn || a.router || b.router || a.railRouter || b.railRouter)
+    return false;
+  if (a.railAnchors != b.railAnchors)
     return false;
   // Decorations compare when they wrap value-comparable schemes (PathFormat,
   // Slice, Shadow…); an incomparable one (bare program, ContourWalk with a
@@ -276,7 +278,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
       applyTransitions(inst, *prev, *resolved);
   }
 
-  if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty())
+  if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty() ||
+      !resolved->railAnchors.empty())
     hasDerived = true;
   if (resolved->placeFn)
     hasCustomLayout = true;

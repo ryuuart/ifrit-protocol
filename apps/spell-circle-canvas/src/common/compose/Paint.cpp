@@ -118,11 +118,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                        YGNodeLayoutGetHeight(inst.yoga));
   const SkRRect rrect = cornersRRect(bounds, node.corners);
 
-  // The node's shape: routed connector path, custom outline(), or the
+  // The node's shape: routed connector/rail path, custom outline(), or the
   // corner-rounded box.
-  const bool customShape = node.shapeFn && node.connectFrom.empty();
+  const bool routed = !node.connectFrom.empty() || !node.railAnchors.empty();
+  const bool customShape = node.shapeFn && !routed;
   SkPath outlinePath;
-  if (!node.connectFrom.empty()) {
+  if (routed) {
     outlinePath = inst.connectorPath; // derive phase routed it
   } else if (customShape) {
     outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});

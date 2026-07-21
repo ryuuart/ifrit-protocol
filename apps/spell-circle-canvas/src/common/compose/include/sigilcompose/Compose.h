@@ -33,6 +33,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -499,6 +500,32 @@ Element slot(std::string_view name);
 using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {});
+
+/** A rail endpoint/waypoint: a NORMALIZED point on a keyed node's resolved
+ *  bounds ((0,0)=top-left, (1,1)=bottom-right — the binding form tldraw and
+ *  Excalidraw both converged on; never absolute coordinates, so rails
+ *  survive layout, drag, and reflow). `gap` pulls a TERMINAL anchor back
+ *  along its segment (breathing room at the ends; ignored on waypoints). */
+struct Anchor {
+  std::string nodeKey;
+  SkPoint norm = {0.5f, 0.5f};
+  float gap = 0.0f;
+  bool operator==(const Anchor &) const = default;
+};
+
+/** Routes an ordered run of resolved anchor points into the rail's path —
+ *  stock ones in <sigilcompose/Routers.h> (polyline, octilinear); write your
+ *  own for anything else. Straight polyline when omitted. */
+using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
+
+/** The component that IS a line: a path threaded through an ordered span of
+ *  anchors (a transit line through its stations, a wire through ports),
+ *  resolved in the derive phase and re-routed whenever an anchored node
+ *  moves. The routed path becomes PaintContext::outline, so PathFormat
+ *  strokes, ContourWalk stamps, and trim() all dress it — a rail with
+ *  `.trim(0, with(1.0f, {800ms}))` DRAWS ITSELF. Position it
+ *  absolute().inset(0) over the nodes it threads (like connector()). */
+Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 
 /** One-shot element render: reconciles, lays out, and records the
  *  paint into a picture. With an empty @p maxSize the tree takes its
