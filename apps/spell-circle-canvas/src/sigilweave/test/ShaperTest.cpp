@@ -479,3 +479,24 @@ TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
       << "repeated variations must hit the shape cache";
 }
+
+TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
+  // weight()/opticalSize()/variation() replace in place when the axis is
+  // already present — repeated fluent chains keep one order (one memoized
+  // varied-typeface identity), never accumulate duplicates.
+  TextStyle style;
+  style.weight(500).opticalSize(36).weight(700);
+  ASSERT_EQ(style.shaping.variations.size(), 2u);
+  EXPECT_EQ(style.shaping.variations[0], FontVariation("wght", 700));
+  EXPECT_EQ(style.shaping.variations[1], FontVariation("opsz", 36));
+  style.variation("GRAD", 80);
+  ASSERT_EQ(style.shaping.variations.size(), 3u);
+  EXPECT_EQ(style.shaping.variations[2], FontVariation("GRAD", 80));
+
+  // A chain that ends at the same design position compares EQUAL — the
+  // in-place replace keeps first-mention order, so both styles carry
+  // [wght, opsz, GRAD] and share one shape-cache identity.
+  TextStyle same;
+  same.weight(700).opticalSize(36).variation("GRAD", 80);
+  EXPECT_TRUE(style == same);
+}

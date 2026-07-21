@@ -373,6 +373,28 @@ struct TextStyle {
   ShapingStyle shaping; ///< changes re-shape the covered words
   PaintStyle paint;     ///< changes never re-shape or relayout
 
+  /** Sets or replaces one variable-font axis (fluent sugar over
+   *  `shaping.variations`). Replaces in place when the axis is already
+   *  present — repeated calls stay order-stable, so styles built by the
+   *  same call sequence share one varied-typeface memo entry. */
+  TextStyle &variation(const char (&tag)[5], float value) {
+    for (FontVariation &v : shaping.variations)
+      if (v.tag[0] == tag[0] && v.tag[1] == tag[1] && v.tag[2] == tag[2] &&
+          v.tag[3] == tag[3]) {
+        v.value = value;
+        return *this;
+      }
+    shaping.variations.emplace_back(tag, value);
+    return *this;
+  }
+  /** The `wght` axis, fluently: `style.weight(650)`. Weight participates
+   *  in shaping identity (wght changes advances — it is NOT paint-safe),
+   *  so animating it re-shapes; fonts with a `GRAD` axis offer the
+   *  advance-invariant alternative: `variation("GRAD", v)`. */
+  TextStyle &weight(float wght) { return variation("wght", wght); }
+  /** The optical-size axis, fluently: `style.opticalSize(72)`. */
+  TextStyle &opticalSize(float opsz) { return variation("opsz", opsz); }
+
   /** Compares both shaping and paint configuration. */
   bool operator==(const TextStyle &other) const {
     return shaping == other.shaping && paint == other.paint;
