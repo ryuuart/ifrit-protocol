@@ -3205,3 +3205,58 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
       offAxis += host.pixel(x, 100 + dy) == SK_ColorGREEN;
   EXPECT_GT(offAxis, 10); // the stroke followed the waved geometry
 }
+
+// ---------------------------------------------------------------------------
+// Skia seams wired in (REVIEW.md §14): sketchy jitter, SVG outlines, Perlin.
+
+TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
+  Host host, plain;
+  host.composer.render(straightRun(
+      brushes::restyle(ops::sketchy(8, 3.0f, 11), util::stroke(2, green()))));
+  plain.composer.render(straightRun(util::stroke(2, green())));
+  host.frame();
+  plain.frame();
+  int off = 0, offPlain = 0;
+  for (int x = 30; x < 170; x += 2)
+    for (int dy : {-2, 2}) {
+      off += host.pixel(x, 100 + dy) == SK_ColorGREEN;
+      offPlain += plain.pixel(x, 100 + dy) == SK_ColorGREEN;
+    }
+  EXPECT_GT(off, 8);       // the hand wobbles
+  EXPECT_EQ(offPlain, 0);  // the ruler doesn't
+}
+
+TEST(ComposeSeams, SvgOutlineTracesThePathData) {
+  // A right triangle authored as an SVG d-string, stretched to the node.
+  Host host;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 50, 50)
+                                       .outline(shapes::svg("M0 0 L100 0 L100 100 Z"))
+                                       .fill(red())));
+  host.frame();
+  EXPECT_EQ(host.pixel(140, 70), SK_ColorRED);  // inside the hypotenuse
+  EXPECT_EQ(host.pixel(60, 130), SK_ColorBLACK); // outside it
+  // Hit-testing follows the silhouette too.
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 50, 50)
+                                       .outline(shapes::svg("M0 0 L100 0 L100 100 Z"))
+                                       .fill(red())
+                                       .key("tri")));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({140, 70}).value_or(""), "tri");
+  EXPECT_FALSE(host.composer.hitTest({60, 130}).has_value());
+}
+
+TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
+  Host host(100, 100);
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(patterns::noise(0.05f, 4, 2.0f))));
+  host.frame();
+  std::set<SkColor> distinct;
+  for (int y = 10; y < 90; y += 8)
+    for (int x = 10; x < 90; x += 8)
+      distinct.insert(host.pixel(x, y));
+  EXPECT_GT(distinct.size(), 30u); // organic variation, not a flat fill
+}

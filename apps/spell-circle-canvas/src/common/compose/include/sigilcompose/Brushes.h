@@ -32,6 +32,7 @@
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
 #include <include/effects/SkCornerPathEffect.h>
+#include <include/effects/SkDiscretePathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 
 #include <cmath>
@@ -209,6 +210,23 @@ inline PathOp rounded(float radius) {
     return p;
   };
 }
+/** The hand-drawn jitter (SkDiscretePathEffect — the rough.js look;
+ *  grounded params in REFERENCES.md §9: deviation ≈ 2, and rough.js draws
+ *  TWO passes, full + half deviation with different seeds, for the
+ *  sketchy double-line — compose two restyle()s to match). */
+inline PathOp sketchy(float segLength = 8.0f, float deviation = 2.0f,
+                      uint32_t seed = 7) {
+  return [segLength, deviation, seed](const SkPath &p) {
+    SkPathBuilder out;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx =
+            SkDiscretePathEffect::Make(segLength, deviation, seed);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
+  };
+}
+
 /** Chain ops left-to-right — compose like SkComposePathEffect. */
 inline PathOp chain(std::vector<PathOp> steps) {
   return [steps = std::move(steps)](const SkPath &p) {

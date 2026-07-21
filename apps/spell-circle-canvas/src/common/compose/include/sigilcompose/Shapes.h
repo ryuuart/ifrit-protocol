@@ -21,15 +21,43 @@
 #include "sigilcompose/Compose.h"
 
 #include <include/core/SkContourMeasure.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
+#include <include/utils/SkParsePath.h>
 
 #include <cmath>
 #include <cstdint>
 
 namespace sigil::compose::shapes {
+
+/** An outline from an SVG path-d string (SkParsePath) — trace a reference
+ *  silhouette in any vector tool, paste the `d`, done. The path's bounds
+ *  map onto the node's box (stretch by default; `preserveAspect` fits and
+ *  centers instead). Parsed ONCE at call time; the generator is an
+ *  incomparable callable like every outline() — memo the node or keep it
+ *  pointer-stable to prune. */
+inline std::function<SkPath(SkSize)> svg(const char *d,
+                                         bool preserveAspect = false) {
+  SkPath parsed;
+  if (auto result = SkParsePath::FromSVGString(d))
+    parsed = std::move(*result);
+  return [parsed, preserveAspect](SkSize size) {
+    const SkRect b = parsed.getBounds();
+    if (b.isEmpty() || size.isEmpty())
+      return parsed;
+    SkMatrix m;
+    if (preserveAspect) {
+      m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()),
+                               SkMatrix::kCenter_ScaleToFit);
+    } else {
+      m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()));
+    }
+    return parsed.makeTransform(m);
+  };
+}
 
 /** A silhouette generator: local-coordinate path over the node's
  *  laid-out size. What Element::outline() accepts. */

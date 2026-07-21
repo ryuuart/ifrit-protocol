@@ -14,6 +14,7 @@
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkString.h>
+#include <include/effects/SkPerlinNoiseShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <utility>
@@ -172,6 +173,23 @@ inline Material halftoneRamp(float spacing, float rMin, float rMax,
                              {"uRamp0", rampFrom},
                              {"uRamp1", rampTo}})
       .uniform("uColor", color);
+}
+
+/** Perlin fractal noise as a Material (SkPerlinNoiseShader — no SkSL):
+ *  the organic texture floor. `frequency` is features-per-px (0.01–0.05
+ *  reads as clouds/paper at UI scale; ~0.9 as film grain); `turbulence`
+ *  uses the abs-value variant (sharper, veiny — brushed-metal fodder).
+ *  Raw-shader identity: HOLD the returned Material as a member to prune
+ *  across re-describes (each call mints a fresh shader — the same
+ *  identity contract as Pattern). */
+inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
+                      bool turbulence = false) {
+  sk_sp<SkShader> shader =
+      turbulence ? SkShaders::MakeTurbulence(frequency, frequency, octaves,
+                                             seed, nullptr)
+                 : SkShaders::MakeFractalNoise(frequency, frequency, octaves,
+                                               seed, nullptr);
+  return Material::shader(std::move(shader));
 }
 
 // ---------------------------------------------------------------------------
