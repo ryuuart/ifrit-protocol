@@ -20,12 +20,24 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Decorations.h" // PathSample
+#include "sigilcompose/Lines.h"       // lines::displace (the wave op)
+#include "sigilcompose/Shapes.h"      // detail::hashNoise (seeded jitter)
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathUtils.h>
+#include <include/core/SkPicture.h>
+#include <include/effects/SkCornerPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 
+#include <cmath>
+#include <functional>
+#include <memory>
+#include <optional>
 #include <vector>
 
 namespace sigil::compose {
@@ -153,6 +165,445 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
       {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
       {2 * scale, core},
   }};
+}
+
+} // namespace brushes
+
+// ---------------------------------------------------------------------------
+// The Illustrator brush model — a brush is a PIPELINE: geometry ops over the
+// path (the SkComposePathEffect idea, at our seam), then paint legs that
+// INSTANCE real components along the result, each with a programmatic
+// per-instance twist. Four Illustrator archetypes map onto three values:
+//   Scatter brush  → brushes::ScatterBrush (jittered instances + mod fn)
+//   Pattern brush  → brushes::PatternBrush (side/corner/start/end tiles,
+//                    integer-fit stretch — the Illustrator tile semantics)
+//   Calligraphic   → brushes::Ribbon (variable-width fill; nib angle)
+//   Art brush      → a one-tile PatternBrush stretched over the run (true
+//                    arc warping is queued on SkVertices)
+
+namespace ops {
+
+/** A path→path geometry op — our SkPathEffect-shaped extension point
+ *  (Skia's own subclassing seam is sealed in its public API). Chain them
+ *  with chain(); apply to any decoration with brushes::restyle(). */
+using PathOp = std::function<SkPath(const SkPath &)>;
+
+inline PathOp wave(float amplitude, float wavelength) {
+  return [amplitude, wavelength](const SkPath &p) {
+    return lines::displace(p, amplitude, wavelength, false);
+  };
+}
+inline PathOp zigzag(float amplitude, float wavelength) {
+  return [amplitude, wavelength](const SkPath &p) {
+    return lines::displace(p, amplitude, wavelength, true);
+  };
+}
+/** Round every corner (SkCornerPathEffect). */
+inline PathOp rounded(float radius) {
+  return [radius](const SkPath &p) {
+    SkPathBuilder out;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
+  };
+}
+/** Chain ops left-to-right — compose like SkComposePathEffect. */
+inline PathOp chain(std::vector<PathOp> steps) {
+  return [steps = std::move(steps)](const SkPath &p) {
+    SkPath r = p;
+    for (const PathOp &op : steps)
+      if (op)
+        r = op(r);
+    return r;
+  };
+}
+
+} // namespace ops
+
+namespace brushes {
+
+/** Run a geometry pipeline, then paint `inner` on the restyled outline —
+ *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
+ *  jitter, rounding without knowing. The op is an incomparable callable:
+ *  memo the host node (or keep it pointer-stable) to prune. */
+struct Restyled {
+  ops::PathOp op;
+  Decoration inner;
+  float extraBleed = 8.0f; // the op's own overhang (wave amplitude…)
+
+  bool animated() const { return inner.animated(); }
+  float bleed() const { return inner.bleed() + extraBleed; }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    PaintContext restyled{ctx.size,        op ? op(ctx.outline) : ctx.outline,
+                          ctx.elapsedSeconds, ctx.contentScale,
+                          ctx.animating,   ctx.fonts};
+    inner.paint(c, restyled);
+  }
+};
+
+inline Restyled restyle(ops::PathOp op, Decoration inner,
+                        float extraBleed = 8.0f) {
+  return Restyled{std::move(op), std::move(inner), extraBleed};
+}
+
+/** One placed instance's deviation from its slot — the programmatic twist
+ *  (mirrors GlyphMod; return {.skip = true} to drop a slot). */
+struct StampMod {
+  float dAlong = 0, dNormal = 0; ///< px, in the sample's tangent frame
+  float scale = 1;
+  float rotateDeg = 0;
+  float alpha = 1;
+  bool skip = false;
+};
+using StampModFn =
+    std::function<StampMod(const PathSample &, size_t index, size_t count)>;
+
+namespace detail {
+inline void drawStamp(SkCanvas &c, const SkPicture &pic,
+                      const PathSample &sample, bool align, float rotateDeg,
+                      float scaleX, float scaleY, const StampMod &m) {
+  if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f)
+    return;
+  const SkRect cull = pic.cullRect();
+  c.save();
+  c.translate(sample.position.x(), sample.position.y());
+  if (align)
+    c.rotate(std::atan2(sample.tangent.y(), sample.tangent.x()) *
+             57.29578f);
+  c.translate(m.dAlong, m.dNormal); // tangent frame (post-align)
+  c.rotate(rotateDeg + m.rotateDeg);
+  c.scale(scaleX * m.scale, scaleY * m.scale);
+  c.translate(-cull.width() / 2, -cull.height() / 2);
+  if (m.alpha < 1.0f) {
+    SkPaint fade;
+    fade.setAlphaf(m.alpha);
+    c.drawPicture(&pic, nullptr, &fade);
+  } else {
+    c.drawPicture(&pic);
+  }
+  c.restore();
+}
+} // namespace detail
+
+/** The SCATTER brush: an Element instanced along the path at `spacing`,
+ *  with seeded jitter and the StampMod hook. The art bakes ONCE via
+ *  snapshot() (its own decorations and all) and replays per slot. Keep
+ *  the art Element pointer-stable across renders to prune; a mod fn makes
+ *  the value incomparable (memo the host). */
+struct ScatterBrush {
+  Element art;
+  float spacing = 24.0f;
+  uint32_t seed = 0; ///< 0 = a regular run, no jitter roll
+  float jitterAlong = 0, jitterNormal = 0; ///< ±px
+  float jitterScale = 0;                   ///< ±fraction of 1
+  float jitterRotateDeg = 0;               ///< ±deg
+  bool alignToPath = true;
+  float reach = 32.0f; ///< cull reserve: half the art's extent + jitter
+  StampModFn mod;
+  bool animatedMod = false; ///< mod reads time → repaint per frame
+
+  bool animated() const { return animatedMod; }
+  float bleed() const { return reach; }
+  bool operator==(const ScatterBrush &o) const {
+    return art.node() == o.art.node() && spacing == o.spacing &&
+           seed == o.seed && jitterAlong == o.jitterAlong &&
+           jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
+           jitterRotateDeg == o.jitterRotateDeg &&
+           alignToPath == o.alignToPath && reach == o.reach && !mod &&
+           !o.mod && animatedMod == o.animatedMod;
+  }
+
+  struct Cache {
+    sk_sp<SkPicture> pic;
+  };
+  std::shared_ptr<Cache> cache = std::make_shared<Cache>();
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (spacing <= 0 || !ctx.fonts)
+      return;
+    if (!cache->pic) // shell box: snapshot ignores the ROOT's own dims
+      cache->pic = snapshot(box().child(art), *ctx.fonts);
+    if (!cache->pic)
+      return;
+
+    std::vector<PathSample> samples;
+    SkContourMeasureIter iter(ctx.outline, false);
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      for (float d = spacing * 0.5f; d < len; d += spacing) {
+        SkPoint pos;
+        SkVector tan;
+        if (contour->getPosTan(d, &pos, &tan))
+          samples.push_back({pos, tan, d, len > 0 ? d / len : 0});
+      }
+    }
+    for (size_t i = 0; i < samples.size(); ++i) {
+      StampMod m;
+      if (mod)
+        m = mod(samples[i], i, samples.size());
+      if (seed != 0) {
+        const uint32_t k = (uint32_t)i;
+        m.dAlong += shapes::detail::hashNoise(seed, 4 * k) * jitterAlong;
+        m.dNormal += shapes::detail::hashNoise(seed, 4 * k + 1) * jitterNormal;
+        m.scale *= 1.0f +
+                   shapes::detail::hashNoise(seed, 4 * k + 2) * jitterScale;
+        m.rotateDeg +=
+            shapes::detail::hashNoise(seed, 4 * k + 3) * jitterRotateDeg;
+      }
+      detail::drawStamp(c, *cache->pic, samples[i], alignToPath, 0, 1, 1, m);
+    }
+  }
+};
+
+/** The PATTERN brush (Illustrator tile semantics): a SIDE tile repeated an
+ *  INTEGER number of times per run and stretched along the tangent to fit
+ *  exactly (never a torn tile at the end); optional CORNER tiles where the
+ *  tangent breaks by more than `cornerAngleDeg` (placed on the bisector);
+ *  optional START/END tiles on open contours. Runs are the stretches
+ *  between corners. An art brush is the one-tile degenerate case. */
+struct PatternBrush {
+  Element side;
+  std::optional<Element> start, end, corner;
+  float advance = 0;           ///< tile length along the path (0 → intrinsic)
+  float cornerAngleDeg = 35.0f;
+  bool stretchToFit = true;    ///< false: natural size, slack spread evenly
+  float reach = 32.0f;         ///< cull reserve
+  StampModFn mod;              ///< side tiles only
+  bool animatedMod = false;
+
+  bool animated() const { return animatedMod; }
+  float bleed() const { return reach; }
+  bool operator==(const PatternBrush &o) const {
+    auto node = [](const std::optional<Element> &e) {
+      return e ? e->node().get() : nullptr;
+    };
+    return side.node() == o.side.node() && node(start) == node(o.start) &&
+           node(end) == node(o.end) && node(corner) == node(o.corner) &&
+           advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
+           stretchToFit == o.stretchToFit && reach == o.reach && !mod &&
+           !o.mod && animatedMod == o.animatedMod;
+  }
+
+  struct Cache {
+    sk_sp<SkPicture> side, start, end, corner;
+  };
+  std::shared_ptr<Cache> cache = std::make_shared<Cache>();
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (!ctx.fonts)
+      return;
+    auto bake = [&](const std::optional<Element> &e, sk_sp<SkPicture> &slot) {
+      if (e && !slot) // shell box: snapshot ignores the ROOT's own dims
+        slot = snapshot(box().child(*e), *ctx.fonts);
+    };
+    if (!cache->side)
+      cache->side = snapshot(box().child(side), *ctx.fonts);
+    bake(start, cache->start);
+    bake(end, cache->end);
+    bake(corner, cache->corner);
+    if (!cache->side)
+      return;
+    const float tileLen =
+        advance > 0 ? advance : std::max(cache->side->cullRect().width(), 1.0f);
+
+    size_t placed = 0;
+    // Two passes: count side tiles first so mod sees the true total.
+    std::vector<std::pair<PathSample, float>> sideSlots; // sample + scaleX
+    std::vector<std::pair<PathSample, const SkPicture *>> caps;
+
+    SkContourMeasureIter iter(ctx.outline, false);
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      const bool closed = contour->isClosed();
+
+      // Corners: where successive tangents break by more than the
+      // threshold (sampled at a fine step, deduped within a tile).
+      std::vector<float> corners;
+      if (cache->corner) {
+        const float step = std::clamp(tileLen * 0.25f, 1.0f, 6.0f);
+        SkVector prev{0, 0};
+        bool havePrev = false;
+        const float cosThresh =
+            std::cos(cornerAngleDeg * 0.017453293f);
+        for (float d = 0; d <= len; d += step) {
+          SkPoint pos;
+          SkVector tan;
+          if (!contour->getPosTan(std::min(d, len), &pos, &tan))
+            continue;
+          if (havePrev) {
+            const float dot = prev.x() * tan.x() + prev.y() * tan.y();
+            if (dot < cosThresh &&
+                (corners.empty() || d - corners.back() > tileLen * 0.5f))
+              corners.push_back(d - step * 0.5f);
+          }
+          prev = tan;
+          havePrev = true;
+        }
+      }
+
+      // Open-contour caps reserve their slots at the ends.
+      float head = 0, tail = 0;
+      if (!closed && cache->start)
+        head = advance > 0 ? advance : cache->start->cullRect().width();
+      if (!closed && cache->end)
+        tail = advance > 0 ? advance : cache->end->cullRect().width();
+
+      // Runs between corners (and cap margins).
+      std::vector<float> bounds{head};
+      for (float d : corners)
+        if (d > head && d < len - tail)
+          bounds.push_back(d);
+      bounds.push_back(len - tail);
+
+      for (size_t r = 0; r + 1 < bounds.size(); ++r) {
+        const float a = bounds[r], b = bounds[r + 1];
+        const float L = b - a;
+        if (L < tileLen * 0.25f)
+          continue;
+        const int n = std::max(1, (int)std::lround(L / tileLen));
+        const float slot = L / (float)n;
+        const float sx = stretchToFit ? slot / tileLen : 1.0f;
+        for (int i = 0; i < n; ++i) {
+          const float d = a + slot * ((float)i + 0.5f);
+          SkPoint pos;
+          SkVector tan;
+          if (contour->getPosTan(d, &pos, &tan))
+            sideSlots.push_back(
+                {{pos, tan, d, len > 0 ? d / len : 0}, sx});
+        }
+      }
+
+      // Corner tiles sit on the bisector of the break.
+      if (cache->corner)
+        for (float d : corners) {
+          SkPoint pos;
+          SkVector before, after;
+          if (!contour->getPosTan(d, &pos, nullptr))
+            continue;
+          contour->getPosTan(std::max(d - 2.0f, 0.0f), nullptr, &before);
+          contour->getPosTan(std::min(d + 2.0f, len), nullptr, &after);
+          const SkVector bis{before.x() + after.x(), before.y() + after.y()};
+          caps.push_back({{pos, bis, d, len > 0 ? d / len : 0},
+                          cache->corner.get()});
+        }
+      if (!closed && cache->start) {
+        SkPoint pos;
+        SkVector tan;
+        if (contour->getPosTan(head * 0.5f, &pos, &tan))
+          caps.push_back({{pos, tan, 0, 0}, cache->start.get()});
+      }
+      if (!closed && cache->end) {
+        SkPoint pos;
+        SkVector tan;
+        if (contour->getPosTan(len - tail * 0.5f, &pos, &tan))
+          caps.push_back({{pos, tan, len, 1}, cache->end.get()});
+      }
+    }
+
+    for (const auto &[sample, sx] : sideSlots) {
+      StampMod m;
+      if (mod)
+        m = mod(sample, placed, sideSlots.size());
+      detail::drawStamp(c, *cache->side, sample, true, 0, sx, 1, m);
+      ++placed;
+    }
+    for (const auto &[sample, pic] : caps)
+      detail::drawStamp(c, *pic, sample, true, 0, 1, 1, {});
+  }
+};
+
+/** The variable-width RIBBON: a filled band whose width follows a profile —
+ *  linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
+ *  (width peaks perpendicular to the nib, the Illustrator calligraphic
+ *  model), or any custom `widthFn` (incomparable — memo the host). */
+struct Ribbon {
+  Fill fill = Fill::color({1, 1, 1, 1});
+  float widthStart = 10.0f, widthEnd = 2.0f;
+  float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
+  float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
+  float step = 3.0f;
+  std::function<float(const PathSample &)> widthFn;
+
+  float bleed() const { return std::max(widthStart, widthEnd); }
+  bool operator==(const Ribbon &o) const {
+    return fill == o.fill && widthStart == o.widthStart &&
+           widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
+           nibContrast == o.nibContrast && step == o.step && !widthFn &&
+           !o.widthFn;
+  }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    SkPaint p;
+    p.setAntiAlias(true);
+    if (fill.kind == Fill::Kind::Color)
+      p.setColor4f(fill.colorValue, nullptr);
+    else if (fill.kind == Fill::Kind::Shader)
+      p.setShader(fill.shaderValue);
+
+    SkContourMeasureIter iter(ctx.outline, false);
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      std::vector<SkPoint> left, right;
+      for (float d = 0;; d += step) {
+        const float at = std::min(d, len);
+        SkPoint pos;
+        SkVector tan;
+        if (!contour->getPosTan(at, &pos, &tan))
+          break;
+        const PathSample s{pos, tan, at, len > 0 ? at / len : 0};
+        float w;
+        if (widthFn) {
+          w = widthFn(s);
+        } else if (nibAngleDeg >= 0) {
+          const float a = std::atan2(tan.y(), tan.x()) -
+                          nibAngleDeg * 0.017453293f;
+          w = widthStart *
+              (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));
+        } else {
+          w = widthStart + (widthEnd - widthStart) * s.fraction;
+        }
+        const SkVector n{-tan.y(), tan.x()};
+        left.push_back({pos.x() + n.x() * w / 2, pos.y() + n.y() * w / 2});
+        right.push_back({pos.x() - n.x() * w / 2, pos.y() - n.y() * w / 2});
+        if (at >= len)
+          break;
+      }
+      if (left.size() < 2)
+        continue;
+      SkPathBuilder band;
+      band.moveTo(left.front());
+      for (size_t i = 1; i < left.size(); ++i)
+        band.lineTo(left[i]);
+      for (size_t i = right.size(); i-- > 0;)
+        band.lineTo(right[i]);
+      band.close();
+      c.drawPath(band.detach(), p);
+    }
+  }
+};
+
+/** Linear taper (comet body, ink pull-away). */
+inline Ribbon taper(float widthStart, float widthEnd, Fill fill) {
+  Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fill = std::move(fill);
+  return r;
+}
+
+/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
+ *  `contrast` fraction when the path runs along the nib. */
+inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
+                           float contrast = 0.15f) {
+  Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fill = std::move(fill);
+  return r;
 }
 
 } // namespace brushes

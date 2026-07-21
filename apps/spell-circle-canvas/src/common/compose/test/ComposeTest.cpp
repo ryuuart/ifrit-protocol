@@ -3004,3 +3004,204 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
   host.frame(0.5); // 0.8s: the cascade completed
   EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
 }
+
+#include <sigilcompose/Lines.h>
+
+// ---------------------------------------------------------------------------
+// Line patterns (Lines.h) — the beyond-dashes stroke vocabulary.
+
+namespace {
+/** Counts distinct painted runs in a vertical scan column. */
+int verticalRuns(Host &host, int x, int y0, int y1, SkColor color) {
+  int runs = 0;
+  bool in = false;
+  for (int y = y0; y <= y1; ++y) {
+    const bool hit = host.pixel(x, y) == color;
+    if (hit && !in)
+      ++runs;
+    in = hit;
+  }
+  return runs;
+}
+Element straightRun(Decoration style) {
+  // A horizontal open path across the node, dressed by the line style.
+  return box().child(box()
+                         .absolute()
+                         .inset(20, 80, 20, 80)
+                         .outline([](SkSize s) {
+                           SkPathBuilder b;
+                           b.moveTo(0, s.height() / 2);
+                           b.lineTo(s.width(), s.height() / 2);
+                           return b.detach();
+                         })
+                         .stroke(std::move(style)));
+}
+} // namespace
+
+TEST(ComposeLines, TripleRailStrokesThreeBands) {
+  Host host;
+  host.composer.render(straightRun(lines::triple(2, green(), 8, 1.0f)));
+  host.frame();
+  EXPECT_EQ(verticalRuns(host, 100, 70, 130, SK_ColorGREEN), 3);
+  // And the pair variant gives exactly two.
+  Host pair;
+  pair.composer.render(straightRun(lines::cased(2, green(), 8)));
+  pair.frame();
+  EXPECT_EQ(verticalRuns(pair, 100, 70, 130, SK_ColorGREEN), 2);
+}
+
+TEST(ComposeLines, ArrowheadFillsBeyondTheBodyWidth) {
+  Host host, plain;
+  host.composer.render(straightRun(lines::arrow(2, green(), 14)));
+  plain.composer.render(straightRun(lines::Line{.width = 2, .fill = green()}));
+  host.frame();
+  plain.frame();
+  // The grounded convention (decorator/tldraw/D3 practice): the TIP sits
+  // AT the endpoint (x=180) and the head extends BACKWARD over the run —
+  // wings widen where the 2px plain body never paints.
+  EXPECT_EQ(host.pixel(170, 96), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(170, 104), SK_ColorGREEN);
+  EXPECT_EQ(plain.pixel(170, 96), SK_ColorBLACK);
+  // Nothing pokes past the endpoint in either version.
+  EXPECT_EQ(host.pixel(184, 100), SK_ColorBLACK);
+  EXPECT_EQ(plain.pixel(184, 100), SK_ColorBLACK);
+}
+
+TEST(ComposeLines, RailwayTiesCrossTheLine) {
+  Host host;
+  host.composer.render(straightRun(lines::railway(2, green(), 20, 12)));
+  host.frame();
+  // A tie arm ~5px above the rail at the first sample (x = 20+10)…
+  EXPECT_EQ(host.pixel(30, 95), SK_ColorGREEN);
+  // …and clear rail between ties.
+  EXPECT_EQ(host.pixel(40, 95), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeLines, WavyRunLeavesTheAxis) {
+  Host host, straight;
+  host.composer.render(straightRun(lines::wavy(2, green(), 8, 24)));
+  straight.composer.render(
+      straightRun(lines::Line{.width = 2, .fill = green()}));
+  host.frame();
+  straight.frame();
+  int offAxis = 0, offAxisStraight = 0;
+  for (int x = 30; x < 170; x += 2)
+    for (int dy : {-7, 7}) {
+      offAxis += host.pixel(x, 100 + dy) == SK_ColorGREEN;
+      offAxisStraight += straight.pixel(x, 100 + dy) == SK_ColorGREEN;
+    }
+  EXPECT_GT(offAxis, 10);
+  EXPECT_EQ(offAxisStraight, 0);
+}
+
+#include <sigilcompose/Brushes.h>
+
+// ---------------------------------------------------------------------------
+// The Illustrator brush model: scatter/pattern/ribbon + the ops pipeline.
+
+TEST(ComposeBrushes, ScatterInstancesArtAlongThePath) {
+  Host host;
+  host.composer.render(straightRun([] {
+    brushes::ScatterBrush b;
+    b.art = box().width(6).height(6).fill(red());
+    b.spacing = 40;
+    b.alignToPath = true;
+    return b;
+  }()));
+  host.frame();
+  // 160px run, spacing 40 → stamps at d = 20, 60, 100, 140 (x = 20+d).
+  EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(80, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK); // between stamps
+}
+
+TEST(ComposeBrushes, ScatterModSkipsAndLifts) {
+  Host host;
+  brushes::ScatterBrush b;
+  b.art = box().width(6).height(6).fill(red());
+  b.spacing = 40;
+  b.mod = [](const PathSample &, size_t i, size_t) {
+    brushes::StampMod m;
+    if (i % 2)
+      m.skip = true; // drop every other slot
+    else
+      m.dNormal = -20; // lift the kept ones off the axis
+    return m;
+  };
+  host.composer.render(straightRun(std::move(b)));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 80), SK_ColorRED);   // slot 0 lifted (d=20)
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK); // slot 1 skipped (d=60)
+  EXPECT_EQ(host.pixel(80, 100), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(120, 80), SK_ColorRED);  // slot 2 lifted (d=100)
+}
+
+TEST(ComposeBrushes, PatternIntegerFitNeverTearsTheLastTile) {
+  // 160px run, 25px tile → 6 slots stretched to 26.67px: coverage reaches
+  // BOTH ends with no torn tail (the Illustrator fit rule).
+  Host host;
+  brushes::PatternBrush b;
+  b.side = box().width(25).height(8).fill(red());
+  host.composer.render(straightRun(std::move(b)));
+  host.frame();
+  EXPECT_EQ(host.pixel(42, 100), SK_ColorRED);  // first slot starts at run 0
+  EXPECT_EQ(host.pixel(178, 100), SK_ColorRED); // last slot ends at run end
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED); // continuous through middle
+}
+
+TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
+  Host host;
+  brushes::PatternBrush b;
+  b.side = box().width(20).height(4).fill(red());
+  b.corner = box().width(12).height(12).fill(blue());
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(40, 40, 40, 40)
+          .outline([](SkSize s) { // an L: right then down
+            SkPathBuilder p;
+            p.moveTo(0, 0);
+            p.lineTo(s.width(), 0);
+            p.lineTo(s.width(), s.height());
+            return p.detach();
+          })
+          .stroke(std::move(b))));
+  host.frame();
+  EXPECT_EQ(host.pixel(160, 40), SK_ColorBLUE); // corner tile at the bend
+  EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);  // side tiles on the top leg
+  EXPECT_EQ(host.pixel(160, 100), SK_ColorRED); // and down the right leg
+}
+
+TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
+  Host taperHost;
+  taperHost.composer.render(straightRun(brushes::taper(16, 2, green())));
+  taperHost.frame();
+  auto bandHeight = [](Host &h, int x) {
+    int lit = 0;
+    for (int y = 70; y < 130; ++y)
+      lit += h.pixel(x, y) == SK_ColorGREEN;
+    return lit;
+  };
+  EXPECT_GT(bandHeight(taperHost, 30), 12);  // wide near the start
+  EXPECT_LT(bandHeight(taperHost, 170), 6);  // narrow near the end
+
+  // Calligraphic nib at 0°: a horizontal run lies ALONG the nib → thin.
+  Host nib;
+  nib.composer.render(
+      straightRun(brushes::calligraphic(0, 16, green(), 0.2f)));
+  nib.frame();
+  EXPECT_LT(bandHeight(nib, 100), 6);
+}
+
+TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
+  Host host;
+  host.composer.render(straightRun(brushes::restyle(
+      ops::wave(8, 24), util::stroke(2, green()), 12)));
+  host.frame();
+  int offAxis = 0;
+  for (int x = 30; x < 170; x += 2)
+    for (int dy : {-7, 7})
+      offAxis += host.pixel(x, 100 + dy) == SK_ColorGREEN;
+  EXPECT_GT(offAxis, 10); // the stroke followed the waved geometry
+}

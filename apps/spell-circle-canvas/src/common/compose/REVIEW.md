@@ -825,3 +825,52 @@ concentrated." The concepts are fine; they were just all presented at once.
 | `BaselineGrid`/`VariationDrive` | Müller-Brockmann grid systems; `SkFontArguments` fvar |
 | isolation boundary (cache/damage/transform) | Flutter `RepaintBoundary`; PixiJS v8 `RenderGroup`; Slate invalidation/retainer boxes |
 | bounded `custom()` / `CustomGeometry` | Flutter `CustomPainter.shouldRepaint`; Slate `MakeCustomVerts`; Skia `SkDrawable` |
+
+---
+
+## 14. The Skia extension surface still on the table
+
+The user's question — "how many other Skia extension points could we
+leverage?" — audited against the headers our vcpkg build actually ships.
+Skia seals SUBCLASSING of its effect types in the public API (onFilterPath
+et al. live in src/), so the leverage is (a) stock effect FACTORIES we
+haven't wired into the vocabulary yet, and (b) mirroring the sealed
+contracts at our own seams (done for path effects: ops::PathOp +
+brushes::restyle; Decoration is the general seam).
+
+Wired already: dash/corner/1D/trim path effects, gradients, blur mask
+filter, SkImageFilters graphs (Effect/backdrop/then), runtime SHADER
+effects (Material::sksl), SkContourMeasure/skpathutils, PathOps::Simplify
+(parallel-rail repair), drawAtlas-shaped batching (kinetic RSXforms).
+
+Still unleveraged, by payoff:
+- **SkDiscretePathEffect** — the rough.js hand-drawn jitter in one factory
+  (lines::sketchy); rough.js parameters in REFERENCES §9.
+- **Sk2DPathEffect / SkLine2DPathEffect** — lattice hatching/crosshatch
+  fills of any silhouette (the drafting/blueprint fill leg).
+- **SkPathEffect::MakeCompose / MakeSum** — literal effect composition for
+  the PathFormat::effect escape hatch (dash-of-stamp, cased+dashed in one
+  paint).
+- **SkPerlinNoiseShader** — fractal/turbulence WITHOUT SkSL: paper grain,
+  clouds, brushed-metal jitter as Materials (REFERENCES §2 brushed metal).
+- **SkShaderMaskFilter** — mask any draw by a shader: gradient-faded
+  strokes (comet tails without trim), halftone-masked chrome.
+- **SkTableMaskFilter** — the Photoshop GLOSS CONTOUR: remap bevel shading
+  through a LUT (styles::BevelEmboss's missing Ring/RingDouble contours).
+- **SkColorFilters (table/matrix/luma) + SkColorMatrix** — the adjustment-
+  layer vocabulary: Curves, Hue/Sat, duotone, luminosity masks for
+  LayerStyles overlays.
+- **Runtime BLENDERS (SkBlender via SkRuntimeEffect) + SkBlenders::
+  Arithmetic** — custom blend modes beyond the SkBlendMode enum (the
+  Photoshop-route deep cuts: Vivid/Linear Light are already enum'd, but
+  arithmetic unlocks Calculations-style compositing).
+- **SkPathOps (Op/AsWinding beyond Simplify)** — boolean strapwork for
+  girih inference, knockout geometry, outline-minus-outline frames.
+- **SkParsePath** — SVG path-d strings as shapes::svg("M…"): huge
+  authoring ergonomics for traced reference silhouettes.
+- **SkVertices + drawVertices** — mesh warps: the TRUE Illustrator art
+  brush (art deformed along the spine, not sliced), gradient meshes.
+- **SkShadowUtils** — physically-plausible ambient+spot shadows from a
+  path + light position (material elevation without hand-tuned blurs).
+- **SkCustomTypeface** — glyphs from arbitrary paths/pictures: procedural
+  display faces (girih-filled capitals as a FONT, shapeable by weave).

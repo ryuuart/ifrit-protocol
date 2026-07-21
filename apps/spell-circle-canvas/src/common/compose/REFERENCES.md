@@ -245,3 +245,53 @@ TIMES, not motion. 30–50ms/char reads fluid; 100ms+ reads deliberate.
 **Composition law:** alpha finishes in the first 30–40% of local progress
 (opaque while still moving); overshoot only on geometry; loops run at
 60–80% of entrance amplitude.
+
+## 9. Line & brush grammar (verified against shipped implementations)
+
+All numbers checked against the actual sources — leaflet-polylineoffset /
+-polylinedecorator, mapbox-gl line shaders + v8 spec, Chromium
+decoration_line_painter.cc, Firefox nsCSSRendering.cpp, openstreetmap-carto
+roads.mss, rough.js renderer.ts, tldraw arrowheads.ts, QGIS
+qgslinesymbollayer/qgsinternalgeometryengine.
+
+**Arrowheads (the one true convention):** tip sits AT the path endpoint,
+head extends BACKWARD over the run — decorator builds [barb, tip, barb]
+on the sample; tldraw nudges the base back `clamp(len/5, 1w, 3w)`; D3
+sets refX to the tip. Nobody ships SVG's raw tip-forward refX=0 default.
+Apex 60° (barbs at ±tan30°·len). Body is CLIPPED/TRIMMED under every
+closed head (tldraw skips only the open stroke 'arrow') — dashes must
+stop under the head. Bar = perpendicular stroke centered on the endpoint;
+Dot centered (tldraw insets 45%). Connectors back off bound targets
+(~10px) so heads never enter the node.
+
+**Parallel/cased lines:** two constructions in the wild — offset GEOMETRY
+(leaflet: per-segment translate + join repair; circular arcs on outer
+joins, intersection-trim on inner) and one-band-two-rails (mapbox
+line-gap-width: extrusion inset = gap/2, outset = gap/2 + width — the
+GAP is the inner CLEAR width, not center-to-center). Round joins
+everywhere (osm-carto). Skia's stroke-outline gives exact parallels; run
+PathOps Simplify() on the loop for tight-bend self-intersections, and
+build DASHED rails per-offset so both rails share one parameterization
+(dash phase stays aligned).
+
+**Squiggle ratios:** consensus half-amplitude:wavelength = 1:6 … 1:4
+(Chromium wavy ≈ λ/5 via one cubic per λ, spelling squiggle ≈ λ/4 at
+λ=6px; Firefox 45° zigzag ≈ λ/6). Wavelength is a MAXIMUM: snap so an
+exact wave count fits the run and endpoints land ON the route (QGIS
+triangular/square/roundWaves rule). rough.js: maxRandomnessOffset 2,
+roughness 1, two passes (full + half offset), offset clamped to len/10,
+gain fades 1→0.4 over len 200→500.
+
+**Railways:** the carto railway is dark line + white dash overlay, NOT
+ties — osm-carto: #707070 at 2/3/4px (z12/13/18) under white 0.75/1/2px
+dashed 8,8 (≈1/3 width, 50% duty). Tie-style hashed lines: QGIS default
+interval:length = 1:1; osm miniature rail: 1px dash / 11px period, tie
+reach ≈2.5× the centerline width.
+
+**Proven patterns still queued:** interval-repeated direction chevrons
+(decorator's {offset, repeat in px-or-%}); the QGIS placement grammar
+(Interval | Vertex | First/LastVertex | InnerVertices | CentralPoint |
+SegmentCenter); one-sided offset lines (mapbox line-offset: + = right of
+travel — landed as lines::offsetAlong); line-pattern (sprite tiled along
+the run); line gradients across the width (QGIS lineburst — fill the
+stroke loop with a shader) and along the arc (mapbox line-gradient).
