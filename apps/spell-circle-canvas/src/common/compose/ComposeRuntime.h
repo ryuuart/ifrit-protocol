@@ -53,7 +53,7 @@ struct Instance {
   // Transition state, keyed by property slot
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kTrimStart, kTrimEnd, kGlyphProgress, kSkewX, kSkewY,
+    kTrimStart, kTrimEnd, kTrimOffset, kGlyphProgress, kSkewX, kSkewY,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
@@ -169,6 +169,8 @@ struct Composer::Impl {
   void applyLayoutProps(detail::Instance &inst);
   void applyTransitions(detail::Instance &inst, const detail::ElementNode &prev,
                         const detail::ElementNode &next);
+  void applyMountTransitions(detail::Instance &inst,
+                             const detail::ElementNode &node);
   std::shared_ptr<detail::ElementNode>
   resolveMemo(detail::Instance *existing,
               const std::shared_ptr<detail::ElementNode> &node, bool &described);
@@ -198,6 +200,7 @@ struct Composer::Impl {
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
                     float leafOpacity = 1.0f);
   const SkPath &resolveOutline(detail::Instance &inst, SkSize size) const;
+  SkRect recordBounds(detail::Instance &inst);
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance &inst, SkPoint local, SkSize size) const;

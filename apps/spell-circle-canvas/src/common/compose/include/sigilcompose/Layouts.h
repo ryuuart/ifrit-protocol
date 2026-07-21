@@ -147,6 +147,34 @@ struct ModularGrid {
   }
 };
 
+/** The ATLUS diagonal (REFERENCES.md §1): children stack downward while
+ *  marching along the slanted axis — each child's x tracks the same shear
+ *  line skewX(skewDeg) leans its verticals to, so a column of skewed cards
+ *  reads as ONE oblique battery, not a staircase of accidents. Negative
+ *  skewDeg (the P3R ≈ −12°) marches rows leftward as they descend; the
+ *  whole run is normalized so nothing lands at negative x. Pair with
+ *  `.skewX(skewDeg)` on the children themselves. */
+struct Diagonal {
+  float skewDeg = -12.0f;
+  float gap = 8.0f;
+
+  std::vector<SkRect> place(const LayoutInput &in) const {
+    const float k = std::tan(skewDeg * SK_FloatPI / 180.0f);
+    std::vector<SkRect> rects(in.childSizes.size());
+    float y = 0.0f, minX = 0.0f;
+    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+      const float x = k * y;
+      rects[i] = SkRect::MakeXYWH(x, y, in.childSizes[i].width(),
+                                  in.childSizes[i].height());
+      minX = std::min(minX, x);
+      y += in.childSizes[i].height() + gap;
+    }
+    for (SkRect &r : rects)
+      r.offset(-minX, 0);
+    return rects;
+  }
+};
+
 struct BaselineGrid {
   /** The editorial baseline rhythm (Müller-Brockmann): children stack
    *  vertically at x = 0, and each is shifted DOWN so its anchor — the

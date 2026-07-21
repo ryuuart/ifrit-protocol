@@ -66,6 +66,26 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
   return recorder.finishRecordingAsPicture();
 }
 
+SkSize measure(Element root, sigil::weave::FontContext &fonts,
+               SkSize maxSize) {
+  motion::Ticker ticker; // inert — same sampling rules as snapshot()
+  Composer composer(ticker, fonts);
+  Composer::Impl &impl = *composer.m_impl;
+  impl.liveOnly = true;
+  composer.render(std::move(root));
+  if (!impl.root)
+    return SkSize::MakeEmpty();
+  if (!maxSize.isEmpty()) {
+    if (maxSize.width() > 0)
+      YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
+    if (maxSize.height() > 0)
+      YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
+  }
+  impl.ensureLayout();
+  const SkRect rect = impl.instanceRect(*impl.root);
+  return {rect.width(), rect.height()};
+}
+
 void Composer::setSize(SkSize size) {
   if (m_impl->size == size)
     return;

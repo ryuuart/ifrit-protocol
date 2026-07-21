@@ -77,7 +77,8 @@ bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
     return *plainA == *std::get_if<T>(&b);
   if (const Transitioned<T> *trA = std::get_if<Transitioned<T>>(&a)) {
     const Transitioned<T> *trB = std::get_if<Transitioned<T>>(&b);
-    return trA->value == trB->value && transitionEqual(trA->spec, trB->spec);
+    return trA->value == trB->value && trA->from == trB->from &&
+           transitionEqual(trA->spec, trB->spec);
   }
   return std::get<const choreograph::Output<T> *>(a) ==
          std::get<const choreograph::Output<T> *>(b);
@@ -125,7 +126,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (a.hasTrim && (!propEqual(a.trimStart, b.trimStart) ||
                     !propEqual(a.trimEnd, b.trimEnd) ||
-                    a.trimOffset != b.trimOffset))
+                    !propEqual(a.trimOffset, b.trimOffset) ||
+                    a.trimMode != b.trimMode))
     return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
@@ -172,6 +174,12 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   // Content.
   if (a.textUtf8 != b.textUtf8 || !(a.textStyle == b.textStyle))
+    return false;
+  // layoutOptions aren't comparable in full, but alignment is the one knob
+  // the simple text() path exposes (textAlign) — compare it so an alignment
+  // change actually patches.
+  if (a.kind == Kind::Text &&
+      a.layoutOptions.alignment != b.layoutOptions.alignment)
     return false;
   if (a.paragraphOverride != b.paragraphOverride)
     return false;
@@ -262,7 +270,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
       const bool textChanged =
           !prev || kindChanged || prev->textUtf8 != resolved->textUtf8 ||
           !(prev->textStyle == resolved->textStyle) ||
-          prev->paragraphOverride != resolved->paragraphOverride;
+          prev->paragraphOverride != resolved->paragraphOverride ||
+          prev->layoutOptions.alignment != resolved->layoutOptions.alignment;
       if (textChanged) {
         inst.contentRev++;
         if (resolved->paragraphOverride)
@@ -281,6 +290,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
 
     if (prev)
       applyTransitions(inst, *prev, *resolved);
+    else
+      applyMountTransitions(inst, *resolved); // withFrom() entrances
 
     // A re-described ROUTE must re-derive even when no geometry moved: the
     // derive guards key cached geometry (resolved points/rects), not the
@@ -438,10 +449,25 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   YGNodeStyleSetPositionType(n, l.absolute ? YGPositionTypeAbsolute
                                            : YGPositionTypeRelative);
   if (l.hasInsets) {
-    YGNodeStyleSetPosition(n, YGEdgeLeft, l.insets.left);
-    YGNodeStyleSetPosition(n, YGEdgeTop, l.insets.top);
-    YGNodeStyleSetPosition(n, YGEdgeRight, l.insets.right);
-    YGNodeStyleSetPosition(n, YGEdgeBottom, l.insets.bottom);
+    // Per-side Dims: Auto leaves the side UNPINNED (YGUndefined), so
+    // `.top(12).right(12)` pins a corner badge without stretching it.
+    // Always write all four — patch() reuses the yoga node, and a side
+    // that was pinned last describe must actually release.
+    auto applyInset = [n](YGEdge edge, const Dim &d) {
+      switch (d.unit) {
+      case Dim::Unit::Px: YGNodeStyleSetPosition(n, edge, d.value); break;
+      case Dim::Unit::Pct:
+        YGNodeStyleSetPositionPercent(n, edge, d.value);
+        break;
+      case Dim::Unit::Auto:
+        YGNodeStyleSetPosition(n, edge, YGUndefined);
+        break;
+      }
+    };
+    applyInset(YGEdgeLeft, l.insets.left);
+    applyInset(YGEdgeTop, l.insets.top);
+    applyInset(YGEdgeRight, l.insets.right);
+    applyInset(YGEdgeBottom, l.insets.bottom);
   }
 }
 

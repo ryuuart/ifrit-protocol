@@ -2445,3 +2445,290 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 }
+
+// ---------------------------------------------------------------------------
+// Round-2 friction batch: withFrom entrances, trim wrap, per-side insets,
+// overflow-safe recording, stroke align, measure(), presets, marquee.
+
+TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
+  Host host;
+  host.composer.render(box().child(box()
+                                       .width(80)
+                                       .height(80)
+                                       .fill(red())
+                                       .opacity(withFrom(0.0f, 1.0f,
+                                                         {200ms, &choreograph::easeNone}))));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK); // enters invisible
+  host.frame(0.3);                              // ramp done
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+
+  // Re-describing the same withFrom() prunes clean — the entrance is a
+  // mount thing, not a per-render restart.
+  host.composer.render(box().child(box()
+                                       .width(80)
+                                       .height(80)
+                                       .fill(red())
+                                       .opacity(withFrom(0.0f, 1.0f,
+                                                         {200ms, &choreograph::easeNone}))));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED); // still settled
+}
+
+TEST(ComposeMotion, WithFromColorSweepsOnMount) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(80).height(80).fill(PropValue<Fill>(withFrom(
+          Fill::color({1, 1, 1, 1}), red(), {200ms, &choreograph::easeNone})))));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE); // the declared "from"
+  host.frame(0.3);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(ComposeTrim, WrapModeCrossesTheSeam) {
+  // A wrap window crossing the cycle seam must paint exactly the union of
+  // its two clamp pieces — direction-agnostic pixel containment.
+  auto strokedBox = [](PropValue<float> s, PropValue<float> e, TrimMode m) {
+    return box().child(box()
+                           .absolute()
+                           .inset(50, 50, 50, 50)
+                           .trim(std::move(s), std::move(e), 0.0f, m)
+                           .foreground(util::stroke(6, green())));
+  };
+  Host wrap, pieceA, pieceB;
+  wrap.composer.render(strokedBox(0.9f, 1.15f, TrimMode::Wrap));
+  pieceA.composer.render(strokedBox(0.9f, 1.0f, TrimMode::Clamp));
+  pieceB.composer.render(strokedBox(0.0f, 0.15f, TrimMode::Clamp));
+  wrap.frame();
+  pieceA.frame();
+  pieceB.frame();
+  int unionCount = 0, wrapCount = 0, missing = 0;
+  for (int y = 40; y < 160; y += 2)
+    for (int x = 40; x < 160; x += 2) {
+      const bool inUnion = pieceA.pixel(x, y) == SK_ColorGREEN ||
+                           pieceB.pixel(x, y) == SK_ColorGREEN;
+      const bool inWrap = wrap.pixel(x, y) == SK_ColorGREEN;
+      unionCount += inUnion;
+      wrapCount += inWrap;
+      missing += inUnion && !inWrap;
+    }
+  EXPECT_GT(unionCount, 50);     // the pieces really painted
+  EXPECT_LE(missing, 4);         // wrap covers the union (AA slack)
+  EXPECT_NEAR(wrapCount, unionCount, unionCount / 5.0 + 8);
+}
+
+TEST(ComposeTrim, WrapOffsetBindingMarchesTheWindow) {
+  Host host;
+  choreograph::Output<float> phase{0.0f};
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 50, 50)
+                                       .trim(0.0f, 0.25f, &phase, TrimMode::Wrap)
+                                       .foreground(util::stroke(6, green()))));
+  host.frame();
+  std::vector<SkIPoint> lit0;
+  for (int y = 40; y < 160; y += 2)
+    for (int x = 40; x < 160; x += 2)
+      if (host.pixel(x, y) == SK_ColorGREEN)
+        lit0.push_back({x, y});
+  ASSERT_GT(lit0.size(), 10u);
+
+  phase = 0.5f; // march half the cycle — no render()
+  host.frame();
+  int still = 0;
+  for (const SkIPoint &p : lit0)
+    still += host.pixel(p.x(), p.y()) == SK_ColorGREEN;
+  // The window moved to the far side: (almost) none of the old pixels stay.
+  EXPECT_LT((float)still, 0.2f * (float)lit0.size());
+}
+
+TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
+  // A child translated beyond its parent's box must not be quick-rejected
+  // by the parent's recording cull (the recordBounds fix).
+  Host host(300, 200);
+  host.composer.render(box().child(
+      box()
+          .width(100)
+          .height(100)
+          .fill(blue())
+          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED); // fully outside parent's box
+  host.frame();                                // cached replay path
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+}
+
+TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
+  Host host(200, 100);
+  host.composer.render(box().child(
+      box().top(10).right(20).width(50).height(30).fill(red()).key("badge")));
+  host.frame();
+  auto b = host.composer.bounds("badge");
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(*b, SkRect::MakeXYWH(130, 10, 50, 30));
+  EXPECT_EQ(host.pixel(140, 15), SK_ColorRED);
+}
+
+TEST(ComposeLayout, DimInsetsAcceptPercent) {
+  Host host(200, 100);
+  host.composer.render(box().child(
+      box().inset(pct(10), pct(10), pct(10), pct(10)).fill(red()).key("panel")));
+  host.frame();
+  auto b = host.composer.bounds("panel");
+  ASSERT_TRUE(b.has_value());
+  EXPECT_EQ(*b, SkRect::MakeXYWH(20, 10, 160, 80));
+}
+
+TEST(ComposeMeasure, MeasureReportsIntrinsicSize) {
+  const SkSize size = measure(box()
+                                  .row()
+                                  .gap(10)
+                                  .child(box().width(40).height(30))
+                                  .child(box().width(40).height(20)),
+                              fonts());
+  EXPECT_EQ(size, SkSize::Make(90, 30));
+}
+
+TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
+  auto boxWith = [](PathFormat::Align align) {
+    return box().child(box()
+                           .absolute()
+                           .inset(50, 50, 50, 50)
+                           .stroke(util::stroke(20, green(), align)));
+  };
+  Host inner, outer;
+  inner.composer.render(boxWith(PathFormat::Align::Inner));
+  outer.composer.render(boxWith(PathFormat::Align::Outer));
+  inner.frame();
+  outer.frame();
+  // Box edge at x=50 (spans 50..150), sampled at mid-height.
+  EXPECT_EQ(inner.pixel(60, 100), SK_ColorGREEN);  // inside band
+  EXPECT_EQ(inner.pixel(42, 100), SK_ColorBLACK);  // nothing outside
+  EXPECT_EQ(outer.pixel(42, 100), SK_ColorGREEN);  // outside band
+  EXPECT_EQ(outer.pixel(60, 100), SK_ColorBLACK);  // nothing inside
+  // The outer band survives the cached replay (bleed declared).
+  outer.frame();
+  EXPECT_EQ(outer.pixel(42, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeText, TextAlignCentersWithinWideBox) {
+  auto leftmostLit = [](Host &host) {
+    for (int x = 0; x < 400; ++x)
+      for (int y = 0; y < 100; y += 2)
+        if (host.pixel(x, y) != SK_ColorBLACK)
+          return x;
+    return 400;
+  };
+  Host start(400, 100), center(400, 100);
+  start.composer.render(
+      box().child(text(u8"II", whiteStyle(30)).width(Dim(300.0f))));
+  center.composer.render(
+      box().child(text(u8"II", whiteStyle(30))
+                      .width(Dim(300.0f))
+                      .textAlign(sigil::weave::TextAlignment::kCenter)));
+  start.frame();
+  center.frame();
+  const int startX = leftmostLit(start), centerX = leftmostLit(center);
+  ASSERT_LT(startX, 400); // both actually painted
+  ASSERT_LT(centerX, 400);
+  EXPECT_GT(centerX, startX + 60); // centered glyphs sit near mid-box
+}
+
+TEST(ComposeRouters, OrbitFollowsTheRing) {
+  const SkPoint center{100, 100};
+  RailRouter router = routers::orbit(center);
+  const SkPoint pts[2] = {{200, 100}, {100, 200}};
+  const SkPath path = router(std::span<const SkPoint>(pts, 2));
+  SkContourMeasureIter iter(path, false);
+  sk_sp<SkContourMeasure> contour = iter.next();
+  ASSERT_TRUE(contour);
+  // Quarter circle r=100: length ~157 (a chord would be ~141), and the
+  // midpoint sits ON the ring.
+  EXPECT_NEAR(contour->length(), 157.1f, 3.0f);
+  SkPoint mid;
+  ASSERT_TRUE(contour->getPosTan(contour->length() / 2, &mid, nullptr));
+  EXPECT_NEAR(SkPoint::Distance(mid, center), 100.0f, 1.5f);
+}
+
+TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
+  Host host(300, 120);
+  auto tree = [] {
+    return box().row().gap(20).padding(20)
+        .child(box().width(120).height(44).corners({22}).style(
+            styles::aquaGel()))
+        .child(box().width(120).height(44).corners({8}).style(
+            styles::y2kChrome()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  // Aqua pill: body painted, gloss brighter near the top than the bottom.
+  const SkColor aquaTop = host.pixel(80, 28), aquaBottom = host.pixel(80, 58);
+  EXPECT_NE(aquaTop, SK_ColorBLACK);
+  EXPECT_NE(aquaBottom, SK_ColorBLACK);
+  auto lum = [](SkColor c) {
+    return SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c);
+  };
+  EXPECT_GT(lum(aquaTop), lum(aquaBottom));
+  // Chrome bar: the §3 ramp's hard horizon — brighter above it than below.
+  const SkColor chromeTop = host.pixel(220, 28);
+  const SkColor chromeMid = host.pixel(220, 42);
+  EXPECT_GT(lum(chromeTop), lum(chromeMid) + 100);
+  // Both bundles are value decorations: identical re-describe prunes.
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+}
+
+TEST(ComposePatterns, HalftoneRampSwellsDownward) {
+  Host host(100, 100);
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(
+          patterns::halftoneRamp(10, 1.0f, 4.0f, {1, 1, 1, 1}))));
+  host.frame();
+  int top = 0, bottom = 0;
+  for (int y = 0; y < 20; ++y)
+    for (int x = 0; x < 100; x += 1)
+      top += host.pixel(x, y) != SK_ColorBLACK;
+  for (int y = 80; y < 100; ++y)
+    for (int x = 0; x < 100; x += 1)
+      bottom += host.pixel(x, y) != SK_ColorBLACK;
+  EXPECT_GT(bottom, top * 2); // dots swell toward the bottom
+}
+
+TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
+  Host host(200, 60);
+  choreograph::Output<float> phase{0.0f};
+  host.composer.render(box().padding(10).child(
+      util::marquee(box().width(60).height(20).fill(red()), &phase)
+          .width(Dim(100.0f))
+          .height(Dim(20.0f))));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 20), SK_ColorRED);  // first copy
+  EXPECT_EQ(host.pixel(105, 20), SK_ColorRED); // second copy (65..130 → clip)
+  phase = -30.0f;                              // slide — no render()
+  host.frame();
+  EXPECT_EQ(host.pixel(85, 20), SK_ColorRED);   // second copy now 30..90
+  EXPECT_EQ(host.pixel(105, 20), SK_ColorBLACK); // past both copies, clipped
+}
+
+TEST(ComposeDecorations, BoundShadowOffsetSlides) {
+  Host host;
+  choreograph::Output<float> lift{0.0f};
+  util::Shadow shadow;
+  shadow.color = {0, 1, 0, 1};
+  shadow.bindOffsetX = &lift;
+  shadow.maxBind = 40.0f;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(60, 60, 80, 80)
+                                       .background(shadow)));
+  host.frame();
+  EXPECT_EQ(host.pixel(90, 90), SK_ColorGREEN);  // at rest: under the box
+  EXPECT_EQ(host.pixel(135, 90), SK_ColorBLACK); // nothing to the right
+  lift = 30.0f; // slide the shadow — no render()
+  host.frame();
+  EXPECT_EQ(host.pixel(135, 90), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(65, 90), SK_ColorBLACK);
+}

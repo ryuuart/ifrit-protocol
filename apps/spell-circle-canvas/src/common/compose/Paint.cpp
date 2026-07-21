@@ -77,6 +77,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.hasTrim) { // moving trim rebuilds the painted geometry
     ownContent |= boundOrRunning(Instance::kTrimStart, node.trimStart);
     ownContent |= boundOrRunning(Instance::kTrimEnd, node.trimEnd);
+    ownContent |= boundOrRunning(Instance::kTrimOffset, node.trimOffset);
   }
   if (node.glyphFx) // moving glyph progress rebuilds the glyph transforms
     ownContent |= boundOrRunning(Instance::kGlyphProgress,
@@ -181,6 +182,60 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
 }
 
 // ---------------------------------------------------------------------------
+// Recording bounds
+
+/** The rect a node's RECORDING must cover, in its own local space: its box,
+ *  grown by its decorations' declared bleed(), unioned with every child's
+ *  bounds mapped through that child's layout offset and static paint
+ *  transforms. SkPictureRecorder quick-rejects ops outside the cull rect at
+ *  record time, so a child translated beyond its parent's box would silently
+ *  vanish from the cached path without this (the same failure family as the
+ *  bleed truncation — overflow is legal, the cull must hold it). Animated
+ *  transforms are fine: resolveFloat reads the record-time value, and a
+ *  RUNNING transform makes the subtree volatile — nothing records at all.
+ *  A clipped node contributes only its own box: children can't escape. */
+SkRect Composer::Impl::recordBounds(Instance &inst) {
+  const ElementNode &node = *inst.desc;
+  const SkRect rect = instanceRect(inst);
+  SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  float bleed = 0;
+  for (const Decoration &d : node.backgrounds)
+    bleed = std::max(bleed, d.bleed());
+  for (const Decoration &d : node.foregrounds)
+    bleed = std::max(bleed, d.bleed());
+  if (bleed > 0)
+    local.outset(bleed, bleed);
+  if (node.clipContent)
+    return local;
+  for (auto &child : inst.children) {
+    const ElementNode &cn = *child->desc;
+    const SkRect crect = instanceRect(*child);
+    SkRect cb = recordBounds(*child); // child-local
+    const float tx = child->resolveFloat(Instance::kTx, cn.paint.translateX);
+    const float ty = child->resolveFloat(Instance::kTy, cn.paint.translateY);
+    const float rot = child->resolveFloat(Instance::kRotate, cn.paint.rotate);
+    const float scl = child->resolveFloat(Instance::kScale, cn.paint.scale);
+    const float skx = child->resolveFloat(Instance::kSkewX, cn.paint.skewX);
+    const float sky = child->resolveFloat(Instance::kSkewY, cn.paint.skewY);
+    SkMatrix m = SkMatrix::Translate(crect.left() + tx, crect.top() + ty);
+    if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
+      const SkPoint origin = {crect.width() * cn.paint.originX,
+                              crect.height() * cn.paint.originY};
+      m.preTranslate(origin.x(), origin.y());
+      if (rot != 0)
+        m.preRotate(rot);
+      if (scl != 1)
+        m.preScale(scl, scl);
+      if (skx != 0 || sky != 0)
+        m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
+      m.preTranslate(-origin.x(), -origin.y());
+    }
+    local.join(m.mapRect(cb));
+  }
+  return local;
+}
+
+// ---------------------------------------------------------------------------
 // The stacking painter
 
 void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
@@ -219,22 +274,45 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // decoration trace the trimmed path (draw-on borders, self-drawing wires).
   bool trimmed = false;
   if (node.hasTrim) {
-    float s = std::clamp(
-        inst.resolveFloat(Instance::kTrimStart, node.trimStart) +
-            node.trimOffset, 0.0f, 1.0f);
-    float e = std::clamp(
-        inst.resolveFloat(Instance::kTrimEnd, node.trimEnd) + node.trimOffset,
-        0.0f, 1.0f);
-    if (e < s)
-      std::swap(s, e);
-    if (s > 0.0f || e < 1.0f) {
-      if (sk_sp<SkPathEffect> fx = SkTrimPathEffect::Make(s, e)) {
-        SkPathBuilder dst;
-        SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-        if (fx->filterPath(&dst, outlinePath, &rec)) {
-          outlinePath = dst.detach();
-          trimmed = true;
-        }
+    const float off = inst.resolveFloat(Instance::kTrimOffset, node.trimOffset);
+    const float s0 =
+        inst.resolveFloat(Instance::kTrimStart, node.trimStart) + off;
+    const float e0 = inst.resolveFloat(Instance::kTrimEnd, node.trimEnd) + off;
+    sk_sp<SkPathEffect> fx;
+    bool emptyWindow = false;
+    if (node.trimMode == TrimMode::Wrap) {
+      // The outline is a CYCLE: fractions wrap mod 1, and a window that
+      // crosses the seam keeps both pieces (inverted trim = the complement
+      // of the gap) — the marching-ants / orbiting-comet mode.
+      const float span = e0 - s0;
+      if (span <= 0.0f) {
+        emptyWindow = true;
+      } else if (span < 1.0f) {
+        const float s = s0 - std::floor(s0);
+        const float e = e0 - std::floor(e0);
+        if (s < e)
+          fx = SkTrimPathEffect::Make(s, e);
+        else if (s > e)
+          fx = SkTrimPathEffect::Make(e, s, SkTrimPathEffect::Mode::kInverted);
+        // s == e with 0 < span < 1 is float noise on a full wrap; keep all.
+      } // span >= 1: the window covers the whole cycle — no trim.
+    } else {
+      float s = std::clamp(s0, 0.0f, 1.0f);
+      float e = std::clamp(e0, 0.0f, 1.0f);
+      if (e < s)
+        std::swap(s, e);
+      if (s > 0.0f || e < 1.0f)
+        fx = SkTrimPathEffect::Make(s, e);
+    }
+    if (emptyWindow) {
+      outlinePath.reset();
+      trimmed = true;
+    } else if (fx) {
+      SkPathBuilder dst;
+      SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+      if (fx->filterPath(&dst, outlinePath, &rec)) {
+        outlinePath = dst.detach();
+        trimmed = true;
       }
     }
   }
@@ -314,8 +392,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     if (inst.paragraph) {
       // Yoga skips the measure callback when both dimensions are fully
       // determined (absolute + all four insets); lay out on demand at the
-      // resolved width so such text still paints.
-      if (inst.measuredRev != inst.contentRev)
+      // resolved width so such text still paints. Aligned text (center/
+      // end/justify) additionally must be laid out at its FINAL width —
+      // lines place within the flow width, so a measure-time constraint
+      // that differs from the resolved box would push them off target.
+      if (inst.measuredRev != inst.contentRev ||
+          (node.layoutOptions.alignment !=
+               sigil::weave::TextAlignment::kStart &&
+           inst.measuredForWidth != bounds.width()))
         layoutText(inst, bounds.width());
       if (node.glyphFx && node.glyphFx->effect)
         paintKineticText(inst, canvas, *node.glyphFx);
@@ -492,17 +576,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
     if (!inst.picture || inst.paintDirty) {
-      // Decorations that paint beyond the node (soft shadows, glows)
-      // declare their reach via bleed(); the recording cull grows to hold
-      // them, so cached chrome never truncates (the aero-study fix).
-      float bleed = 0;
-      for (const Decoration &d : node.backgrounds)
-        bleed = std::max(bleed, d.bleed());
-      for (const Decoration &d : node.foregrounds)
-        bleed = std::max(bleed, d.bleed());
-      SkRect cull = SkRect::MakeWH(rect.width(), rect.height());
-      if (bleed > 0)
-        cull.outset(bleed, bleed);
+      // The cull must hold everything the subtree paints: declared
+      // decoration bleed (the aero-study fix) AND children that overflow
+      // the box via layout or static transforms (recordBounds) — the
+      // recorder quick-rejects ops outside it.
+      const SkRect cull = recordBounds(inst);
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(cull);
       paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);

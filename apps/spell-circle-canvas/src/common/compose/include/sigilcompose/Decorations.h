@@ -38,8 +38,17 @@ namespace sigil::compose {
  *  path, or a custom effect (composable — dash of a stamp is legal in
  *  Skia by chaining effects yourself via `effect`). */
 struct PathFormat {
+  /** Where the stroke sits relative to the outline (the Photoshop/Figma
+   *  stroke-position control). Center straddles it; Inner clips the
+   *  stroke inside the shape (borders that never fatten the silhouette);
+   *  Outer clips it outside (keylines around a filled shape). Inner and
+   *  Outer are meaningful on CLOSED outlines — an open rail has no
+   *  inside. */
+  enum class Align : uint8_t { Center, Inner, Outer };
+
   float width = 1.0f;
   Fill strokeFill = Fill::color({1, 1, 1, 1});
+  Align align = Align::Center;
 
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
@@ -57,11 +66,21 @@ struct PathFormat {
    *  without memo (the custom SkPathEffect compares by pointer identity). */
   bool operator==(const PathFormat &) const = default;
 
+  /** Stroke reach beyond the outline (recording cull grows by this). */
+  float bleed() const {
+    return align == Align::Inner ? 0.0f
+           : align == Align::Outer ? width
+                                   : width * 0.5f;
+  }
+
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeWidth(width);
+    // Inner/Outer: clip to the shape's side and stroke DOUBLE width — the
+    // visible half lands entirely on the kept side (the standard trick).
+    const bool aligned = align != Align::Center;
+    p.setStrokeWidth(aligned ? width * 2 : width);
     if (strokeFill.kind == Fill::Kind::Color)
       p.setColor4f(strokeFill.colorValue, nullptr);
     else if (strokeFill.kind == Fill::Kind::Shader)
@@ -75,7 +94,17 @@ struct PathFormat {
       chosen = SkDashPathEffect::Make(
           SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase);
     p.setPathEffect(std::move(chosen));
-    canvas.drawPath(ctx.outline, p);
+    if (aligned) {
+      canvas.save();
+      canvas.clipPath(ctx.outline, align == Align::Inner
+                                       ? SkClipOp::kIntersect
+                                       : SkClipOp::kDifference,
+                      true);
+      canvas.drawPath(ctx.outline, p);
+      canvas.restore();
+    } else {
+      canvas.drawPath(ctx.outline, p);
+    }
   }
 };
 

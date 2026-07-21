@@ -78,9 +78,36 @@ Element &Element::justify(Justify j) { m_node->layout.justify = j; return *this;
 Element &Element::absolute() { m_node->layout.absolute = true; return *this; }
 Element &Element::inset(float all) { return inset(all, all, all, all); }
 Element &Element::inset(float l, float t, float r, float b) {
+  return inset(Dim(l), Dim(t), Dim(r), Dim(b));
+}
+Element &Element::inset(Dim l, Dim t, Dim r, Dim b) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets = {l, t, r, b};
+  return *this;
+}
+Element &Element::left(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.left = d;
+  return *this;
+}
+Element &Element::top(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.top = d;
+  return *this;
+}
+Element &Element::right(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.right = d;
+  return *this;
+}
+Element &Element::bottom(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.bottom = d;
   return *this;
 }
 
@@ -93,11 +120,12 @@ Element &Element::outline(std::function<SkPath(SkSize)> shape) {
 }
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
 Element &Element::trim(PropValue<float> start, PropValue<float> end,
-                       float offset) {
+                       PropValue<float> offset, TrimMode mode) {
   m_node->hasTrim = true;
   m_node->trimStart = std::move(start);
   m_node->trimEnd = std::move(end);
-  m_node->trimOffset = offset;
+  m_node->trimOffset = std::move(offset);
+  m_node->trimMode = mode;
   return *this;
 }
 
@@ -151,6 +179,13 @@ Element &Element::foreground(Decoration d) {
 }
 Element &Element::stroke(Decoration brush) {
   return foreground(std::move(brush));
+}
+Element &Element::style(LayerStyle s) {
+  for (Decoration &d : s.under)
+    m_node->backgrounds.push_back(std::move(d));
+  for (Decoration &d : s.over)
+    m_node->foregrounds.push_back(std::move(d));
+  return *this;
 }
 Element &Element::effect(Effect e) {
   m_node->layerEffect = std::move(e);
@@ -268,6 +303,11 @@ Element custom(PaintProgram program) {
 
 Element &Element::glyphFx(GlyphFx fx) {
   m_node->glyphFx = std::move(fx);
+  return *this;
+}
+
+Element &Element::textAlign(sigil::weave::TextAlignment a) {
+  m_node->layoutOptions.alignment = a;
   return *this;
 }
 

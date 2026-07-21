@@ -71,6 +71,67 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
 
 } // namespace
 
+/** Mount entrances: a withFrom() value plays `from → value` when the node
+ *  FIRST appears (there is no prev to diff against — this is the "prev" the
+ *  author declared). Skipped for snapshot()/measure() (liveOnly: no live
+ *  timeline — bakes render the settled value). */
+void Composer::Impl::applyMountTransitions(Instance &inst,
+                                           const ElementNode &node) {
+  if (liveOnly)
+    return;
+
+  auto entrance = [&](Instance::Slot slot, const PropValue<float> &v) {
+    const Transitioned<float> *tr = std::get_if<Transitioned<float>>(&v);
+    if (!tr || !tr->from || *tr->from == tr->value)
+      return;
+    auto &anim = inst.anims[slot];
+    if (!anim)
+      anim = std::make_unique<AnimatedFloat>();
+    anim->value = *tr->from;
+    anim->started = true;
+    ticker.timeline()
+        .apply(&anim->value)
+        .then<choreograph::RampTo>(
+            tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
+            tr->spec.ease);
+  };
+  entrance(Instance::kOpacity, node.paint.opacity);
+  entrance(Instance::kTx, node.paint.translateX);
+  entrance(Instance::kTy, node.paint.translateY);
+  entrance(Instance::kRotate, node.paint.rotate);
+  entrance(Instance::kScale, node.paint.scale);
+  entrance(Instance::kSkewX, node.paint.skewX);
+  entrance(Instance::kSkewY, node.paint.skewY);
+  if (node.hasTrim) {
+    entrance(Instance::kTrimStart, node.trimStart);
+    entrance(Instance::kTrimEnd, node.trimEnd);
+    entrance(Instance::kTrimOffset, node.trimOffset);
+  }
+  if (node.glyphFx)
+    entrance(Instance::kGlyphProgress, node.glyphFx->progress);
+
+  // Color fill entrance: from → to through the kFillLerp progress.
+  if (node.paint.fill) {
+    const Transitioned<Fill> *tr =
+        std::get_if<Transitioned<Fill>>(&*node.paint.fill);
+    if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
+        tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
+      inst.fillFrom = *tr->from;
+      inst.fillTo = tr->value;
+      auto &anim = inst.anims[Instance::kFillLerp];
+      if (!anim)
+        anim = std::make_unique<AnimatedFloat>();
+      anim->value = 0.0f;
+      anim->started = true;
+      ticker.timeline()
+          .apply(&anim->value)
+          .then<choreograph::RampTo>(
+              1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
+              tr->spec.ease);
+    }
+  }
+}
+
 void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                                       const ElementNode &next) {
   const auto &nd = next.nodeTransition;
@@ -93,6 +154,8 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                     next.trimStart, nd);
     transitionFloat(*this, inst, Instance::kTrimEnd, prev.trimEnd,
                     next.trimEnd, nd);
+    transitionFloat(*this, inst, Instance::kTrimOffset, prev.trimOffset,
+                    next.trimOffset, nd);
   }
   if (next.glyphFx || prev.glyphFx) {
     static const PropValue<float> kFullProgress = 1.0f;

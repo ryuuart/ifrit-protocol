@@ -16,6 +16,12 @@ struct EdgeValues {
   bool operator==(const EdgeValues &) const = default;
 };
 
+/** Per-edge Dims for absolute insets: Auto = that side is unpinned. */
+struct EdgeDims {
+  Dim left, top, right, bottom;
+  bool operator==(const EdgeDims &) const = default;
+};
+
 struct LayoutProps {
   bool row = false;
   bool wrap = false;
@@ -29,7 +35,7 @@ struct LayoutProps {
   Justify justify = Justify::Start;
   bool absolute = false;
   bool hasInsets = false;
-  EdgeValues insets;
+  EdgeDims insets;
   bool operator==(const LayoutProps &) const = default;
 };
 
@@ -56,7 +62,8 @@ struct ElementNode {
   // Trim Path: painted-outline reveal (fractions of arc length).
   bool hasTrim = false;
   PropValue<float> trimStart = 0.0f, trimEnd = 1.0f;
-  float trimOffset = 0.0f;
+  PropValue<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
+  TrimMode trimMode = TrimMode::Clamp;
   Cache cacheMode = Cache::Auto;
   std::optional<Transition> nodeTransition;
 

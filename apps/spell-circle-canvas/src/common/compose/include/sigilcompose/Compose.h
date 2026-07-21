@@ -75,12 +75,27 @@ struct Transition {
 template <typename T> struct Transitioned {
   T value;
   Transition spec;
+  /** withFrom(): where the value ENTERS from when the node first mounts.
+   *  Empty for plain with() — no entrance, only change transitions. */
+  std::optional<T> from{};
 };
 
 /** Wraps a constant so changes to it transition (see API.md semantics:
  *  one motion per (instance, property), retarget-from-current). */
 template <typename T> Transitioned<T> with(T value, Transition spec) {
   return {std::move(value), std::move(spec)};
+}
+
+/** The MOUNT transition (CSS animation-on-enter / GSAP from()): when the
+ *  node first appears it plays `from → to` over `spec`; afterwards it
+ *  behaves exactly like with(to, spec) — later changes retarget from the
+ *  current value, and re-describing the same withFrom() prunes clean.
+ *  `.opacity(withFrom(0.0f, 1.0f, {400ms}))` is the entrance idiom; it
+ *  works on every float slot (opacity/transforms/skew/trim/glyph
+ *  progress) and on color fills (a mount-time color sweep). snapshot()
+ *  ignores entrances — a bake renders the settled value. */
+template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec) {
+  return {std::move(to), std::move(spec), std::move(from)};
 }
 
 /**
@@ -312,6 +327,16 @@ private:
   std::function<bool(const std::any &, const std::any &)> m_equals;
 };
 
+/** A named bundle of decorations applied together — the Photoshop "layer
+ *  style" as a value. Presets (styles::aquaGel(), styles::y2kChrome())
+ *  return one; Element::style() splices it in: `under` layers paint below
+ *  the fill/content (drop shadows, body ramps), `over` layers above
+ *  (gloss lenses, bevels, keylines). One call dresses the node. */
+struct LayerStyle {
+  std::vector<Decoration> under;
+  std::vector<Decoration> over;
+};
+
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
 
@@ -347,6 +372,14 @@ enum class Align : uint8_t { Auto, Start, Center, End, Stretch, Baseline };
 enum class Justify : uint8_t {
   Start, Center, End, SpaceBetween, SpaceAround, SpaceEvenly
 };
+
+/** How trim() treats fractions outside [0,1]. Clamp (the default) pins
+ *  them — a reveal saturates at the ends. Wrap treats the outline as a
+ *  CYCLE: fractions wrap mod 1, and a window that crosses the seam draws
+ *  both pieces — the marching-ants / orbiting-comet idiom. Pair with an
+ *  animated `offset` to march a fixed-length window around a closed
+ *  outline forever. */
+enum class TrimMode : uint8_t { Clamp, Wrap };
 
 /** Cache override. Auto (the default) picture-caches provably-static
  *  subtrees; Texture rasterizes the subtree once into an image (the
@@ -424,6 +457,18 @@ public:
   Element &absolute();
   Element &inset(float all);
   Element &inset(float left, float top, float right, float bottom);
+  /** Dim-valued insets: px, pct(), or autoDim() per side — autoDim()
+   *  leaves that side unpinned (the CSS `auto`), so width/height (or the
+   *  opposite inset) size the node instead of stretching it. */
+  Element &inset(Dim left, Dim top, Dim right, Dim bottom);
+  /** Pin ONE edge of an absolute node (implies absolute()): the
+   *  corner-badge idiom — `.top(12).right(12)` pins a date block to the
+   *  top-right without stretching it across the box. Unpinned sides stay
+   *  auto. */
+  Element &left(Dim d);
+  Element &top(Dim d);
+  Element &right(Dim d);
+  Element &bottom(Dim d);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
@@ -435,11 +480,15 @@ public:
    *  reveal along its route. Both ends take the full PropValue treatment —
    *  plain, with() transitions, or ch::Output bindings (bound/animating trim
    *  is content volatility: the node paints live while moving). `offset`
-   *  shifts both ends (clamped; no wrap in this cut). Clipping and
-   *  hit-testing keep the UNtrimmed shape — trim is a paint-phase reveal,
-   *  not a layout change. */
+   *  shifts both ends and takes the full PropValue treatment too — under
+   *  TrimMode::Wrap, bind it to a wrapping phase Output and a fixed
+   *  window marches around a closed outline forever (marching ants, the
+   *  orbiting comet); under Clamp (default) fractions pin to [0,1].
+   *  Clipping and hit-testing keep the UNtrimmed shape — trim is a
+   *  paint-phase reveal, not a layout change. */
   Element &trim(PropValue<float> start, PropValue<float> end,
-                float offset = 0.0f);
+                PropValue<float> offset = 0.0f,
+                TrimMode mode = TrimMode::Clamp);
   /** Custom outline: a path generator over the node's laid-out size,
    *  in local coordinates. Overrides corners() as the node's shape —
    *  the fill surface, clip(), and every outline-following decoration
@@ -468,6 +517,11 @@ public:
    *  any decoration that strokes. Pure sugar for foreground(), named for
    *  what it means at the call site. */
   Element &stroke(Decoration brush);
+  /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
+   *  append as backgrounds, `over` as foregrounds — one call dresses the
+   *  node in aqua gel / y2k chrome / any bundled treatment. Composable
+   *  with fill() and further background()/foreground() calls. */
+  Element &style(LayerStyle s);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
   Element &effect(Effect e);
@@ -538,6 +592,12 @@ public:
   /** Kinetic typography on a text() element: a per-glyph effect staggered
    *  across the glyphs and driven by a master progress (see GlyphFx). */
   Element &glyphFx(GlyphFx fx);
+
+  /** Text leaves only: how lines sit inside the node's width (SigilWeave
+   *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
+   *  node is WIDER than its text (explicit width, grow, stack stretch);
+   *  intrinsic-width text has nothing to align within. */
+  Element &textAlign(sigil::weave::TextAlignment a);
 
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);
@@ -656,6 +716,15 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
+/** One-shot intrinsic measurement: what size would this element take?
+ *  Runs the same reconcile+layout as snapshot() and returns the root's
+ *  resolved size without painting. The sizing primitive behind
+ *  content-fit chrome (marquees, tooltips, badges): measure the content,
+ *  then describe the real tree with the answer. Same sampling rules as
+ *  snapshot() — bindings at current values, no transitions. */
+SkSize measure(Element root, sigil::weave::FontContext &fonts,
+               SkSize maxSize = SkSize::MakeEmpty());
+
 namespace detail {
 Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
@@ -759,6 +828,7 @@ private:
   friend struct detail::Instance;
   friend sk_sp<SkPicture> snapshot(Element, sigil::weave::FontContext &,
                                    SkSize);
+  friend SkSize measure(Element, sigil::weave::FontContext &, SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

@@ -116,6 +116,46 @@ inline RailRouter octilinear(float cornerRadius = 8.0f) {
   };
 }
 
+/** The orbit router (REFERENCES.md §5 — PoE's ring travel): when two
+ *  consecutive anchors sit at (nearly) the same radius from `center`, the
+ *  leg follows the CIRCLE between them — the short way around — instead
+ *  of chording across; radius-changing legs stay straight spokes. This is
+ *  how passive-tree edges read: nodes live on orbit rings {82, 162, 335,
+ *  493} and their in-ring connections are arcs. `tolerance` is the
+ *  radius-match slack as a fraction of the radius. */
+inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
+  return [center, tolerance](std::span<const SkPoint> pts) {
+    SkPathBuilder b;
+    if (pts.empty())
+      return b.detach();
+    b.moveTo(pts.front());
+    for (size_t i = 1; i < pts.size(); ++i) {
+      const SkPoint from = pts[i - 1], to = pts[i];
+      const float r1 = SkPoint::Distance(from, center);
+      const float r2 = SkPoint::Distance(to, center);
+      const float r = (r1 + r2) * 0.5f;
+      if (r > 1.0f && std::abs(r1 - r2) <= tolerance * r) {
+        const float a1 = std::atan2(from.y() - center.y(),
+                                    from.x() - center.x()) *
+                         57.29578f;
+        const float a2 =
+            std::atan2(to.y() - center.y(), to.x() - center.x()) * 57.29578f;
+        float sweep = a2 - a1;
+        while (sweep > 180.0f)
+          sweep -= 360.0f;
+        while (sweep <= -180.0f)
+          sweep += 360.0f;
+        b.arcTo(SkRect::MakeLTRB(center.x() - r, center.y() - r,
+                                 center.x() + r, center.y() + r),
+                a1, sweep, false);
+      } else {
+        b.lineTo(to);
+      }
+    }
+    return b.detach();
+  };
+}
+
 /** Circular-ish bow between the centers: the route's midpoint bulges
  *  off the chord by @p bulge × chord-length (sign picks the side). */
 inline Router arc(float bulge = 0.25f) {

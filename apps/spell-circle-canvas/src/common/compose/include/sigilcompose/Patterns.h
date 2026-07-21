@@ -8,10 +8,13 @@
  * ramps in the Persona grammar, chrome ramps) build on these primitives.
  */
 
+#include "sigilcompose/Material.h" // halftoneRamp is a Material (SkSL)
 #include "sigilcompose/Pattern.h"
 #include "sigilcompose/Shapes.h" // detail::hashNoise (the seeded noise)
 
 #include <include/core/SkPaint.h>
+#include <include/core/SkString.h>
+#include <include/effects/SkRuntimeEffect.h>
 
 #include <utility>
 #include <vector>
@@ -109,6 +112,56 @@ inline Pattern speckle(float tileSize, int count, float rMin, float rMax,
               c.drawCircle(x + (float)dx * s, y + (float)dy * s, r, p);
         }
       });
+}
+
+/** The halftone RAMP (REFERENCES.md §1 — the P3R backdrop): dot radius
+ *  swells from `rMin` at the node's top to `rMax` at its bottom, evaluated
+ *  in one SkSL pass (a Material, not a baked tile — the ramp needs the
+ *  node's height, so it rides the geometry tier: resolved when the node
+ *  records, cached between layouts). `angleDeg` rotates the dot grid; the
+ *  ramp stays vertical. To DRIFT the field (the menu idle), bind uDriftX /
+ *  uDriftY: `.uniform("uDriftX", &phase)` — the material goes live and the
+ *  dots slide under the fixed ramp. */
+inline Material halftoneRamp(float spacing, float rMin, float rMax,
+                             SkColor4f color, float angleDeg = 0.0f) {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+      uniform float2 uResolution;
+      uniform float  uSpacing;
+      uniform float  uRMin;
+      uniform float  uRMax;
+      uniform float  uAngle;   // radians
+      uniform float  uDriftX;  // px — bind for the idle drift
+      uniform float  uDriftY;
+      uniform float4 uColor;
+      half4 main(float2 xy) {
+        float t = clamp(xy.y / max(uResolution.y, 1.0), 0.0, 1.0);
+        float2 p = xy + float2(uDriftX, uDriftY);
+        float cs = cos(uAngle); float sn = sin(uAngle);
+        p = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
+        float row = floor(p.y / uSpacing);
+        p.x += mod(row, 2.0) * uSpacing * 0.5; // staggered rows
+        float2 cell = p - uSpacing * (floor(p / uSpacing) + 0.5);
+        float r = mix(uRMin, uRMax, t);
+        float d = length(cell) - r;
+        float cov = 1.0 - smoothstep(-0.75, 0.75, d);
+        float a = uColor.a * cov;
+        return half4(half3(uColor.rgb) * a, a);
+      }
+    )"));
+    if (!effect)
+      SkDebugf("sigilcompose halftoneRamp shader: %s\n", err.c_str());
+    return effect;
+  }();
+  if (!fx)
+    return {};
+  return Material::sksl(fx, {{"uSpacing", std::max(spacing, 1.0f)},
+                             {"uRMin", rMin},
+                             {"uRMax", rMax},
+                             {"uAngle", angleDeg * 0.017453293f},
+                             {"uDriftX", 0.0f},
+                             {"uDriftY", 0.0f}})
+      .uniform("uColor", color);
 }
 
 // ---------------------------------------------------------------------------
