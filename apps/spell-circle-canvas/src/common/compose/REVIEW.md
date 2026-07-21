@@ -764,6 +764,13 @@ Sequenced so each phase is independently valuable and de-risks the next:
   Reference-grounded study sketches (REFERENCES.md; aero/p3r/y2k/poe/
   kinetic/beethoven/zellige + the three showcases) are the gallery's
   raw material.
+- **Post-plan: the BRUSH ENGINE (landed).** `compose::Brush` — geometry
+  pipeline (comparable `GeometryOp` values; `ops::Wave/Rounded/Sketchy/
+  Offset`) feeding ordered Decoration legs; the whole value prunes
+  (BrushPrunesAsOneValue). Vocabulary beneath it: `lines::Line` (§9-
+  grounded casings/caps/ties/wave), Scatter/Pattern/Ribbon (Illustrator
+  archetypes; SkVertices art-warp still queued), LayeredBrush stacks.
+  See API.md "The Brush engine".
 - **Post-plan: the reference-grounding legs** (user redirect — REFERENCES.md
   is the grammar library; every example cites a section). Two parallel
   study fleets drove API-level friction batches (`fc40d03`, `989cee5`):

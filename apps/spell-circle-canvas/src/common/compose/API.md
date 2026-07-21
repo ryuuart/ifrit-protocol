@@ -721,6 +721,42 @@ second pass) or across frames through ordinary data (this frame's
 already models. Same backend, same niceties, one dial: at which phase
 your code runs.
 
+## The Brush engine (lines as expressive as fills)
+
+A `Brush` is ONE comparable value: an ordered **geometry pipeline** over
+the node's outline feeding ordered **paint legs** — Illustrator's brush
+model (Calligraphic / Scatter / Pattern / Art) closed under composition,
+grounded in REFERENCES.md §9 (leaflet/mapbox/QGIS/tldraw conventions):
+
+```cpp
+element.stroke(Brush{}
+    .op(ops::Rounded{6})                      // geometry ops, in order
+    .op(ops::Wave{.amplitude = 3, .wavelength = 30})
+    .leg(lines::cased(3, ink, 5))             // any Decoration is a leg
+    .leg(brushes::ScatterBrush{.art = spark(), .spacing = 40}));
+```
+
+- **Geometry ops** are values (`ops::Wave/Rounded/Sketchy/Offset` —
+  designated-init structs with `apply(SkPath)`, optional `bleed()`).
+  `GeometryOp` type-erases them exactly like `Decoration` does paint
+  schemes — Skia seals `SkPathEffect` subclassing, so this is that seam
+  as data. A raw `ops::PathOp` lambda still converts (never prunes).
+- **Legs** are ordinary Decorations: `lines::Line` (parallel casings,
+  terminal/mid caps with the tip-at-endpoint convention, railway ties,
+  dash that stays phase-registered across rails), `LayeredBrush` stacks
+  (filament/circuit/rope/pulse), `brushes::ScatterBrush` (an ELEMENT
+  instanced along the path, seeded jitter + a `StampModFn` programmatic
+  twist), `brushes::PatternBrush` (Illustrator tile semantics:
+  integer-fit side tiles, corner/start/end tiles), `brushes::Ribbon`
+  (taper / calligraphic nib), or any `PathFormat`.
+- **The whole Brush compares** when its parts do — a styled connector
+  prunes and caches as one value; animated legs declare volatility
+  through; bleeds aggregate (pipeline reach + leg reach).
+
+`Element::stroke(brush)` attaches it; rails/connectors hand the routed
+path to the same pipeline, so a transit line, a directed edge, and a
+sketchy river are all `Brush` values on routes.
+
 ## C++20 at the surface
 
 Used deliberately, for errors and ergonomics rather than cleverness:
