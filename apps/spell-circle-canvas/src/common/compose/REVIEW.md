@@ -751,10 +751,33 @@ Sequenced so each phase is independently valuable and de-risks the next:
   element seams), path morph, the node→routes back-index (today any layout
   change re-derives all rails — fine at current scale), and arc-length
   anchored placement / along-edge motion unification.
-- **P3 — Instancing + text.** §6: `instances()` + SoA + `drawAtlas` flyweight,
-  `console()`/`LineRing`, `GlyphModBuffer` + `GlyphEffect` + `Stagger`,
-  `BaselineGrid`/`VariationDrive`.
+- **P3 — Instancing + text. MOSTLY LANDED**: `console()`/`LineRing`
+  (`88511ec`, O(1)-append proven), kinetic typography (`84df6d0` —
+  `GlyphFx`/`GlyphEffectFn`/`Stagger` w/ GSAP amount mode, batched RSXform
+  draws, presets in `<sigilcompose/Kinetic.h>`), `layouts::BaselineGrid` +
+  `ModularGrid` (`af9ad91`, `84df6d0`). TextStyle grew fluent
+  `variation()/weight()/opticalSize()` (order-stable in-place replace).
+  Still open: `instances()` + SoA + `drawAtlas` flyweight, `VariationDrive`
+  (per-font axis probing — wght is NOT paint-safe, GRAD is the
+  advance-invariant weight).
 - **P4 — Modes docs + gallery rewrite.** §11 scenes + §13 onboarding.
+  Reference-grounded study sketches (REFERENCES.md; aero/p3r/y2k/poe/
+  kinetic/beethoven/zellige + the three showcases) are the gallery's
+  raw material.
+- **Post-plan: the reference-grounding legs** (user redirect — REFERENCES.md
+  is the grammar library; every example cites a section). Two parallel
+  study fleets drove API-level friction batches (`fc40d03`, `989cee5`):
+  Pattern/Patterns (bake-once regenerable tiles, girih8, halftoneRamp),
+  LayerStyles (the Photoshop route: stroked-band InnerShadow, BevelEmboss,
+  Overlay, aquaGel()/y2kChrome() bundles via `Element::style(LayerStyle)`,
+  textGlow), Brushes (filament/circuit/rope/pulse), `withFrom()` mount
+  entrances across every slot + color fills, trim `TrimMode::Wrap` +
+  animatable offset, per-side Dim insets (`.top()/.right()`),
+  `compose::measure()`, `textAlign()`, `PathFormat::Align` Inner/Outer,
+  bindable Shadow offsets, `util::marquee`, `layouts::Diagonal`,
+  `routers::orbit`, skewX/skewY, `shapes::arc/parallelogram`, SDF glow
+  pad fix, `Decoration::bleed()` + recordBounds() overflow-safe culls,
+  the zero-size empty-cull-rect fix.
 
 The isolation-boundary generalization (§7) threads through P0–P3 as the caching
 substrate rather than being one phase.
