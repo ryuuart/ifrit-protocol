@@ -174,6 +174,14 @@ Element &Element::scale(PropValue<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
+Element &Element::skewX(PropValue<float> v) {
+  m_node->paint.skewX = std::move(v);
+  return *this;
+}
+Element &Element::skewY(PropValue<float> v) {
+  m_node->paint.skewY = std::move(v);
+  return *this;
+}
 Element &Element::transformOrigin(float fx, float fy) {
   m_node->paint.originX = fx;
   m_node->paint.originY = fy;

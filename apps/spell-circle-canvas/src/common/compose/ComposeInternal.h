@@ -39,6 +39,7 @@ struct PaintProps {
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
   PropValue<float> translateX = 0.0f, translateY = 0.0f;
   PropValue<float> rotate = 0.0f, scale = 1.0f;
+  PropValue<float> skewX = 0.0f, skewY = 0.0f; // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
   int zIndex = 0;
 };

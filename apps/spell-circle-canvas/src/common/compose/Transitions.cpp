@@ -84,6 +84,10 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.rotate, nd);
   transitionFloat(*this, inst, Instance::kScale, prev.paint.scale,
                   next.paint.scale, nd);
+  transitionFloat(*this, inst, Instance::kSkewX, prev.paint.skewX,
+                  next.paint.skewX, nd);
+  transitionFloat(*this, inst, Instance::kSkewY, prev.paint.skewY,
+                  next.paint.skewY, nd);
   if (next.hasTrim || prev.hasTrim) {
     transitionFloat(*this, inst, Instance::kTrimStart, prev.trimStart,
                     next.trimStart, nd);

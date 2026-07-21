@@ -54,10 +54,20 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
                -inst.resolveFloat(Instance::kTy, node.paint.translateY));
   const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  if (rot != 0 || scl != 1) {
+  const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
+  const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
+  if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
     const SkPoint origin = {rect.width() * node.paint.originX,
                             rect.height() * node.paint.originY};
     SkPoint v{local.x() - origin.x(), local.y() - origin.y()};
+    // Inverse of paint()'s rotate→scale→skew, applied in reverse order.
+    if (skx != 0 || sky != 0) {
+      const float kx = std::tan(skx * 0.017453293f);
+      const float ky = std::tan(sky * 0.017453293f);
+      const float det = 1.0f - kx * ky;
+      if (std::abs(det) > 1e-6f)
+        v = {(v.x() - kx * v.y()) / det, (v.y() - ky * v.x()) / det};
+    }
     if (scl != 0 && scl != 1)
       v = {v.x() / scl, v.y() / scl};
     if (rot != 0) {

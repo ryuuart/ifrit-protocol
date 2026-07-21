@@ -163,6 +163,7 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||
       !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
+      !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
       pa.originX != pb.originX || pa.originY != pb.originY ||
       pa.zIndex != pb.zIndex)
     return false;

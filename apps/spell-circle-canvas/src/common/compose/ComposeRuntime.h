@@ -53,7 +53,7 @@ struct Instance {
   // Transition state, keyed by property slot
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kTrimStart, kTrimEnd, kGlyphProgress,
+    kTrimStart, kTrimEnd, kGlyphProgress, kSkewX, kSkewY,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];

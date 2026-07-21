@@ -51,6 +51,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   ownPaint |= boundOrRunning(Instance::kTy, node.paint.translateY);
   ownPaint |= boundOrRunning(Instance::kRotate, node.paint.rotate);
   ownPaint |= boundOrRunning(Instance::kScale, node.paint.scale);
+  ownPaint |= boundOrRunning(Instance::kSkewX, node.paint.skewX);
+  ownPaint |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
 
   // Content volatility: what actually invalidates the node's own recording
   // (bound/lerping fills, per-frame programs, animated decorations and image
@@ -375,9 +377,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const float ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
   const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
+  const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
+  const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
   if (tx != 0 || ty != 0)
     canvas.translate(tx, ty);
-  if (rot != 0 || scl != 1) {
+  if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
     const SkPoint origin = {rect.width() * node.paint.originX,
                             rect.height() * node.paint.originY};
     canvas.translate(origin.x(), origin.y());
@@ -385,6 +389,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       canvas.rotate(rot);
     if (scl != 1)
       canvas.scale(scl, scl);
+    if (skx != 0 || sky != 0)
+      canvas.skew(std::tan(skx * 0.017453293f),
+                  std::tan(sky * 0.017453293f));
     canvas.translate(-origin.x(), -origin.y());
   }
 

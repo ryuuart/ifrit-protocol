@@ -2102,6 +2102,24 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   }
 }
 
+TEST(ComposeTransform, SkewLeansPaintAndHits) {
+  // The ATLUS diagonal (REFERENCES.md §1): skewX(−12°) leans the card's top
+  // to the right about its center; hit-testing walks the shear backwards.
+  Host host;
+  host.composer.render(box().child(
+      box().key("card").width(40).height(40).inset(60, 60, 100, 100)
+          .absolute().fill(red()).skewX(-12.0f)));
+  host.frame();
+  EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);  // top leaned right
+  EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK); // vacated top-left
+  EXPECT_EQ(host.pixel(58, 97), SK_ColorRED);   // bottom leaned left
+  EXPECT_EQ(host.pixel(98, 97), SK_ColorBLACK); // vacated bottom-right
+  auto hit = host.composer.hitTest({101, 64});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, "card"); // transform-aware hit through the shear
+  EXPECT_FALSE(host.composer.hitTest({61, 64}).has_value());
+}
+
 // ---- kinetic typography ------------------------------------------------------
 
 #include <sigilcompose/Kinetic.h>

@@ -455,6 +455,14 @@ public:
   Element &translateY(PropValue<float> v);
   Element &rotate(PropValue<float> degrees);
   Element &scale(PropValue<float> factor);
+  /** Shear, in degrees, about the transform origin — the diagonal-slash
+   *  language (P3R cards ≈ −12°, P5R ≈ −20°; REFERENCES.md §1). Paint-only
+   *  like rotate/scale: animating skews never relayouts, and content
+   *  pictures replay under the new transform. skewX slants verticals
+   *  (positive leans the top to the right at negative... use negative
+   *  values for the ATLUS lean); skewY slants horizontals. */
+  Element &skewX(PropValue<float> degrees);
+  Element &skewY(PropValue<float> degrees);
   Element &transformOrigin(float fx, float fy);
   Element &zIndex(int z);
 
