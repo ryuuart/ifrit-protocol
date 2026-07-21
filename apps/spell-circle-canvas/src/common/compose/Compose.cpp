@@ -139,6 +139,9 @@ Element &Element::foreground(Decoration d) {
   m_node->foregrounds.push_back(std::move(d));
   return *this;
 }
+Element &Element::stroke(Decoration brush) {
+  return foreground(std::move(brush));
+}
 Element &Element::effect(Effect e) {
   m_node->layerEffect = std::move(e);
   return *this;

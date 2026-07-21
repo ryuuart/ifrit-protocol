@@ -1242,6 +1242,110 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   EXPECT_GT(lit, 90u);  // exp(-8/12) ≈ 0.51 → ~131
 }
 
+// ---- Pattern: runtime-procedural regenerable tiles --------------------------
+
+#include <sigilcompose/LayerStyles.h>
+#include <sigilcompose/Patterns.h>
+
+TEST(ComposePattern, CheckerTilesSeamlessly) {
+  // A stock generator baked once and repeated: cells land where the tile
+  // math says, across tile boundaries.
+  Pattern bg = patterns::checker(10, {1, 0, 0, 1}, {0, 0, 1, 1});
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(20).inset(0, 0, 140, 180).absolute()
+          .fill(bg.material())));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);   // cell (0,0)
+  EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE); // cell (1,0)
+  EXPECT_EQ(host.pixel(25, 5), SK_ColorRED);  // next tile repeats
+  EXPECT_EQ(host.pixel(45, 5), SK_ColorRED);
+}
+
+TEST(ComposePattern, HeldPatternPrunesReseedRegenerates) {
+  // The identity contract: a HELD pattern re-described is pointer-equal
+  // (prunes, no rebake); .seed(n) drops the bake and shows up as exactly
+  // one changed recipe.
+  Pattern grain = patterns::speckle(64, 40, 1, 3, {{1, 1, 1, 1}});
+  Host host;
+  auto tree = [&] {
+    return box().child(box().width(80).height(80).fill(grain.material()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree()); // same bake → same recipe → prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+  grain.seed(7); // regenerate
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+  EXPECT_TRUE(host.composer.dirty());
+}
+
+TEST(ComposePattern, ElementTreeAsTile) {
+  // Patterns are compositions: an element tree (two boxes) as the tile.
+  Pattern duo = Pattern::tile(
+      {20, 10}, box().row()
+                    .child(box().width(10).height(10).fill(red()))
+                    .child(box().width(10).height(10).fill(blue())));
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(10).inset(0, 0, 160, 190).absolute()
+          .fill(duo.material(fonts()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
+  EXPECT_EQ(host.pixel(15, 5), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(25, 5), SK_ColorRED); // the repeat
+}
+
+// ---- layer styles: the Photoshop route --------------------------------------
+
+TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
+  // The fake bevel = two opposed inner shadows: with light from the upper
+  // left, the top inner edge reads brighter than the body and the bottom
+  // inner edge darker.
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).inset(0, 0, 140, 140).absolute()
+          .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
+          .foreground(styles::BevelEmboss{.depth = 4, .size = 3})));
+  host.frame();
+  const uint32_t top = SkColorGetR(host.pixel(30, 2));
+  const uint32_t mid = SkColorGetR(host.pixel(30, 30));
+  const uint32_t bot = SkColorGetR(host.pixel(30, 57));
+  EXPECT_GT(top, mid + 20); // lit edge
+  EXPECT_LT(bot + 20, mid); // shaded edge
+}
+
+TEST(ComposeStyles, OverlayAndStrokeSugar) {
+  // colorOverlay tints the shape through its blend; .stroke() is fill's
+  // ergonomic peer for dressing the outline.
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).inset(0, 0, 140, 140).absolute()
+          .fill(Fill::color({0, 0, 1, 1}))
+          .foreground(styles::colorOverlay({1, 0, 0, 1},
+                                           SkBlendMode::kSrcOver, 0.5f))
+          .stroke(sigil::compose::util::stroke(4, green()))));
+  host.frame();
+  const SkColor c = host.pixel(30, 30); // 50% red over blue
+  EXPECT_GT(SkColorGetR(c), 90u);
+  EXPECT_GT(SkColorGetB(c), 90u);
+  EXPECT_EQ(host.pixel(30, 1), SK_ColorGREEN); // stroked edge
+}
+
+TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(60, 60, 100, 100).absolute()
+          .corners({8})
+          .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
+          .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(56, 80)), 40u); // halo 4px outside
+  EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u); // fades with distance
+}
+
 // ---- console(): the streaming log ------------------------------------------
 
 #include <sigilcompose/Console.h>

@@ -390,6 +390,11 @@ public:
    *  first background; custom() is a box with one background program. */
   Element &background(Decoration d);
   Element &foreground(Decoration d);
+  /** fill's peer (the Photoshop/Illustrator mental model): dress the
+   *  node's OUTLINE with a brush — a PathFormat, a layered brush stack,
+   *  any decoration that strokes. Pure sugar for foreground(), named for
+   *  what it means at the call site. */
+  Element &stroke(Decoration brush);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
   Element &effect(Effect e);
