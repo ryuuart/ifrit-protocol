@@ -212,28 +212,28 @@ inline std::vector<StickerSlot>
 stickerScatter(int count, uint32_t seed = 3, float pitch = 60.0f,
                float rotMax = 25.0f, float xJitter = 70.0f,
                float overlap = 0.35f) {
-  std::vector<StickerSlot> slots((size_t)std::max(count, 0));
-  const int n = (int)slots.size();
+  std::vector<StickerSlot> ladder((size_t)std::max(count, 0));
+  const int n = (int)ladder.size();
   if (n == 0)
-    return slots;
+    return ladder;
   float y = 0;
   for (int i = 0; i < n; ++i) {
     const float t = n > 1 ? (float)i / (float)(n - 1) : 0.0f;
     const float noise01 =
         0.5f + 0.5f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i));
     const float mag = rotMax * (0.45f + 0.55f * noise01) * (1.0f - 0.45f * t);
-    slots[(size_t)i].rotateDeg = (i == n - 1) ? +mag * 0.5f : -mag;
-    slots[(size_t)i].dx =
+    ladder[(size_t)i].rotateDeg = (i == n - 1) ? +mag * 0.5f : -mag;
+    ladder[(size_t)i].dx =
         -xJitter *
         (0.5f + 0.5f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i + 1)));
-    slots[(size_t)i].dy =
+    ladder[(size_t)i].dy =
         y + 6.0f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i + 2));
     y += pitch * (1.0f - overlap);
     // Shuffled paint order, deterministic per seed.
-    slots[(size_t)i].z =
+    ladder[(size_t)i].z =
         1 + (int)((noise01 * 977.0f) + (float)i * 7.0f) % (n * 3);
   }
-  return slots;
+  return ladder;
 }
 
 struct BaselineGrid {

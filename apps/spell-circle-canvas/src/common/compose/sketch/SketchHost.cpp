@@ -58,8 +58,29 @@ std::filesystem::file_time_type hostBinaryTime() {
   return {};
 }
 
-/** First repo header on the flags file's -I paths newer than @p hostTime
- *  (empty string when none). System/vcpkg include dirs are skipped. */
+/** True when @p p is an ABI-BOUNDARY header: one whose types cross the
+ *  host/dylib line (Element/Composer/Material wrappers, SketchContext,
+ *  weave/motion values embedded in descriptions). Extension headers
+ *  (Layouts/Lines/Brushes/Shapes/styles/patterns…) compile fresh into
+ *  every dylib and stay self-contained — the host often does not even
+ *  link them, so their mtimes must not wedge the guard. */
+bool abiBoundaryHeader(const std::filesystem::path &p) {
+  const std::string s = p.generic_string();
+  if (s.find("include/sigilsketch/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilweave/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilmotion/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilcompose/") != std::string::npos) {
+    const std::string name = p.filename().string();
+    return name == "Compose.h" || name == "Material.h";
+  }
+  return false;
+}
+
+/** First ABI-boundary repo header on the flags file's -I paths newer than
+ *  @p hostTime (empty string when none). */
 std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
                                 std::filesystem::file_time_type hostTime) {
   std::ifstream flags(flagsFile);
@@ -80,6 +101,8 @@ std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
          !ec && it != std::filesystem::recursive_directory_iterator(); ++it) {
       const std::filesystem::path &p = it->path();
       if (p.extension() != ".h" && p.extension() != ".hpp")
+        continue;
+      if (!abiBoundaryHeader(p))
         continue;
       auto t = std::filesystem::last_write_time(p, ec);
       if (!ec && t > hostTime)
