@@ -71,6 +71,12 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.rotate, nd);
   transitionFloat(*this, inst, Instance::kScale, prev.paint.scale,
                   next.paint.scale, nd);
+  if (next.hasTrim || prev.hasTrim) {
+    transitionFloat(*this, inst, Instance::kTrimStart, prev.trimStart,
+                    next.trimStart, nd);
+    transitionFloat(*this, inst, Instance::kTrimEnd, prev.trimEnd,
+                    next.trimEnd, nd);
+  }
 
   // Fill: color→color lerp via a progress output.
   if (prev.paint.fill && next.paint.fill) {

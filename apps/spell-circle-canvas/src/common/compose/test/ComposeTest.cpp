@@ -814,6 +814,64 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
 }
 
+// ---- Trim Path (draw-on reveals) -------------------------------------------
+
+TEST(ComposeTrim, PartialOutlineStrokesOnlyRevealedStretch) {
+  // trim(0, 0.2) on a square + stroked outline: only the first 20% of the
+  // perimeter (the top edge) is dressed; right/bottom stay bare. The fill
+  // and every outline decoration trace the trimmed path.
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute()
+          .trim(0.0f, 0.2f)
+          .foreground(sigil::compose::util::stroke(4, green()))));
+  host.frame();
+  // Perimeter order (measured): left → top → right → bottom. First 20% ≈
+  // the left edge.
+  EXPECT_EQ(host.pixel(1, 50), SK_ColorGREEN);  // left edge revealed
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLACK);  // top edge bare
+  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK); // bottom edge bare
+}
+
+TEST(ComposeTrim, TransitionDrawsOn) {
+  // The draw-on border: trim end transitioned 0 → 1 reveals the perimeter
+  // over time (retarget-safe like every transitioned prop).
+  Host host;
+  auto tree = [](PropValue<float> end) {
+    return box().child(
+        box().key("b").width(100).height(100).inset(0, 0, 100, 100).absolute()
+            .trim(0.0f, std::move(end))
+            .foreground(sigil::compose::util::stroke(4, green())));
+  };
+  host.composer.render(tree(0.001f));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
+  host.composer.render(tree(with(1.0f, {400ms, &choreograph::easeNone})));
+  host.frame(0.2); // ~50%: left + top revealed, bottom still bare
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
+  host.frame(0.25); // settle → the full perimeter
+  EXPECT_EQ(host.pixel(50, 99), SK_ColorGREEN);
+}
+
+TEST(ComposeTrim, BoundTrimRevealsWithoutRender) {
+  // A bound trim end is content volatility: mutate the Output, no render(),
+  // and the reveal advances — the self-drawing wire primitive.
+  choreograph::Output<float> end{0.2f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).inset(0, 0, 100, 100).absolute()
+          .trim(0.0f, &end)
+          .foreground(sigil::compose::util::stroke(4, green()))));
+  host.frame();
+  // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
+  EXPECT_EQ(host.pixel(99, 30), SK_ColorBLACK); // bare at end=0.2
+  end = 0.6f; // no render()
+  host.frame();
+  EXPECT_EQ(host.pixel(99, 30), SK_ColorGREEN); // reveal reached it
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u); // paints live
+}
+
 #include <sigilcompose/Sdf.h>
 
 TEST(ComposeSdf, StarFillsCenterMissesCorners) {

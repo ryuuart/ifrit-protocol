@@ -352,6 +352,19 @@ public:
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
+  /** Trim the node's painted outline to the [start, end] fraction of its
+   *  arc length (the Lottie/sksg Trim Path — SkTrimPathEffect underneath).
+   *  Applies to the fill surface and every outline-following decoration
+   *  (PathFormat strokes, ContourWalk), so a stroked border with
+   *  `.trim(0, with(1.0f, {600ms}))` DRAWS ON, and a connector's wire can
+   *  reveal along its route. Both ends take the full PropValue treatment —
+   *  plain, with() transitions, or ch::Output bindings (bound/animating trim
+   *  is content volatility: the node paints live while moving). `offset`
+   *  shifts both ends (clamped; no wrap in this cut). Clipping and
+   *  hit-testing keep the UNtrimmed shape — trim is a paint-phase reveal,
+   *  not a layout change. */
+  Element &trim(PropValue<float> start, PropValue<float> end,
+                float offset = 0.0f);
   /** Custom outline: a path generator over the node's laid-out size,
    *  in local coordinates. Overrides corners() as the node's shape —
    *  the fill surface, clip(), and every outline-following decoration

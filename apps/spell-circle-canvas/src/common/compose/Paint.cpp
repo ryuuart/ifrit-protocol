@@ -11,11 +11,14 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkStrokeRec.h>
 #include <include/core/SkSurface.h>
+#include <include/effects/SkTrimPathEffect.h>
 
 #include <algorithm>
 #include <cmath>
@@ -67,6 +70,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent |= d.animated();
   if (node.kind == Kind::Image && node.imageAsset && node.imageAsset->animated())
     ownContent = true;
+  if (node.hasTrim) { // moving trim rebuilds the painted geometry
+    ownContent |= boundOrRunning(Instance::kTrimStart, node.trimStart);
+    ownContent |= boundOrRunning(Instance::kTrimEnd, node.trimEnd);
+  }
 
   bool childrenVolatile = false;
   for (auto &child : inst.children)
@@ -126,10 +133,36 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   }
 
   if (node.clipContent) {
+    // Clip keeps the UNtrimmed shape — trim is a paint reveal, not a bound.
     if (customShape)
       canvas.clipPath(outlinePath, true);
     else
       canvas.clipRRect(rrect, true);
+  }
+
+  // Trim Path: reveal [start, end] of the outline's arc length. Applied
+  // before PaintContext is built, so the fill and every outline-following
+  // decoration trace the trimmed path (draw-on borders, self-drawing wires).
+  bool trimmed = false;
+  if (node.hasTrim) {
+    float s = std::clamp(
+        inst.resolveFloat(Instance::kTrimStart, node.trimStart) +
+            node.trimOffset, 0.0f, 1.0f);
+    float e = std::clamp(
+        inst.resolveFloat(Instance::kTrimEnd, node.trimEnd) + node.trimOffset,
+        0.0f, 1.0f);
+    if (e < s)
+      std::swap(s, e);
+    if (s > 0.0f || e < 1.0f) {
+      if (sk_sp<SkPathEffect> fx = SkTrimPathEffect::Make(s, e)) {
+        SkPathBuilder dst;
+        SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+        if (fx->filterPath(&dst, outlinePath, &rec)) {
+          outlinePath = dst.detach();
+          trimmed = true;
+        }
+      }
+    }
   }
 
   // The node's own layer effect wraps everything painted here, so it is
@@ -195,7 +228,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     paint.setBlendMode(leafBlend);
     if (leafOpacity < 1.0f)
       paint.setAlphaf(paint.getAlphaf() * leafOpacity);
-    if (customShape)
+    if (customShape || trimmed)
       canvas.drawPath(paintCtx.outline, paint);
     else
       canvas.drawRRect(rrect, paint);

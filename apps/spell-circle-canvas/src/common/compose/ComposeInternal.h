@@ -51,6 +51,11 @@ struct ElementNode {
   Corners corners;
   std::function<SkPath(SkSize)> shapeFn; // custom outline; overrides corners
   bool clipContent = false;
+
+  // Trim Path: painted-outline reveal (fractions of arc length).
+  bool hasTrim = false;
+  PropValue<float> trimStart = 0.0f, trimEnd = 1.0f;
+  float trimOffset = 0.0f;
   Cache cacheMode = Cache::Auto;
   std::optional<Transition> nodeTransition;
 

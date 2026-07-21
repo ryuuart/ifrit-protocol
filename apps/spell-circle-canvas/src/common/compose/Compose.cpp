@@ -92,6 +92,14 @@ Element &Element::outline(std::function<SkPath(SkSize)> shape) {
   return *this;
 }
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
+Element &Element::trim(PropValue<float> start, PropValue<float> end,
+                       float offset) {
+  m_node->hasTrim = true;
+  m_node->trimStart = std::move(start);
+  m_node->trimEnd = std::move(end);
+  m_node->trimOffset = offset;
+  return *this;
+}
 
 // ---- paint ----------------------------------------------------------------
 

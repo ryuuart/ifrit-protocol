@@ -115,6 +115,12 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent || a.cacheMode != b.cacheMode)
     return false;
+  if (a.hasTrim != b.hasTrim)
+    return false;
+  if (a.hasTrim && (!propEqual(a.trimStart, b.trimStart) ||
+                    !propEqual(a.trimEnd, b.trimEnd) ||
+                    a.trimOffset != b.trimOffset))
+    return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition && !transitionEqual(*a.nodeTransition, *b.nodeTransition))

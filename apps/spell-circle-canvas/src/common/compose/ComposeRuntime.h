@@ -51,7 +51,11 @@ struct Instance {
   uint32_t measuredRev = ~0u; // rev the cached measurement belongs to
 
   // Transition state, keyed by property slot
-  enum Slot : int { kOpacity, kTx, kTy, kRotate, kScale, kFillLerp, kSlots };
+  enum Slot : int {
+    kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
+    kTrimStart, kTrimEnd,
+    kSlots
+  };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
   Fill fillFrom, fillTo; // endpoints for kFillLerp
 
