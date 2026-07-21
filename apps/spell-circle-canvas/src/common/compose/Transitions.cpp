@@ -85,7 +85,35 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
 
   auto entrance = [&](Instance::Slot slot, const PropValue<float> &v) {
     const Transitioned<float> *tr = std::get_if<Transitioned<float>>(&v);
-    if (!tr || !tr->from || *tr->from == tr->value)
+    if (!tr)
+      return;
+    // withKeyframes(): the multi-segment mount path — checked BEFORE the
+    // from==value guard (a shake 0→−20→0 starts and ends equal).
+    if (tr->waypoints.size() >= 2) {
+      auto &anim = inst.anims[slot];
+      if (!anim)
+        anim = std::make_unique<AnimatedFloat>();
+      const float first = tr->waypoints.front().second;
+      anim->value = first;
+      anim->started = true;
+      auto motion = ticker.timeline().apply(&anim->value);
+      const float lead =
+          std::chrono::duration<float>(tr->spec.delay).count() +
+          mountDelayCarryMs / 1000.0f +
+          std::chrono::duration<float>(tr->waypoints.front().first).count();
+      if (lead > 0)
+        motion.then<choreograph::Hold>(first, lead);
+      for (size_t i = 1; i < tr->waypoints.size(); ++i) {
+        const float seg = std::chrono::duration<float>(
+                              tr->waypoints[i].first -
+                              tr->waypoints[i - 1].first)
+                              .count();
+        motion.then<choreograph::RampTo>(tr->waypoints[i].second,
+                                         std::max(seg, 0.0f), tr->spec.ease);
+      }
+      return;
+    }
+    if (!tr->from || *tr->from == tr->value)
       return;
     auto &anim = inst.anims[slot];
     if (!anim)

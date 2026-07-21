@@ -26,8 +26,10 @@
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRRect.h>
+#include <include/core/SkString.h>
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
 
 #include <cmath>
 
@@ -204,6 +206,46 @@ inline Overlay gradientOverlay(Material gradient,
 inline Effect textGlow(SkColor4f color, float sigma) {
   return Effect::filter(SkImageFilters::DropShadow(
       0, 0, sigma, sigma, color.toSkColor(), nullptr));
+}
+
+/** The water/heat warp: the node's rendered layer resampled through a
+ *  sine displacement field — P3R's sea distortion (y shifted by a sine
+ *  of x; §1: amp ≈ 2% of height, ~2 waves across, slow phase) and every
+ *  glass-shimmer cousin. Attach with .effect() (warps the node's own
+ *  layer) or .backdrop() (warps what's beneath). An Effect is a static
+ *  value: animate by re-describing with a moving `phase` — the node
+ *  re-records per change, so reserve animation for feature moments or
+ *  pair with Cache::None. `vertical` displaces x by a sine of y
+ *  instead. */
+inline Effect ripple(float amplitudePx, float wavelengthPx,
+                     float phase = 0.0f, bool vertical = false) {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+      uniform shader content;
+      uniform float uAmp;
+      uniform float uFreq;   // radians per px
+      uniform float uPhase;
+      uniform float uVertical;
+      half4 main(float2 p) {
+        float2 q = p;
+        if (uVertical > 0.5)
+          q.x += sin(p.y * uFreq + uPhase) * uAmp;
+        else
+          q.y += sin(p.x * uFreq + uPhase) * uAmp;
+        return content.eval(q);
+      }
+    )"));
+    if (!effect)
+      SkDebugf("sigilcompose ripple shader: %s\n", err.c_str());
+    return effect;
+  }();
+  if (!fx)
+    return {};
+  return Effect::shader(
+      fx, {{"uAmp", amplitudePx},
+           {"uFreq", 6.2831853f / std::max(wavelengthPx, 1.0f)},
+           {"uPhase", phase},
+           {"uVertical", vertical ? 1.0f : 0.0f}});
 }
 
 // ---------------------------------------------------------------------------

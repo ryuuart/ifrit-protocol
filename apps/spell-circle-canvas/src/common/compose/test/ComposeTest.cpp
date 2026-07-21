@@ -3340,3 +3340,83 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
   Material continuous = Material::sksl(fx);
   EXPECT_NE(sampleAt(continuous, 0.6), sampleAt(continuous, 0.9));
 }
+
+TEST(ComposeMotion, KeyframesPlayTheMountPath) {
+  // The P3R cursor overshoot: +40 → −20 → 0. Mid-path the box sits LEFT
+  // of rest — a single from→to ramp could never cross it.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(100, 80, 60, 80)
+          .fill(red())
+          .translateX(withKeyframes<float>(
+              {{std::chrono::milliseconds(0), 40.0f},
+               {std::chrono::milliseconds(200), -20.0f},
+               {std::chrono::milliseconds(400), 0.0f}},
+              &choreograph::easeNone))));
+  host.frame();
+  EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
+  EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
+  host.frame(0.2); // waypoint 2: x = −20
+  EXPECT_EQ(host.pixel(85, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(145, 100), SK_ColorBLACK);
+  host.frame(0.3); // settled at 0
+  EXPECT_EQ(host.pixel(105, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(85, 100), SK_ColorBLACK);
+  // Identical re-describe prunes (waypoints compare structurally).
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(100, 80, 60, 80)
+          .fill(red())
+          .translateX(withKeyframes<float>(
+              {{std::chrono::milliseconds(0), 40.0f},
+               {std::chrono::milliseconds(200), -20.0f},
+               {std::chrono::milliseconds(400), 0.0f}},
+              &choreograph::easeNone))));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+}
+
+TEST(ComposeLayouts, StickerScatterGeneratesTheLadder) {
+  const auto slots = layouts::stickerScatter(5, 3);
+  ASSERT_EQ(slots.size(), 5u);
+  for (size_t i = 0; i + 1 < slots.size(); ++i)
+    EXPECT_LT(slots[i].rotateDeg, 0) << i; // all but last lean negative
+  EXPECT_GT(slots.back().rotateDeg, 0);    // last flips positive
+  EXPECT_LT(slots.back().rotateDeg, 15);   // gently
+  for (const auto &s : slots)
+    EXPECT_LE(s.dx, 0); // jitter pulls left, never right
+  // Deterministic per seed; different seed, different scatter.
+  const auto again = layouts::stickerScatter(5, 3);
+  EXPECT_EQ(slots[2].rotateDeg, again[2].rotateDeg);
+  const auto other = layouts::stickerScatter(5, 9);
+  EXPECT_NE(slots[2].rotateDeg, other[2].rotateDeg);
+}
+
+TEST(ComposeStyles, RippleDisplacesTheLayer) {
+  // A thin horizontal red bar warped by a strong ripple: pixels appear
+  // off-axis where the flat version has none.
+  auto bar = [](bool warped) {
+    Element e = box()
+                    .absolute()
+                    .inset(20, 96, 20, 96)
+                    .fill(Fill::color({1, 0, 0, 1}));
+    if (warped)
+      e.effect(styles::ripple(10, 60));
+    return box().child(std::move(e));
+  };
+  Host flat, warped;
+  flat.composer.render(bar(false));
+  warped.composer.render(bar(true));
+  flat.frame();
+  warped.frame();
+  int off = 0, offFlat = 0;
+  for (int x = 30; x < 170; x += 2)
+    for (int dy : {-7, 7}) {
+      off += warped.pixel(x, 100 + dy) != SK_ColorBLACK;
+      offFlat += flat.pixel(x, 100 + dy) != SK_ColorBLACK;
+    }
+  EXPECT_GT(off, 15);
+  EXPECT_EQ(offFlat, 0);
+}

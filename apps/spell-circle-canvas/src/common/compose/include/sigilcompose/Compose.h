@@ -83,6 +83,11 @@ template <typename T> struct Transitioned {
   /** withFrom(): where the value ENTERS from when the node first mounts.
    *  Empty for plain with() — no entrance, only change transitions. */
   std::optional<T> from{};
+  /** withKeyframes(): the mount-time path as (absolute time, value)
+   *  pairs — multi-segment entrances (damped overshoots) that one
+   *  from→to ramp can't shape. Mount-only choreography: later changes
+   *  retarget to `value` like any with(). */
+  std::vector<std::pair<std::chrono::milliseconds, T>> waypoints{};
 };
 
 /** Wraps a constant so changes to it transition (see API.md semantics:
@@ -101,6 +106,33 @@ template <typename T> Transitioned<T> with(T value, Transition spec) {
  *  ignores entrances — a bake renders the settled value. */
 template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec) {
   return {std::move(to), std::move(spec), std::move(from)};
+}
+
+/** The MOUNT keyframe path (GSAP keyframes): absolute (time, value)
+ *  waypoints played through on first appearance — the damped-overshoot
+ *  entrances one ramp can't shape (P3R's cursor: +40 → −20 → +10 → 0):
+ *
+ *    .translateX(withKeyframes<float>(
+ *        {{0ms, 40}, {200ms, -20}, {300ms, 10}, {400ms, 0}}))
+ *
+ *  `ease` applies per segment. A leading time > 0 holds the first value
+ *  (a built-in delay; Transition::delay and staggerChildren() still add
+ *  on top). After the path completes the value behaves like with(last):
+ *  changes retarget-from-current; identical re-describes prune;
+ *  snapshot()/measure() render the settled end value. */
+template <typename T>
+Transitioned<T>
+withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
+              choreograph::EaseFn ease = &choreograph::easeOutQuad) {
+  Transitioned<T> t;
+  t.spec.ease = std::move(ease);
+  if (!frames.empty()) {
+    t.from = frames.front().second;
+    t.value = frames.back().second;
+    t.spec.duration = frames.back().first;
+  }
+  t.waypoints = std::move(frames);
+  return t;
 }
 
 /**

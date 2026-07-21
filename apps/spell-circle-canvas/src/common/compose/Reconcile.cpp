@@ -79,6 +79,7 @@ bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
   if (const Transitioned<T> *trA = std::get_if<Transitioned<T>>(&a)) {
     const Transitioned<T> *trB = std::get_if<Transitioned<T>>(&b);
     return trA->value == trB->value && trA->from == trB->from &&
+           trA->waypoints == trB->waypoints &&
            transitionEqual(trA->spec, trB->spec);
   }
   return std::get<const choreograph::Output<T> *>(a) ==
