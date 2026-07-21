@@ -196,10 +196,21 @@ public:
             return scheme.animated();
           else
             return false;
-        }()),
-        m_paint([s = std::move(scheme)](SkCanvas &c, const PaintContext &ctx) {
-          s.paint(c, ctx);
-        }) {}
+        }()) {
+    // Value-comparable schemes (PathFormat, Slice, Shadow…) retain a
+    // comparator so the reconciler can prune a static decorated node with no
+    // memo (see propsEqual). A non-comparable scheme — or a bare
+    // PaintProgram — keeps none and stays conservatively unequal.
+    if constexpr (std::equality_comparable<D>) {
+      m_scheme = scheme; // retained copy, compared structurally
+      m_equals = [](const std::any &a, const std::any &b) {
+        return std::any_cast<const D &>(a) == std::any_cast<const D &>(b);
+      };
+    }
+    m_paint = [s = std::move(scheme)](SkCanvas &c, const PaintContext &ctx) {
+      s.paint(c, ctx);
+    };
+  }
   Decoration(PaintProgram program) // NOLINT: implicit by design
       : m_paint(std::move(program)) {}
 
@@ -209,9 +220,20 @@ public:
   }
   bool animated() const { return m_animated; }
 
+  /** Structural equality for the no-memo prune: true only when both wrap the
+   *  same value-comparable scheme type and those values compare equal. A bare
+   *  PaintProgram or an incomparable scheme always compares unequal —
+   *  conservative, matching the rest of the reconciler's equality. */
+  bool operator==(const Decoration &o) const {
+    return m_equals && o.m_equals && m_scheme.type() == o.m_scheme.type() &&
+           m_equals(m_scheme, o.m_scheme);
+  }
+
 private:
   bool m_animated = false;
   PaintProgram m_paint;
+  std::any m_scheme;
+  std::function<bool(const std::any &, const std::any &)> m_equals;
 };
 
 // ---------------------------------------------------------------------------
@@ -330,7 +352,9 @@ public:
    *  in local coordinates. Overrides corners() as the node's shape —
    *  the fill surface, clip(), and every outline-following decoration
    *  (PathFormat strokes, ContourWalk) trace it. Spiky dialogs,
-   *  scalloped frames, any non-rectangular chrome. */
+   *  scalloped frames, any non-rectangular chrome. Like custom(), the
+   *  generator is an incomparable callable — memo() such a node (or keep it
+   *  pointer-stable) to prune it while its size and inputs are unchanged. */
   Element &outline(std::function<SkPath(SkSize)> shape);
   Element &clip(bool on = true);
 
@@ -415,7 +439,12 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 /** A box whose content is one paint program (≡ box().background(p)).
  *  Cached like any static subtree — programs that read the clock or
- *  otherwise change per frame must declare .cache(Cache::None). */
+ *  otherwise change per frame must declare .cache(Cache::None). The program
+ *  is an incomparable callable, so the structural prune cannot prove a
+ *  custom() node unchanged: it re-records on every render(). Wrap it in
+ *  memo() (or keep its Element pointer-stable across renders) to prune it
+ *  while its inputs are unchanged. Value decorations (PathFormat/Slice/
+ *  Shadow) do prune automatically — prefer them for static chrome. */
 Element custom(PaintProgram program);
 
 /** A container whose children are placed by @p scheme instead of

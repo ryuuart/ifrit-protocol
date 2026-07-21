@@ -53,6 +53,10 @@ struct PathFormat {
   /** Escape hatch: any SkPathEffect; overrides dash/stamp when set. */
   sk_sp<SkPathEffect> effect;
 
+  /** Structural equality so a static stroked/dashed/stamped border prunes
+   *  without memo (the custom SkPathEffect compares by pointer identity). */
+  bool operator==(const PathFormat &) const = default;
+
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     SkPaint p;
     p.setAntiAlias(true);
@@ -81,6 +85,10 @@ struct Slice {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::vector<int> xDivs;
   std::vector<int> yDivs;
+
+  /** Structural equality (asset by pointer identity) so a static nine-slice
+   *  frame prunes without memo. */
+  bool operator==(const Slice &) const = default;
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     if (!asset || asset->frames().empty())

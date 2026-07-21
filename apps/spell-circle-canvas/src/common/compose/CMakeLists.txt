@@ -8,7 +8,14 @@
 add_library(SigilCompose STATIC
   Compose.cpp
   Composer.cpp
+  Reconcile.cpp
+  Layout.cpp
+  Derive.cpp
+  Paint.cpp
+  Transitions.cpp
+  Query.cpp
   ComposeInternal.h
+  ComposeRuntime.h
   include/sigilcompose/Compose.h
   include/sigilcompose/Decorations.h
   include/sigilcompose/Layouts.h

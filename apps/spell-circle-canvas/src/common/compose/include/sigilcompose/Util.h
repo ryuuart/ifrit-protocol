@@ -53,22 +53,31 @@ inline PathFormat stroke(float width, Fill fill) {
   return f;
 }
 
-/** A soft drop shadow behind the node's outline — attach with
- *  .background() *before* the fill so the fill paints over it. */
-inline Decoration shadow(SkColor4f color, SkVector offset, float blur) {
-  return Decoration(PaintProgram(
-      [color, offset, blur](SkCanvas &canvas, const PaintContext &ctx) {
-        SkPaint p;
-        p.setAntiAlias(true);
-        p.setColor4f(color, nullptr);
-        if (blur > 0)
-          p.setMaskFilter(
-              SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
-        canvas.save();
-        canvas.translate(offset.x(), offset.y());
-        canvas.drawPath(ctx.outline, p);
-        canvas.restore();
-      }));
+/** A soft drop shadow behind the node's outline — a value DecorationScheme
+ *  (so a static shadowed node prunes without memo). Attach with .background()
+ *  *before* the fill so the fill paints over it. */
+struct Shadow {
+  SkColor4f color = {0, 0, 0, 1};
+  SkVector offset = {0, 0};
+  float blur = 0;
+
+  bool operator==(const Shadow &) const = default;
+
+  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor4f(color, nullptr);
+    if (blur > 0)
+      p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
+    canvas.save();
+    canvas.translate(offset.x(), offset.y());
+    canvas.drawPath(ctx.outline, p);
+    canvas.restore();
+  }
+};
+
+inline Shadow shadow(SkColor4f color, SkVector offset, float blur) {
+  return Shadow{color, offset, blur};
 }
 
 /**

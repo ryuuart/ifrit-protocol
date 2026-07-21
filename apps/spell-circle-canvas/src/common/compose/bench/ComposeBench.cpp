@@ -100,6 +100,72 @@ static void BM_Render_100Rows_OneChanged(benchmark::State &state) {
 }
 BENCHMARK(BM_Render_100Rows_OneChanged);
 
+/** A static decorated row: fill + drop shadow + stroked border — the chrome
+ *  shape that pre-P0 defeated the structural prune (any decoration forced a
+ *  re-patch + re-record every render). No memo: this exercises the no-memo
+ *  prune over value decorations (Shadow, PathFormat). */
+static Element decoratedRow(const Row &row) {
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 14.0f;
+  return box().row().gap(12).padding(8).corners({6})
+      .fill(Fill::color({0.13f, 0.13f, 0.16f, 1}))
+      .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 2}, 6))
+      .foreground(
+          sigil::compose::util::stroke(1.5f, Fill::color({0.5f, 0.5f, 0.6f, 1})))
+      .child(text(sigil::compose::util::toU8(row.name), style).grow(1))
+      .child(
+          text(sigil::compose::util::toU8(std::to_string(row.score)), style));
+}
+
+static Element decoratedBoard(const std::vector<Row> &rows) {
+  auto list = box().column().gap(4).padding(16);
+  for (const Row &row : rows)
+    list.child(decoratedRow(row).key(row.name)); // no memo — prune must cover it
+  return list;
+}
+
+/** Re-render 100 static DECORATED rows, nothing changed. Pre-P0 every row
+ *  re-patched + re-recorded (decorations defeated the prune); now the
+ *  value-decoration prune skips them all (patchedNodes → 0). Render-only cost
+ *  is describe-dominated (no memo re-builds the rows), so the patch savings
+ *  are in the noise here — the win shows on the draw side below. */
+static void BM_Render_100DecoratedRows_Unchanged(benchmark::State &state) {
+  Host host;
+  auto rows = makeRows(100);
+  host.composer.render(decoratedBoard(rows));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.render(decoratedBoard(rows));
+  state.counters["patchedNodes"] = (double)host.composer.stats().patchedNodes;
+}
+BENCHMARK(BM_Render_100DecoratedRows_Unchanged);
+
+/** The realistic frame loop for static decorated chrome: re-render (no memo)
+ *  then draw ONLY when dirty() — the standard host contract (API.md worked
+ *  example 2 / util::Stage). Pre-P0, an unchanged decorated render still set
+ *  contentDirty (every decoration defeated the prune), so dirty() stayed true
+ *  and the host redrew the whole scene every frame; now the prune leaves
+ *  dirty() false, so the host skips the draw entirely — the blurred-shadow
+ *  rasterization is never paid. (draws% → 0, the frame collapses to describe
+ *  cost.) */
+static void BM_Frame_100DecoratedRows_Static(benchmark::State &state) {
+  Host host;
+  auto rows = makeRows(100);
+  host.composer.render(decoratedBoard(rows));
+  host.composer.draw(*host.surface->getCanvas());
+  double draws = 0, frames = 0;
+  for (auto _ : state) {
+    host.composer.render(decoratedBoard(rows));
+    if (host.composer.dirty()) { // host skips clean frames
+      host.composer.draw(*host.surface->getCanvas());
+      ++draws;
+    }
+    ++frames;
+  }
+  state.counters["draws%"] = 100.0 * draws / frames;
+}
+BENCHMARK(BM_Frame_100DecoratedRows_Static);
+
 /** Cold describe + mount of the full 100-row tree (worst case). */
 static void BM_Render_100Rows_Cold(benchmark::State &state) {
   auto rows = makeRows(100);

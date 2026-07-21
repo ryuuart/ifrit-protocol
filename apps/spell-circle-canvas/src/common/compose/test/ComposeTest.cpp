@@ -547,6 +547,33 @@ TEST(ComposeUtil, ShadowAndStrokeSugar) {
   EXPECT_EQ(host.pixel(80, 40), SK_ColorGREEN);   // stroked top edge
 }
 
+TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
+  // Value decorations (Shadow, PathFormat stroke/dash) let a static decorated
+  // node prune without memo — the P0 chrome fix. Before it, any decoration
+  // forced a re-patch + re-record on every render().
+  Host host;
+  auto tree = [] {
+    PathFormat dash;
+    dash.width = 1;
+    dash.strokeFill = blue();
+    dash.dashIntervals = {4, 3};
+    return box().row().gap(8).padding(12)
+        .child(box().width(40).height(40).corners({6}).fill(red())
+                   .background(sigil::compose::util::shadow({0, 0, 0, 0.5f},
+                                                            {2, 2}, 4))
+                   .foreground(sigil::compose::util::stroke(2, green())))
+        .child(box().width(60).height(20).foreground(dash));
+  };
+  host.composer.render(tree());
+  host.frame();
+
+  host.composer.render(tree()); // identical, brand-new Elements + decorations
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty()); // hosts may skip the redraw entirely
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
 namespace {
 sigil::weave::TextStyle whiteStyle(float size) {
   sigil::weave::TextStyle s = styleAt(size);
