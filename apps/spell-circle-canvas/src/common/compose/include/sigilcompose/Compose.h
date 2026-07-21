@@ -538,6 +538,14 @@ public:
    *  freezes paint time at 0 — fine for static content and goldens. */
   void setClock(const motion::FrameClock *clock);
 
+  /** Output view transform (color management): applied to the composer's
+   *  whole output as the final stage — one saveLayer while set, zero cost
+   *  when cleared (a default Effect{}). The intended source is an OCIO
+   *  display/view baked to a 3D LUT (<sigilcompose/Ocio.h>), but any Effect
+   *  works. Per-node caches are unaffected (this is post-cache, at
+   *  composite). */
+  void setView(Effect view);
+
   /** Reconciles against the retained tree (keys match instances; memo
    *  and payload identity prune). Call whenever data changed. */
   void render(Element root);

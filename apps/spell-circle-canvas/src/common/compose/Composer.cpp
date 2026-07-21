@@ -78,6 +78,11 @@ void Composer::setClock(const motion::FrameClock *clock) {
   m_impl->clock = clock;
 }
 
+void Composer::setView(Effect view) {
+  m_impl->view = std::move(view);
+  m_impl->contentDirty = true; // the composite changes even if no node did
+}
+
 void Composer::render(Element root) {
   Impl &impl = *m_impl;
   impl.stats.describedNodes = 0;
@@ -152,7 +157,18 @@ void Composer::draw(SkCanvas &canvas) {
   }
   impl.tickerWasActive = active;
 
+  // Output view transform: the composer's whole output renders into one
+  // layer and composites through the view filter (an OCIO display/view baked
+  // to a LUT, typically). Post-cache: per-node pictures replay unchanged.
+  const bool hasView = (bool)impl.view.imageFilter();
+  if (hasView) {
+    SkPaint viewPaint;
+    viewPaint.setImageFilter(impl.view.imageFilter());
+    canvas.saveLayer(nullptr, &viewPaint);
+  }
   impl.paint(*impl.root, canvas);
+  if (hasView)
+    canvas.restore();
   impl.contentDirty = false;
 }
 

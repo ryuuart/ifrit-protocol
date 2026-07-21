@@ -43,6 +43,19 @@ target_link_libraries(SigilCompose
     yoga::yogacore
 )
 
+# OpenColorIO output view transforms (<sigilcompose/Ocio.h>): OCIO is already
+# in the dependency closure (transitively via OpenImageIO), so this adds no
+# new vcpkg dependency — the extension simply disables with a warning if the
+# package is absent (the SPELLCIRCLE_ENABLE_ULTRALIGHT pattern).
+find_package(OpenColorIO CONFIG QUIET)
+if(TARGET OpenColorIO::OpenColorIO)
+  target_sources(SigilCompose PRIVATE Ocio.cpp include/sigilcompose/Ocio.h)
+  target_link_libraries(SigilCompose PRIVATE OpenColorIO::OpenColorIO)
+  target_compile_definitions(SigilCompose PUBLIC SIGILCOMPOSE_ENABLE_OCIO)
+else()
+  message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
+endif()
+
 add_executable(compose_test
   test/ComposeTest.cpp
 )

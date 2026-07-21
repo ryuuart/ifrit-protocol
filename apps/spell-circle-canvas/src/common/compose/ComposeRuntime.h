@@ -129,6 +129,7 @@ struct Composer::Impl {
   bool hasDerived = false; // any flowAround/connector in the tree
   bool hasCustomLayout = false;
   bool liveOnly = false; // snapshot(): skip per-node caches
+  Effect view;           // output view transform (null filter = pass-through)
 
   mutable Stats stats;
 

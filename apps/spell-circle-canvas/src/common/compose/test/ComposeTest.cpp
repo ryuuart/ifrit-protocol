@@ -772,6 +772,30 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
 }
 
+#ifdef SIGILCOMPOSE_ENABLE_OCIO
+#include <sigilcompose/Ocio.h>
+
+TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
+  // The OCIO output stage end-to-end: an exponent transform baked to a LUT
+  // darkens mid-gray (0.5^2.2 ≈ 0.218); clearing the view restores
+  // pass-through. Exercises bake → SkImage LUT → SkSL trilinear → saveLayer.
+  ASSERT_TRUE(sigil::compose::ocio::available());
+  Host host;
+  host.composer.setView(sigil::compose::ocio::exponent(2.2f));
+  host.composer.render(box().child(
+      box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
+  host.frame();
+  const uint32_t dark = SkColorGetR(host.pixel(30, 30));
+  EXPECT_GT(dark, 30u);  // ≈ 56 (LUT-quantized)
+  EXPECT_LT(dark, 80u);
+  host.composer.setView({}); // pass-through again
+  host.frame();
+  const uint32_t plain = SkColorGetR(host.pixel(30, 30));
+  EXPECT_GT(plain, 118u); // ≈ 128
+  EXPECT_LT(plain, 138u);
+}
+#endif // SIGILCOMPOSE_ENABLE_OCIO
+
 TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
   // host in debug): unknown names are warned and dropped, at sksl() and at
