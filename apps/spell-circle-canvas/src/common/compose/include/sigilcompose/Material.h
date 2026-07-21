@@ -131,6 +131,14 @@ public:
   Material &uniform(std::string name, SkColor4f value);
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
+  /** Step the auto-injected uTime at `hz` (floor(t·hz)/hz) — declared
+   *  choppiness as a MATERIAL property, not per-consumer ticker plumbing.
+   *  The P3R sea rule: its caustics run at 6 Hz ("we imagine the
+   *  interpolation ourselves"); stop-motion/flipbook surfaces generally.
+   *  Meaningful only on an sksl() material whose effect declares uTime
+   *  (warn-and-ignore otherwise); 0 restores continuous time. */
+  Material &quantizeTime(float hz);
+
   // ---- resolution ----------------------------------------------------------
   /** True once any ch::Output uniform is bound OR the effect reads uTime or
    *  uContentScale (both change independently of the node): the material

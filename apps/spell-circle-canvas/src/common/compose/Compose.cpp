@@ -185,6 +185,10 @@ Element &Element::foreground(Decoration d) {
 Element &Element::stroke(Decoration brush) {
   return foreground(std::move(brush));
 }
+Element &Element::echo(SkVector offset, SkColor4f color) {
+  m_node->echoes.push_back(Echo{offset, color});
+  return *this;
+}
 Element &Element::style(LayerStyle s) {
   for (Decoration &d : s.under)
     m_node->backgrounds.push_back(std::move(d));
@@ -257,8 +261,10 @@ Element &Element::transition(Transition t) {
   m_node->nodeTransition = std::move(t);
   return *this;
 }
-Element &Element::staggerChildren(std::chrono::milliseconds each) {
+Element &Element::staggerChildren(std::chrono::milliseconds each,
+                                  Stagger::From from) {
   m_node->staggerChildrenMs = (float)each.count();
+  m_node->staggerFrom = from;
   return *this;
 }
 

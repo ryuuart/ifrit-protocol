@@ -69,7 +69,8 @@ struct ElementNode {
   TrimMode trimMode = TrimMode::Clamp;
   Cache cacheMode = Cache::Auto;
   std::optional<Transition> nodeTransition;
-  float staggerChildrenMs = 0; // extra i·each mount delay per child subtree
+  float staggerChildrenMs = 0; // extra order·each mount delay per subtree
+  Stagger::From staggerFrom = Stagger::From::Start;
 
   // Text
   std::u8string textUtf8;
@@ -87,6 +88,9 @@ struct ElementNode {
 
   // Kinetic typography (text leaves)
   std::optional<GlyphFx> glyphFx;
+
+  // Misprint echoes (offset flat-color re-stamps under fill/text)
+  std::vector<Echo> echoes;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;

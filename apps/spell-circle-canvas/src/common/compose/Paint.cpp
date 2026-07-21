@@ -207,6 +207,9 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     bleed = std::max(bleed, d.bleed());
   for (const Decoration &d : node.foregrounds)
     bleed = std::max(bleed, d.bleed());
+  for (const Echo &e : node.echoes)
+    bleed = std::max(
+        bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
   if (bleed > 0)
     local.outset(bleed, bleed);
   if (node.clipContent)
@@ -396,6 +399,23 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     resolvedFill = fill;
   }
 
+  // Misprint echoes of the FILL SHAPE, under the real pass (bottom first).
+  if (!node.echoes.empty() && resolvedFill &&
+      resolvedFill->kind != Fill::Kind::None) {
+    for (const Echo &e : node.echoes) {
+      SkPaint stamp;
+      stamp.setAntiAlias(true);
+      stamp.setColor4f(e.color, nullptr);
+      canvas.save();
+      canvas.translate(e.offset.fX, e.offset.fY);
+      if (customShape || trimmed)
+        canvas.drawPath(paintCtx.outline, stamp);
+      else
+        canvas.drawRRect(rrect, stamp);
+      canvas.restore();
+    }
+  }
+
   if (resolvedFill && resolvedFill->kind != Fill::Kind::None) {
     const Fill &fill = *resolvedFill;
     SkPaint paint;
@@ -430,6 +450,18 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                sigil::weave::TextAlignment::kStart &&
            inst.measuredForWidth != bounds.width()))
         layoutText(inst, bounds.width());
+      // Misprint echoes of the TEXT, under the real pass (kinetic text
+      // draws its own buckets — echoes skip it by contract).
+      if (!node.echoes.empty() && !(node.glyphFx && node.glyphFx->effect)) {
+        for (const Echo &e : node.echoes) {
+          sigil::weave::PaintStyle stamp;
+          stamp.foreground.setColor4f(e.color, nullptr);
+          canvas.save();
+          canvas.translate(e.offset.fX, e.offset.fY);
+          inst.textLayout.drawBatched(&canvas, *inst.paragraph, &stamp);
+          canvas.restore();
+        }
+      }
       if (node.glyphFx && node.glyphFx->effect) {
         paintKineticText(inst, canvas, *node.glyphFx);
       } else if (node.textMetricFill) {

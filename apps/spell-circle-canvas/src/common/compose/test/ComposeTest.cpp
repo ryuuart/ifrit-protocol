@@ -3260,3 +3260,83 @@ TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
       distinct.insert(host.pixel(x, y));
   EXPECT_GT(distinct.size(), 30u); // organic variation, not a flat fill
 }
+
+// ---------------------------------------------------------------------------
+// Round-3 friction batch: echo misprints, stagger origin, quantized time.
+
+TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
+  Host host;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(50, 50, 90, 90)
+                                       .fill(red())
+                                       .echo({10, 10}, {0, 1, 0, 1})));
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorRED);    // real fill on top
+  EXPECT_EQ(host.pixel(115, 115), SK_ColorGREEN); // echo peeking past it
+  EXPECT_EQ(host.pixel(45, 45), SK_ColorBLACK);   // nothing before either
+  host.frame(); // survives the cached replay (cull grew by the offset)
+  EXPECT_EQ(host.pixel(115, 115), SK_ColorGREEN);
+}
+
+TEST(ComposeText, EchoStampsTextUnderThePass) {
+  Host host(300, 120);
+  host.composer.render(box().padding(20).child(
+      text(u8"ECHO", whiteStyle(48)).echo({6, -8}, {1, 0, 0, 1})));
+  host.frame();
+  int redCount = 0, whiteCount = 0;
+  for (int y = 0; y < 120; y += 2)
+    for (int x = 0; x < 300; x += 2) {
+      redCount += host.pixel(x, y) == SK_ColorRED;
+      whiteCount += host.pixel(x, y) == SK_ColorWHITE;
+    }
+  EXPECT_GT(whiteCount, 50); // the real pass
+  EXPECT_GT(redCount, 20);   // the misprint peeking out at (6,−8)
+}
+
+TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
+  Host host;
+  auto card = [] {
+    return box().width(60).height(30).fill(red()).opacity(
+        withFrom(0.0f, 1.0f, {200ms, &choreograph::easeNone}));
+  };
+  host.composer.render(box()
+                           .column()
+                           .gap(10)
+                           .staggerChildren(400ms, Stagger::From::End)
+                           .child(card())
+                           .child(card()));
+  host.frame(0.3); // LAST child leads; first still holds its `from`
+  EXPECT_EQ(host.pixel(30, 15), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
+  host.frame(0.5);
+  EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
+}
+
+TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
+  // uTime → red channel; with quantizeTime(2) samples inside one half-
+  // second step resolve identically, and differ across steps.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float uTime; half4 main(float2 p) {"
+      "  return half4(fract(uTime), 0, 0, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Material stepped = Material::sksl(fx).quantizeTime(2.0f);
+  auto sampleAt = [&](Material &m, double seconds) {
+    PaintContext ctx;
+    ctx.size = {8, 8};
+    ctx.elapsedSeconds = seconds;
+    Fill f = m.resolve(ctx);
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
+    SkPaint p;
+    p.setShader(f.shaderValue);
+    s->getCanvas()->drawPaint(p);
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+    s->readPixels(bm.pixmap(), 1, 1);
+    return bm.getColor(0, 0);
+  };
+  EXPECT_EQ(sampleAt(stepped, 0.6), sampleAt(stepped, 0.9));  // same step
+  EXPECT_NE(sampleAt(stepped, 0.6), sampleAt(stepped, 1.1));  // next step
+  Material continuous = Material::sksl(fx);
+  EXPECT_NE(sampleAt(continuous, 0.6), sampleAt(continuous, 0.9));
+}

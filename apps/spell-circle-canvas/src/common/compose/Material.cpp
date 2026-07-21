@@ -17,6 +17,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <array>
+#include <cmath>
 
 namespace sigil::compose {
 
@@ -37,6 +38,9 @@ struct Material::Live {
   bool usesTime = false;
   bool usesScale = false;
   bool usesGeometry = false;
+  // quantizeTime(): step the injected uTime at this rate (0 = continuous) —
+  // the P3R sea rule ("we imagine the interpolation ourselves").
+  float timeQuantizeHz = 0;
 };
 
 /** The comparable build recipe behind gradient/image/blend materials — the
@@ -145,8 +149,12 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   if (ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
-    if (validUniform(live.effect, "uTime", sizeof(float)))
-      b.uniform("uTime") = (float)ctx->elapsedSeconds;
+    if (validUniform(live.effect, "uTime", sizeof(float))) {
+      double t = ctx->elapsedSeconds;
+      if (live.timeQuantizeHz > 0)
+        t = std::floor(t * live.timeQuantizeHz) / live.timeQuantizeHz;
+      b.uniform("uTime") = (float)t;
+    }
     if (validUniform(live.effect, "uContentScale", sizeof(float)))
       b.uniform("uContentScale") = ctx->contentScale;
     if (validUniform(live.effect, "uResolution", 2 * sizeof(float)))
@@ -343,6 +351,22 @@ Material &Material::uniform(std::string name,
   detachLive();
   m_live->binds.emplace_back(std::move(name), output);
   return *this; // now LIVE; painting resolves per frame (resolve())
+}
+
+Material &Material::quantizeTime(float hz) {
+  if (!m_live) {
+    SkDebugf("Material::quantizeTime: ignored — only sksl() materials carry "
+             "uTime\n");
+    return *this;
+  }
+  if (!validUniform(m_live->effect, "uTime", sizeof(float))) {
+    SkDebugf("Material::quantizeTime: ignored — the effect does not declare "
+             "`uniform float uTime`\n");
+    return *this;
+  }
+  detachLive();
+  m_live->timeQuantizeHz = hz > 0 ? hz : 0;
+  return *this;
 }
 
 bool Material::isLive() const {

@@ -107,6 +107,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   // Slice, Shadow…); an incomparable one (bare program, ContourWalk with a
   // draw lambda) makes Decoration::operator== false, so the node stays
   // conservative — static chrome prunes, live/opaque decorations don't.
+  if (a.echoes != b.echoes)
+    return false;
   if (a.backgrounds.size() != b.backgrounds.size() ||
       a.foregrounds.size() != b.foregrounds.size())
     return false;
@@ -134,7 +136,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (a.nodeTransition && !transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
-  if (a.staggerChildrenMs != b.staggerChildrenMs)
+  if (a.staggerChildrenMs != b.staggerChildrenMs ||
+      a.staggerFrom != b.staggerFrom)
     return false;
   // Paint.
   const PaintProps &pa = a.paint, &pb = b.paint;
@@ -386,13 +389,27 @@ void Composer::Impl::patchChildren(Instance &inst,
       patch(*match, node);
       inst.children.push_back(std::move(match));
     } else {
-      // staggerChildren(): child i's whole subtree mounts with i·each of
-      // extra entrance delay (saved/restored so siblings don't leak, and
-      // nested staggered containers compound).
+      // staggerChildren(): the child's whole subtree mounts with
+      // order·each extra entrance delay (saved/restored so siblings don't
+      // leak; nested staggered containers compound). `from` remaps the
+      // order — End counts from the last child (the bottom-up cascade),
+      // Center ripples outward.
       const float saved = mountDelayCarryMs;
-      if (inst.desc->staggerChildrenMs > 0)
-        mountDelayCarryMs +=
-            inst.desc->staggerChildrenMs * (float)childOrdinal;
+      if (inst.desc->staggerChildrenMs > 0) {
+        const float n = (float)newChildren.size();
+        float order = (float)childOrdinal;
+        switch (inst.desc->staggerFrom) {
+        case Stagger::From::End:
+          order = n - 1.0f - order;
+          break;
+        case Stagger::From::Center:
+          order = std::abs(order - (n - 1.0f) * 0.5f) * 2.0f;
+          break;
+        case Stagger::From::Start:
+          break;
+        }
+        mountDelayCarryMs += inst.desc->staggerChildrenMs * order;
+      }
       inst.children.push_back(mount(node, &inst));
       mountDelayCarryMs = saved;
       needsLayout = true;

@@ -386,6 +386,17 @@ enum class Justify : uint8_t {
  *  outline forever. */
 enum class TrimMode : uint8_t { Clamp, Wrap };
 
+/** One misprint pass: the node's own fill shape and text re-stamped at
+ *  `offset` in a flat color, UNDER the real content. Repeated echoes
+ *  stack in declaration order (bottom first). The registration-error
+ *  language: P3R's red text echo (3,−6), P5's zero-blur sticker stacks,
+ *  §5's ink under-copies — one call each, no duplicate sibling nodes. */
+struct Echo {
+  SkVector offset = {3, 3};
+  SkColor4f color = {0, 0, 0, 1};
+  bool operator==(const Echo &) const = default;
+};
+
 /** Cache override. Auto (the default) picture-caches provably-static
  *  subtrees; Texture rasterizes the subtree once into an image (the
  *  raster-surface pixel win — best for dense or effect-heavy content,
@@ -543,6 +554,10 @@ public:
    *  node in aqua gel / y2k chrome / any bundled treatment. Composable
    *  with fill() and further background()/foreground() calls. */
   Element &style(LayerStyle s);
+  /** Append a misprint echo (see Echo): the node's fill shape and text
+   *  re-stamped offset+flat-colored beneath the real pass. Not applied to
+   *  glyphFx text (kinetic draws its own buckets) or image/custom content. */
+  Element &echo(SkVector offset, SkColor4f color);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
   Element &effect(Effect e);
@@ -640,11 +655,14 @@ public:
   Element &cache(Cache c);
   Element &transition(Transition t); // node default for plain constants
   /** GSAP-style container stagger: child i's subtree enters with an EXTRA
-   *  i·each delay on all its withFrom() mount transitions (compounding
-   *  through nested staggered containers). The battery cascade as one
-   *  call — no per-child delay arithmetic:
-   *  `column().staggerChildren(80ms).children(cards)`. */
-  Element &staggerChildren(std::chrono::milliseconds each);
+   *  order·each delay on all its withFrom() mount transitions (compounding
+   *  through nested staggered containers). `from` picks the origin —
+   *  Start (declaration order), End (last child first — the P3R bottom-up
+   *  cascade without reordering paint), Center (ripple outward). One call,
+   *  no per-child delay arithmetic:
+   *  `column().staggerChildren(33ms, Stagger::From::End).children(rows)`. */
+  Element &staggerChildren(std::chrono::milliseconds each,
+                           Stagger::From from = Stagger::From::Start);
 
   // ---- composition ----
   Element &child(Element e);
