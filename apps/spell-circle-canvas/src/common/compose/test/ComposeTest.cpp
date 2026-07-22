@@ -4994,3 +4994,55 @@ TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
                                       seg(20, 0, 30, 0)};
   EXPECT_EQ(debug::endpointDegrees(broken).outside(2, 2).size(), 4u);
 }
+
+TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
+  // The contract, pinned because a study reported autoFlip as a "no-op"
+  // and it is not — it is a PER-RUN decision working as designed. A run
+  // that stays on the bottom flips; one that stays on the top does not;
+  // one that WRAPS PAST the crossover cannot be fixed by a single flip
+  // and is not pretended otherwise (the engraver's answer is two runs,
+  // top and bottom set separately — ROADMAP §9).
+  //
+  // The decision samples ACROSS the run rather than reading one midpoint
+  // tangent, which is strictly more robust: a midpoint that happens to
+  // land on a locally odd tangent used to decide for every glyph.
+  auto ring = [](float at, bool flip) {
+    return box().child(text(u8"HHHHHHHH", whiteStyle(20))
+                           .width(200).height(200).absolute().left(0).top(0)
+                           .onPath({.path = shapes::circle(),
+                                    .at = at,
+                                    .align = TextPath::Align::Center,
+                                    .offset = 4.0f,
+                                    .autoFlip = flip}));
+  };
+  auto snap = [](Host &host) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+    host.surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  };
+  auto differs = [](const SkBitmap &a, const SkBitmap &b) {
+    int n = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        n += a.getColor(x, y) != b.getColor(x, y);
+    return n;
+  };
+
+  // A short caption sitting squarely on the BOTTOM of the ring: every
+  // sample says upside down, so the flip must fire.
+  Host plain(200, 200), flipped(200, 200);
+  plain.composer.render(ring(0.5f, false));
+  plain.frame();
+  flipped.composer.render(ring(0.5f, true));
+  flipped.frame();
+  EXPECT_GT(differs(snap(plain), snap(flipped)), 200);
+
+  // …and on the TOP, where every sample says upright, it must not.
+  Host topPlain(200, 200), topFlipped(200, 200);
+  topPlain.composer.render(ring(0.0f, false));
+  topPlain.frame();
+  topFlipped.composer.render(ring(0.0f, true));
+  topFlipped.frame();
+  EXPECT_EQ(differs(snap(topPlain), snap(topFlipped)), 0);
+}
