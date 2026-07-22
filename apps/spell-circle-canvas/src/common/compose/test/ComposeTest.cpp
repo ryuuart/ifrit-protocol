@@ -5896,6 +5896,107 @@ TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
   (void)stats.nodesPainted;
 }
 
+TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
+  // THE GENERALISATION, and it exists because covering one section
+  // proved the mechanism and left every other section exactly as wrong
+  // as before. A documentation site built against these sources found
+  // ten defects, and the worst of them were in the sections the FIRST
+  // doc test does not reach: API.md's `PathFormat` snippets named
+  // `.effects` and `.paint` — the header has `effect` (singular) and
+  // `strokeFill` — so the primitive an author meets on page one shipped
+  // two snippets that do not compile, next to a test whose entire
+  // purpose is that documented calls compile.
+  //
+  // Every declaration below is a line of API.md. If one stops
+  // compiling, the prose beside it has to be read.
+  Fill ink = Fill::color({0.9f, 0.9f, 1, 1});
+
+  // ---- PathFormat, all seven documented spellings ------------------------
+  PathFormat plain{.width = 3.0f, .strokeFill = ink};
+  PathFormat dashed{.width = 1.0f, .strokeFill = ink,
+                    .dashIntervals = {4.0f, 3.0f}};
+  PathFormat capped{.width = 2.0f, .strokeFill = ink,
+                    .cap = SkPaint::kRound_Cap,
+                    .join = SkPaint::kRound_Join};
+  PathFormat inner = util::stroke(2.0f, ink, PathFormat::Align::Inner);
+  PathFormat outer = util::stroke(2.0f, ink, PathFormat::Align::Outer);
+  PathFormat material{.width = 2.0f};
+  material.strokeMaterial = Material::solid({0.7f, 0.6f, 0.3f, 1});
+  PathFormat stamped{.width = 1.0f, .strokeFill = ink};
+  stamped.stampPath = SkPath::Circle(0, 0, 3);
+  stamped.stampAdvance = 12.0f;
+  PathFormat effected{.width = 1.0f, .strokeFill = ink};
+  effected.effect = SkDiscretePathEffect::Make(6.0f, 2.0f);
+  choreograph::Output<float> phase{0.0f};
+  PathFormat marching{.width = 1.0f, .strokeFill = ink,
+                      .dashIntervals = {6.0f, 4.0f}};
+  marching.dashPhaseBinding = &phase;
+  EXPECT_TRUE(Decoration(marching).animated())
+      << "a bound dash phase IS the volatility declaration";
+
+  // ---- ContourWalk and PathSample --------------------------------------
+  // `position`, not `pos`; `fraction` is per CONTOUR, `distance` is not.
+  ContourWalk walk{.spacing = 18.0f};
+  walk.draw = [](SkCanvas &c, const PathSample &s, const PaintContext &) {
+    SkPaint p;
+    c.drawCircle(s.position.fX + s.tangent.fX * 0.0f + s.distance * 0.0f +
+                     s.fraction * 0.0f,
+                 s.position.fY, 1.0f, p);
+  };
+  ContourWalk stampWalk{.spacing = 24.0f};
+  stampWalk.stamp = box().width(4).height(4).fill(ink);
+
+  // ---- the decoration constructors API.md names -------------------------
+  auto wash = decorations::wash(Material::solid({1, 1, 1, 0.2f}),
+                                SkBlendMode::kOverlay, 0.5f);
+  // shadow(color, OFFSET, blur) — the offset is the second argument.
+  auto shadow = util::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
+
+  // ---- shapes, exactly as the "shapes" block spells them -----------------
+  auto circle = shapes::circle();
+  auto annulus = shapes::annulus(0.6f);
+  auto sector = shapes::sector(0.0f, 90.0f, 0.4f);
+  auto arrow = shapes::arrow(0.6f, 0.3f);
+  auto poly = shapes::polygon(6, -90.0f);
+  auto star = shapes::star(5, 0.45f, 0.2f);
+  auto chamfer = shapes::chamfered(10.0f, shapes::Corner::All);
+  auto notched = shapes::notched(10.0f, 4.0f, shapes::Corner::Diagonal);
+  auto onEdges = shapes::onEdges(shapes::Edge::Top, plain);
+  auto inset = shapes::inset(6.0f, Decoration(plain));
+
+  // ---- every layout scheme in Layouts.h, not the three API.md listed ----
+  layouts::Radial radial;
+  layouts::AlongPath alongPath;
+  layouts::ModularGrid modular;
+  layouts::Diagonal diagonal;
+  layouts::BaselineGrid baseline; // the only consumer of childBaselines
+  layouts::Scatter scatter;
+
+  // ---- text on a path: all THREE orientations ---------------------------
+  for (TextPath::Orient o : {TextPath::Orient::Tangent,
+                             TextPath::Orient::Radial,
+                             TextPath::Orient::Upright}) {
+    TextPath spec;
+    spec.path = [](SkSize s) { return shapes::circle()(s); };
+    spec.at = 0.25f;
+    spec.orient = o;
+    (void)box().child(text(u8"ring", styleAt(12)).onPath(spec));
+  }
+
+  // ---- patterns: grain's FIVE parameters --------------------------------
+  (void)patterns::grain(0.02f, 4, 7.0f);              // the documented three
+  (void)patterns::grain(0.02f, 4, 7.0f, 1.6f, 3.0f);  // contrast + stretch
+  (void)patterns::noise(0.02f, 4, 1.0f, 0.5f);
+
+  (void)plain; (void)dashed; (void)capped; (void)inner; (void)outer;
+  (void)material; (void)stamped; (void)effected; (void)walk;
+  (void)stampWalk; (void)wash; (void)shadow;
+  (void)circle; (void)annulus; (void)sector; (void)arrow; (void)poly;
+  (void)star; (void)chamfer; (void)notched; (void)onEdges; (void)inset;
+  (void)radial; (void)alongPath; (void)modular; (void)diagonal;
+  (void)baseline; (void)scatter;
+}
+
 TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // API.md's "Materials — the polymorphic paint value" and its cost model.
   // Materials are the corpus's most expensive objects and its most

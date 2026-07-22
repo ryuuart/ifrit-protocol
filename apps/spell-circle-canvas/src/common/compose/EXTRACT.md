@@ -793,8 +793,16 @@ the parts.
 std::function, so a run that has one never prunes"*, `if (ta.onPath)
 return false;`. Every text-on-path node re-patches on every `render()`,
 forever; `sigillum_aemeth` already mints ~150. A one-line widget makes it
-cheap to mint hundreds more, invisibly. **Ship `atDeg` (§4.6), which
-removes the arithmetic without making the nodes cheaper to mint.**
+cheap to mint hundreds more, invisibly. ~~**Ship `atDeg` (§4.6), which
+removes the arithmetic without making the nodes cheaper to mint.**~~
+**WITHDRAWN.** `kit::Frame::fraction()` shipped instead and answers
+the same need from a better place: the θ→fraction conversion is not a
+property of TEXT, it is a property of the frame the artefact is laid
+out in, and every consumer of a circular contour wanted it — ticks,
+leaders and bands as much as labels. A field on `TextPath` would have
+been the fifth copy of the arithmetic wearing the name of the first
+caller. The re-patching problem above is untouched by either and
+remains open.
 
 ### 5.5 The leader-line callout
 
@@ -932,7 +940,7 @@ Ordered by evidence strength and risk, not by line count.
 | 4 | `debug::check` + `debug::report` | 5 sketches; `minard_1869.cpp:2580` already invented it | ~130 | low; the qualitative win exceeds the line win |
 | 5 | `compose::alphaMask` (+ settle `Debug.h`'s name) | 2 sketches, 25-line shared core | ~50 | low |
 | 6 | `shapes::chords(n, inset)` | 1 sketch, exact peer of `shapes::polygon` | ~19 | low |
-| 7 | `TextPath::atDeg` | 8 sketches convert angle→fraction by hand | ~0 | none |
+| ~~7~~ | ~~`TextPath::atDeg`~~ — **STRUCK, not shipped** | The need was real and was answered elsewhere: `kit::Frame::fraction()` does the θ→arc-length-fraction arithmetic once, for every consumer, and is not confined to text. A reader following this table hunted for a field that does not exist | — | — |
 
 **File in ROADMAP, do not build here:** `Ticker::add`/`SketchContext`
 cannot reach elapsed time, so **36 files keep a private copy of the
@@ -941,8 +949,12 @@ studies 180 lines (§2.6); `LayoutScheme::place` returns rects, so
 per-instance rotation and phase force hand-placement (§1.1); `outline()`
 never prunes.
 
-**Delete:** `layouts::stickerScatter` — zero users, and the one scene
-that needs it refuses it in writing (§1.2).
+**Delete:** ~~`layouts::stickerScatter`~~ — **DONE.** Zero users, and the
+one scene that needs it refused it in writing (§1.2). The header keeps
+the record in place of the code, because the record is the more
+valuable half: a scheme belongs in `Layouts.h` when the placement is a
+FUNCTION the author would otherwise write out, and does not when the
+placement IS the design decision.
 
 **Do not build:** a frame/coordinate value, a lattice resolver, a
 ring-band component, a `ringLabel` widget, `leaderTo`, a tick-ladder
