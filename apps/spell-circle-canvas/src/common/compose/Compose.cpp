@@ -188,6 +188,10 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
+Element &Element::overlay(Decoration d) {
+  m_node->fxData.ensure().overlays.push_back(std::move(d));
+  return *this;
+}
 Element &Element::background(Decoration d) {
   m_node->backgrounds.push_back(std::move(d));
   return *this;

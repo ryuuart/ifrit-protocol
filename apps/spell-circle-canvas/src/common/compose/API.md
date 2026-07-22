@@ -185,6 +185,10 @@ Element &fill(PropValue<Fill>);            // colors/fills lerp via
 Element &fill(Material);                   // the richer authoring value —
                                            // see "Materials" below
 Element &background(Decoration); Element &foreground(Decoration);
+Element &overlay(Decoration);              // BETWEEN them: over the fill,
+                                           // under the content and children
+                                           // — a hazard stripe that does
+                                           // not grey out its own label
 Element &stroke(Decoration brush);         // foreground() named for what it
                                            // means: dress the OUTLINE
 Element &style(LayerStyle);                // a decoration bundle (aquaGel(),

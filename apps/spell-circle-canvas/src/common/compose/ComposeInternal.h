@@ -152,6 +152,11 @@ struct FxData {
   TrimMode trimMode = TrimMode::Clamp;
   float staggerChildrenMs = 0; // extra order·each mount delay per subtree
   Stagger::From staggerFrom = Stagger::From::Start;
+  // Element::overlay(): decorations painted OVER the fill and UNDER the
+  // content and children. Lives in this block rather than beside
+  // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
+  // rare-fields rule Composer.cpp's static_assert enforces.
+  std::vector<Decoration> overlays;
 };
 
 struct MaterialData {
