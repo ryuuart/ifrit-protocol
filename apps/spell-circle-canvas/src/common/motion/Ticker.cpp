@@ -58,6 +58,7 @@ void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp,
 }
 
 bool Ticker::tick(double deltaSeconds) {
+  m_elapsed += deltaSeconds;
   m_timeline.step(deltaSeconds);
   for (auto it = m_steppables.begin(); it != m_steppables.end();) {
     if ((*it)(deltaSeconds))
