@@ -101,7 +101,76 @@
 // sampled off the Solaris screenshot: Front Panel ts #DCDEE5, bs
 // #5D6069, active title bar #B24D7A — and, on a background that appears
 // in NO shipped palette, the workspace-switch button #63639C -> ts
-// #B7B7D1 / bs #2F2F4A. selfTest() asserts all of them at setup.
+// #B7B7D1 / bs #2F2F4A. selfTest() prints all of them at setup.
+//
+// And the render is verified against the [MEAS] band tables too, by
+// sampling the capture. Window frame, going in from the left edge:
+// DCADC2 DCADC2 | B24D7A B24D7A B24D7A | 57253B — 2 px top shadow, 3 px
+// band, 1 px inverted inner bevel, exactly §6.1. Vertically: frame 6,
+// title bar 23 (1 ts + 21 body + 1 bs), menu bar 31 (1 + 29 + 1), then
+// the client area. Front Panel from its top edge: DCDEE5 DCDEE5 |
+// AEB2C3 AEB2C3 | DCDEE5 DCDEE5 — the raised T=2 shell containing a
+// raised T=2 box, 2 px apart. Every band is an exact number of device
+// pixels with no fractional coverage anywhere.
+//
+// ---------------------------------------------------------------------
+// WHAT THE RENDER TAUGHT, THAT THE MEASUREMENTS COULD NOT
+//
+//  · THE BOUND `Fill` HELD AT SCALE AND LOST THE ARGUMENT ANYWAY, and
+//    that is this study's headline number. Run both ways over the same
+//    tree (CDE_STATIC_COLORS=1 flips it), the captures are PIXEL-
+//    IDENTICAL — ImageChops.difference().getbbox() is None — and the
+//    cost is not:
+//
+//        40 bound Output<Fill>  : 1018 / 1270 nodes painted live,
+//                                 103 pictures held, 0.33 ms/frame
+//                                 steady; switch frame 3.50 ms paint,
+//                                 0.27 reconcile, 61 re-records
+//        the same 40 as values  :   57 / 1270 nodes painted live,
+//                                 288 pictures held, 0.033 ms/frame
+//                                 steady; switch frame 4.64 ms paint,
+//                                 0.44 reconcile, 237 re-records
+//
+//    Ten times the steady-state paint, to save 1.1 ms on one frame in
+//    three hundred. Over one palette interval that is 59 ms of paint
+//    against 10 ms — the bound path is 5.6x MORE total work for a
+//    colour that changes every three seconds. Nothing is wrong with the
+//    binding; the pricing is. `animated()` is declared per NODE and is
+//    binary, so "this repaints when the theme changes" and "this
+//    repaints at 60 Hz" are the same declaration (ROADMAP.md argument
+//    3), and 80% of a desktop inherits it.
+//  · A 2 px BAND LANDS EXACTLY ON THE DEVICE PIXEL GRID. No study had
+//    checked, because everything else in this program is organic. At
+//    contentScale 1 with integer rects and AA off, every sampled band
+//    above is one flat colour with no 254/255 edge anywhere. Yoga's
+//    resolved rects are integers when the inputs are, `.padding(6)` is
+//    exact, and shapes::inset(5, …)'s path-op offset survives it.
+//  · TEXT EDGING IS THE ONE THING THAT CANNOT BE ASKED FOR. `TextStyle`
+//    has no edging or hinting field and SigilWeave's makeFont() pins
+//    SkFont::Edging::kAntiAlias; Skia takes glyph edging from the
+//    SkFont, never from the paint, so setAntiAlias(false) on the style
+//    is silently ignored. On a 1995 X11 desktop — which is ~100% 13 px
+//    UI type in a 1-bit face — that is the loudest possible anachronism.
+//    The workaround is MotifLabel below (a raw kAlias SkFont in a
+//    decoration on a measured box); the ONE remaining SigilWeave run is
+//    the derivation strip's title, kept in the capture so the two sit
+//    side by side.
+//  · ZERO outline() CALLS, as predicted, and it is worth saying. Motif
+//    has no shaped nodes: every silhouette is the default rect, so
+//    roadmap §3's "shaped nodes can never prune" costs this artefact
+//    exactly nothing. The only three corners() in the file are inside
+//    the clock icon, which is artwork, not chrome.
+//  · `.background()` IS NOT WHERE A BEVEL GOES. It paints BENEATH the
+//    fill (the CSS box-shadow ordering), so the first render came back
+//    with every window a flat slab of colour and no bevel anywhere —
+//    the decorations were all drawing, underneath their own surfaces.
+//    `.overlay()` is the slot ("over the fill, under content and
+//    children"), which is exactly a Motif shadow's layer. Every bevel in
+//    the file, one word. The header comment reads "backgrounds paint
+//    below content/children ... fill() is the transitionable first
+//    background", which says nothing about the fill/decoration order and
+//    then implies the wrong one; `overlay()` carries no doc comment at
+//    its declaration at all.
 
 #include <sigilsketch/Sketch.h>
 
@@ -1381,6 +1450,28 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                      .padding(6, 0)
                      .child(cde::label(n, c6.fgV)));
 
+    // XmScrollBar: a sunken trough in the workspace set with a raised
+    // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
+    auto scrollBar = [&](const Set &t, float sliderFrac, float sliderTop) {
+      return box()
+          .width(Dim(19))
+          .fill(t.pBg())
+          .overlay(cde::bevel(2, true, false, t))
+          .padding(2)
+          .column()
+          .child(box().height(Dim(sliderTop)))
+          .child(box()
+                     .height(pct(sliderFrac))
+                     .fill(t.pBg())
+                     .overlay(cde::bevel(2, false, false, t)));
+    };
+
+    Element listPane = box()
+                           .row()
+                           .width(Dim(170))
+                           .child(std::move(list))
+                           .child(scrollBar(theme[3], 34, 0));
+
     // The eight colour-set swatches, 4 x 2. This IS the palette file.
     Element swatches = box().column().gap(6);
     for (int r = 0; r < 2; ++r) {
@@ -1421,7 +1512,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                                   .column()
                                   .gap(4)
                                   .child(cde::label("Palettes", c2.fgV))
-                                  .child(std::move(list)))
+                                  .child(std::move(listPane)))
                        .child(box()
                                   .column()
                                   .gap(4)
@@ -1892,7 +1983,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .left(Dim(48))
                    .top(Dim(690))
                    .row()
-                   .gap(24)
+                   .gap(34)
                    .child(iconifiedWindow("Terminal", cde::icoEditor()))
                    .child(iconifiedWindow("Mailer", cde::icoMail()))
                    .child(iconifiedWindow("Print Manager", cde::icoPrinter())));
