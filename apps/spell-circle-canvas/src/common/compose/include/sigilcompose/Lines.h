@@ -651,4 +651,106 @@ inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
   return h;
 }
 
+/** RADIAL hatching: rules that fan out of a centre, and/or rings
+ *  concentric with it, clipped to the node's outline.
+ *
+ *  `lines::hatch` is a parallel lattice at one fixed angle, which is the
+ *  wrong field for anything engraved out of a point — the Chladni plate's
+ *  figures 3 and 5 are radial fans, and building one from 120
+ *  `shapes::sector` sub-wedges each carrying its own rotated Hatch works
+ *  but is 120 nodes for a single field.
+ *
+ *  `spokes` rules every `360/spokes` degrees; `rings` circles at even
+ *  radii. Set either to 0 for the other alone. `centre` is a FRACTION of
+ *  the node's box, so it survives a resize. A value decoration: compares,
+ *  prunes and caches like Hatch and PathFormat. */
+struct RadialHatch {
+  Fill strokeFill = Fill::color({1, 1, 1, 1});
+  int spokes = 48;
+  int rings = 0;
+  float width = 1.2f;
+  /** Skip the innermost `holeFraction` of the reach — a fan out of a
+   *  point crowds to solid ink at the centre otherwise. */
+  float holeFraction = 0.08f;
+  SkPoint centre = {0.5f, 0.5f};
+  float rotateDeg = 0.0f;
+
+  bool operator==(const RadialHatch &o) const {
+    return strokeFill == o.strokeFill && spokes == o.spokes &&
+           rings == o.rings && width == o.width &&
+           holeFraction == o.holeFraction && centre == o.centre &&
+           rotateDeg == o.rotateDeg;
+  }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (width <= 0 || (spokes <= 0 && rings <= 0))
+      return;
+    const SkRect box = ctx.outline.getBounds();
+    if (box.isEmpty())
+      return;
+    const SkPoint origin{box.left() + box.width() * centre.fX,
+                         box.top() + box.height() * centre.fY};
+    // Far enough to leave the outline from anywhere inside it.
+    const float reach =
+        std::hypot(std::max(origin.fX - box.left(), box.right() - origin.fX),
+                   std::max(origin.fY - box.top(), box.bottom() - origin.fY));
+    const float inner = reach * std::clamp(holeFraction, 0.0f, 0.95f);
+
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(width);
+    if (strokeFill.kind == Fill::Kind::Color)
+      p.setColor4f(strokeFill.colorValue, nullptr);
+    else if (strokeFill.kind == Fill::Kind::Shader)
+      p.setShader(strokeFill.shaderValue);
+
+    c.save();
+    c.clipPath(ctx.outline, true);
+    if (spokes > 0) {
+      SkPathBuilder b;
+      const float step = 2.0f * SK_FloatPI / (float)spokes;
+      const float base = rotateDeg * SK_FloatPI / 180.0f;
+      for (int i = 0; i < spokes; ++i) {
+        const float a = base + (float)i * step;
+        const float cs = std::cos(a), sn = std::sin(a);
+        b.moveTo(origin.fX + cs * inner, origin.fY + sn * inner);
+        b.lineTo(origin.fX + cs * reach, origin.fY + sn * reach);
+      }
+      c.drawPath(b.detach(), p);
+    }
+    if (rings > 0) {
+      SkPathBuilder b;
+      for (int i = 1; i <= rings; ++i) {
+        const float r = inner + (reach - inner) * ((float)i / (float)rings);
+        b.addCircle(origin.fX, origin.fY, r);
+      }
+      c.drawPath(b.detach(), p);
+    }
+    c.restore();
+  }
+};
+
+inline RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
+                               SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = spokes;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** The other half of the pair: rings only, no spokes. */
+inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = rings;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
 } // namespace sigil::compose::lines
