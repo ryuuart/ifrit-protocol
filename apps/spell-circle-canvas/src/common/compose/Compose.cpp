@@ -196,6 +196,11 @@ Element &Element::wipe(float angleDeg, PropValue<float> fraction) {
   return *this;
 }
 
+Element &Element::hitTestable(bool enabled) {
+  m_node->hitTestable = enabled;
+  return *this;
+}
+
 Element &Element::overlay(Decoration d) {
   m_node->fxData.ensure().overlays.push_back(std::move(d));
   return *this;

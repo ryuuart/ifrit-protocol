@@ -99,7 +99,7 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
     if (auto hit = hitInstance(*inst.children[*it], local, key))
       return hit;
 
-  if (inside && key && !key->empty())
+  if (inside && key && !key->empty() && node.hitTestable)
     return *key;
   return std::nullopt;
 }

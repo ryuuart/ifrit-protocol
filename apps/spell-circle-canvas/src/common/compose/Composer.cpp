@@ -269,6 +269,13 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
     return std::nullopt;
   // Accumulate offsets up the yoga tree.
   SkRect rect = m_impl->instanceRect(*it->second);
+  // Layout runs inside draw(), so a query issued in the same update() as
+  // the render() before it reads an unlaid tree — which used to hand
+  // back left=0, top=0, width=NaN for EVERY key. A study lost an
+  // iteration and a debug harness localising that. Absent is a far
+  // better answer than a number that is not one.
+  if (!rect.isFinite())
+    return std::nullopt;
   YGNodeRef node = YGNodeGetParent(it->second->yoga);
   while (node) {
     rect.offset(YGNodeLayoutGetLeft(node), YGNodeLayoutGetTop(node));
