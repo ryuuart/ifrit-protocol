@@ -8,8 +8,25 @@
 add_library(SigilCompose STATIC
   Compose.cpp
   Composer.cpp
+  Reconcile.cpp
+  Layout.cpp
+  Derive.cpp
+  Paint.cpp
+  Transitions.cpp
+  Query.cpp
+  Material.cpp
   ComposeInternal.h
+  ComposeRuntime.h
+  include/sigilcompose/Brushes.h
   include/sigilcompose/Compose.h
+  include/sigilcompose/Console.h
+  include/sigilcompose/Instances.h
+  include/sigilcompose/Kinetic.h
+  include/sigilcompose/LayerStyles.h
+  include/sigilcompose/Material.h
+  include/sigilcompose/Pattern.h
+  include/sigilcompose/Patterns.h
+  include/sigilcompose/Sdf.h
   include/sigilcompose/Decorations.h
   include/sigilcompose/Layouts.h
   include/sigilcompose/Routers.h
@@ -34,12 +51,39 @@ target_link_libraries(SigilCompose
     yoga::yogacore
 )
 
+# OpenColorIO output view transforms (<sigilcompose/Ocio.h>): OCIO is already
+# in the dependency closure (transitively via OpenImageIO), so this adds no
+# new vcpkg dependency — the extension simply disables with a warning if the
+# package is absent (the SPELLCIRCLE_ENABLE_ULTRALIGHT pattern).
+find_package(OpenColorIO CONFIG QUIET)
+if(TARGET OpenColorIO::OpenColorIO)
+  target_sources(SigilCompose PRIVATE Ocio.cpp include/sigilcompose/Ocio.h)
+  target_link_libraries(SigilCompose PRIVATE OpenColorIO::OpenColorIO)
+  target_compile_definitions(SigilCompose PUBLIC SIGILCOMPOSE_ENABLE_OCIO)
+else()
+  message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
+endif()
+
 add_executable(compose_test
   test/ComposeTest.cpp
 )
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_test COMMAND compose_test)
+
+# GPU-backend behavior tests (Graphite Metal): the raster suite proves
+# semantics, this one proves the same pixels arrive on the GPU — it
+# exists for the direct-image draw gaps (lattice/atlas) the raster suite
+# cannot see.
+if(APPLE AND TARGET SpellCircleSkia)
+  add_executable(compose_gpu_test
+    test/ComposeGpuTest.mm
+  )
+  target_link_libraries(compose_gpu_test PRIVATE
+    SigilCompose SigilWeavePorts SpellCircleSkia GTest::gtest_main
+    "-framework Metal")
+  add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
+endif()
 
 # SigilScry integration (the web() leaf, stress item 19) — the kernel
 # never links SigilScry; the adapter is header-only and this dedicated

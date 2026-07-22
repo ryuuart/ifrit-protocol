@@ -1,6 +1,6 @@
-// Element value builders — thin mutations of the shared description
-// payload. Nothing here talks to Yoga, Skia surfaces, or Choreograph;
-// that is the Composer's job.
+// Element value builders — copy-on-write mutations of description payloads.
+// Nothing here talks to Yoga, Skia surfaces, or Choreograph; that is the
+// Composer's job.
 
 #include "ComposeInternal.h"
 
@@ -22,6 +22,18 @@ Fill Fill::shader(sk_sp<SkShader> s) {
 }
 
 Element::Element() : m_node(std::make_shared<ElementNode>()) {}
+
+ElementNode *Element::NodeHandle::operator->() {
+  if (!value)
+    value = std::make_shared<ElementNode>();
+  else if (value.use_count() != 1)
+    value = std::make_shared<ElementNode>(*value);
+  return value.get();
+}
+
+const ElementNode *Element::NodeHandle::operator->() const {
+  return value.get();
+}
 
 // ---- layout ---------------------------------------------------------------
 
@@ -78,9 +90,41 @@ Element &Element::justify(Justify j) { m_node->layout.justify = j; return *this;
 Element &Element::absolute() { m_node->layout.absolute = true; return *this; }
 Element &Element::inset(float all) { return inset(all, all, all, all); }
 Element &Element::inset(float l, float t, float r, float b) {
+  return inset(Dim(l), Dim(t), Dim(r), Dim(b));
+}
+Element &Element::inset(Dim l, Dim t, Dim r, Dim b) {
   m_node->layout.absolute = true;
   m_node->layout.hasInsets = true;
   m_node->layout.insets = {l, t, r, b};
+  return *this;
+}
+Element &Element::left(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.left = d;
+  return *this;
+}
+Element &Element::top(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.top = d;
+  return *this;
+}
+Element &Element::right(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.right = d;
+  return *this;
+}
+Element &Element::bottom(Dim d) {
+  m_node->layout.absolute = true;
+  m_node->layout.hasInsets = true;
+  m_node->layout.insets.bottom = d;
+  return *this;
+}
+Element &Element::centerAt(SkPoint p) {
+  m_node->layout.absolute = true;
+  m_node->layout.centerAt = p;
   return *this;
 }
 
@@ -92,11 +136,28 @@ Element &Element::outline(std::function<SkPath(SkSize)> shape) {
   return *this;
 }
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
+Element &Element::trim(PropValue<float> start, PropValue<float> end,
+                       PropValue<float> offset, TrimMode mode) {
+  detail::FxData &fx = m_node->fxData.ensure();
+  fx.hasTrim = true;
+  fx.trimStart = std::move(start);
+  fx.trimEnd = std::move(end);
+  fx.trimOffset = std::move(offset);
+  fx.trimMode = mode;
+  return *this;
+}
 
 // ---- paint ----------------------------------------------------------------
 
 Element &Element::fill(PropValue<Fill> f) {
   m_node->paint.fill = std::move(f);
+  // Symmetric with fill(Material): the fill setters are last-wins — a plain
+  // fill after a live-material fill must actually take effect (and release
+  // the node from the live-volatile path). staticMaterial must drop too, or
+  // a stale equal-comparing recipe would over-prune this new fill.
+  // Dropping the WHOLE block (not just its members) keeps propsEqual's
+  // block-presence check aligned with a node that never had a material.
+  m_node->materialData = {};
   return *this;
 }
 Effect Effect::filter(sk_sp<SkImageFilter> f) {
@@ -117,6 +178,16 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   return e;
 }
 
+Effect Effect::then(const Effect &next) const {
+  Effect e;
+  if (!m_filter)
+    return next;
+  if (!next.m_filter)
+    return *this;
+  e.m_filter = SkImageFilters::Compose(next.m_filter, m_filter);
+  return e;
+}
+
 Element &Element::background(Decoration d) {
   m_node->backgrounds.push_back(std::move(d));
   return *this;
@@ -125,12 +196,26 @@ Element &Element::foreground(Decoration d) {
   m_node->foregrounds.push_back(std::move(d));
   return *this;
 }
+Element &Element::stroke(Decoration brush) {
+  return foreground(std::move(brush));
+}
+Element &Element::echo(SkVector offset, SkColor4f color) {
+  m_node->fxData.ensure().echoes.push_back(Echo{offset, color});
+  return *this;
+}
+Element &Element::style(LayerStyle s) {
+  for (Decoration &d : s.under)
+    m_node->backgrounds.push_back(std::move(d));
+  for (Decoration &d : s.over)
+    m_node->foregrounds.push_back(std::move(d));
+  return *this;
+}
 Element &Element::effect(Effect e) {
-  m_node->layerEffect = std::move(e);
+  m_node->fxData.ensure().layerEffect = std::move(e);
   return *this;
 }
 Element &Element::backdrop(Effect e) {
-  m_node->backdropEffect = std::move(e);
+  m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }
 Element &Element::opacity(PropValue<float> o) {
@@ -157,9 +242,24 @@ Element &Element::scale(PropValue<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
+Element &Element::skewX(PropValue<float> v) {
+  m_node->paint.skewX = std::move(v);
+  return *this;
+}
+Element &Element::skewY(PropValue<float> v) {
+  m_node->paint.skewY = std::move(v);
+  return *this;
+}
 Element &Element::transformOrigin(float fx, float fy) {
   m_node->paint.originX = fx;
   m_node->paint.originY = fy;
+  m_node->paint.originPx = false;
+  return *this;
+}
+Element &Element::transformOriginPx(SkPoint p) {
+  m_node->paint.originX = p.x();
+  m_node->paint.originY = p.y();
+  m_node->paint.originPx = true;
   return *this;
 }
 Element &Element::zIndex(int z) { m_node->paint.zIndex = z; return *this; }
@@ -171,8 +271,19 @@ Element &Element::key(std::string_view k) {
   return *this;
 }
 Element &Element::cache(Cache c) { m_node->cacheMode = c; return *this; }
+Element &Element::bakeScale(float factor) {
+  m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
+  return *this;
+}
 Element &Element::transition(Transition t) {
   m_node->nodeTransition = std::move(t);
+  return *this;
+}
+Element &Element::staggerChildren(std::chrono::milliseconds each,
+                                  Stagger::From from) {
+  detail::FxData &fx = m_node->fxData.ensure();
+  fx.staggerChildrenMs = (float)each.count();
+  fx.staggerFrom = from;
   return *this;
 }
 
@@ -194,8 +305,9 @@ Element stack() {
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
-  e.node()->textUtf8 = std::move(utf8);
-  e.node()->textStyle = std::move(style);
+  detail::TextData &text = e.node()->textData.ensure();
+  text.utf8 = std::move(utf8);
+  text.style = std::move(style);
   // "The box fits the type": measured text must not stretch on the
   // cross axis (the spike's API lesson) — but that demotion happens at
   // layout-apply time, where the resolved alignment is known, so a
@@ -207,33 +319,56 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
   e.node()->kind = Kind::Text;
-  e.node()->paragraphOverride = std::move(paragraph);
-  e.node()->layoutOptions = std::move(options);
+  detail::TextData &text = e.node()->textData.ensure();
+  text.paragraphOverride = std::move(paragraph);
+  text.layoutOptions = std::move(options);
   return e;
 }
 
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   Element e;
   e.node()->kind = Kind::Image;
-  e.node()->imageAsset = std::move(asset);
+  e.node()->imageData.ensure().asset = std::move(asset);
   return e;
 }
 
 Element &Element::region(SkRect sourceRect) {
-  m_node->imageRegion = sourceRect;
+  m_node->imageData.ensure().region = sourceRect;
   return *this;
 }
 
 Element custom(PaintProgram program) {
   Element e;
   e.node()->kind = Kind::Custom;
-  e.node()->program = std::move(program);
+  e.node()->customData.ensure().program = std::move(program);
   return e;
 }
 
+Element &Element::glyphFx(GlyphFx fx) {
+  m_node->textData.ensure().glyphFx = std::move(fx);
+  return *this;
+}
+
+Element &Element::variationDrive(const char (&tag)[5],
+                                 const choreograph::Output<float> *value) {
+  detail::TextData &text = m_node->textData.ensure();
+  text.driveTag[0] = tag[0];
+  text.driveTag[1] = tag[1];
+  text.driveTag[2] = tag[2];
+  text.driveTag[3] = tag[3];
+  text.driveValue = value;
+  return *this;
+}
+
+Element &Element::textAlign(sigil::weave::TextAlignment a) {
+  m_node->textData.ensure().layoutOptions.alignment = a;
+  return *this;
+}
+
 Element &Element::flowAround(std::string_view key, float margin) {
-  m_node->flowAroundKeys.push_back(std::string(key));
-  m_node->flowAroundMargin = margin;
+  detail::DeriveData &derive = m_node->deriveData.ensure();
+  derive.flowAroundKeys.push_back(std::string(key));
+  derive.flowAroundMargin = margin;
   return *this;
 }
 
@@ -241,9 +376,19 @@ Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router) {
   Element e;
   e.node()->kind = Kind::Custom; // painted via derive-resolved outline
-  e.node()->connectFrom = std::string(fromKey);
-  e.node()->connectTo = std::string(toKey);
-  e.node()->router = std::move(router);
+  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  derive.connectFrom = std::string(fromKey);
+  derive.connectTo = std::string(toKey);
+  derive.router = std::move(router);
+  return e;
+}
+
+Element rail(std::vector<Anchor> anchors, RailRouter router) {
+  Element e;
+  e.node()->kind = Kind::Custom; // painted via the derive-routed outline
+  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  derive.railAnchors = std::move(anchors);
+  derive.railRouter = std::move(router);
   return e;
 }
 
@@ -258,7 +403,7 @@ namespace detail {
 Element makeLayout(
     std::function<std::vector<SkRect>(const LayoutInput &)> place) {
   Element e;
-  e.node()->placeFn = std::move(place);
+  e.node()->deriveData.ensure().placeFn = std::move(place);
   return e;
 }
 
@@ -266,10 +411,10 @@ Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
                  std::function<Element(const std::any &)> invoke) {
   Element e;
-  e.node()->isMemo = true;
-  e.node()->memoProps = std::move(props);
-  e.node()->memoEqual = std::move(equal);
-  e.node()->memoInvoke = std::move(invoke);
+  detail::MemoData &memo = e.node()->memoData.ensure();
+  memo.props = std::move(props);
+  memo.equal = std::move(equal);
+  memo.invoke = std::move(invoke);
   return e;
 }
 } // namespace detail

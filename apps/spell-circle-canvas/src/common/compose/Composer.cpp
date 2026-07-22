@@ -1,325 +1,35 @@
-// The Composer: keyed reconciliation into a retained instance tree,
-// Yoga layout with SigilWeave-measured text leaves, stacking-order paint,
-// automatic SkPicture caching of provably-static subtrees, and
-// Choreograph-backed transitions/bindings stepped by the host's Ticker.
+// The Composer facade: the public retained-side surface (construct with a
+// Ticker + FontContext, render() on data change, draw(canvas) inside the
+// host's paint callback), the Impl/Instance lifecycle, and snapshot() (the
+// one-shot element-tree-as-a-brush bake). The phase machinery lives in the
+// sibling TUs: Reconcile / Layout / Derive / Paint / Transitions / Query.cpp,
+// all sharing ComposeRuntime.h.
 
-#include "ComposeInternal.h"
-
-#include <sigilimage/ImageAsset.h>
-
-#include <sigilweave/Flow.h>
-#include <sigilweave/FontContext.h>
+#include "ComposeRuntime.h"
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkSurface.h>
-
-#include <yoga/Yoga.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
-#include <numeric>
-#include <unordered_map>
+#include <functional>
 
 namespace sigil::compose {
 
 using namespace detail;
 
-namespace {
-
-YGAlign toYogaAlign(Align a) {
-  switch (a) {
-  case Align::Auto: return YGAlignAuto;
-  case Align::Start: return YGAlignFlexStart;
-  case Align::Center: return YGAlignCenter;
-  case Align::End: return YGAlignFlexEnd;
-  case Align::Stretch: return YGAlignStretch;
-  case Align::Baseline: return YGAlignBaseline;
-  }
-  return YGAlignAuto;
-}
-
-YGJustify toYogaJustify(Justify j) {
-  switch (j) {
-  case Justify::Start: return YGJustifyFlexStart;
-  case Justify::Center: return YGJustifyCenter;
-  case Justify::End: return YGJustifyFlexEnd;
-  case Justify::SpaceBetween: return YGJustifySpaceBetween;
-  case Justify::SpaceAround: return YGJustifySpaceAround;
-  case Justify::SpaceEvenly: return YGJustifySpaceEvenly;
-  }
-  return YGJustifyFlexStart;
-}
-
-void applyDim(YGNodeRef node, const Dim &d,
-              void (*setPx)(YGNodeRef, float),
-              void (*setPct)(YGNodeRef, float)) {
-  switch (d.unit) {
-  case Dim::Unit::Px: setPx(node, d.value); break;
-  case Dim::Unit::Pct: setPct(node, d.value); break;
-  case Dim::Unit::Auto: break;
-  }
-}
-
-SkRRect cornersRRect(const SkRect &bounds, const Corners &c) {
-  const SkVector radii[4] = {{c.topLeft, c.topLeft},
-                             {c.topRight, c.topRight},
-                             {c.bottomRight, c.bottomRight},
-                             {c.bottomLeft, c.bottomLeft}};
-  SkRRect rrect;
-  rrect.setRectRadii(bounds, radii);
-  return rrect;
-}
-
-// ---- structural equality (the no-memo prune) ------------------------------
-// Conservative: equal only when provably identical. Anything carrying
-// an incomparable callable (custom programs, decorations, outlines,
-// routers, custom layouts) compares unequal — memo is the tool for
-// those; the common plain cases (boxes, fills, text runs, images)
-// prune for free.
-
-bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet)
-    return false;
-  if (!aSet)
-    return true;
-  using Ptr = float (*)(float);
-  const Ptr *pa = a.target<Ptr>();
-  const Ptr *pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb; // lambdas: unequal (conservative)
-}
-
-bool transitionEqual(const Transition &a, const Transition &b) {
-  return a.duration == b.duration && easeEqual(a.ease, b.ease);
-}
-
-template <typename T>
-bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
-  if (a.index() != b.index())
-    return false;
-  if (const T *plainA = std::get_if<T>(&a))
-    return *plainA == *std::get_if<T>(&b);
-  if (const Transitioned<T> *trA = std::get_if<Transitioned<T>>(&a)) {
-    const Transitioned<T> *trB = std::get_if<Transitioned<T>>(&b);
-    return trA->value == trB->value && transitionEqual(trA->spec, trB->spec);
-  }
-  return std::get<const choreograph::Output<T> *>(a) ==
-         std::get<const choreograph::Output<T> *>(b);
-}
-
-bool effectEqual(const std::optional<Effect> &a,
-                 const std::optional<Effect> &b) {
-  if (a.has_value() != b.has_value())
-    return false;
-  if (!a)
-    return true;
-  return a->imageFilter().get() == b->imageFilter().get();
-}
-
-bool propsEqual(const ElementNode &a, const ElementNode &b) {
-  if (a.kind != b.kind || a.key != b.key)
-    return false;
-  // Incomparable callables → conservative inequality.
-  if (a.shapeFn || b.shapeFn || a.program || b.program || a.placeFn ||
-      b.placeFn || a.router || b.router)
-    return false;
-  if (!a.backgrounds.empty() || !b.backgrounds.empty() ||
-      !a.foregrounds.empty() || !b.foregrounds.empty())
-    return false;
-  if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
-      a.clipContent != b.clipContent || a.cacheMode != b.cacheMode)
-    return false;
-  if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
-    return false;
-  if (a.nodeTransition &&
-      !transitionEqual(*a.nodeTransition, *b.nodeTransition))
-    return false;
-  // Paint.
-  const PaintProps &pa = a.paint, &pb = b.paint;
-  if (pa.fill.has_value() != pb.fill.has_value())
-    return false;
-  if (pa.fill && !propEqual(*pa.fill, *pb.fill))
-    return false;
-  if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
-      !propEqual(pa.translateX, pb.translateX) ||
-      !propEqual(pa.translateY, pb.translateY) ||
-      !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
-      pa.originX != pb.originX || pa.originY != pb.originY ||
-      pa.zIndex != pb.zIndex)
-    return false;
-  if (!effectEqual(a.layerEffect, b.layerEffect) ||
-      !effectEqual(a.backdropEffect, b.backdropEffect))
-    return false;
-  // Content.
-  if (a.textUtf8 != b.textUtf8 || !(a.textStyle == b.textStyle))
-    return false;
-  if (a.paragraphOverride != b.paragraphOverride)
-    return false;
-  if (a.paragraphOverride)
-    return false; // layoutOptions aren't comparable — memo these
-  if (a.imageAsset != b.imageAsset || a.imageRegion != b.imageRegion)
-    return false;
-  // Derive.
-  if (a.flowAroundKeys != b.flowAroundKeys ||
-      a.flowAroundMargin != b.flowAroundMargin ||
-      a.connectFrom != b.connectFrom || a.connectTo != b.connectTo)
-    return false;
-  return true;
-}
-
-} // namespace
+// The rare-field block split (ComposeInternal.h) took ElementNode from
+// 2752 B to 1288 B, and the compact PropValue (Compose.h) to 688 B; this
+// guard keeps casual field additions honest — new rare/kind-specific
+// state belongs in a block, not the base struct.
+static_assert(sizeof(ElementNode) <= 768,
+              "ElementNode grew — put rare fields in a block");
 
 // ---------------------------------------------------------------------------
-
-namespace detail {
-
-/** One float property that can transition: the Choreograph output is
- *  the source of truth while a motion is connected. */
-struct AnimatedFloat {
-  choreograph::Output<float> value{0.0f};
-  bool started = false;
-};
-
-struct Instance {
-  Composer::Impl *owner = nullptr;
-  Instance *parent = nullptr;
-  std::shared_ptr<ElementNode> desc; // resolved (post-memo) description
-  std::shared_ptr<ElementNode> memoShell; // the memo element, if any
-  YGNodeRef yoga = nullptr;
-  std::vector<std::unique_ptr<Instance>> children;
-  std::vector<size_t> paintOrder; // child indices sorted by zIndex
-
-  // Text state
-  std::optional<sigil::weave::Paragraph> paragraph;
-  sigil::weave::ParagraphLayout textLayout;
-  std::vector<sigil::weave::LineMetrics> lines;
-  float measuredForWidth = -1.0f;
-  YGSize measuredSize{0, 0};
-  uint32_t contentRev = 0;     // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
-
-  // Transition state, keyed by property slot
-  enum Slot : int { kOpacity, kTx, kTy, kRotate, kScale, kFillLerp, kSlots };
-  std::unique_ptr<AnimatedFloat> anims[kSlots];
-  Fill fillFrom, fillTo; // endpoints for kFillLerp
-
-  // Derive-phase state
-  std::vector<SkRect> exclusionsLocal;    // flowAround rects, text-local
-  SkPath connectorPath;                    // routed path, connector-local
-  SkRect connectorFrom = SkRect::MakeEmpty(), connectorTo = SkRect::MakeEmpty();
-
-  // Caching
-  sk_sp<SkPicture> picture;
-  sk_sp<SkImage> textureImage;
-  float textureScale = 1.0f;
-  bool paintDirty = true;
-  bool subtreeVolatile = false;
-
-  // Resolved custom-outline cache: generators (blobs, rounded stars)
-  // can be arbitrarily expensive — resolve once per (description, size)
-  // instead of per paint/hit. Desc pointer identity keys invalidation:
-  // every patch swaps the description.
-  SkPath outlineCache;
-  SkSize outlineCacheSize = {-1.0f, -1.0f};
-  const ElementNode *outlineCacheDesc = nullptr;
-
-  ~Instance();
-  float resolveFloat(Instance::Slot slot, const PropValue<float> &v) const;
-
-  /** A change here stales every ancestor's recording too. */
-  void markPaintDirtyUp() {
-    for (Instance *i = this; i; i = i->parent) {
-      if (i->paintDirty && i != this)
-        break; // ancestors already invalidated
-      i->paintDirty = true;
-      i->picture.reset();
-      i->textureImage.reset();
-    }
-  }
-};
-
-} // namespace detail
-
-// ---------------------------------------------------------------------------
-
-struct Composer::Impl {
-  motion::Ticker &ticker;
-  sigil::weave::FontContext &fonts;
-  const motion::FrameClock *clock = nullptr;
-
-  SkSize size = SkSize::MakeEmpty();
-  std::unique_ptr<Instance> root;
-  YGConfigRef yogaConfig = nullptr;
-  bool needsLayout = true;
-  bool contentDirty = true;
-  std::unordered_map<std::string, Instance *> byKey;
-  bool volatileDirty = true;   // recompute needed (render or animation)
-  bool tickerWasActive = false;
-  bool hasDerived = false;     // any flowAround/connector in the tree
-  bool hasCustomLayout = false;
-  bool liveOnly = false;       // snapshot(): skip per-node caches
-
-  mutable Stats stats;
-
-  Impl(motion::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
-    yogaConfig = YGConfigNew();
-  }
-  ~Impl() {
-    root.reset();
-    YGConfigFree(yogaConfig);
-  }
-
-  double elapsed() const { return clock ? clock->elapsed() : 0.0; }
-
-  // ---- reconcile ----
-  std::unique_ptr<Instance> mount(const std::shared_ptr<ElementNode> &node,
-                                  Instance *parent);
-  void patch(Instance &inst, std::shared_ptr<ElementNode> node);
-  void patchChildren(Instance &inst,
-                     const std::vector<Element> &newChildren);
-  void applyLayoutProps(Instance &inst);
-  void applyTransitions(Instance &inst, const ElementNode &prev,
-                        const ElementNode &next);
-  std::shared_ptr<ElementNode>
-  resolveMemo(Instance *existing, const std::shared_ptr<ElementNode> &node,
-              bool &described);
-
-  // ---- volatility & caching ----
-  bool computeVolatile(Instance &inst);
-  bool applyCustomLayouts(Instance &inst);
-  void ensureLayout();
-
-  // ---- text ----
-  void layoutText(Instance &inst, float constraint);
-
-  // ---- paint ----
-  float hostScale = 1.0f; // device px per layout px at draw() entry
-  void paint(Instance &inst, SkCanvas &canvas);
-  void paintContent(Instance &inst, SkCanvas &canvas, float contentScale,
-                    SkBlendMode leafBlend = SkBlendMode::kSrcOver,
-                    float leafOpacity = 1.0f);
-  const SkPath &resolveOutline(Instance &inst, SkSize size) const;
-
-  // ---- hit testing ----
-  bool shapeContains(Instance &inst, SkPoint local, SkSize size) const;
-  std::optional<std::string> hitInstance(Instance &inst, SkPoint parentPt,
-                                         const std::string *inheritedKey);
-  void rebuildKeyIndex();
-  void indexKeys(Instance &inst);
-  SkRect instanceRect(const Instance &inst) const;
-  SkRect absoluteRect(const Instance &inst) const;
-  bool resolveDerived(Instance &inst);
-};
-
-// ---------------------------------------------------------------------------
-// Instance helpers
+// Instance lifecycle
 
 detail::Instance::~Instance() {
   if (yoga)
@@ -327,988 +37,8 @@ detail::Instance::~Instance() {
   children.clear();
   if (yoga)
     YGNodeFree(yoga);
-  // AnimatedFloat outputs die here; Choreograph disconnects their
-  // motions automatically — unmount cancels transitions by construction.
-}
-
-float detail::Instance::resolveFloat(Slot slot,
-                                     const PropValue<float> &v) const {
-  if (const auto *binding =
-          std::get_if<const choreograph::Output<float> *>(&v))
-    return (*binding)->value();
-  if (anims[slot] && anims[slot]->started)
-    return anims[slot]->value.value();
-  if (const float *plain = std::get_if<float>(&v))
-    return *plain;
-  return std::get<Transitioned<float>>(v).value;
-}
-
-// ---------------------------------------------------------------------------
-// Text measurement (the spike, productized)
-
-namespace {
-
-YGSize measureTextNode(YGNodeConstRef node, float width, YGMeasureMode widthMode,
-                       float, YGMeasureMode) {
-  auto *inst = static_cast<Instance *>(YGNodeGetContext(
-      const_cast<YGNodeRef>(node)));
-  const float constraint =
-      widthMode == YGMeasureModeUndefined ? 1.0e6f : width;
-  inst->owner->layoutText(*inst, constraint);
-  return inst->measuredSize;
-}
-
-float baselineOfTextNode(YGNodeConstRef node, float, float) {
-  auto *inst = static_cast<Instance *>(YGNodeGetContext(
-      const_cast<YGNodeRef>(node)));
-  if (inst->lines.empty())
-    return 0.0f;
-  const sigil::weave::LineMetrics &first = inst->lines.front();
-  return first.baseline - first.rect().top();
-}
-
-} // namespace
-
-void Composer::Impl::layoutText(Instance &inst, float constraint) {
-  if (constraint == inst.measuredForWidth &&
-      inst.measuredRev == inst.contentRev)
-    return; // layout is already valid for this content and width
-  const sigil::weave::ParagraphLayoutOptions &options =
-      inst.desc->layoutOptions;
-  if (!inst.exclusionsLocal.empty()) {
-    sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    for (const SkRect &exclusion : inst.exclusionsLocal)
-      flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromRectangle(
-          exclusion, inst.desc->flowAroundMargin));
-    inst.textLayout = sigil::weave::layoutParagraph(fonts, *inst.paragraph,
-                                                flow, options);
-  } else {
-    sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-    inst.textLayout = sigil::weave::layoutParagraph(fonts, *inst.paragraph,
-                                                flow, options);
-  }
-  inst.lines = inst.textLayout.lineMetrics(*inst.paragraph);
-  inst.measuredForWidth = constraint;
-  SkRect bounds = SkRect::MakeEmpty();
-  for (const sigil::weave::LineMetrics &line : inst.lines)
-    bounds.join(line.rect());
-  inst.measuredSize = {std::ceil(bounds.width()), std::ceil(bounds.height())};
-  inst.measuredRev = inst.contentRev;
-}
-
-// ---------------------------------------------------------------------------
-// Reconcile
-
-std::shared_ptr<ElementNode>
-Composer::Impl::resolveMemo(Instance *existing,
-                            const std::shared_ptr<ElementNode> &node,
-                            bool &described) {
-  if (!node->isMemo) {
-    described = true;
-    return node;
-  }
-  if (existing && existing->memoShell &&
-      existing->memoShell->memoEqual(existing->memoShell->memoProps,
-                                     node->memoProps)) {
-    stats.memoHits++;
-    described = false;
-    return existing->desc; // reuse the previously described payload
-  }
-  described = true;
-  Element produced = node->memoInvoke(node->memoProps);
-  return produced.node();
-}
-
-std::unique_ptr<Instance>
-Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
-                      Instance *parent) {
-  auto inst = std::make_unique<Instance>();
-  inst->owner = this;
-  inst->parent = parent;
-  inst->yoga = YGNodeNewWithConfig(yogaConfig);
-  YGNodeSetContext(inst->yoga, inst.get());
-  patch(*inst, node);
-  return inst;
-}
-
-void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
-  stats.describedNodes++;
-  bool described = true;
-  std::shared_ptr<ElementNode> resolved =
-      resolveMemo(inst.desc ? &inst : nullptr, node, described);
-  if (node->isMemo)
-    inst.memoShell = node;
-  else
-    inst.memoShell = nullptr;
-
-  if (resolved == inst.desc)
-    return; // payload identity: untouched subtree (memo hit)
-
-  std::shared_ptr<ElementNode> prev = std::move(inst.desc);
-  inst.desc = resolved;
-
-  // Structural prune (the no-memo path): a fresh description that is
-  // provably identical to the retained one patches nothing and — key
-  // property — dirties nothing; only its children keep reconciling.
-  const bool own = !prev || !propsEqual(*prev, *resolved);
-  if (own) {
-    stats.patchedNodes++;
-    inst.markPaintDirtyUp();
-    contentDirty = true;
-
-    // Kind change → full remount of content state.
-    const bool kindChanged = prev && prev->kind != resolved->kind;
-    if (kindChanged) {
-      inst.paragraph.reset();
-      inst.lines.clear();
-      YGNodeSetMeasureFunc(inst.yoga, nullptr);
-    }
-
-    applyLayoutProps(inst);
-
-    if (resolved->kind == Kind::Text) {
-      const bool textChanged =
-          !prev || kindChanged || prev->textUtf8 != resolved->textUtf8 ||
-          !(prev->textStyle == resolved->textStyle) ||
-          prev->paragraphOverride != resolved->paragraphOverride;
-      if (textChanged) {
-        inst.contentRev++;
-        if (resolved->paragraphOverride)
-          inst.paragraph.emplace(*resolved->paragraphOverride);
-        else {
-          inst.paragraph.emplace();
-          inst.paragraph->appendText(resolved->textUtf8,
-                                     resolved->textStyle);
-        }
-        YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
-        YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
-        YGNodeSetNodeType(inst.yoga, YGNodeTypeText);
-        YGNodeMarkDirty(inst.yoga);
-        needsLayout = true;
-      }
-    }
-
-    if (prev)
-      applyTransitions(inst, *prev, *resolved);
-  }
-
-  if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty())
-    hasDerived = true;
-  if (resolved->placeFn)
-    hasCustomLayout = true;
-
-  // Slot content is owned by renderSlot(), not the description.
-  if (resolved->kind != Kind::Slot)
-    patchChildren(inst, resolved->children);
-
-  // Paint order: stable sort by zIndex.
-  inst.paintOrder.resize(inst.children.size());
-  std::iota(inst.paintOrder.begin(), inst.paintOrder.end(), size_t{0});
-  std::stable_sort(inst.paintOrder.begin(), inst.paintOrder.end(),
-                   [&](size_t a, size_t b) {
-                     return inst.children[a]->desc->paint.zIndex <
-                            inst.children[b]->desc->paint.zIndex;
-                   });
-}
-
-void Composer::Impl::patchChildren(Instance &inst,
-                                   const std::vector<Element> &newChildren) {
-  // Match by key when present, else by position among unkeyed children.
-  std::vector<const Instance *> oldOrder;
-  oldOrder.reserve(inst.children.size());
-  std::unordered_map<std::string, std::unique_ptr<Instance>> keyed;
-  std::vector<std::unique_ptr<Instance>> unkeyed;
-  for (auto &child : inst.children) {
-    if (child) {
-      oldOrder.push_back(child.get());
-      YGNodeRemoveChild(inst.yoga, child->yoga);
-      const std::shared_ptr<ElementNode> &shell =
-          child->memoShell ? child->memoShell : child->desc;
-      if (!shell->key.empty())
-        keyed.emplace(shell->key, std::move(child));
-      else
-        unkeyed.push_back(std::move(child));
-    }
-  }
-  inst.children.clear();
-
-  size_t unkeyedCursor = 0;
-  for (const Element &childElement : newChildren) {
-    const std::shared_ptr<ElementNode> &node = childElement.node();
-    std::unique_ptr<Instance> match;
-    if (!node->key.empty()) {
-      if (auto it = keyed.find(node->key); it != keyed.end()) {
-        match = std::move(it->second);
-        keyed.erase(it);
-      }
-    } else if (unkeyedCursor < unkeyed.size()) {
-      match = std::move(unkeyed[unkeyedCursor++]);
-    }
-
-    if (match) {
-      match->parent = &inst;
-      patch(*match, node);
-      inst.children.push_back(std::move(match));
-    } else {
-      inst.children.push_back(mount(node, &inst));
-      needsLayout = true;
-    }
-    Instance &placed = *inst.children.back();
-    // Stack children overlap: absolute unless they positioned themselves.
-    if (inst.desc->kind == Kind::Stack)
-      YGNodeStyleSetPositionType(placed.yoga, YGPositionTypeAbsolute);
-    YGNodeInsertChild(inst.yoga, placed.yoga,
-                      YGNodeGetChildCount(inst.yoga));
-  }
-
-  // Mounts, unmounts, and reorders change what this node's recording
-  // paints even when every surviving child is prop-identical — the
-  // structural prune must not swallow them.
-  bool structureChanged = oldOrder.size() != inst.children.size();
-  if (!structureChanged)
-    for (size_t i = 0; i < oldOrder.size(); ++i)
-      if (oldOrder[i] != inst.children[i].get()) {
-        structureChanged = true;
-        break;
-      }
-  if (structureChanged) {
-    inst.markPaintDirtyUp();
-    contentDirty = true;
-    needsLayout = true;
-  }
-  // Unmatched old children unmount here (destructors cancel motions).
-}
-
-void Composer::Impl::applyLayoutProps(Instance &inst) {
-  const LayoutProps &l = inst.desc->layout;
-  YGNodeRef n = inst.yoga;
-  const bool isStack = inst.desc->kind == Kind::Stack;
-
-  YGNodeStyleSetFlexDirection(n, l.row ? YGFlexDirectionRow
-                                       : YGFlexDirectionColumn);
-  YGNodeStyleSetFlexWrap(n, l.wrap ? YGWrapWrap : YGWrapNoWrap);
-  YGNodeStyleSetGap(n, YGGutterAll, l.gap);
-  YGNodeStyleSetPadding(n, YGEdgeLeft, l.padding.left);
-  YGNodeStyleSetPadding(n, YGEdgeTop, l.padding.top);
-  YGNodeStyleSetPadding(n, YGEdgeRight, l.padding.right);
-  YGNodeStyleSetPadding(n, YGEdgeBottom, l.padding.bottom);
-  YGNodeStyleSetMargin(n, YGEdgeLeft, l.margin.left);
-  YGNodeStyleSetMargin(n, YGEdgeTop, l.margin.top);
-  YGNodeStyleSetMargin(n, YGEdgeRight, l.margin.right);
-  YGNodeStyleSetMargin(n, YGEdgeBottom, l.margin.bottom);
-
-  applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
-  applyDim(n, l.height, &YGNodeStyleSetHeight, &YGNodeStyleSetHeightPercent);
-  applyDim(n, l.minWidth, &YGNodeStyleSetMinWidth,
-           &YGNodeStyleSetMinWidthPercent);
-  applyDim(n, l.maxWidth, &YGNodeStyleSetMaxWidth,
-           &YGNodeStyleSetMaxWidthPercent);
-  applyDim(n, l.minHeight, &YGNodeStyleSetMinHeight,
-           &YGNodeStyleSetMinHeightPercent);
-  applyDim(n, l.maxHeight, &YGNodeStyleSetMaxHeight,
-           &YGNodeStyleSetMaxHeightPercent);
-  if (l.aspect > 0)
-    YGNodeStyleSetAspectRatio(n, l.aspect);
-  YGNodeStyleSetFlexGrow(n, l.grow);
-  YGNodeStyleSetFlexShrink(n, l.shrink);
-  applyDim(n, l.basis, &YGNodeStyleSetFlexBasis,
-           &YGNodeStyleSetFlexBasisPercent);
-  YGNodeStyleSetAlignItems(n, toYogaAlign(l.alignItems));
-  // Measured text must not stretch on the cross axis (the spike's API
-  // lesson): demote a resolved Stretch to Start for text leaves, but let
-  // explicit alignment — own or inherited — through untouched.
-  Align self = l.alignSelf;
-  if (inst.desc->kind == Kind::Text) {
-    const Align resolved =
-        self != Align::Auto
-            ? self
-            : (inst.parent && inst.parent->desc
-                   ? inst.parent->desc->layout.alignItems
-                   : Align::Stretch);
-    if (resolved == Align::Stretch)
-      self = Align::Start;
-  }
-  YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
-  YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
-
-  (void)isStack;
-  YGNodeStyleSetPositionType(n, l.absolute ? YGPositionTypeAbsolute
-                                           : YGPositionTypeRelative);
-  if (l.hasInsets) {
-    YGNodeStyleSetPosition(n, YGEdgeLeft, l.insets.left);
-    YGNodeStyleSetPosition(n, YGEdgeTop, l.insets.top);
-    YGNodeStyleSetPosition(n, YGEdgeRight, l.insets.right);
-    YGNodeStyleSetPosition(n, YGEdgeBottom, l.insets.bottom);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Transitions
-
-namespace {
-
-/** Starts (or retargets) a ramp on `slot` when the plain target changed.
- *  Returns true if a motion is running. */
-bool transitionFloat(Composer::Impl &impl, Instance &inst,
-                     Instance::Slot slot, const PropValue<float> &prevValue,
-                     const PropValue<float> &nextValue,
-                     const std::optional<Transition> &nodeDefault) {
-  ResolvedProp<float> prev = resolveProp(prevValue, nodeDefault);
-  ResolvedProp<float> next = resolveProp(nextValue, nodeDefault);
-  if (next.binding || !next.transition)
-    return false; // bound, or plain snap
-  if (prev.binding)
-    return false; // binding → constant: snap (no meaningful "from")
-
-  auto &anim = inst.anims[slot];
-  const float current = anim && anim->started ? anim->value.value()
-                                              : prev.target;
-  if (current == next.target)
-    return anim && anim->value.isConnected();
-
-  if (!anim)
-    anim = std::make_unique<AnimatedFloat>();
-  anim->value = current; // seed the retarget start point
-  anim->started = true;
-  impl.ticker.timeline()
-      .apply(&anim->value)
-      .then<choreograph::RampTo>(
-          next.target,
-          std::chrono::duration<float>(next.transition->duration).count(),
-          next.transition->ease);
-  return true;
-}
-
-} // namespace
-
-void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
-                                      const ElementNode &next) {
-  const auto &nd = next.nodeTransition;
-  transitionFloat(*this, inst, Instance::kOpacity, prev.paint.opacity,
-                  next.paint.opacity, nd);
-  transitionFloat(*this, inst, Instance::kTx, prev.paint.translateX,
-                  next.paint.translateX, nd);
-  transitionFloat(*this, inst, Instance::kTy, prev.paint.translateY,
-                  next.paint.translateY, nd);
-  transitionFloat(*this, inst, Instance::kRotate, prev.paint.rotate,
-                  next.paint.rotate, nd);
-  transitionFloat(*this, inst, Instance::kScale, prev.paint.scale,
-                  next.paint.scale, nd);
-
-  // Fill: color→color lerp via a progress output.
-  if (prev.paint.fill && next.paint.fill) {
-    ResolvedProp<Fill> prevFill = resolveProp(*prev.paint.fill, nd);
-    ResolvedProp<Fill> nextFill = resolveProp(*next.paint.fill, nd);
-    if (!prevFill.binding && !nextFill.binding && nextFill.transition &&
-        prevFill.target.kind == Fill::Kind::Color &&
-        nextFill.target.kind == Fill::Kind::Color &&
-        !(prevFill.target == nextFill.target)) {
-      // Current visual color as the new "from" (retarget-from-current).
-      Fill from = prevFill.target;
-      auto &anim = inst.anims[Instance::kFillLerp];
-      if (anim && anim->started && anim->value.isConnected()) {
-        const float t = anim->value.value();
-        for (int i = 0; i < 4; ++i)
-          from.colorValue.vec()[i] =
-              inst.fillFrom.colorValue.vec()[i] +
-              (inst.fillTo.colorValue.vec()[i] -
-               inst.fillFrom.colorValue.vec()[i]) * t;
-      }
-      inst.fillFrom = from;
-      inst.fillTo = nextFill.target;
-      if (!anim)
-        anim = std::make_unique<AnimatedFloat>();
-      anim->value = 0.0f;
-      anim->started = true;
-      ticker.timeline()
-          .apply(&anim->value)
-          .then<choreograph::RampTo>(
-              1.0f,
-              std::chrono::duration<float>(nextFill.transition->duration)
-                  .count(),
-              nextFill.transition->ease);
-    }
-  }
-}
-
-void Composer::Impl::ensureLayout() {
-  if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga)))
-    return;
-  // The root fills the viewport (the CSS-root rule) — except under an
-  // empty setSize(), which means "intrinsic": the root sizes to its
-  // content (the snapshot()/stamp path).
-  if (!size.isEmpty()) {
-    YGNodeStyleSetWidth(root->yoga, size.width());
-    YGNodeStyleSetHeight(root->yoga, size.height());
-  }
-  YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined,
-                        YGDirectionLTR);
-  // Custom layout() containers: a bounded second pass — children were
-  // measured by pass one; scheme.place() pins them, pass two resolves.
-  bool repass = hasCustomLayout && applyCustomLayouts(*root);
-  // Derive phase: geometry-consuming content (exclusions, connectors).
-  if (hasDerived)
-    repass |= resolveDerived(*root);
-  if (repass) {
-    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined,
-                          YGDirectionLTR);
-    if (hasDerived)
-      resolveDerived(*root); // refresh connectors post-move
-  }
-  needsLayout = false;
-}
-
-bool Composer::Impl::applyCustomLayouts(Instance &inst) {
-  bool applied = false;
-  if (inst.desc->placeFn && !inst.children.empty()) {
-    LayoutInput input;
-    input.container = {YGNodeLayoutGetWidth(inst.yoga),
-                       YGNodeLayoutGetHeight(inst.yoga)};
-    for (const auto &child : inst.children)
-      input.childSizes.push_back({YGNodeLayoutGetWidth(child->yoga),
-                                  YGNodeLayoutGetHeight(child->yoga)});
-    std::vector<SkRect> rects = inst.desc->placeFn(input);
-    const size_t count = std::min(rects.size(), inst.children.size());
-    for (size_t i = 0; i < count; ++i) {
-      YGNodeRef child = inst.children[i]->yoga;
-      YGNodeStyleSetPositionType(child, YGPositionTypeAbsolute);
-      YGNodeStyleSetPosition(child, YGEdgeLeft, rects[i].left());
-      YGNodeStyleSetPosition(child, YGEdgeTop, rects[i].top());
-      YGNodeStyleSetWidth(child, rects[i].width());
-      YGNodeStyleSetHeight(child, rects[i].height());
-    }
-    applied = true;
-  }
-  for (const auto &child : inst.children)
-    applied |= applyCustomLayouts(*child);
-  return applied;
-}
-
-SkRect Composer::Impl::absoluteRect(const Instance &inst) const {
-  SkRect rect = instanceRect(inst);
-  for (Instance *p = inst.parent; p; p = p->parent)
-    rect.offset(YGNodeLayoutGetLeft(p->yoga), YGNodeLayoutGetTop(p->yoga));
-  return rect;
-}
-
-/** The derive pass: content whose input is resolved geometry. Returns
- *  true when a text exclusion changed (second layout pass needed). */
-bool Composer::Impl::resolveDerived(Instance &inst) {
-  bool relayout = false;
-  const ElementNode &node = *inst.desc;
-
-  if (!node.flowAroundKeys.empty() && inst.paragraph) {
-    std::vector<SkRect> exclusions;
-    const SkRect own = absoluteRect(inst);
-    for (const std::string &key : node.flowAroundKeys) {
-      auto it = byKey.find(key);
-      if (it == byKey.end())
-        continue;
-      // Cycle guard: the target must not be this node or a descendant.
-      bool cyclic = false;
-      for (Instance *p = it->second; p; p = p->parent)
-        if (p == &inst) { cyclic = true; break; }
-      if (cyclic)
-        continue;
-      SkRect target = absoluteRect(*it->second);
-      target.offset(-own.left(), -own.top());
-      exclusions.push_back(target);
-    }
-    if (exclusions != inst.exclusionsLocal) {
-      inst.exclusionsLocal = std::move(exclusions);
-      inst.contentRev++;
-      YGNodeMarkDirty(inst.yoga);
-      inst.markPaintDirtyUp();
-      relayout = true;
-    }
-  }
-
-  if (!node.connectFrom.empty() && !node.connectTo.empty()) {
-    auto fromIt = byKey.find(node.connectFrom);
-    auto toIt = byKey.find(node.connectTo);
-    if (fromIt != byKey.end() && toIt != byKey.end()) {
-      SkRect own = absoluteRect(inst);
-      SkRect from = absoluteRect(*fromIt->second);
-      SkRect to = absoluteRect(*toIt->second);
-      from.offset(-own.left(), -own.top());
-      to.offset(-own.left(), -own.top());
-      if (from != inst.connectorFrom || to != inst.connectorTo) {
-        inst.connectorFrom = from;
-        inst.connectorTo = to;
-        if (node.router) {
-          inst.connectorPath = node.router(from, to);
-        } else {
-          SkPathBuilder b;
-          b.moveTo(from.centerX(), from.centerY());
-          b.lineTo(to.centerX(), to.centerY());
-          inst.connectorPath = b.detach();
-        }
-        inst.markPaintDirtyUp();
-      }
-    }
-  }
-
-  for (auto &child : inst.children)
-    relayout |= resolveDerived(*child);
-  return relayout;
-}
-
-// ---------------------------------------------------------------------------
-// Volatility & caching
-
-bool Composer::Impl::computeVolatile(Instance &inst) {
-  const ElementNode &node = *inst.desc;
-
-  auto boundOrRunning = [&](Instance::Slot slot,
-                            const PropValue<float> &v) {
-    if (std::holds_alternative<const choreograph::Output<float> *>(v))
-      return true;
-    return inst.anims[slot] && inst.anims[slot]->value.isConnected();
-  };
-  // Paint-only volatility: transforms and opacity apply OUTSIDE the
-  // node's content (in paint()'s matrix/layer stack), so a node
-  // animated only here still replays its content picture — a spinning
-  // ornament re-records nothing. Ancestors still can't cache across it
-  // (their recording would freeze the motion), hence the return value.
-  bool ownPaint = false;
-  ownPaint |= boundOrRunning(Instance::kOpacity, node.paint.opacity);
-  ownPaint |= boundOrRunning(Instance::kTx, node.paint.translateX);
-  ownPaint |= boundOrRunning(Instance::kTy, node.paint.translateY);
-  ownPaint |= boundOrRunning(Instance::kRotate, node.paint.rotate);
-  ownPaint |= boundOrRunning(Instance::kScale, node.paint.scale);
-
-  // Content volatility: what actually invalidates the node's own
-  // recording (bound/lerping fills, per-frame programs, animated
-  // decorations and image frames).
-  bool ownContent = inst.anims[Instance::kFillLerp] &&
-                    inst.anims[Instance::kFillLerp]->value.isConnected();
-  if (node.paint.fill &&
-      std::holds_alternative<const choreograph::Output<Fill> *>(
-          *node.paint.fill))
-    ownContent = true;
-  if (node.cacheMode == Cache::None)
-    ownContent = true;
-  for (const Decoration &d : node.backgrounds)
-    ownContent |= d.animated();
-  for (const Decoration &d : node.foregrounds)
-    ownContent |= d.animated();
-  if (node.kind == Kind::Image && node.imageAsset &&
-      node.imageAsset->animated())
-    ownContent = true;
-
-  bool childrenVolatile = false;
-  for (auto &child : inst.children)
-    childrenVolatile |= computeVolatile(*child);
-
-  // subtreeVolatile gates the node's own caches: blocked by content
-  // volatility here or ANY volatility below (children paint inside the
-  // recording, transforms included) — but not by own paint volatility.
-  const bool blocked = ownContent || childrenVolatile;
-  if (blocked != inst.subtreeVolatile) {
-    inst.subtreeVolatile = blocked;
-    inst.paintDirty = true; // cacheability changed → re-record/drop
-  }
-  if (inst.subtreeVolatile) {
-    inst.picture.reset();
-    inst.textureImage.reset();
-  }
-  return ownPaint || blocked;
-}
-
-// ---------------------------------------------------------------------------
-// Paint
-
-SkRect Composer::Impl::instanceRect(const Instance &inst) const {
-  return SkRect::MakeXYWH(YGNodeLayoutGetLeft(inst.yoga),
-                          YGNodeLayoutGetTop(inst.yoga),
-                          YGNodeLayoutGetWidth(inst.yoga),
-                          YGNodeLayoutGetHeight(inst.yoga));
-}
-
-const SkPath &Composer::Impl::resolveOutline(Instance &inst,
-                                             SkSize size) const {
-  if (inst.outlineCacheDesc != inst.desc.get() ||
-      inst.outlineCacheSize != size) {
-    inst.outlineCache = inst.desc->shapeFn(size);
-    inst.outlineCacheDesc = inst.desc.get();
-    inst.outlineCacheSize = size;
-  }
-  return inst.outlineCache;
-}
-
-void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
-                                  float contentScale, SkBlendMode leafBlend,
-                                  float leafOpacity) {
-  const ElementNode &node = *inst.desc;
-  const SkRect bounds = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
-                                       YGNodeLayoutGetHeight(inst.yoga));
-  const SkRRect rrect = cornersRRect(bounds, node.corners);
-
-  // The node's shape: routed connector path, custom outline(), or the
-  // corner-rounded box.
-  const bool customShape = node.shapeFn && node.connectFrom.empty();
-  SkPath outlinePath;
-  if (!node.connectFrom.empty()) {
-    outlinePath = inst.connectorPath; // derive phase routed it
-  } else if (customShape) {
-    outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});
-  } else {
-    SkPathBuilder outlineBuilder;
-    outlineBuilder.addRRect(rrect);
-    outlinePath = outlineBuilder.detach();
-  }
-
-  if (node.clipContent) {
-    if (customShape)
-      canvas.clipPath(outlinePath, true);
-    else
-      canvas.clipRRect(rrect, true);
-  }
-
-  // The node's own layer effect wraps everything painted here, so it is
-  // captured by picture recordings and BAKED by texture snapshots.
-  const bool hasEffect =
-      node.layerEffect && node.layerEffect->imageFilter();
-  if (hasEffect) {
-    SkPaint effectPaint;
-    effectPaint.setImageFilter(node.layerEffect->imageFilter());
-    canvas.saveLayer(nullptr, &effectPaint);
-  }
-  const PaintContext paintCtx{{bounds.width(), bounds.height()},
-                              std::move(outlinePath), elapsed(),
-                              contentScale, ticker.active(), &fonts};
-
-  // Background decorations paint beneath the fill (the CSS box-shadow
-  // ordering): shadow/pattern layers first, then the surface.
-  for (const Decoration &decoration : node.backgrounds)
-    decoration.paint(canvas, paintCtx);
-
-  // Fill (background)
-  if (node.paint.fill) {
-    Fill fill;
-    if (const auto *binding =
-            std::get_if<const choreograph::Output<Fill> *>(&*node.paint.fill))
-      fill = (*binding)->value();
-    else if (inst.anims[Instance::kFillLerp] &&
-             inst.anims[Instance::kFillLerp]->started &&
-             inst.anims[Instance::kFillLerp]->value.isConnected()) {
-      const float t = inst.anims[Instance::kFillLerp]->value.value();
-      fill = inst.fillTo;
-      for (int i = 0; i < 4; ++i)
-        fill.colorValue.vec()[i] =
-            inst.fillFrom.colorValue.vec()[i] +
-            (inst.fillTo.colorValue.vec()[i] -
-             inst.fillFrom.colorValue.vec()[i]) * t;
-      fill.kind = Fill::Kind::Color;
-    } else {
-      ResolvedProp<Fill> resolved =
-          resolveProp(*node.paint.fill, node.nodeTransition);
-      fill = resolved.target;
-    }
-
-    if (fill.kind != Fill::Kind::None) {
-      SkPaint paint;
-      paint.setAntiAlias(true);
-      if (fill.kind == Fill::Kind::Color)
-        paint.setColor4f(fill.colorValue, nullptr);
-      else
-        paint.setShader(fill.shaderValue);
-      // Leaf fast path: paint() proved a layer is unnecessary and
-      // routed the node's blend/opacity straight onto the fill.
-      paint.setBlendMode(leafBlend);
-      if (leafOpacity < 1.0f)
-        paint.setAlphaf(paint.getAlphaf() * leafOpacity);
-      if (customShape)
-        canvas.drawPath(paintCtx.outline, paint);
-      else
-        canvas.drawRRect(rrect, paint);
-    }
-  }
-
-  // Content
-  switch (node.kind) {
-  case Kind::Text:
-    if (inst.paragraph) {
-      // Yoga skips the measure callback when both dimensions are fully
-      // determined (absolute + all four insets); lay out on demand at
-      // the resolved width so such text still paints.
-      if (inst.measuredRev != inst.contentRev)
-        layoutText(inst, bounds.width());
-      inst.textLayout.drawBatched(&canvas, *inst.paragraph);
-    }
-    break;
-  case Kind::Image:
-    if (node.imageAsset && !node.imageAsset->frames().empty()) {
-      const auto &frame = node.imageAsset->frameAt(elapsed() * 1000.0);
-      if (frame.image) {
-        if (node.imageRegion)
-          canvas.drawImageRect(frame.image, *node.imageRegion, bounds,
-                               SkSamplingOptions(SkFilterMode::kLinear),
-                               nullptr, SkCanvas::kStrict_SrcRectConstraint);
-        else
-          canvas.drawImageRect(frame.image, bounds,
-                               SkSamplingOptions(SkFilterMode::kLinear));
-      }
-    }
-    break;
-  case Kind::Custom:
-    if (node.program)
-      node.program(canvas, paintCtx);
-    break;
-  case Kind::Box:
-  case Kind::Stack:
-  case Kind::Slot:
-    break;
-  }
-
-  // Children in stacking order (each clean static child replays its own
-  // nested picture — ancestor re-records don't repaint clean subtrees).
-  for (size_t index : inst.paintOrder)
-    paint(*inst.children[index], canvas);
-
-  for (const Decoration &decoration : node.foregrounds)
-    decoration.paint(canvas, paintCtx);
-
-  if (hasEffect)
-    canvas.restore();
-}
-
-void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
-  const ElementNode &node = *inst.desc;
-  const SkRect rect = instanceRect(inst);
-
-  const float opacity =
-      std::clamp(inst.resolveFloat(Instance::kOpacity, node.paint.opacity),
-                 0.0f, 1.0f);
-  if (opacity <= 0.0f)
-    return;
-
-  canvas.save();
-  canvas.translate(rect.left(), rect.top());
-
-  const float tx = inst.resolveFloat(Instance::kTx, node.paint.translateX);
-  const float ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
-  const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
-  const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  if (tx != 0 || ty != 0)
-    canvas.translate(tx, ty);
-  if (rot != 0 || scl != 1) {
-    const SkPoint origin = {rect.width() * node.paint.originX,
-                            rect.height() * node.paint.originY};
-    canvas.translate(origin.x(), origin.y());
-    if (rot != 0)
-      canvas.rotate(rot);
-    if (scl != 1)
-      canvas.scale(scl, scl);
-    canvas.translate(-origin.x(), -origin.y());
-  }
-
-  const bool hasBackdrop =
-      node.backdropEffect && node.backdropEffect->imageFilter();
-  if (hasBackdrop) {
-    canvas.save();
-    if (node.shapeFn)
-      canvas.clipPath(resolveOutline(inst, {rect.width(), rect.height()}),
-                      true);
-    else
-      canvas.clipRRect(
-          cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
-                       node.corners),
-          true);
-    SkCanvas::SaveLayerRec rec(nullptr, nullptr,
-                               node.backdropEffect->imageFilter().get(), 0);
-    canvas.saveLayer(rec);
-  }
-
-  // Fill-only leaves route blend/opacity straight onto the fill paint
-  // instead of a (device-clip-sized!) saveLayer — a field of
-  // plus-blended shapes costs path draws, not full-canvas layers.
-  // Excluded: live opacity (must stay outside any cached recording)
-  // and texture bakes (blending must hit the real destination, not the
-  // bake's transparent surface).
-  const bool opacityLive =
-      std::holds_alternative<const choreograph::Output<float> *>(
-          node.paint.opacity) ||
-      (inst.anims[Instance::kOpacity] &&
-       inst.anims[Instance::kOpacity]->value.isConnected());
-  const bool leafDirectBlend =
-      (node.kind == Kind::Box || node.kind == Kind::Stack) &&
-      inst.children.empty() && node.backgrounds.empty() &&
-      node.foregrounds.empty() && !node.layerEffect &&
-      !node.backdropEffect && !node.clipContent && !opacityLive &&
-      node.cacheMode != Cache::Texture;
-  const bool needsLayer =
-      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
-      !leafDirectBlend;
-  if (needsLayer) {
-    SkPaint layerPaint;
-    layerPaint.setAlphaf(opacity);
-    layerPaint.setBlendMode(node.paint.blendMode);
-    canvas.saveLayer(nullptr, &layerPaint);
-  }
-  const SkBlendMode leafBlend =
-      leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
-  const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
-
-  // Automatic caching at topmost provably-static subtrees: pictures by
-  // default, a rasterized image under Cache::Texture (the raster-target
-  // pixel win — replaying a picture re-rasterizes, blitting doesn't).
-  if (!liveOnly && !inst.subtreeVolatile &&
-      node.cacheMode == Cache::Texture && !node.backdropEffect) {
-    // Rasterize at the canvas's current scale so zoomed hosts stay
-    // crisp — but quantized UP to a coarse step, so a continuously
-    // changing scale (window resize, pinch zoom) reuses one bake per
-    // step instead of re-rasterizing every frame. Between steps the
-    // draw minifies slightly, which stays sharp.
-    SkMatrix total = canvas.getTotalMatrix();
-    const float raw = std::clamp(
-        std::max(std::abs(total.getScaleX()), std::abs(total.getScaleY())),
-        0.25f, 4.0f);
-    static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
-                                           1.5f, 2.0f, 3.0f, 4.0f};
-    float scale = kBakeSteps[std::size(kBakeSteps) - 1];
-    for (float step : kBakeSteps)
-      if (step >= raw) { scale = step; break; }
-    if (!inst.textureImage || inst.paintDirty ||
-        inst.textureScale != scale) {
-      const int pw = std::max(1, (int)std::ceil(rect.width() * scale));
-      const int ph = std::max(1, (int)std::ceil(rect.height() * scale));
-      sk_sp<SkSurface> layer =
-          canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
-      if (!layer)
-        layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
-      layer->getCanvas()->scale(scale, scale);
-      paintContent(inst, *layer->getCanvas(), scale); // no leaf blend:
-      inst.textureImage = layer->makeImageSnapshot(); // bakes isolate
-      inst.textureScale = scale;
-      inst.paintDirty = false;
-      stats.picturesRecorded++;
-    }
-    canvas.drawImageRect(inst.textureImage,
-                         SkRect::MakeWH(rect.width(), rect.height()),
-                         SkSamplingOptions(SkFilterMode::kLinear));
-  } else if (!liveOnly && !inst.subtreeVolatile &&
-             node.cacheMode != Cache::None &&
-             (node.cacheMode == Cache::Picture || !inst.children.empty() ||
-              node.kind == Kind::Text || node.kind == Kind::Custom ||
-              !node.backgrounds.empty() || !node.foregrounds.empty() ||
-              node.layerEffect)) {
-    // (Childless Image leaves deliberately absent: one drawImageRect is
-    // cheaper than a nested picture indirection — tile maps stay flat
-    // inside their chunk's recording. Cache::Picture opts back in.)
-    if (!inst.picture || inst.paintDirty) {
-      SkPictureRecorder recorder;
-      SkCanvas *rec = recorder.beginRecording(
-          SkRect::MakeWH(rect.width(), rect.height()));
-      paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
-      inst.picture = recorder.finishRecordingAsPicture();
-      inst.paintDirty = false;
-      stats.picturesRecorded++;
-    }
-    canvas.drawPicture(inst.picture);
-  } else {
-    stats.nodesPainted++;
-    paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
-    inst.paintDirty = false;
-  }
-
-  if (needsLayer)
-    canvas.restore();
-  if (hasBackdrop) {
-    canvas.restore(); // backdrop layer
-    canvas.restore(); // clip
-  }
-  canvas.restore();
-}
-
-// ---------------------------------------------------------------------------
-// Hit testing — the paint transform walked backwards
-
-bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
-                                   SkSize size) const {
-  const ElementNode &node = *inst.desc;
-  if (node.shapeFn && node.connectFrom.empty())
-    return resolveOutline(inst, size).contains(local.x(), local.y());
-  const SkRect bounds = SkRect::MakeWH(size.width(), size.height());
-  if (!bounds.contains(local.x(), local.y()))
-    return false;
-  if (node.corners.any()) {
-    SkPathBuilder b;
-    b.addRRect(cornersRRect(bounds, node.corners));
-    return b.detach().contains(local.x(), local.y());
-  }
-  return true;
-}
-
-std::optional<std::string>
-Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
-                            const std::string *inheritedKey) {
-  const ElementNode &node = *inst.desc;
-
-  const float opacity = std::clamp(
-      inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
-  if (opacity <= 0.0f)
-    return std::nullopt; // invisible subtrees don't hit
-
-  // Into local space: undo the layout offset, then the paint transform
-  // (the exact inverse of paint()'s matrix stack).
-  const SkRect rect = instanceRect(inst);
-  SkPoint local{parentPt.x() - rect.left(), parentPt.y() - rect.top()};
-  local.offset(-inst.resolveFloat(Instance::kTx, node.paint.translateX),
-               -inst.resolveFloat(Instance::kTy, node.paint.translateY));
-  const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
-  const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  if (rot != 0 || scl != 1) {
-    const SkPoint origin = {rect.width() * node.paint.originX,
-                            rect.height() * node.paint.originY};
-    SkPoint v{local.x() - origin.x(), local.y() - origin.y()};
-    if (scl != 0 && scl != 1)
-      v = {v.x() / scl, v.y() / scl};
-    if (rot != 0) {
-      const float rad = -rot * SK_FloatPI / 180.0f;
-      const float c = std::cos(rad), s = std::sin(rad);
-      v = {v.x() * c - v.y() * s, v.x() * s + v.y() * c};
-    }
-    local = {origin.x() + v.x(), origin.y() + v.y()};
-  }
-
-  const SkSize size{rect.width(), rect.height()};
-  const bool inside = shapeContains(inst, local, size);
-  if (node.clipContent && !inside)
-    return std::nullopt; // clip bounds the whole subtree's hit region
-
-  const std::shared_ptr<ElementNode> &shell =
-      inst.memoShell && !inst.memoShell->key.empty() ? inst.memoShell
-                                                     : inst.desc;
-  const std::string *key = !shell->key.empty() ? &shell->key : inheritedKey;
-
-  // Children topmost-first (reverse paint order); they may overflow the
-  // parent box, so recurse regardless of `inside`.
-  for (auto it = inst.paintOrder.rbegin(); it != inst.paintOrder.rend();
-       ++it)
-    if (auto hit = hitInstance(*inst.children[*it], local, key))
-      return hit;
-
-  if (inside && key && !key->empty())
-    return *key;
-  return std::nullopt;
-}
-
-void Composer::Impl::rebuildKeyIndex() {
-  byKey.clear();
-  if (root)
-    indexKeys(*root);
-}
-
-void Composer::Impl::indexKeys(Instance &inst) {
-  const std::shared_ptr<ElementNode> &shell =
-      inst.memoShell ? inst.memoShell : inst.desc;
-  if (!shell->key.empty())
-    byKey[shell->key] = &inst;
-  else if (!inst.desc->key.empty())
-    byKey[inst.desc->key] = &inst;
-  for (auto &child : inst.children)
-    indexKeys(*child);
+  // AnimatedFloat outputs die here; Choreograph disconnects their motions
+  // automatically — unmount cancels transitions by construction.
 }
 
 // ---------------------------------------------------------------------------
@@ -1344,6 +74,26 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
   return recorder.finishRecordingAsPicture();
 }
 
+SkSize measure(Element root, sigil::weave::FontContext &fonts,
+               SkSize maxSize) {
+  motion::Ticker ticker; // inert — same sampling rules as snapshot()
+  Composer composer(ticker, fonts);
+  Composer::Impl &impl = *composer.m_impl;
+  impl.liveOnly = true;
+  composer.render(std::move(root));
+  if (!impl.root)
+    return SkSize::MakeEmpty();
+  if (!maxSize.isEmpty()) {
+    if (maxSize.width() > 0)
+      YGNodeStyleSetMaxWidth(impl.root->yoga, maxSize.width());
+    if (maxSize.height() > 0)
+      YGNodeStyleSetMaxHeight(impl.root->yoga, maxSize.height());
+  }
+  impl.ensureLayout();
+  const SkRect rect = impl.instanceRect(*impl.root);
+  return {rect.width(), rect.height()};
+}
+
 void Composer::setSize(SkSize size) {
   if (m_impl->size == size)
     return;
@@ -1356,8 +106,14 @@ void Composer::setClock(const motion::FrameClock *clock) {
   m_impl->clock = clock;
 }
 
+void Composer::setView(Effect view) {
+  m_impl->view = std::move(view);
+  m_impl->contentDirty = true; // the composite changes even if no node did
+}
+
 void Composer::render(Element root) {
   Impl &impl = *m_impl;
+  const auto start = std::chrono::steady_clock::now();
   impl.stats.describedNodes = 0;
   impl.stats.memoHits = 0;
   impl.stats.patchedNodes = 0;
@@ -1367,13 +123,16 @@ void Composer::render(Element root) {
   else
     impl.patch(*impl.root, root.node());
 
-  impl.computeVolatile(*impl.root);
   impl.volatileDirty = true; // transitions may have started
   impl.rebuildKeyIndex();
+  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - start)
+                               .count();
 }
 
 void Composer::renderSlot(std::string_view name, Element content) {
   Impl &impl = *m_impl;
+  const auto start = std::chrono::steady_clock::now();
   auto it = impl.byKey.find(std::string(name));
   if (it == impl.byKey.end() || it->second->desc->kind != Kind::Slot)
     return;
@@ -1393,9 +152,10 @@ void Composer::renderSlot(std::string_view name, Element content) {
   slotInst.markPaintDirtyUp();
   impl.contentDirty = true;
   impl.volatileDirty = true;
-  if (impl.root)
-    impl.computeVolatile(*impl.root);
   impl.rebuildKeyIndex();
+  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - start)
+                               .count();
 }
 
 bool Composer::dirty() const {
@@ -1410,29 +170,72 @@ void Composer::draw(SkCanvas &canvas) {
   impl.stats.picturesRecorded = 0;
   impl.stats.nodesPainted = 0;
 
-  // PaintContext::contentScale — device px per layout px under the
-  // host's current transform (2.0 on a HiDPI-scaled canvas). Best
-  // effort: recordings capture the scale current when they re-record.
+  // PaintContext::contentScale — device px per layout px under the host's
+  // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
+  // capture the scale current when they re-record.
   {
     const SkMatrix &m = canvas.getTotalMatrix();
-    const float s =
-        std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
+    const float s = std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 
-  impl.ensureLayout();
+  impl.stats.reconcileMs = impl.reconcileAccumMs;
+  impl.reconcileAccumMs = 0;
 
-  // Volatility changes only on reconcile or while animations run (and
-  // once more on the settling frame) — skip the walk otherwise.
+  auto mark = std::chrono::steady_clock::now();
+  const auto lap = [&mark] {
+    const auto now = std::chrono::steady_clock::now();
+    const double ms =
+        std::chrono::duration<double, std::milli>(now - mark).count();
+    mark = now;
+    return ms;
+  };
+
+  impl.ensureLayout();
+  impl.stats.layoutMs = lap();
+
+  // Volatility changes only on reconcile or while animations run (and once
+  // more on the settling frame) — skip the walk otherwise.
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
     impl.computeVolatile(*impl.root);
     impl.volatileDirty = false;
   }
   impl.tickerWasActive = active;
+  impl.stats.volatileMs = lap();
 
+  // Output view transform: the composer's whole output renders into one
+  // layer and composites through the view filter (an OCIO display/view baked
+  // to a LUT, typically). Post-cache: per-node pictures replay unchanged.
+  const bool hasView = (bool)impl.view.imageFilter();
+  if (hasView) {
+    SkPaint viewPaint;
+    viewPaint.setImageFilter(impl.view.imageFilter());
+    canvas.saveLayer(nullptr, &viewPaint);
+  }
   impl.paint(*impl.root, canvas);
+  if (hasView)
+    canvas.restore();
+  impl.stats.paintMs = lap();
   impl.contentDirty = false;
+}
+
+void Composer::purgeCaches() {
+  Impl &impl = *m_impl;
+  if (!impl.root)
+    return;
+  std::function<void(Instance &)> walk = [&walk](Instance &inst) {
+    inst.picture.reset();
+    inst.textureImage.reset();
+    inst.bakedLiveShader.reset();
+    inst.hasPendingLiveFill = false;
+    inst.paintDirty = true;
+    for (auto &child : inst.children)
+      walk(*child);
+  };
+  walk(*impl.root);
+  impl.contentDirty = true;
+  impl.volatileDirty = true;
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {
@@ -1458,8 +261,8 @@ Composer::paragraphLayout(std::string_view key) const {
 }
 
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
-  // Logically const; fills the same per-instance outline caches paint
-  // does (memoization, not mutation of observable state).
+  // Logically const; fills the same per-instance outline caches paint does
+  // (memoization, not mutation of observable state).
   Impl &impl = const_cast<Impl &>(*m_impl);
   if (!impl.root)
     return std::nullopt;

@@ -11,6 +11,7 @@ stays short on purpose.
   - [Header reference](#textflow-header-reference)
 - [TextFlow gallery](#textflow-gallery)
 - [TextFlow demo](#textflow-demo)
+- [SigilCompose gallery](#sigilcompose-gallery)
 - [Build & test](#build--test)
 
 ## Architecture
@@ -103,6 +104,24 @@ is just `main()` calling the scenes below in order.
 | J — CJK fallback | [`SceneFallback.cpp`](src/textflow/examples/demo/SceneFallback.cpp) | Platform fallback resolves Japanese, Korean, and Chinese glyphs under two incomplete primary families |
 | K — Unicode singularity | [`SceneHyperScripts.cpp`](src/textflow/examples/demo/SceneHyperScripts.cpp) | Arabic calligraphy, rare glyphs (`𰻞 𒀱 ཧཱུྃ ꧅ ᎙`), combining storms, bidi, and emoji in one torture wall |
 | L — Paint layers | [`ScenePaintEffects.cpp`](src/textflow/examples/demo/ScenePaintEffects.cpp) | Water/mesh/star/gradient composition plus a fully placed 2,500-word, four-pass stress image (`paint_stress.png`) |
+
+## SigilCompose gallery
+
+`ComposeGallery` exercises the retained composition engine across all scenes in
+`src/common/compose/gallery/`. Its interactive view renders directly into a Qt
+Quick texture through Skia Graphite on supported Metal backends; the portable
+QRhi fallback rasterizes once and performs one explicit texture upload. The
+interactive view requires a hardware-backed Qt Quick RHI; `--headless` remains
+available in software-only environments.
+Use a Release build for performance work—Skia effect-heavy scenes are
+intentionally stressful and Debug timings are not representative.
+
+```sh
+cmake --build build --config Release --target ComposeGallery compose_bench
+./build/bin/Release/ComposeGallery
+./build/bin/Release/ComposeGallery --headless /tmp/compose-gallery
+ctest --test-dir build -C Release -R 'compose(_gallery)?_test'
+```
 
 ## Build & test
 

@@ -16,6 +16,7 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace sigil::compose::routers {
@@ -53,6 +54,105 @@ inline Router orthogonal(float cornerRadius = 0.0f) {
         fx2 && fx2->filterPath(&roundedPath, path, &rec))
       return roundedPath.detach();
     return path;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Rail routers (rail(): an ordered run of anchor points → the line's path)
+
+/** Straight polyline through the waypoints; a positive @p cornerRadius
+ *  rounds every turn (SkCornerPathEffect). */
+inline RailRouter polyline(float cornerRadius = 0.0f) {
+  return [cornerRadius](std::span<const SkPoint> pts) {
+    SkPathBuilder b;
+    if (pts.empty())
+      return b.detach();
+    b.moveTo(pts.front());
+    for (size_t i = 1; i < pts.size(); ++i)
+      b.lineTo(pts[i]);
+    SkPath path = b.detach();
+    if (cornerRadius <= 0)
+      return path;
+    SkPathBuilder roundedPath;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
+        fx && fx->filterPath(&roundedPath, path, &rec))
+      return roundedPath.detach();
+    return path;
+  };
+}
+
+/** The metro-map router: each leg runs a 45° diagonal for the shorter
+ *  delta, then finishes straight — every segment ends up horizontal,
+ *  vertical, or diagonal (octilinearity, the schematic-map convention);
+ *  @p cornerRadius rounds the turns. */
+inline RailRouter octilinear(float cornerRadius = 8.0f) {
+  return [cornerRadius](std::span<const SkPoint> pts) {
+    SkPathBuilder b;
+    if (pts.empty())
+      return b.detach();
+    b.moveTo(pts.front());
+    for (size_t i = 1; i < pts.size(); ++i) {
+      const SkPoint from = pts[i - 1], to = pts[i];
+      const float dx = to.x() - from.x(), dy = to.y() - from.y();
+      const float diag = std::min(std::abs(dx), std::abs(dy));
+      if (diag > 0.5f && std::abs(std::abs(dx) - std::abs(dy)) > 0.5f) {
+        // Diagonal leg first (45°), then the axis-aligned remainder.
+        const SkPoint mid = {from.x() + std::copysign(diag, dx),
+                             from.y() + std::copysign(diag, dy)};
+        b.lineTo(mid);
+      }
+      b.lineTo(to);
+    }
+    SkPath path = b.detach();
+    if (cornerRadius <= 0)
+      return path;
+    SkPathBuilder roundedPath;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
+        fx && fx->filterPath(&roundedPath, path, &rec))
+      return roundedPath.detach();
+    return path;
+  };
+}
+
+/** The orbit router (REFERENCES.md §5 — PoE's ring travel): when two
+ *  consecutive anchors sit at (nearly) the same radius from `center`, the
+ *  leg follows the CIRCLE between them — the short way around — instead
+ *  of chording across; radius-changing legs stay straight spokes. This is
+ *  how passive-tree edges read: nodes live on orbit rings {82, 162, 335,
+ *  493} and their in-ring connections are arcs. `tolerance` is the
+ *  radius-match slack as a fraction of the radius. */
+inline RailRouter orbit(SkPoint center, float tolerance = 0.05f) {
+  return [center, tolerance](std::span<const SkPoint> pts) {
+    SkPathBuilder b;
+    if (pts.empty())
+      return b.detach();
+    b.moveTo(pts.front());
+    for (size_t i = 1; i < pts.size(); ++i) {
+      const SkPoint from = pts[i - 1], to = pts[i];
+      const float r1 = SkPoint::Distance(from, center);
+      const float r2 = SkPoint::Distance(to, center);
+      const float r = (r1 + r2) * 0.5f;
+      if (r > 1.0f && std::abs(r1 - r2) <= tolerance * r) {
+        const float a1 = std::atan2(from.y() - center.y(),
+                                    from.x() - center.x()) *
+                         57.29578f;
+        const float a2 =
+            std::atan2(to.y() - center.y(), to.x() - center.x()) * 57.29578f;
+        float sweep = a2 - a1;
+        while (sweep > 180.0f)
+          sweep -= 360.0f;
+        while (sweep <= -180.0f)
+          sweep += 360.0f;
+        b.arcTo(SkRect::MakeLTRB(center.x() - r, center.y() - r,
+                                 center.x() + r, center.y() + r),
+                a1, sweep, false);
+      } else {
+        b.lineTo(to);
+      }
+    }
+    return b.detach();
   };
 }
 

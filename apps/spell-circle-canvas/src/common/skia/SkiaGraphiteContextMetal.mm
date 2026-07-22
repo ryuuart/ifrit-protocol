@@ -31,7 +31,8 @@ SkiaGraphiteContext::createMetal(void *mtlDevice, void *mtlCommandQueue) {
   if (!context)
     return nullptr;
 
-  std::unique_ptr<skgpu::graphite::Recorder> recorder = context->makeRecorder();
+  std::unique_ptr<skgpu::graphite::Recorder> recorder =
+      context->makeRecorder(SkiaGraphiteContext::makeRecorderOptions());
   if (!recorder)
     return nullptr;
 

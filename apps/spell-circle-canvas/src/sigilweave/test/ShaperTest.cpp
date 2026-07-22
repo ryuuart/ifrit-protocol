@@ -479,3 +479,50 @@ TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
       << "repeated variations must hit the shape cache";
 }
+
+TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
+  // weight()/opticalSize()/variation() replace in place when the axis is
+  // already present — repeated fluent chains keep one order (one memoized
+  // varied-typeface identity), never accumulate duplicates.
+  TextStyle style;
+  style.weight(500).opticalSize(36).weight(700);
+  ASSERT_EQ(style.shaping.variations.size(), 2u);
+  EXPECT_EQ(style.shaping.variations[0], FontVariation("wght", 700));
+  EXPECT_EQ(style.shaping.variations[1], FontVariation("opsz", 36));
+  style.variation("GRAD", 80);
+  ASSERT_EQ(style.shaping.variations.size(), 3u);
+  EXPECT_EQ(style.shaping.variations[2], FontVariation("GRAD", 80));
+
+  // A chain that ends at the same design position compares EQUAL — the
+  // in-place replace keeps first-mention order, so both styles carry
+  // [wght, opsz, GRAD] and share one shape-cache identity.
+  TextStyle same;
+  same.weight(700).opticalSize(36).variation("GRAD", 80);
+  EXPECT_TRUE(style == same);
+}
+
+TEST(ShaperVariations, ScaleXCondensesAdvancesAndKeysTheCache) {
+  FontContext fontContext(ports::systemFontManager());
+  auto measure = [&](float sx) {
+    TextStyle style;
+    style.shaping.fontSize = 32;
+    style.shaping.scaleX = sx;
+    Paragraph paragraph;
+    paragraph.appendText(u8"MMMM", style);
+    paragraph.ensureShaped(fontContext);
+    float advance = 0;
+    for (const Word &word : paragraph.words())
+      for (const WordSegment &segment : word.segments)
+        advance += segment.shaped->advance;
+    return advance;
+  };
+  const float full = measure(1.0f);
+  const float condensed = measure(0.82f);
+  ASSERT_GT(full, 0);
+  EXPECT_NEAR(condensed / full, 0.82f, 0.02f); // advances condense
+  // Distinct scaleX = distinct shape-cache identity (no cross-pollution).
+  fontContext.resetStats();
+  measure(1.0f);
+  measure(0.82f);
+  EXPECT_EQ(fontContext.stats().shapeCalls, 0u); // both warm, separately
+}

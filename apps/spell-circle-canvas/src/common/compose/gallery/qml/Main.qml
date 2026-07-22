@@ -11,27 +11,6 @@ ApplicationWindow {
     title: "ComposeGallery — SigilCompose stress catalog"
     color: "#0b0a14"
 
-    // Sidebar model mirrors compose_gallery::kScenes (name/category/catalog).
-    property var scenes: [
-        { name: "rpg hud",      category: "Showcase",           tag: "practical UI" },
-        { name: "manuscript",   category: "Showcase",           tag: "ornament" },
-        { name: "nine slice",   category: "Showcase",           tag: "#9 texture-gen" },
-        { name: "botanical",    category: "Showcase",           tag: "generative" },
-        { name: "ui particles", category: "Showcase",           tag: "SoA scale" },
-        { name: "scoreboard",   category: "Composition & data", tag: "#2" },
-        { name: "slots",        category: "Composition & data", tag: "#4" },
-        { name: "grid + query", category: "Composition & data", tag: "#5 #6" },
-        { name: "transitions",  category: "Composition & data", tag: "#18" },
-        { name: "load",         category: "Composition & data", tag: "#21" },
-        { name: "headline",     category: "Animation",          tag: "#17" },
-        { name: "blend",        category: "Animation",          tag: "#3" },
-        { name: "chrome",       category: "Chrome & decoration", tag: "#8 #9 #10" },
-        { name: "sksl border",  category: "Chrome & decoration", tag: "#11" },
-        { name: "crt + bloom",  category: "Effects",            tag: "#13 #14" },
-        { name: "tile map",     category: "Tiling",             tag: "#15" },
-        { name: "derive",       category: "Derive",             tag: "#7 #12" }
-    ]
-
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -59,7 +38,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
-                    model: window.scenes
+                    model: view.scenes
                     section.property: "category"
                     section.delegate: Label {
                         required property string section

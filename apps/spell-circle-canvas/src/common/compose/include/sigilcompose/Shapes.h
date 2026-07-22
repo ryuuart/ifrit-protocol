@@ -21,15 +21,43 @@
 #include "sigilcompose/Compose.h"
 
 #include <include/core/SkContourMeasure.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
+#include <include/utils/SkParsePath.h>
 
 #include <cmath>
 #include <cstdint>
 
 namespace sigil::compose::shapes {
+
+/** An outline from an SVG path-d string (SkParsePath) — trace a reference
+ *  silhouette in any vector tool, paste the `d`, done. The path's bounds
+ *  map onto the node's box (stretch by default; `preserveAspect` fits and
+ *  centers instead). Parsed ONCE at call time; the generator is an
+ *  incomparable callable like every outline() — memo the node or keep it
+ *  pointer-stable to prune. */
+inline std::function<SkPath(SkSize)> svg(const char *d,
+                                         bool preserveAspect = false) {
+  SkPath parsed;
+  if (auto result = SkParsePath::FromSVGString(d))
+    parsed = std::move(*result);
+  return [parsed, preserveAspect](SkSize size) {
+    const SkRect b = parsed.getBounds();
+    if (b.isEmpty() || size.isEmpty())
+      return parsed;
+    SkMatrix m;
+    if (preserveAspect) {
+      m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()),
+                               SkMatrix::kCenter_ScaleToFit);
+    } else {
+      m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()));
+    }
+    return parsed.makeTransform(m);
+  };
+}
 
 /** A silhouette generator: local-coordinate path over the node's
  *  laid-out size. What Element::outline() accepts. */
@@ -147,6 +175,37 @@ inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
                        p2.y() - (p3.y() - p1.y()) / 6.0f};
       b.cubicTo(c1, c2, p2);
     }
+    b.close();
+    return b.detach();
+  };
+}
+
+/** A circular arc inscribed in the box, STARTING at @p startDeg (Skia
+ *  canvas convention: 0° = +x, clockwise) and sweeping @p sweepDeg — the
+ *  path begins at the arc's start, so `.trim(0, sweep/360)`-style reveals
+ *  and orbit connectors (the PoE Orbit idiom, REFERENCES.md §5) need no
+ *  wrap math. Stroke it; an unstroked open arc has no fillable area. */
+inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {
+  return [startDeg, sweepDeg](SkSize s) {
+    SkPathBuilder b;
+    b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
+             std::min(sweepDeg, 359.9f));
+    return b.detach();
+  };
+}
+
+/** A parallelogram leaning by @p skewDeg (the ATLUS slash, REFERENCES.md
+ *  §1: P3R ≈ −12°, P5R ≈ −20°): the top edge shifts by h·tan(skew) relative
+ *  to the bottom, staying inside the box. */
+inline OutlineFn parallelogram(float skewDeg) {
+  return [skewDeg](SkSize s) {
+    const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
+    const float l = std::max(0.0f, -lean), r = std::max(0.0f, lean);
+    SkPathBuilder b;
+    b.moveTo(l, 0);
+    b.lineTo(s.width() - r + l, 0); // top edge (shifted)
+    b.lineTo(s.width() - l, s.height());
+    b.lineTo(r - l >= 0 ? r : 0, s.height());
     b.close();
     return b.detach();
   };

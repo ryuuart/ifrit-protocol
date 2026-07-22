@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -31,7 +32,8 @@ inline sigil::weave::FontContext &fonts() {
   return *context;
 }
 
-inline sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
+inline sigil::weave::TextStyle styleAt(float size,
+                                       SkColor color = SK_ColorWHITE) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.paint.foreground.setColor(color);
@@ -44,7 +46,7 @@ constexpr SkSize kSceneSize = {900, 640};
 // Frame statistics (the FPS measurement)
 
 struct FrameStats {
-  std::deque<double> frameMs; // rolling window of FULL frame work
+  std::deque<double> frameMs;   // rolling window of FULL frame work
   std::deque<double> presentMs; // wall deltas between presented frames
   static constexpr size_t kWindow = 120;
 
@@ -61,8 +63,9 @@ struct FrameStats {
   double presentedFps() const {
     if (presentMs.empty())
       return 0;
-    const double avg = std::accumulate(presentMs.begin(), presentMs.end(),
-                                       0.0) / (double)presentMs.size();
+    const double avg =
+        std::accumulate(presentMs.begin(), presentMs.end(), 0.0) /
+        (double)presentMs.size();
     return avg > 0 ? 1000.0 / avg : 0;
   }
   double average() const {
@@ -94,15 +97,16 @@ struct Scene {
   virtual void update(double, Composer &) {}
 };
 
-
 // ---------------------------------------------------------------------------
 // Stage + FPS overlay (itself an SigilCompose composer)
 
 struct GalleryStage {
   sigil::motion::FrameClock clock;
   std::unique_ptr<sigil::motion::Ticker> ticker;
-  std::unique_ptr<Composer> composer;
   std::unique_ptr<Scene> scene;
+  // Declared after scene/ticker so reverse destruction releases retained
+  // descriptions (which may point at scene-owned Outputs) before either owner.
+  std::unique_ptr<Composer> composer;
 
   // Overlay: a second composer layered over the scene.
   sigil::motion::Ticker overlayTicker;
@@ -117,6 +121,8 @@ struct GalleryStage {
 
   void reset() {
     composer.reset();
+    scene.reset();
+    ticker.reset();
     ticker = std::make_unique<sigil::motion::Ticker>();
     composer = std::make_unique<Composer>(*ticker, fonts());
     composer->setClock(&clock);
@@ -124,26 +130,63 @@ struct GalleryStage {
   }
 
   void activate(std::unique_ptr<Scene> next) {
+    const bool wasPaused = clock.paused();
+    const double previousTimeScale = clock.timeScale();
+    clock = sigil::motion::FrameClock{};
+    clock.setPaused(wasPaused);
+    clock.setTimeScale(previousTimeScale);
     reset();
     stats = {};
+    pendingOverlayMs = 0.0;
+    resetPresentationCadence();
+    fixedNowSeconds = 0.0;
+    fixedClockInitialized = false;
     scene = std::move(next);
-    scene->setup(*composer, *ticker);
+    if (scene)
+      scene->setup(*composer, *ticker);
   }
 
   double pendingOverlayMs = 0.0; // charged to the next frame's sample
+  // Invoked INSIDE the timed frame window, after the scene draw. The GPU
+  // headless sweep sets this to snap+submit(SyncToCpu) so "work ms" is the
+  // honest serialized CPU+GPU cost of a frame, not just command recording.
+  std::function<void()> flushHook;
   std::chrono::steady_clock::time_point lastPresent{};
+  double fixedNowSeconds = 0.0;
+  bool fixedClockInitialized = false;
 
   /** One full frame of work: tick (step + scene update + reconcile) and
    *  the scene draw are measured together — reconcile and relayout are
    *  real per-frame costs, not free. Returns nothing; stats accumulate. */
   void frame(SkCanvas &canvas, double fixedDt = -1.0) {
+    if (!scene || !composer || !ticker)
+      return;
     const auto start = std::chrono::steady_clock::now();
-    const double dt = fixedDt >= 0 ? fixedDt : clock.tick();
-    if (fixedDt >= 0)
-      clock.tick(); // keep elapsed advancing for scene update schedules
+    double dt = 0.0;
+    if (fixedDt >= 0.0) {
+      if (!fixedClockInitialized) {
+        clock.tick(0.0); // seed so the first synthetic step advances elapsed
+        fixedClockInitialized = true;
+      }
+      fixedNowSeconds += fixedDt;
+      dt = clock.tick(fixedNowSeconds);
+    } else {
+      if (fixedClockInitialized) {
+        // Rebase the clock's raw time without advancing elapsed; otherwise a
+        // synthetic-time test followed by a live frame would inject maxDelta.
+        const bool wasPaused = clock.paused();
+        clock.setPaused(true);
+        clock.tick();
+        clock.setPaused(wasPaused);
+        fixedClockInitialized = false;
+      }
+      dt = clock.tick();
+    }
     ticker->tick(dt);
     scene->update(clock.elapsed(), *composer);
     composer->draw(canvas);
+    if (flushHook)
+      flushHook();
     const double ms = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - start)
                           .count();
@@ -155,10 +198,14 @@ struct GalleryStage {
   void markPresented() {
     const auto now = std::chrono::steady_clock::now();
     if (lastPresent.time_since_epoch().count() != 0)
-      stats.addPresent(std::chrono::duration<double, std::milli>(
-                           now - lastPresent)
-                           .count());
+      stats.addPresent(
+          std::chrono::duration<double, std::milli>(now - lastPresent).count());
     lastPresent = now;
+  }
+
+  void resetPresentationCadence() {
+    lastPresent = {};
+    stats.presentMs.clear();
   }
 
   void drawOverlay(SkCanvas &canvas) {
@@ -184,23 +231,29 @@ struct GalleryStage {
                   "instances %zu   pictures %zu   textures %zu   live %zu",
                   cs.instances, cs.picturesLive, cs.texturesLive,
                   cs.nodesPainted);
-    overlay.render(
-        box().child(box().row()
-                        .inset(12, kSceneSize.height() - 64, 12, 12)
-                        .absolute().corners({8}).padding(10, 6)
-                        .fill(Fill::color({0, 0, 0, 0.55f}))
-                        .child(box().column().gap(2)
-                                   .child(text(toU8(line),
-                                               styleAt(15, 0xff7ee8ff)))
-                                   .child(text(toU8(line2),
-                                               styleAt(13, 0xff9aa4bb))))));
+    char line3[160];
+    std::snprintf(line3, sizeof(line3),
+                  "rec %.2f   layout %.2f   volatile %.2f   paint %.2f ms",
+                  cs.reconcileMs, cs.layoutMs, cs.volatileMs, cs.paintMs);
+    overlay.render(box().child(
+        box()
+            .row()
+            .inset(12, kSceneSize.height() - 80, 12, 12)
+            .absolute()
+            .corners({8})
+            .padding(10, 6)
+            .fill(Fill::color({0, 0, 0, 0.55f}))
+            .child(box()
+                       .column()
+                       .gap(2)
+                       .child(text(toU8(line), styleAt(15, 0xff7ee8ff)))
+                       .child(text(toU8(line2), styleAt(13, 0xff9aa4bb)))
+                       .child(text(toU8(line3), styleAt(13, 0xff9aa4bb))))));
     overlay.draw(canvas);
     pendingOverlayMs = std::chrono::duration<double, std::milli>(
                            std::chrono::steady_clock::now() - overlayStart)
                            .count();
   }
 };
-
-
 
 } // namespace compose_gallery

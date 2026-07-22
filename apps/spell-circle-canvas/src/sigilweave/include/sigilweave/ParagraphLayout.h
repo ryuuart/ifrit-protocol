@@ -210,8 +210,21 @@ struct ParagraphLayout {
    * A default style is one call per bucket; each underlay/overlay adds one.
    * Transformed runs fall back to their baked blobs.
    */
+  /** Draw-time font-variation override for ADVANCE-INVARIANT axes (the
+   *  VariationDrive: GRAD is the advance-invariant weight; wght moves
+   *  advances on most fonts and would shear glyphs off their shaped
+   *  positions — gate with FontContext::axisIsAdvanceInvariant). Every
+   *  shaped bucket's typeface swaps for its varied clone (memoized by
+   *  fonts); glyph positions are untouched. Transformed/path runs draw
+   *  from baked blobs and keep their base coordinates. */
+  struct LiveVariations {
+    FontContext *fonts = nullptr;
+    std::span<const FontVariation> variations;
+  };
+
   void drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
-                   const PaintStyle *overridePaint = nullptr) const;
+                   const PaintStyle *overridePaint = nullptr,
+                   const LiveVariations *liveVariations = nullptr) const;
 
   /// Where every inline placeholder landed, ready to draw pills/images into.
   struct PlacedPlaceholder {

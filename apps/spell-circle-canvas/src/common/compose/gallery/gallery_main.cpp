@@ -1,6 +1,7 @@
 // ComposeGallery entry point: the Qt Quick app (WeaveGallery mold —
 // QML sidebar over the scene registry, live metrics panel), or
-// `--headless <outdir>` for the per-scene FPS table + PNG captures.
+// `--headless [outdir] [--gpu]` for the per-scene FPS table + PNG captures
+// (--gpu sweeps on a Graphite Metal surface; numbers only, no captures).
 
 #include "GalleryScenes.h"
 
@@ -10,9 +11,17 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  if (argc >= 2 && std::string(argv[1]) == "--headless")
-    return compose_gallery::runHeadless(
-        argc >= 3 ? argv[2] : "compose_gallery_out");
+  if (argc >= 2 && std::string(argv[1]) == "--headless") {
+    std::string outDir = "compose_gallery_out";
+    bool gpu = false;
+    for (int i = 2; i < argc; ++i) {
+      if (std::string(argv[i]) == "--gpu")
+        gpu = true;
+      else
+        outDir = argv[i];
+    }
+    return compose_gallery::runHeadless(outDir, gpu);
+  }
 
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");

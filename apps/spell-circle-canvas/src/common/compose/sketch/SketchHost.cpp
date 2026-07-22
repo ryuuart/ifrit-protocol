@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <fstream>
 #include <sstream>
 
 namespace sigil::compose::sketch {
@@ -37,6 +38,80 @@ int run(const std::string &command, std::string &output) {
   return pclose(pipe);
 }
 
+// ---- header/host skew guard ------------------------------------------------
+// A sketch dylib compiled against framework headers NEWER than this host
+// binary loads into a host whose structs have the OLD layout — variant
+// dispatch corrupts and the crash points nowhere near the cause (it cost a
+// study agent an lldb session). kAbiVersion only guards deliberate
+// SketchContext changes; this guards every header edit: refuse to compile
+// while any repo header on the include path postdates the running binary.
+
+std::filesystem::file_time_type hostBinaryTime() {
+  Dl_info info{};
+  if (dladdr(reinterpret_cast<void *>(&hostBinaryTime), &info) &&
+      info.dli_fname) {
+    std::error_code ec;
+    auto t = std::filesystem::last_write_time(info.dli_fname, ec);
+    if (!ec)
+      return t;
+  }
+  return {};
+}
+
+/** True when @p p is an ABI-BOUNDARY header: one whose types cross the
+ *  host/dylib line (Element/Composer/Material wrappers, SketchContext,
+ *  weave/motion values embedded in descriptions). Extension headers
+ *  (Layouts/Lines/Brushes/Shapes/styles/patterns…) compile fresh into
+ *  every dylib and stay self-contained — the host often does not even
+ *  link them, so their mtimes must not wedge the guard. */
+bool abiBoundaryHeader(const std::filesystem::path &p) {
+  const std::string s = p.generic_string();
+  if (s.find("include/sigilsketch/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilweave/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilmotion/") != std::string::npos)
+    return true;
+  if (s.find("include/sigilcompose/") != std::string::npos) {
+    const std::string name = p.filename().string();
+    return name == "Compose.h" || name == "Material.h";
+  }
+  return false;
+}
+
+/** First ABI-boundary repo header on the flags file's -I paths newer than
+ *  @p hostTime (empty string when none). */
+std::string newerHeaderThanHost(const std::filesystem::path &flagsFile,
+                                std::filesystem::file_time_type hostTime) {
+  std::ifstream flags(flagsFile);
+  std::string token;
+  std::error_code ec;
+  while (flags >> token) {
+    if (token.size() > 2 && token.compare(0, 2, "-I") == 0)
+      token.erase(0, 2);
+    else
+      continue;
+    if (!token.empty() && token.front() == '"')
+      token = token.substr(1, token.size() - 2);
+    // Repo headers only — vcpkg/system trees are immutable in practice
+    // and huge to scan.
+    if (token.find("/src/") == std::string::npos)
+      continue;
+    for (auto it = std::filesystem::recursive_directory_iterator(token, ec);
+         !ec && it != std::filesystem::recursive_directory_iterator(); ++it) {
+      const std::filesystem::path &p = it->path();
+      if (p.extension() != ".h" && p.extension() != ".hpp")
+        continue;
+      if (!abiBoundaryHeader(p))
+        continue;
+      auto t = std::filesystem::last_write_time(p, ec);
+      if (!ec && t > hostTime)
+        return p.string();
+    }
+  }
+  return {};
+}
+
 } // namespace
 
 SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
@@ -50,7 +125,11 @@ SketchHost::SketchHost(Options options, sigil::weave::FontContext &fonts)
 SketchHost::~SketchHost() {
   if (m_compile.valid())
     m_compile.wait();
-  m_sketch.reset(); // destroy before its library would go away
+  // Retained descriptions and animations may point into sketch-owned state.
+  // Release consumers first; loaded dylibs intentionally remain mapped.
+  m_composer.reset();
+  m_ticker.reset();
+  m_sketch.reset();
   std::error_code ec;
   std::filesystem::remove_all(m_buildDir, ec);
 }
@@ -61,6 +140,22 @@ void SketchHost::startCompile() {
       std::filesystem::last_write_time(m_options.sketchPath, ec);
   m_everCompiled = true;
   m_compileStart = std::chrono::steady_clock::now();
+
+  // Skew guard: never hand a dylib built against newer framework headers
+  // to this (older) host — the crash it prevents is unattributable.
+  if (const auto hostTime = hostBinaryTime();
+      hostTime != std::filesystem::file_time_type{}) {
+    if (const std::string stale =
+            newerHeaderThanHost(m_options.flagsFile, hostTime);
+        !stale.empty()) {
+      m_errorLog =
+          "framework headers are NEWER than this host binary (" + stale +
+          ") — rebuild ComposeSketch before iterating; a sketch compiled "
+          "against skewed headers would corrupt the host ABI";
+      m_status = "stale host — rebuild ComposeSketch";
+      return; // keep the previous sketch alive, p5 style
+    }
+  }
   m_status = "compiling build " + std::to_string(m_generation + 1) +
              "…";
 
@@ -107,6 +202,10 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   // Fresh world for the new sketch; the clock keeps running so time is
   // continuous across reloads. The canvas spec resets to defaults —
   // each sketch declares its own via ctx.canvas()/ctx.background().
+  // The old Composer retains programs/bindings supplied by the old sketch;
+  // destroy it (and its motions) before destroying their owner.
+  m_composer.reset();
+  m_ticker.reset();
   m_sketch.reset();
   m_canvasSpec = CanvasSpec{};
   m_ticker = std::make_unique<sigil::motion::Ticker>();
@@ -170,8 +269,8 @@ void SketchHost::poll() {
 }
 
 SketchContext SketchHost::makeContext() {
-  return SketchContext{*m_composer, *m_ticker, m_assets,
-                       m_canvasSpec.size, &m_canvasSpec};
+  return SketchContext{*m_composer,      *m_ticker,     m_assets,
+                       m_canvasSpec.size, &m_canvasSpec, &m_fonts};
 }
 
 void SketchHost::applyCanvasSpec() {
@@ -186,9 +285,12 @@ bool SketchHost::capture(const std::filesystem::path &out,
   if (!m_composer)
     return false;
   const SkSize size = m_canvasSpec.size;
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(
       std::max(1, (int)(size.width() * scale)),
-      std::max(1, (int)(size.height() * scale))));
+      std::max(1, (int)(size.height() * scale)));
+  sk_sp<SkSurface> surface = m_captureBackend.makeSurface
+                                 ? m_captureBackend.makeSurface(info)
+                                 : SkSurfaces::Raster(info);
   if (!surface)
     return false;
   SkCanvas &canvas = *surface->getCanvas();
@@ -197,7 +299,12 @@ bool SketchHost::capture(const std::filesystem::path &out,
   m_composer->draw(canvas);
   SkBitmap bitmap;
   bitmap.allocPixels(surface->imageInfo());
-  surface->readPixels(bitmap.pixmap(), 0, 0);
+  if (m_captureBackend.readback) {
+    if (!m_captureBackend.readback(*surface, bitmap.pixmap()))
+      return false;
+  } else {
+    surface->readPixels(bitmap.pixmap(), 0, 0);
+  }
   std::error_code ec;
   std::filesystem::create_directories(out.parent_path(), ec);
   SkFILEWStream stream(out.string().c_str());

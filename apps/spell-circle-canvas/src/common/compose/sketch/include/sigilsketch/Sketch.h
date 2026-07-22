@@ -29,7 +29,7 @@ namespace sigil::compose::sketch {
 
 /** Bumped whenever SketchContext/Sketch change shape; the host refuses
  *  sketch dylibs built against another version. */
-inline constexpr unsigned kAbiVersion = 2;
+inline constexpr unsigned kAbiVersion = 3;
 
 /** The canvas the host realizes for the sketch: logical size (the
  *  window letterboxes it, headless captures honor it) and the clear
@@ -45,6 +45,15 @@ struct SketchContext {
   Assets &assets;            // hot-reloading image loader
   SkSize size;               // the current logical canvas size
   CanvasSpec *spec = nullptr; // host-owned; written via the calls below
+  sigil::weave::FontContext *fonts = nullptr; // the composer's fonts —
+                                              // measure()/snapshot() fuel
+
+  /** One-shot intrinsic measurement (compose::measure with the host's
+   *  fonts): size marquee strips, tooltips, badges from their content. */
+  SkSize measure(Element element, SkSize maxSize = SkSize::MakeEmpty()) {
+    return fonts ? sigil::compose::measure(std::move(element), *fonts, maxSize)
+                 : SkSize::MakeEmpty();
+  }
 
   /** p5's createCanvas: declare the logical canvas size. Usually in
    *  setup(); calling later resizes live (applied next frame). */

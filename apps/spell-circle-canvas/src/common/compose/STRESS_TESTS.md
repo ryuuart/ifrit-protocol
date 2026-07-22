@@ -300,3 +300,119 @@ measurement. Phases refer to DESIGN.md's plan.
   interaction that goldens can't capture.
 - **compose_bench** (P5): google-benchmark target for the *bench*
   items, alongside weave_bench/scry_bench.
+
+## The GPU re-measure (2026-07-21) — the 60 fps floor holds everywhere
+
+`ComposeGallery --headless --gpu` sweeps all 26 scenes on a Graphite
+Metal surface with each frame serialized to completion
+(`SyncToCpu::kYes`), so "work ms" is the honest worst-case CPU+GPU
+cost — a pipelined host does better. Phase columns (recon/layout/
+volat/paint) come from `Composer::Stats`; on every scene, slow or
+fast, the retained machinery rounds to 0.00–0.01 ms — frame cost is
+paint, i.e. pixels.
+
+| scene (the former CPU offenders) | CPU raster | Graphite GPU |
+|---|---|---|
+| daemon console | 53.7 ms (19 fps) | **0.69 ms** (1458 fps) |
+| flourish | 14.9 ms | **1.9 ms** |
+| persona menu | 9.2 ms (p99 61.9) | **0.44 ms** (p99 0.61) |
+| aero desktop | 9.7 ms (p99 54.4) | **0.86 ms** |
+| passive tree | 9.4 ms | **2.6 ms** |
+| ui particles | 7.6 ms | **0.43 ms** |
+| y2k chrome | 5.5 ms | **6.3 ms** (GPU-heavy blur stack) |
+
+Worst GPU scene = y2k chrome at 159 fps headroom; 24 of 26 scenes are
+under 2 ms. The CPU-raster p99 spikes were quantized live materials
+hitting their re-resolve frame (one full-screen software SkSL eval);
+on GPU they vanish. Conclusion pinned: full-screen live materials are
+GPU-tier content — the CPU-raster path re-rasterizes them per pixel
+per frame in software, and no tree/layout/kernel change alters that.
+
+**Two Graphite findings (both fixed at the shared seams):**
+
+1. **Graphite performs no implicit raster-image uploads.** Any draw
+   sampling a non-Graphite SkImage consults the Recorder's client
+   `ImageProvider` — absent one, the draw is silently DROPPED
+   (`KeyHelpers.cpp` "Couldn't convert SkImage…"). Every generated
+   atlas/nine-slice/tile draw was being dropped on GPU.
+   `SkiaGraphiteContext::makeRecorderOptions()` now installs a caching
+   provider (promote on first use, keyed by uniqueID+mipmapped) at
+   every recorder-creation site, all backends.
+2. **`kRGBA_F32` textures are not linearly filterable on Apple GPUs**,
+   so an F32 OCIO LUT cannot be promoted and the whole graded
+   composite drops. LUTs now bake to F16 (ample for display LUTs in
+   [0,1], filterable everywhere).
+
+Hosts: ComposeGallery's interactive view already rendered through
+Graphite (QQuickRhiItem + shared context, Metal); ComposeSketch now
+does the same (the CPU-raster QQuickPaintedItem host is gone — it was
+where "the framework is slow" impressions came from). Both fall back
+to raster-and-upload off Metal, and `Composer::purgeCaches()` handles
+backend switches (GPU-minted cache images must not replay onto the
+next canvas).
+
+**instances() (2026-07-21, `<sigilcompose/Instances.h>`):** the flyweight
+repeat layer — Atlas of element-tree cells + user-owned SoA Pool + one
+`drawAtlas`. 10k instances: 36.8 ms CPU raster (3.7 µs/sprite — raster
+replay re-rasterizes, Data≈Live there) vs **0.18 ms Graphite Live**
+(18 ns/sprite, ~200×) — masses are a GPU play, as designed. Data mode
+prunes on (atlas, pool, revision); Live is the Cache::None particle path.
+
+**ElementNode split (2026-07-21):** the monolithic ~46-field description
+struct became a lean base (hot fields: kind/key/layout/paint/corners/
+decorations/children) + seven out-of-line `Box<T>` blocks (Text, Image,
+Custom, Derive, Fx, Material, Memo — value-semantic deep-copying boxes,
+so the COW clone in `NodeHandle::operator->` still works). Measured:
+sizeof 2752 → **1288 B** (−53%); describe benches all improved —
+unchanged 100-row render 30.7 → 26.5 µs, one-changed 32.3 → 27.3,
+decorated-unchanged 130 → 112, cold mount 273 → 254 µs. Behavior
+preservation proven two ways: 190 tests green both configs AND a
+pixel-exact capture diff (26/26 gallery scenes identical pre/post split;
+the headless captures now render with the FPS overlay OFF so they are
+deterministic and diffable). A `static_assert(sizeof(ElementNode) <=
+1400)` guards regrowth — new rare/kind-specific state goes in a block.
+Next size target if ever needed: PaintProps is 856 B of the base (8 fat
+PropValue variants) — slimming PropValue is a public-API change, parked.
+
+**Brush-arc tail (2026-07-21):** the last three seams-audit items landed.
+`brushes::ArtBrush`/`artAlong()` — Illustrator's Art Brush proper: one art
+cell baked once (2x), each contour walked into a triangle-strip ribbon,
+one `drawVertices` warps the art CONTINUOUSLY around curvature (rigid
+stamp runs can't) — 0.22 ms/frame live on CPU raster for a ~1500 px
+S-curve at 6 px stations, and it caches when settled. `lines::hatch()/
+crosshatch()` — Sk2D lattice fill clipped to the outline (0.98 ms live
+for a 400 px blob). `styles::gloss()/GlossContour` — the PS Satin/Gloss
+Contour curve: blurred coverage through a 256-entry ring table, clipped
+inside the shape (blur→TableARGB on one image-filter chain; same math as
+SkTableMaskFilter, composable). Night network shows the first two
+(ARTLINE vine + SALTMARSH hatch — twelve constructions now); the y2k gel
+orb wears the gloss. 3 pixel tests.
+
+**ui_particles on instances() (2026-07-21):** the scene's hand-rolled
+atlas surfaces + RSXform arrays + drawAtlas leaf replaced by
+`instancing::Atlas` cells (element trees registered directly) + two
+Pools synced from the EnTT sim each frame + two `instances(...,
+Mode::Live)` leaves. Same look, counts, and seeds; 8.05 ms CPU raster /
+**0.54 ms GPU**. Port friction folded back into the layer: all-white
+tints now skip the colors lane (kSrcOver), and the stamp reuses
+thread-local scratch instead of allocating three vectors per frame.
+
+**VariationDrive (2026-07-22):** `text(...).variationDrive("GRAD", &out)`
+— a variable-font axis driven at DRAW time, paint-only (no reshape, no
+relayout). The gate is per-font: `FontContext::axisIsAdvanceInvariant`
+samples every glyph advance at the axis extremes; advance-variant axes
+(wght on most fonts) are REFUSED with a warning and the text draws at
+its shaped coordinates — GRAD is the advance-invariant weight. The
+weave side is `ParagraphLayout::LiveVariations` (bucket typefaces swap
+for memoized varied clones at flush; positions untouched). Probe result
+memoizes per (instance, content). Pinned by two tests incl. a
+bounds-hold + pixel-thicken check on the SF face.
+
+**PropValue slimming (2026-07-22):** `PropValue<T>` is no longer a
+std::variant — the fat Transitioned payload (~100 B: from/waypoints/
+spec) boxes out-of-line, plain constants and bindings stay inline.
+PaintProps 856 → 256 B; **ElementNode 1288 → 688 B** (2752 B before
+this arc, −75% total); the size guard tightens to 768 B. Describe
+benches hold/improve (unchanged 26.3 µs, cold 250 µs). Behavior pinned
+by the capture diff: 29/29 CPU scenes byte-identical (modulo the
+intentional y2k sliver fix).

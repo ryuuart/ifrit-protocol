@@ -92,6 +92,15 @@ public:
   variedTypeface(const sk_sp<SkTypeface> &base,
                  std::span<const FontVariation> variations);
 
+  /** TRUE iff driving @p axisTag anywhere in its design range leaves every
+   *  glyph advance of @p base unchanged (advances sampled at both axis
+   *  extremes) — the VariationDrive gate: an advance-invariant axis (GRAD,
+   *  most fonts' slnt) may be animated at DRAW time without reshaping,
+   *  while wght moves advances on most fonts and must re-shape instead.
+   *  FALSE when the face lacks the axis entirely. */
+  [[nodiscard]] bool axisIsAdvanceInvariant(const sk_sp<SkTypeface> &base,
+                                            const char (&axisTag)[5]);
+
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
   void purgeShapeCache();
 

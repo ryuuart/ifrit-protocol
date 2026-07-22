@@ -31,6 +31,7 @@ struct ShapeKey {
   uint32_t typefaceId = 0;
   uint32_t fontSizeBits = 0;
   uint32_t letterSpacingBits = 0;
+  uint32_t scaleXBits = 0;
   ScriptTag script = 0;
   bool rightToLeft = false;
   bool vertical = false;
@@ -46,6 +47,7 @@ struct ShapeKeyView {
   uint32_t typefaceId = 0;
   uint32_t fontSizeBits = 0;
   uint32_t letterSpacingBits = 0;
+  uint32_t scaleXBits = 0;
   ScriptTag script = 0;
   bool rightToLeft = false;
   bool vertical = false;
@@ -57,9 +59,9 @@ struct ShapeKeyView {
 
 inline ShapeKeyView makeShapeKeyView(const ShapeKey &key) {
   return {key.typefaceId,  key.fontSizeBits,        key.letterSpacingBits,
-          key.script,      key.rightToLeft,         key.vertical,
-          key.languageTag, key.fontFeatures.data(), key.fontFeatures.size(),
-          key.text};
+          key.scaleXBits,  key.script,              key.rightToLeft,
+          key.vertical,    key.languageTag,         key.fontFeatures.data(),
+          key.fontFeatures.size(), key.text};
 }
 
 inline ShapeKeyView makeShapeKeyView(ShapeKeyView key) { return key; }
@@ -93,6 +95,7 @@ struct ShapeKeyHash {
   template <ShapeCacheKey Key> size_t operator()(const Key &source) const {
     const ShapeKeyView key = makeShapeKeyView(source);
     return absl::HashOf(key.typefaceId, key.fontSizeBits, key.letterSpacingBits,
+                        key.scaleXBits,
                         key.script, key.rightToLeft, key.vertical,
                         key.languageTag,
                         objectBytes(key.fontFeatures, key.featureCount),
@@ -109,6 +112,7 @@ struct ShapeKeyEq {
     return left.typefaceId == right.typefaceId &&
            left.fontSizeBits == right.fontSizeBits &&
            left.letterSpacingBits == right.letterSpacingBits &&
+           left.scaleXBits == right.scaleXBits &&
            left.script == right.script &&
            left.rightToLeft == right.rightToLeft &&
            left.vertical == right.vertical &&

@@ -6,6 +6,7 @@ class QRhi;
 namespace skgpu::graphite {
 class Context;
 class Recorder;
+struct RecorderOptions;
 } // namespace skgpu::graphite
 
 /**
@@ -44,6 +45,13 @@ public:
   skgpu::graphite::Context *context() const { return m_context.get(); }
   /** Returns the recorder associated with `context()`. */
   skgpu::graphite::Recorder *recorder() const { return m_recorder.get(); }
+
+  /** RecorderOptions every backend factory must pass to makeRecorder():
+   *  installs the caching ImageProvider that promotes non-Graphite
+   *  (raster) SkImages to textures on first draw. Graphite performs NO
+   *  implicit uploads — without a provider it silently drops any draw
+   *  that samples a raster image. */
+  static skgpu::graphite::RecorderOptions makeRecorderOptions();
 
 private:
   SkiaGraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,

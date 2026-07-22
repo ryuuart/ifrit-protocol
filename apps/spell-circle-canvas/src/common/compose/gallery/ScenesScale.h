@@ -2,8 +2,8 @@
 // Scale scene: "UI as particles" — from confetti chips to whole POSTS, and
 // none of them look instanced.
 //
-// TWO instanced atlases, each drawn in one drawAtlas over an EnTT SoA
-// registry:
+// TWO instancing::Atlas sheets, each stamped by one instances() leaf
+// (Mode::Live) over an EnTT registry sim:
 //   - CHIPS: five parameterized components (pill, spiky shout, scalloped
 //     seal, carved nine-slice, dashed field note) baked THIRTY-TWO ways —
 //     every atlas cell its own hue and content — scattered by the thousand.
@@ -11,16 +11,22 @@
 //     three border languages — the FLOURISH border we just built
 //     (FlourishKit), a carved nine-slice, and a plain modern card — drifting
 //     among the chips. Same instancing technique, from a badge to a feed.
+//
+// The EnTT registries stay on OUR side of the seam (velocities, drift,
+// wrap); each frame the sim is copied into two instancing::Pool SoA stores
+// through their spans, and the first-class layer does the baking (2x
+// oversample built in) and the drawAtlas stamping.
 
 #include "FlourishKit.h"
 #include "GalleryCore.h"
 #include "OrnamentKit.h"
 
+#include <sigilcompose/Instances.h>
+
 #include <entt/entt.hpp>
 
-#include <include/core/SkRSXform.h>
-
 #include <cmath>
+#include <memory>
 #include <random>
 
 namespace compose_gallery {
@@ -29,25 +35,17 @@ struct UiParticleScene final : Scene {
   // ---- chips (the confetti tier) ------------------------------------------
   static constexpr size_t kChipCount = 820;
   static constexpr float kSprite = 64.0f;
-  static constexpr float kAtlasScale = 2.0f;
-  static constexpr float kCell = kSprite * kAtlasScale;
-  static constexpr int kCols = 8, kRows = 4;
-  static constexpr int kVariants = kCols * kRows;
+  static constexpr int kVariants = 32;
 
   // ---- posts (the feed tier) ----------------------------------------------
   static constexpr size_t kPostCount = 30;
   static constexpr float kPostW = 232.0f, kPostH = 148.0f;
-  static constexpr float kPostScale = 1.6f; // oversample: crisp paragraphs
-  static constexpr float kPostCellW = kPostW * kPostScale;
-  static constexpr float kPostCellH = kPostH * kPostScale;
-  static constexpr int kPostCols = 3, kPostRows = 2;
-  static constexpr int kPostVariants = kPostCols * kPostRows;
+  static constexpr int kPostVariants = 6;
 
   entt::registry chips;
   entt::registry posts;
-  sk_sp<SkImage> chipAtlas, postAtlas;
-  std::vector<SkRSXform> xforms;
-  std::vector<SkRect> texRects;
+  std::shared_ptr<instancing::Atlas> chipAtlas, postAtlas;
+  std::shared_ptr<instancing::Pool> chipPool, postPool;
 
   struct Pos { float x, y; };
   struct Vel { float dx, dy; };
@@ -126,9 +124,7 @@ struct UiParticleScene final : Scene {
   }
 
   void buildChipAtlas() {
-    sigil::motion::Ticker atlasTicker;
-    Composer sprites(atlasTicker, fonts());
-    sprites.setSize({kSprite * kCols, kSprite * kRows});
+    chipAtlas = std::make_shared<instancing::Atlas>(); // 2x oversample built in
 
     static constexpr const char8_t *kPillLabels[] = {
         u8"+250", u8"+120", u8"+45", u8"-87", u8"-12", u8"xp",
@@ -146,41 +142,27 @@ struct UiParticleScene final : Scene {
                                   crimsonPalette(), emeraldPalette()};
 
     std::mt19937 rng{23};
-    auto column = box().column();
-    for (int row = 0; row < kRows; ++row) {
-      auto rowBox = box().row();
-      for (int col = 0; col < kCols; ++col) {
-        const int i = row * kCols + col;
-        const float hue = std::fmod((float)i * 137.5f, 360.0f);
-        const ChipTheme theme = chipTheme(hue, (i % 3) != 0);
-        Element content = [&]() -> Element {
-          switch (i % 5) {
-          case 0: return pill(theme, kPillLabels[rng() % 10]);
-          case 1: return shout(theme, kShoutLabels[rng() % 4],
-                               8 + (int)(rng() % 5));
-          case 2: return seal(theme, kSealLabels[rng() % 4],
-                              7.0f + (float)(rng() % 4));
-          case 3: return framed(framePals[rng() % 4], kFrameLabels[rng() % 4]);
-          default: {
-            const auto &lines = kNoteLines[rng() % 4];
-            return note(theme, lines[0], lines[1]);
-          }
-          }
-        }();
-        rowBox.child(box().width(kSprite).height(kSprite)
-                         .alignItems(Align::Center).justify(Justify::Center)
-                         .child(std::move(content)));
-      }
-      column.child(std::move(rowBox));
+    for (int i = 0; i < kVariants; ++i) {
+      const float hue = std::fmod((float)i * 137.5f, 360.0f);
+      const ChipTheme theme = chipTheme(hue, (i % 3) != 0);
+      Element content = [&]() -> Element {
+        switch (i % 5) {
+        case 0: return pill(theme, kPillLabels[rng() % 10]);
+        case 1: return shout(theme, kShoutLabels[rng() % 4],
+                             8 + (int)(rng() % 5));
+        case 2: return seal(theme, kSealLabels[rng() % 4],
+                            7.0f + (float)(rng() % 4));
+        case 3: return framed(framePals[rng() % 4], kFrameLabels[rng() % 4]);
+        default: {
+          const auto &lines = kNoteLines[rng() % 4];
+          return note(theme, lines[0], lines[1]);
+        }
+        }
+      }();
+      chipAtlas->cell(box().alignItems(Align::Center).justify(Justify::Center)
+                          .child(std::move(content)),
+                      {kSprite, kSprite});
     }
-    sprites.render(std::move(column));
-
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(kCell * kCols), (int)(kCell * kRows)));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    surface->getCanvas()->scale(kAtlasScale, kAtlasScale);
-    sprites.draw(*surface->getCanvas());
-    chipAtlas = surface->makeImageSnapshot();
   }
 
   // ---- post components (the feed tier) ------------------------------------
@@ -269,29 +251,11 @@ struct UiParticleScene final : Scene {
          u8"ship it; the numbers held on Graphite too"},
     };
 
-    sigil::motion::Ticker atlasTicker;
-    Composer sprites(atlasTicker, fonts());
-    sprites.setSize({kPostW * kPostCols, kPostH * kPostRows});
-
-    auto column = box().column();
-    for (int row = 0; row < kPostRows; ++row) {
-      auto rowBox = box().row();
-      for (int col = 0; col < kPostCols; ++col) {
-        const int i = row * kPostCols + col;
-        rowBox.child(box().width(kPostW).height(kPostH)
-                         .alignItems(Align::Center).justify(Justify::Center)
-                         .child(postVariant(kPosts[i])));
-      }
-      column.child(std::move(rowBox));
-    }
-    sprites.render(std::move(column));
-
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(kPostCellW * kPostCols), (int)(kPostCellH * kPostRows)));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    surface->getCanvas()->scale(kPostScale, kPostScale);
-    sprites.draw(*surface->getCanvas());
-    postAtlas = surface->makeImageSnapshot();
+    postAtlas = std::make_shared<instancing::Atlas>(); // 2x: crisp paragraphs
+    for (int i = 0; i < kPostVariants; ++i)
+      postAtlas->cell(box().alignItems(Align::Center).justify(Justify::Center)
+                          .child(postVariant(kPosts[i])),
+                      {kPostW, kPostH});
   }
 
   // ---- seeding + stepping -------------------------------------------------
@@ -322,22 +286,26 @@ struct UiParticleScene final : Scene {
     });
   }
 
-  void drawTier(SkCanvas &c, entt::registry &reg, const sk_sp<SkImage> &atlas,
-            float cellW, float cellH, int cols, float oversample, double t) {
-    xforms.clear();
-    texRects.clear();
+  // The EnTT → Pool copy-in: the registry stays the sim, the pool spans
+  // are the seam the instances() leaf reads (Mode::Live, every frame).
+  static void syncPool(entt::registry &reg, instancing::Pool &pool, double t) {
+    auto positions = pool.positions();
+    auto rotations = pool.rotations();
+    auto scales = pool.scales();
+    auto frames = pool.frames();
+    size_t i = 0;
     reg.view<const Pos, const Look>().each([&](const Pos &p, const Look &l) {
-      const float a = l.spin * (float)std::sin(t * 1.6 + p.x * 0.01);
-      xforms.push_back(SkRSXform::MakeFromRadians(
-          l.scale / oversample, a, p.x, p.y, cellW / 2, cellH / 2));
-      texRects.push_back(SkRect::MakeXYWH(cellW * (float)(l.sprite % cols),
-                                          cellH * (float)(l.sprite / cols),
-                                          cellW, cellH));
+      positions[i] = {p.x, p.y};
+      rotations[i] = l.spin * (float)std::sin(t * 1.6 + p.x * 0.01);
+      scales[i] = l.scale;
+      frames[i] = l.sprite;
+      ++i;
     });
-    c.drawAtlas(atlas.get(), SkSpan(xforms.data(), xforms.size()),
-                SkSpan(texRects.data(), texRects.size()), {},
-                SkBlendMode::kSrcOver,
-                SkSamplingOptions(SkFilterMode::kLinear), nullptr, nullptr);
+  }
+
+  void update(double t, Composer &) override {
+    syncPool(chips, *chipPool, t);
+    syncPool(posts, *postPool, t);
   }
 
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
@@ -347,8 +315,12 @@ struct UiParticleScene final : Scene {
     posts.clear();
     seed(chips, kChipCount, kVariants, 11, 0.35f, 0.9f, 70.0f);
     seed(posts, kPostCount, kPostVariants, 71, 0.42f, 0.62f, 24.0f);
-    xforms.reserve(kChipCount);
-    texRects.reserve(kChipCount);
+    chipPool = std::make_shared<instancing::Pool>();
+    postPool = std::make_shared<instancing::Pool>();
+    chipPool->resize(kChipCount);
+    postPool->resize(kPostCount);
+    syncPool(chips, *chipPool, 0.0);
+    syncPool(posts, *postPool, 0.0);
 
     ticker.add([this](double dt) {
       step(chips, dt, kSprite);
@@ -356,22 +328,20 @@ struct UiParticleScene final : Scene {
       return true;
     });
 
+    // instances() fills its parent; each tier gets a full-canvas box so
+    // pool positions are canvas pixels. Chips behind, posts in front.
     composer.render(
         stack()
             .fill(sigil::compose::util::linearGradient(
                 {0, 0}, {0, 640},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
-            .child(custom([this](SkCanvas &c, const PaintContext &ctx) {
-                     const double t = ctx.elapsedSeconds;
-                     drawTier(c, chips, chipAtlas, kCell, kCell, kCols,
-                          kAtlasScale, t);            // confetti behind
-                     drawTier(c, posts, postAtlas, kPostCellW, kPostCellH,
-                          kPostCols, kPostScale, t);  // posts in front
-                   })
-                       .inset(0).cache(Cache::None))
+            .child(box().inset(0).child(instancing::instances(
+                chipAtlas, chipPool, instancing::Mode::Live)))
+            .child(box().inset(0).child(instancing::instances(
+                postAtlas, postPool, instancing::Mode::Live)))
             .child(text(u8"UI as particles — 820 chips + 30 multi-paragraph "
                         u8"posts (flourish, carved & plain borders), each tier "
-                        u8"one drawAtlas over an EnTT SoA registry",
+                        u8"one instances() stamp over an EnTT SoA registry",
                         styleAt(16, 0xffdde4f2))
                        .absolute().inset(24, 24, 24, 590).zIndex(1)));
   }

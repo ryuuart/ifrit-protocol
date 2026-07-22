@@ -34,7 +34,15 @@ set_source_files_properties(qml/Main.qml
   PROPERTIES QT_RESOURCE_ALIAS Main.qml)
 target_include_directories(ComposeSketch PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(ComposeSketch PRIVATE
-  SigilSketchKit Qt6::Gui Qt6::Quick)
+  SigilSketchKit Qt6::Gui Qt6::GuiPrivate Qt6::Quick)
+
+# Frames render through the shared Skia Graphite context straight into the
+# QQuickRhiItem texture when the QRhi backend is supported (same pattern as
+# ComposeGallery); other builds keep the raster-and-upload fallback.
+if(TARGET SpellCircleSkiaQt)
+  target_link_libraries(ComposeSketch PRIVATE SpellCircleSkiaQt)
+  target_compile_definitions(ComposeSketch PRIVATE SIGILCOMPOSE_SKETCH_GPU)
+endif()
 if(APPLE)
   target_link_options(ComposeSketch PRIVATE "LINKER:-export_dynamic")
   # Sketches may call ANY part of the SDK, not just what the host's own
