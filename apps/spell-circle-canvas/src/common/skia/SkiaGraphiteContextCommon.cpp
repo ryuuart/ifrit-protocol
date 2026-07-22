@@ -6,6 +6,8 @@
 
 #include "SkiaGraphiteContext.h"
 
+#include <include/core/SkBitmap.h>
+
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/Image.h>
 #include <gpu/graphite/ImageProvider.h>
@@ -35,6 +37,20 @@ public:
       return it->second;
     sk_sp<SkImage> texture =
         SkImages::TextureFromImage(recorder, image, required);
+    if (!texture && image->colorType() == kRGBA_F32_SkColorType) {
+      // F32 sources (EXR imports land as F32 SkImages) are not filterable
+      // on Apple GPUs, so promotion fails outright. Retry with an F16 copy:
+      // float range survives, the loader's F32 processing semantics are
+      // untouched, and the draw actually happens.
+      SkBitmap f16;
+      if (f16.tryAllocPixels(
+              image->imageInfo().makeColorType(kRGBA_F16_SkColorType)) &&
+          image->readPixels(nullptr, f16.pixmap(), 0, 0)) {
+        f16.setImmutable();
+        texture =
+            SkImages::TextureFromImage(recorder, f16.asImage().get(), required);
+      }
+    }
     if (!texture)
       return nullptr;
     if (m_cache.size() >= kMaxEntries)
