@@ -2784,6 +2784,36 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   EXPECT_LT(botR, botB / 4);
 }
 
+TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
+  // textFill supersedes the FOREGROUND, not the passes around it. The
+  // chrome-type override used to be a blank PaintStyle, which silently
+  // dropped every underlay — a chrome wordmark lost its cast shadow and
+  // its dark keyline and read as flat type sitting on the plate.
+  Host host(300, 120);
+  auto styled = [] {
+    auto s = whiteStyle(64);
+    sigil::weave::PaintLayer keyline;
+    keyline.paint.setAntiAlias(true);
+    keyline.paint.setStyle(SkPaint::kStroke_Style);
+    keyline.paint.setStrokeWidth(6);
+    keyline.paint.setColor4f({0, 1, 0, 1}, nullptr); // unmistakably not the fill
+    s.paint.addUnderlay(keyline);
+    return s;
+  }();
+  host.composer.render(box().padding(20).child(
+      text(u8"HHH", styled).textFill(Material::solid({1, 0, 0, 1}))));
+  host.frame();
+  int red = 0, green = 0;
+  for (int y = 0; y < 120; ++y)
+    for (int x = 0; x < 300; ++x) {
+      const SkColor c = host.pixel(x, y);
+      red += SkColorGetR(c) > 180 && SkColorGetG(c) < 80;
+      green += SkColorGetG(c) > 180 && SkColorGetR(c) < 80;
+    }
+  EXPECT_GT(red, 100);   // the material still paints the glyph bodies…
+  EXPECT_GT(green, 100); // …and the keyline underlay still rings them
+}
+
 // ---------------------------------------------------------------------------
 // Round-2b: fleet feedback landed at the API level — delay staggers,
 // unclipped decorations, knockout shadows, px origins, centerAt, wrapped

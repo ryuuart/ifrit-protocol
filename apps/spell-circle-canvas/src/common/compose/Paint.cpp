@@ -617,7 +617,17 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
         // metric band — x across the widest line, y from the first line's
         // cap top (real cap height when the face reports one) to the last
         // line's baseline.
-        sigil::weave::PaintStyle metric;
+        //
+        // The override replaces the whole PaintStyle for every run, so it
+        // starts as a COPY of the paragraph's own style and swaps only the
+        // foreground — textFill supersedes the fill, not the underlays,
+        // overlays and decorations around it (a chrome wordmark keeps its
+        // cast shadow and dark keyline).
+        sigil::weave::PaintStyle metric =
+            inst.paragraph->spans().empty()
+                ? sigil::weave::PaintStyle{}
+                : inst.paragraph->spans().front().style.paint;
+        metric.foreground.setShader(nullptr);
         bool havePaint = false;
         const Fill f =
             (metricMat->isLive() || metricMat->geometryDependent())

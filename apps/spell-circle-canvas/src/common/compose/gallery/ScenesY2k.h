@@ -8,8 +8,9 @@
 //   A/B card ........ section-2-verbatim hand-built pill NEXT TO the
 //                     aquaGel() preset at identical geometry
 //   title bar ....... styles::y2kChrome() on the bar box
-//   wordmark ........ styles::y2kChrome() PLATE + white type; specular
-//                     sliver + starburst glints garnish the horizon
+//   wordmark ........ styles::y2kChrome() PLATE + sunsetChromeText() type,
+//                     so the horizon runs THROUGH the capitals; the plate's
+//                     specular sliver + starburst glints garnish it
 //   tagline ......... styles::textGlow chained .then() - the double
 //                     frutiger-aero glow
 //   aqua orb ........ styles::aquaGel() on a circle
@@ -287,18 +288,38 @@ struct Y2kChromeScene final : Scene {
             .style(styles::y2kChrome())
             .row().justify(Justify::Center).alignItems(Align::Center)
             .padding(34, 0)
-            .child(text(toU8("MILLENNIUM"), [] {
-              namespace yc = y2k_chrome;
-              auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
-              sigil::weave::PaintLayer ground;
-              ground.paint.setColor4f({0.02f, 0.05f, 0.09f, 0.55f}, nullptr);
-              ground.paint.setAntiAlias(true);
-              ground.paint.setMaskFilter(
-                  SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 1.6f));
-              ground.offset = {0, 2.4f};
-              s.paint.addUnderlay(ground);
-              return s;
-            }()));
+            .child(text(toU8("MILLENNIUM"),
+                        [] {
+                          namespace yc = y2k_chrome;
+                          auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
+                          // Cast shadow, then a tight dark keyline: chrome
+                          // type needs both to sit off a chrome plate.
+                          sigil::weave::PaintLayer ground;
+                          ground.paint.setColor4f({0.02f, 0.05f, 0.09f, 0.55f},
+                                                  nullptr);
+                          ground.paint.setAntiAlias(true);
+                          ground.paint.setMaskFilter(
+                              SkMaskFilter::MakeBlur(kNormal_SkBlurStyle,
+                                                     1.6f));
+                          ground.offset = {0, 2.4f};
+                          sigil::weave::PaintLayer contour;
+                          contour.paint.setAntiAlias(true);
+                          contour.paint.setStyle(SkPaint::kStroke_Style);
+                          contour.paint.setStrokeWidth(2.6f);
+                          contour.paint.setStrokeJoin(SkPaint::kRound_Join);
+                          contour.paint.setColor4f({0.02f, 0.06f, 0.11f, 0.9f},
+                                                   nullptr);
+                          s.paint.addUnderlay(ground);
+                          s.paint.addUnderlay(contour);
+                          return s;
+                        }())
+                       // The wordmark is CHROME, not white type on chrome.
+                       // Flat-white capitals left the plate's horizon
+                       // sliver as the only bright line at that height, so
+                       // it read as a rule struck through the word; the §2
+                       // unit-space ramp puts the horizon inside the
+                       // letterforms, where a chrome wordmark keeps it.
+                       .textFill(styles::sunsetChromeText()));
 
     Element wordmark =
         box().key("wordmark")

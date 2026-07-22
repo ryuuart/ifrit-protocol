@@ -416,9 +416,16 @@ struct ChromeBody {
 };
 
 /** The §2 finishing pass: 1px white top edge + the white specular sliver
- *  straddling the horizon (both clipped inside). */
+ *  straddling the horizon (both clipped inside).
+ *
+ *  The sliver is a SPECULAR band, so it fades out at both ends. Drawn as a
+ *  hard 4%..96% rectangle it ended in two blunt vertical stubs, and on a
+ *  chrome wordmark — where the glyphs already chop the band into segments —
+ *  those stubs read as a strikethrough rule someone forgot to finish. */
 struct ChromeSliver {
   float horizonFrac = kChromeHorizonFrac;
+  /** Fraction of the width the highlight takes to reach full strength. */
+  float falloff = 0.22f;
   bool operator==(const ChromeSliver &) const = default;
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
@@ -426,13 +433,32 @@ struct ChromeSliver {
     c.save();
     c.clipPath(ctx.outline, true);
     SkPaint p;
+    p.setAntiAlias(true);
     p.setColor4f({1, 1, 1, 0.9f}, nullptr);
     c.drawRect(SkRect::MakeXYWH(0, 0, W, 1), p); // the top edge
+
+    // One horizontal alpha ramp reused for the hot line and the bloom
+    // under it; the bloom also falls off vertically, so the pair reads as
+    // light gathering along the horizon rather than as two drawn rules.
     const float horizon = H * horizonFrac;
-    p.setColor4f({1, 1, 1, 0.85f}, nullptr);
-    c.drawRect(SkRect::MakeXYWH(W * 0.04f, horizon - 1, W * 0.92f, 1), p);
-    p.setColor4f({1, 1, 1, 0.25f}, nullptr);
-    c.drawRect(SkRect::MakeXYWH(W * 0.04f, horizon, W * 0.92f, 2), p);
+    const float fade = std::clamp(falloff, 0.02f, 0.49f);
+    const float mid[4] = {0.0f, fade, 1.0f - fade, 1.0f};
+    auto band = [&](float y, float height, float alpha) {
+      const SkColor4f colors[4] = {{1, 1, 1, 0},
+                                   {1, 1, 1, alpha},
+                                   {1, 1, 1, alpha},
+                                   {1, 1, 1, 0}};
+      SkPoint pts[2] = {{0, y}, {W, y}};
+      SkPaint bp;
+      bp.setAntiAlias(true);
+      bp.setShader(SkShaders::LinearGradient(
+          pts, SkGradient({{colors, 4}, {mid, 4}, SkTileMode::kClamp}, {})));
+      c.drawRect(SkRect::MakeXYWH(0, y, W, height), bp);
+    };
+    band(horizon - 1, 1, 0.85f);
+    band(horizon, 1, 0.28f);
+    band(horizon + 1, 1, 0.16f);
+    band(horizon + 2, 2, 0.07f);
     c.restore();
   }
 };

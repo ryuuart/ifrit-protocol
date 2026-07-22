@@ -36,8 +36,10 @@
 #include <include/gpu/graphite/Surface.h>
 #endif
 
+#include <cctype>
 #include <cstring>
 #include <filesystem>
+#include <string_view>
 
 namespace compose_gallery {
 
@@ -72,6 +74,34 @@ inline constexpr SceneInfo kScenes[] = {
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
 
+/** Scene index for a name or a decimal index; -1 when nothing matches.
+ *  Names match case-insensitively on any unique substring, so `--scene y2k`
+ *  and `--scene "y2k chrome"` both land on the same entry. */
+inline int findScene(std::string_view query) {
+  if (query.empty())
+    return -1;
+  if (query.find_first_not_of("0123456789") == std::string_view::npos) {
+    const int index = std::stoi(std::string(query));
+    return index >= 0 && index < kGallerySceneCount ? index : -1;
+  }
+  auto lower = [](std::string_view s) {
+    std::string out(s);
+    for (char &c : out)
+      c = (char)std::tolower((unsigned char)c);
+    return out;
+  };
+  const std::string needle = lower(query);
+  int hit = -1;
+  for (int i = 0; i < kGallerySceneCount; ++i) {
+    const std::string name = lower(kScenes[i].name);
+    if (name == needle)
+      return i;
+    if (name.find(needle) != std::string::npos && hit < 0)
+      hit = i;
+  }
+  return hit;
+}
+
 inline std::unique_ptr<Scene> makeScene(int index) {
   switch (index) {
   case 0: return std::make_unique<RpgHudScene>();
@@ -97,7 +127,10 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   }
 }
 
-inline int runHeadless(const std::string &outDir, bool gpu = false) {
+/** Sweeps the registry (or one scene when `only` is a valid index),
+ *  printing the FPS table and writing a 2x PNG per scene. */
+inline int runHeadless(const std::string &outDir, bool gpu = false,
+                       int only = -1) {
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
   std::unique_ptr<SkiaGraphiteContext> graphite;
   if (gpu) {
@@ -117,7 +150,9 @@ inline int runHeadless(const std::string &outDir, bool gpu = false) {
   std::filesystem::create_directories(outDir);
   std::printf("%-14s %8s %8s %9s %6s %6s %6s %6s\n", "scene", "work ms",
               "p99 ms", "fps", "recon", "layout", "volat", "paint");
-  for (int i = 0; i < kGallerySceneCount; ++i) {
+  const int first = only >= 0 ? only : 0;
+  const int last = only >= 0 ? only + 1 : kGallerySceneCount;
+  for (int i = first; i < last; ++i) {
     GalleryStage stage;
     stage.activate(makeScene(i));
     SkDebugf("=== scene %s\n", stage.scene->name());
@@ -254,8 +289,8 @@ inline int runHeadless(const std::string &outDir, bool gpu = false) {
       return 1;
   }
   if (!gpu)
-    std::printf("wrote %d gallery scenes to %s\n", kGallerySceneCount,
-                outDir.c_str());
+    std::printf("wrote %d gallery scene%s to %s\n", last - first,
+                last - first == 1 ? "" : "s", outDir.c_str());
   return 0;
 }
 
