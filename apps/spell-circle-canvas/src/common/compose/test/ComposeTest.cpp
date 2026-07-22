@@ -5805,3 +5805,83 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   // The ramp runs top to bottom across the CAP BAND, so red is above blue.
   EXPECT_LT(bestRedY, bestBlueY - 20);
 }
+
+TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
+  // Three studies asked for this. trim() walks the PERIMETER, so on a
+  // filled shape it sweeps a wedge round the outline instead of extending
+  // the surface; scaleX/scaleY SQUASH, which a striped fill shows
+  // immediately. The last study's workaround left the retained tree
+  // entirely — snapshot() plus a hand-written clipRect in a
+  // custom(Cache::None) leaf — forfeiting decorations, hit-testing and
+  // pruning on twelve nodes.
+  auto lit = [](Host &host, int x0, int x1) {
+    int n = 0;
+    for (int x = x0; x < x1; ++x)
+      n += host.pixel(x, 100) != SK_ColorBLACK;
+    return n;
+  };
+  auto build = [](float angle, float t) {
+    return box().child(box()
+                           .absolute()
+                           .left(20)
+                           .top(20)
+                           .width(160)
+                           .height(160)
+                           .fill(Fill::color({1, 0, 0, 1}))
+                           .wipe(angle, t));
+  };
+
+  Host half(200, 200);
+  half.composer.render(build(0.0f, 0.5f)); // left to right, half revealed
+  half.frame();
+  EXPECT_GT(lit(half, 25, 95), 60);  // the left half is there…
+  EXPECT_EQ(lit(half, 110, 178), 0); // …and the right half is not
+
+  // It REVEALS rather than squashes: the revealed part keeps its own
+  // scale, so the edge lands at the box's midpoint, not at 0.5 × width
+  // from a shrunken origin.
+  int edge = 0;
+  for (int x = 20; x < 180; ++x)
+    if (half.pixel(x, 100) != SK_ColorBLACK)
+      edge = x;
+  EXPECT_NEAR(edge, 100, 3);
+
+  // Any angle: 90 degrees wipes top to bottom.
+  Host down(200, 200);
+  down.composer.render(build(90.0f, 0.5f));
+  down.frame();
+  int topInk = 0, bottomInk = 0;
+  for (int y = 25; y < 95; ++y)
+    topInk += down.pixel(100, y) != SK_ColorBLACK;
+  for (int y = 110; y < 175; ++y)
+    bottomInk += down.pixel(100, y) != SK_ColorBLACK;
+  EXPECT_GT(topInk, 60);
+  EXPECT_EQ(bottomInk, 0);
+
+  // Fully open and fully closed are the obvious things.
+  Host all(200, 200), none(200, 200);
+  all.composer.render(build(0.0f, 1.0f));
+  all.frame();
+  none.composer.render(build(0.0f, 0.0f));
+  none.frame();
+  EXPECT_GT(lit(all, 25, 175), 140);
+  EXPECT_EQ(lit(none, 20, 180), 0);
+}
+
+TEST(ComposeFx, WipeIsBindableAndPaintOnly) {
+  // Paint-only like the transforms: animating it never relayouts, and a
+  // bound fraction repaints without a re-describe.
+  Host host(200, 200);
+  choreograph::Output<float> reveal{0.0f};
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20)
+                                       .fill(Fill::color({1, 0, 0, 1}))
+                                       .wipe(0.0f, &reveal)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
+
+  reveal = 1.0f; // no render(), no re-describe
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
+}

@@ -188,6 +188,14 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
+Element &Element::wipe(float angleDeg, PropValue<float> fraction) {
+  auto &fx = m_node->fxData.ensure();
+  fx.hasWipe = true;
+  fx.wipeAngleDeg = angleDeg;
+  fx.wipeFraction = std::move(fraction);
+  return *this;
+}
+
 Element &Element::overlay(Decoration d) {
   m_node->fxData.ensure().overlays.push_back(std::move(d));
   return *this;
