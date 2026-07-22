@@ -864,10 +864,16 @@ public:
    *  reference plate, so its positions arrive as numbers: `.left(` beats
    *  `.inset(` almost 2:1 there (626 : 328) and nine studies independently
    *  wrote this helper under four names. The gallery is flex-native and
-   *  the ratio inverts (84 : 222); on its two most house-style scenes this
-   *  saves 4% and 0% respectively. If your position is a *relationship* —
-   *  "inside its parent", "next to that one", "as wide as the column" —
-   *  flex and inset() are the right tools and this is the wrong one.
+   *  the ratio inverts (84 : 222). Measured on its two most house-style
+   *  scenes: `ScenesInventory.h` collapses at most 17 chains of 791 lines
+   *  (~4%), and its coordinates are `cellX(col)`/`cellY(row)`/`spanW(w)`,
+   *  so this respells the call rather than removing arithmetic;
+   *  `ScenesPersona.h` saves **zero** — `plainRow()` (`:438-447`) pins
+   *  `.left(kBaseX + r.dx - 14).top(r.y - 14)` and carries no width or
+   *  height at all, so there is no rect to pass. If your position is a
+   *  *relationship* — "inside its parent", "next to that one", "as wide as
+   *  the column" — flex and inset() are the right tools and this is the
+   *  wrong one.
    *
    *      g.child(box().rect(panelBox).fill(…));
    *      g.child(text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop}));
@@ -1539,7 +1545,14 @@ public:
     Volatile,   ///< its content genuinely changes every frame
     Composited, ///< opacity < 1 or a non-srcOver blend: a bake would round twice
     Transformed,///< rotated, skewed or mirrored — a bake would resample
-    Filtered,   ///< layer/backdrop effect, clip, or a backdrop-reading subtree
+    Filtered,   ///< layer/backdrop effect or clip on the node itself
+    /** Something in the subtree composites against what is already on the
+     *  canvas — a non-srcOver blend or a backdrop filter, on this node or
+     *  any descendant. A bake would resolve it against transparent black.
+     *  Separated from Filtered because the remedy is different: a clip is
+     *  the author's own node to change, whereas this can be a blend three
+     *  levels down that they will not find without being told. */
+    ReadsBackdrop,
     TooBig,     ///< beyond the per-bake area cap or the composer's bake budget
   };
   struct NodeCost {

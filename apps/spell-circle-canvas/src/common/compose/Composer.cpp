@@ -300,8 +300,10 @@ const char *Composer::promotionReason(Promotion p) {
   case Promotion::Composited: return "opacity/blend — a bake would round twice; "
                                      "ask for Cache::Texture yourself";
   case Promotion::Transformed:return "rotated, mirrored or skewed";
-  case Promotion::Filtered:   return "layer/backdrop effect, clip, or blends "
-                                     "against the canvas";
+  case Promotion::Filtered:   return "layer/backdrop effect or clip";
+  case Promotion::ReadsBackdrop:
+    return "something in this subtree blends with the canvas (a non-srcOver "
+           "blend or backdrop filter, here or in a descendant)";
   case Promotion::TooBig:     return "too large to bake, or over the bake budget";
   }
   return "";

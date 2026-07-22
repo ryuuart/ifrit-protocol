@@ -4101,7 +4101,38 @@ TEST(ComposeCache, PromotionRefusesASubtreeThatBlendsWithTheCanvas) {
   EXPECT_NE(row->cacheState, Composer::CacheState::Promoted)
       << "baked a subtree containing a kMultiply child — its blend would "
          "have resolved against transparent black";
-  EXPECT_EQ(row->promotion, Composer::Promotion::Filtered);
+  // Specifically ReadsBackdrop, not the Filtered bucket. Asserting the
+  // bucket would have passed had the panel been refused for its clip, its
+  // layer effect, or its own backdrop instead — four different causes, one
+  // of which is the one under test. A guard that cannot tell them apart
+  // does not guard the thing it is named for.
+  EXPECT_EQ(row->promotion, Composer::Promotion::ReadsBackdrop);
+}
+
+TEST(ComposeCache, TheBlendingChildIsWhatCausesTheRefusal) {
+  // THE POSITIVE CONTROL, and the reason the guards above can be trusted.
+  //
+  // A refusal test proves nothing on its own: a node refused for some
+  // unrelated reason — too cheap, wrong transform, a stray clip — passes
+  // "was not promoted" exactly as well as one refused for the reason under
+  // test. So render the SAME scene with the child's blend set to kSrcOver,
+  // which is the only difference, and require that it IS promoted.
+  //
+  // Together the two halves say: this scene is promotable, and the ONLY
+  // thing standing between it and a bake is the child's blend mode. If a
+  // future change made the refusal fire for everything, this fails; if it
+  // made it fire for nothing, its sibling fails.
+  Host host(220, 220);
+  host.composer.setProfiling(true);
+  host.composer.render(blendingScene(SkBlendMode::kSrcOver));
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = requireRow(host.composer, "reader");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
+      << "the same scene with a srcOver child was not promoted either, so "
+         "the refusal test above proves nothing about blending";
+  EXPECT_EQ(row->promotion, Composer::Promotion::Promoted);
 }
 
 TEST(ComposeCache, ABlendingSubtreeKeepsItsPixelsUnderPromotion) {
@@ -4147,6 +4178,22 @@ TEST(ComposeCache, PromotionRefusesABackdropFilter) {
   const Composer::NodeCost *row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);
   EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(row->promotion, Composer::Promotion::ReadsBackdrop);
+}
+
+TEST(ComposeCache, AClipIsRefusedSeparatelyFromABlendingSubtree) {
+  // The other side of the same split: a clip is the author's OWN node to
+  // change, a blend can be three levels down and invisible to them. If
+  // these two ever collapse back into one reason, this fails.
+  Host host(220, 220);
+  host.composer.setProfiling(true);
+  host.composer.render(
+      profiledUnder(expensivePanel().key("clipped").clip(true)));
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = requireRow(host.composer, "clipped");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->promotion, Composer::Promotion::Filtered);
 }
 
 TEST(ComposeCache, PromotionRefusesEveryRotation) {
