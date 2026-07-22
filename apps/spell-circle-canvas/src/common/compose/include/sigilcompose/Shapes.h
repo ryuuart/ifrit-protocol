@@ -92,20 +92,37 @@ inline OutlineFn polygon(int sides, float rotationDeg = 0.0f) {
 }
 
 /** N-pointed star inscribed in the box (first point up); inner
- *  vertices sit at @p innerRatio of the outer radius. */
-inline OutlineFn star(int points, float innerRatio = 0.5f) {
-  return [points, innerRatio](SkSize s) {
+ *  vertices sit at @p innerRatio of the outer radius.
+ *
+ *  @p waist bows each arm edge INWARD along its own bisector, in units of
+ *  the outer radius. 0 is the straight-chord star. Engraved and cut stars
+ *  are almost never straight-chorded — Chladni's 1787 sound-figures
+ *  narrow fast off the hub and then run as needles, and nine figures on
+ *  that one plate wanted exactly this parameter. ~0.10–0.25 reads as
+ *  engraved; negative bulges the arms instead (a compass rose). */
+inline OutlineFn star(int points, float innerRatio = 0.5f,
+                      float waist = 0.0f) {
+  return [points, innerRatio, waist](SkSize s) {
     const int n = std::max(points, 2) * 2;
     const float cx = s.width() / 2, cy = s.height() / 2;
-    SkPathBuilder b;
-    for (int i = 0; i < n; ++i) {
+    auto vertex = [&](int i) {
       const float r = (i % 2 == 0) ? 1.0f : innerRatio;
       const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
-      const SkPoint p{cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
-      if (i == 0)
-        b.moveTo(p);
-      else
-        b.lineTo(p);
+      return SkPoint{cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
+    };
+    SkPathBuilder b;
+    b.moveTo(vertex(0));
+    for (int i = 0; i < n; ++i) {
+      const SkPoint from = vertex(i), to = vertex((i + 1) % n);
+      if (waist == 0.0f) {
+        b.lineTo(to);
+        continue;
+      }
+      // Pull the edge's midpoint toward the centre along its own radius,
+      // so both edges of an arm pinch symmetrically and the tip stays put.
+      const SkPoint mid{(from.fX + to.fX) * 0.5f, (from.fY + to.fY) * 0.5f};
+      const float dx = mid.fX - cx, dy = mid.fY - cy;
+      b.quadTo({mid.fX - dx * waist, mid.fY - dy * waist}, to);
     }
     b.close();
     return b.detach();

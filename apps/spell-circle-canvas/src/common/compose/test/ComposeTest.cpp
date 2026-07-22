@@ -5093,3 +5093,89 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
   EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
 }
+
+TEST(ComposeShapes, StarArmsCanBeWaisted) {
+  // Engraved stars are almost never straight-chorded: Chladni's 1787
+  // sound-figures narrow fast off the hub and then run as needles, and
+  // nine figures on that one plate wanted exactly this parameter.
+  const SkSize box{200, 200};
+  const SkRect region = SkRect::MakeWH(200, 200);
+  // Measure the covered area by sampling, not by a shoelace over the
+  // endpoints — the waist lives in the QUAD CONTROL POINTS, so a polygon
+  // area sees no difference at all and would pass on a no-op.
+  auto covered = [&](const SkPath &p) {
+    const SkPath pieces[] = {p};
+    const auto c = debug::coverage(pieces, region, 128);
+    return c.samples - c.uncovered;
+  };
+
+  const SkPath straight = shapes::star(6, 0.35f, 0.0f)(box);
+  const SkPath waisted = shapes::star(6, 0.35f, 0.22f)(box);
+  const SkPath bulged = shapes::star(6, 0.35f, -0.22f)(box);
+
+  // The tips are unmoved — the waist pinches the EDGES, not the points.
+  EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(),
+              1.0f);
+  // The figure loses ink, because every edge bows toward the centre…
+  EXPECT_LT(covered(waisted), covered(straight));
+  // …and a negative waist bulges instead, which is the compass-rose
+  // direction.
+  EXPECT_GT(covered(bulged), covered(straight));
+}
+
+TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
+  // lines::hatch is a parallel lattice at one fixed angle, which is the
+  // wrong field for anything engraved out of a point. The Chladni study
+  // built its radial fan from 120 shapes::sector sub-wedges each carrying
+  // a rotated Hatch — correct, and 120 nodes for one field.
+  auto lit = [](Host &host, int x0, int y0, int x1, int y1) {
+    int n = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = x0; x < x1; ++x)
+        n += host.pixel(x, y) != SK_ColorBLACK;
+    return n;
+  };
+
+  Host fan(200, 200);
+  fan.composer.render(box().child(
+      box().absolute().inset(20).outline(shapes::circle()).background(
+          lines::radialHatch(Fill::color({1, 1, 1, 1}), 32, 1.5f))));
+  fan.frame();
+  // Ink everywhere around the rim…
+  EXPECT_GT(lit(fan, 20, 20, 180, 180), 800);
+  // …and the hole at the centre is genuinely empty, which is the whole
+  // reason holeFraction exists: a fan out of a point goes solid there.
+  EXPECT_EQ(lit(fan, 96, 96, 104, 104), 0);
+  // Clipped to the outline, so the box corners stay dark.
+  EXPECT_EQ(lit(fan, 20, 20, 32, 32), 0);
+
+  Host rings(200, 200);
+  rings.composer.render(box().child(
+      box().absolute().inset(20).outline(shapes::circle()).background(
+          lines::concentric(Fill::color({1, 1, 1, 1}), 8, 1.5f))));
+  rings.frame();
+  EXPECT_GT(lit(rings, 20, 20, 180, 180), 800);
+  EXPECT_EQ(lit(rings, 20, 20, 32, 32), 0);
+
+  // They are different FIELDS, not one rotated: spokes converge, so a
+  // fan's ink density climbs toward the centre, while evenly spaced
+  // rings hold theirs. (Counting crossings along one scanline would not
+  // show this — a spoke can lie along the scanline.)
+  auto density = [](Host &host, float r0, float r1) {
+    int ink = 0, area = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x) {
+        const float d = std::hypot((float)x - 100.0f, (float)y - 100.0f);
+        if (d < r0 || d >= r1)
+          continue;
+        ++area;
+        ink += host.pixel(x, y) != SK_ColorBLACK;
+      }
+    return area > 0 ? (float)ink / (float)area : 0.0f;
+  };
+  const float fanInner = density(fan, 22, 34), fanOuter = density(fan, 66, 78);
+  const float ringInner = density(rings, 22, 34),
+              ringOuter = density(rings, 66, 78);
+  EXPECT_GT(fanInner, fanOuter * 1.6f);
+  EXPECT_NEAR(ringInner, ringOuter, std::max(ringOuter * 0.6f, 0.02f));
+}
