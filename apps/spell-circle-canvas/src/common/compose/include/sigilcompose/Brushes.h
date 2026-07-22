@@ -914,13 +914,28 @@ struct Ribbon {
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
   std::function<float(const PathSample &)> widthFn;
+  /** Upper bound on what `widthFn` returns, in px.
+   *
+   *  `bleed()` grows the recording cull, and it cannot look inside a
+   *  `std::function` — so a width function returning 166 on a ribbon
+   *  whose widthStart/widthEnd are the defaults declared 10 px of reach
+   *  and the band was silently CLIPPED. A flow map is exactly this shape
+   *  (Minard's retreat band runs 166 px at Kowno), and the failure looks
+   *  like a rendering bug rather than a missing declaration.
+   *
+   *  Set it whenever you set `widthFn`. It is the one number the library
+   *  cannot derive for you. */
+  float widthMax = 0.0f;
 
-  float bleed() const { return std::max(widthStart, widthEnd); }
+  float bleed() const {
+    const float base = std::max(widthStart, widthEnd);
+    return widthFn ? std::max(base, widthMax) : base;
+  }
   bool operator==(const Ribbon &o) const {
     return fill == o.fill && widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
-           nibContrast == o.nibContrast && step == o.step && !widthFn &&
-           !o.widthFn;
+           nibContrast == o.nibContrast && step == o.step &&
+           widthMax == o.widthMax && !widthFn && !o.widthFn;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {

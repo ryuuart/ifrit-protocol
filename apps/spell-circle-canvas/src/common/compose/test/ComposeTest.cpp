@@ -6185,3 +6185,39 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
   EXPECT_NEAR(rules(/*vertical=*/true), 6, 1);   // 120 / 20
   EXPECT_NEAR(rules(/*vertical=*/false), 15, 2); // 120 / 8
 }
+
+TEST(ComposeBrushes, ARibbonWithAWidthFnMustDeclareItsReach) {
+  // bleed() grows the recording cull and cannot look inside a
+  // std::function, so a width function returning 166 on a ribbon whose
+  // widthStart/widthEnd are the defaults declared 10 px of reach and the
+  // band was silently CLIPPED. A flow map is exactly this shape —
+  // Minard's retreat band runs 166 px at Kowno — and the failure reads as
+  // a rendering bug rather than a missing declaration.
+  //
+  // Asserted on bleed() directly. An earlier version of this test tried
+  // to observe the cull through rendered pixels and measured the same
+  // number either way, because what reaches the canvas also depends on
+  // cache-mode decisions the test was not pinning. Testing the contract
+  // that changed is the honest scope.
+  brushes::Ribbon plain;
+  plain.widthStart = 12.0f;
+  plain.widthEnd = 4.0f;
+  EXPECT_FLOAT_EQ(plain.bleed(), 12.0f);
+
+  brushes::Ribbon flow = plain;
+  flow.widthFn = [](const PathSample &) { return 166.0f; };
+  // Undeclared: it can only report what it can see, which is the lie.
+  EXPECT_FLOAT_EQ(flow.bleed(), 12.0f);
+  // Declared: the reach is the truth, and the cull grows to match.
+  flow.widthMax = 166.0f;
+  EXPECT_FLOAT_EQ(flow.bleed(), 166.0f);
+  // A widthMax under the fixed widths never SHRINKS the reach.
+  flow.widthMax = 2.0f;
+  EXPECT_FLOAT_EQ(flow.bleed(), 12.0f);
+
+  // And it participates in equality, so changing the declared reach
+  // repatches rather than pruning.
+  brushes::Ribbon a = plain, b = plain;
+  b.widthMax = 166.0f;
+  EXPECT_FALSE(a == b);
+}
