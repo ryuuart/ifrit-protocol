@@ -233,22 +233,39 @@ angle still has none.
 Natural API: `.wipe(angleDeg, PropValue<float>)` — an axis-aligned clip
 fraction, rotatable.
 
-## 7. One trim window per node
+## 7. One trim window per node — **WRONG, and worth saying so loudly**
 
-`trim()` is an `Element` property, and decorations receive the **already
-trimmed** outline. So a second window over the same geometry is not a
-second `stroke()` — it is a duplicate node that rebuilds and re-measures
-the same path. The Vertigo cards pay for a 2000-segment precessing rosette
-twice each, purely so a bright pen tip can ride just behind the drawn
-head.
+Filed twice, from two studies, and it is not true. `PathFormat` has
+carried `trimStart` / `trimEnd` / `trimOffset` / `trimPhase` all along,
+and the windows **compose**: a decoration receives the node's
+already-trimmed outline, so its own window is a fraction of the revealed
+part.
 
-That gesture is not exotic: the comet on a radar sweep, a marching
-highlight on a border, a second progress arc on one ring, the leading spark
-on a drawn signature. All of them are one geometry with two windows.
+```cpp
+PathFormat head = util::stroke(6, Fill::color(kBright));
+head.trimStart = 0.90f; head.trimEnd = 1.0f;   // the last tenth of what
+                                               // the node has revealed
+box().outline(curve).trim(0, &growth)
+     .foreground(util::stroke(3, Fill::color(kBody)))
+     .foreground(head);                        // rides the drawn head
+```
 
-Natural API: `trim` as a field on `PathFormat`, so each stroke and each
-decoration carries its own window over the shared outline, with the node
-property staying as the shorthand.
+That is exactly the pen-tip-behind-the-head case the Vertigo study
+rebuilt as a duplicate node re-measuring the same 2000-segment path,
+four times over. Now pinned by a test
+(`ComposeDecorations.EachStrokeCarriesItsOwnTrimWindow`).
+
+What is genuinely missing here is smaller, and stated where it belongs:
+the node-level `trim()` is the only one that reaches the FILL and the
+content, and `dashPhase` has no bound form (§10b).
+
+**The real defect was discoverability, and this is the second time this
+week a study has worked around something that exists** — the other being
+the bound `Fill`. A gap list is only worth its accuracy: an entry that
+reads "impossible" outranks one that reads "awkward", so one wrong entry
+distorts everything below it. Both were caught by checking the claim
+against the source before ranking it, and both should have been caught by
+the header saying so at the call site.
 
 ## 8. `routers::orthogonal()` is unusable for its most natural application
 

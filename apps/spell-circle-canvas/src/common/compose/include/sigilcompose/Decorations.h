@@ -69,7 +69,23 @@ struct PathFormat {
    *  carry a full static band AND a marching sliver as two strokes. Wraps
    *  like TrimMode::Wrap (seam-crossing windows stitch into one contour).
    *  Bind `trimPhase` to a wrapping Output and THIS stroke marches while
-   *  its siblings hold still (declares the decoration animated). */
+   *  its siblings hold still (declares the decoration animated).
+   *
+   *  IT COMPOSES WITH THE NODE'S `trim()`, which is the part people miss.
+   *  A decoration receives the ALREADY-trimmed outline, so its own window
+   *  is a fraction of the revealed part — `trimStart 0.9, trimEnd 1.0` on
+   *  a second stroke is a bright sliver riding the head of a self-drawing
+   *  line, and needs no second node:
+   *
+   *      PathFormat head = util::stroke(6, Fill::color(kBright));
+   *      head.trimStart = 0.90f; head.trimEnd = 1.0f;
+   *      box().outline(curve).trim(0, &growth)
+   *           .foreground(util::stroke(3, Fill::color(kBody)))
+   *           .foreground(head);
+   *
+   *  Spelled out because two studies concluded there was one trim window
+   *  per NODE and each rebuilt this as a duplicate element re-measuring
+   *  the same path. */
   float trimStart = 0.0f, trimEnd = 1.0f;
   float trimOffset = 0.0f;
   const choreograph::Output<float> *trimPhase = nullptr; // replaces offset

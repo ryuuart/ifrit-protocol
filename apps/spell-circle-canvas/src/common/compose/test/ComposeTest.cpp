@@ -5179,3 +5179,54 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
   EXPECT_GT(fanInner, fanOuter * 1.6f);
   EXPECT_NEAR(ringInner, ringOuter, std::max(ringOuter * 0.6f, 0.02f));
 }
+
+TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
+  // Recorded twice as "one trim window per node", which is wrong and
+  // worth pinning: PathFormat has had trimStart/trimEnd/trimOffset/
+  // trimPhase all along, and the windows COMPOSE — a decoration receives
+  // the node's already-trimmed outline, so a second window is a fraction
+  // of the revealed part. That is exactly the pen-tip-behind-the-head
+  // case that got rebuilt as a duplicate node re-measuring the same
+  // 2000-segment path.
+  auto lit = [](Host &host, int x0, int y0, int x1, int y1) {
+    int n = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = x0; x < x1; ++x)
+        n += host.pixel(x, y) != SK_ColorBLACK;
+    return n;
+  };
+  auto line = [](SkSize) {
+    SkPathBuilder b;
+    b.moveTo(10, 100).lineTo(190, 100);
+    return b.detach();
+  };
+
+  // Node trimmed to the first 60% — one geometry, two windows on it:
+  // a wide dim body over all of it, and a bright sliver at its head.
+  PathFormat head = util::stroke(6, Fill::color({0, 1, 0, 1}));
+  head.trimStart = 0.90f;
+  head.trimEnd = 1.0f;
+  Host host(200, 200);
+  host.composer.render(box().child(
+      box().absolute().inset(0).outline(line).fill(Fill::none())
+          .trim(0.0f, 0.6f)
+          .foreground(util::stroke(3, Fill::color({1, 0, 0, 1})))
+          .foreground(head)));
+  host.frame();
+
+  // The body reaches ~x118 (10 + 0.6*180); nothing past it.
+  EXPECT_GT(lit(host, 20, 95, 110, 105), 100);
+  EXPECT_EQ(lit(host, 130, 95, 190, 105), 0);
+
+  // The head sliver is the LAST tenth of the revealed part, so it is
+  // green near x118 and red back at x40 — two independent windows.
+  int greenHead = 0, redBody = 0;
+  for (int x = 100; x < 120; ++x)
+    greenHead += SkColorGetG(host.pixel(x, 100)) > 180 &&
+                 SkColorGetR(host.pixel(x, 100)) < 80;
+  for (int x = 20; x < 60; ++x)
+    redBody += SkColorGetR(host.pixel(x, 100)) > 180 &&
+               SkColorGetG(host.pixel(x, 100)) < 80;
+  EXPECT_GT(greenHead, 5);
+  EXPECT_GT(redBody, 20);
+}
