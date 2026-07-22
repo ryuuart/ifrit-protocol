@@ -68,6 +68,7 @@ struct ElementNode {
   PropValue<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
   TrimMode trimMode = TrimMode::Clamp;
   Cache cacheMode = Cache::Auto;
+  float bakeScale = 1.0f; // Texture-bake resolution multiplier (see Element)
   std::optional<Transition> nodeTransition;
   float staggerChildrenMs = 0; // extra order·each mount delay per subtree
   Stagger::From staggerFrom = Stagger::From::Start;

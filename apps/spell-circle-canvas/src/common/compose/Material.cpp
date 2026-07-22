@@ -41,6 +41,13 @@ struct Material::Live {
   // quantizeTime(): step the injected uTime at this rate (0 = continuous) —
   // the P3R sea rule ("we imagine the interpolation ourselves").
   float timeQuantizeHz = 0;
+  // Resolve memo: when every varying input (bound Outputs + injected
+  // time/scale/resolution) is byte-identical to the previous build, the
+  // previous shader is returned — quantized time makes consecutive frames
+  // identical, and the paint layer turns that stability into replayed
+  // pictures instead of re-rasterized shaders.
+  mutable std::vector<float> lastInputs;
+  mutable sk_sp<SkShader> lastShader;
 };
 
 /** The comparable build recipe behind gradient/image/blend materials — the
@@ -136,6 +143,57 @@ SkGradient makeGradient(const RampArrays &r, SkTileMode tile) {
 sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   if (!live.effect)
     return nullptr;
+  // A user-provided uniform (constant or bound) OWNS its slot: the
+  // auto-injects must never overwrite it — binding uTime to a quantized
+  // Output is the documented way to step a material, and injection ran
+  // AFTER binds, silently defeating it (the persona-sea finding).
+  auto userProvided = [&](std::string_view name) {
+    for (const auto &[n, v] : live.constants)
+      if (n == name)
+        return true;
+    for (const auto &[n, v] : live.constants2)
+      if (n == name)
+        return true;
+    for (const auto &[n, v] : live.constants4)
+      if (n == name)
+        return true;
+    for (const auto &[n, o] : live.binds)
+      if (n == name)
+        return true;
+    return false;
+  };
+  const bool injectTime = ctx &&
+                          validUniform(live.effect, "uTime", sizeof(float)) &&
+                          !userProvided("uTime");
+  const bool injectScale =
+      ctx && validUniform(live.effect, "uContentScale", sizeof(float)) &&
+      !userProvided("uContentScale");
+  const bool injectRes =
+      ctx && validUniform(live.effect, "uResolution", 2 * sizeof(float)) &&
+      !userProvided("uResolution");
+
+  // The varying-input digest (constants are fixed per recipe; injected
+  // values participate only when actually injected).
+  std::vector<float> inputs;
+  if (ctx) {
+    inputs.reserve(live.binds.size() + 4);
+    for (const auto &[name, out] : live.binds)
+      inputs.push_back(out ? out->value() : 0.0f);
+    if (injectTime) {
+      double t = ctx->elapsedSeconds;
+      if (live.timeQuantizeHz > 0)
+        t = std::floor(t * live.timeQuantizeHz) / live.timeQuantizeHz;
+      inputs.push_back((float)t);
+    }
+    if (injectScale)
+      inputs.push_back(ctx->contentScale);
+    if (injectRes) {
+      inputs.push_back(ctx->size.width());
+      inputs.push_back(ctx->size.height());
+    }
+    if (live.lastShader && inputs == live.lastInputs)
+      return live.lastShader;
+  }
   SkRuntimeShaderBuilder b(live.effect);
   for (const auto &[name, value] : live.constants)
     b.uniform(name.c_str()) = value; // entries pre-validated at store time
@@ -149,19 +207,24 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   if (ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
-    if (validUniform(live.effect, "uTime", sizeof(float))) {
+    if (injectTime) {
       double t = ctx->elapsedSeconds;
       if (live.timeQuantizeHz > 0)
         t = std::floor(t * live.timeQuantizeHz) / live.timeQuantizeHz;
       b.uniform("uTime") = (float)t;
     }
-    if (validUniform(live.effect, "uContentScale", sizeof(float)))
+    if (injectScale)
       b.uniform("uContentScale") = ctx->contentScale;
-    if (validUniform(live.effect, "uResolution", 2 * sizeof(float)))
+    if (injectRes)
       b.uniform("uResolution") =
           std::array<float, 2>{ctx->size.width(), ctx->size.height()};
   }
-  return b.makeShader();
+  sk_sp<SkShader> built = b.makeShader();
+  if (ctx) {
+    live.lastInputs = std::move(inputs);
+    live.lastShader = built;
+  }
+  return built;
 }
 
 Material Material::solid(SkColor4f color) {
@@ -331,6 +394,13 @@ Material &Material::uniform(std::string name, float value) {
     return *this;
   }
   detachLive();
+  // Constants own their slot (injection ownership): a baked-in uTime /
+  // uContentScale never ticks again, so it must not keep the material Live
+  // — the header promises "the material stays static".
+  if (name == "uTime")
+    m_live->usesTime = false;
+  else if (name == "uContentScale")
+    m_live->usesScale = false;
   m_live->constants.emplace_back(std::move(name), value);
   m_shader = build(*m_live, nullptr); // refresh the static snapshot
   return *this;

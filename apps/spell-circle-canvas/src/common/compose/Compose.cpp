@@ -269,6 +269,10 @@ Element &Element::key(std::string_view k) {
   return *this;
 }
 Element &Element::cache(Cache c) { m_node->cacheMode = c; return *this; }
+Element &Element::bakeScale(float factor) {
+  m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
+  return *this;
+}
 Element &Element::transition(Transition t) {
   m_node->nodeTransition = std::move(t);
   return *this;

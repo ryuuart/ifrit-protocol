@@ -51,6 +51,7 @@ namespace compose_gallery {
 
 namespace persona_menu {
 
+constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 
 // REFERENCES.md sec.1 palette, recreation-verified, verbatim.
@@ -261,6 +262,70 @@ struct PersonaMenuScene final : Scene {
     composer.render(describe());
   }
 
+  /** BOTH verified caustic layers in one pass, with a 4-tap soften that
+   *  stands in for the recipe's sigma-1.4 blur — one live material, one
+   *  texture bake per 6 Hz step (the memo turns the other frames into
+   *  blits). */
+  Material dualCaustic() {
+    namespace nn = persona_menu;
+    static const sk_sp<SkRuntimeEffect> fx = [] {
+      auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+        uniform float2 uResolution;
+        uniform float  uTime;   // pre-quantized to 6 Hz by the host
+        uniform float4 uLight;  // cut .48 layer color (alpha = strength)
+        uniform float4 uDark;   // cut .79 layer color
+        float vhash(float2 p) {
+          return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+        }
+        float vnoise(float2 p) {
+          float2 i = floor(p);
+          float2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(vhash(i), vhash(i + float2(1, 0)), f.x),
+                     mix(vhash(i + float2(0, 1)), vhash(i + float2(1, 1)), f.x),
+                     f.y);
+        }
+        float layerA(float2 uv) {
+          float2 o = float2(0.03, 0.01) * uTime;
+          float p1 = vnoise((uv - o) * 13.0);
+          float p2 = vnoise((uv - o + 0.5) * 13.0);
+          return step(0.48, abs(p1 - p2));
+        }
+        float layerB(float2 uv) {
+          float2 o = float2(0.02, 0.115) * uTime;
+          float p1 = vnoise((uv - o) * 21.0);
+          float p2 = vnoise((uv - o + 0.5) * 21.0);
+          return step(0.79, abs(p1 - p2));
+        }
+        half4 sample1(float2 xy) {
+          float2 uv = xy / max(uResolution.y, 1.0);
+          float band = smoothstep(0.30, 0.55, uv.y);
+          float a1 = layerA(uv) * uLight.a * band;
+          float a2 = layerB(uv) * uDark.a * band;
+          float3 rgb = uLight.rgb * a1 + uDark.rgb * a2 * (1.0 - a1);
+          float a = a1 + a2 * (1.0 - a1);
+          return half4(half3(rgb), a);
+        }
+        half4 main(float2 xy) {
+          // 4-tap soften ~ the sigma-1.4 blur at 1/3 res of the recipe.
+          half4 acc = sample1(xy + float2(-1.1, -0.7)) +
+                      sample1(xy + float2(1.1, -0.7)) +
+                      sample1(xy + float2(-1.1, 0.9)) +
+                      sample1(xy + float2(1.1, 0.9));
+          return acc * 0.25;
+        }
+      )"));
+      if (!effect)
+        SkDebugf("persona dualCaustic: %s\n", err.c_str());
+      return effect;
+    }();
+    Material m = Material::sksl(fx);
+    m.uniform("uLight", nn::kCausLight)
+        .uniform("uDark", nn::kCausBub)
+        .uniform("uTime", &qTime);
+    return m;
+  }
+
   Material caustic(float cut, float scale, SkColor4f color,
                    std::array<float, 2> vel) {
     namespace nn = persona_menu;
@@ -284,40 +349,50 @@ struct PersonaMenuScene final : Scene {
          {0.768f, nn::kLut3}, {0.813f, nn::kLut3},
          {0.813f, nn::kLut4}, {1.000f, nn::kLut4}});
 
+    // Three Z-planes so steady-state recomposition is BLITS, not
+    // re-raster: everything below the sea is one static texture, the sea
+    // re-bakes at its own 6 Hz, the framing gradients above are another
+    // static texture. A live ancestor recomposites per frame on raster —
+    // each plane must therefore be one cheap draw.
     return box().absolute().inset(0)
-        // deep blue ground
-        .fill(Material::linear({0, 0}, {0, nn::kH},
-                               {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
-        .child(box().absolute().inset(0).fill(bands).opacity(0.9f))
-        // organic variation over the posterized bands
         .child(box().absolute().inset(0)
-                   .fill(patterns::noise(0.006f, 4))
-                   .opacity(0.32f)
-                   .blend(SkBlendMode::kSoftLight))
-        // flat tint pull toward #007FD2 (kept lighter than the verified
-        // 82% so the band structure stays legible)
-        .child(box().absolute().inset(0).fill(Material::solid(nn::kTintVeil)))
-        // two caustic layers, 6Hz-stepped, under a sigma-1.4 blur
+                   .cache(Cache::Texture) // static under-plane: ground +
+                                          // bands + noise + veil, one blit
+                   .fill(Material::linear(
+                       {0, 0}, {0, nn::kH},
+                       {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
+                   .child(box().absolute().inset(0).fill(bands).opacity(0.9f))
+                   .child(box().absolute().inset(0)
+                              .fill(patterns::noise(0.006f, 4))
+                              .opacity(0.32f)
+                              .blend(SkBlendMode::kSoftLight))
+                   .child(box().absolute().inset(0).fill(
+                       Material::solid(nn::kTintVeil))))
+        // The sea: one dual-layer 6Hz shader, its own texture plane --
+        // baked at HALF raster scale and linear-upscaled at the blit.
+        // The bands are watercolor-soft already, so the reduced bake
+        // reads identically while each 6 Hz re-bake evaluates a quarter
+        // of the pixels.
         .child(box().absolute().inset(0)
-                   .effect(Effect::filter(
-                       SkImageFilters::Blur(1.4f, 1.4f, nullptr)))
-                   .child(box().absolute().inset(0)
-                              .fill(caustic(0.48f, 13.0f, nn::kCausLight,
-                                            {0.03f, 0.01f})))
-                   .child(box().absolute().inset(0)
-                              .fill(caustic(0.79f, 22.0f, nn::kCausBub,
-                                            {0.0f, 0.115f}))))
-        // dark gradient bottom + cyan gradient top
-        .child(box().absolute().inset(0).fill(Material::linear(
-            {0, nn::kH * 0.60f}, {0, nn::kH},
-            {{0.0f, {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB, 0}},
-             {1.0f,
-              {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB, 0.88f}}})))
-        .child(box().absolute().inset(0).fill(Material::linear(
-            {0, 0}, {0, nn::kH * 0.42f},
-            {{0.0f, nn::kTopCyan},
-             {1.0f,
-              {nn::kTopCyan.fR, nn::kTopCyan.fG, nn::kTopCyan.fB, 0}}})));
+                   .cache(Cache::Texture).bakeScale(0.5f)
+                   .fill(dualCaustic()))
+        // static over-plane: the framing gradients, one blit
+        .child(box().absolute().inset(0)
+                   .cache(Cache::Texture)
+                   .child(box().absolute().inset(0).fill(Material::linear(
+                       {0, nn::kH * 0.60f}, {0, nn::kH},
+                       {{0.0f,
+                         {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
+                          0}},
+                        {1.0f,
+                         {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
+                          0.88f}}})))
+                   .child(box().absolute().inset(0).fill(Material::linear(
+                       {0, 0}, {0, nn::kH * 0.42f},
+                       {{0.0f, nn::kTopCyan},
+                        {1.0f,
+                         {nn::kTopCyan.fR, nn::kTopCyan.fG, nn::kTopCyan.fB,
+                          0}}}))));
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -328,13 +403,20 @@ struct PersonaMenuScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     const nn::Row &r = nn::kRows[i];
-    return text(toU8(r.label), nn::menuType(46, nn::kCyans[i % 3], 2.0f))
-        .key(r.label)
-        .left(nn::kBaseX + r.dx).top(r.y)
+    // The sigma-3.5 glow re-blurs on every picture replay, and the wedge
+    // heartbeat keeps this whole menu live -- so bake each sticker to a
+    // texture once it settles. 14px of padding keeps raster room for the
+    // glow tail; the pin shifts up-left to compensate. Entrance transforms
+    // and the row rotation apply outside the bake.
+    return box().key(r.label)
+        .left(nn::kBaseX + r.dx - 14).top(r.y - 14)
+        .padding(14)
         .rotate(r.rot).zIndex(r.z)
         .translateY(withFrom(-30.0f, 0.0f, {400ms, &ch::easeOutQuint}))
         .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad}))
-        .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f));
+        .cache(Cache::Texture)
+        .child(text(toU8(r.label), nn::menuType(46, nn::kCyans[i % 3], 2.0f))
+                   .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
   }
 
   /** The selected sticker (sec.1 selection): black label at 1.5x on a
@@ -437,7 +519,10 @@ struct PersonaMenuScene final : Scene {
                  return s;
                }())
                    .centerAt({450, 306}).rotate(90).zIndex(1)
-                   .opacity(withFrom(0.0f, 1.0f, {500ms})))
+                   .opacity(withFrom(0.0f, 1.0f, {500ms}))
+                   // 220px digits render as glyph PATHS (over the atlas
+                   // cutoff); bake them once, the rotation rides outside
+                   .cache(Cache::Texture))
         // ---- the sticker scatter; stagger 33ms BOTTOM-UP: children are
         //      declared bottom-first (zIndex owns paint order) ----
         .child(box().key("menu").left(nn::kMenuX).top(nn::kMenuY)
@@ -451,8 +536,13 @@ struct PersonaMenuScene final : Scene {
                    .child(plainRow(0)))  // SKILL
         .child(cursor())
         // ---- right-anchored tooltip title over the COMMAND rule ----
-        .child(box().key("tooltip").top(40).right(43).zIndex(8)
+        .child(box().key("tooltip").top(40 - 12).right(43 - 12).zIndex(8)
                    .alignItems(Align::End)
+                   // texture-baked (the sigma-3 glow otherwise re-blurs
+                   // on every root replay); 12px padding keeps raster
+                   // room for the glow tail, pins shifted to compensate
+                   .padding(12)
+                   .cache(Cache::Texture)
                    .translateX(withFrom(36.0f, 0.0f,
                                         {400ms, &ch::easeOutQuint}))
                    .opacity(withFrom(0.0f, 1.0f, {300ms}))

@@ -217,7 +217,11 @@ struct AeroDesktopScene final : Scene {
 
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      orbGlow = 0.55f + 0.25f * (float)std::sin(t * 1.4);
+      // 8 Hz-stepped breathing: invisible on a soft glow, and the stepped
+      // value holds between steps so the taskbar plane can blit instead
+      // of re-rastering (the live-resolve/stability rule, host-side).
+      const double q = std::floor(t * 8.0) / 8.0;
+      orbGlow = 0.55f + 0.25f * (float)std::sin(q * 1.4);
       return true;
     });
 
@@ -257,10 +261,11 @@ struct AeroDesktopScene final : Scene {
         .fill(ad::buttonBase(h))
         .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
                        PathFormat::Align::Inner));
-    if (hovered)
-      b.child(box().absolute().inset(0).corners(c)
-                  .fill(ad::closeBloom(w, h))
-                  .opacity(&bloom));
+    // NOTE: the hovered close-button bloom is drawn by closeBloomOverlay()
+    // in describe() -- its &bloom opacity bind here would keep the entire
+    // window texture plane volatile. `hovered` stays in the signature as
+    // the sec.6 state marker.
+    (void)hovered;
     // faint inner top light
     b.child(box().absolute().inset(1, 1, 1, h - 2)
                 .fill(Fill::color({1, 1, 1, 0.22f})));
@@ -366,10 +371,31 @@ struct AeroDesktopScene final : Scene {
     // window-local coordinates.
     auto glass =
         box().absolute().inset(0).corners({6, 6, 0, 0}).clip()
-            // the DWM pass: blur what's behind (sigma=3, tight -- sec.6)...
-            .backdrop(Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))
+            // The DWM pass blurs what's behind the pane -- and behind it
+            // is only the wallpaper, static between its 10 Hz steps. A
+            // live backdrop() samples the destination, which keeps this
+            // whole plane un-bakeable and re-blurring 600x440 every
+            // frame; instead blur a frozen-time copy of the SAME aurora
+            // shader, extended to full canvas size so the pattern lines
+            // up pixel-for-pixel, and let the pane's clip keep the pane.
+            // (The slow drift means the frozen copy diverges invisibly
+            // under sigma-3 blur + the tint stack.)
+            // Sub-baked on a WRAPPER (an effect on the cached node itself
+            // would apply outside the texture and re-blur every replay);
+            // half raster scale — it's about to be blurred anyway.
+            .child(box().absolute()
+                       .inset(-ad::kWX, -ad::kWY,
+                              -(ad::kW - ad::kWX - ad::kWW),
+                              -(ad::kH - ad::kWY - ad::kWH))
+                       .cache(Cache::Texture).bakeScale(0.5f)
+                       .child(box().absolute().inset(0)
+                                  .fill(Material::sksl(ad::auroraEffect())
+                                            .uniform("uTime", 0.75f))
+                                  .effect(Effect::filter(
+                                      SkImageFilters::Blur(3, 3, nullptr)))))
             // ...then the colorization tint stack over it
-            .fill(ad::glassTint(ad::kWW, ad::kWH))
+            .child(box().absolute().inset(0)
+                       .fill(ad::glassTint(ad::kWW, ad::kWH)))
             // top-corner radial glows
             .child(box().absolute().inset(0, 0, ad::kWW - 70, ad::kWH - 46)
                        .fill(ad::cornerGlow({0, 0})))
@@ -425,6 +451,7 @@ struct AeroDesktopScene final : Scene {
                    .inset(ad::kWX - 34, ad::kWY - 30,
                           ad::kW - ad::kWX - ad::kWW - 34,
                           ad::kH - ad::kWY - ad::kWH - 40)
+                   .cache(Cache::Texture) // static SDF shadow: bake once
                    .fill(Material::sksl(ad::windowShadowEffect())
                              .uniform("uMargins",
                                       SkColor4f{34, 30, 34, 40})))
@@ -435,13 +462,10 @@ struct AeroDesktopScene final : Scene {
   Element startOrb() {
     // 34px sphere, window-local to the taskbar strip.
     const float d = 34;
+    // NOTE: the breathing aqua glow that used to sit behind the orb here
+    // lives in describe() now -- its &orbGlow opacity bind would keep the
+    // whole taskbar texture plane volatile (see orbHalo()).
     return box().absolute().inset(14, 3, 0, 0).width(d).height(d)
-        // ambient aqua glow behind the orb (breathing)
-        .child(box().absolute().inset(-8)
-                   .fill(Material::radial({d / 2 + 8, d / 2 + 8}, d / 2 + 8,
-                                          {{0.0f, {0.35f, 0.75f, 1.0f, 0.35f}},
-                                           {1.0f, {0.35f, 0.75f, 1.0f, 0}}}))
-                   .opacity(&orbGlow))
         .child(
             box().absolute().inset(0).corners({d / 2}).clip()
                 // sec.6 radial base
@@ -482,23 +506,72 @@ struct AeroDesktopScene final : Scene {
                                 {1.0f, {1, 1, 1, 0.04f}}}))));
   }
 
+  /** The close-button hover bloom, hoisted ABOVE the baked window plane
+   *  (same reason as orbHalo -- the &bloom bind must not live inside a
+   *  texture plane). Position mirrors captionButtons(): row pinned
+   *  top(1).right(8), close button 47 wide after 29+1+27+1 of buttons
+   *  and seams. The glyph is re-drawn on top so the X keeps sitting OVER
+   *  the red bloom exactly as in the baked state underneath. */
+  Element closeBloomOverlay() {
+    namespace ad = aero_desktop;
+    const float bh = 19, wClose = 47;
+    return box().absolute()
+        .inset(ad::kWX + ad::kWW - 8 - wClose, ad::kWY + 1, 0, 0)
+        .width(wClose).height(bh).corners({0, 0, 4, 0})
+        .fill(ad::closeBloom(wClose, bh))
+        .opacity(&bloom)
+        .child(buttonGlyphClose(wClose, bh));
+  }
+
+  /** The orb's breathing ambient glow, hoisted ABOVE the baked taskbar
+   *  plane so its &orbGlow bind doesn't keep the plane volatile. The
+   *  original radial ran a.35 at the orb's center down to 0 at r=25; the
+   *  orb (r=17, opaque) covered everything inside t~0.68, so this halo
+   *  keeps the visible outside falloff and goes transparent where the
+   *  orb sphere sits underneath. */
+  Element orbHalo() {
+    namespace ad = aero_desktop;
+    const float d = 34, pad = 8;
+    const float r = d / 2 + pad; // 25
+    return box().absolute()
+        .inset(14 - pad, ad::kH - ad::kTaskbarH + 3 - pad, 0, 0)
+        .width(2 * r).height(2 * r)
+        .fill(Material::radial({r, r}, r,
+                               {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
+                                {0.60f, {0.35f, 0.75f, 1.0f, 0}},
+                                {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
+                                {1.00f, {0.35f, 0.75f, 1.0f, 0}}}))
+        .opacity(&orbGlow);
+  }
+
   Element taskbar() {
     namespace ad = aero_desktop;
     const float th = ad::kTaskbarH;
-    return box().absolute().inset(0, ad::kH - th, 0, 0)
-        .backdrop(Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))
-        .fill(Material::blend({
-            {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
-             SkBlendMode::kSrcOver},
-            {Material::solid({ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
-             SkBlendMode::kSrcOver},
-            {Material::linear({0, 0}, {0, th},
-                              {{0.00f, {1, 1, 1, 0.22f}},
-                               {0.08f, {1, 1, 1, 0.05f}},
-                               {0.55f, {1, 1, 1, 0.00f}},
-                               {1.00f, {0, 0, 0, 0.18f}}}),
-             SkBlendMode::kSrcOver},
-        }))
+    return box().absolute().inset(0, ad::kH - th, 0, 0).clip()
+        // same fake-backdrop trade as the window glass: blur a frozen
+        // canvas-aligned aurora copy instead of a live destination
+        // readback, so the whole strip can bake to one texture
+        .child(box().absolute().inset(0, -(ad::kH - th), 0, 0)
+                   .cache(Cache::Texture).bakeScale(0.5f)
+                   .child(box().absolute().inset(0)
+                              .fill(Material::sksl(ad::auroraEffect())
+                                        .uniform("uTime", 0.75f))
+                              .effect(Effect::filter(
+                                  SkImageFilters::Blur(3, 3, nullptr)))))
+        .child(box().absolute().inset(0)
+                   .fill(Material::blend({
+                       {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
+                        SkBlendMode::kSrcOver},
+                       {Material::solid(
+                            {ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
+                        SkBlendMode::kSrcOver},
+                       {Material::linear({0, 0}, {0, th},
+                                         {{0.00f, {1, 1, 1, 0.22f}},
+                                          {0.08f, {1, 1, 1, 0.05f}},
+                                          {0.55f, {1, 1, 1, 0.00f}},
+                                          {1.00f, {0, 0, 0, 0.18f}}}),
+                        SkBlendMode::kSrcOver},
+                   })))
         // 1px light top edge over a dark seam
         .child(box().absolute().inset(0, 0, 0, th - 1)
                    .fill(Fill::color({1, 1, 1, 0.30f})))
@@ -572,11 +645,28 @@ struct AeroDesktopScene final : Scene {
   Element describe() {
     namespace ad = aero_desktop;
     return stack()
-        .fill(Material::sksl(ad::auroraEffect())) // uTime keeps it alive
+        // The wallpaper is its OWN texture plane: with the live fill on
+        // the root, the root's (volatile-children-blocked) cache never
+        // engaged and 900x640 of SkSL re-rastered every frame. As a
+        // liveMatOnly plane it re-bakes on the 10 Hz step and BLITS
+        // between steps.
+        .child(box().absolute().inset(0).cache(Cache::Texture)
+                   .fill(Material::sksl(ad::auroraEffect())
+                             .quantizeTime(10.0f)))
         .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
         .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
-        .child(window())
-        .child(taskbar());
+        // Each chrome region is its own texture PLANE: the backdrop blur
+        // and glass stacks execute at BAKE time (over the static baked
+        // wallpaper that's exactly correct) and steady-state frames blit.
+        // Rebakes happen when their content actually changes (hover
+        // states, the 8 Hz orb step, the clock minute).
+        .child(box().absolute().inset(0).cache(Cache::Texture)
+                   .child(window()))
+        .child(box().absolute().inset(0).cache(Cache::Texture)
+                   .child(taskbar()))
+        // live overlays: the only animated nodes in the settled scene
+        .child(closeBloomOverlay())
+        .child(orbHalo());
   }
 };
 

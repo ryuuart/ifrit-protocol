@@ -25,6 +25,7 @@
 #include <include/effects/SkTrimPathEffect.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace sigil::compose {
@@ -61,11 +62,14 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // frames).
   bool ownContent = inst.anims[Instance::kFillLerp] &&
                     inst.anims[Instance::kFillLerp]->value.isConnected();
+  const bool nonLiveMatContent = ownContent; // everything below except the
+                                             // live material slot
   if (node.paint.fill &&
       std::holds_alternative<const choreograph::Output<Fill> *>(
           *node.paint.fill))
     ownContent = true;
-  if (node.liveMaterial && node.liveMaterial->isLive())
+  const bool liveMat = node.liveMaterial && node.liveMaterial->isLive();
+  if (liveMat)
     ownContent = true; // truly live (bound/uTime) — geometry-dependent
                        // materials resolve at record time and stay cacheable
   if (node.textMetricFill && node.textMetricFill->isLive())
@@ -95,11 +99,38 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // here or ANY volatility below (children paint inside the recording,
   // transforms included) — but not by own paint volatility.
   const bool blocked = ownContent || childrenVolatile;
+  // The resolve-memo carve-out: volatility caused SOLELY by a live
+  // material keeps its picture — paint() replays it while resolve() stays
+  // stable and re-records only when the shader actually changes.
+  inst.liveMatOnly = liveMat && ownContent && !nonLiveMatContent &&
+                     !(node.textMetricFill && node.textMetricFill->isLive()) &&
+                     node.cacheMode != Cache::None && !childrenVolatile;
+  // (decoration/image/trim/glyph volatility all set ownContent through
+  // nonLiveMatContent's snapshot point or below — re-derive precisely:)
+  if (inst.liveMatOnly) {
+    bool other = nonLiveMatContent;
+    for (const Decoration &d : node.backgrounds)
+      other |= d.animated();
+    for (const Decoration &d : node.foregrounds)
+      other |= d.animated();
+    if (node.kind == Kind::Image && node.imageAsset &&
+        node.imageAsset->animated())
+      other = true;
+    if (node.hasTrim)
+      other |= boundOrRunning(Instance::kTrimStart, node.trimStart) ||
+               boundOrRunning(Instance::kTrimEnd, node.trimEnd) ||
+               boundOrRunning(Instance::kTrimOffset, node.trimOffset);
+    if (node.glyphFx)
+      other |= boundOrRunning(Instance::kGlyphProgress, node.glyphFx->progress);
+    if (other)
+      inst.liveMatOnly = false;
+  }
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
-    inst.paintDirty = true; // cacheability changed → re-record/drop
+    if (!inst.liveMatOnly)
+      inst.paintDirty = true; // cacheability changed → re-record/drop
   }
-  if (inst.subtreeVolatile) {
+  if (inst.subtreeVolatile && !inst.liveMatOnly) {
     inst.picture.reset();
     inst.textureImage.reset();
   }
@@ -356,7 +387,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   if (hasEffect) {
     SkPaint effectPaint;
     effectPaint.setImageFilter(node.layerEffect->imageFilter());
-    canvas.saveLayer(nullptr, &effectPaint);
+    // BOUNDED: with nullptr bounds the layer allocates at the CLIP size —
+    // on a root-level canvas that filtered 900x640 for a 92x72 icon
+    // shadow (13.5ms/frame, the aero-icon defect). recordBounds is what
+    // the subtree actually paints; Skia expands it for the filter reach.
+    const SkRect content = recordBounds(inst);
+    canvas.saveLayer(&content, &effectPaint);
   }
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
                               std::move(outlinePath),
@@ -387,7 +423,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // plain).
   std::optional<Fill> resolvedFill;
   if (node.liveMaterial) {
-    resolvedFill = node.liveMaterial->resolve(paintCtx);
+    resolvedFill = inst.hasPendingLiveFill
+                       ? inst.pendingLiveFill
+                       : node.liveMaterial->resolve(paintCtx);
   } else if (node.paint.fill) {
     Fill fill;
     if (const auto *binding =
@@ -652,16 +690,66 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     SkPaint layerPaint;
     layerPaint.setAlphaf(opacity);
     layerPaint.setBlendMode(node.paint.blendMode);
-    canvas.saveLayer(nullptr, &layerPaint);
+    // BOUNDED like the effect layer: nullptr would allocate a clip-sized
+    // (often full-canvas) layer for every fading container — entrance
+    // opacity ramps paid a fullscreen composite per animated group.
+    const SkRect content = recordBounds(inst);
+    canvas.saveLayer(&content, &layerPaint);
   }
   const SkBlendMode leafBlend =
       leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
   const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
 
+  // The live-material resolve probe: when the node's only volatility is
+  // its live material, resolve NOW — a stable shader means the cached
+  // picture is still exact and simply replays (the quantized-sea rule:
+  // repaint at the material's rate, not the frame rate).
+  bool liveStable = false;
+  inst.hasPendingLiveFill = false;
+  if (inst.liveMatOnly && node.liveMaterial) {
+    PaintContext probe{{rect.width(), rect.height()},
+                       SkPath(),
+                       elapsed(),
+                       hostScale,
+                       ticker.active(),
+                       &fonts};
+    inst.pendingLiveFill = node.liveMaterial->resolve(probe);
+    inst.hasPendingLiveFill = true;
+    liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
+                 inst.pendingLiveFill.shaderValue == inst.bakedLiveShader;
+  }
+
   // Automatic caching at topmost provably-static subtrees: pictures by
   // default, a rasterized image under Cache::Texture (the raster-target pixel
   // win — replaying a picture re-rasterizes, blitting doesn't).
-  if (!liveOnly && !inst.subtreeVolatile &&
+  // COMPOSE_PROF=<ms> prints any draw above the threshold — cached-texture
+  // blits, picture replays (which re-EXECUTE recorded ops on raster), and
+  // live paints. Nested lines overlap (inclusive of children); any
+  // unparsable value means 4ms.
+  static const double kProfMs = [] {
+    const char *env = getenv("COMPOSE_PROF");
+    if (!env)
+      return -1.0;
+    const double v = atof(env);
+    return v > 0.0 ? v : 4.0;
+  }();
+  const auto profDraw = [&](const char *what, auto &&draw) {
+    if (kProfMs < 0.0) {
+      draw();
+      return;
+    }
+    const auto t0 = std::chrono::steady_clock::now();
+    draw();
+    const double ms = std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - t0)
+                          .count();
+    if (ms > kProfMs)
+      SkDebugf("[prof] %s %s kind=%d rect=%.0fx%.0f %.1fms\n", what,
+               node.key.empty() ? "(anon)" : node.key.c_str(), (int)node.kind,
+               rect.width(), rect.height(), ms);
+  };
+
+  if (!liveOnly && (!inst.subtreeVolatile || inst.liveMatOnly) &&
       node.cacheMode == Cache::Texture && !node.backdropEffect) {
     // Rasterize at the canvas's current scale so zoomed hosts stay crisp — but
     // quantized UP to a coarse step, so a continuously changing scale (window
@@ -676,12 +764,15 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];
     for (float step : kBakeSteps)
       if (step >= raw) { scale = step; break; }
+    // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
+    // pixels and the blit below linear-upscales through the same dst rect.
+    scale = std::max(0.1f, scale * node.bakeScale);
     // Bake the full PAINT bounds, not just the box — decoration bleed and
     // overflowing children truncate otherwise (same rule as the picture
     // cull).
     const SkRect bake = recordBounds(inst);
     if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
-        inst.textureBakeRect != bake) {
+        (inst.liveMatOnly && !liveStable) || inst.textureBakeRect != bake) {
       const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
       const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
       sk_sp<SkSurface> layer =
@@ -694,12 +785,16 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       inst.textureImage = layer->makeImageSnapshot(); // bakes isolate
       inst.textureScale = scale;
       inst.textureBakeRect = bake;
+      inst.bakedLiveShader =
+          inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
-    canvas.drawImageRect(inst.textureImage, bake,
-                         SkSamplingOptions(SkFilterMode::kLinear));
-  } else if (!liveOnly && !inst.subtreeVolatile &&
+    profDraw("blit", [&] {
+      canvas.drawImageRect(inst.textureImage, bake,
+                           SkSamplingOptions(SkFilterMode::kLinear));
+    });
+  } else if (!liveOnly && (!inst.subtreeVolatile || inst.liveMatOnly) &&
              node.cacheMode != Cache::None &&
              // A zero-sized node (auto-height layout() containers, spacer
              // shims) must NOT record: SkPictureRecorder with an EMPTY cull
@@ -710,11 +805,14 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
               !node.backgrounds.empty() || !node.foregrounds.empty() ||
-              node.layerEffect)) {
+              node.layerEffect || inst.liveMatOnly)) {
+    // (liveMatOnly bare boxes DO record — the memo's point is replaying
+    // the rasterized shader while resolve() stays stable.)
     // (Childless Image leaves deliberately absent: one drawImageRect is
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
     if (!inst.picture || inst.paintDirty ||
+        (inst.liveMatOnly && !liveStable) ||
         inst.bakedLeafOpacity != leafOpacity ||
         inst.bakedLeafBlend != leafBlend) {
       // The cull must hold everything the subtree paints: declared
@@ -728,13 +826,17 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       inst.picture = recorder.finishRecordingAsPicture();
       inst.bakedLeafOpacity = leafOpacity; // a settled transition re-bakes
       inst.bakedLeafBlend = leafBlend;     // (the recording froze them in)
+      inst.bakedLiveShader =
+          inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
-    canvas.drawPicture(inst.picture);
+    profDraw("replay", [&] { canvas.drawPicture(inst.picture); });
   } else {
     stats.nodesPainted++;
-    paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
+    profDraw("live", [&] {
+      paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
+    });
     inst.paintDirty = false;
   }
 

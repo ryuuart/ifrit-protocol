@@ -5,8 +5,10 @@
 
 #include <OpenColorIO/OpenColorIO.h>
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkPixmap.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
@@ -50,12 +52,21 @@ sk_sp<SkImage> bakeLut(const OCIO::ConstCPUProcessorRcPtr &cpu, int n) {
     rgba[i + 1] = std::clamp(rgba[i + 1], 0.0f, 1.0f);
     rgba[i + 2] = std::clamp(rgba[i + 2], 0.0f, 1.0f);
   }
-  const SkImageInfo info =
+  // Bake to F16, not F32: 32-bit-float textures are not linearly
+  // filterable on Apple GPUs, so a Graphite host cannot promote an F32
+  // LUT to a texture and the whole graded composite would be dropped.
+  // Half precision is ample for a display LUT in [0,1].
+  const SkImageInfo f32Info =
       SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType);
-  sk_sp<SkData> data =
-      SkData::MakeWithCopy(rgba.data(), rgba.size() * sizeof(float));
-  return SkImages::RasterFromData(info, std::move(data),
-                                  (size_t)w * 4 * sizeof(float));
+  const SkPixmap f32Pixels(f32Info, rgba.data(), (size_t)w * 4 * sizeof(float));
+  SkBitmap f16;
+  if (!f16.tryAllocPixels(
+          SkImageInfo::Make(w, h, kRGBA_F16_SkColorType, kUnpremul_SkAlphaType)))
+    return nullptr;
+  if (!f32Pixels.readPixels(f16.pixmap()))
+    return nullptr;
+  f16.setImmutable();
+  return f16.asImage();
 }
 
 /** Trilinear 3D-LUT application; unpremul→map→repremul so straight colors go

@@ -13,6 +13,7 @@
 #include <include/core/SkPictureRecorder.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 
@@ -105,6 +106,7 @@ void Composer::setView(Effect view) {
 
 void Composer::render(Element root) {
   Impl &impl = *m_impl;
+  const auto start = std::chrono::steady_clock::now();
   impl.stats.describedNodes = 0;
   impl.stats.memoHits = 0;
   impl.stats.patchedNodes = 0;
@@ -116,10 +118,14 @@ void Composer::render(Element root) {
 
   impl.volatileDirty = true; // transitions may have started
   impl.rebuildKeyIndex();
+  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - start)
+                               .count();
 }
 
 void Composer::renderSlot(std::string_view name, Element content) {
   Impl &impl = *m_impl;
+  const auto start = std::chrono::steady_clock::now();
   auto it = impl.byKey.find(std::string(name));
   if (it == impl.byKey.end() || it->second->desc->kind != Kind::Slot)
     return;
@@ -140,6 +146,9 @@ void Composer::renderSlot(std::string_view name, Element content) {
   impl.contentDirty = true;
   impl.volatileDirty = true;
   impl.rebuildKeyIndex();
+  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - start)
+                               .count();
 }
 
 bool Composer::dirty() const {
@@ -163,7 +172,20 @@ void Composer::draw(SkCanvas &canvas) {
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 
+  impl.stats.reconcileMs = impl.reconcileAccumMs;
+  impl.reconcileAccumMs = 0;
+
+  auto mark = std::chrono::steady_clock::now();
+  const auto lap = [&mark] {
+    const auto now = std::chrono::steady_clock::now();
+    const double ms =
+        std::chrono::duration<double, std::milli>(now - mark).count();
+    mark = now;
+    return ms;
+  };
+
   impl.ensureLayout();
+  impl.stats.layoutMs = lap();
 
   // Volatility changes only on reconcile or while animations run (and once
   // more on the settling frame) — skip the walk otherwise.
@@ -173,6 +195,7 @@ void Composer::draw(SkCanvas &canvas) {
     impl.volatileDirty = false;
   }
   impl.tickerWasActive = active;
+  impl.stats.volatileMs = lap();
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked
@@ -186,7 +209,26 @@ void Composer::draw(SkCanvas &canvas) {
   impl.paint(*impl.root, canvas);
   if (hasView)
     canvas.restore();
+  impl.stats.paintMs = lap();
   impl.contentDirty = false;
+}
+
+void Composer::purgeCaches() {
+  Impl &impl = *m_impl;
+  if (!impl.root)
+    return;
+  std::function<void(Instance &)> walk = [&walk](Instance &inst) {
+    inst.picture.reset();
+    inst.textureImage.reset();
+    inst.bakedLiveShader.reset();
+    inst.hasPendingLiveFill = false;
+    inst.paintDirty = true;
+    for (auto &child : inst.children)
+      walk(*child);
+  };
+  walk(*impl.root);
+  impl.contentDirty = true;
+  impl.volatileDirty = true;
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {

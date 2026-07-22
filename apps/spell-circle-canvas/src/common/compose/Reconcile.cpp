@@ -125,7 +125,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
     if (!(a.foregrounds[i] == b.foregrounds[i]))
       return false;
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
-      a.clipContent != b.clipContent || a.cacheMode != b.cacheMode)
+      a.clipContent != b.clipContent || a.cacheMode != b.cacheMode ||
+      a.bakeScale != b.bakeScale)
     return false;
   if (a.glyphFx.has_value() != b.glyphFx.has_value())
     return false;

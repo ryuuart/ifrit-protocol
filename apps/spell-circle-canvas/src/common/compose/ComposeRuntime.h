@@ -79,6 +79,15 @@ struct Instance {
   SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
   bool subtreeVolatile = false;
+  // Live-material stability (the resolve memo's paint half): set when the
+  // node's ONLY volatility is its live material; the painter then replays
+  // the cached picture whenever resolve() returns the shader the picture
+  // baked (quantized/held materials repaint at their own rate, not the
+  // frame rate).
+  bool liveMatOnly = false;
+  bool hasPendingLiveFill = false;
+  Fill pendingLiveFill;
+  sk_sp<SkShader> bakedLiveShader;
 
   // The layout rect this node was last painted/recorded at. ensureLayout's
   // post-pass compares and invalidates: a SIZE change stales this node's own
@@ -166,6 +175,9 @@ struct Composer::Impl {
   float mountDelayCarryMs = 0;
 
   mutable Stats stats;
+  // render()/renderSlot() phase time accumulated since the previous draw();
+  // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
+  double reconcileAccumMs = 0;
 
   Impl(motion::Ticker &t, sigil::weave::FontContext &f) : ticker(t), fonts(f) {
     yogaConfig = YGConfigNew();

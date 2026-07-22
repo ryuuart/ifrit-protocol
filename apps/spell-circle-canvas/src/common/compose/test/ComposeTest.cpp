@@ -3943,3 +3943,97 @@ TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
   host.frame();
   EXPECT_EQ(host.pixel(56, 44), SK_ColorBLUE);
 }
+
+TEST(ComposeMaterials, StableLiveResolveReplaysThePicture) {
+  // The resolve memo: a live material whose bound inputs did not change
+  // returns the SAME shader, and a node whose only volatility is that
+  // material replays its picture — repaint at the material's rate, not
+  // the frame rate (the quantized-sea rule).
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float uPhase; half4 main(float2 p) {"
+      "  return half4(fract(uPhase), 0.2, 1.0 - fract(uPhase), 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Host host;
+  choreograph::Output<float> phase{0.25f};
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(
+          Material::sksl(fx).uniform("uPhase", &phase))));
+  host.frame(); // records once
+  const SkColor before = host.pixel(50, 50);
+  host.frame(); // same phase → stable resolve → pure replay
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.composer.stats().nodesPainted, 1u); // just the root shim
+  EXPECT_EQ(host.pixel(50, 50), before);
+  phase = 0.75f; // the material actually changed
+  host.frame();
+  EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_NE(host.pixel(50, 50), before);
+}
+
+TEST(ComposeMaterials, BoundUniformOwnsItsSlotOverInjection) {
+  // Binding uTime to an Output is the documented stepping idiom — the
+  // auto-inject must not overwrite it with continuous clock time.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float uTime; half4 main(float2 p) {"
+      "  return half4(fract(uTime), 0, 0, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  choreograph::Output<float> stepped{0.5f};
+  Material m = Material::sksl(fx).uniform("uTime", &stepped);
+  PaintContext ctx;
+  ctx.size = {4, 4};
+  ctx.elapsedSeconds = 123.789; // continuous clock — must be IGNORED
+  Fill f = m.resolve(ctx);
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+  SkPaint p;
+  p.setShader(f.shaderValue);
+  s->getCanvas()->drawPaint(p);
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  s->readPixels(bm.pixmap(), 0, 0);
+  EXPECT_NEAR(SkColorGetR(bm.getColor(0, 0)), 128, 3); // fract(0.5), not .789
+}
+
+TEST(ComposeMaterials, BakeScaleUpscalesThroughTheSameRect) {
+  // bakeScale(0.5) rasterizes the texture bake at half resolution; the
+  // blit stretches it back through the same dst rect — same coverage,
+  // same color, a quarter of the evaluated pixels.
+  Host host;
+  host.composer.render(
+      box().child(box().left(20).top(20).width(100).height(100)
+                      .cache(Cache::Texture).bakeScale(0.5f)
+                      .fill(red())));
+  host.frame(); // bake at half scale
+  host.frame(); // blit
+  EXPECT_EQ(host.pixel(70, 70), SkColorSetARGB(255, 255, 0, 0));
+  // inboard of the AA edge on every side — coverage must not shrink
+  EXPECT_EQ(host.pixel(23, 23), SkColorSetARGB(255, 255, 0, 0));
+  EXPECT_EQ(host.pixel(116, 116), SkColorSetARGB(255, 255, 0, 0));
+  EXPECT_EQ(host.pixel(140, 70), SK_ColorBLACK); // outside stays empty
+}
+
+TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
+  // The texture flavor of the resolve memo — the shader-wall case: bake
+  // at the material's own rate, BLIT between (pictures re-execute SkSL
+  // on raster; pixels don't).
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float uPhase; half4 main(float2 p) {"
+      "  return half4(fract(uPhase), 0.4, 0.2, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Host host;
+  choreograph::Output<float> phase{0.25f}, sibling{0.0f};
+  host.composer.render(
+      box()
+          .child(box().width(100).height(100).cache(Cache::Texture).fill(
+              Material::sksl(fx).uniform("uPhase", &phase)))
+          // an always-animating sibling keeps the ROOT live (the gallery
+          // condition) — the shader wall must still blit
+          .child(box().width(10).height(10).fill(red()).translateX(&sibling)));
+  host.frame(); // bakes
+  const unsigned recordedAfterBake = host.composer.stats().picturesRecorded;
+  EXPECT_GE(recordedAfterBake, 1u);
+  host.frame(); // stable phase → blit, no re-bake
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  phase = 0.75f;
+  host.frame(); // real change → one re-bake
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+}

@@ -685,6 +685,14 @@ public:
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);
   Element &cache(Cache c);
+  /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
+   *  The bake rasterizes at `factor` times the device scale and the blit
+   *  scales it back up with linear sampling — Chrome's reduced
+   *  raster-scale trade, for planes whose content is soft anyway
+   *  (blurred glass, watercolor shader walls): bakeScale(0.5f) quarters
+   *  the pixels each re-bake evaluates. Sharp text or 1px hairlines do
+   *  NOT belong under a reduced bake. */
+  Element &bakeScale(float factor);
   Element &transition(Transition t); // node default for plain constants
   /** GSAP-style container stagger: child i's subtree enters with an EXTRA
    *  order·each delay on all its withFrom() mount transitions (compounding
@@ -897,6 +905,13 @@ public:
    *  Provably-static subtrees replay their auto-recorded pictures. */
   void draw(SkCanvas &canvas);
 
+  /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
+   *  held live-material shaders) and marks the tree for a full repaint.
+   *  GPU hosts call this on device loss or a backend switch: cached
+   *  images minted by a dead context must not replay onto the next
+   *  canvas. The retained tree, layout, and animations are untouched. */
+  void purgeCaches();
+
   // ---- queries (resolved side only) ----
   /** Layout rect of a keyed node, in the composer's coordinate space
    *  (valid after draw()/layout). */
@@ -924,6 +939,13 @@ public:
     size_t texturesLive = 0;    ///< Cache::Texture images held
     size_t picturesRecorded = 0;///< recordings performed last draw()
     size_t nodesPainted = 0;    ///< instances painted live last draw()
+    // Per-phase wall time, so a slow frame localizes at a glance. The paint
+    // number is where per-pixel cost lives (live materials, re-records);
+    // reconcile/layout/volatile are the retained machinery.
+    double reconcileMs = 0;     ///< render()/renderSlot() since previous draw()
+    double layoutMs = 0;        ///< ensureLayout() inside last draw()
+    double volatileMs = 0;      ///< computeVolatile() walk inside last draw()
+    double paintMs = 0;         ///< paint traversal inside last draw()
   };
   const Stats &stats() const;
 
