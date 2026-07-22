@@ -1377,7 +1377,14 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // The cluster runs off the LEFT edge, plate and all — the gauge is not a
     // card, it is the frame of the screen, so its plate is nearly clear and
     // the wireframe reads straight through it.
-    g.child(panel(-70, 620, 512, 268, "gaugepanel", 22.0f,
+    //
+    // 248 TALL, NOT 268. At 268 the plate's bottom edge landed on y=888, and
+    // marginalia() sets the CHAIN / DEFENSE ability rows at 882 — so a 1 px
+    // panel rule ran through the x-height of "CHAIN 14" and straight along the
+    // whole pip ladder, at full weight, for the width of the panel. The last
+    // thing in the panel is the RISK note at ~845, so 248 keeps 23 px of
+    // padding under it and clears the ability block by 14.
+    g.child(panel(-70, 620, 512, 248, "gaugepanel", 22.0f,
                   vs::rgb(0x0B0E15, 0.42f)));
 
     auto bar = [&](float y, const char *name, float frac, SkColor4f col,
@@ -1888,7 +1895,16 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
               [&](int a, int b) { return bear[(size_t)a] < bear[(size_t)b]; });
     // Radii by FAN POSITION, deliberately unequal and non-monotonic — two
     // neighbours at the same distance would read as a row again.
-    static constexpr float kRadius[6] = {268, 392, 300, 430, 320, 300};
+    //
+    // FAN POSITION 4 IS 372, NOT 320. The fan steps 40.8 degrees, so two
+    // adjacent panels sitting at ~310 are only 216 px apart centre to centre
+    // and the panel is 236 WIDE: L.LEG (k4, 320) and R.LEG (k5, 300) were the
+    // one pair close enough to interpenetrate, 24 px of frame into 56 px of
+    // frame, and L.LEG's left bracket struck clean through R.LEG's "TRUE 100%"
+    // readout. Every other adjacent pair clears — k0/k1 by only 10 px in y,
+    // which is how narrow the margin is here. 372 puts L.LEG's left edge 8 px
+    // clear of R.LEG's right and keeps it well above BODY's row at k3.
+    static constexpr float kRadius[6] = {268, 392, 300, 430, 372, 300};
     constexpr float kFrom = -112.0f * 0.017453293f;
     constexpr float kTo = 92.0f * 0.017453293f;
     for (int k = 0; k < 6; ++k) {

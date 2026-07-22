@@ -862,6 +862,18 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
 
     // MAGI 0n knocked dark into the plate: two lines, two SIZES (cap 26 over
     // cap 36, measured), upright, no glow — it is a hole, not a light.
+    //
+    // THE TWO LINES ARE NOT CONDENSED THE SAME. Measured off MAGI 02 in the
+    // reference at cap height 26.6: the word is 83 px wide and "02" is 61.
+    // "0n" at 50/0.95 renders 62.5 — right. "MAGI" at 36/0.95 renders 92 —
+    // 11% wide, and the excess is not cosmetic: the label is centred at local
+    // (173.5, 66) and the stem cell's top edge is at local y 110, so on the
+    // two sites rotated +-90 (MAGI 04 and 05) the word's HALF-WIDTH is what
+    // has to clear that 44 px, upright, in world x. At 46 px it did not:
+    // MAGI 04 read "MAG" with the I bisected by cell 2's left edge and MAGI 05
+    // had the M sitting on it. Helvetica Bold "MAGI" is 2.667 em, so 83 px at
+    // 36 pt is scaleX 0.86 — the word is Helvetica CONDENSED on the plate and
+    // the numerals are not, which is what fontsinuse lists for the panels.
     plate.child(box()
                     .absolute()
                     .centerAt(tre::kLabelAt)
@@ -869,7 +881,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                     .alignItems(Align::Center)
                     .gap(-6)
                     .rotate(-s.rotation)
-                    .child(text(u8"MAGI", type(36, ink, 0.95f)))
+                    .child(text(u8"MAGI", type(36, ink, 0.86f)))
                     .child(text(toU8(s.name), type(50, ink, 0.95f))));
     return plate;
   }

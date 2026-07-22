@@ -611,11 +611,33 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         // rows of dots interleave down the link the way a plate's register
         // marks do. Nothing before Rails could spell this.
         // NOTE the 2.2 px "on" interval. The first cut asked for round DOTS
-        // with .dash = {0.01f, 11.0f}; Rails dashes the centreline and then
-        // offsets each dash contour, and a 0.01-long contour has no usable
-        // tangent, so offsetAlong displaced it by nothing and both flanks
-        // drew invisibly INSIDE the 12 px band. A dash interval that a
-        // contour measurer can take a tangent from is the fix.
+        // with .dash = {0.01f, 11.0f} and nothing appeared on the flanks.
+        //
+        // CORRECTED 2026-07-22, AND THE OLD REASON WAS NEVER TRUE. This
+        // comment used to say the OFFSET was the casualty: that a 0.01-long
+        // contour has no usable tangent, so offsetAlong displaced the dashes
+        // by nothing and both flanks drew inside the band. Measured at these
+        // exact numbers — offset +-11.4, width 1.4, centreline y = 100 — the
+        // 0.01 dash lands on y = 88 and y = 111. That IS the full offset, to
+        // the pixel. The shipped 2.2 dash lands on the SAME TWO ROWS, and on a
+        // curve the 0.01 dash puts ink at 68.6 and 91.4 about an apex of 80,
+        // which is again +-11.4. offsetAlong (Lines.h:148) samples getPosTan at
+        // two distances and displaces both along the normal; a 0.01 dash is a
+        // real segment with a well-defined tangent and nothing in that loop
+        // degenerates.
+        //
+        // What changed with the longer dash was INK, not position. A 0.01
+        // contour under a 1.4 px round cap is a disc whose peak coverage never
+        // reaches 1 — measured peak 191 against 2.2's 255, and half the lit
+        // pixels — laid over a band already carrying two brighter rails. It
+        // was FAINT, not displaced. Widening the SAME 0.01 dash to w = 4.0
+        // reaches 255 on those same rows, which isolates the cause.
+        //
+        // So the remedy is more ink: a wider rail, or an "on" interval long
+        // enough to build full coverage. 2.2 px is the latter. This matters
+        // beyond one sketch, because lines::dottedCore ships
+        // .dash = {0.01f, dotGap} as its DEFAULT (Lines.h:1048) — the old
+        // comment was indicting a stock helper for a defect it does not have.
         {.offset = half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),

@@ -1130,11 +1130,33 @@ inline Element cornerPlate(SkColor4f tint) {
 // face again, on the grid, with no antialiasing anywhere. The drop shadow is
 // the game's own: FontRenderer offsets by +1 and multiplies the colour by
 // 0.25 ((color & 16579836) >> 2).
+//
+// THE SIZE IS 10, AND IT WAS 9, AND AT 9 EVERY LOWERCASE e WAS AN a.
+// "Alchemical" read "Alchamical" and "research" read "rasaarch" — the most-read
+// text on the plate, wrong in the one letter English uses most. The cause is
+// x-height, not thresholding. Minecraft's own glyph body is 7 px tall on a 5 px
+// x-height, and e's counter is one whole pixel of that. Menlo at 9 px has an
+// x-height of 4.4 px, so under kAlias — which lights a pixel iff its CENTRE is
+// inside the outline — the counter never contains a centre and closes; the
+// glyph becomes a bowl with a notch, which is an a. At 10 px the x-height is
+// 4.9 and rounds to the 5 the reference face has, and every e opens. 11 is
+// worse again: m's two gaps close and it prints as a solid block.
+//
+// Note for anyone who reaches for the threshold below first — it was the
+// obvious knob and it is INERT at these settings. kAlias hands back a mask
+// that is already 0 or 255, so `>= 110` reclassifies nothing: 110 and 170
+// render pixel-for-pixel identical (verified, 0 differing pixels over the whole
+// 1280x800 frame). It only becomes a real control if `aliased` goes false, and
+// the antialiased-then-threshold path fixes e at every threshold from 110 to
+// 205 while ruining m, which is a worse trade than the one it solves.
 
 struct PixText {
   sk_sp<SkImage> mask; // A8, one pixel per GUI px
   int w = 0, h = 0;
 };
+
+/** The substitute face's size, in GUI px. See the note above: 9 kills e. */
+inline constexpr float kPixSizePx = 10.0f;
 
 inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
                         const sk_sp<SkTypeface> &face, float sizePx) {
@@ -1146,8 +1168,15 @@ inline PixText bakeText(const std::string &s, weave::FontContext &fonts,
   const std::u8string u8(reinterpret_cast<const char8_t *>(s.c_str()));
   Element tree = box().child(text(u8, st));
   const SkSize sz = measure(box().child(text(u8, st)), fonts);
-  const int w = std::max(1, (int)std::ceil(sz.width()) + 2);
-  const int h = std::max(1, (int)std::ceil(sz.height()) + 2);
+  // +8, NOT +2. measure() gives the ADVANCE width, and the last glyph's ink
+  // can sit outside its own advance — so the raster surface was ending inside
+  // the final letter and the mask got cropped to what survived. The tooltip's
+  // longest line printed "Centrifug" plus a two-pixel stub where its e should
+  // be, at every font size tried, which is what gave it away: a rasterisation
+  // fault moves with the size, a surface that is too small does not. The mask
+  // is cropped to its lit bbox two dozen lines below, so slack here is free.
+  const int w = std::max(1, (int)std::ceil(sz.width()) + 8);
+  const int h = std::max(1, (int)std::ceil(sz.height()) + 4);
   sk_sp<SkSurface> surf =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   if (!surf)
@@ -1648,9 +1677,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
     face = systemFace();
     if (ctx.fonts) {
-      tipTitle = bakeText("Alchemical Automation", *ctx.fonts, face, 9.0f);
-      tipMissing = bakeText("Missing required research:", *ctx.fonts, face, 9.0f);
-      tipParent = bakeText(" - Essentia Centrifuge", *ctx.fonts, face, 9.0f);
+      // 10 px, NOT 9. See kPixSizePx below — 9 collapsed every lowercase e.
+      tipTitle = bakeText("Alchemical Automation", *ctx.fonts, face, kPixSizePx);
+      tipMissing =
+          bakeText("Missing required research:", *ctx.fonts, face, kPixSizePx);
+      tipParent = bakeText(" - Essentia Centrifuge", *ctx.fonts, face, kPixSizePx);
     }
 
     for (int t = 0; t < 3; ++t) {

@@ -1331,17 +1331,34 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                        .dashIntervals = invisible ? std::vector<SkScalar>{2.0f, 2.6f}
                                                   : std::vector<SkScalar>{}}));
       g.child(std::move(st));
+      // 天璇 is the one station the walk reaches from straight overhead — the
+      // Dubhe-Merak leg is 8 px of run over 169 of rise — so its ritual name,
+      // hung 44 px left of the star, had the tread coming down through the X
+      // of "XUAN". It moves to the star's right instead, where that leg has
+      // already stopped. Every other ritual name clears its own segments.
+      static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
       g.child(text(toU8(fmt("%d %s", i + 1, kDipper[i].ritual)),
                    type(faceMono, 9.5f, hex(0xa48c5c, 0.9f)))
                   .absolute()
-                  .left(p.fX - 44)
+                  .left(p.fX - 44 + kRitualDodge[i])
                   .top(p.fY - 34)
                   .width(140)
                   .opacity(bind(&scribe).window(t, t + 0.45f))
                   .key(fmt("starlbl%d", i)));
+      // THE BAYER NAME DODGES THE WALK. It hangs 12 px under its own star,
+      // which is fine for the five stations the tread leaves sideways and
+      // wrong for the three it leaves downward: the walk ran straight through
+      // "Dubhe", "Mizar" and "Alcor" at their x-height. A plate would set the
+      // name clear of the line, not on it, so each name carries its own dodge
+      // — left at 天樞 and 左輔, right at 開陽, where the segment falls the
+      // other way. The other six are 0 and stay under their star.
+      // 左輔's dodge is 30 and not more: the margin column's right edge is at
+      // x = 1000 and "Alcor" is only 38 px wide, so a bigger left dodge walks
+      // it into the SIX CLASSES rule.
+      static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
       g.child(text(toU8(kDipper[i].name), type(faceItalic, 9.0f, hex(0x6f6047, 0.85f)))
                   .absolute()
-                  .left(p.fX - 22)
+                  .left(p.fX - 22 + kNameDodge[i])
                   .top(p.fY + 12)
                   .width(140)
                   .opacity(bind(&scribe).window(t, t + 0.45f))
@@ -1726,7 +1743,15 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
 
     // --- the six recovered classes, as specimens -------------------------
-    const float ky = 420;
+    // 412, and the chant below moved to 646. The grid is three rows at a 62
+    // pitch with each caption hung at cell + 56, so the last caption's
+    // BASELINE landed on 636 — which was the chant heading's own top. DIAN and
+    // TURN's captions and "SUNG WHILE GANG IS DRAWN" printed 3 px apart with
+    // the section rule below both, so the specimen key read as the first line
+    // of the next section. The grid cannot compress (SHU's specimen starts at
+    // cell y = 2 and the caption above already sits over that), so the fix is
+    // 8 px off the top of the block and 10 px onto the heading below it.
+    const float ky = 412;
     g.child(text(toU8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
                 .absolute()
@@ -1775,7 +1800,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
 
     // --- the six phrases sung while 罡 is drawn ---------------------------
-    const float gy = 636;
+    const float gy = 646; // see the note above ky
     g.child(text(toU8("SUNG WHILE GANG IS DRAWN"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
                 .absolute()
