@@ -10,6 +10,7 @@
 #include "ScenesFlourish.h"
 #include "ScenesInventory.h"
 #include "ScenesGame.h"
+#include "ScenesVeloren.h"
 #include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
 #include "ScenesAero.h"
@@ -51,7 +52,8 @@ struct SceneInfo {
 };
 
 inline constexpr SceneInfo kScenes[] = {
-    {"rpg hud", "Showcase", "practical UI"},
+    {"world hud", "Showcase",
+     "voxygen dimensions \xe2\x80\x94 bars, hotbar, minimap"},
     {"manuscript", "Showcase", "ornament"},
     {"nine slice", "Showcase", "#9 texture-gen"},
     {"botanical", "Showcase", "generative"},
@@ -107,7 +109,7 @@ inline int findScene(std::string_view query) {
 
 inline std::unique_ptr<Scene> makeScene(int index) {
   switch (index) {
-  case 0: return std::make_unique<RpgHudScene>();
+  case 0: return std::make_unique<WorldHudScene>();
   case 1: return std::make_unique<ManuscriptScene>();
   case 2: return std::make_unique<NineSliceScene>();
   case 3: return std::make_unique<BotanicalScene>();
