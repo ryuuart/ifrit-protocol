@@ -12,11 +12,12 @@ void Ticker::add(std::function<bool(double)> steppable) {
   m_steppables.push_back(std::move(steppable));
 }
 
-void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp) {
+void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp,
+                      choreograph::Output<float> *alphaOut) {
   const double step = hz > 0.0 ? 1.0 / hz : 0.0;
   if (step <= 0.0 || !fn)
     return;
-  add([step, maxCatchUp, fn = std::move(fn),
+  add([step, maxCatchUp, alphaOut, fn = std::move(fn),
        accumulator = 0.0](double dt) mutable {
     accumulator += dt;
     // A frame may run at most maxCatchUp steps. Beyond that the backlog
@@ -33,6 +34,10 @@ void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp) {
     }
     if (accumulator >= step)
       accumulator = 0.0;
+    // The leftover fraction of a step: the render interpolant, so a fixed
+    // sim drawn at an unrelated rate does not judder.
+    if (alphaOut)
+      *alphaOut = (float)(accumulator / step);
     return alive;
   });
 }

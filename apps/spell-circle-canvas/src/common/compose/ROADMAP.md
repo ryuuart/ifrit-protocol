@@ -53,6 +53,8 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
 | `dashPhaseBinding` on `PathFormat` and `lines::Line` | `trimPhase` took a bound Output and declared `animated()`; `dashPhase` was a plain float, so marching ants — the commonest animated-line idiom in map UI — meant re-describing every frame | `Decorations.h`, `Lines.h` |
 | **`Pool::sizes()` — per-instance non-uniform scale** | The hard half of §2, eight studies deep: `SkRSXform` is uniform by construction, so a motion-blur streak whose aspect swings 2.4:1 → 1:1 could not be instanced at all | `Instances.h`, `GpuImage.h` |
+| `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
+| `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
 | `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
 | `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
@@ -207,10 +209,18 @@ Two more shapes of the same problem, both worth naming:
 **Geometry that is BOUND cannot be a node shape at all.** `outline()`
 resolves at LAYOUT, so a form that changes per frame — Winamp's EQ
 response curve, a function of ten live Outputs — has to become
-`custom()`. The cost is not only pruning: it also forfeits `trim()`,
-which was the natural spelling for "the curve draws itself over 300 ms",
-and that had to be hand-rolled as a clipRect over a progress Output. A
-`PropValue`-aware outline, or `trim` on a `PathFormat` (§7), covers it.
+`custom()`, and gives up pruning with it. A `PropValue`-aware outline
+would cover it.
+
+This entry used to add "and it forfeits `trim()` and the decorations",
+which was **wrong** — the fourth wrong entry this program has found, and
+again caught by reading the source instead of the list. `PathFormat`,
+`lines::Line` and `Brush` read only `PaintContext::outline`;
+`Decoration::paint` is public; `PaintContext` is a plain aggregate. So
+the entire brush vocabulary, trim window included, works on geometry you
+computed yourself. `decorations::paintOn(canvas, ctx, path, decoration)`
+is now the spelling, and a test paints a trimmed dashed head on a path
+built inside the `custom()` program.
 
 The Vertigo study says which generators are missing, and it is a whole
 family. `Shapes.h` builds closed **shapes** from parameters; nothing

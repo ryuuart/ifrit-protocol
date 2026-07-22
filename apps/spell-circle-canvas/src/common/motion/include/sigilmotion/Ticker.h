@@ -59,8 +59,20 @@ public:
    * which takes longer, which grows the backlog — the spiral. Dropping
    * simulated time is the correct failure: the sim runs slow for one
    * frame instead of locking the process.
+   *
+   * @p alphaOut, if given, receives the leftover fraction of a step after
+   * the frame's stepping — the standard render interpolant. A fixed sim
+   * drawn straight from its own state judders whenever the draw rate is
+   * not a multiple of `hz`; drawing `lerp(previous, current, alpha)`
+   * removes it. The accumulator lived inside this function and there was
+   * no way to read it, which is the whole reason for the parameter: a
+   * verlet body's state is literally the pair (x*, x), so the integrator
+   * is already holding both ends of the interpolation and the library was
+   * hiding the only scalar missing. Bindable like any Output, so
+   * `bind(alphaOut)` reaches a property directly.
    */
-  void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8);
+  void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8,
+                choreograph::Output<float> *alphaOut = nullptr);
 
   /** Steps the timeline and steppables by `deltaSeconds`; returns
    *  active(). Zero deltas (paused clock) still report activity. */
