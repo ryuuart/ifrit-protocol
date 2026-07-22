@@ -232,10 +232,16 @@ int runBench(sigil::compose::sketch::SketchHost &host,
               mean(paints));
   if (const sigil::compose::Composer *composer = host.composer()) {
     const auto &stats = composer->stats();
-    std::printf("  last frame: %zu nodes painted, %zu pictures recorded, "
-                "%zu pictures live, %zu textures live, %zu instances\n",
-                stats.nodesPainted, stats.picturesRecorded, stats.picturesLive,
-                stats.texturesLive, stats.instances);
+    // "cache writes", not "pictures recorded": the counter has always
+    // included pixel bakes, so the old label contradicted the number
+    // beside it and contradicted the banner below that explains it.
+    std::printf("  last frame: %zu nodes painted, %zu cache writes (%zu "
+                "recordings, %zu bakes), %zu pictures live, %zu textures "
+                "live, %zu instances\n",
+                stats.nodesPainted, stats.picturesRecorded,
+                stats.picturesRecorded - stats.texturesBaked,
+                stats.texturesBaked, stats.picturesLive, stats.texturesLive,
+                stats.instances);
   }
   if (!hotNodes.empty()) {
     std::printf("  most expensive nodes (self ms, excluding children):\n");
@@ -289,17 +295,22 @@ int runBench(sigil::compose::sketch::SketchHost &host,
       // check — it has nothing to do with paint cost, so do not send
       // people there for this.)
       std::printf(
-          "  ##  Per-pixel cost, not tree cost. Note that\n"
-          "  ##  'pictures recorded 0' above does NOT mean cached: a\n"
-          "  ##  picture records the DRAW CALLS, so replaying it re-runs\n"
-          "  ##  every shader over every pixel again. Only a BAKE keeps\n"
-          "  ##  the PIXELS.\n"
+          "  ##  Per-pixel cost, not tree cost. %zu of this frame's\n"
+          "  ##  cache writes were RECORDINGS, and a recording is not a\n"
+          "  ##  pixel cache: a picture stores the DRAW CALLS, so\n"
+          "  ##  replaying it re-runs every shader over every pixel\n"
+          "  ##  again. Only a BAKE keeps the PIXELS, and %zu were\n"
+          "  ##  bakes.\n"
           "  ##  First move: read the 'not baked' line under each node\n"
           "  ##  above. The library bakes what it can prove is safe; the\n"
           "  ##  common refusal is opacity/blend on a full-area material\n"
           "  ##  (the paper-grain idiom), and that one is yours to ask\n"
           "  ##  for with .cache(Cache::Texture). %zu nodes painted,\n"
           "  ##  %zu textures live.\n",
+          host.composer() ? host.composer()->stats().picturesRecorded -
+                                host.composer()->stats().texturesBaked
+                          : 0u,
+          host.composer() ? host.composer()->stats().texturesBaked : 0u,
           host.composer() ? host.composer()->stats().nodesPainted : 0u,
           host.composer() ? host.composer()->stats().texturesLive : 0u);
     } else {

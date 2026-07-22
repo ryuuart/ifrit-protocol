@@ -177,6 +177,22 @@ SIGIL_SKETCH(MySketch)
 - On save, the host runs
   `clang++ @sketch_flags.rsp -shared -undefined dynamic_lookup` into a
   versioned dylib in a temp dir, `dlopen`s it, and swaps the sketch.
+
+  > **`sketch_flags.rsp` IS QT-FREE, AND THAT MAKES IT A BLIND SPOT FOR
+  > LIBRARY EDITS.** Checking a header with
+  > `clang++ @sketch_flags.rsp -fsyntax-only` cannot see any Qt-keyword
+  > collision, because Qt is never on that include path — but the host
+  > and the gallery ARE Qt targets and include the same headers. A
+  > lambda named `emit` compiles perfectly under the sketch flags and
+  > then breaks the build, because `qglobal.h` defines `emit` to
+  > nothing and the declaration becomes `const auto = [...]`.
+  >
+  > So: **no exported header may use `emit`, `signals`, `slots`,
+  > `foreach`, `forever` or a `Q_*` name as an identifier**, and after
+  > editing one, syntax-check a Qt TU as well —
+  > `SketchHost.cpp` or `ComposeSketchView.cpp`, both of which have
+  > entries in `compile_commands.json`. Two seconds, and it is the only
+  > check that covers this.
 - Symbols resolve from the **host executable**, which force-loads the
   full SDK archives (`-force_load` + `-export_dynamic`) so any compose /
   textflow / image / tick call a sketch makes is present. The one

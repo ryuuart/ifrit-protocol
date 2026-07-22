@@ -152,11 +152,19 @@ namespace detail {
  *  rounded corner into a run of false ones. So the number stays the
  *  author's, and the library explains what to pass. */
 inline void warnNoCornersFound(float sharpestDeg, float angleDeg) {
-  static int lastWarned = -1;
+  // A SET of seen shapes, not the last one: two different failing shapes in
+  // one frame alternate, and a last-seen guard then prints both on every
+  // frame forever — a diagnostic that floods is a diagnostic people turn
+  // off. Capped so a procedurally varied scene cannot grow it without
+  // bound.
+  static std::vector<int> seen;
   const int key = (int)std::lround(sharpestDeg);
-  if (key == lastWarned)
+  for (int k : seen)
+    if (k == key)
+      return;
+  if (seen.size() >= 16)
     return;
-  lastWarned = key;
+  seen.push_back(key);
   SkDebugf("lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
            "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
            "brackets/gappedRule/weightedCorners will draw nothing here. A "

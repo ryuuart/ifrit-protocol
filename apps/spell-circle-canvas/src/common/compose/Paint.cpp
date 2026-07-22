@@ -1447,6 +1447,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
+          stats.texturesBaked++;
         }
       }
       if (inst.textureImage) {
@@ -1547,6 +1548,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
+          stats.texturesBaked++;
         }
       }
       if (inst.textureImage && inst.textureDeviceSpace) {
@@ -1613,6 +1615,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       inst.bakedScalars = scalarsNow;
       inst.paintDirty = false;
       stats.picturesRecorded++;
+      stats.texturesBaked++;
     }
     if (profileScope.row != SIZE_MAX) {
       profileRows[profileScope.row].cacheState = Composer::CacheState::Texture;
