@@ -150,11 +150,25 @@ void SketchHost::startCompile() {
     if (const std::string stale =
             newerHeaderThanHost(m_options.flagsFile, hostTime);
         !stale.empty()) {
+      // The old wording said "rebuild ComposeSketch", which in a shared
+      // session is the one thing the reader must NOT do — a second build
+      // in the same directory corrupts it. Stalling on that instruction
+      // became the largest single source of dead time in the overnight
+      // sketch program (~25 minutes in one sketch alone), so the message
+      // now states the actual protocol.
       m_errorLog =
           "framework headers are NEWER than this host binary (" + stale +
-          ") — rebuild ComposeSketch before iterating; a sketch compiled "
-          "against skewed headers would corrupt the host ABI";
-      m_status = "stale host — rebuild ComposeSketch";
+          ").\n"
+          "A sketch compiled against skewed headers would corrupt the host "
+          "ABI, so this build is refused rather than risked.\n\n"
+          "If you are ONE AGENT IN A SHARED SESSION: this is normal and "
+          "expected. Someone changed the library and the host is being "
+          "rebuilt. WAIT A MOMENT AND RE-RUN THIS EXACT COMMAND. Do not run "
+          "cmake or ninja yourself — the build directory is shared and a "
+          "second build will corrupt it. If it persists past a few "
+          "minutes, say so rather than working around it.\n\n"
+          "If you OWN this checkout: rebuild the ComposeSketch target.";
+      m_status = "stale host — waiting for a rebuild";
       return; // keep the previous sketch alive, p5 style
     }
   }
