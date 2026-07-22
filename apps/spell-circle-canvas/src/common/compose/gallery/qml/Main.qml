@@ -1,3 +1,8 @@
+// Delegates reach outward — a row needs the window's row array, the list's
+// width, and the view's current scene. Bound makes those captures explicit
+// and well-defined rather than resolved by scope-chain accident.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -29,6 +34,145 @@ ApplicationWindow {
     palette.base: "#0a0912"
 
     readonly property var stats: view.metrics
+
+    // ---- Sidebar navigation model -----------------------------------------
+    //
+    // The registry outgrew a flat list: the catalog scenes and the study
+    // sketches together are more entries than fit on screen, and they are not
+    // one kind of thing. So the sidebar is FOLDERS — one group per category,
+    // collapsible, over a single flat row array that mixes headers and
+    // scenes. A flat array (rather than a nested view) keeps one ListView,
+    // one currentIndex, and working arrow keys.
+    //
+    // Filtering is the other half. Typing narrows on name, blurb, folder and
+    // a study's file stem, and force-opens every group that still has a hit —
+    // a search that leaves matches hidden inside a collapsed folder is worse
+    // than no search.
+
+    property string filterText: ""
+    property var collapsedGroups: ({})
+    property var rows: []
+
+    function matches(scene, needle) {
+        if (needle.length === 0)
+            return true;
+        return (scene.name + " " + scene.tag + " " + scene.category + " "
+                + scene.key).toLowerCase().indexOf(needle) >= 0;
+    }
+
+    function rebuildRows() {
+        const needle = filterText.trim().toLowerCase();
+        const all = view.scenes;
+        let order = [];
+        let byGroup = ({});
+        for (let i = 0; i < all.length; ++i) {
+            const scene = all[i];
+            if (!matches(scene, needle))
+                continue;
+            if (byGroup[scene.category] === undefined) {
+                byGroup[scene.category] = [];
+                order.push(scene.category);
+            }
+            byGroup[scene.category].push(scene);
+        }
+        // Headers and scenes get the SAME shape. A delegate reading a field
+        // the other kind lacks would evaluate `undefined` on every row of the
+        // wrong kind — a warning per row per rebuild, for nothing.
+        let out = [];
+        for (let g = 0; g < order.length; ++g) {
+            const group = order[g];
+            const items = byGroup[group];
+            // While filtering, a collapsed folder would hide its own hits.
+            const shut = needle.length === 0
+                         && collapsedGroups[group] === true;
+            out.push({ header: true, name: group, tag: "", key: "",
+                       sceneIndex: -1, count: items.length, collapsed: shut });
+            if (!shut)
+                for (let k = 0; k < items.length; ++k)
+                    out.push({ header: false, name: items[k].name,
+                               tag: items[k].tag, key: items[k].key,
+                               sceneIndex: items[k].sceneIndex,
+                               count: 0, collapsed: false });
+        }
+        rows = out;
+    }
+
+    function toggleGroup(group) {
+        let next = ({});
+        for (const key in collapsedGroups)
+            next[key] = collapsedGroups[key];
+        next[group] = !(next[group] === true);
+        collapsedGroups = next;
+        rebuildRows();
+    }
+
+    function setAllCollapsed(shut) {
+        let next = ({});
+        const all = view.scenes;
+        for (let i = 0; i < all.length; ++i)
+            next[all[i].category] = shut;
+        collapsedGroups = next;
+        rebuildRows();
+    }
+
+    /** The row showing `sceneIndex`, or -1 when the filter hides it. */
+    function rowForScene(sceneIndex) {
+        for (let i = 0; i < rows.length; ++i)
+            if (!rows[i].header && rows[i].sceneIndex === sceneIndex)
+                return i;
+        return -1;
+    }
+
+    /** Opens the folder holding the running scene and scrolls to it. The
+     *  scene can change from outside the list (`--shot --scene`, and any
+     *  future jump-to), and a selection you cannot see is not a selection. */
+    function revealCurrent() {
+        const scene = view.scenes[view.sceneIndex];
+        if (scene === undefined)
+            return;
+        if (collapsedGroups[scene.category] === true)
+            toggleGroup(scene.category);
+        const rowIndex = rowForScene(view.sceneIndex);
+        if (rowIndex >= 0)
+            sceneList.positionViewAtIndex(rowIndex, ListView.Contain);
+    }
+
+    Connections {
+        target: view
+        function onSceneIndexChanged() { window.revealCurrent(); }
+    }
+
+    /** Arrow keys move between SCENES, stepping over folder headers — and
+     *  land somewhere sensible when the current scene is filtered out. */
+    function selectDelta(step) {
+        const start = rowForScene(view.sceneIndex);
+        let i = start >= 0 ? start : (step > 0 ? -1 : rows.length);
+        for (i += step; i >= 0 && i < rows.length; i += step) {
+            if (!rows[i].header) {
+                view.sceneIndex = rows[i].sceneIndex;
+                sceneList.positionViewAtIndex(i, ListView.Contain);
+                return;
+            }
+        }
+    }
+
+    onFilterTextChanged: rebuildRows()
+
+    // Open on the SHAPE of the registry, not on its first thirteen rows.
+    // Forty-five scenes fully expanded is four screens of scrolling before
+    // you have seen that a Kit folder exists; twelve folder headers with the
+    // running scene's folder open is one screen that says what is here.
+    Component.onCompleted: {
+        const all = view.scenes;
+        const current = all[view.sceneIndex];
+        let next = ({});
+        for (let i = 0; i < all.length; ++i)
+            next[all[i].category] =
+                current === undefined || all[i].category !== current.category;
+        collapsedGroups = next;
+        rebuildRows();
+        revealCurrent();
+    }
 
     /** One "name   value" line that gives up width by eliding the name
      *  rather than by painting past the panel. */
@@ -80,11 +224,94 @@ ApplicationWindow {
                 anchors.margins: 14
                 spacing: 10
 
-                Label {
-                    text: "STRESS CATALOG"
-                    color: "#ffb46b"
-                    font.pixelSize: 15
-                    font.bold: true
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Label {
+                        text: "STRESS CATALOG"
+                        color: "#ffb46b"
+                        font.pixelSize: 15
+                        font.bold: true
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: view.scenes.length + " scenes"
+                        color: "#5c6480"
+                        font.family: "Menlo"
+                        font.pixelSize: 10
+                    }
+                }
+
+                // ---- Filter ----
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 30
+                    radius: 8
+                    color: "#0a0912"
+                    border.width: 1
+                    border.color: filterField.activeFocus ? "#5b4bb0" : "#1e1a33"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 9
+                        anchors.rightMargin: 5
+                        spacing: 4
+
+                        Label {
+                            text: "⌕"
+                            color: "#5c6480"
+                            font.pixelSize: 14
+                        }
+                        TextField {
+                            id: filterField
+
+                            Layout.fillWidth: true
+                            placeholderText: "filter — name, folder, blurb, file"
+                            color: "#e8ecf8"
+                            placeholderTextColor: "#4d5470"
+                            font.pixelSize: 12
+                            background: null
+                            padding: 0
+                            onTextChanged: window.filterText = text
+                            // Escape clears rather than losing focus: the
+                            // filter is a lens, and putting it down should be
+                            // one key, not select-all-delete.
+                            Keys.onEscapePressed: text = ""
+                            Keys.onDownPressed: {
+                                sceneList.forceActiveFocus();
+                                window.selectDelta(1);
+                            }
+                        }
+                        ToolButton {
+                            visible: filterField.text.length > 0
+                            text: "×"
+                            font.pixelSize: 15
+                            implicitWidth: 22
+                            implicitHeight: 22
+                            onClicked: filterField.text = ""
+                        }
+                        ToolButton {
+                            // One click to see the whole shape of the
+                            // registry, one to get back to browsing.
+                            visible: filterField.text.length === 0
+                            text: "≡"
+                            font.pixelSize: 14
+                            implicitWidth: 22
+                            implicitHeight: 22
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 600
+                            ToolTip.text: "Collapse / expand all folders"
+                            onClicked: {
+                                let anyOpen = false;
+                                for (let i = 0; i < window.rows.length; ++i)
+                                    if (window.rows[i].header
+                                        && !window.rows[i].collapsed)
+                                        anyOpen = true;
+                                window.setAllCollapsed(anyOpen);
+                            }
+                        }
+                    }
                 }
 
                 ListView {
@@ -97,83 +324,138 @@ ApplicationWindow {
                     Layout.minimumHeight: 120
                     clip: true
                     focus: true
-                    model: view.scenes
-                    currentIndex: view.sceneIndex
-                    onCurrentIndexChanged: {
-                        view.sceneIndex = currentIndex;
-                        // Arrow keys walk past the viewport otherwise: there
-                        // is no `highlight` item to follow.
-                        positionViewAtIndex(currentIndex, ListView.Contain);
-                    }
-                    keyNavigationEnabled: true
-                    highlightMoveDuration: 90
-                    section.property: "category"
-                    section.delegate: Label {
-                        required property string section
-                        width: ListView.view.width
-                        text: section
-                        color: "#8f98b2"
-                        font.pixelSize: 11
-                        font.capitalization: Font.AllUppercase
-                        elide: Text.ElideRight
-                        topPadding: 12
-                        bottomPadding: 4
-                    }
+                    model: window.rows
+                    // The list is folded and filtered, so a row's position
+                    // says nothing about which scene it selects — the mapping
+                    // runs the other way, and is -1 when the filter has hidden
+                    // the running scene.
+                    currentIndex: window.rowForScene(view.sceneIndex)
+                    keyNavigationEnabled: false
+                    Keys.onUpPressed: window.selectDelta(-1)
+                    Keys.onDownPressed: window.selectDelta(1)
 
                     ScrollBar.vertical: ScrollBar { id: sceneScroll }
 
-                    // Two lines, both elided: catalog tags run to ~40
-                    // characters ("EMBER GATE — the flagship living poster"),
-                    // which no single-row layout can hold beside the name.
-                    delegate: Rectangle {
-                        id: sceneRow
+                    readonly property real rowWidth:
+                        sceneList.width
+                        - (sceneScroll.visible ? sceneScroll.width : 0)
+
+                    // One delegate, two faces. A Loader per row would have to
+                    // hand the row down through a required property after
+                    // construction, which is exactly what required properties
+                    // forbid; forty-five cheap Items cost less than that
+                    // fight.
+                    delegate: Item {
+                        id: row
 
                         required property var modelData
-                        required property int index
 
-                        width: sceneList.width
-                               - (sceneScroll.visible ? sceneScroll.width : 0)
-                        height: 42
-                        radius: 7
-                        color: view.sceneIndex === sceneRow.index ? "#2c2456"
-                             : rowHover.hovered ? "#1b1730"
-                             : "transparent"
+                        width: sceneList.rowWidth
+                        height: row.modelData.header ? 28 : 42
 
-                        ColumnLayout {
+                        // ---- A folder ----
+                        Rectangle {
                             anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            anchors.topMargin: 5
-                            anchors.bottomMargin: 5
-                            spacing: 1
+                            visible: row.modelData.header
+                            radius: 6
+                            color: headerHover.hovered ? "#181530"
+                                                       : "transparent"
 
-                            Label {
-                                text: sceneRow.modelData.name
-                                color: "#e8ecf8"
-                                font.pixelSize: 13
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 6
+                                anchors.rightMargin: 8
+                                spacing: 5
+
+                                Label {
+                                    // Fixed width so every folder name starts
+                                    // at the same x whichever way it points.
+                                    Layout.preferredWidth: 10
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: row.modelData.collapsed ? "▶"
+                                                                  : "▼"
+                                    color: "#79839f"
+                                    font.pixelSize: 8
+                                }
+                                Label {
+                                    text: row.modelData.name
+                                    color: "#8f98b2"
+                                    font.pixelSize: 11
+                                    font.capitalization: Font.AllUppercase
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                                Label {
+                                    text: row.modelData.count
+                                    color: "#4d5470"
+                                    font.family: "Menlo"
+                                    font.pixelSize: 10
+                                }
                             }
-                            Label {
-                                text: sceneRow.modelData.tag
-                                color: "#6fc9e0"
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
+
+                            HoverHandler { id: headerHover }
+                            TapHandler {
+                                onTapped: {
+                                    window.toggleGroup(row.modelData.name);
+                                    sceneList.forceActiveFocus();
+                                }
                             }
                         }
 
-                        HoverHandler { id: rowHover }
-                        TapHandler {
-                            onTapped: {
-                                view.sceneIndex = sceneRow.index;
-                                sceneList.forceActiveFocus();
+                        // ---- A scene ----
+                        // Two lines, both elided: tags run to ~40 characters
+                        // ("EMBER GATE — the flagship living poster"), which
+                        // no single-row layout can hold beside the name.
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: !row.modelData.header
+                            radius: 7
+                            color: view.sceneIndex === row.modelData.sceneIndex
+                                 ? "#2c2456"
+                                 : sceneHover.hovered ? "#1b1730" : "transparent"
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 21
+                                anchors.rightMargin: 10
+                                anchors.topMargin: 5
+                                anchors.bottomMargin: 5
+                                spacing: 1
+
+                                Label {
+                                    text: row.modelData.name
+                                    color: "#e8ecf8"
+                                    font.pixelSize: 13
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                                Label {
+                                    text: row.modelData.tag
+                                    color: "#6fc9e0"
+                                    font.pixelSize: 10
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
                             }
+
+                            HoverHandler { id: sceneHover }
+                            TapHandler {
+                                onTapped: {
+                                    view.sceneIndex = row.modelData.sceneIndex;
+                                    sceneList.forceActiveFocus();
+                                }
+                            }
+                            // A study says where it lives: the file you would
+                            // open to change what you are looking at.
+                            ToolTip.visible: sceneHover.hovered
+                            ToolTip.delay: 700
+                            ToolTip.text: row.modelData.key.length > 0
+                                ? row.modelData.name + " — "
+                                  + row.modelData.tag + "\n"
+                                  + "sketches/" + row.modelData.key + ".cpp"
+                                : row.modelData.name + " — "
+                                  + row.modelData.tag
                         }
-                        ToolTip.visible: rowHover.hovered
-                        ToolTip.delay: 700
-                        ToolTip.text: sceneRow.modelData.name + " — "
-                                      + sceneRow.modelData.tag
                     }
                 }
 
@@ -315,6 +597,11 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 name: "nodes"
                                 value: String(window.stats.nodes ?? 0)
+                            }
+                            Metric {
+                                Layout.fillWidth: true
+                                name: "canvas"
+                                value: window.stats.canvas ?? "—"
                             }
                         }
                     }

@@ -95,6 +95,18 @@ struct Scene {
   virtual const char *name() const = 0;
   virtual void setup(Composer &composer, sigil::motion::Ticker &ticker) = 0;
   virtual void update(double, Composer &) {}
+
+  /** The scene's own logical canvas; hosts letterbox to it. The catalog
+   *  scenes were all authored against kSceneSize, but the studies were
+   *  authored against the thing they rebuild — a 320x200 Battlescape at 4x
+   *  and a 640x800 web page do not share an aspect ratio, let alone a size,
+   *  and squeezing either into a common frame would falsify it. Read only
+   *  AFTER setup(): a sketch declares its canvas from inside setup, the way
+   *  p5's createCanvas does. */
+  virtual SkSize canvasSize() const { return kSceneSize; }
+  /** What the host clears to behind the scene. Studies that rebuild paper
+   *  or a lit desk need it; the catalog scenes are all built on black. */
+  virtual SkColor4f background() const { return {0, 0, 0, 1}; }
 };
 
 // ---------------------------------------------------------------------------
@@ -113,6 +125,12 @@ struct GalleryStage {
   Composer overlay{overlayTicker, fonts()};
   FrameStats stats;
   bool showStats = true;
+
+  /// The active scene's canvas — what a host letterboxes to and what the
+  /// headless sweep allocates. Resolved after setup(), because that is when
+  /// a study has declared it.
+  SkSize sceneSize = kSceneSize;
+  SkColor4f sceneBackground = {0, 0, 0, 1};
 
   GalleryStage() {
     overlay.setSize(kSceneSize);
@@ -142,8 +160,19 @@ struct GalleryStage {
     fixedNowSeconds = 0.0;
     fixedClockInitialized = false;
     scene = std::move(next);
-    if (scene)
+    sceneSize = kSceneSize;
+    sceneBackground = {0, 0, 0, 1};
+    if (scene) {
+      // Two sizings, deliberately: a scene may lay out during setup(), so it
+      // needs a canvas before it runs, and a study only declares its own from
+      // inside setup(). The second call is a no-op when they agree.
+      composer->setSize(scene->canvasSize());
       scene->setup(*composer, *ticker);
+      sceneSize = scene->canvasSize();
+      sceneBackground = scene->background();
+      composer->setSize(sceneSize);
+      overlay.setSize(sceneSize);
+    }
   }
 
   double pendingOverlayMs = 0.0; // charged to the next frame's sample
@@ -184,6 +213,13 @@ struct GalleryStage {
     }
     ticker->tick(dt);
     scene->update(clock.elapsed(), *composer);
+    // A study may resize itself mid-run (p5's resizeCanvas); the host reads
+    // the declaration back after update, exactly as ComposeSketch does.
+    if (scene->canvasSize() != sceneSize) {
+      sceneSize = scene->canvasSize();
+      composer->setSize(sceneSize);
+      overlay.setSize(sceneSize);
+    }
     composer->draw(canvas);
     if (flushHook)
       flushHook();
@@ -238,7 +274,7 @@ struct GalleryStage {
     overlay.render(box().child(
         box()
             .row()
-            .inset(12, kSceneSize.height() - 80, 12, 12)
+            .inset(12, sceneSize.height() - 80, 12, 12)
             .absolute()
             .corners({8})
             .padding(10, 6)

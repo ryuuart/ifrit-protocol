@@ -25,6 +25,9 @@
 #include <sigilcompose/Util.h>
 #include <sigilsketch/Assets.h>
 
+#include <string_view>
+#include <vector>
+
 namespace sigil::compose::sketch {
 
 /** Bumped whenever SketchContext/Sketch change shape; the host refuses
@@ -92,7 +95,56 @@ struct Sketch {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Statically linked sketches
+//
+// A sketch normally compiles to a dylib the host dlopens. Compile one with
+// SIGIL_SKETCH_STATIC defined to its key instead and SIGIL_SKETCH registers a
+// factory under that key rather than exporting the C entry points — the same
+// file is then both a hot-reload sketch and a scene an ordinary host can
+// construct. ComposeGallery builds every study this way, so a study needs no
+// per-file bookkeeping to appear there and cannot drift out of sync with the
+// file people actually edit.
+
+/// Builds one instance of a sketch. Registration keeps the factory, not the
+/// sketch: a host constructs a fresh one every time it activates the scene,
+/// exactly as a reload does.
+using SketchFactory = Sketch *(*)();
+
+struct StaticSketch {
+  const char *key = nullptr; ///< SIGIL_SKETCH_STATIC, i.e. the file stem
+  SketchFactory factory = nullptr;
+};
+
+/** Every sketch linked into this binary, in static-initialization order
+ *  (which is link order, and therefore not worth depending on — hosts
+ *  should look up by key). */
+[[nodiscard]] std::vector<StaticSketch> &staticSketches();
+
+/** Registers `factory` under `key`. Returns true so it can initialize a
+ *  namespace-scope bool; SIGIL_SKETCH is the only intended caller. */
+bool registerStaticSketch(const char *key, SketchFactory factory);
+
+/** The factory registered under `key`, or nullptr when this binary was not
+ *  built with that sketch. */
+[[nodiscard]] SketchFactory findStaticSketch(std::string_view key);
+
 } // namespace sigil::compose::sketch
+
+#ifdef SIGIL_SKETCH_STATIC
+
+/** Register the sketch with the host it is compiled into. */
+#define SIGIL_SKETCH(SketchType)                                         \
+  namespace {                                                            \
+  [[maybe_unused]] const bool sigilSketchRegistered =                    \
+      ::sigil::compose::sketch::registerStaticSketch(                    \
+          SIGIL_SKETCH_STATIC,                                           \
+          []() -> ::sigil::compose::sketch::Sketch * {                   \
+            return new SketchType();                                     \
+          });                                                            \
+  }
+
+#else
 
 /** Export the sketch entry points. Exactly one per sketch file. */
 #define SIGIL_SKETCH(SketchType)                                         \
@@ -104,3 +156,5 @@ struct Sketch {
   sigilSketchAbi() {                                                     \
     return sigil::compose::sketch::kAbiVersion;                          \
   }
+
+#endif

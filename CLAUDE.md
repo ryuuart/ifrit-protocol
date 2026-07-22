@@ -80,8 +80,16 @@ compose stress catalog). `ComposeGallery` is a macOS .app bundle like
 `build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery
 --headless <outdir> [--gpu] [--scene <name|index>]` — `--scene` takes a
 case-insensitive substring and renders just that one, which is the loop
-for visual work. Open-licensed demo assets (fonts) come from the opt-in
-`fetch_assets` target into `build/assets/`; see
+for visual work; `--shot <png> [--scene ...]` captures the APP instead
+(sidebar, folders, live metrics). Its registry is the catalog scenes
+PLUS every study sketch under `compose/sketch/sketches/`, compiled in
+through `SIGIL_SKETCH_STATIC` (the `SigilSketchStudies` object library)
+and grouped into collapsible folders — so a study is one file that is
+both a hot-reload sketch and a gallery scene, and a study also answers to
+its file stem (`--scene penrose_paving`). Studies bring their own canvas
+size and background, which is why nothing downstream of `makeScene()`
+assumes `kSceneSize`. Open-licensed demo assets (fonts) come from the
+opt-in `fetch_assets` target into `build/assets/`; see
 `cmake/FetchAssets.cmake` for the manifest rules.
 
 The Ultralight SDK is required for SigilScry;

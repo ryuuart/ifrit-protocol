@@ -15,6 +15,7 @@ add_library(SigilSketchKit STATIC
   SketchHost.h
   Assets.cpp
   SketchAnchor.cpp
+  StaticSketches.cpp
 )
 target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 # PUBLIC so sketches see it too: `--target fetch_assets` writes the
@@ -26,6 +27,50 @@ target_link_libraries(SigilSketchKit PUBLIC
   SigilCompose SigilLoader SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
+# SigilSketchStudies — the same sketch files, compiled INTO a host.
+#
+# Each study is one TU with SIGIL_SKETCH_STATIC set to its stem, which
+# switches SIGIL_SKETCH (Sketch.h) from exporting dylib entry points to
+# registering a factory. ComposeGallery links this and gets every study as a
+# scene; nothing about the sketch files changes, so the file someone
+# hot-reloads and the scene the gallery shows are the same file, always.
+#
+# An OBJECT library, not STATIC: registration happens in a namespace-scope
+# initializer with nothing referring to it, which an archive would drop.
+# Object libraries link every object by construction — no -force_load, and
+# the gallery and its test share one compile of the set.
+set(SIGIL_SKETCH_STUDIES
+  # Game UI
+  ds2_bench fallout2_charsheet ksp_mapview psx_doom_fire xcom_battlescape
+  # Screens and software
+  cde_motif spacejam_1996 twoadvanced_v4 winamp_base
+  # Science and data
+  chaucer_astrolabe chevreul_circle chladni_tab1 minard_1869
+  nightingale_coxcomb
+  # Pattern and tradition
+  black_watch kumiko_asanoha penrose_paving
+  # Motion and film
+  genesis_fire hitman_verlet slitscan_2001 vertigo_titles
+  # The kit itself
+  hello stock_materials
+)
+set(sigil_study_sources "")
+foreach(study IN LISTS SIGIL_SKETCH_STUDIES)
+  set(study_source ${CMAKE_CURRENT_LIST_DIR}/sketches/${study}.cpp)
+  set_source_files_properties(${study_source} PROPERTIES
+    COMPILE_DEFINITIONS "SIGIL_SKETCH_STATIC=\"${study}\"")
+  list(APPEND sigil_study_sources ${study_source})
+endforeach()
+add_library(SigilSketchStudies OBJECT ${sigil_study_sources})
+target_link_libraries(SigilSketchStudies PUBLIC SigilSketchKit)
+set_target_properties(SigilSketchStudies PROPERTIES
+  POSITION_INDEPENDENT_CODE ON)
+# Where a study looks for anything it does not generate. It need not exist:
+# Assets serves the magenta placeholder and heals when a file appears.
+target_compile_definitions(SigilSketchStudies PUBLIC
+  SIGIL_SKETCH_ASSET_DIR="${CMAKE_CURRENT_LIST_DIR}/sketches/assets")
 
 qt_add_executable(ComposeSketch
   sketch_main.cpp

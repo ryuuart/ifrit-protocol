@@ -128,3 +128,27 @@ SIGIL_SKETCH(MySketch)
 - macOS-first, like the repo's GPU paths; the Linux/Windows port mirrors
   this with `--whole-archive`/`/WHOLEARCHIVE` and default dylib symbol
   semantics.
+
+## The same file, compiled in
+
+A sketch is also a **scene**. Compile one with `SIGIL_SKETCH_STATIC` set
+to its file stem and the `SIGIL_SKETCH` macro registers a factory in the
+host's binary instead of exporting the dylib entry points:
+
+```cmake
+set_source_files_properties(sketches/penrose_paving.cpp PROPERTIES
+  COMPILE_DEFINITIONS "SIGIL_SKETCH_STATIC=\"penrose_paving\"")
+```
+
+`sigil::compose::sketch::findStaticSketch(key)` then hands back a factory
+for it. ComposeGallery does exactly this for every study
+(`SigilSketchStudies`, an OBJECT library — an archive would drop the
+registration, since nothing references it), which is why the gallery's
+study list needs no copy of the sketch: the file you hot-reload and the
+scene the gallery shows are the same file.
+
+Two consequences worth knowing. The split-Skia rule does not apply to a
+statically linked sketch — it shares the host's Skia — so a sketch can
+pass the gallery and still break the dylib path; `compose_sketch_stock`
+remains the guard for that. And a sketch declares its canvas from inside
+`setup()`, so a host cannot know the size until after it has run.
