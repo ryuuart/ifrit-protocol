@@ -1492,9 +1492,9 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   // --- the paper ----------------------------------------------------------
 
   Element ground() {
-    auto g = box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                  .key("ground");
-    g.child(box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    g.child(box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                 .fill(Material::linear({0, 0}, {kW, kH},
                                        {{0.0f, hex(0x171410)}, {0.5f, hex(0x1d1913)},
                                         {1.0f, hex(0x120f0c)}}))
@@ -1513,13 +1513,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // library's device-space promotion, since a bake pinned to one device
     // rect is not matrix-independent. Measured: 24.5 ms of a 29.9 ms frame
     // for the two bands, replaying three shaders over 1.5 Mpx forever.
-    auto g = box().absolute().left(x0).top(kBandTop).width(Dim(w))
+    auto g = box().left(x0).top(kBandTop).width(Dim(w))
                  .height(Dim(kBandH)).rotate(tilt).key(keyName)
                  .cache(Cache::Texture)
                  .opacity(gate(tPaper, tPaper + 1.0f));
 
     // the sheet itself, with the fibre running along the roll
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
                 .fill(Material::linear({0, 0}, {0, kBandH},
                                        {{0.00f, kKraft},
                                         {0.055f, kPaperDeep},
@@ -1531,12 +1531,12 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .cache(Cache::Texture));
 
     // the fibre — anisotropic grain, luminance not hue, under a bake
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
                 .fill(paperGrain)
                 .opacity(0.20f)
                 .blend(SkBlendMode::kSoftLight)
                 .cache(Cache::Texture));
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
                 .foreground(Wash{.material = paperSpeck.material(),
                                  .blend = SkBlendMode::kMultiply, .amount = 0.55f})
                 .cache(Cache::Texture));
@@ -1546,12 +1546,12 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float circ = 244.0f * 3.14159f * 0.5f * kPxMm; // ~85 cm of roll
     for (int k = -3; k <= 3; ++k) {
       const float gx = std::fmod(std::abs(x0) + (float)k * circ, w);
-      g.child(box().absolute().left(gx).top(6).width(Dim(3.0f)).height(Dim(kBandH - 12))
+      g.child(box().left(gx).top(6).width(Dim(3.0f)).height(Dim(kBandH - 12))
                   .fill(Fill::color(hex(0x8b6e45, 0.10f))));
     }
 
     // top and bottom rules — unequal, per lines::Rails
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
                 .outline([](SkSize s) {
                   SkPathBuilder b;
                   b.moveTo(0, 1.5f);
@@ -1583,13 +1583,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     if (xr < segLo(seg) - 4 || xl > segHi(seg) + 4) return box().width(0).height(0);
     const float w = xr - xl;
     if (w <= 2) return box().width(0).height(0);
-    auto g = box().absolute().left(xl - segLo(seg)).top(kFrameTop - kSegTop)
+    auto g = box().left(xl - segLo(seg)).top(kFrameTop - kSegTop)
                  .width(Dim(w)).height(Dim(kFrameH))
                  .key(fmt("map%d_%d", k, seg))
                  .opacity(gate(tFold0 - 0.4f, tFold0 + 1.1f));
 
     // the ruled frame — a hand-drawn rectangle, brackets at the corners
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(kFrameH))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kFrameH))
                 .stroke(Brush{}
                             .op(ops::Sketchy{.segLength = 30, .deviation = 1.1f,
                                              .seed = (uint32_t)(600 + k)})
@@ -1600,7 +1600,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
 
     // the equator — the one line whose position the paper says varies ±5°
     const float yEq = (mapGcDec(k) + 45.0f) / kDecPerMm * kPxMm;
-    g.child(box().absolute().left(0).top(yEq - 1).width(Dim(w)).height(Dim(2))
+    g.child(box().left(0).top(yEq - 1).width(Dim(w)).height(Dim(2))
                 .outline([](SkSize s) {
                   SkPathBuilder b; b.moveTo(0, 1); b.lineTo(s.width(), 1);
                   return b.detach();
@@ -1616,22 +1616,22 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float x = w * 0.5f + (float)t / kRaPerMm * kPxMm;
       if (x < 1 || x > w - 1) continue;
       const bool big = (t % 12) == 0;
-      g.child(box().absolute().left(x - 0.4f).top(0).width(Dim(0.9f))
+      g.child(box().left(x - 0.4f).top(0).width(Dim(0.9f))
                   .height(Dim(big ? 9.0f : 5.0f))
                   .fill(Fill::color(hex(0x4a3b28, 0.66f))));
-      g.child(box().absolute().left(x - 0.4f).top(kFrameH - (big ? 9.0f : 5.0f))
+      g.child(box().left(x - 0.4f).top(kFrameH - (big ? 9.0f : 5.0f))
                   .width(Dim(0.9f)).height(Dim(big ? 9.0f : 5.0f))
                   .fill(Fill::color(hex(0x4a3b28, 0.66f))));
       if (big)
         g.child(text(toU8(fmt("%d", (int)std::lround(wrap360(mapCentre(k) + (float)t)))),
                      type(faceMono, 7.4f, hex(0x5d4c37, 0.72f)))
-                    .absolute().left(x - 11).top(kFrameH + 3).width(Dim(24))
+                    .left(x - 11).top(kFrameH + 3).width(Dim(24))
                     .textAlign(sigil::weave::TextAlignment::kCenter));
     }
 
     // the map's own number and month, in the margin above
     g.child(text(toU8(fmt("%d", k)), type(faceDisplay, 13.0f, hex(0x4a3b28, 0.82f)))
-                .absolute().left(w - 20).top(-19).width(Dim(18))
+                .left(w - 20).top(-19).width(Dim(18))
                 .textAlign(sigil::weave::TextAlignment::kEnd));
 
     // THE MANSION BOUNDARIES, ruled where the DETERMINATIVE STARS put them
@@ -1642,7 +1642,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float dRa = wrap180(xiuRa[(size_t)m] - mapCentre(k));
       if (std::abs(dRa) > 23.0f) continue;
       const float x = w * 0.5f + dRa / kRaPerMm * kPxMm;
-      g.child(box().absolute().left(x - 6).top(0).width(Dim(12)).height(Dim(kFrameH))
+      g.child(box().left(x - 6).top(0).width(Dim(12)).height(Dim(kFrameH))
                   .outline([](SkSize sz) {
                     SkPathBuilder b;
                     b.moveTo(sz.width() * 0.5f, 0);
@@ -1656,10 +1656,10 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                      .trimEnd = 0.94f}));
       g.child(text(toU8(kXiu[m]),
                    type(faceHan ? faceHan : faceSerif, 11.5f, hex(0x2a2118, 0.88f)))
-                  .absolute().left(x - 9).top(-32).width(Dim(18))
+                  .left(x - 9).top(-32).width(Dim(18))
                   .textAlign(sigil::weave::TextAlignment::kCenter));
       g.child(text(toU8(kXiuPinyin[m]), type(faceMono, 7.0f, hex(0x5d4c37, 0.75f)))
-                  .absolute().left(x - 20).top(-45).width(Dim(40))
+                  .left(x - 20).top(-45).width(Dim(40))
                   .textAlign(sigil::weave::TextAlignment::kCenter));
     }
     return g;
@@ -1674,7 +1674,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     if (xr < segLo(seg) - 4 || xl > segHi(seg) + 4) return box().width(0).height(0);
     const float w = xr - xl;
     if (w <= 2) return box().width(0).height(0);
-    auto g = box().absolute().left(xl - segLo(seg)).top(kFrameTop + 8 - kSegTop)
+    auto g = box().left(xl - segLo(seg)).top(kFrameTop + 8 - kSegTop)
                  .width(Dim(w)).height(Dim(kFrameH - 16)).key(fmt("cols%d_%d", k, seg))
                  .opacity(gate(tFold0 + 0.2f, tFold0 + 1.5f));
     const int nCols = (int)std::round(kColBandMm / kColMm);
@@ -1687,7 +1687,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         const float gy = 5.0f + (float)gI * 9.1f +
                          std::sin((float)(c * 13 + gI * 5)) * 0.8f;
         if (gy > kFrameH - 22) break;
-        g.child(box().absolute().left(cx - 3.9f).top(gy).width(Dim(7.8f))
+        g.child(box().left(cx - 3.9f).top(gy).width(Dim(7.8f))
                     .height(Dim(6.2f))
                     .fill(Fill::color(hex(0x241d15, 0.80f)))
                     .outline(shapes::blob((uint32_t)(k * 97 + c * 13 + gI), 0.42f, 7)));
@@ -1704,13 +1704,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     if (c.fX + rOut < segLo(seg) - 4 || c.fX - rOut > segHi(seg) + 4)
       return box().width(0).height(0);
     const float d = rOut * 2.0f;
-    auto g = box().absolute().left(c.fX - rOut - segLo(seg))
+    auto g = box().left(c.fX - rOut - segLo(seg))
                  .top(c.fY - rOut - kSegTop).width(Dim(d))
                  .height(Dim(d)).key(fmt("disc%d", seg))
                  .opacity(gate(tFold0 - 0.2f, tFold0 + 1.4f));
 
     // the limb: a heavy outer rule and a hairline inner one
-    g.child(box().absolute().left(0).top(0).width(Dim(d)).height(Dim(d))
+    g.child(box().left(0).top(0).width(Dim(d)).height(Dim(d))
                 .outline(shapes::circle())
                 .stroke(Brush{}
                             .op(ops::Sketchy{.segLength = 22, .deviation = 1.0f,
@@ -1723,7 +1723,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int dec = 60; dec <= 85; dec += 5) {
       const float rr = (kDiscCenDec - (float)dec) / kPolPerMm * kPxMm;
       if (rr <= 3 || rr >= rOut - 1) continue;
-      g.child(box().absolute().left(rOut - rr).top(rOut - rr).width(Dim(rr * 2))
+      g.child(box().left(rOut - rr).top(rOut - rr).width(Dim(rr * 2))
                   .height(Dim(rr * 2))
                   .outline(shapes::circle())
                   .stroke(PathFormat{.width = 0.5f,
@@ -1736,7 +1736,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // NOT at 12.86° apiece
     for (int m = 0; m < 28; ++m) {
       const float ang = kAzGain * wrap180(xiuRa[(size_t)m] - 278.0f);
-      g.child(box().absolute().left(0).top(0).width(Dim(d)).height(Dim(d))
+      g.child(box().left(0).top(0).width(Dim(d)).height(Dim(d))
                   .outline([ang, rOut](SkSize) {
                     SkPathBuilder b;
                     const float a = ang * kD;
@@ -1755,7 +1755,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         const float ly = rOut + std::sin(a) * (rOut - 16.0f);
         g.child(text(toU8(kXiu[m]),
                      type(faceHan ? faceHan : faceSerif, 11.0f, hex(0x2a2118, 0.85f)))
-                    .absolute().left(lx - 8).top(ly - 8).width(Dim(16))
+                    .left(lx - 8).top(ly - 8).width(Dim(16))
                     .textAlign(sigil::weave::TextAlignment::kCenter));
       }
     }
@@ -1763,18 +1763,18 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // the DISC'S CENTRE and the TRUE POLE are not the same point: Table 3
     // puts the centre at DEC +87.6°, so the +700 pole sits 4.7 mm away.
     const float poleOff = (90.0f - kDiscCenDec) / kPolPerMm * kPxMm;
-    g.child(box().absolute().left(rOut - 5).top(rOut - 5).width(Dim(10)).height(Dim(10))
+    g.child(box().left(rOut - 5).top(rOut - 5).width(Dim(10)).height(Dim(10))
                 .outline(shapes::circle())
                 .stroke(PathFormat{.width = 0.7f,
                                    .strokeFill = Fill::color(hex(0x4a3b28, 0.7f))}));
-    g.child(box().absolute().left(rOut - 3.2f).top(rOut - poleOff - 3.2f)
+    g.child(box().left(rOut - 3.2f).top(rOut - poleOff - 3.2f)
                 .width(Dim(6.4f)).height(Dim(6.4f))
                 .outline(shapes::star(4, 0.34f))
                 .fill(Fill::color(kTrace))
                 .opacity(gate(tProj - 1.4f, tProj - 0.4f)));
     // "a RED NON-ENCIRCLED star, slightly erased, could be the Pole star"
     // (Table 5, row 15, Beiji). Drawn erased, drawn unnamed, not resolved.
-    g.child(box().absolute().left(rOut - poleOff * 0.45f - 4.0f)
+    g.child(box().left(rOut - poleOff * 0.45f - 4.0f)
                 .top(rOut - poleOff * 0.7f - 4.0f).width(Dim(8)).height(Dim(8))
                 .outline(shapes::circle())
                 .fill(Fill::color(hex(0xa8382a, 0.34f)))
@@ -1789,7 +1789,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float cx = segX(seg, discCentreS()) - segLo(seg);
     if (cx + rOut < -4 || cx - rOut > segHi(seg) - segLo(seg) + 4)
       return box().width(0).height(0);
-    auto g = box().absolute().left(cx - rOut - 8).top(kBandMid + rOut - kSegTop + 16)
+    auto g = box().left(cx - rOut - 8).top(kBandMid + rOut - kSegTop + 16)
                  .width(Dim(rOut * 2 + 16)).key(fmt("discnote%d", seg))
                  .opacity(gate(tProj - 1.2f, tProj - 0.3f));
     const std::string rows[4] = {
@@ -1803,11 +1803,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       g.child(text(toU8(rows[(size_t)i]),
                    type(faceMono, 8.0f, i >= 2 ? hex(0x8a3020, 0.95f)
                                                : hex(0x4a3b28, 0.9f)))
-                  .absolute().left(0).top((float)i * 10.4f).width(Dim(rOut * 2 + 16)));
+                  .left(0).top((float)i * 10.4f).width(Dim(rOut * 2 + 16)));
     g.child(text(toU8("slightly erased, sits near it \xe2\x80\x94 \"could be the Pole "
                       "star\". Drawn as found."),
                  type(faceMono, 8.0f, hex(0x8a3020, 0.95f)))
-                .absolute().left(0).top(41.6f).width(Dim(rOut * 2 + 16)));
+                .left(0).top(41.6f).width(Dim(rOut * 2 + 16)));
     return g;
   }
 
@@ -1873,12 +1873,12 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   }
 
   Element asterismLines() {
-    auto g = box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                  .key("asterisms");
     for (size_t i = 0; i < astArt.size(); ++i) {
       const AstArt &A = astArt[i];
       // the node's box is the ASTERISM's box, never the plate's
-      g.child(box().absolute().left(A.box.left()).top(A.box.top())
+      g.child(box().left(A.box.left()).top(A.box.top())
                   .width(Dim(A.box.width())).height(Dim(A.box.height()))
                   .outline([p = A.local](SkSize) { return p; })
                   .trim(0.0f, gate(A.t0, A.t0 + 0.9f))
@@ -1937,7 +1937,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   }
 
   Element map5Labels() {
-    auto g = box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                  .key("m5lab");
     for (int i = 0; i < 20; ++i) {
       const M5Row &r = kMap5[(size_t)i];
@@ -1951,7 +1951,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
 
       // the audit's own ring. Transient on a clean row; PERMANENT on the six
       // documented defects, so the settled plate carries exactly the errata.
-      g.child(box().absolute().left(c.fX - 30).top(c.fY - 30).width(Dim(60))
+      g.child(box().left(c.fX - 30).top(c.fY - 30).width(Dim(60))
                   .height(Dim(60)).outline(shapes::circle())
                   .opacity(r.defect ? gate(t, t + 0.3f)
                                     : flash(t, t + 0.3f, t + 3.0f))
@@ -1973,14 +1973,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (!none)
         g.child(text(toU8(written),
                      type(faceHan ? faceHan : faceSerif, 12.5f, hex(0x241d15, 0.92f)))
-                    .absolute().left(lx).top(ly).width(Dim(60))
+                    .left(lx).top(ly).width(Dim(60))
                     .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f)));
       else
         g.child(text(toU8("[no label]"), type(faceMono, 8.2f, hex(0xb4531f, 0.9f)))
-                    .absolute().left(c.fX + 22).top(c.fY - 40).width(Dim(70))
+                    .left(c.fX + 22).top(c.fY - 40).width(Dim(70))
                     .opacity(gate(t, t + 0.3f)));
       if (cid == "21D")   // the leader from the misplaced label to its stars
-        g.child(box().absolute().left(std::min(lx, c.fX)).top(ly + 10)
+        g.child(box().left(std::min(lx, c.fX)).top(ly + 10)
                     .width(Dim(std::abs(lx - c.fX) + 4))
                     .height(Dim(c.fY - ly - 10))
                     .outline([](SkSize sz) {
@@ -2003,7 +2003,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   Element archer() {
     const float x = segX(0, 2205.0f) - segLo(0);
     const float w = 210.0f, h = 300.0f;
-    auto g = box().absolute().left(x - w * 0.5f).top(kBandMid - h * 0.52f - kSegTop)
+    auto g = box().left(x - w * 0.5f).top(kBandMid - h * 0.52f - kSegTop)
                  .width(Dim(w)).height(Dim(h)).key("archer")
                  .opacity(gate(tArch, tArch + 1.1f));
 
@@ -2045,14 +2045,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         const float t = len > 0 ? s.distance / len : 0.0f;
         return w0 * (0.55f + 0.75f * std::exp(-9.0f * t) + 0.35f * t);
       };
-      g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(h))
+      g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
                   .outline([p](SkSize) { return p; })
                   .trim(0.0f, gate(tArch + 0.05f * (float)i,
                                                    tArch + 0.05f * (float)i + 0.55f))
                   .stroke(rib));
     }
     // the bow and the arrow
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(h))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
                 .outline([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(34, 8);
@@ -2065,7 +2065,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .trim(0.0f, gate(tArch + 0.45f, tArch + 1.0f))
                 .stroke(lines::Line{.width = 1.9f,
                                     .fill = Fill::color(hex(0x241d15, 0.88f))}));
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(h))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
                 .outline([](SkSize) {
                   SkPathBuilder b; b.moveTo(140, 90); b.lineTo(6, 92);
                   return b.detach();
@@ -2074,11 +2074,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .stroke(lines::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
     g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
                  type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
-                .absolute().left(-18).top(h - 12).width(Dim(300))
+                .left(-18).top(h - 12).width(Dim(300))
                 .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
     g.child(text(toU8("LIGHTNING, over a title nobody can read convincingly"),
                  type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
-                .absolute().left(-18).top(h + 0).width(Dim(300))
+                .left(-18).top(h + 0).width(Dim(300))
                 .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
     return g;
   }
@@ -2089,7 +2089,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
    *  graphs are drawn ILLEGIBLE on purpose. */
   Element unreadTitle() {
     const float x = segX(0, 2118.0f) - segLo(0);
-    auto g = box().absolute().left(x - 34).top(kBandTop + 44 - kSegTop).width(Dim(68))
+    auto g = box().left(x - 34).top(kBandTop + 44 - kSegTop).width(Dim(68))
                  .height(Dim(kBandH - 88)).key("title")
                  .opacity(gate(tArch + 0.9f, tArch + 1.8f));
     for (int i = 0; i < 6; ++i) {
@@ -2116,7 +2116,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         pb.moveTo(30, y + 10);
         pb.lineTo(50, y + 34);
       }
-      g.child(box().absolute().left(0).top(0).width(Dim(68)).height(Dim(kBandH - 88))
+      g.child(box().left(0).top(0).width(Dim(68)).height(Dim(kBandH - 88))
                   .outline([p = pb.detach()](SkSize) { return p; })
                   .trim(0.0f, gate(tArch + 0.9f + (float)i * 0.08f,
                                                    tArch + 1.4f + (float)i * 0.08f))
@@ -2136,10 +2136,10 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float lw = 1740.0f, lh = lw * kWideMm / kScrollMm;
     const float lx = 720.0f, ly = 92.0f;
     const float mm = lw / kScrollMm;
-    auto g = box().absolute().left(lx).top(ly).width(Dim(lw)).height(Dim(lh))
+    auto g = box().left(lx).top(ly).width(Dim(lw)).height(Dim(lh))
                  .rotate(0.32f).key("locator")
                  .opacity(gate(0.3f, 1.2f));
-    g.child(box().absolute().left(0).top(0).width(Dim(lw)).height(Dim(lh))
+    g.child(box().left(0).top(0).width(Dim(lw)).height(Dim(lh))
                 .fill(Material::linear({0, 0}, {0, lh},
                                        {{0.0f, hex(0xa2865c)}, {0.5f, hex(0xd6bf95)},
                                         {1.0f, hex(0xa2865c)}}))
@@ -2148,13 +2148,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // the 26 clouds and the 80 columns of the divination section, at the RIGHT
     for (int c = 0; c < 26; ++c) {
       const float cx = lw - 24.0f - (float)c * 24.0f;
-      g.child(box().absolute().left(cx - 7).top(6).width(Dim(14)).height(Dim(9))
+      g.child(box().left(cx - 7).top(6).width(Dim(14)).height(Dim(9))
                   .outline(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
                   .fill(Fill::color(hex(0x33291c, 0.85f))));
     }
     for (int c = 0; c < 80; ++c) {
       const float cx = lw - 20.0f - (float)c * 7.6f;
-      g.child(box().absolute().left(cx).top(19).width(Dim(1.1f))
+      g.child(box().left(cx).top(19).width(Dim(1.1f))
                   .height(Dim(lh - 25))
                   .fill(Fill::color(hex(0x33291c, 0.55f))));
     }
@@ -2162,7 +2162,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float atlasRight = lw - kScrollMm * mm + kAtlasMm * mm;
     for (int k = 1; k <= 12; ++k) {
       const float x0 = atlasRight - (mapSlotS(k) + kMapWmm) * mm;
-      g.child(box().absolute().left(x0).top(lh * 0.16f)
+      g.child(box().left(x0).top(lh * 0.16f)
                   .width(Dim(kMapWmm * mm)).height(Dim(lh * 0.68f))
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(hex(0x2a2118, 0.9f))}));
@@ -2170,7 +2170,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     {
       const float dcx = atlasRight - discCentreS() * mm;
       const float dr = lh * 0.34f;
-      g.child(box().absolute().left(dcx - dr).top(lh * 0.5f - dr).width(Dim(dr * 2))
+      g.child(box().left(dcx - dr).top(lh * 0.5f - dr).width(Dim(dr * 2))
                   .height(Dim(dr * 2)).outline(shapes::circle())
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(hex(0x2a2118, 0.9f))}));
@@ -2184,7 +2184,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       // window 0 runs off the strip; clamp it to the scroll it annotates
       const float a = std::max(0.0f, atlasRight - wn.s1 * mm);
       const float b = std::min(lw, atlasRight - wn.s0 * mm);
-      g.child(box().absolute().left(a).top(-4).width(Dim(b - a)).height(Dim(lh + 8))
+      g.child(box().left(a).top(-4).width(Dim(b - a)).height(Dim(lh + 8))
                   .fill(Fill::color(hex(0x2f6d86, 0.30f)))
                   .foreground(decorations::brackets(1.4f, Fill::color(kTrace), 9.0f,
                                                     0.0f, 30.0f)));
@@ -2193,7 +2193,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                       "26 cloud drawings over 80 columns of uranomancy \xc2\xb7 left: the "
                       "13-map atlas, 2,100 mm \xc2\xb7 shaded: what this plate shows"),
                  type(faceMono, 8.6f, hex(0x9a8a68, 0.9f)))
-                .absolute().left(2).top(lh + 5).width(Dim(1700)));
+                .left(2).top(lh + 5).width(Dim(1700)));
     return g;
   }
 
@@ -2206,7 +2206,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   Element poleDrift() {
     const float S = 132.0f, cx = S * 0.5f, cy = S * 0.5f;
     const float pxPerDeg = (S * 0.5f - 12.0f) / 30.0f;
-    auto g = box().absolute().left(150).top(234).width(Dim(S)).height(Dim(S))
+    auto g = box().left(150).top(234).width(Dim(S)).height(Dim(S))
                  .key("pole")
                  .opacity(gate(tPrec0 - 0.8f, tPrec0 + 0.2f));
     auto poleAt = [](float epoch, float &ra, float &dec) {
@@ -2221,7 +2221,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     };
     for (int ring = 10; ring <= 30; ring += 10) {
       const float rr = (float)ring * pxPerDeg;
-      g.child(box().absolute().left(cx - rr).top(cy - rr).width(Dim(rr * 2))
+      g.child(box().left(cx - rr).top(cy - rr).width(Dim(rr * 2))
                   .height(Dim(rr * 2)).outline(shapes::circle())
                   .stroke(PathFormat{.width = 0.5f,
                                      .strokeFill = Fill::color(hex(0x8a7458, 0.30f)),
@@ -2235,7 +2235,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const SkPoint q = plot(ra, dec);
       (e == 2000) ? tb.moveTo(q) : tb.lineTo(q);
     }
-    g.child(box().absolute().left(0).top(0).width(Dim(S)).height(Dim(S))
+    g.child(box().left(0).top(0).width(Dim(S)).height(Dim(S))
                 .outline([t = tb.detach()](SkSize) { return t; })
                 .trim(0.0f, gate(tPrec0, tPrec1))
                 .stroke(lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
@@ -2248,7 +2248,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (90.0f - dec > 30.0f) continue;
       (wb.countPoints() == 0) ? wb.moveTo(q) : wb.lineTo(q);
     }
-    g.child(box().absolute().left(0).top(0).width(Dim(S)).height(Dim(S))
+    g.child(box().left(0).top(0).width(Dim(S)).height(Dim(S))
                 .outline([t = wb.detach()](SkSize) { return t; })
                 .stroke(PathFormat{.width = 0.7f,
                                    .strokeFill = Fill::color(hex(0x8a7458, 0.45f)),
@@ -2262,34 +2262,34 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                          {211.0973f, 64.3758f, "alp Dra", -8.0f, -13.0f}};
     for (const Ref &r : refs) {
       const SkPoint q = plot(r.ra, r.dec);
-      g.child(box().absolute().left(q.fX - 3).top(q.fY - 3).width(Dim(6)).height(Dim(6))
+      g.child(box().left(q.fX - 3).top(q.fY - 3).width(Dim(6)).height(Dim(6))
                   .outline(shapes::circle()).fill(Fill::color(kCinnabar)));
       g.child(text(toU8(r.name), type(faceMono, 7.4f, hex(0x9a8a68)))
-                  .absolute().left(q.fX + r.lx).top(q.fY + r.ly).width(Dim(60)));
+                  .left(q.fX + r.lx).top(q.fY + r.ly).width(Dim(60)));
     }
     {
       float ra, dec;
       poleAt(700.0f, ra, dec);
       const SkPoint q = plot(ra, dec);
-      g.child(box().absolute().left(q.fX - 6).top(q.fY - 6).width(Dim(12)).height(Dim(12))
+      g.child(box().left(q.fX - 6).top(q.fY - 6).width(Dim(12)).height(Dim(12))
                   .outline(shapes::star(4, 0.30f)).fill(Fill::color(kTrace))
                   .opacity(gate(tPrec1 - 0.4f, tPrec1 + 0.3f)));
     }
-    g.child(box().absolute().left(cx - 3).top(cy - 3).width(Dim(6)).height(Dim(6))
+    g.child(box().left(cx - 3).top(cy - 3).width(Dim(6)).height(Dim(6))
                 .outline(shapes::circle())
                 .stroke(PathFormat{.width = 0.9f,
                                    .strokeFill = Fill::color(hex(0xe0cfa6, 0.8f))}));
     g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hex(0x6d6249)))
-                .absolute().left(cx - 52).top(cy + 6).width(Dim(70)));
+                .left(cx - 52).top(cy + 6).width(Dim(70)));
     return g;
   }
 
   Element poleText() {
-    auto g = box().absolute().left(300).top(228).width(Dim(452)).key("poletext")
+    auto g = box().left(300).top(228).width(Dim(452)).key("poletext")
                  .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f));
     g.child(text(toU8("THE CHART DATES ITSELF"),
                  type(faceDisplay, 12.0f, hex(0xc9a35c), 1.0f))
-                .absolute().left(0).top(0).width(Dim(430)));
+                .left(0).top(0).width(Dim(430)));
     const char *rows[7] = {
         "the celestial pole's own track, from the SAME IAU 1976",
         "matrix the 1,460 stars ride. rings at 10/20/30 deg.",
@@ -2301,14 +2301,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     };
     for (int i = 0; i < 7; ++i)
       g.child(text(toU8(rows[i]), type(faceMono, 9.0f, i == 3 ? kChalk : hex(0x9a8a68)))
-                  .absolute().left(0).top(18.0f + (float)i * 12.2f).width(Dim(430)));
+                  .left(0).top(18.0f + (float)i * 12.2f).width(Dim(430)));
 
     // THE EPOCH, RUNNING. One Output remapped three ways: it turns the star
     // field's rotation matrix, walks the pole's track above, and slides this
     // marker — bind() doing the unit conversion at each call site instead of
     // three Outputs in the tick loop.
     const float bw = 430.0f;
-    g.child(box().absolute().left(0).top(112).width(Dim(bw)).height(Dim(9))
+    g.child(box().left(0).top(112).width(Dim(bw)).height(Dim(9))
                 .outline([](SkSize sz) {
                   SkPathBuilder b;
                   b.moveTo(0, 0); b.lineTo(0, sz.height());
@@ -2325,11 +2325,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .stroke(lines::Line{.width = 0.9f,
                                     .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
     g.child(text(toU8("+700"), type(faceMono, 8.0f, hex(0x9a8a68)))
-                .absolute().left(0).top(124).width(Dim(40)));
+                .left(0).top(124).width(Dim(40)));
     g.child(text(toU8("J2000"), type(faceMono, 8.0f, hex(0x9a8a68)))
-                .absolute().left(bw - 40).top(124).width(Dim(40))
+                .left(bw - 40).top(124).width(Dim(40))
                 .textAlign(sigil::weave::TextAlignment::kEnd));
-    g.child(box().absolute().left(-4).top(107).width(Dim(8)).height(Dim(19))
+    g.child(box().left(-4).top(107).width(Dim(8)).height(Dim(19))
                 .outline(shapes::polygon(3, 180.0f))
                 .fill(Fill::color(kCinnabar))
                 .translateX(settled
@@ -2340,7 +2340,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                                        .to(0.0f, bw))));
     g.child(text(toU8("13.00 Julian centuries \xc2\xb7 the sky slides 18.5\xc2\xb0 in RA"),
                  type(faceMono, 8.4f, hex(0xc9a35c)))
-                .absolute().left(0).top(136).width(Dim(430)));
+                .left(0).top(136).width(Dim(430)));
     return g;
   }
 
@@ -2349,7 +2349,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
    *  scroll's own RA axis jumps BACKWARD at every map boundary. This ruler
    *  is the two readings side by side. */
   Element raRuler(int seg) {
-    auto g = box().absolute().left(0).top(0).width(Dim(segHi(seg) - segLo(seg)))
+    auto g = box().left(0).top(0).width(Dim(segHi(seg) - segLo(seg)))
                  .height(Dim(kSegH)).key(fmt("raruler%d", seg))
                  .opacity(gate(tFold1 - 0.4f, tFold1 + 0.6f));
     const float y = kBandTop - kSegTop - 46.0f;
@@ -2358,13 +2358,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                         "HATCHED: the 18\xc2\xb0 it shares with its neighbour \xc2\xb7 "
                         "the axis JUMPS BACK at every boundary"),
                    type(faceMono, 8.4f, hex(0xc9a35c, 0.9f)))
-                  .absolute().left(600).top(y - 26).width(Dim(900))); // just clear of the sheet
+                  .left(600).top(y - 26).width(Dim(900))); // just clear of the sheet
     for (int k = 1; k <= 12; ++k) {
       const float s0 = mapSlotS(k);
       const float xl = segX(seg, s0 + kMapWmm) - segLo(seg);
       const float xr = segX(seg, s0) - segLo(seg);
       if (xr < -6 || xl > segHi(seg) - segLo(seg) + 6) continue;
-      g.child(box().absolute().left(xl).top(y).width(Dim(xr - xl)).height(Dim(11))
+      g.child(box().left(xl).top(y).width(Dim(xr - xl)).height(Dim(11))
                   .outline([](SkSize sz) {
                     SkPathBuilder b;
                     b.moveTo(0, 0); b.lineTo(0, sz.height());
@@ -2377,14 +2377,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                       .fill = Fill::color(hex(0xc9a35c, 0.7f))}));
       g.child(text(toU8(fmt("%d\xc2\xb0", (int)std::lround(wrap360(mapCentre(k) - 24.0f)))),
                    type(faceMono, 7.6f, hex(0xc9a35c, 0.85f)))
-                  .absolute().left(xr - 26).top(y + 13).width(Dim(28))
+                  .left(xr - 26).top(y + 13).width(Dim(28))
                   .textAlign(sigil::weave::TextAlignment::kEnd));
       g.child(text(toU8(fmt("%d\xc2\xb0", (int)std::lround(wrap360(mapCentre(k) + 24.0f)))),
                    type(faceMono, 7.6f, hex(0xc9a35c, 0.85f)))
-                  .absolute().left(xl - 2).top(y + 13).width(Dim(28)));
+                  .left(xl - 2).top(y + 13).width(Dim(28)));
       // the 18 deg this frame shares with its LEFT neighbour, hatched
       const float ov = 18.0f / kRaPerMm * kPxMm;
-      g.child(box().absolute().left(xl).top(y - 11).width(Dim(ov)).height(Dim(9))
+      g.child(box().left(xl).top(y - 11).width(Dim(ov)).height(Dim(9))
                   .fill(Fill::color(hex(0xb4531f, 0.16f)))
                   .background(lines::hatch(Fill::color(hex(0xb4531f, 0.75f)), 3.6f,
                                            0.7f, 45.0f)));
@@ -2393,16 +2393,16 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   }
 
   Element breakMark() {
-    auto g = box().absolute().left(kBreakL - 8).top(kBandTop - 16)
+    auto g = box().left(kBreakL - 8).top(kBandTop - 16)
                  .width(Dim(kBreakR - kBreakL + 16)).height(Dim(kBandH + 32))
                  .key("break")
                  .opacity(gate(tPaper + 0.4f, tPaper + 1.4f));
     const float w = kBreakR - kBreakL + 16, h = kBandH + 32;
-    g.child(box().absolute().left(0).top(0).width(Dim(w)).height(Dim(h))
+    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
                 .fill(Fill::color(hex(0x171410, 0.96f))));
     for (int i = 0; i < 2; ++i) {
       const float x = 8.0f + (float)i * (w - 16.0f);
-      g.child(box().absolute().left(x - 9).top(0).width(Dim(18)).height(Dim(h))
+      g.child(box().left(x - 9).top(0).width(Dim(18)).height(Dim(h))
                   .outline([](SkSize s) {
                     SkPathBuilder b;
                     b.moveTo(s.width() * 0.5f, 0);
@@ -2419,7 +2419,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float sL = (kOriginR - kBreakR) / kPxMm, sR = (kOriginL - kBreakL) / kPxMm;
     g.child(text(toU8(fmt("%d mm", (int)std::lround(sR - sL))),
                  type(faceMono, 8.2f, hex(0x9a8a68, 0.85f)))
-                .absolute().left(-16).top(h + 4).width(Dim(w + 32))
+                .left(-16).top(h + 4).width(Dim(w + 32))
                 .textAlign(sigil::weave::TextAlignment::kCenter));
     return g;
   }
@@ -2438,11 +2438,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   }
 
   Element projectionPanel() {
-    auto g = box().absolute().left(96).top(1046).width(Dim(700)).key("proj")
+    auto g = box().left(96).top(1046).width(Dim(700)).key("proj")
                  .opacity(gate(tProj, tProj + 0.9f));
     g.child(text(toU8("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY"),
                  type(faceDisplay, 13.0f, hex(0xc9a35c), 1.1f))
-                .absolute().left(0).top(0).width(Dim(690)));
+                .left(0).top(0).width(Dim(690)));
 
     // curve A: the Mercator ordinate against its own best-fit line
     const float pw = 320.0f, ph = 132.0f;
@@ -2451,13 +2451,13 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                            {366, 0, 38, false, "map 13 polar distance 0\xc2\xb0\xe2\x80\xa6" "38\xc2\xb0"}};
     for (int pi = 0; pi < 2; ++pi) {
       const Plot &pl = plots[pi];
-      auto p = box().absolute().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
-      p.child(box().absolute().left(0).top(0).width(Dim(pw)).height(Dim(ph))
+      auto p = box().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
+      p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph))
                   .stroke(decorations::gappedRule(0.9f, Fill::color(hex(0x8a7458, 0.5f)),
                                                   16.0f, 0.0f, 30.0f)));
       const float lo = pl.lo, hi = pl.hi;
       const bool merc = pl.merc;
-      p.child(box().absolute().left(0).top(0).width(Dim(pw)).height(Dim(ph))
+      p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph))
                   .outline([lo, hi, merc, pw, ph](SkSize) {
                     // the departure curve, self-normalised
                     float ys[81];
@@ -2491,19 +2491,19 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float resid = merc ? 1.61f : 3.29f;
       const float halfRaw = resid / dp.maxDeg * ph * 0.40f;
       const float half = std::min(halfRaw, ph * 0.5f);
-      p.child(box().absolute().left(0).top(ph * 0.5f - half).width(Dim(pw))
+      p.child(box().left(0).top(ph * 0.5f - half).width(Dim(pw))
                   .height(Dim(half * 2))
                   .fill(Fill::color(hex(0xa8382a, 0.13f)))
                   .stroke(PathFormat{.width = 0.6f,
                                      .strokeFill = Fill::color(hex(0xa8382a, 0.45f)),
                                      .dashIntervals = {4, 4}}));
       p.child(text(toU8(pl.cap), type(faceMono, 8.4f, hex(0x9a8a68)))
-                  .absolute().left(0).top(ph + 4).width(Dim(pw)));
+                  .left(0).top(ph + 4).width(Dim(pw)));
       p.child(text(toU8(merc ? "linear \xe2\x88\x92 Mercator (blue) vs the hand (red band)"
                              : "equidist. \xe2\x88\x92 stereo. (blue); the hand is 7.6\xc3\x97 "
                                "the plot, off scale"),
                    type(faceMono, 8.4f, hex(0x6d6249)))
-                  .absolute().left(0).top(ph + 15).width(Dim(pw)));
+                  .left(0).top(ph + 15).width(Dim(pw)));
       g.child(std::move(p));
     }
     const char *lines_[6] = {
@@ -2524,32 +2524,32 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     };
     for (int i = 0; i < 6; ++i)
       g.child(text(toU8(rows[(size_t)i]), type(faceMono, 9.6f, kChalk))
-                  .absolute().left(0).top(196 + (float)i * 13.4f).width(Dim(690)));
+                  .left(0).top(196 + (float)i * 13.4f).width(Dim(690)));
     g.child(text(toU8("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
                       "0.975/0.974, 0.996/0.994) \xe2\x80\x94 3 of 3, p=0.125"),
                  type(faceMono, 9.6f, hex(0xcf6a4a)))
-                .absolute().left(0).top(280).width(Dim(690)));
+                .left(0).top(280).width(Dim(690)));
     g.child(text(toU8("the disc cannot decide BECAUSE IT STOPS AT +52\xc2\xb0: over a "
                       "full hemisphere the pair would part by 7.00\xc2\xb0"),
                  type(faceMono, 9.6f, hex(0x6d6249)))
-                .absolute().left(0).top(294).width(Dim(690)));
+                .left(0).top(294).width(Dim(690)));
     return g;
   }
 
   /** Map 5's twenty asterisms, audited one at a time. Six of them carry a
    *  documented defect and every one is drawn AS FOUND. */
   Element auditPanel() {
-    auto g = box().absolute().left(840).top(1046).width(Dim(880)).key("audit")
+    auto g = box().left(840).top(1046).width(Dim(880)).key("audit")
                  .opacity(gate(tAudit - 0.9f, tAudit - 0.2f));
     g.child(text(toU8("MAP 5 \xc2\xb7 THE ORION REGION \xc2\xb7 TABLE 4 OF "
                       "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009"),
                  type(faceDisplay, 13.0f, hex(0xc9a35c), 1.0f))
-                .absolute().left(0).top(0).width(Dim(880)));
+                .left(0).top(0).width(Dim(880)));
     g.child(text(toU8("month 4 \xc2\xb7 xiu Zui, Shen, Jing \xc2\xb7 listed N\xe2\x86\x92" "S, "
                       "W\xe2\x86\x92" "E, i.e. by increasing RA \xc2\xb7 R=Shi shi  B=Gan shi  "
                       "W=Wu Xian shi"),
                  type(faceMono, 8.6f, hex(0x9a8a68)))
-                .absolute().left(0).top(16).width(Dim(880)));
+                .left(0).top(16).width(Dim(880)));
     // the subtitle above runs top 16..24 at 8.6 px; the column header needs
     // its own line, not the same one
     const float y0 = 40.0f, rowH = 15.2f;
@@ -2562,25 +2562,25 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                            {312, "CZ"},      {362, "CONF"},    {400, "DEFECT"}};
     for (const Head &h : heads)
       g.child(text(toU8(h.s), type(faceMono, 8.6f, hex(0x6d6249)))
-                  .absolute().left(h.x).top(y0 - 13).width(Dim(120)));
+                  .left(h.x).top(y0 - 13).width(Dim(120)));
     for (int i = 0; i < 20; ++i) {
       const M5Row &r = kMap5[(size_t)i];
       const float y = y0 + (float)i * rowH;
       const float t = tAudit + (float)i * tAuditEach;
-      auto row = box().absolute().left(0).top(y).width(Dim(880)).height(Dim(rowH))
+      auto row = box().left(0).top(y).width(Dim(880)).height(Dim(rowH))
                      .opacity(gate(t, t + 0.35f));
       int cz = 0;
       for (int a = 0; a < nAst; ++a)
         if (std::string(kAst[a].id) == r.cid) cz = astUnique(kAst[a]);
       row.child(text(toU8(fmt("%3d", i + 1)),
                      type(faceMono, 9.4f, hex(0x6d6249)))
-                    .absolute().left(0).top(0).width(Dim(26)));
+                    .left(0).top(0).width(Dim(26)));
       row.child(text(toU8(r.pinyin), type(faceMono, 9.4f, kChalk))
-                    .absolute().left(30).top(0).width(Dim(126)));
+                    .left(30).top(0).width(Dim(126)));
       row.child(text(toU8(r.native),
                      type(faceHan ? faceHan : faceSerif, 10.4f, schoolInk(r.col)))
-                    .absolute().left(160).top(-2).width(Dim(64)));
-      row.child(box().absolute().left(232).top(3.4f).width(Dim(8)).height(Dim(8))
+                    .left(160).top(-2).width(Dim(64)));
+      row.child(box().left(232).top(3.4f).width(Dim(8)).height(Dim(8))
                     .outline(shapes::circle())
                     .fill(Fill::color(schoolInk(r.col)))
                     .stroke(PathFormat{.width = 0.8f,
@@ -2588,20 +2588,20 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       row.child(text(toU8(fmt("%4d %4d %4d", r.nSxc, r.nMap, cz)),
                      type(faceMono, 9.4f,
                           r.nSxc == r.nMap ? hex(0x9a8a68) : hex(0xcf6a4a)))
-                    .absolute().left(250).top(0).width(Dim(94)));
+                    .left(250).top(0).width(Dim(94)));
       // the confidence index, as five cells
       for (int c = 0; c < 5; ++c)
-        row.child(box().absolute().left(356 + (float)c * 7.0f).top(3.6f)
+        row.child(box().left(356 + (float)c * 7.0f).top(3.6f)
                       .width(Dim(5.2f)).height(Dim(7.0f))
                       .fill(Fill::color(c < r.conf ? hex(0xc9a35c, 0.85f)
                                                    : hex(0x6d6249, 0.28f))));
       if (r.defect)
         row.child(text(toU8(r.defect), type(faceMono, 9.0f, hex(0xb4531f)))
-                      .absolute().left(400).top(0).width(Dim(478)));
+                      .left(400).top(0).width(Dim(478)));
       g.child(std::move(row));
     }
     const float yT = y0 + 20.0f * rowH + 8.0f;
-    g.child(box().absolute().left(0).top(yT - 4).width(Dim(878)).height(Dim(0.8f))
+    g.child(box().left(0).top(yT - 4).width(Dim(878)).height(Dim(0.8f))
                 .fill(Fill::color(hex(0x8a7458, 0.5f)))
                 .opacity(gate(tAudit + 5.4f, tAudit + 5.9f)));
     const std::string tot =
@@ -2609,18 +2609,18 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
             "9 absent \xe2\x80\x94 5 + 9 = SXC's 14 for Wuche, exactly)",
             m5Sxc, m5Map, m5ChenZhuo);
     g.child(text(toU8(tot), type(faceMono, 9.4f, kChalk))
-                .absolute().left(0).top(yT).width(Dim(878))
+                .left(0).top(yT).width(Dim(878))
                 .opacity(gate(tAudit + 5.5f, tAudit + 6.0f)));
     g.child(text(toU8("Table 4's own n(map) column sums to 108. Its stated total "
                       "is 109. The census is soft, and the paper says so."),
                  type(faceMono, 9.4f, hex(0xcf6a4a)))
-                .absolute().left(0).top(yT + 13).width(Dim(878))
+                .left(0).top(yT + 13).width(Dim(878))
                 .opacity(gate(tAudit + 5.7f, tAudit + 6.2f)));
     g.child(text(toU8("6 documented defects in 20 asterisms, drawn AS FOUND \xe2\x80\x94 "
                       "ringed on map 5 above. A study that corrects them has "
                       "destroyed the object."),
                  type(faceMono, 9.4f, hex(0xb4531f)))
-                .absolute().left(0).top(yT + 26).width(Dim(878))
+                .left(0).top(yT + 26).width(Dim(878))
                 .opacity(gate(tAudit + 5.9f, tAudit + 6.4f)));
     return g;
   }
@@ -2628,11 +2628,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   /** THE DISC'S OWN ERRATA. Table 5 is 34 asterisms and 142 stars — and its
    *  n(map) column sums to 141. Everything here is quoted, nothing resolved. */
   Element map13Panel() {
-    auto g = box().absolute().left(96).top(1362).width(Dim(700)).key("m13")
+    auto g = box().left(96).top(1362).width(Dim(700)).key("m13")
                  .opacity(gate(tAudit + 4.6f, tAudit + 5.4f));
     g.child(text(toU8("MAP 13 \xc2\xb7 THE CIRCUMPOLAR DISC \xc2\xb7 TABLE 5"),
                  type(faceDisplay, 12.0f, hex(0xc9a35c), 1.0f))
-                .absolute().left(0).top(0).width(Dim(700)));
+                .left(0).top(0).width(Dim(700)));
     const char *rows[10] = {
         "34 asterisms, stated total 142 stars; the n(map) column sums to 141",
         "(its Tianpei row reads \"5 or 6\", which is where the one goes).",
@@ -2648,21 +2648,21 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 10; ++i)
       g.child(text(toU8(rows[i]),
                    type(faceMono, 9.2f, i == 3 || i == 5 ? kChalk : hex(0x9a8a68)))
-                  .absolute().left(0).top(18.0f + (float)i * 12.4f).width(Dim(700)));
+                  .left(0).top(18.0f + (float)i * 12.4f).width(Dim(700)));
     g.child(text(toU8("under GAN. The map draws both BLACK. Printed, not corrected."),
                  type(faceMono, 9.2f, hex(0xb4531f)))
-                .absolute().left(0).top(18.0f + 10 * 12.4f).width(Dim(700)));
+                .left(0).top(18.0f + 10 * 12.4f).width(Dim(700)));
     return g;
   }
 
   Element consolePanel() {
     const float x = 1768, y = 1042, w = 700, h = 452;
-    auto g = box().absolute().left(x).top(y).width(Dim(w)).height(Dim(h))
+    auto g = box().left(x).top(y).width(Dim(w)).height(Dim(h))
                  .fill(Fill::color(hex(0x100e0b, 0.86f)))
                  .stroke(stroke(1.0f, Fill::color(hex(0x8a7458, 0.24f)),
                                 PathFormat::Align::Inner))
                  .key("console");
-    g.child(box().absolute().left(12).top(9).width(Dim(w - 24)).height(Dim(h - 18))
+    g.child(box().left(12).top(9).width(Dim(w - 24)).height(Dim(h - 18))
                 .column().gap(6)
                 .child(console::console(logA, logStyle()))
                 .child(box().height(1).fill(Fill::color(hex(0x8a7458, 0.16f))))
@@ -2673,7 +2673,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   }
 
   Element ruleNote() {
-    auto g = box().absolute().left(766).top(228).width(Dim(770)).key("rulenote")
+    auto g = box().left(766).top(228).width(Dim(770)).key("rulenote")
                  .opacity(gate(tFold1 - 0.2f, tFold1 + 0.8f));
     const char *rows[6] = {
         "THE THIRD QUESTION, AND THE PAPER DOES NOT ASK IT",
@@ -2687,42 +2687,42 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       g.child(text(toU8(rows[i]),
                    type(i ? faceMono : faceDisplay, i ? 9.0f : 12.0f,
                         i ? hex(0x9a8a68) : hex(0xc9a35c), i ? 0.0f : 1.0f))
-                  .absolute().left(0).top(i ? 16.0f + (float)i * 12.2f : 0.0f)
+                  .left(0).top(i ? 16.0f + (float)i * 12.2f : 0.0f)
                   .width(Dim(700)));
     g.child(text(toU8("take 30 deg per map instead (12 x 30 = 360, one dot per "
                       "star, matching the 1,339 census) and the columns come out"),
                  type(faceMono, 9.0f, hex(0xcf6a4a)))
-                .absolute().left(0).top(92).width(Dim(700)));
+                .left(0).top(92).width(Dim(700)));
     g.child(text(toU8("21.6 mm wide, which is not a Tang column. NEITHER READING "
                       "CLOSES. This plate draws the first, so you can see it."),
                  type(faceMono, 9.0f, hex(0xcf6a4a)))
-                .absolute().left(0).top(104).width(Dim(700)));
+                .left(0).top(104).width(Dim(700)));
     return g;
   }
 
   Element headings() {
-    auto g = box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                  .key("head");
     g.child(text(toU8("THE DUNHUANG STAR CHART, REPROJECTED"),
                  type(faceDisplay, 27.0f, hex(0xe0cfa6), 2.4f))
-                .absolute().left(96).top(16).width(Dim(1200)));
+                .left(96).top(16).width(Dim(1200)));
     g.child(text(toU8("British Library Or.8210/S.3326 \xc2\xb7 Mogao Cave 17, "
                       "Dunhuang \xc2\xb7 +649\xe2\x80\x93" "684 \xc2\xb7 3,940 \xc3\x97 244 mm, "
                       "pure mulberry fibre 0.04 mm \xc2\xb7 1,339 dots in 257 asterisms"),
                  type(faceMono, 10.2f, hex(0x9a8a68)))
-                .absolute().left(98).top(46).width(Dim(1500)));
+                .left(98).top(46).width(Dim(1500)));
     g.child(text(toU8("NOT TRACED. 1,460 real stars precessed J2000 \xe2\x86\x92 +700 "
                       "(IAU 1976) and pushed through Table 3's own measured "
                       "projection."),
                  type(faceMono, 10.2f, hex(0xc9a35c)))
-                .absolute().left(1660).top(16).width(Dim(830)));
+                .left(1660).top(16).width(Dim(830)));
     g.child(text(toU8("PLATE I \xc2\xb7 north up, WEST AT RIGHT, RA increasing "
                       "right-to-left \xe2\x80\x94 the direction the scroll reads"),
                  type(faceMono, 9.4f, hex(0x6d6249)))
-                .absolute().left(1660).top(34).width(Dim(830)));
+                .left(1660).top(34).width(Dim(830)));
     // the scale bar, in cm of real paper
     const float barMm = 100.0f;
-    g.child(box().absolute().left(96).top(1546).width(Dim(barMm * kPxMm))
+    g.child(box().left(96).top(1546).width(Dim(barMm * kPxMm))
                 .height(Dim(7))
                 .outline([](SkSize s) {
                   SkPathBuilder b;
@@ -2737,24 +2737,24 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                     .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
     g.child(text(toU8("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm"),
                  type(faceMono, 8.6f, hex(0x6d6249)))
-                .absolute().left(96 + barMm * kPxMm + 10).top(1544).width(Dim(420)));
+                .left(96 + barMm * kPxMm + 10).top(1544).width(Dim(420)));
     g.child(text(toU8("data: Stellarium chinese_chenzhuo (GPL) \xc2\xb7 "
                       "astronexus/HYG v4.1 \xc2\xb7 arXiv:0906.3034 Tables 3\xe2\x80\x93" "5 "
                       "\xc2\xb7 IDP 7861395E5F814419BA05483EAB254832"),
                  type(faceMono, 8.6f, hex(0x6d6249)))
-                .absolute().left(1660).top(1544).width(Dim(880)));
+                .left(1660).top(1544).width(Dim(880)));
     return g;
   }
 
   // =========================================================================
 
   Element describe(sketch::SketchContext &) {
-    auto root = box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH));
+    auto root = box().left(0).top(0).width(Dim(kW)).height(Dim(kH));
     root.child(ground());
     root.child(locator());
 
     // the equatorial graticule the stars arrive in, fading as the fold runs
-    root.child(box().absolute().left(108).top(250).width(Dim(2344)).height(Dim(764))
+    root.child(box().left(108).top(250).width(Dim(2344)).height(Dim(764))
                    .key("grat")
                    .opacity(gate(tSky - 0.6f, tSky + 0.6f))
                    .zIndex(-1)
@@ -2777,7 +2777,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     root.child(scrollBand(-90, kBreakL, "bandL", -0.42f));
     root.child(scrollBand(kBreakR, kW + 90, "bandR", -0.42f));
     for (int seg = 0; seg < 2; ++seg) {
-      auto sg = box().absolute().left(segLo(seg)).top(kSegTop)
+      auto sg = box().left(segLo(seg)).top(kSegTop)
                     .width(Dim(segHi(seg) - segLo(seg))).height(Dim(kSegH))
                     .clip(true).key(seg ? "segR" : "segL");
       for (int k = 1; k <= 12; ++k) {
@@ -2793,7 +2793,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     root.child(breakMark());
 
     // the star field — ONE leaf for 1,460 dots
-    root.child(box().absolute().left(0).top(0).width(Dim(kW)).height(Dim(kH))
+    root.child(box().left(0).top(0).width(Dim(kW)).height(Dim(kH))
                    .key("stars")
                    .opacity(gate(tSky - 0.5f, tSky + 0.7f))
                    .child(instancing::instances(atlas, pool, instancing::Mode::Live)));

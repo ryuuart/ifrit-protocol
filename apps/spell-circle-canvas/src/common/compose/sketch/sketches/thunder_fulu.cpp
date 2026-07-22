@@ -739,7 +739,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     const SkRect f = s.frame;
     const SkPath local = s.path.makeOffset(-f.left(), -f.top());
     Element e = box()
-                    .absolute()
                     .left(f.left())
                     .top(f.top())
                     .width(Dim(f.width()))
@@ -819,11 +818,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   // THE PLATE
 
   Element ironGround() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     // the plate stands off the altar cloth
     g.child(box()
-                .absolute()
                 .left(-16)
                 .top(-8)
                 .width(Dim(kPW + 46))
@@ -838,7 +836,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // the plate itself: hammered iron, warm under an altar lamp. The edge is
     // NOT a radius — it is what a hammer leaves.
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize s) {
                   return ops::sketchy(46.0f, 2.6f, 1356)(
@@ -869,7 +866,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // the beaten edge, and the corners rounded BY HAMMERING. PatternBrush
     // corner tiles: a facet, not a fillet.
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize s) {
                   return ops::sketchy(38.0f, 3.1f, 46)(
@@ -903,7 +899,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
    *  right to refuse and I am right to accept it. */
   Element ironWash() {
     return box()
-        .absolute()
         .inset(0)
         .outline(shapes::chamfered(17.0f))
         .fill(ironGrain)
@@ -1062,7 +1057,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   Element inkLayer() {
-    auto g = box().absolute().inset(0).key("ink");
+    auto g = box().inset(0).key("ink");
     for (const Stroke &s : strokes)
       g.child(inkStroke(s));
     return g;
@@ -1076,7 +1071,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   // drawn as light and they fade into the aperture.
 
   Element voidWriting() {
-    auto g = box().absolute().inset(0).key("xushu");
+    auto g = box().inset(0).key("xushu");
     const SkColor4f cols[3] = {kVoidBlue, kVoidRed, kVoidWhite};
     const char *how[3] = {"left eye", "right eye", "tongue"};
     const SkPoint at[3] = {{kCol - 116, 214}, {kCol + 116, 214}, {kCol, 330}};
@@ -1091,7 +1086,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       }
       auto hump = [](float t) { return std::sin(t * SK_ScalarPI); };
       g.child(box()
-                  .absolute()
                   .left(at[k].fX - 46)
                   .top(at[k].fY - 46)
                   .width(92)
@@ -1115,7 +1109,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       g.child(text(toU8(fmt("%s  \xe2\x80\x94  no mark", how[k])),
                    type(faceMono, 10.0f, {cols[k].fR, cols[k].fG, cols[k].fB,
                                           0.85f}))
-                  .absolute()
                   .left(at[k].fX - 72)
                   .top(at[k].fY + 50)
                   .width(168)
@@ -1137,7 +1130,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   Element sealBlock() {
     const float S = 104.0f, x = 474.0f, y = 786.0f;
     auto g = box()
-                 .absolute()
                  .left(x)
                  .top(y)
                  .width(Dim(S))
@@ -1148,7 +1140,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                  .scale(bind(&scribe).window(tSeal, tSeal + 0.45f).to(1.5f, 1.0f))
                  .key("seal");
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(shapes::chamfered(6.0f))
                 .fill(Fill::color(hex(0xb52a17, 0.90f)))
@@ -1169,7 +1160,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
         b.addPath(smoothPath(q));
       }
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([p = b.detach()](SkSize) { return p; })
                   .fill(Fill::none())
@@ -1187,7 +1177,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   Element plate() {
     auto g = box()
-                 .absolute()
                  .left(kPL)
                  .top(kPT)
                  .width(Dim(kPW))
@@ -1198,7 +1187,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
     // the spine every component is strung on — a fu is a COLUMN
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize) {
                   SkPathBuilder b;
@@ -1225,7 +1213,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                          {782, "FU JIAO  foot \xc2\xb7 one breath, 38 strokes"}};
     for (int i = 0; i < 5; ++i) {
       g.child(box()
-                  .absolute()
                   .left(18)
                   .top(regs[i].y)
                   .width(Dim(kPW - 36))
@@ -1242,7 +1229,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                      .dashIntervals = {1.5f, 6.0f}})
                   .key(fmt("reg%d", i)));
       g.child(text(toU8(regs[i].label), type(faceMono, 8.5f, hex(0x0b0a09, 0.60f)))
-                  .absolute()
                   .left(20)
                   .top(regs[i].y + 3)
                   .width(360)
@@ -1270,7 +1256,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     static const float kOffX[9] = {-56, 48, 48, -56, 48, -58, 50, 54, 52};
     static const float kOffY[9] = {26, 26, 26, 26, 26, -104, 50, 26, 34};
     auto g = box()
-                 .absolute()
                  .left(x0)
                  .top(y0)
                  .width(Dim(W))
@@ -1292,7 +1277,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     const SkPath walkPath = walk.detach();
 
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([walkPath](SkSize) { return walkPath; })
                 .fill(Fill::none())
@@ -1316,7 +1300,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const bool invisible = i == 8;
       const float t = tStars + (float)i * 0.16f;
       auto st = box()
-                    .absolute()
                     .left(p.fX - 13)
                     .top(p.fY - 13)
                     .width(26)
@@ -1324,7 +1307,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                     .opacity(bind(&scribe).window(t, t + 0.45f))
                     .key(fmt("star%d", i));
       st.child(box()
-                   .absolute()
                    .inset(0)
                    .outline(shapes::star(6, 0.30f))
                    .fill(invisible ? Fill::none() : Fill::color(hex(0xe4c98a, 0.92f)))
@@ -1342,7 +1324,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
       g.child(text(toU8(fmt("%d %s", i + 1, kDipper[i].ritual)),
                    type(faceMono, 9.5f, hex(0xa48c5c, 0.9f)))
-                  .absolute()
                   .left(p.fX - 44 + kRitualDodge[i])
                   .top(p.fY - 34)
                   .width(140)
@@ -1360,7 +1341,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       // it into the SIX CLASSES rule.
       static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
       g.child(text(toU8(kDipper[i].name), type(faceItalic, 9.0f, hex(0x6f6047, 0.85f)))
-                  .absolute()
                   .left(p.fX - 22 + kNameDodge[i])
                   .top(p.fY + 12)
                   .width(140)
@@ -1383,7 +1363,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float pw = 52.0f, ph = pw * 5.0f / 3.0f;
       const float t = tStars + (float)i * 0.15f + 0.2f;
       auto mp = box()
-                    .absolute()
                     .left(at.fX - pw * 0.5f)
                     .top(at.fY)
                     .width(Dim(pw))
@@ -1393,7 +1372,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                     .opacity(bind(&scribe).window(t, t + 0.5f))
                     .key(fmt("mini%d", i));
       mp.child(box()
-                   .absolute()
                    .inset(0)
                    .outline([](SkSize s) {
                      return ops::sketchy(14.0f, 1.4f, 7)(shapes::chamfered(5.0f)(s));
@@ -1431,7 +1409,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       b.moveTo(pw * 0.30f, ph - 16);
       b.quadTo(pw * 0.5f, ph - 8, pw * 0.72f, ph - 18);
       mp.child(box()
-                   .absolute()
                    .inset(0)
                    .outline([p = b.detach()](SkSize) { return p; })
                    .fill(Fill::none())
@@ -1439,13 +1416,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
                       type(faceMono, 8.0f, hex(0xa89264, 0.95f)))
-                     .absolute()
                      .left(-16)
                      .top(ph + 10)
                      .width(124));
         mp.child(text(toU8(kOthers[i].gloss),
                       type(faceItalic, 8.0f, hex(0x776953, 0.9f)))
-                     .absolute()
                      .left(-16)
                      .top(ph + 22)
                      .width(124));
@@ -1459,15 +1434,13 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   // MARGINALIA
 
   Element chantPanel() {
-    auto g = box().absolute().left(718).top(796).width(474).key("chant");
+    auto g = box().left(718).top(796).width(474).key("chant");
     g.child(text(toU8("ZHAN HONG FU \xc2\xb7 SEVER THE RAINBOW"),
                  type(faceDisplay, 17.0f, kGold, 1.4f))
-                .absolute()
                 .left(0)
                 .top(0)
                 .width(468));
     g.child(box()
-                .absolute()
                 .left(0)
                 .top(24)
                 .width(468)
@@ -1497,7 +1470,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 5; ++i) {
       const float t = tGall + (float)i * 0.7f;
       g.child(text(toU8(lines_[i]), type(faceMono, 11.5f, kChalk))
-                  .absolute()
                   .left(0)
                   .top(36 + (float)i * 19)
                   .width(468)
@@ -1508,13 +1480,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
                       "closing formula, borrowed whole. It ends"),
                  type(faceItalic, 10.5f, hex(0x7d6f52)))
-                .absolute()
                 .left(0)
                 .top(136)
                 .width(468));
     g.child(text(toU8("almost every fu, and it goes at the FOOT."),
                  type(faceItalic, 10.5f, hex(0x7d6f52)))
-                .absolute()
                 .left(0)
                 .top(150)
                 .width(468));
@@ -1537,7 +1507,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   Element consolePanel() {
     const float x = 1228, y = 768, w = 638, h = 420;
     auto g = box()
-                 .absolute()
                  .left(x)
                  .top(y)
                  .width(Dim(w))
@@ -1547,7 +1516,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                 PathFormat::Align::Inner))
                  .key("console");
     g.child(box()
-                .absolute()
                 .left(11)
                 .top(8)
                 .width(Dim(w - 22))
@@ -1563,10 +1531,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   Element tempoPanel() {
-    auto g = box().absolute().left(718).top(972).width(474).key("tempo");
+    auto g = box().left(718).top(972).width(474).key("tempo");
     g.child(text(toU8("YI QI LI DUAN \xc2\xb7 CUT OFF IN ONE BREATH"),
                  type(faceDisplay, 13.0f, kGold, 1.2f))
-                .absolute()
                 .left(0)
                 .top(0)
                 .width(468));
@@ -1580,27 +1547,23 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 5; ++i)
       g.child(text(toU8(rows[i]),
                    type(faceMono, 10.5f, i == 4 ? hex(0xcf6a4a) : hex(0x9a8a68)))
-                  .absolute()
                   .left(0)
                   .top(20 + (float)i * 15)
                   .width(468));
     g.child(text(toU8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
                       "\"the foot is the last"),
                  type(faceItalic, 10.5f, hex(0x7d6f52)))
-                .absolute()
                 .left(0)
                 .top(100)
                 .width(468));
     g.child(text(toU8("step; total concentration, cut off in a single breath, "
                       "no slowing"),
                  type(faceItalic, 10.5f, hex(0x7d6f52)))
-                .absolute()
                 .left(0)
                 .top(114)
                 .width(468));
     g.child(text(toU8("or dragging.\"  A fu written at one tempo is not a fu."),
                  type(faceItalic, 10.5f, hex(0x7d6f52)))
-                .absolute()
                 .left(0)
                 .top(128)
                 .width(468));
@@ -1615,11 +1578,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
    *  the width law, plotted, and the six recovered classes as specimens. */
   Element marginColumn() {
     const float X = 718, Wc = 282;
-    auto g = box().absolute().left(X).top(0).width(Dim(Wc)).key("margin");
+    auto g = box().left(X).top(0).width(Dim(Wc)).key("margin");
 
     auto rule = [&](float y, float w) {
       return box()
-          .absolute()
           .left(0)
           .top(y)
           .width(Dim(w))
@@ -1643,7 +1605,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // --- 踏符頭: one chant line per hook, as the hook goes down -----------
     g.child(text(toU8("TA FU TOU \xc2\xb7 TREADING THE HEAD"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
-                .absolute()
                 .left(0)
                 .top(126)
                 .width(Dim(Wc)));
@@ -1651,7 +1612,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     for (int k = 0; k < 3; ++k) {
       const float t = tHead + (float)k * (tHeadEach + tHeadGap);
       g.child(text(toU8(kHeadChant[k]), type(faceItalic, 11.0f, kChalk))
-                  .absolute()
                   .left(0)
                   .top(154 + (float)k * 26)
                   .width(Dim(Wc))
@@ -1663,7 +1623,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     const float py = 260, ph = 126, pw = Wc;
     g.child(text(toU8("QI / XING / SHOU \xc2\xb7 w(s) OVER ARC LENGTH"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
-                .absolute()
                 .left(0)
                 .top(py - 22)
                 .width(Dim(Wc)));
@@ -1676,7 +1635,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       axis.moveTo(2, bh * 0.5f);
       axis.lineTo(pw - 2, bh * 0.5f);
       g.child(box()
-                  .absolute()
                   .left(0)
                   .top(py + 6)
                   .width(Dim(pw))
@@ -1695,7 +1653,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float cy = py + 6 + bh + 12, chh = ph - bh - 18;
       const float sc = chh / 2.0f;
       g.child(box()
-                  .absolute()
                   .left(0)
                   .top(cy)
                   .width(Dim(pw))
@@ -1714,7 +1671,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                      .dashIntervals = {1.6f, 4.4f}})
                   .key("lawaxis"));
       g.child(box()
-                  .absolute()
                   .left(0)
                   .top(cy)
                   .width(Dim(pw))
@@ -1742,14 +1698,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float off[3] = {2, -18, -52};
       for (int i = 0; i < 3; ++i)
         g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hex(0xa89778)))
-                    .absolute()
                     .left(mx[i] * pw + off[i])
                     .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                     .width(120)
                     .key(fmt("lawmk%d", i)));
       g.child(text(toU8("s = distance / fullLength, NOT PathSample::fraction"),
                    type(faceMono, 8.5f, hex(0x6f6047)))
-                  .absolute()
                   .left(0)
                   .top(cy + chh + 4)
                   .width(Dim(pw)));
@@ -1767,7 +1721,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     const float ky = 412;
     g.child(text(toU8("SIX CLASSES \xc2\xb7 w0, RECOVERED"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
-                .absolute()
                 .left(0)
                 .top(ky)
                 .width(Dim(Wc)));
@@ -1788,7 +1741,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float y = ky + 28 + (float)(c / 2) * 62;
       const float w0 = w0ForClass(c) * 128.0f;
       g.child(box()
-                  .absolute()
                   .left(cx + 4)
                   .top(y)
                   .width(126)
@@ -1805,7 +1757,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .key(fmt("spec%d", c)));
       g.child(text(toU8(fmt("%s  %.3f em", kClsName[c], (double)w0ForClass(c))),
                    type(faceMono, 9.0f, hex(0xa48c5c)))
-                  .absolute()
                   .left(cx)
                   .top(y + 56)
                   .width(140)
@@ -1816,7 +1767,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     const float gy = 646; // see the note above ky
     g.child(text(toU8("SUNG WHILE GANG IS DRAWN"),
                  type(faceDisplay, 11.5f, kGold, 1.1f))
-                .absolute()
                 .left(0)
                 .top(gy)
                 .width(Dim(Wc)));
@@ -1826,7 +1776,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
       g.child(text(toU8(fmt("%d/6  %s", k + 1, kGallChant[k])),
                    type(faceItalic, 11.0f, k == 5 ? hex(0xe07a52) : kChalk))
-                  .absolute()
                   .left(0)
                   .top(gy + 28 + (float)k * 18)
                   .width(Dim(Wc))
@@ -1835,7 +1784,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
     g.child(text(toU8("the sixth phrase lands on the tenth stroke"),
                  type(faceMono, 9.0f, hex(0x6f6047)))
-                .absolute()
                 .left(0)
                 .top(gy + 132)
                 .width(Dim(Wc)));
@@ -1843,12 +1791,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   Element furniture() {
-    auto g = box().absolute().inset(0).key("furn");
+    auto g = box().inset(0).key("furn");
     // title block
     g.child(text(toU8("WU LEI HAO LING \xc2\xb7 A THUNDER-RITE COMMAND TALISMAN, "
                       "WRITTEN"),
                  type(faceDisplay, 22.0f, kChalk, 2.6f))
-                .absolute()
                 .left(76)
                 .top(34)
                 .width(1400));
@@ -1857,7 +1804,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       "medians from makemeahanzi, classes recovered from "
                       "geometry"),
                  type(faceMono, 10.5f, kGoldDim))
-                .absolute()
                 .left(76)
                 .top(62)
                 .width(1500));
@@ -1866,7 +1812,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const float rx = (i & 1) ? kW - 46 : 46;
       const float ry = (i & 2) ? kH - 46 : 46;
       g.child(box()
-                  .absolute()
                   .left(rx - 11)
                   .top(ry - 11)
                   .width(22)
@@ -1888,7 +1833,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
     // tick ladder down the plate's left margin — cun and fen
     g.child(box()
-                .absolute()
                 .left(kPL - 26)
                 .top(kPT)
                 .width(20)
@@ -1909,25 +1853,21 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .key("ladder"));
     for (int i = 0; i <= 5; ++i)
       g.child(text(toU8(fmt("%d", i)), type(faceMono, 8.5f, hex(0x8b7644)))
-                  .absolute()
                   .left(kPL - 46)
                   .top(kPT + kPH * (float)i / 5.0f - 5)
                   .width(16)
                   .key(fmt("ladlbl%d", i)));
     g.child(text(toU8("CUN"), type(faceMono, 8.0f, hex(0x8b7644)))
-                .absolute()
                 .left(kPL - 52)
                 .top(kPT + kPH + 8)
                 .width(40));
     // colophon
     g.child(text(toU8("BU GANG TA DOU \xc2\xb7 THE TREAD, ON THE REAL DIPPER"),
                  type(faceDisplay, 12.0f, kGold, 1.1f))
-                .absolute()
                 .left(1046)
                 .top(706)
                 .width(830));
     g.child(box()
-                .absolute()
                 .left(1046)
                 .top(724)
                 .width(830)
@@ -1950,7 +1890,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       "gnomonically projected about the asterism's own "
                       "centroid. Yu bu is \"three steps, nine prints\"."),
                  type(faceItalic, 10.0f, hex(0x8d7f60)))
-                .absolute()
                 .left(1046)
                 .top(734)
                 .width(830));
@@ -1960,7 +1899,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       "one. You Bi is invisible: its station is doctrine, and "
                       "it is drawn open."),
                  type(faceItalic, 10.0f, hex(0x6d6047)))
-                .absolute()
                 .left(1046)
                 .top(752)
                 .width(830));
@@ -1969,7 +1907,6 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
                       "stroke geometry"),
                  type(faceMono, 9.5f, hex(0x5d5341)))
-                .absolute()
                 .left(76)
                 .top(kH - 34)
                 .width(1600));
@@ -1979,7 +1916,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   // =========================================================================
 
   Element describe(sketch::SketchContext &) {
-    auto root = box().absolute().inset(0);
+    auto root = box().inset(0);
     root.child(plate());
     root.child(tread());
     root.child(marginColumn());

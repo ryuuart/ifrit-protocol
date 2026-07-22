@@ -540,7 +540,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     st.shaping.fontSize = size;
     st.shaping.letterSpacing = track;
     st.paint.foreground.setColor4f(col, nullptr);
-    return box().absolute().left(x).top(y).child(text(bg3::u8(s), st));
+    return box().left(x).top(y).child(text(bg3::u8(s), st));
   }
   /** Right-aligned, since a numeral column must align on its units digit and
    *  Yoga is not the skeleton here. `right` is in the PARENT's space, so the
@@ -554,7 +554,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     st.shaping.fontSize = size;
     st.paint.foreground.setColor4f(col, nullptr);
     return box()
-        .absolute()
         .right(parentWidth - right)
         .top(y)
         .child(text(bg3::u8(s), st));
@@ -564,7 +563,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  stroke, never the canvas. */
   static Element rule(float x, float y, float w, Decoration d,
                       float h = 1.0f) {
-    return box().absolute().left(x).top(y).width(w).height(h).foreground(
+    return box().left(x).top(y).width(w).height(h).foreground(
         std::move(d));
   }
 
@@ -676,7 +675,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         c.drawString(buf, fx - w * 0.5f, fy + fs * 0.34f, font, glyph);
       }
     })
-        .absolute()
         .left(bg3::kCx - boxSize * 0.5f)
         .top(bg3::kCy - boxSize * 0.5f)
         .width(boxSize)
@@ -714,7 +712,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
 
     Element ring =
         stack()
-            .absolute()
             .left(bg3::kCx - o)
             .top(bg3::kCy - o)
             .width(o * 2)
@@ -722,7 +719,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
             // The outer 20-gon: the rule THICKENS at each of the twenty
             // vertices — the brass-rule move.
             .child(box()
-                       .absolute()
                        .inset(0)
                        .outline(shapes::polygon(20))
                        .foreground(decorations::weightedCorners(
@@ -730,21 +726,18 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
             // A twenty-tick bracket ladder just inside it: one tick per face
             // of the die, so the ornament IS the index.
             .child(box()
-                       .absolute()
                        .inset(17)
                        .outline(shapes::polygon(20))
                        .foreground(decorations::brackets(2.4f, bg3::ink(0.7f),
                                                          15.0f, 0.0f, a)))
             // The illuminated border proper: fleuron on every vertex.
             .child(box()
-                       .absolute()
                        .inset(36)
                        .outline(shapes::polygon(20))
                        .stroke(ornament))
             // The inner 20-gon: stops short at every flat, so vellum
             // breathes between the two rules.
             .child(box()
-                       .absolute()
                        .inset(o - i)
                        .outline(shapes::polygon(20))
                        .foreground(decorations::gappedRule(2.4f, bg3::ink(0.85f),
@@ -763,7 +756,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element bezelBand() const {
     const float o = bg3::kBezelOuter;
     return box()
-        .absolute()
         .left(bg3::kCx - o)
         .top(bg3::kCy - o)
         .width(o * 2)
@@ -791,7 +783,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element rosette() const {
     const float r = bg3::kBezelInner - 6.0f;
     return box()
-        .absolute()
         .left(bg3::kCx - r)
         .top(bg3::kCy - r)
         .width(r * 2)
@@ -839,7 +830,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       nib.nibContrast = 0.18f;
       const float dir = mirror ? -1.0f : 1.0f;
       return box()
-          .absolute()
           .left(mirror ? 18.0f : 388.0f)
           .top(26.0f)
           .width(118)
@@ -857,13 +847,11 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     };
 
     return stack()
-        .absolute()
         .left(bg3::kCx - 262.0f)
         .top(112.0f)
         .width(524)
         .height(150)
         .child(box()
-                   .absolute()
                    .left(148)
                    .top(0)
                    .width(228)
@@ -914,7 +902,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       return kTop + (float)ordinal * kPitch + (float)blockIndex * kBlockGap;
     };
 
-    Element g = stack().absolute().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     const float yLast = yOf(17);
     g.child(rule(kX, kTop - 12.0f, 1.2f,
                  lines::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
@@ -925,7 +913,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       const float y1 = yOf(blk.first + blk.count - 1);
       // A bracket that only exists at the block's ends.
       g.child(box()
-                  .absolute()
                   .left(kX - 14.0f)
                   .top(y0 - 6.0f)
                   .width(14.0f)
@@ -976,7 +963,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     constexpr float kRowW = kRight - kX + 112.0f;
 
     Element col = box()
-                      .absolute()
                       .left(0)
                       .top(0)
                       .width(bg3::kW)
@@ -997,7 +983,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
       // the row, never the canvas.
       Element row =
           stack()
-              .absolute()
               .left(kX - 96.0f)
               .top(y - 10.0f)
               .width(kRowW)
@@ -1027,7 +1012,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     constexpr float kX = 648.0f;
     constexpr float kY = 1024.0f;
     constexpr float kRight = 1076.0f;
-    Element g = stack().absolute().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     g.child(rule(kX + 96.0f, kY - 12.0f, kRight - kX - 96.0f + 16.0f,
                  lines::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
                  1.0f));
@@ -1044,14 +1029,13 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  the size of the banner, never the canvas. */
   Element outcome() const {
     if (!outcomeMounted)
-      return box().absolute().left(0).top(0).width(1).height(1);
+      return box().left(0).top(0).width(1).height(1);
     lines::Hatch wash;
     wash.strokeFill = Fill::color(bg3::alpha(bg3::kViridian, 0.34f));
     wash.width = 1.5f;
     wash.spacingBinding = &hatchSpacing;
     wash.angleBinding = &hatchAngle;
     return stack()
-        .absolute()
         .left(636.0f)
         .top(1094.0f)
         .width(452.0f)
@@ -1072,7 +1056,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element portrait() const {
     constexpr float cx = 372.0f, cy = 742.0f, r = 64.0f;
     return stack()
-        .absolute()
         .left(cx - r - 16.0f)
         .top(cy - r - 16.0f)
         .width(r * 2 + 32.0f)
@@ -1085,7 +1068,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                                       decorations::border(0.7f,
                                                           bg3::giltDark(), 5.0f)))
         .child(box()
-                   .absolute()
                    .left(16.0f)
                    .top(16.0f)
                    .width(r * 2)
@@ -1112,7 +1094,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     constexpr float kStep = 68.0f; // per 5 points of DC
     auto yOf = [](float dc) { return kBottom - (dc - 5.0f) / 5.0f * kStep; };
 
-    Element g = stack().absolute().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     g.child(rule(kX, yOf(30.0f) - 14.0f, 1.2f,
                  lines::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
                  kBottom - yOf(30.0f) + 28.0f));
@@ -1135,7 +1117,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     const float yDC = yOf((float)bg3::kDC);
     const float yTotal = yOf((float)bg3::kFinalTotal);
     g.child(box()
-                .absolute()
                 .left(kX - 34.0f)
                 .top(yTotal)
                 .width(20.0f)
@@ -1156,10 +1137,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   }
 
   Element marginalia() const {
-    Element g = stack().absolute().left(0).top(0).width(bg3::kW).height(bg3::kH);
+    Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     // Registration marks: brackets on a chamfered frame that bleeds.
     g.child(box()
-                .absolute()
                 .left(26)
                 .top(26)
                 .width(bg3::kW - 52)
@@ -1254,7 +1234,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  one blit. */
   Element ground() const {
     return box()
-        .absolute()
         .inset(0)
         .width(bg3::kW)
         .height(bg3::kH)
@@ -1268,7 +1247,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   /** The outermost ornamental ring, running off all four edges. */
   Element outerRing() const {
     return box()
-        .absolute()
         .left(bg3::kCx - 700.0f)
         .top(bg3::kCy - 660.0f)
         .width(1400)
@@ -1285,7 +1263,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  dimmed. DiscardedDiceTotal is a field, not an inference. */
   Element discardedDie() const {
     return box()
-        .absolute()
         .left(0)
         .top(0)
         .width(bg3::kW)
@@ -1304,7 +1281,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
   Element advantageLeader() const {
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
     return box()
-        .absolute()
         .left(kAx2 + 238.0f)
         .top(kAy2 + 64.0f)
         .width(232.0f)
@@ -1321,7 +1297,6 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  landing. */
   Element heroDie() const {
     return box()
-        .absolute()
         .left(0)
         .top(0)
         .width(bg3::kW)
