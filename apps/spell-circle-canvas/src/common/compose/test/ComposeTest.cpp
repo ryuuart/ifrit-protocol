@@ -5069,3 +5069,27 @@ TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
       bind(nullptr).map(&choreograph::easeNone).quantize(5).value().apply(0.9f),
       1.0f);
 }
+
+TEST(ComposeBindings, AFillCanBeBoundLive) {
+  // Pinned because a study concluded there was no bound Fill at all and
+  // rebuilt its most period-authentic widget on renderSlot() instead.
+  // There is one: the Output holds a Fill, and you write it from the
+  // same steppable that computes the number driving everything else.
+  Host host(200, 200);
+  choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .left(20)
+                                       .top(80)
+                                       .width(160)
+                                       .height(40)
+                                       .fill(&bar)));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
+  EXPECT_LT(SkColorGetG(host.pixel(100, 100)), 80);
+
+  bar = Fill::color({0, 1, 0, 1}); // no re-render, no re-describe
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
+  EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
+}

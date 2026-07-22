@@ -845,6 +845,22 @@ public:
   Element &clip(bool on = true);
 
   // ---- paint ----
+  /** A colour, a shader, a transition between colours, or a LIVE binding.
+   *
+   *  The binding form is `fill(&output)` where the Output holds a `Fill`,
+   *  and it is the answer to "this widget's colour IS its value" — a
+   *  level meter whose hue is the level, a temperature readout, a health
+   *  bar that reddens. Write the Fill Output from the same steppable that
+   *  computes the number:
+   *
+   *      ch::Output<float> level; ch::Output<Fill> bar;
+   *      ticker.add([&](double){ level = v; bar = Fill::color(ramp(v)); … });
+   *      box().scaleX(bind(&level)).fill(&bar)
+   *
+   *  Spelled out because a study concluded there was no bound Fill at all
+   *  and rebuilt its most period-authentic widget on renderSlot() instead.
+   *  What genuinely does NOT exist is deriving one from the other at the
+   *  binding site — `fill(bind(&level).map(ramp))` — see ROADMAP.md. */
   Element &fill(PropValue<Fill> f);
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it

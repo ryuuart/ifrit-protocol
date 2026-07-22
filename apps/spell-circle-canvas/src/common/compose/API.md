@@ -174,7 +174,14 @@ Element &trim(PropValue<float> start, PropValue<float> end,
 // .fill() is kernel; every setter takes a PropValue, so
 // with(v, {300ms}) and Output bindings work uniformly everywhere:
 Element &fill(PropValue<Fill>);            // colors/fills lerp via
-                                           // choreograph Sequence
+                                           // choreograph Sequence.
+                                           // ALSO takes a live binding:
+                                           // fill(&out) where out is a
+                                           // ch::Output<Fill> — "this
+                                           // widget's colour IS its
+                                           // value". Write the Fill
+                                           // Output from the same
+                                           // steppable as the number.
 Element &fill(Material);                   // the richer authoring value —
                                            // see "Materials" below
 Element &background(Decoration); Element &foreground(Decoration);
