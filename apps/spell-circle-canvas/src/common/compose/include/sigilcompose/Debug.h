@@ -21,9 +21,15 @@
  * loop: coverage() is O(samples × candidate pieces).
  */
 
+#include "sigilcompose/Compose.h"
+
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
+#include <include/core/SkSurface.h>
 
 #include <algorithm>
 #include <span>
@@ -272,6 +278,67 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
     }
     haveStart = false;
   }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Reading back what you actually drew
+
+/** A rasterised element tree, for measuring your own output.
+ *
+ *  Three studies hand-rolled the same forty lines — `SkSurfaces::Raster`
+ *  plus `snapshot()` plus `readPixels` — to check a claim against the
+ *  pixels rather than against the description that produced them. That is
+ *  the strongest shape a verification can take, and nothing in `Debug.h`
+ *  supported it: everything here was path-level.
+ *
+ *  **The default colour type is F16, and that is the non-obvious half.**
+ *  A slit-scan study measuring an intensity falloff found its outer
+ *  streak at 1/120 of the apex, which N32 quantises to two levels — an
+ *  8-bit read-back would have produced a confident wrong exponent rather
+ *  than an obviously broken one. If you are measuring a RATIO, measure it
+ *  in float. */
+struct Raster {
+  SkBitmap bitmap;
+
+  bool valid() const { return !bitmap.isNull(); }
+  int width() const { return bitmap.width(); }
+  int height() const { return bitmap.height(); }
+  /** Unpremultiplied linear-ish read. Out of bounds is transparent. */
+  SkColor4f at(int x, int y) const {
+    if (x < 0 || y < 0 || x >= bitmap.width() || y >= bitmap.height())
+      return {0, 0, 0, 0};
+    return bitmap.getColor4f(x, y);
+  }
+};
+
+inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
+                        SkISize size,
+                        SkColorType colorType = kRGBA_F16_SkColorType,
+                        SkColor4f background = {0, 0, 0, 0}) {
+  Raster out;
+  if (size.isEmpty())
+    return out;
+  const SkImageInfo info = SkImageInfo::Make(
+      size.width(), size.height(), colorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+  if (!surface)
+    return out;
+  surface->getCanvas()->clear(background);
+  // snapshot() sizes by the root's CHILDREN, not the root's own dims —
+  // the trap that produced a silently wrong exponent for one study. The
+  // wrapper therefore carries EXPLICIT dims, so an `absolute().inset(0)`
+  // child fills the surface instead of resolving against nothing.
+  if (sk_sp<SkPicture> picture =
+          snapshot(box()
+                       .width((float)size.width())
+                       .height((float)size.height())
+                       .child(std::move(root)),
+                   fonts, {(float)size.width(), (float)size.height()}))
+    surface->getCanvas()->drawPicture(picture);
+  out.bitmap.allocPixels(info);
+  if (!surface->readPixels(out.bitmap.pixmap(), 0, 0))
+    out.bitmap.reset();
   return out;
 }
 
