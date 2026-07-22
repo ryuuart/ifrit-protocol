@@ -19,6 +19,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Lines.h"    // insetOutline, cornerBrackets, cornerGaps
 #include "sigilcompose/Material.h" // Wash — the material-valued decoration
 #include "sigilcompose/GpuImage.h"
 
@@ -399,10 +400,170 @@ struct Wash {
   }
 };
 
+/** THE BORDER — a frame is not a 1 px rounded rect.
+ *
+ *  Every study in the corpus that wanted a frame either stroked the box and
+ *  accepted a rounded rect, or hand-placed four Elements at the corners.
+ *  The second is worse than it looks: four absolutely-positioned nodes do
+ *  not follow the shape when it resizes, do not follow it AT ALL when the
+ *  shape is not a rectangle, and cost four nodes each.
+ *
+ *  `Border` is one comparable value over machinery that already existed —
+ *  `lines::insetOutline` (the offset `shapes::Inset` had locked inside a
+ *  decoration adaptor), `lines::cornerBrackets` / `lines::cornerGaps` (the
+ *  corner scan `PatternBrush` already ran), and an ordinary dashed stroke:
+ *
+ *      .foreground(decorations::brackets(2, ink, 18))     // reticle corners
+ *      .foreground(decorations::border(1, ink, 6))        // inset rule
+ *      .foreground(decorations::gappedRule(1, ink, 14))   // open corners
+ *
+ *  It follows any silhouette, so chamfering the node's outline puts the
+ *  brackets on the chamfers with no further instruction. */
+struct Border {
+  float width = 1.0f;
+  Fill fill = Fill::color({1, 1, 1, 1});
+  /** px INSIDE the node's outline; negative moves it outside. The second
+   *  border of a double frame is the same value with a different inset. */
+  float inset = 0.0f;
+
+  /** What the rule does at the corners. */
+  enum class Mode : uint8_t {
+    Continuous, ///< the whole outline — an ordinary stroke
+    Bracket,    ///< ONLY within `corner` px of each corner: the four L's
+    Gapped,     ///< everything EXCEPT within `corner` px: the open corner
+    Weighted,   ///< continuous, but `cornerWidth` near each corner
+  };
+  Mode mode = Mode::Continuous;
+  /** Arm length (Bracket), omission (Gapped), or the weighted run
+   *  (Weighted), in px of arc length either side of the corner. */
+  float corner = 18.0f;
+  /** Weighted mode only: the width used near the corners. */
+  float cornerWidth = 0.0f;
+  /** The tangent break that counts as a corner. A gently ROUNDED corner
+   *  has no hard break and therefore no corner — brackets vanish and a
+   *  gapped rule runs continuous. That is correct, and it is the first
+   *  thing that surprises people. */
+  float cornerAngleDeg = 30.0f;
+
+  std::vector<SkScalar> dash;
+  float dashPhase = 0.0f;
+  const choreograph::Output<float> *dashPhaseBinding = nullptr;
+  SkPaint::Cap cap = SkPaint::kButt_Cap;
+  SkPaint::Join join = SkPaint::kMiter_Join;
+
+  bool operator==(const Border &) const = default;
+  bool animated() const { return dashPhaseBinding != nullptr; }
+  float phase() const {
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+  }
+  float bleed() const {
+    const float heaviest = std::max(width, cornerWidth);
+    return std::max(0.0f, heaviest * 0.5f - inset);
+  }
+
+  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+    if (ctx.outline.isEmpty() || width <= 0)
+      return;
+    const SkPath base =
+        inset != 0 ? lines::insetOutline(ctx.outline, inset) : ctx.outline;
+
+    auto strokeWith = [&](const SkPath &path, float w) {
+      if (path.isEmpty() || w <= 0)
+        return;
+      SkPaint p;
+      p.setAntiAlias(true);
+      p.setStyle(SkPaint::kStroke_Style);
+      p.setStrokeWidth(w);
+      p.setStrokeCap(cap);
+      p.setStrokeJoin(join);
+      if (fill.kind == Fill::Kind::Color)
+        p.setColor4f(fill.colorValue, nullptr);
+      else if (fill.kind == Fill::Kind::Shader)
+        p.setShader(fill.shaderValue);
+      if (!dash.empty())
+        p.setPathEffect(
+            SkDashPathEffect::Make(SkSpan(dash.data(), dash.size()), phase()));
+      canvas.drawPath(path, p);
+    };
+
+    switch (mode) {
+    case Mode::Continuous:
+      strokeWith(base, width);
+      break;
+    case Mode::Bracket:
+      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg), width);
+      break;
+    case Mode::Gapped:
+      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
+      break;
+    case Mode::Weighted:
+      // Two passes of the same windows: the runs BETWEEN corners at
+      // `width`, the corners themselves at `cornerWidth`. The printed rule
+      // that thickens where it turns.
+      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
+      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg),
+                 cornerWidth > 0 ? cornerWidth : width);
+      break;
+    }
+  }
+};
+
 namespace decorations {
 inline Wash wash(Material material, SkBlendMode blend = SkBlendMode::kSrcOver,
                  float amount = 1.0f) {
   return Wash{std::move(material), blend, amount};
+}
+
+/** A plain rule around the node's outline, `inset` px inside it. */
+inline Border border(float width, Fill fill, float inset = 0.0f) {
+  return Border{.width = width, .fill = std::move(fill), .inset = inset};
+}
+
+/** CORNER BRACKETS: four L-shaped marks and nothing else — the reticle,
+ *  the selection handle, the crop mark, the target frame. `arm` is the
+ *  length of each leg in px of arc length. */
+inline Border brackets(float width, Fill fill, float arm = 18.0f,
+                       float inset = 0.0f) {
+  return Border{.width = width,
+                .fill = std::move(fill),
+                .inset = inset,
+                .mode = Border::Mode::Bracket,
+                .corner = arm};
+}
+
+/** A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */
+inline Border gappedRule(float width, Fill fill, float gap = 14.0f,
+                         float inset = 0.0f) {
+  return Border{.width = width,
+                .fill = std::move(fill),
+                .inset = inset,
+                .mode = Border::Mode::Gapped,
+                .corner = gap};
+}
+
+/** A border whose WEIGHT changes at the corner: `width` along the runs,
+ *  `cornerWidth` within `arm` px of each turn. */
+inline Border weightedCorners(float width, float cornerWidth, Fill fill,
+                              float arm = 18.0f, float inset = 0.0f) {
+  return Border{.width = width,
+                .fill = std::move(fill),
+                .inset = inset,
+                .mode = Border::Mode::Weighted,
+                .corner = arm,
+                .cornerWidth = cornerWidth};
+}
+
+/** DOUBLE BORDER with independent insets — two rules, one value, as a
+ *  LayerStyle (the shape `lines::railwayCarto` already established). The
+ *  inner rule is often the dotted or lighter one; pass whatever you like.
+ *
+ *      .style(decorations::doubleBorder(
+ *          decorations::border(1.6f, ink),
+ *          decorations::border(0.8f, ink, 6)))
+ */
+inline LayerStyle doubleBorder(Border outer, Border inner) {
+  return LayerStyle{{}, {Decoration(std::move(outer)),
+                         Decoration(std::move(inner))}};
 }
 
 inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,

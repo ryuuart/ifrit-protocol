@@ -31,6 +31,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
+#include <include/core/SkStrokeRec.h> // ops::rounded / ops::sketchy filterPath
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
@@ -718,6 +719,25 @@ struct PatternBrush {
   float cornerAngleDeg = 35.0f; ///< PER-SAMPLE tangent break — gently
                                 ///< ROUNDED corners intentionally take no
                                 ///< corner tile (no hard break exists)
+  /** Arc length a corner tile RESERVES on each adjacent run, px. 0 uses the
+   *  corner art's own width.
+   *
+   *  This used to not exist, and the omission was invisible for exactly the
+   *  reason it was dangerous. Side tiles were laid out over the full
+   *  corner-to-corner span and the corner tile was then drawn ON TOP at the
+   *  break point, so side tiles ran underneath it. With a corner tile the
+   *  same size as a side tile the overlap lands where a tile boundary
+   *  already was and nothing looks wrong; with a real elbow — a 48 px
+   *  corner against a 24 px side, which is what an ornamental frame
+   *  actually wants — the side run visibly continues under the elbow.
+   *
+   *  Now each corner reserves `cornerLength / 2` at each end of its two
+   *  adjacent runs and the side run's integer fit is recomputed over the
+   *  SHORTENED span, so tiles butt against the corner instead of sliding
+   *  beneath it. Frames whose corner art is the same size as their side art
+   *  will shift side-tile phase very slightly; that is the corner finally
+   *  taking up its own room. */
+  float cornerLength = 0.0f;
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
   StampModFn mod;              ///< side tiles only
@@ -732,6 +752,7 @@ struct PatternBrush {
     return side.node() == o.side.node() && node(start) == node(o.start) &&
            node(end) == node(o.end) && node(corner) == node(o.corner) &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
+           cornerLength == o.cornerLength &&
            stretchToFit == o.stretchToFit && reach == o.reach && !mod &&
            !o.mod && animatedMod == o.animatedMod;
   }
@@ -832,14 +853,27 @@ struct PatternBrush {
       if (!closed && cache->end)
         tail = advance > 0 ? advance : cache->end->cullRect().width();
 
-      // Runs between corners (and cap margins).
+      // Runs between corners (and cap margins). Each corner RESERVES half
+      // its own length at each end of its two adjacent runs, so the side
+      // tiles butt against the corner art instead of running under it.
+      const float cornerRoom =
+          cache->corner
+              ? (cornerLength > 0 ? cornerLength
+                                  : cache->corner->cullRect().width())
+              : 0.0f;
+      const float halfCorner = cornerRoom * 0.5f;
       std::vector<float> bounds{head};
       for (float d : corners)
-        if (d > head && d < len - tail)
-          bounds.push_back(d);
+        if (d > head && d < len - tail) {
+          bounds.push_back(d - halfCorner); // run ends before the corner
+          bounds.push_back(d + halfCorner); // next run starts after it
+        }
       bounds.push_back(len - tail);
 
       for (size_t r = 0; r + 1 < bounds.size(); ++r) {
+        // Odd spans are the reserved corner gaps themselves — skip them.
+        if (halfCorner > 0 && r % 2 == 1)
+          continue;
         const float a = bounds[r], b = bounds[r + 1];
         const float L = b - a;
         if (L < tileLen * 0.25f)

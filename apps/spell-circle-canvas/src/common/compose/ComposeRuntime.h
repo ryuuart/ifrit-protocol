@@ -197,6 +197,15 @@ struct Composer::Impl {
   float mountDelayCarryMs = 0;
 
   mutable Stats stats;
+  // ---- per-node paint profiler (opt-in; Composer::setProfiling) ----------
+  // profChildMs is the running total the CURRENT node's children have cost;
+  // each node saves its parent's value, zeroes it, paints, then reports its
+  // own total upward. That gives selfMs = totalMs - children without a
+  // second traversal.
+  bool profileEnabled = false;
+  std::vector<Composer::NodeCost> profileRows;
+  double profChildMs = 0;
+  int profDepth = 0;
   // render()/renderSlot() phase time accumulated since the previous draw();
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;

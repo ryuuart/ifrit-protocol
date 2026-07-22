@@ -479,6 +479,117 @@ inline OutlineFn rounded(OutlineFn shape, float radius) {
 }
 
 // ---------------------------------------------------------------------------
+// Corner geometry — the shapes a frame is actually cut to
+//
+// `corners()` rounds, and rounding is the ONE corner treatment the kernel
+// offers. Modern game UI is built on the other two: the 45° CHAMFER (every
+// panel in Cyberpunk 2077, Destiny, Deus Ex, XCOM; the "cut corner" that
+// reads as machined metal) and the rectangular NOTCH (the bitten corner
+// that reads as a stencil or a fixing lug). Both were hand-built with
+// SkPathBuilder in the corpus, per panel, which is where a mask enum
+// belongs instead: a chamfer on two corners and square on the other two is
+// the commonest real case, and it is not expressible by a radius at all.
+
+/** Which corners a treatment applies to. Clockwise from the top-left. */
+enum class Corner : uint8_t {
+  TopLeft = 1,
+  TopRight = 2,
+  BottomRight = 4,
+  BottomLeft = 8,
+  All = 15,
+  /** The two on one diagonal — the asymmetric cut that reads as a tab. */
+  Diagonal = 5,      // TopLeft | BottomRight
+  AntiDiagonal = 10, // TopRight | BottomLeft
+};
+constexpr Corner operator|(Corner a, Corner b) {
+  return Corner(uint8_t(a) | uint8_t(b));
+}
+constexpr bool has(Corner mask, Corner c) {
+  return (uint8_t(mask) & uint8_t(c)) != 0;
+}
+
+/** The CHAMFERED box: each selected corner replaced by a 45° cut of @p cut
+ *  px. Clamped to half the short side, so an over-large cut degenerates to
+ *  a diamond rather than an inside-out path. */
+inline OutlineFn chamfered(float cut, Corner mask = Corner::All) {
+  return [cut, mask](SkSize s) {
+    const float w = s.width(), h = s.height();
+    const float c = std::clamp(cut, 0.0f, std::min(w, h) * 0.5f);
+    SkPathBuilder b;
+    if (has(mask, Corner::TopLeft))
+      b.moveTo(c, 0);
+    else
+      b.moveTo(0, 0);
+    if (has(mask, Corner::TopRight)) {
+      b.lineTo(w - c, 0);
+      b.lineTo(w, c);
+    } else {
+      b.lineTo(w, 0);
+    }
+    if (has(mask, Corner::BottomRight)) {
+      b.lineTo(w, h - c);
+      b.lineTo(w - c, h);
+    } else {
+      b.lineTo(w, h);
+    }
+    if (has(mask, Corner::BottomLeft)) {
+      b.lineTo(c, h);
+      b.lineTo(0, h - c);
+    } else {
+      b.lineTo(0, h);
+    }
+    if (has(mask, Corner::TopLeft))
+      b.lineTo(0, c);
+    b.close();
+    return b.detach();
+  };
+}
+
+/** The NOTCHED box: each selected corner carries a rectangular bite @p
+ *  notchWidth wide and @p depth deep — the stencil corner, the fixing lug,
+ *  the Aliens-console cut. */
+inline OutlineFn notched(float notchWidth, float depth,
+                         Corner mask = Corner::All) {
+  return [notchWidth, depth, mask](SkSize s) {
+    const float w = s.width(), h = s.height();
+    const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
+    const float d = std::clamp(depth, 0.0f, std::min(w, h) * 0.45f);
+    SkPathBuilder b;
+    if (has(mask, Corner::TopLeft))
+      b.moveTo(n, 0);
+    else
+      b.moveTo(0, 0);
+    if (has(mask, Corner::TopRight)) {
+      b.lineTo(w - n, 0);
+      b.lineTo(w - n, d);
+      b.lineTo(w, d);
+    } else {
+      b.lineTo(w, 0);
+    }
+    if (has(mask, Corner::BottomRight)) {
+      b.lineTo(w, h - d);
+      b.lineTo(w - n, h - d);
+      b.lineTo(w - n, h);
+    } else {
+      b.lineTo(w, h);
+    }
+    if (has(mask, Corner::BottomLeft)) {
+      b.lineTo(n, h);
+      b.lineTo(n, h - d);
+      b.lineTo(0, h - d);
+    } else {
+      b.lineTo(0, h);
+    }
+    if (has(mask, Corner::TopLeft)) {
+      b.lineTo(0, d);
+      b.lineTo(n, d);
+    }
+    b.close();
+    return b.detach();
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Per-edge extraction (stress item 9)
 
 enum class Edge : uint8_t {
@@ -573,6 +684,18 @@ struct EdgeSlice {
     inner.paint(canvas, local);
   }
   bool animated() const { return inner.animated(); }
+  /** Structural equality, so a static per-edge border prunes like any
+   *  other decoration. It did not have one — `Inset`, the sibling
+   *  adaptor twelve lines below, always did — so every
+   *  `shapes::onEdges(...)` in the corpus compared unequal and
+   *  re-recorded its subtree EVERY FRAME. The edge extraction itself is
+   *  the expensive half (a contour walk with a binary search at each
+   *  boundary), and it was being redone at 60 Hz for chrome that never
+   *  changed. Nothing about the type prevented this; the operator was
+   *  simply never written. */
+  bool operator==(const EdgeSlice &o) const {
+    return mask == o.mask && step == o.step && inner == o.inner;
+  }
 };
 
 inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {

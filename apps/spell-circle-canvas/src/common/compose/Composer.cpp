@@ -206,6 +206,11 @@ void Composer::draw(SkCanvas &canvas) {
 
   impl.stats.reconcileMs = impl.reconcileAccumMs;
   impl.reconcileAccumMs = 0;
+  if (impl.profileEnabled) {
+    impl.profileRows.clear();
+    impl.profChildMs = 0;
+    impl.profDepth = 0;
+  }
 
   auto mark = std::chrono::steady_clock::now();
   const auto lap = [&mark] {
@@ -243,6 +248,23 @@ void Composer::draw(SkCanvas &canvas) {
     canvas.restore();
   impl.stats.paintMs = lap();
   impl.contentDirty = false;
+  if (impl.profileEnabled)
+    std::sort(impl.profileRows.begin(), impl.profileRows.end(),
+              [](const NodeCost &a, const NodeCost &b) {
+                return a.selfMs > b.selfMs;
+              });
+}
+
+void Composer::setProfiling(bool on) {
+  m_impl->profileEnabled = on;
+  if (!on)
+    m_impl->profileRows.clear();
+}
+
+bool Composer::profiling() const { return m_impl->profileEnabled; }
+
+const std::vector<Composer::NodeCost> &Composer::profile() const {
+  return m_impl->profileRows;
 }
 
 void Composer::purgeCaches() {

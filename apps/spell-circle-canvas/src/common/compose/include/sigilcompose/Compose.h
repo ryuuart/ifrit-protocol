@@ -1450,6 +1450,42 @@ public:
   };
   const Stats &stats() const;
 
+  /** PER-NODE PAINT COST — the instrument that did not exist.
+   *
+   *  `stats().paintMs` says the frame spent 1192 ms painting and says
+   *  nothing about WHERE, and nine studies were authored with no way to
+   *  find out. `debug::coverage` is a geometric path-tiling check and has
+   *  never had anything to do with cost, so the advice to reach for it was
+   *  wrong. This is the replacement.
+   *
+   *      composer.setProfiling(true);
+   *      composer.draw(canvas);
+   *      for (const auto &row : composer.profile())   // worst first
+   *        printf("%7.2f ms  %s\n", row.selfMs, row.label.c_str());
+   *
+   *  `selfMs` EXCLUDES children, so the number lands on the node that
+   *  actually costs, not on its ancestors. `cached` reports whether the
+   *  node replayed a cached picture — and note that a cached node can
+   *  still be the most expensive thing on the sheet, because a picture
+   *  records the DRAW CALLS: replaying it re-runs every shader over every
+   *  pixel. That is the distinction the corpus got wrong, and it is
+   *  visible here as a node with `cached == true` and a large `selfMs`.
+   *
+   *  Off by default: the timing calls are cheap but not free, and a
+   *  profiler that is always on is a profiler nobody trusts. */
+  struct NodeCost {
+    std::string label;   ///< key() if set, else kind + size — actionable
+    double selfMs = 0;   ///< this node's own paint, EXCLUDING children
+    double totalMs = 0;  ///< including children
+    int depth = 0;
+    bool cached = false; ///< replayed a picture/texture instead of painting
+  };
+  void setProfiling(bool on);
+  bool profiling() const;
+  /** Rows from the last draw(), sorted by `selfMs` descending. Empty when
+   *  profiling is off. */
+  const std::vector<NodeCost> &profile() const;
+
   /** @private */
   struct Impl;
 
