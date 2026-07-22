@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `decorations::wash(Material, blend, amount)` | The decoration primitives were strokes, slices, contour walks and raw programs — none filled a shape with a Material, so a wash above the children was an incomparable lambda that never pruned | `Decorations.h` |
+| `Pattern::offset` / `Pattern::sampling` | Pattern exposed two thirds of a matrix its own backend takes whole; and its tile was locked to linear sampling | `Pattern.h` |
 | `bind().window(lo, hi)` | `from()` normalises and the curve runs after it, so a multi-beat binding fed easings values outside their domain — and none of `ease::` is total | `Compose.h` |
 | The material cost model, documented | A static SkSL material's shader caches and its PIXELS do not; one full-canvas grain node was 480 ms of a 624 ms frame, and a texture bake took that frame to 28 ms | `API.md` |
 | `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
@@ -548,28 +550,18 @@ signatures.
 - **`Material` has no `bleed()`.** `DecorationScheme` can declare one so
   the recording cull grows; a Material cannot, so anything painting
   outside its box needs arithmetic the caller does.
-- **`Pattern` cannot pan** — *two studies*, and the second one located the
-  fix a level below where this entry had it. `Pattern::bake` builds
-  `SkMatrix::RotateDeg(rotate).preScale(scale)` and hands it to
-  `Material::image`, **whose `localMatrix` already takes a translation**:
-  Pattern exposes two thirds of a matrix its own backend takes whole. So
-  `Pattern::offset(SkPoint)` is plumbing that exists, and
-  `Pattern::offset(PropValue<SkPoint>)` is the animated version, under the
-  paint-only volatility contract bound transforms already have. A twill
-  survives today only because its phase is mod 4; any weave whose modulus
-  is not a small integer is inexpressible.
+- **`Pattern` cannot pan LIVE** — the describe-time half is closed
+  (`Pattern::offset(SkPoint)`, which turned out to be plumbing that
+  already existed: `bake()` hands its matrix to `Material::image`, whose
+  `localMatrix` always took a translation). What remains is
+  `offset(PropValue<SkPoint>)` under the paint-only volatility contract
+  bound transforms already have, so a conveyor or a marching weave
+  animates without re-describing.
 - **`patterns::stripes` is single-colour and un-phased.** A coloured
   sequence of runs — what a tartan, an awning, a ribbon or a chart axis
   actually wants — is a hand-written `PatternProgram` every time, and
   `Material::linearUnit` cannot substitute (six stops against a 24-run
   sett). Wanted: `patterns::sequence(span<pair<float, SkColor4f>>, phase)`.
-- **No Fill/Material-valued decoration for `foreground()`.** `overlay()`
-  paints under the children, so a wash that must sit ABOVE them needs
-  `foreground()` — whose primitives are PathFormat, Slice, ContourWalk and
-  a raw PaintProgram, none of which floods the outline with a material
-  through a blend mode. The PaintProgram form works and never prunes.
-  Wanted: `decorations::wash(Material, SkBlendMode, amount)` as a
-  comparable value.
 - **`HyphenationOptions` has no hyphenation in it.** `enabled` and
   `penalty` read like a hyphenator; the engine breaks solely at U+00AD
   discretionaries the author typed. A legitimate contract, badly named.

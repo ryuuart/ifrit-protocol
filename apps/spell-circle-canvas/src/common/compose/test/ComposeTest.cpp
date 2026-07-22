@@ -5675,3 +5675,48 @@ TEST(ComposePattern, ARepeatCanBePannedAndItsSamplingChosen) {
   EXPECT_GT(SkColorGetG(panned), 180);
   EXPECT_LT(SkColorGetR(panned), 80);
 }
+
+TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
+  // The decoration primitives were PathFormat (strokes), Slice,
+  // ContourWalk and a raw PaintProgram — none of which fills a shape with
+  // a Material. So "a grain pass over this whole panel, ABOVE its
+  // children" had to be a raw PaintProgram, an incomparable std::function
+  // that never prunes. overlay() is a different slot: it paints UNDER the
+  // children.
+  auto build = [](float amount) {
+    return box().child(box()
+                           .absolute()
+                           .inset(0)
+                           .fill(Fill::color({0, 0, 0, 1}))
+                           .child(box()
+                                      .absolute()
+                                      .inset(40)
+                                      .fill(Fill::color({0, 0, 1, 1})))
+                           .foreground(decorations::wash(
+                               Material::solid({1, 0, 0, 1}),
+                               SkBlendMode::kPlus, amount)));
+  };
+  Host full(120, 120), half(120, 120), none(120, 120);
+  full.composer.render(build(1.0f));
+  full.frame();
+  half.composer.render(build(0.5f));
+  half.frame();
+  none.composer.render(build(0.0f));
+  none.frame();
+
+  // It reaches OVER the child, which is what foreground() means and what
+  // overlay() deliberately does not do.
+  EXPECT_GT(SkColorGetR(full.pixel(60, 60)), 200);
+  EXPECT_GT(SkColorGetB(full.pixel(60, 60)), 200); // kPlus kept the blue
+  // amount is a real dial, not a flag.
+  EXPECT_NEAR(SkColorGetR(half.pixel(60, 60)), 128, 12);
+  EXPECT_EQ(SkColorGetR(none.pixel(60, 60)), 0);
+
+  // And it is a comparable VALUE, so a static wash prunes.
+  EXPECT_TRUE(decorations::wash(Material::solid({1, 0, 0, 1}),
+                                SkBlendMode::kPlus, 0.5f) ==
+              decorations::wash(Material::solid({1, 0, 0, 1}),
+                                SkBlendMode::kPlus, 0.5f));
+  EXPECT_FALSE(decorations::wash(Material::solid({1, 0, 0, 1})) ==
+               decorations::wash(Material::solid({0, 1, 0, 1})));
+}
