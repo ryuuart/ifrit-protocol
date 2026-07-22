@@ -22,9 +22,10 @@ namespace sigil::compose {
 using namespace detail;
 
 // The rare-field block split (ComposeInternal.h) took ElementNode from
-// 2752 B to 1288 B; this guard keeps casual field additions honest — new
-// rare/kind-specific state belongs in a block, not the base struct.
-static_assert(sizeof(ElementNode) <= 1400,
+// 2752 B to 1288 B, and the compact PropValue (Compose.h) to 688 B; this
+// guard keeps casual field additions honest — new rare/kind-specific
+// state belongs in a block, not the base struct.
+static_assert(sizeof(ElementNode) <= 768,
               "ElementNode grew — put rare fields in a block");
 
 // ---------------------------------------------------------------------------

@@ -13,13 +13,13 @@ using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
                                      const PropValue<float> &v) const {
-  if (const auto *binding = std::get_if<const choreograph::Output<float> *>(&v))
-    return (*binding)->value();
+  if (const choreograph::Output<float> *binding = v.binding())
+    return binding->value();
   if (anims[slot] && anims[slot]->started)
     return anims[slot]->value.value();
-  if (const float *plain = std::get_if<float>(&v))
+  if (const float *plain = v.plain())
     return *plain;
-  return std::get<Transitioned<float>>(v).value;
+  return v.transitioned()->value;
 }
 
 namespace {
@@ -100,7 +100,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
     return;
 
   auto entrance = [&](Instance::Slot slot, const PropValue<float> &v) {
-    const Transitioned<float> *tr = std::get_if<Transitioned<float>>(&v);
+    const Transitioned<float> *tr = v.transitioned();
     if (!tr)
       return;
     // withKeyframes(): the multi-segment mount path — checked BEFORE the
@@ -166,7 +166,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   // Color fill entrance: from → to through the kFillLerp progress.
   if (node.paint.fill) {
     const Transitioned<Fill> *tr =
-        std::get_if<Transitioned<Fill>>(&*node.paint.fill);
+        node.paint.fill->transitioned();
     if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;

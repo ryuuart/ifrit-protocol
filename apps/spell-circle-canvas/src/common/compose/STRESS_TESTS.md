@@ -396,3 +396,23 @@ Mode::Live)` leaves. Same look, counts, and seeds; 8.05 ms CPU raster /
 **0.54 ms GPU**. Port friction folded back into the layer: all-white
 tints now skip the colors lane (kSrcOver), and the stamp reuses
 thread-local scratch instead of allocating three vectors per frame.
+
+**VariationDrive (2026-07-22):** `text(...).variationDrive("GRAD", &out)`
+— a variable-font axis driven at DRAW time, paint-only (no reshape, no
+relayout). The gate is per-font: `FontContext::axisIsAdvanceInvariant`
+samples every glyph advance at the axis extremes; advance-variant axes
+(wght on most fonts) are REFUSED with a warning and the text draws at
+its shaped coordinates — GRAD is the advance-invariant weight. The
+weave side is `ParagraphLayout::LiveVariations` (bucket typefaces swap
+for memoized varied clones at flush; positions untouched). Probe result
+memoizes per (instance, content). Pinned by two tests incl. a
+bounds-hold + pixel-thicken check on the SF face.
+
+**PropValue slimming (2026-07-22):** `PropValue<T>` is no longer a
+std::variant — the fat Transitioned payload (~100 B: from/waypoints/
+spec) boxes out-of-line, plain constants and bindings stay inline.
+PaintProps 856 → 256 B; **ElementNode 1288 → 688 B** (2752 B before
+this arc, −75% total); the size guard tightens to 768 B. Describe
+benches hold/improve (unchanged 26.3 µs, cold 250 µs). Behavior pinned
+by the capture diff: 29/29 CPU scenes byte-identical (modulo the
+intentional y2k sliver fix).
