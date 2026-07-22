@@ -1717,12 +1717,21 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // =========================================================================
 
   console::Style logStyle() {
+    // 10.2, not 11. The panel is 690 wide, less 24 of padding, less a 14 gap
+    // either side of the 1 px divider: 318.5 to a column, and this mono is
+    // 0.62 em, so 11 pt fits 46 characters and nothing warns you about the
+    // 47th. FOUR lines were being truncated with no ellipsis and no clue —
+    // the two longest checks in the whole plate lost their units ("R = 257.972"
+    // for "R = 257.972 pt", "off by (-0.82, -2.47) p"), one lost a closing
+    // paren ("vs r(letter"), and the {7/2} verdict lost its full stop. The
+    // longest line is 50 characters, so the type has to be 11 x 47/50 or less.
+    constexpr float kMono = 10.2f;
     console::Style s;
-    s.text = type(faceMono, 11.0f, hex(0x9d8a66));
-    s.palette = {type(faceMono, 11.0f, hex(0x6b5c44)),  // 0 dim
-                 type(faceMono, 11.0f, kRubric),        // 1 heading
-                 type(faceMono, 11.0f, hex(0x59b98a)),  // 2 PASS
-                 type(faceMono, 11.0f, hex(0x62b0dc))}; // 3 number
+    s.text = type(faceMono, kMono, hex(0x9d8a66));
+    s.palette = {type(faceMono, kMono, hex(0x6b5c44)),  // 0 dim
+                 type(faceMono, kMono, kRubric),        // 1 heading
+                 type(faceMono, kMono, hex(0x59b98a)),  // 2 PASS
+                 type(faceMono, kMono, hex(0x62b0dc))}; // 3 number
     s.gap = 1.0f;
     s.visibleLines = 16;
     return s;
@@ -2006,7 +2015,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     logD.append(toU8(fmt("  along a point's ray the core stops at %.3f R",
                          (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
                 0);
-    logD.append(toU8(fmt("  Fili\xc3\xa6/Filii Filiorum measured %.3f / %.3f R",
+    // "Filiae", not "Fili\xc3\xa6": the console runs in the MONO face and that
+    // face has no ash. It fell back to a different typeface mid-word and the
+    // line read "Fili=/Filii". The seal's own legend, which is set in the
+    // serif, keeps the ligature.
+    logD.append(toU8(fmt("  Filiae/Filii Filiorum measured %.3f / %.3f R",
                          (double)rFiliaeFil, (double)rFiliiFil)),
                 0);
     logD.append(toU8("  both INSIDE a {7/2} core, as the record says;"), 0);
