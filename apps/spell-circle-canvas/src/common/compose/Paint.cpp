@@ -1011,9 +1011,72 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     canvas.restore();
 }
 
+namespace {
+
+/** A readable, ACTIONABLE identity for a profile row: the author's own
+ *  key() when there is one (that is what they will search for), else the
+ *  node kind and its painted size, which is usually enough to find it. */
+std::string profileLabel(const detail::Instance &inst, const SkRect &rect) {
+  const detail::ElementNode &node = *inst.desc;
+  const char *kind = "box";
+  switch (node.kind) {
+  case detail::Kind::Box: kind = "box"; break;
+  case detail::Kind::Text: kind = "text"; break;
+  case detail::Kind::Image: kind = "image"; break;
+  case detail::Kind::Custom: kind = "custom"; break;
+  default: break;
+  }
+  char buf[96];
+  std::snprintf(buf, sizeof buf, "%s %.0fx%.0f", kind, rect.width(),
+                rect.height());
+  if (!node.key.empty())
+    return node.key + " (" + buf + ")";
+  return buf;
+}
+
+/** Scoped per-node timer. RAII because paint() has several early returns
+ *  and a half-written row would be worse than no row at all. */
+struct ProfileScope {
+  Composer::Impl *impl = nullptr;
+  size_t row = SIZE_MAX;
+  double savedChildren = 0;
+  std::chrono::steady_clock::time_point start;
+
+  ProfileScope(Composer::Impl *i, const detail::Instance &inst,
+               const SkRect &rect)
+      : impl(i) {
+    if (!impl->profileEnabled)
+      return;
+    row = impl->profileRows.size();
+    impl->profileRows.push_back(
+        Composer::NodeCost{profileLabel(inst, rect), 0, 0, impl->profDepth,
+                           inst.picture != nullptr ||
+                               inst.textureImage != nullptr});
+    savedChildren = impl->profChildMs;
+    impl->profChildMs = 0;
+    ++impl->profDepth;
+    start = std::chrono::steady_clock::now();
+  }
+  ~ProfileScope() {
+    if (row == SIZE_MAX)
+      return;
+    const double total = std::chrono::duration<double, std::milli>(
+                             std::chrono::steady_clock::now() - start)
+                             .count();
+    impl->profileRows[row].totalMs = total;
+    impl->profileRows[row].selfMs = total - impl->profChildMs;
+    // Hand our whole cost up to the parent's child accumulator.
+    impl->profChildMs = savedChildren + total;
+    --impl->profDepth;
+  }
+};
+
+} // namespace
+
 void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const ElementNode &node = *inst.desc;
   const SkRect rect = instanceRect(inst);
+  ProfileScope profileScope(this, inst, rect);
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);

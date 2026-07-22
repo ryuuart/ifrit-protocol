@@ -3381,6 +3381,460 @@ TEST(ComposeLines, WavyRunLeavesTheAxis) {
 #include <sigilcompose/Brushes.h>
 
 // ---------------------------------------------------------------------------
+// lines::Rails — the parallel rule where every rail is its own line.
+
+TEST(ComposeLines, RailsCarryPerRailWidthFillAndDash) {
+  // `Line::parallels` shares ONE width, ONE fill and ONE dash across every
+  // rail; its only per-rail knob (coreWidthFactor) reaches exactly the
+  // centre rail and only when the count is odd. So heavy/hair/heavy in two
+  // colours is inexpressible with Line, whatever the count.
+  Host host;
+  host.composer.render(straightRun(lines::rails({
+      {.offset = -10, .width = 6, .fill = green()},
+      {.offset = 0, .width = 2, .fill = red(), .dash = {6, 6}},
+      {.offset = 10, .width = 6, .fill = green()},
+  })));
+  host.frame();
+  // Two heavy GREEN rails ten px either side of the route (y = 100)…
+  EXPECT_EQ(host.pixel(100, 90), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(100, 110), SK_ColorGREEN);
+  // …the heavy rails really are 6 px (±2 from centre still paints)…
+  EXPECT_EQ(host.pixel(100, 92), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(100, 108), SK_ColorGREEN);
+  // …and a thin RED core between them, in a DIFFERENT colour, dashed:
+  // some x paint and some do not, which a shared-fill Line cannot do.
+  int redOn = 0, redOff = 0;
+  for (int x = 30; x < 170; ++x)
+    (host.pixel(x, 100) == SK_ColorRED ? redOn : redOff)++;
+  EXPECT_GT(redOn, 20);
+  EXPECT_GT(redOff, 20);
+  // The core is thin: 2 px, so ±3 from the route is clear of it.
+  EXPECT_NE(host.pixel(100, 96), SK_ColorRED);
+}
+
+TEST(ComposeLines, RailsSpanAndBleedReportTheSetsReach) {
+  const lines::Rails r = lines::heavyHairHeavy(4, 1, green(), 6);
+  EXPECT_FLOAT_EQ(r.span(), 12.0f);      // -6 → +6, centre to centre
+  EXPECT_FLOAT_EQ(r.bleed(), 6 + 2.0f);  // outermost offset + half its width
+  // Comparable, so a static rail set prunes without a memo.
+  EXPECT_EQ(r, lines::heavyHairHeavy(4, 1, green(), 6));
+  EXPECT_NE(r, lines::heavyHairHeavy(4, 1, green(), 7));
+}
+
+namespace {
+/** Fraction of angles round a circle where BOTH the inner and the outer
+ *  rail paint, or NEITHER does — i.e. how well their dashes stay in
+ *  register. 1.0 is perfect registration. */
+struct RailScan {
+  double agreement = 0; ///< fraction of angles where both rails agree
+  int innerOn = 0;      ///< angles where the inner rail painted
+  int outerOn = 0;
+  int samples = 0;
+};
+/** Samples both rails at 720 angles. The predicate is COVERAGE-BASED, not
+ *  exact colour: sampling a 3 px arc at integer pixel coordinates lands on
+ *  anti-aliased pixels constantly, and an exact-colour test then scores
+ *  them as unpainted. Measured on this exact scene, an exact-colour
+ *  predicate reports 0.8833 agreement for a geometrically PERFECT
+ *  implementation, purely from rasterisation — so it measures the
+ *  rasteriser, not the library. G > 128 puts the boundary at 50% coverage,
+ *  which is symmetric between the two radii, and reports 0.9472. */
+RailScan scanRails(Host &host, float cx, float cy, float rInner,
+                   float rOuter) {
+  RailScan scan;
+  int agree = 0;
+  for (int i = 0; i < 720; ++i) {
+    const double a = i * 3.14159265358979 / 360.0;
+    auto hit = [&](float r) {
+      return SkColorGetG(host.pixel((int)std::lround(cx + std::cos(a) * r),
+                                    (int)std::lround(cy + std::sin(a) * r))) >
+             128;
+    };
+    const bool in = hit(rInner), out = hit(rOuter);
+    scan.innerOn += in;
+    scan.outerOn += out;
+    agree += in == out;
+    ++scan.samples;
+  }
+  scan.agreement = scan.samples ? (double)agree / scan.samples : 0.0;
+  return scan;
+}
+Element circleRun(Decoration style, float radius) {
+  return box().child(box()
+                         .absolute()
+                         .inset(0, 0, 0, 0)
+                         .outline([radius](SkSize s) {
+                           SkPathBuilder b;
+                           b.addCircle(s.width() / 2, s.height() / 2, radius);
+                           return b.detach();
+                         })
+                         .stroke(std::move(style)));
+}
+} // namespace
+
+TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
+  // THE property this type exists to protect. A circle's outer rail is
+  // 2*pi*(2*offset) px longer than its inner one — about 100 px here —
+  // so dashing each rail on its OWN offset curve drifts them ~6 whole
+  // periods apart by the time they close. Rails dashes the CENTRELINE
+  // once and offsets the resulting dash segments, so both rails are
+  // measured in one arc parameterisation and stay in register.
+  Host host(300, 300);
+  lines::Rails registered = lines::rails({
+      {.offset = -8, .width = 3, .fill = green(), .dash = {8, 8}},
+      {.offset = 8, .width = 3, .fill = green(), .dash = {8, 8}},
+  });
+  host.composer.render(circleRun(registered, 100));
+  host.frame();
+  const RailScan good = scanRails(host, 150, 150, 92, 108);
+
+  // LIVENESS FIRST. Two SOLID rails agree at 720 of 720 angles, so an
+  // agreement threshold alone is passed trivially by the exact bug this
+  // test exists to prevent — and it was: the first cut of Rails dropped
+  // every dash (Skia's dash effect refuses a fill stroke rec) and this
+  // assertion scored a perfect 1.0 while measuring nothing. Prove the
+  // rails actually BREAK before believing anything about their phase.
+  EXPECT_GT(good.innerOn, 100) << "inner rail painted nothing";
+  EXPECT_LT(good.innerOn, good.samples - 100) << "inner rail is SOLID";
+  EXPECT_GT(good.outerOn, 100) << "outer rail painted nothing";
+  EXPECT_LT(good.outerOn, good.samples - 100) << "outer rail is SOLID";
+
+  // The workaround the corpus had to use: a Brush whose legs each carry an
+  // ops::Offset suffix. Correct geometry, sheared phase.
+  Host naive(300, 300);
+  lines::Line dashed{.width = 3, .fill = green(), .dashIntervals = {8, 8}};
+  Brush perLeg;
+  perLeg.leg(dashed, {ops::Offset{.px = -8, .step = 2}})
+      .leg(dashed, {ops::Offset{.px = 8, .step = 2}});
+  naive.composer.render(circleRun(perLeg, 100));
+  naive.frame();
+  const RailScan sheared = scanRails(naive, 150, 150, 92, 108);
+  EXPECT_GT(sheared.innerOn, 100); // the comparison must be dashed too, or
+  EXPECT_LT(sheared.innerOn, sheared.samples - 100); // it proves nothing
+
+  // Measured on this scene: Rails 0.9472, the workaround 0.5639. The
+  // residual in the good case is the ROUND CAP, which is a fixed 1.5 px of
+  // arc and therefore a BIGGER ANGLE on the inner rail (0.934 deg vs 0.796
+  // deg per dash end); across 39 dashes that is 10.8 deg = 21.6 of 720
+  // samples that cannot agree however exact the geometry is. The bars are
+  // set from those numbers, not chosen to be green.
+  EXPECT_GT(good.agreement, 0.93);
+  EXPECT_LT(sheared.agreement, good.agreement - 0.30);
+}
+
+TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
+  // The registration claim in its exact form, measured on the PATHS with no
+  // rasteriser in the way — this is the assertion that actually detects the
+  // regression, and the pixel test above is liveness plus a comparison.
+  //
+  // A radial displacement preserves ANGLE: dash the centreline in arc-space
+  // and push each dash along its normal, and both rails' dash endpoints sit
+  // at identical angular positions whatever the radius difference. Dashing
+  // each rail on its own offset contour instead cannot: the outer
+  // circumference (2*pi*108) fits ~42 periods where the inner (2*pi*92)
+  // fits ~36, so the counts alone diverge.
+  SkPathBuilder cb;
+  cb.addCircle(150, 150, 100);
+  const std::vector<SkScalar> pattern = {8.0f, 8.0f};
+  const SkPath dashed = lines::dashGeometry(
+      cb.detach(), SkSpan(pattern.data(), pattern.size()), 0);
+  auto spans = [](const SkPath &p) {
+    std::vector<std::pair<double, double>> out;
+    SkContourMeasureIter it(p, false);
+    while (sk_sp<SkContourMeasure> c = it.next()) {
+      SkPoint a, b;
+      if (c->getPosTan(0, &a, nullptr) &&
+          c->getPosTan(c->length(), &b, nullptr))
+        out.push_back({std::atan2(a.y() - 150, a.x() - 150),
+                       std::atan2(b.y() - 150, b.x() - 150)});
+    }
+    return out;
+  };
+  const auto inner = spans(lines::offsetAlong(dashed, -8.0f, 2.0f));
+  const auto outer = spans(lines::offsetAlong(dashed, 8.0f, 2.0f));
+  ASSERT_GE(inner.size(), 30u) << "the centreline never dashed";
+  ASSERT_EQ(inner.size(), outer.size())
+      << "rails carry different dash COUNTS — they were dashed per-rail";
+  double worst = 0;
+  for (size_t i = 0; i < inner.size(); ++i)
+    worst = std::max(worst, std::max(std::abs(inner[i].first - outer[i].first),
+                                     std::abs(inner[i].second -
+                                              outer[i].second)));
+  // Measured: 2.15e-6 rad, and scattered rather than ramping round the
+  // contour. 1e-3 leaves ~500x headroom and still fails any per-rail scheme
+  // by orders of magnitude.
+  EXPECT_LT(worst, 1e-3) << "worst endpoint angle mismatch " << worst << " rad";
+}
+
+TEST(ComposeLines, DashedParallelsOnLineActuallyDash) {
+  // A REGRESSION test for a bug that predates Rails: `Line`'s dashed-
+  // parallel branch built its dash geometry with a FILL stroke rec, which
+  // Skia's dash effect refuses outright — so `lines::cased(...)` with a
+  // dash pattern painted two SOLID rails for the whole of run 1, in every
+  // study that used one, without anyone noticing.
+  Host host;
+  lines::Line pair = lines::cased(3, green(), 10);
+  pair.dashIntervals = {8, 8};
+  host.composer.render(straightRun(pair));
+  host.frame();
+  int on = 0, off = 0;
+  for (int x = 30; x < 170; ++x)
+    (host.pixel(x, 95) == SK_ColorGREEN ? on : off)++;
+  EXPECT_GT(on, 20);
+  EXPECT_GT(off, 20) << "the rail is solid — the dash was dropped";
+  // Both rails, and in register with each other.
+  int agree = 0;
+  for (int x = 30; x < 170; ++x)
+    agree += (host.pixel(x, 95) == SK_ColorGREEN) ==
+             (host.pixel(x, 105) == SK_ColorGREEN);
+  EXPECT_GT(agree, 130);
+}
+
+TEST(ComposeLines, RailsDashPhaseSlidesOneRailAgainstItsNeighbours) {
+  // The counter-dashed strand: same pattern, half a period apart, so the
+  // inner rail's marks fall in the outer rail's gaps.
+  Host host;
+  host.composer.render(straightRun(lines::rails({
+      {.offset = -6, .width = 3, .fill = green(), .dash = {8, 8}},
+      {.offset = 6,
+       .width = 3,
+       .fill = green(),
+       .dash = {8, 8},
+       .dashPhase = 8},
+  })));
+  host.frame();
+  int opposed = 0, together = 0;
+  for (int x = 30; x < 170; ++x)
+    ((host.pixel(x, 94) == SK_ColorGREEN) !=
+             (host.pixel(x, 106) == SK_ColorGREEN)
+         ? opposed
+         : together)++;
+  EXPECT_GT(opposed, together);
+}
+
+TEST(ComposeLines, RailsCountIsArbitrary) {
+  // Quad — one of the three counts asked for by name, and already
+  // reachable through Line::parallels; nothing ever spelled it.
+  Host host;
+  host.composer.render(straightRun(lines::quad(2, green(), 9)));
+  host.frame();
+  EXPECT_EQ(verticalRuns(host, 100, 70, 130, SK_ColorGREEN), 4);
+  Host six;
+  six.composer.render(straightRun(lines::rails(6, 1.5f, green(), 7)));
+  six.frame();
+  EXPECT_EQ(verticalRuns(six, 100, 60, 140, SK_ColorGREEN), 6);
+}
+
+TEST(ComposeLines, DottedCoreKeepsTheCasingContinuous) {
+  Host host;
+  host.composer.render(straightRun(lines::dottedCore(3, 2, green(), 8, 6)));
+  host.frame();
+  // Casing: solid the whole way along, both sides.
+  for (int x = 40; x < 160; x += 10) {
+    EXPECT_EQ(host.pixel(x, 92), SK_ColorGREEN) << "casing gap at x=" << x;
+    EXPECT_EQ(host.pixel(x, 108), SK_ColorGREEN) << "casing gap at x=" << x;
+  }
+  // Core: dotted, so it breaks. Coverage, not exact colour — a dotted line
+  // is a round cap on a zero-length dash, i.e. a disc whose diameter IS the
+  // core width, and a 2 px disc centred on a pixel BOUNDARY never fully
+  // covers any pixel. Measured on this scene it peaks at G=231 (91%
+  // coverage) and produces exactly zero pure-green pixels, so the exact
+  // test reported "no dots" for dots that were plainly there.
+  int on = 0, off = 0;
+  for (int x = 30; x < 170; ++x)
+    (SkColorGetG(host.pixel(x, 100)) > 60 ? on : off)++;
+  EXPECT_GT(on, 5);
+  EXPECT_GT(off, 30);
+}
+
+// ---------------------------------------------------------------------------
+// shapes::EdgeSlice equality — the adaptor that could never prune.
+
+TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
+  // EdgeSlice had no operator==, so every re-render compared it unequal
+  // and re-recorded the subtree — redoing the edge extraction (a contour
+  // walk with a binary search at each boundary) at frame rate for chrome
+  // that never changed. Inset, the sibling adaptor beside it, always had
+  // one.
+  auto scene = [] {
+    return box().child(
+        box().width(100).height(100).fill(blue()).foreground(
+            shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                            util::stroke(8, Fill::color({1, 1, 1, 1})))));
+  };
+  Host host;
+  host.composer.render(scene());
+  host.frame();
+  EXPECT_GT(host.composer.stats().picturesRecorded, 0u); // cold
+  host.composer.render(scene());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u); // pruned
+  // And it still compares UNEQUAL when the mask actually changes.
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(blue()).foreground(
+          shapes::onEdges(shapes::Edge::Bottom,
+                          util::stroke(8, Fill::color({1, 1, 1, 1}))))));
+  host.frame();
+  EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
+}
+
+// ---------------------------------------------------------------------------
+// decorations::Border — brackets, gapped rules, weighted corners, insets.
+
+namespace {
+Fill white() { return Fill::color({1, 1, 1, 1}); }
+/** A 100x100 blue panel with `dec` as its foreground, in a 200x200 host.
+ *  The panel sits at (0,0), so pixel(50, 1) is the middle of its top edge
+ *  and pixel(10, 1) is 10 px along from its top-left corner. */
+Element panel(Decoration dec) {
+  return box().child(
+      box().width(100).height(100).fill(blue()).foreground(std::move(dec)));
+}
+Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
+  return box().child(box()
+                         .width(100)
+                         .height(100)
+                         .outline(std::move(outline))
+                         .fill(blue())
+                         .foreground(std::move(dec)));
+}
+} // namespace
+
+TEST(ComposeBorders, BracketsPaintOnlyNearTheCorners) {
+  // Four L-shaped marks and nothing else. Before this the corpus spelled a
+  // reticle as four absolutely-placed Elements, which cost four nodes and
+  // stopped following the shape the moment it was not a rectangle.
+  Host host;
+  host.composer.render(panel(decorations::brackets(6, white(), 20)));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 1), SK_ColorWHITE); // along the top, near a corner
+  EXPECT_EQ(host.pixel(1, 10), SK_ColorWHITE); // and down the left of it
+  EXPECT_EQ(host.pixel(90, 98), SK_ColorWHITE); // bottom-right bracket
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);   // mid-run: bare
+  EXPECT_EQ(host.pixel(98, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeBorders, GappedRuleIsTheExactComplement) {
+  Host host;
+  host.composer.render(panel(decorations::gappedRule(6, white(), 20)));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // mid-run: drawn
+  EXPECT_EQ(host.pixel(98, 50), SK_ColorWHITE);
+  EXPECT_EQ(host.pixel(10, 1), SK_ColorBLUE);   // corner: left open
+  EXPECT_EQ(host.pixel(1, 10), SK_ColorBLUE);
+}
+
+TEST(ComposeBorders, BracketsFollowAChamferedSilhouette) {
+  // The property four hand-placed corner Elements can never have: the
+  // brackets land on whatever corners the SHAPE has. A 30 px chamfer turns
+  // four corners into eight, and the chamfer face itself gets marked.
+  Host host;
+  host.composer.render(shapedPanel(shapes::chamfered(30),
+                                   decorations::brackets(6, white(), 10)));
+  host.frame();
+  // (74, 4) sits ON the top-right chamfer face, ~5 px from its upper end.
+  EXPECT_EQ(host.pixel(74, 4), SK_ColorWHITE);
+  // The chamfered top edge runs (30,0)->(70,0); its midpoint is 20 px from
+  // either end corner, which is outside a 10 px arm: bare.
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);
+  // A plain rectangle has no corner there at all, so the same call leaves
+  // that pixel untouched — which is what makes this a test about the SHAPE.
+  Host plain;
+  plain.composer.render(panel(decorations::brackets(6, white(), 10)));
+  plain.frame();
+  EXPECT_EQ(plain.pixel(74, 4), SK_ColorBLUE);
+}
+
+TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
+  // The documented surprise, asserted so it stays true: brackets need a
+  // hard tangent break. A rounded rect has none, so a bracket set paints
+  // NOTHING and a gapped rule runs the whole way round.
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).corners({30}).fill(blue()).foreground(
+          decorations::brackets(6, white(), 20))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(9, 9), SK_ColorBLUE); // on the corner arc itself
+
+  Host gapped;
+  gapped.composer.render(box().child(
+      box().width(100).height(100).corners({30}).fill(blue()).foreground(
+          decorations::gappedRule(6, white(), 20))));
+  gapped.frame();
+  EXPECT_EQ(gapped.pixel(50, 1), SK_ColorWHITE);
+  EXPECT_EQ(gapped.pixel(9, 9), SK_ColorWHITE);
+}
+
+TEST(ComposeBorders, InsetMovesTheRuleInsideTheSilhouette) {
+  Host host;
+  host.composer.render(panel(decorations::border(4, white(), 10)));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 10), SK_ColorWHITE); // the rule, 10 px in
+  EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);   // the edge itself is bare
+  EXPECT_EQ(host.pixel(10, 50), SK_ColorWHITE);
+}
+
+TEST(ComposeBorders, WeightedCornersThickenWhereTheRuleTurns) {
+  // A border whose weight varies along its run: 2 px along the edges,
+  // 8 px within 20 px of each corner.
+  Host host;
+  host.composer.render(panel(decorations::weightedCorners(2, 8, white(), 20)));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 3), SK_ColorWHITE); // inside the heavy corner run
+  EXPECT_EQ(host.pixel(50, 3), SK_ColorBLUE);  // the light run is only 2 px
+  EXPECT_EQ(host.pixel(50, 0), SK_ColorWHITE); // …but it IS drawn
+}
+
+TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(blue()).style(decorations::doubleBorder(
+          decorations::border(3, white()),
+          decorations::border(3, white(), 12)))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 0), SK_ColorWHITE);  // outer rule
+  EXPECT_EQ(host.pixel(50, 12), SK_ColorWHITE); // inner rule
+  EXPECT_EQ(host.pixel(50, 6), SK_ColorBLUE);   // clear paper between them
+}
+
+// ---------------------------------------------------------------------------
+// shapes::chamfered / shapes::notched — the two corner cuts the kernel's
+// corners() (which only rounds) could not express.
+
+TEST(ComposeShapes, ChamferCutsTheCornerAtFortyFiveDegrees) {
+  Host host;
+  host.composer.render(shapedPanel(shapes::chamfered(30), PathFormat{}));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);  // corner cut away
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE); // body intact
+  EXPECT_EQ(host.pixel(5, 95), SK_ColorBLACK); // all four by default
+}
+
+TEST(ComposeShapes, ChamferMaskCutsOnlyTheSelectedCorners) {
+  Host host;
+  host.composer.render(shapedPanel(
+      shapes::chamfered(30, shapes::Corner::Diagonal), PathFormat{}));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);   // top-left cut
+  EXPECT_EQ(host.pixel(95, 95), SK_ColorBLACK); // bottom-right cut
+  EXPECT_EQ(host.pixel(95, 5), SK_ColorBLUE);   // top-right square
+  EXPECT_EQ(host.pixel(5, 95), SK_ColorBLUE);   // bottom-left square
+}
+
+TEST(ComposeShapes, NotchBitesARectangleOutOfTheCorner) {
+  Host host;
+  host.composer.render(shapedPanel(
+      shapes::notched(20, 10, shapes::Corner::TopLeft), PathFormat{}));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK); // inside the bite
+  EXPECT_EQ(host.pixel(5, 15), SK_ColorBLUE); // below it
+  EXPECT_EQ(host.pixel(25, 5), SK_ColorBLUE); // right of it
+  EXPECT_EQ(host.pixel(95, 5), SK_ColorBLUE); // other corners untouched
+}
+
+// ---------------------------------------------------------------------------
 // The Illustrator brush model: scatter/pattern/ribbon + the ops pipeline.
 
 TEST(ComposeBrushes, ScatterInstancesArtAlongThePath) {

@@ -170,6 +170,19 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   for (int i = 0; i < warmup; ++i)
     step();
 
+  // One profiled frame BEFORE the timed run, so a FAIL can name the node
+  // instead of only the phase. Profiling costs a little, so it does not
+  // ride along with the measured frames.
+  std::vector<sigil::compose::Composer::NodeCost> hotNodes;
+  if (sigil::compose::Composer *composer = host.composer()) {
+    composer->setProfiling(true);
+    step();
+    const auto &rows = composer->profile();
+    hotNodes.assign(rows.begin(),
+                 rows.begin() + (std::ptrdiff_t)std::min<size_t>(6, rows.size()));
+    composer->setProfiling(false);
+  }
+
   std::vector<double> frames, updates, draws, paints, layouts, reconciles;
   frames.reserve((size_t)options.benchFrames);
   for (int i = 0; i < options.benchFrames; ++i) {
@@ -224,25 +237,56 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                 stats.nodesPainted, stats.picturesRecorded, stats.picturesLive,
                 stats.texturesLive, stats.instances);
   }
+  if (!hotNodes.empty()) {
+    std::printf("  most expensive nodes (self ms, excluding children):\n");
+    for (const auto &row : hotNodes)
+      std::printf("    %8.2f ms  %-44s %s\n", row.selfMs, row.label.c_str(),
+                  row.cached ? "[cached — replaying a picture still re-runs "
+                               "its shaders]"
+                             : "");
+  }
   if (pass) {
     std::printf("  PASS — p99 %.2f ms is inside the %.1f ms budget "
                 "(%.0f FPS gate)\n",
                 p99, kFrameBudgetMs, 1000.0 / kFrameBudgetMs);
   } else {
+    const bool paintBound = mean(draws) >= mean(updates);
     std::printf("\n"
                 "  ####################################################\n"
                 "  ##  FAIL — p99 %.2f ms EXCEEDS the %.1f ms budget.\n"
                 "  ##  This sketch does NOT hold 60 FPS at %dx%d.\n"
-                "  ##  %s dominates. First moves: debug::coverage to find\n"
-                "  ##  the expensive node, then .cache(Cache::Texture) on\n"
-                "  ##  any static full-canvas material (a shader caches;\n"
-                "  ##  its PIXELS do not).\n"
-                "  ##  If it cannot be fixed, it goes in PERF_LEDGER.md\n"
-                "  ##  with this number.\n"
-                "  ####################################################\n",
+                "  ##  %s dominates.\n",
                 p99, kFrameBudgetMs, width, height,
-                mean(draws) >= mean(updates) ? "Paint (draw)"
-                                             : "Describe/reconcile (update)");
+                paintBound ? "PAINT (draw)" : "DESCRIBE/RECONCILE (update)");
+    if (paintBound) {
+      // The distinction the corpus got wrong, stated where it is read.
+      // `picturesRecorded == 0` looks like "fully cached" and is not: a
+      // picture records the DRAW CALLS, so replaying it re-runs every SkSL
+      // shader over every pixel, every frame. Only Cache::Texture keeps
+      // the PIXELS. (Note: debug::coverage is a geometric path-tiling
+      // check — it has nothing to do with paint cost, so do not send
+      // people there for this.)
+      std::printf(
+          "  ##  Per-pixel cost, not tree cost. Note that\n"
+          "  ##  'pictures recorded 0' above does NOT mean cached: a\n"
+          "  ##  picture records the DRAW CALLS, so replaying it re-runs\n"
+          "  ##  every shader over every pixel again. Only\n"
+          "  ##  .cache(Cache::Texture) keeps the PIXELS.\n"
+          "  ##  First move: put .cache(Cache::Texture) on every STATIC\n"
+          "  ##  node carrying a full-area SkSL Material (patterns::,\n"
+          "  ##  sdf::, Material::sksl). %zu nodes painted, %zu textures\n"
+          "  ##  live -- if that texture count is 0, nothing is cached\n"
+          "  ##  as pixels at all.\n",
+          host.composer() ? host.composer()->stats().nodesPainted : 0u,
+          host.composer() ? host.composer()->stats().texturesLive : 0u);
+    } else {
+      std::printf("  ##  You are rebuilding the tree every frame. Describe\n"
+                  "  ##  once in setup() and bind choreograph::Outputs, or\n"
+                  "  ##  memo() the subtrees whose props did not change.\n");
+    }
+    std::printf("  ##  If it cannot be fixed, it goes in PERF_LEDGER.md\n"
+                "  ##  with this number.\n"
+                "  ####################################################\n");
   }
   std::fflush(stdout);
   return 0;
