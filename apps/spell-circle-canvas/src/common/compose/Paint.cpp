@@ -851,13 +851,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
       const auto &frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
       if (frame.image) {
+        const SkSamplingOptions sampling = node.imageData->sampling;
         if (node.imageData->region)
           canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
-                               SkSamplingOptions(SkFilterMode::kLinear), nullptr,
+                               sampling, nullptr,
                                SkCanvas::kStrict_SrcRectConstraint);
         else
-          canvas.drawImageRect(frame.image, bounds,
-                               SkSamplingOptions(SkFilterMode::kLinear));
+          canvas.drawImageRect(frame.image, bounds, sampling);
       }
     }
     break;

@@ -868,6 +868,16 @@ public:
   Element &fill(Material m);
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element &fill(SkColor4f color) { return fill(PropValue<Fill>{Fill::color(color)}); }
+  /** How an image() leaf samples its source. Defaults to linear, which is
+   *  right for photographs and wrong for every pixel grid: art, tilemaps,
+   *  fonts baked as sprites, simulation buffers.
+   *
+   *      image(tileset).sampling(SkSamplingOptions(SkFilterMode::kNearest))
+   *
+   *  `Material::image()` has always taken sampling; the element factory
+   *  did not, so the fix was discoverable only by diffing two signatures.
+   *  No effect on non-image leaves. */
+  Element &sampling(SkSamplingOptions options);
   /** Decoration layers: backgrounds paint below content/children (in
    *  declaration order), foregrounds above; repeated calls APPEND (the
    *  Photoshop stacked-strokes model — two stroke() calls are two rings).

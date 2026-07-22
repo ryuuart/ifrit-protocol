@@ -118,6 +118,11 @@ struct TextData {
 struct ImageData {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::optional<SkRect> region; // atlas sub-rect, source px
+  // Element::sampling(). Every blessed image path hardcoded kLinear, so
+  // pixel art, tilemaps and simulation buffers drawn through image() were
+  // silently blurred and the only escape was Material::image()'s own
+  // sampling parameter — discoverable by diffing two signatures.
+  SkSamplingOptions sampling{SkFilterMode::kLinear};
 };
 
 struct CustomData {
