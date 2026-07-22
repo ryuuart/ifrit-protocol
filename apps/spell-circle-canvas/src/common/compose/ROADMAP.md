@@ -52,6 +52,8 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
 | `dashPhaseBinding` on `PathFormat` and `lines::Line` | `trimPhase` took a bound Output and declared `animated()`; `dashPhase` was a plain float, so marching ants — the commonest animated-line idiom in map UI — meant re-describing every frame | `Decorations.h`, `Lines.h` |
+| **`Pool::sizes()` — per-instance non-uniform scale** | The hard half of §2, eight studies deep: `SkRSXform` is uniform by construction, so a motion-blur streak whose aspect swings 2.4:1 → 1:1 could not be instanced at all | `Instances.h`, `GpuImage.h` |
+| `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
 | `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
 | `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
 | `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
@@ -137,7 +139,13 @@ plate's 9,580 settling sand grains:
 
 - **`tints()` is the only per-instance opacity lane**, so fading a subset
   means rewriting RGBA every frame when only alpha moves.
-- **The non-uniform-scale half now has a measured price: 69 lines.** The
+- ~~**The non-uniform-scale half**~~ — **CLOSED**: `Pool::sizes()` is an
+  opt-in `SkSize` lane, and the fix was smaller than the gap looked
+  because `drawSpriteAtlas` was already decomposing to quads for backend
+  portability. It emitted them from `RSXform::toQuad`; with a size lane
+  present it builds them directly, and everything downstream is
+  byte-identical. What follows is what it cost before that landed:
+- **The non-uniform-scale half had a measured price: 69 lines.** The
   Genesis study hand-built an 8-vertex flat-cored strip per particle plus
   the uint16 chunking `drawSpriteAtlas` already does internally, and with
   it went every decoration slot on the node and all picture caching. Its
