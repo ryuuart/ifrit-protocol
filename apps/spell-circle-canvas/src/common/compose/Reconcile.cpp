@@ -76,6 +76,17 @@ bool transitionEqual(const Transition &a, const Transition &b) {
          easeEqual(a.ease, b.ease);
 }
 
+/** Shaped bindings prune like anything else: same Output, same affine,
+ *  same curve under easeEqual's conservative rule. A re-describe that
+ *  only changes the CURVE must NOT prune — the map is read live, so a
+ *  pruned node would keep shaping through the old one forever. */
+bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
+  return a.source == b.source && a.inScale == b.inScale &&
+         a.inOffset == b.inOffset && a.scale == b.scale &&
+         a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
+         a.hi == b.hi && easeEqual(a.curve, b.curve);
+}
+
 template <typename T>
 bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
   if (a.index() != b.index())
@@ -88,6 +99,8 @@ bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
            trA->waypoints == trB->waypoints &&
            transitionEqual(trA->spec, trB->spec);
   }
+  if (const BoundFloat *mapA = a.boundMap())
+    return boundMapEqual(*mapA, *b.boundMap());
   return a.binding() == b.binding();
 }
 
@@ -130,6 +143,16 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.paragraphOverride)
     return false; // layoutOptions aren't comparable — memo these
+  // onPath(): the baseline is an incomparable std::function, so a run
+  // that has one never prunes — the same conservative rule deriveEqual
+  // applies to placeFn/router. (It was omitted here entirely when onPath
+  // landed, which meant a moving `at` or a new baseline silently kept the
+  // OLD path forever. TextPath's defaulted operator== was implicitly
+  // deleted for the same reason and never caught it.)
+  if (ta.onPath.has_value() != tb.onPath.has_value())
+    return false;
+  if (ta.onPath)
+    return false;
   // textFill(): live never prunes, static compares by recipe.
   if (ta.metricFill.has_value() != tb.metricFill.has_value())
     return false;

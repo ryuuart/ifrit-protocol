@@ -13,8 +13,14 @@ using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
                                      const PropValue<float> &v) const {
-  if (const choreograph::Output<float> *binding = v.binding())
+  if (const choreograph::Output<float> *binding = v.binding()) {
+    // A shaped binding (bind(&out).map().to()…) runs its map here — the
+    // one place a bound float is read, so trim, glyph progress, every
+    // transform and the hit test all get it for free.
+    if (const BoundFloat *shape = v.boundMap())
+      return shape->apply(binding->value());
     return binding->value();
+  }
   if (anims[slot] && anims[slot]->started)
     return anims[slot]->value.value();
   if (const float *plain = v.plain())

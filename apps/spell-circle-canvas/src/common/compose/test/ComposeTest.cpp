@@ -4661,3 +4661,121 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
     for (int x = 0; x < 200; x += 4)
       ASSERT_EQ(base.getColor(x, y), after.getColor(x, y));
 }
+
+// ---------------------------------------------------------------------------
+// Shaped bindings — bind(&out).from().map().to().clamp()
+
+TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
+  // Reading order IS evaluation order for the affine ops, so the two
+  // spellings below are genuinely different and each does what it looks
+  // like. (An "order doesn't matter" accumulate would collapse them.)
+  EXPECT_FLOAT_EQ(bind(nullptr).scale(240).offset(-70).value().apply(0.5f),
+                  0.5f * 240 - 70);
+  EXPECT_FLOAT_EQ(bind(nullptr).offset(-70).scale(240).value().apply(0.5f),
+                  (0.5f - 70) * 240);
+  // to(lo,hi) is the [0,1] → range spelling…
+  EXPECT_FLOAT_EQ(bind(nullptr).to(20, 60).value().apply(0.25f), 30.0f);
+  // …from(lo,hi) the other direction, and they compose.
+  EXPECT_FLOAT_EQ(bind(nullptr).from(0, 200).to(0, 1).value().apply(50.0f),
+                  0.25f);
+  // invert composes with what came before rather than resetting it.
+  EXPECT_FLOAT_EQ(bind(nullptr).invert().value().apply(0.25f), 0.75f);
+  EXPECT_FLOAT_EQ(bind(nullptr).to(0, 2).invert().value().apply(0.25f),
+                  1.0f - 0.5f);
+  // the curve runs BEFORE the affine, on the normalised value…
+  EXPECT_FLOAT_EQ(
+      bind(nullptr).map(&choreograph::easeNone).to(0, 10).value().apply(0.4f),
+      4.0f);
+  // …and the clamp always runs last, whenever it is written.
+  EXPECT_FLOAT_EQ(bind(nullptr).clamp(0, 1).to(0, 4).value().apply(0.5f), 1.0f);
+}
+
+TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
+  // The wall this closes: a phase in [0,1] — which is what trim() and
+  // opacity() want — could not drive a translation in PIXELS without a
+  // second Output carrying pixels, updated in the same steppable. Five
+  // separate studies kept two Outputs where one would do.
+  Host host(200, 200);
+  choreograph::Output<float> phase{0.0f};
+  host.composer.render(box().child(box()
+                                       .width(20)
+                                       .height(20)
+                                       .absolute()
+                                       .left(0)
+                                       .top(90)
+                                       .fill(red())
+                                       .translateX(bind(&phase).to(0, 160))));
+  auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
+
+  host.frame();
+  EXPECT_TRUE(redAt(10));   // phase 0 → x = 0
+  EXPECT_FALSE(redAt(170));
+
+  phase = 1.0f;
+  host.frame();
+  EXPECT_FALSE(redAt(10));
+  EXPECT_TRUE(redAt(170));  // phase 1 → x = 160, unscaled would be x = 1
+
+  phase = 0.5f;
+  host.frame();
+  EXPECT_TRUE(redAt(85));   // and it is linear in between
+}
+
+TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
+  // The map is read LIVE through the pointer, so a pruned node would keep
+  // shaping through the OLD one forever. Same Output, different range.
+  Host host(200, 200);
+  choreograph::Output<float> phase{1.0f};
+  auto tree = [&](float far) {
+    return box().child(box()
+                           .key("dot")
+                           .width(20)
+                           .height(20)
+                           .absolute()
+                           .left(0)
+                           .top(90)
+                           .fill(red())
+                           .translateX(bind(&phase).to(0, far)));
+  };
+  host.composer.render(tree(40.0f));
+  host.frame();
+  EXPECT_TRUE(SkColorGetR(host.pixel(50, 100)) > 180);
+
+  host.composer.render(tree(150.0f));
+  host.frame();
+  EXPECT_FALSE(SkColorGetR(host.pixel(50, 100)) > 180);
+  EXPECT_TRUE(SkColorGetR(host.pixel(160, 100)) > 180);
+}
+
+TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
+  // textEqual() compared everything about a text run EXCEPT its baseline
+  // when onPath landed, so re-describing with a new path or a new `at`
+  // pruned and the run kept riding the old one. TextPath's defaulted
+  // operator== was implicitly deleted (std::function isn't comparable) and
+  // so never caught it.
+  Host host(240, 240);
+  auto ring = [](float at) {
+    return box().child(text(u8"HHHHHHHHHH", whiteStyle(22))
+                           .key("ring")
+                           .width(240).height(240).absolute().left(0).top(0)
+                           .onPath({.path = shapes::arc(180.0f, 359.9f),
+                                    .at = at,
+                                    .align = TextPath::Align::Center}));
+  };
+  auto lit = [&](int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = 0; x < 240; ++x)
+        count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+
+  host.composer.render(ring(0.25f));
+  host.frame();
+  ASSERT_GT(lit(0, 110), 200);
+
+  host.composer.render(ring(0.75f)); // same key, same text, new baseline
+  host.frame();
+  EXPECT_GT(lit(140, 240), 200); // it moved…
+  EXPECT_LT(lit(0, 110), 40);    // …and did not stay put
+}

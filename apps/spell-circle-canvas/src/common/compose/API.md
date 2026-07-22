@@ -82,14 +82,36 @@ template <typename T> Transitioned<T> withKeyframes(
     choreograph::EaseFn ease = ...);
 
 template <typename T> class PropValue;  // T: float, SkColor4f, Fill…
-// Holds a plain T, a Transitioned<T>, or a const ch::Output<T>*. Stored
-// COMPACTLY, not as a std::variant: constants and bindings inline, the
-// fat Transitioned payload (from/waypoints/spec, ~100 B for a float)
-// boxed out-of-line — eight PropValue<float>s ride every node's paint
-// props, so this is the ElementNode hot-base/boxed-rarities rule
-// applied to the property type itself (see DESIGN.md).
+// Holds a plain T, a Transitioned<T>, a const ch::Output<T>*, or a
+// SHAPED binding (below). Stored COMPACTLY, not as a std::variant:
+// constants and bindings inline, the fat payloads (Transitioned's
+// from/waypoints/spec; a binding's map) boxed out-of-line and sharing
+// one pointer since they are mutually exclusive — eight PropValue<float>s
+// ride every node's paint props, so this is the ElementNode
+// hot-base/boxed-rarities rule applied to the property type itself
+// (see DESIGN.md).
 // Bound and transitioned properties are paint-only by contract:
 // animating them never triggers relayout.
+
+// ---- shaped bindings ----
+// A bare `&output` lands on the property RAW. bind() remaps it on the way,
+// so one Output in [0,1] can drive a translation in pixels, an eased
+// opacity and a bar's scaleX at once — without a second Output per unit
+// and without the easing living in the tick loop.
+Bound bind(const ch::Output<float> *source);
+// Three stages, always in this order:
+//   1. from(lo, hi)   normalise the SOURCE range onto [0,1]
+//   2. map(ease)      shape it — any ch::EaseFn, so all of ease:: fits
+//   3. scale/offset/to/invert  — affine, composed in CALL ORDER;
+//      clamp(lo, hi) always applies last, wherever it is written
+  .translateX(bind(&phase).to(-70, 170))            // [0,1] → px
+  .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
+  .scaleX(bind(&hp).from(0, maxHp))                 // a health bar
+// `.scale(240).offset(-70)` is v*240-70; `.offset(-70).scale(240)` is
+// (v-70)*240 — reading order is evaluation order.
+// Prunes like anything else (same Output, same affine, same curve under
+// the conservative easeEqual rule), so a re-describe that changes only
+// the range actually repatches.
 ```
 
 ## Elements

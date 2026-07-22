@@ -171,11 +171,121 @@ withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
   return t;
 }
 
+/** A live binding, SHAPED on its way to the property.
+ *
+ *  A bare `&output` binding lands on the property RAW, which was the
+ *  most-cited wall in the library: a phase that lives in [0,1] — what
+ *  trim(), opacity() and every progress want — could not drive a
+ *  translation in pixels without a SECOND Output carrying pixels, updated
+ *  in the same steppable. Five independent studies arrived here from five
+ *  unrelated directions (a shimmer band, a health bar, a lattice
+ *  assembling, a pen tip trailing a drawn curve, a card entrance), and
+ *  every one of them paid for it in duplicated Outputs and easing written
+ *  in the tick loop, far from the property it shapes.
+ *
+ *      .translateX(bind(&phase).to(-70, 170))
+ *      .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
+ *      .scaleX(bind(&hp).from(0, maxHp))
+ *
+ *  Three stages, always in this order:
+ *
+ *    1. `from(lo, hi)` normalises the SOURCE range onto [0,1];
+ *    2. `map(ease)` shapes it (any `choreograph::EaseFn`, so the whole
+ *       `ease::` namespace and every choreograph curve fits);
+ *    3. the affine chain — `scale`/`offset`/`to`/`invert` — composes in
+ *       CALL ORDER, so `.scale(240).offset(-70)` is `v*240 - 70` and
+ *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
+ *       it looks. `clamp` always applies last.
+ *
+ *  Costs nothing a bare binding does not: still paint-only, still read
+ *  through the pointer each frame, still no relayout. sizeof(PropValue)
+ *  is unchanged — the map rides the same out-of-line block the
+ *  transitioned form already allocates. */
+struct BoundFloat {
+  const choreograph::Output<float> *source = nullptr;
+  float inScale = 1.0f, inOffset = 0.0f; // from(): pre-curve normalisation
+  choreograph::EaseFn curve;             // map()
+  float scale = 1.0f, offset = 0.0f;     // the affine chain
+  bool clamped = false;
+  float lo = 0.0f, hi = 1.0f;
+
+  float apply(float v) const {
+    v = v * inScale + inOffset;
+    if (curve)
+      v = curve(v);
+    v = v * scale + offset;
+    if (clamped)
+      v = v < lo ? lo : (v > hi ? hi : v);
+    return v;
+  }
+};
+
+/** Builder for BoundFloat — see the doc above. Converts implicitly into
+ *  any `PropValue<float>` property. */
+class Bound {
+public:
+  explicit Bound(const choreograph::Output<float> *source) {
+    m_b.source = source;
+  }
+
+  /** Normalise the source's own range onto [0,1] before everything else.
+   *  `bind(&hp).from(0, maxHp)` is the health-bar spelling. */
+  Bound &from(float lo, float hi) {
+    const float span = hi - lo;
+    m_b.inScale = span != 0.0f ? 1.0f / span : 0.0f;
+    m_b.inOffset = span != 0.0f ? -lo / span : 0.0f;
+    return *this;
+  }
+  /** Shape the (normalised) value — any choreograph easing, including the
+   *  parameterised `ease::` family. */
+  Bound &map(choreograph::EaseFn curve) {
+    m_b.curve = std::move(curve);
+    return *this;
+  }
+  Bound &scale(float s) {
+    m_b.scale *= s;
+    m_b.offset *= s;
+    return *this;
+  }
+  Bound &offset(float o) {
+    m_b.offset += o;
+    return *this;
+  }
+  /** Map [0,1] onto [lo,hi] — `scale(hi-lo).offset(lo)`, spelled the way
+   *  you think about it. */
+  Bound &to(float lo, float hi) { return scale(hi - lo).offset(lo); }
+  /** 1 − v, composed properly with whatever came before. */
+  Bound &invert() {
+    m_b.scale = -m_b.scale;
+    m_b.offset = 1.0f - m_b.offset;
+    return *this;
+  }
+  /** Bound the OUTPUT; always applied last, whenever it is written. */
+  Bound &clamp(float lo, float hi) {
+    m_b.clamped = true;
+    m_b.lo = lo;
+    m_b.hi = hi;
+    return *this;
+  }
+
+  const BoundFloat &value() const { return m_b; }
+
+private:
+  BoundFloat m_b;
+};
+
+/** `bind(&output)` — a binding you can shape. `&output` on its own still
+ *  works and stays the zero-overhead form. */
+inline Bound bind(const choreograph::Output<float> *source) {
+  return Bound{source};
+}
+
 /**
  * Every animatable property accepts one of: a constant (snaps, or ramps
- * under a node-level transition), a constant with its own transition, or
- * a live Choreograph binding stepped by the Ticker (paint-only; the
- * caller owns the Output and composes motions on ticker.timeline()).
+ * under a node-level transition), a constant with its own transition, a
+ * live Choreograph binding stepped by the Ticker (paint-only; the caller
+ * owns the Output and composes motions on ticker.timeline()), or that
+ * binding shaped through bind().
  *
  * Stored compactly (this used to be a std::variant): Transitioned<T> is
  * the fat form — from/waypoints/spec, ~100 B for a float — and most
@@ -188,42 +298,72 @@ template <typename T> class PropValue {
 public:
   PropValue() = default;
   PropValue(T v) : m_plain(std::move(v)) {}
-  PropValue(Transitioned<T> t)
-      : m_kind(Kind::kAnim),
-        m_anim(std::make_unique<Transitioned<T>>(std::move(t))) {}
+  PropValue(Transitioned<T> t) : m_kind(Kind::kAnim) {
+    extra().anim = std::move(t);
+  }
   PropValue(const choreograph::Output<T> *bound)
       : m_kind(Kind::kBound), m_bound(bound) {}
+  /** bind(&out).…  — a shaped binding. Float properties only; the extra
+   *  block is the same one the transitioned form allocates, so this adds
+   *  nothing to sizeof(PropValue) and nothing to a node that never uses
+   *  it. */
+  PropValue(const Bound &b) : m_kind(Kind::kBoundMapped) {
+    m_bound = b.value().source;
+    extra().bound = b.value();
+  }
   PropValue(const PropValue &other) { *this = other; }
   PropValue(PropValue &&) noexcept = default;
   PropValue &operator=(const PropValue &other) {
     m_kind = other.m_kind;
     m_plain = other.m_plain;
     m_bound = other.m_bound;
-    m_anim = other.m_anim ? std::make_unique<Transitioned<T>>(*other.m_anim)
-                          : nullptr;
+    m_extra = other.m_extra ? std::make_unique<Extra>(*other.m_extra) : nullptr;
     return *this;
   }
   PropValue &operator=(PropValue &&) noexcept = default;
 
-  /** Which form holds (0 plain, 1 transitioned, 2 bound — the old
-   *  variant's index order, for the reconciler's compare). */
+  /** Which form holds (0 plain, 1 transitioned, 2 bound, 3 shaped
+   *  binding — the old variant's index order, for the reconciler's
+   *  compare, which is why a shaped binding sorts after a bare one rather
+   *  than replacing it). */
   int index() const { return (int)m_kind; }
   const T *plain() const {
     return m_kind == Kind::kPlain ? &m_plain : nullptr;
   }
   const Transitioned<T> *transitioned() const {
-    return m_kind == Kind::kAnim ? m_anim.get() : nullptr;
+    return m_kind == Kind::kAnim ? &m_extra->anim : nullptr;
   }
+  /** The bound Output, shaped or not — so every volatility check, every
+   *  "bound ⇒ snap" branch and the reconciler's pointer compare go on
+   *  reading one accessor. */
   const choreograph::Output<T> *binding() const {
-    return m_kind == Kind::kBound ? m_bound : nullptr;
+    return m_kind == Kind::kBound || m_kind == Kind::kBoundMapped ? m_bound
+                                                                  : nullptr;
+  }
+  /** The shaping, if this binding has any. */
+  const BoundFloat *boundMap() const {
+    return m_kind == Kind::kBoundMapped ? &m_extra->bound : nullptr;
   }
 
 private:
-  enum class Kind : uint8_t { kPlain, kAnim, kBound };
+  enum class Kind : uint8_t { kPlain, kAnim, kBound, kBoundMapped };
+  /** The out-of-line block for the two FAT forms. They are mutually
+   *  exclusive, so one pointer carries both and PropValue stays the
+   *  size it was compacted to (ElementNode 1288 B → 688 B). */
+  struct Extra {
+    Transitioned<T> anim{};
+    BoundFloat bound{};
+  };
+  Extra &extra() {
+    if (!m_extra)
+      m_extra = std::make_unique<Extra>();
+    return *m_extra;
+  }
+
   Kind m_kind = Kind::kPlain;
   T m_plain{};
   const choreograph::Output<T> *m_bound = nullptr;
-  std::unique_ptr<Transitioned<T>> m_anim;
+  std::unique_ptr<Extra> m_extra;
 };
 
 // ---------------------------------------------------------------------------
@@ -391,7 +531,10 @@ struct TextPath {
    *  genuinely upside down. Modern signage flips; historical plates do
    *  not. */
   bool autoFlip = false;
-  bool operator==(const TextPath &) const = default;
+  // No operator==: `path` is a std::function, so a defaulted one is
+  // implicitly DELETED and compiles quietly while comparing nothing. The
+  // reconciler treats a run with a baseline as never-prunable instead
+  // (Reconcile.cpp, textEqual) — the same rule the derive callables get.
 };
 
 struct GlyphFx {
