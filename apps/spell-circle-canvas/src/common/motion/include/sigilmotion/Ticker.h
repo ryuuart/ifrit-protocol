@@ -100,9 +100,34 @@ public:
   /** True while the timeline has motions or steppables remain. */
   bool active() const;
 
+  /**
+   * Total time this Ticker has been stepped, in seconds.
+   *
+   * `add()` hands a steppable only `dt`, and a steppable is where
+   * Outputs get written — so every author who needed the CLOCK rather
+   * than the delta captured a `double t = 0` by value and accumulated it
+   * themselves. Thirty-six files in this repo do exactly that, in two
+   * populations that never shared a line of code, and the accumulator is
+   * identical in all of them.
+   *
+   * That was never a missing helper. `FrameClock::elapsed()` exists,
+   * `PaintContext::elapsedSeconds` exists, and `Sketch::update` is
+   * handed elapsed; the one place that could not reach it was the one
+   * place that needed it. So this is the getter, not a `phase()` or a
+   * `breath()` over it — a helper wrapping an unreachable clock would
+   * only have produced a thirty-seventh copy.
+   *
+   *     ticker.add([this, &ticker](double) {
+   *       phase = std::sin(ticker.elapsed() * 2.0);
+   *       return true;
+   *     });
+   */
+  double elapsed() const { return m_elapsed; }
+
 private:
   choreograph::Timeline m_timeline;
   std::vector<std::function<bool(double)>> m_steppables;
+  double m_elapsed = 0.0;
 };
 
 } // namespace sigil::motion
