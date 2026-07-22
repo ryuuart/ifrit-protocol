@@ -140,6 +140,7 @@ add_executable(compose_demo
 target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
 
 # Each tree-structured product owns its CMakeLists (repo convention —
-# see sigilweave/examples/*).
-add_subdirectory(gallery)
+# see sigilweave/examples/*). sketch/ first: it defines SigilSketchStudies
+# (every study sketch compiled in place), which the gallery links.
 add_subdirectory(sketch)
+add_subdirectory(gallery)

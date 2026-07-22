@@ -26,6 +26,21 @@ Run any of them:
 `--at` picks the moment; `--frames N --fps N` writes a sequence. Windowed
 (no `--frame`) watches the file and hot-swaps on save.
 
+**Every study is also a ComposeGallery scene.** The gallery compiles these
+files in (`SIGIL_SKETCH_STATIC` — see `../README.md`), so they appear in
+its sidebar under `Study · …` folders alongside the catalog scenes, with
+live frame metrics and the clock controls. Nothing is duplicated: this is
+the same file, and a study fixed here is fixed there.
+
+```sh
+ComposeGallery.app/Contents/MacOS/ComposeGallery                # browse
+ComposeGallery.app/Contents/MacOS/ComposeGallery \
+    --headless out --scene penrose_paving                       # one PNG + timings
+```
+
+Use ComposeSketch when you are CHANGING a study (hot reload, its stderr
+audit), the gallery when you are LOOKING at one next to everything else.
+
 | Sketch | Subject | What it puts under load |
 |---|---|---|
 | `black_watch` | The Government sett, from Douglas's 1949 *Scotch Tartan Setts* | A tartan as CLOTH — 24 integers and a mod-4 rule, 63,504 emergent cells, ten invariants computed and printed |
@@ -47,7 +62,6 @@ Run any of them:
 | `minard_1869` | Minard's own BnF presentation copy of the 1869 sheet | The plate audited against its own printed legend, then the sketch audited by the same instrument |
 | `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths; the whole skeuomorphic vocabulary |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
-| `hitman_verlet` | Jakobsen's *Advanced Character Physics* (GDC 2001) | Motion with STATE and CONTACT — and the sign error in four of the paper's five stick listings |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
 

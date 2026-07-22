@@ -3,8 +3,16 @@
 // category headers; the Qt Quick app (ComposeGalleryView + qml/Main.qml)
 // and --headless both build on this. Each scene names the
 // STRESS_TESTS.md catalog items it exercises.
+//
+// The registry is two halves behind one index space: the CATALOG scenes
+// below, authored against the library's own stress list, and the STUDIES
+// (GalleryStudies.h), which are the sketch files compiled in. They differ
+// in more than provenance — a study brings its own canvas size and
+// background — so everything downstream of makeScene() reads those off the
+// stage rather than off a constant.
 
 #include "GalleryCore.h"
+#include "GalleryStudies.h"
 #include "ScenesChrome.h"
 #include "ScenesData.h"
 #include "ScenesFlourish.h"
@@ -53,41 +61,68 @@ struct SceneInfo {
   const char *catalog; // STRESS_TESTS.md items exercised
 };
 
+// Folders, not one heap. Eighteen scenes under "Showcase" was already the
+// limit of what a flat list can say, and the studies more than doubled the
+// registry — so the catalog splits by what a scene actually exercises, and
+// mirrors the "Study \xc2\xb7" prefix the sketches use so the two halves read
+// as siblings.
 inline constexpr SceneInfo kScenes[] = {
-    {"world hud", "Showcase",
+    {"world hud", "Catalog \xc2\xb7 Game UI",
      "voxygen dimensions \xe2\x80\x94 bars, hotbar, minimap"},
-    {"manuscript", "Showcase", "ornament"},
-    {"nine slice", "Showcase", "#9 texture-gen"},
-    {"botanical", "Showcase", "generative"},
-    {"ui particles", "Showcase", "SoA scale \xc2\xb7 instances()"},
-    {"load", "Scale", "#21 sustained load"},
-    {"tile map", "Tiling", "#15"},
-    {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
-    {"flourish", "Showcase", "the whole surface, at once"},
-    {"kinetic card", "Showcase", "\xc2\xa7""8 kinetic grammar (study port)"},
-    {"night network", "Showcase", "the brush engine, twelve constructions"},
-    {"persona menu", "Showcase", "\xc2\xa7""1 verified P3R grammar"},
-    {"aero desktop", "Showcase", "\xc2\xa7""6 glass + colorization"},
-    {"y2k chrome", "Showcase", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
-    {"passive tree", "Showcase", "\xc2\xa7""5 linework + orbit router"},
-    {"daemon console", "Showcase", "console() LineRing feed"},
-    {"motion poster", "Showcase",
+    {"manuscript", "Catalog \xc2\xb7 Type & grid", "ornament"},
+    {"nine slice", "Catalog \xc2\xb7 Scale", "#9 texture-gen"},
+    {"botanical", "Catalog \xc2\xb7 Generative", "generative"},
+    {"ui particles", "Catalog \xc2\xb7 Scale", "SoA scale \xc2\xb7 instances()"},
+    {"load", "Catalog \xc2\xb7 Scale", "#21 sustained load"},
+    {"tile map", "Catalog \xc2\xb7 Tiling", "#15"},
+    {"organic", "Catalog \xc2\xb7 Generative", "#5 #9 #10 #12 shapes/layouts"},
+    {"flourish", "Catalog \xc2\xb7 Generative", "the whole surface, at once"},
+    {"kinetic card", "Catalog \xc2\xb7 Type & grid",
+     "\xc2\xa7""8 kinetic grammar (study port)"},
+    {"night network", "Catalog \xc2\xb7 Generative",
+     "the brush engine, twelve constructions"},
+    {"persona menu", "Catalog \xc2\xb7 Game UI",
+     "\xc2\xa7""1 verified P3R grammar"},
+    {"aero desktop", "Catalog \xc2\xb7 Chrome",
+     "\xc2\xa7""6 glass + colorization"},
+    {"y2k chrome", "Catalog \xc2\xb7 Chrome", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
+    {"passive tree", "Catalog \xc2\xb7 Game UI",
+     "\xc2\xa7""5 linework + orbit router"},
+    {"daemon console", "Catalog \xc2\xb7 Game UI", "console() LineRing feed"},
+    {"motion poster", "Catalog \xc2\xb7 Type & grid",
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
-    {"zellige", "Showcase", "girih Hankin PIC \xe2\x80\x94 regenerating"},
-    {"beethoven", "Showcase", "\xc2\xa7""7 Brockmann arc table, trim reveal"},
-    {"loot grid", "Showcase",
+    {"zellige", "Catalog \xc2\xb7 Tiling",
+     "girih Hankin PIC \xe2\x80\x94 regenerating"},
+    {"beethoven", "Catalog \xc2\xb7 Type & grid",
+     "\xc2\xa7""7 Brockmann arc table, trim reveal"},
+    {"loot grid", "Catalog \xc2\xb7 Game UI",
      "D2 hoard \xe2\x80\x94 generated materials, instances()"},
-    {"gerstner grid", "Showcase",
+    {"gerstner grid", "Catalog \xc2\xb7 Type & grid",
      "Capital 1962 \xe2\x80\x94 the mobile grid, run"},
-    {"cosmati", "Tiling",
+    {"cosmati", "Catalog \xc2\xb7 Tiling",
      "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone"},
 };
-inline constexpr int kGallerySceneCount =
+inline constexpr int kCatalogSceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
+inline constexpr int kGallerySceneCount = kCatalogSceneCount + kStudyCount;
+
+/** The registry entry at `index`: catalog first, then studies. Returned by
+ *  value because a study's row is assembled from StudyInfo, but every
+ *  member still points at a string literal. */
+inline SceneInfo sceneInfo(int index) {
+  if (index < 0 || index >= kGallerySceneCount)
+    return {"", "", ""};
+  if (index < kCatalogSceneCount)
+    return kScenes[index];
+  const StudyInfo &study = kStudies[index - kCatalogSceneCount];
+  return {study.name, study.category, study.tag};
+}
 
 /** Scene index for a name or a decimal index; -1 when nothing matches.
  *  Names match case-insensitively on any unique substring, so `--scene y2k`
- *  and `--scene "y2k chrome"` both land on the same entry. */
+ *  and `--scene "y2k chrome"` both land on the same entry. A study also
+ *  answers to its file stem, because `slitscan_2001` is what you have in
+ *  front of you when you want to look at it. */
 inline int findScene(std::string_view query) {
   if (query.empty())
     return -1;
@@ -102,18 +137,28 @@ inline int findScene(std::string_view query) {
     return out;
   };
   const std::string needle = lower(query);
-  int hit = -1;
+  // Exact wins over substring, and both win over a later entry: two passes
+  // rather than one so `--scene hello` cannot be captured by a study whose
+  // tag happens to start the same way.
   for (int i = 0; i < kGallerySceneCount; ++i) {
-    const std::string name = lower(kScenes[i].name);
-    if (name == needle)
+    if (lower(sceneInfo(i).name) == needle)
       return i;
-    if (name.find(needle) != std::string::npos && hit < 0)
-      hit = i;
+    if (i >= kCatalogSceneCount &&
+        lower(kStudies[i - kCatalogSceneCount].key) == needle)
+      return i;
   }
-  return hit;
+  for (int i = 0; i < kGallerySceneCount; ++i) {
+    if (lower(sceneInfo(i).name).find(needle) != std::string::npos)
+      return i;
+    if (i >= kCatalogSceneCount &&
+        lower(kStudies[i - kCatalogSceneCount].key).find(needle) !=
+            std::string::npos)
+      return i;
+  }
+  return -1;
 }
 
-inline std::unique_ptr<Scene> makeScene(int index) {
+inline std::unique_ptr<Scene> makeCatalogScene(int index) {
   switch (index) {
   case 0: return std::make_unique<WorldHudScene>();
   case 1: return std::make_unique<ManuscriptScene>();
@@ -141,6 +186,14 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   }
 }
 
+inline std::unique_ptr<Scene> makeScene(int index) {
+  if (index < 0 || index >= kGallerySceneCount)
+    return nullptr;
+  if (index < kCatalogSceneCount)
+    return makeCatalogScene(index);
+  return makeStudy(kStudies[index - kCatalogSceneCount]);
+}
+
 /** Sweeps the registry (or one scene when `only` is a valid index),
  *  printing the FPS table and writing a 2x PNG per scene. */
 inline int runHeadless(const std::string &outDir, bool gpu = false,
@@ -162,16 +215,27 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
   }
 #endif
   std::filesystem::create_directories(outDir);
-  std::printf("%-14s %8s %8s %9s %6s %6s %6s %6s\n", "scene", "work ms",
-              "p99 ms", "fps", "recon", "layout", "volat", "paint");
+  std::printf("%-20s %10s %8s %8s %9s %6s %6s %6s %6s\n", "scene", "canvas",
+              "work ms", "p99 ms", "fps", "recon", "layout", "volat", "paint");
   const int first = only >= 0 ? only : 0;
   const int last = only >= 0 ? only + 1 : kGallerySceneCount;
+  bool anyShortened = false;
   for (int i = first; i < last; ++i) {
     GalleryStage stage;
-    stage.activate(makeScene(i));
+    std::unique_ptr<Scene> next = makeScene(i);
+    if (!next) {
+      std::fprintf(stderr, "scene %d has no factory\n", i);
+      return 1;
+    }
+    stage.activate(std::move(next));
     SkDebugf("=== scene %s\n", stage.scene->name());
+    // Every size below comes off the stage, not off kSceneSize: a study
+    // declares its own canvas from inside setup(), which activate() has
+    // just run.
+    const SkSize sceneSize = stage.sceneSize;
+    const SkColor4f clearColor = stage.sceneBackground;
     const SkImageInfo info = SkImageInfo::MakeN32Premul(
-        (int)kSceneSize.width(), (int)kSceneSize.height());
+        (int)sceneSize.width(), (int)sceneSize.height());
     sk_sp<SkSurface> surface;
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
     if (gpu) {
@@ -196,14 +260,38 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // the number a running gallery feels. Entrances are one-shots; their
     // cost is real but belongs to a different budget than the loop. On GPU
     // the warmup also absorbs pipeline compilation.
-    for (int f = 0; f < 240; ++f) {
-      surface->getCanvas()->clear(SK_ColorBLACK);
+    //
+    // The counts are a TIME budget, not a constant. 240 + 120 was free when
+    // every scene cost under 50 ms; the studies reach 200 ms on raster, where
+    // the same counts are 70 seconds for one row. So: probe, then spend at
+    // most a few seconds per scene. A shortened run is marked in the table,
+    // because a scene warmed for 0.4 s of scene time is still inside its
+    // entrance and its average says something different from the others'.
+    // Asking for ONE scene means you want that scene's real number, so the
+    // budget only applies to a sweep.
+    const double warmBudgetMs = only >= 0 ? 1e9 : 4000;
+    const double sampleBudgetMs = only >= 0 ? 1e9 : 2500;
+    constexpr int kProbeFrames = 8, kMinSampleFrames = 24;
+    for (int f = 0; f < kProbeFrames; ++f) {
+      surface->getCanvas()->clear(clearColor);
+      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+    }
+    const double probeMs = std::max(0.01, stage.stats.average());
+    const int warmFrames = std::max(
+        0, std::min(240 - kProbeFrames, (int)(warmBudgetMs / probeMs)));
+    const int sampleFrames =
+        std::max(kMinSampleFrames,
+                 std::min(120, (int)(sampleBudgetMs / probeMs)));
+    const bool shortened = warmFrames < 240 - kProbeFrames;
+    anyShortened = anyShortened || shortened;
+    for (int f = 0; f < warmFrames; ++f) {
+      surface->getCanvas()->clear(clearColor);
       stage.frame(*surface->getCanvas(), 1.0 / 60.0);
     }
     stage.stats = {};
     double reconcileMs = 0, layoutMs = 0, volatileMs = 0, paintMs = 0;
-    for (int f = 0; f < 120; ++f) {
-      surface->getCanvas()->clear(SK_ColorBLACK);
+    for (int f = 0; f < sampleFrames; ++f) {
+      surface->getCanvas()->clear(clearColor);
       stage.frame(*surface->getCanvas(), 1.0 / 60.0);
       const Composer::Stats &cs = stage.composer->stats();
       reconcileMs += cs.reconcileMs;
@@ -211,31 +299,43 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       volatileMs += cs.volatileMs;
       paintMs += cs.paintMs;
     }
+    char canvasLabel[24];
+    std::snprintf(canvasLabel, sizeof(canvasLabel), "%dx%d",
+                  (int)sceneSize.width(), (int)sceneSize.height());
+    char nameLabel[40];
+    std::snprintf(nameLabel, sizeof(nameLabel), "%s%s", stage.scene->name(),
+                  shortened ? " *" : "");
+    const double n = (double)sampleFrames;
     std::printf(
-        "%-14s %8.2f %8.2f %9.0f %6.2f %6.2f %6.2f %6.2f   rec %zu painted %zu\n",
-        stage.scene->name(), stage.stats.average(),
-        stage.stats.percentile(0.99), stage.stats.fps(), reconcileMs / 120,
-        layoutMs / 120, volatileMs / 120, paintMs / 120,
+        "%-20s %10s %8.2f %8.2f %9.0f %6.2f %6.2f %6.2f %6.2f   rec %zu "
+        "painted %zu\n",
+        nameLabel, canvasLabel, stage.stats.average(),
+        stage.stats.percentile(0.99), stage.stats.fps(), reconcileMs / n,
+        layoutMs / n, volatileMs / n, paintMs / n,
         stage.composer->stats().picturesRecorded,
         stage.composer->stats().nodesPainted);
     // Capture the PNG at 2x: the stats above ran at 1x, but the saved
     // frame re-renders through a scaled canvas so review images are
-    // sharp (Cache::Texture re-bakes at the capture scale).
+    // sharp (Cache::Texture re-bakes at the capture scale). The studies
+    // brought canvases up to 1940 px wide with them, so the factor gives way
+    // rather than the ceiling: a 2x twoadvanced_v4 is a 3880x3120 PNG, and
+    // nobody reviews one of those.
+    const float captureScale =
+        std::max(1.0f, std::min(2.0f, 2400.0f / sceneSize.width()));
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
     if (gpu) {
       // GPU captures read back through the async path (a Graphite surface
       // cannot readPixels synchronously) — these are what the interactive
       // QQuickRhiItem gallery actually shows, so visual QA runs HERE, not
       // on the raster sweep.
-      constexpr float kGpuCapture = 2.0f;
       const SkImageInfo shotInfo = SkImageInfo::MakeN32Premul(
-          (int)(kSceneSize.width() * kGpuCapture),
-          (int)(kSceneSize.height() * kGpuCapture));
+          (int)(sceneSize.width() * captureScale),
+          (int)(sceneSize.height() * captureScale));
       sk_sp<SkSurface> shot =
           SkSurfaces::RenderTarget(graphite->recorder(), shotInfo);
       if (shot) {
-        shot->getCanvas()->clear(SK_ColorBLACK);
-        shot->getCanvas()->scale(kGpuCapture, kGpuCapture);
+        shot->getCanvas()->clear(clearColor);
+        shot->getCanvas()->scale(captureScale, captureScale);
         stage.frame(*shot->getCanvas(), 1.0 / 60.0);
         if (auto recording = graphite->recorder()->snap()) {
           skgpu::graphite::InsertRecordingInfo insert;
@@ -281,17 +381,16 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       continue;
     }
 #endif
-    constexpr float kCapture = 2.0f;
     // Clean captures: the FPS overlay bakes live wall-clock digits into the
     // pixels, which makes every capture differ run-to-run — with it off the
     // scene content is deterministic (fixed dt, seeded rngs) and captures
     // diff meaningfully across builds.
     stage.showStats = false;
     sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)(kSceneSize.width() * kCapture),
-        (int)(kSceneSize.height() * kCapture)));
-    shot->getCanvas()->clear(SK_ColorBLACK);
-    shot->getCanvas()->scale(kCapture, kCapture);
+        (int)(sceneSize.width() * captureScale),
+        (int)(sceneSize.height() * captureScale)));
+    shot->getCanvas()->clear(clearColor);
+    shot->getCanvas()->scale(captureScale, captureScale);
     stage.frame(*shot->getCanvas(), 1.0 / 60.0);
     SkBitmap bm;
     bm.allocPixels(shot->imageInfo());
@@ -302,6 +401,10 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
       return 1;
   }
+  if (anyShortened)
+    std::printf("\n* short run: too expensive for the full 240-frame warmup, "
+                "so the average still\n  carries some of the entrance. Run it "
+                "alone with --scene for the settled number.\n");
   if (!gpu)
     std::printf("wrote %d gallery scene%s to %s\n", last - first,
                 last - first == 1 ? "" : "s", outDir.c_str());

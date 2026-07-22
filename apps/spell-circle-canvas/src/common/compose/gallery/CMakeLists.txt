@@ -35,9 +35,13 @@ target_include_directories(ComposeGallery PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 # the system font manager, the way every scene does today.
 target_compile_definitions(ComposeGallery PRIVATE
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
+# SigilSketchStudies is an OBJECT library (sketch/CMakeLists.txt): every
+# study sketch compiled with SIGIL_SKETCH_STATIC, which registers a factory
+# instead of exporting dylib entry points. Linking it is the whole
+# integration — GalleryStudies.h adds only folder and blurb.
 target_link_libraries(ComposeGallery PRIVATE
-  SigilCompose SigilWeavePorts Qt6::Gui Qt6::GuiPrivate Qt6::Quick
-  Qt6::QuickControls2 EnTT::EnTT)
+  SigilCompose SigilWeavePorts SigilSketchStudies Qt6::Gui Qt6::GuiPrivate
+  Qt6::Quick Qt6::QuickControls2 EnTT::EnTT)
 
 # Draw directly into QQuickRhiItem's texture with the shared Skia Graphite
 # context when the active QRhi backend is supported. Other builds keep the
@@ -61,5 +65,6 @@ add_executable(compose_gallery_test
 )
 target_include_directories(compose_gallery_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(compose_gallery_test PRIVATE
-  SigilCompose SigilWeavePorts GTest::gtest_main EnTT::EnTT)
+  SigilCompose SigilWeavePorts SigilSketchStudies GTest::gtest_main
+  EnTT::EnTT)
 add_test(NAME compose_gallery_test COMMAND compose_gallery_test)

@@ -135,6 +135,12 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
                    m_stage->scene
                        ? QString::fromUtf8(m_stage->scene->name())
                        : QString());
+    // Worth showing now that it varies: the studies range from 640x800 to
+    // 1940x1560, and "why is this one slower" usually starts here.
+    metrics.insert(QStringLiteral("canvas"),
+                   QStringLiteral("%1x%2")
+                       .arg((int)m_stage->sceneSize.width())
+                       .arg((int)m_stage->sceneSize.height()));
     // fps: what the window actually presents. headroom: what the frame's
     // work alone would allow — the number the 60fps floor is judged on.
     metrics.insert(QStringLiteral("fps"), m_stage->stats.presentedFps());
@@ -159,18 +165,25 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
 void ComposeGalleryRenderer::renderScene(SkCanvas &canvas, QSize pixelSize) {
   if (!m_stage)
     return;
+  // The canvas is the SCENE's, not a constant: the studies range from a
+  // 640x800 web page to a 1940x1560 Flash site, and letterboxing each to its
+  // own aspect is the difference between showing it and distorting it. The
+  // matte stays black so the frame's own edge reads; inside the clip the
+  // scene's declared background takes over.
+  const SkSize sceneSize = m_stage->sceneSize;
   canvas.clear(SK_ColorBLACK);
   const float scale =
-      std::min(static_cast<float>(pixelSize.width()) / kSceneSize.width(),
-               static_cast<float>(pixelSize.height()) / kSceneSize.height());
+      std::min(static_cast<float>(pixelSize.width()) / sceneSize.width(),
+               static_cast<float>(pixelSize.height()) / sceneSize.height());
   canvas.save();
   canvas.translate(
-      (static_cast<float>(pixelSize.width()) - kSceneSize.width() * scale) /
+      (static_cast<float>(pixelSize.width()) - sceneSize.width() * scale) /
           2.0f,
-      (static_cast<float>(pixelSize.height()) - kSceneSize.height() * scale) /
+      (static_cast<float>(pixelSize.height()) - sceneSize.height() * scale) /
           2.0f);
   canvas.scale(scale, scale);
-  canvas.clipRect(SkRect::MakeWH(kSceneSize.width(), kSceneSize.height()));
+  canvas.clipRect(SkRect::MakeWH(sceneSize.width(), sceneSize.height()));
+  canvas.clear(m_stage->sceneBackground);
   m_stage->frame(canvas);
   canvas.restore();
   m_stage->markPresented();
@@ -292,11 +305,22 @@ QQuickRhiItemRenderer *ComposeGalleryView::createRenderer() {
 QVariantList ComposeGalleryView::scenes() const {
   QVariantList result;
   result.reserve(kGallerySceneCount);
-  for (const SceneInfo &scene : kScenes) {
+  for (int i = 0; i < kGallerySceneCount; ++i) {
+    const SceneInfo scene = sceneInfo(i);
     QVariantMap item;
+    // The index travels with the row: the sidebar groups and filters, so a
+    // row's position in the list it is drawn from says nothing about which
+    // scene it selects.
+    item.insert(QStringLiteral("sceneIndex"), i);
     item.insert(QStringLiteral("name"), QString::fromUtf8(scene.name));
     item.insert(QStringLiteral("category"), QString::fromUtf8(scene.category));
     item.insert(QStringLiteral("tag"), QString::fromUtf8(scene.catalog));
+    // A study also answers to its file stem — the thing you have open in an
+    // editor when you want to find it here.
+    item.insert(QStringLiteral("key"),
+                i >= kCatalogSceneCount
+                    ? QString::fromUtf8(kStudies[i - kCatalogSceneCount].key)
+                    : QString());
     result.push_back(std::move(item));
   }
   return result;
