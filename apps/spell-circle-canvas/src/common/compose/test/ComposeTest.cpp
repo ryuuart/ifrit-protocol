@@ -642,6 +642,35 @@ TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
   EXPECT_GT(hi - lo, 40) << "grain is flat — no field to overlay";
 }
 
+TEST(ComposeMaterial, UnitRampFollowsTheBoxItLandsIn) {
+  // linear() is in node-local PIXELS, which an author cannot know for a
+  // content-sized box. linearUnit() is in the unit square, so the SAME
+  // material reads correctly at two different sizes.
+  auto card = [](float w, float h) {
+    return box().width(w).height(h).absolute().left(0).top(0)
+        .fill(Material::linearUnit({0, 0}, {0, 1},
+                                   {{0.0f, {1, 0, 0, 1}},
+                                    {1.0f, {0, 0, 1, 1}}}));
+  };
+  Host small(80, 40);
+  small.composer.render(box().child(card(80, 40)));
+  small.frame();
+  EXPECT_GT(SkColorGetR(small.pixel(40, 2)), 180u);  // top is red…
+  EXPECT_GT(SkColorGetB(small.pixel(40, 37)), 180u); // …bottom is blue
+
+  Host tall(80, 300);
+  tall.composer.render(box().child(card(80, 300)));
+  tall.frame();
+  EXPECT_GT(SkColorGetR(tall.pixel(40, 3)), 180u);
+  EXPECT_GT(SkColorGetB(tall.pixel(40, 296)), 180u);
+  // and the midpoint is the blend at BOTH sizes, which a pixel-space ramp
+  // authored for one of them could not manage
+  const SkColor midSmall = small.pixel(40, 20);
+  const SkColor midTall = tall.pixel(40, 150);
+  EXPECT_NEAR((int)SkColorGetR(midSmall), (int)SkColorGetR(midTall), 24);
+  EXPECT_NEAR((int)SkColorGetB(midSmall), (int)SkColorGetB(midTall), 24);
+}
+
 TEST(ComposeMaterial, LinearGradientFillPaints) {
   Host host;
   host.composer.render(box().child(

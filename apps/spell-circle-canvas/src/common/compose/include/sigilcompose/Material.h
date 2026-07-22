@@ -35,7 +35,9 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h> // sk_sp<SkShader> data member
+#include <include/core/SkString.h>
 #include <include/core/SkTileMode.h>
+#include <include/effects/SkRuntimeEffect.h> // the unit-space ramps
 
 #include <array>
 #include <memory>
@@ -44,7 +46,6 @@
 #include <vector>
 
 class SkImage;
-class SkRuntimeEffect;
 
 namespace sigil::compose {
 
@@ -55,6 +56,17 @@ struct Stop {
   SkColor4f color = {0, 0, 0, 1};
   bool operator==(const Stop &) const = default;
 };
+
+class Material;
+
+namespace detail {
+/** The unit-square ramp both linearUnit() and radialUnit() compile to: one
+ *  SkSL pass that divides by uResolution, so the gradient's coordinates are
+ *  fractions of the node's laid-out box rather than pixels. Six stops,
+ *  chained mixes — each only takes effect past its own start. */
+inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
+                         bool radial);
+} // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to
  *  Element::fill(). */
@@ -102,6 +114,34 @@ public:
    *  their correct current form — the blend simply inherits its layers'
    *  volatility tier. */
   static Material blend(std::vector<std::pair<Material, SkBlendMode>> layers);
+
+  // ---- unit-space ramps ----------------------------------------------------
+  /** The same linear ramp as linear(), authored in the node's UNIT SQUARE:
+   *  (0,0) is the box's top-left, (1,1) its bottom-right, whatever the box
+   *  turns out to be.
+   *
+   *  linear() takes PIXELS in node-local space, which is fine for a box
+   *  whose size you wrote down and impossible for one whose size the layout
+   *  decides — a tooltip card as tall as its copy, a stat panel, a button
+   *  that grows with its label. The alternative was guessing a number, and
+   *  every gallery scene that guessed one guessed wrong. textFill() already
+   *  solved exactly this for glyphs by mapping the material's unit square
+   *  onto the text metrics; this is the same trick for a box fill.
+   *
+   *  Rides the GEOMETRY tier (uResolution): resolved when the node records,
+   *  cached between layouts — no per-frame cost. Up to six stops. */
+  static Material linearUnit(SkPoint from01, SkPoint to01,
+                             std::vector<Stop> stops) {
+    return detail::unitRamp(from01, to01, std::move(stops), false);
+  }
+  /** The unit-square radial: @p center01 and a radius as a fraction of the
+   *  box's half-diagonal, so a ramp centred at {0.5, 0.5} with radius 1
+   *  reaches the corners of any box. */
+  static Material radialUnit(SkPoint center01, float radius01,
+                             std::vector<Stop> stops) {
+    return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),
+                            true);
+  }
 
   // ---- uniforms ------------------------------------------------------------
   /** Set / bind a NAMED uniform. This is meaningful ONLY on an sksl()
@@ -198,5 +238,74 @@ private:
                                           // solid/none/raw-shader/sksl —
                                           // those compare by their own state)
 };
+
+
+namespace detail {
+
+inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
+                         bool radial) {
+  static constexpr char kSrc[] = R"(
+uniform float2 uResolution;
+uniform float2 uA;      // linear: from; radial: centre
+uniform float2 uB;      // linear: to;   radial: (radius, radius)
+uniform float  uRadial;
+uniform float  uCount;
+uniform float4 uC0; uniform float4 uC1; uniform float4 uC2;
+uniform float4 uC3; uniform float4 uC4; uniform float4 uC5;
+uniform float  uS0; uniform float  uS1; uniform float  uS2;
+uniform float  uS3; uniform float  uS4; uniform float  uS5;
+
+half4 main(float2 xy) {
+  float2 p = xy / max(uResolution, float2(1.0, 1.0));
+  float t;
+  if (uRadial > 0.5) {
+    // radius is a fraction of the box's half-diagonal, so {0.5,0.5} r=1
+    // reaches the corners of ANY box
+    float2 d = p - uA;
+    t = length(d) / max(uB.x * 0.70710678, 1e-6);
+  } else {
+    float2 d = uB - uA;
+    t = dot(p - uA, d) / max(dot(d, d), 1e-6);
+  }
+  t = clamp(t, 0.0, 1.0);
+  float4 col = uC0;
+  if (uCount > 1.5) { col = mix(col, uC1, clamp((t - uS0) / max(uS1 - uS0, 1e-6), 0.0, 1.0)); }
+  if (uCount > 2.5) { col = mix(col, uC2, clamp((t - uS1) / max(uS2 - uS1, 1e-6), 0.0, 1.0)); }
+  if (uCount > 3.5) { col = mix(col, uC3, clamp((t - uS2) / max(uS3 - uS2, 1e-6), 0.0, 1.0)); }
+  if (uCount > 4.5) { col = mix(col, uC4, clamp((t - uS3) / max(uS4 - uS3, 1e-6), 0.0, 1.0)); }
+  if (uCount > 5.5) { col = mix(col, uC5, clamp((t - uS4) / max(uS5 - uS4, 1e-6), 0.0, 1.0)); }
+  return half4(half3(col.rgb) * half(col.a), half(col.a));
+}
+)";
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
+    if (!effect)
+      SkDebugf("sigilcompose unitRamp shader: %s\n", error.c_str());
+    return effect;
+  }();
+  if (!fx || stops.empty())
+    return Material::solid(stops.empty() ? SkColor4f{0, 0, 0, 0}
+                                         : stops.front().color);
+  if (stops.size() > 6)
+    stops.resize(6);
+  Material m = Material::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f},
+                                   {"uCount", (float)stops.size()}});
+  m.uniform("uA", std::array<float, 2>{a.x(), a.y()});
+  m.uniform("uB", std::array<float, 2>{b.x(), b.y()});
+  static const char *kColorNames[6] = {"uC0", "uC1", "uC2",
+                                       "uC3", "uC4", "uC5"};
+  static const char *kStopNames[6] = {"uS0", "uS1", "uS2",
+                                      "uS3", "uS4", "uS5"};
+  for (size_t i = 0; i < 6; ++i) {
+    const bool live = i < stops.size();
+    m.uniform(kColorNames[i],
+              live ? stops[i].color : stops.back().color);
+    m.uniform(kStopNames[i],
+              live ? stops[i].pos : 1.0f);
+  }
+  return m;
+}
+
+} // namespace detail
 
 } // namespace sigil::compose

@@ -3,12 +3,12 @@
 // The subject: the "Nanocircuit Repair" upgrade circuit Isaac gets at any
 // Bench — a diegetic holographic panel that renders in front of him, in
 // world space, without pausing the game (Dino Ignacio, GDC 2013 "Crafting
-// Destruction: The Evolution of the Dead Space User Interface";
-// hudsandguis.com/home/2012/08/22/dead-space-2-diegetic-interface-design).
-// Power Nodes are spent into a rectilinear PCB trace: a trunk line with
-// right-angle branch taps, typed nodes (DMG/CAP/CHR/REL) and unlabeled
-// blank connector nodes that exist only to join branches
-// (deadspace.fandom.com/wiki/Bench).
+// Destruction: The Evolution of the Dead Space User Interface",
+// gdcvault.com/play/1017723; hudsandguis.com/home/2012/08/22/
+// dead-space-2-diegetic-interface-design). Power Nodes are spent into a
+// rectilinear PCB trace: a trunk line with right-angle branch taps, typed
+// nodes (DMG/CAP/CHR/REL) and unlabeled blank connector nodes that exist
+// only to join branches (deadspace.fandom.com/wiki/Bench).
 //
 // The load-bearing reference is the actual in-game frame:
 //   https://static.wikia.nocookie.net/deadspace/images/4/43/Bench_branches.jpg
@@ -17,25 +17,32 @@
 // number below was read off that frame:
 //
 //   * 21 nodes on an 8-column x 4-row lattice, column pitch ~72 px, row
-//     pitch ~51 px, trunk on row 2. 9 typed + 12 blank.
+//     pitch ~51 px, trunk on row 1. 9 typed + 12 blank, 23 edges.
 //   * the frame is NOT a rounded rect and not a plain octagon: its top
 //     edge is TIERED — the outer thirds sit ~20 px lower than the raised
 //     centre section, joined by 45 deg risers, and all four corners are
-//     chamfered. The inner contour mirrors it inverted: its shoulders sit
+//     chamfered. The inner contour mirrors it INVERTED: its shoulders sit
 //     ~11 px inside the outer, then DIP 24 px on a 45 deg fall and run
-//     right as the header rule under the title.
+//     right as the header rule under the title. One contour, two jobs.
 //   * every node is a four-layer stamp: dark well, cyan corona (a
 //     speckled radial burst), bright type-coloured ring, muted fill.
-//   * traces are CASED double hairlines, not single strokes.
-//   * the legend is a bracket-framed region (corner Ls, not a box) of
-//     right-aligned labels + colour dot + chevron pip bar + "N Pts.".
+//   * traces are CASED double hairlines with occasional 45 deg jogs, not
+//     single strokes and not pure Manhattan.
+//   * the legend is a bracket-framed region (corner Ls, never a closed
+//     box) of right-aligned labels + colour dot + chevron pip bar + Pts.
 //   * the ONE warm accent on an all-cyan screen is the brass Power Node
 //     puck in the bottom-right NODES counter.
 //
+// Density: the reference tree is legible but sparse once the 3D framing
+// (Isaac's shoulder, the depth of field) is gone. The Bench also upgrades
+// the RIG and the Stasis Module, so the empty band under the weapon
+// circuit carries two SMALLER trees in the same grammar — invented
+// topology, transcribed vocabulary.
+//
 // Palette (calibrated off the compressed screenshot; hue/role held, not
-// the 6th hex digit): panel #0C1D20, header/legend #123030, hologram cyan
-// #8FE0E6, title #E4F7F8, DMG #C1584A/#E8998A, CAP #4C84A8/#8FC4E0,
-// CHR #93A64A/#C7DE8E, REL #8C6B36/#D2A85E, brass #C9A227 -> #E8C860.
+// the 6th hex digit): panel #0B1E21, header/legend #123030, hologram cyan
+// #8FE0E6, title #E4F7F8, DMG #7E3833/#EFC0B8, CAP #2B5170/#B7D9EE,
+// CHR #55692F/#DCEBAF, REL #5F4620/#E7C68A, brass #C9A227 -> #E8C860.
 // Type: Eurostile Bold Extended lineage (fan-typography consensus, not a
 // credited Visceral asset) — DIN Alternate Bold stretched via scaleX.
 //
@@ -84,41 +91,32 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
   return {((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f,
           (hex & 0xFF) / 255.0f, a};
 }
+inline SkColor4f alpha(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
-const SkColor4f kBodyDeep = rgb(0x081619);
-const SkColor4f kBody = rgb(0x0F2427);
-const SkColor4f kStrip = rgb(0x143230);
+const SkColor4f kBody = rgb(0x0B1E21);
+const SkColor4f kStrip = rgb(0x102A2A);
 const SkColor4f kCyan = rgb(0x8FE0E6);
 const SkColor4f kTitle = rgb(0xE4F7F8);
-const SkColor4f kDim = rgb(0x3A5B57);
+const SkColor4f kDim = rgb(0x33514E);
 const SkColor4f kBrassLo = rgb(0xC9A227);
 const SkColor4f kBrassHi = rgb(0xE8C860);
-const SkColor4f kBrassDk = rgb(0x6E561A);
-
-inline SkColor4f alpha(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
+const SkColor4f kBrassDk = rgb(0x5E4914);
 
 // ---------------------------------------------------------------------------
 // canvas geometry (1200 x 800)
 
 constexpr float kW = 1200, kH = 800;
-// the panel
 constexpr float kPX = 108, kPY = 52, kPW = 984, kPH = 690;
 constexpr float kPR = kPX + kPW, kPB = kPY + kPH;
 constexpr float kOuterCut = 26, kOuterStep = 22, kOuterShoulder = 132;
 constexpr float kInset = 12, kInnerCut = 18, kInnerDip = 40;
 constexpr float kInnerShoulderL = 150, kInnerShoulderR = 46;
-// the header rule, in canvas space
-constexpr float kRuleY = kPY + kInset + kInnerDip; // 104
-// the circuit lattice: 8 columns x 4 rows, the reference's own topology
-constexpr float kCol0 = 246, kColPitch = 92;
-constexpr float kRow0 = 190, kRowPitch = 78;
-inline float colX(int c) { return kCol0 + kColPitch * (float)c; }
-inline float rowY(int r) { return kRow0 + kRowPitch * (float)r; }
-// the lower band
-constexpr float kBandY = 528, kBandH = 168;
+constexpr float kRuleY = kPY + kInset + kInnerDip; // the header rule, 104
+constexpr float kBandY = 544, kBandH = 148;
 constexpr float kLegX = 140, kLegW = 690;
-constexpr float kCntX = 852, kCntW = 208;
+constexpr float kCntX = 844, kCntW = 216;
 constexpr float kHintY = 706;
+constexpr float kPipW = 36, kPipH = 17, kPipGap = 6;
 
 // ---------------------------------------------------------------------------
 // type
@@ -243,7 +241,7 @@ inline std::function<SkPath(SkSize)> cornerBrackets(float arm) {
   };
 }
 
-/** The node corona: short radial ticks, the cheap analogue of the
+/** The node corona: short ragged radial ticks — the cheap analogue of the
  *  screenshot's speckled burst around every typed node. */
 inline std::function<SkPath(SkSize)> burst(int count, float inner) {
   return [count, inner](SkSize s) {
@@ -253,7 +251,7 @@ inline std::function<SkPath(SkSize)> burst(int count, float inner) {
     for (int i = 0; i < count; ++i) {
       const float a = 6.2831853f * (float)i / (float)count + 0.13f;
       const float c = std::cos(a), sn = std::sin(a);
-      const float k = (i % 3 == 0) ? 1.0f : 0.82f; // ragged, not a gear
+      const float k = (i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f);
       b.moveTo(cx + c * r * inner, cy + sn * r * inner);
       b.lineTo(cx + c * r * k, cy + sn * r * k);
     }
@@ -285,12 +283,62 @@ inline std::function<SkPath(SkSize)> hline() {
     return b.detach();
   };
 }
-
 inline std::function<SkPath(SkSize)> vline() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(s.width() * 0.5f, 0);
     b.lineTo(s.width() * 0.5f, s.height());
+    return b.detach();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// the router the Bench actually draws with
+//
+// routers::orthogonal() was the first thing tried here and it is the
+// WRONG shape twice over: it always breaks at midX (a Z, never an L at
+// the target's column — a PCB never routes that way), and on an
+// axis-aligned pair it emits DUPLICATE points, which makes every
+// parallel-offset brush (lines::cased) spike at both endpoints. Routers
+// are values, so this is the fix: an L with a 45 deg cut corner, a single
+// clean segment for a pure run, and an optional 45 deg Z-JOG for long
+// horizontals — the stepped trace the screenshot is full of.
+
+inline Router pcb(float cut, float jog) {
+  return [cut, jog](const SkRect &from, const SkRect &to) {
+    const float ax = from.centerX(), ay = from.centerY();
+    const float bx = to.centerX(), by = to.centerY();
+    const float dx = bx - ax, dy = by - ay;
+    SkPathBuilder b;
+    b.moveTo(ax, ay);
+    if (std::abs(dx) < 0.5f || std::abs(dy) < 0.5f) {
+      const bool horiz = std::abs(dy) < 0.5f;
+      const float run = horiz ? std::abs(dx) : std::abs(dy);
+      if (jog != 0 && run > 90.0f) {
+        // step out, rise 45 deg, run, fall 45 deg, step in
+        const float s = horiz ? (dx > 0 ? 1.f : -1.f) : (dy > 0 ? 1.f : -1.f);
+        const float j = std::abs(jog) * (jog > 0 ? 1.f : -1.f);
+        const float lead = 20.0f;
+        if (horiz) {
+          b.lineTo(ax + s * lead, ay);
+          b.lineTo(ax + s * (lead + std::abs(j)), ay + j);
+          b.lineTo(bx - s * (lead + std::abs(j)), ay + j);
+          b.lineTo(bx - s * lead, ay);
+        } else {
+          b.lineTo(ax, ay + s * lead);
+          b.lineTo(ax + j, ay + s * (lead + std::abs(j)));
+          b.lineTo(ax + j, by - s * (lead + std::abs(j)));
+          b.lineTo(ax, by - s * lead);
+        }
+      }
+      b.lineTo(bx, by);
+      return b.detach();
+    }
+    const float c = std::min(cut, std::min(std::abs(dx), std::abs(dy)));
+    const float sx = dx > 0 ? 1.f : -1.f, sy = dy > 0 ? 1.f : -1.f;
+    b.lineTo(bx - sx * c, ay);
+    b.lineTo(bx, ay + sy * c);
+    b.lineTo(bx, by);
     return b.detach();
   };
 }
@@ -328,17 +376,27 @@ inline Material scanField(SkColor4f tint, float period) {
 }
 
 // ---------------------------------------------------------------------------
-// the circuit, transcribed from the frame
+// circuits
 
 enum Kind : int { Blank = 0, DMG, CAP, CHR, REL };
 
-struct Node {
-  int col, row;
-  Kind kind;
-};
+struct NodeDef { int col, row; Kind kind; };
+struct EdgeDef { int a, b; float jog; };
 
-// 8 columns x 4 rows; trunk on row 1. Exactly the screenshot's 21 nodes.
-constexpr Node kNodes[] = {
+struct KindArt { SkColor4f fill, ring; const char *label; };
+inline KindArt artOf(Kind k) {
+  switch (k) {
+  case DMG: return {rgb(0x7E3833), rgb(0xEFC0B8), "DMG"};
+  case CAP: return {rgb(0x2B5170), rgb(0xB7D9EE), "CAP"};
+  case CHR: return {rgb(0x55692F), rgb(0xDCEBAF), "CHR"};
+  case REL: return {rgb(0x5F4620), rgb(0xE7C68A), "REL"};
+  case Blank:
+  default: return {{0.02f, 0.08f, 0.09f, 0.5f}, alpha(kCyan, 0.88f), nullptr};
+  }
+}
+
+// -- the CONTACT BEAM circuit, transcribed node-for-node from the frame --
+constexpr NodeDef kBeamNodes[] = {
     // row 0 — the upper branch caps
     {1, 0, Blank}, {2, 0, DMG},   {4, 0, CAP},   {7, 0, DMG},
     // row 1 — the trunk
@@ -350,59 +408,79 @@ constexpr Node kNodes[] = {
     // row 3 — the second lower rank
     {2, 3, Blank}, {3, 3, Blank}, {5, 3, DMG},
 };
-constexpr int kNodeCount = (int)(sizeof(kNodes) / sizeof(kNodes[0]));
-
-struct Edge {
-  int a, b;
-};
 // Every edge is an independent two-endpoint route sharing anchor KEYS —
-// a degree-3 blank node is a T-junction because three routes end on it,
+// a degree-3 blank node is a T-junction because three routes END on it,
 // not because any primitive knows the word "junction".
-constexpr Edge kEdges[] = {
-    // trunk, left to right (7 segments)
-    {4, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 9}, {9, 10}, {10, 11},
-    // upper taps
-    {5, 0}, {0, 1}, {8, 2}, {11, 3},
-    // lower taps
-    {6, 13}, {13, 12}, {13, 18}, {7, 14}, {14, 19}, {9, 15},
-    {15, 16}, {10, 16}, {11, 17}, {15, 20},
-    // the second lower rank
-    {18, 19}, {19, 20},
+constexpr EdgeDef kBeamEdges[] = {
+    {4, 5, 0},  {5, 6, 0},  {6, 7, 0},  {7, 8, 0},   // trunk, left to right
+    {8, 9, 0},  {9, 10, 0}, {10, 11, 0},
+    {5, 0, 0},  {0, 1, -5}, {8, 2, 0},  {11, 3, 0},  // upper taps
+    {6, 13, 0}, {13, 12, 5}, {13, 18, 0}, {7, 14, 0},// lower taps
+    {14, 19, 0}, {9, 15, 0}, {15, 16, -5}, {10, 16, 0},
+    {11, 17, 0}, {15, 20, 0},
+    {18, 19, 0}, {19, 20, 5},                        // second lower rank
 };
-constexpr int kEdgeCount = (int)(sizeof(kEdges) / sizeof(kEdges[0]));
 
-inline SkPoint nodeAt(int i) {
-  return {colX(kNodes[i].col), rowY(kNodes[i].row)};
-}
-inline std::string nodeKey(int i) { return "n" + std::to_string(i); }
-
-struct KindArt {
-  SkColor4f fill, ring;
-  const char *label;
+// -- the two smaller Bench trees: the RIG and the Stasis Module --
+constexpr NodeDef kMiniNodes[] = {
+    {0, 1, Blank}, {1, 1, Blank}, {2, 1, CAP}, {3, 1, Blank}, {4, 1, Blank},
+    {1, 0, CHR},   {3, 0, DMG},
 };
-inline KindArt artOf(Kind k) {
-  switch (k) {
-  case DMG: return {rgb(0x8E3E38), rgb(0xE8998A), "DMG"};
-  case CAP: return {rgb(0x2F5A7C), rgb(0x8FC4E0), "CAP"};
-  case CHR: return {rgb(0x5E7434), rgb(0xC7DE8E), "CHR"};
-  case REL: return {rgb(0x6B4E23), rgb(0xD2A85E), "REL"};
-  case Blank:
-  default: return {{0, 0, 0, 0}, alpha(kCyan, 0.86f), nullptr};
+constexpr EdgeDef kMiniEdges[] = {
+    {0, 1, 0}, {1, 2, 0}, {2, 3, 0}, {3, 4, 0}, {1, 5, 0}, {3, 6, 0},
+};
+constexpr NodeDef kMini2Nodes[] = {
+    {0, 1, Blank}, {1, 1, Blank}, {2, 1, REL}, {3, 1, Blank}, {4, 1, Blank},
+    {2, 0, DMG},   {4, 0, CAP},
+};
+constexpr EdgeDef kMini2Edges[] = {
+    {0, 1, 0}, {1, 2, 0}, {2, 3, 0}, {3, 4, 0}, {2, 5, 0}, {4, 6, 0},
+};
+
+struct Circuit {
+  const char *tag;
+  float x0, xp, y0, yp;
+  const NodeDef *nodes;
+  int nodeCount;
+  const EdgeDef *edges;
+  int edgeCount;
+  float typedDia, blankDia, labelDy;
+  const char *caption;
+  bool bigSocket;
+
+  SkPoint at(int i) const {
+    return {x0 + xp * (float)nodes[i].col, y0 + yp * (float)nodes[i].row};
   }
-}
+  std::string key(int i) const {
+    return std::string(tag) + std::to_string(i);
+  }
+};
 
-constexpr float kTypedDia = 30, kBlankDia = 19;
+const Circuit kBeam{"b",   240, 104, 168, 74,
+                    kBeamNodes,
+                    (int)(sizeof(kBeamNodes) / sizeof(kBeamNodes[0])),
+                    kBeamEdges,
+                    (int)(sizeof(kBeamEdges) / sizeof(kBeamEdges[0])),
+                    30, 19, -31, nullptr, true};
+const Circuit kRig{"r",   214, 82, 466, 50,
+                   kMiniNodes,
+                   (int)(sizeof(kMiniNodes) / sizeof(kMiniNodes[0])),
+                   kMiniEdges,
+                   (int)(sizeof(kMiniEdges) / sizeof(kMiniEdges[0])),
+                   22, 14, -24, "R.I.G. — INTEGRITY", false};
+const Circuit kStasis{"s", 690, 82, 466, 50,
+                      kMini2Nodes,
+                      (int)(sizeof(kMini2Nodes) / sizeof(kMini2Nodes[0])),
+                      kMini2Edges,
+                      (int)(sizeof(kMini2Edges) / sizeof(kMini2Edges[0])),
+                      22, 14, -24, "STASIS MODULE", false};
 
 // ---------------------------------------------------------------------------
-// legend data (fill counts read off the frame: 5/6, 1/6, 1/6, 1/6 — the
-// exact ratios are not load-bearing, the geometry is)
+// legend data (fill counts read off the frame: 5/6, then a thinning
+// ladder — the exact ratios are not load-bearing, the geometry is)
 
-struct StatRow {
-  const char *label;
-  Kind kind;
-  int filled, total;
-  const char *value;
-};
+struct StatRow { const char *label; Kind kind; int filled, total;
+                 const char *value; };
 constexpr StatRow kStats[] = {
     {"DAMAGE", DMG, 5, 6, "100 Pts."},
     {"CAPACITY", CAP, 3, 6, "44 Pts."},
@@ -410,7 +488,6 @@ constexpr StatRow kStats[] = {
     {"CHARGE", CHR, 1, 6, "9 Pts."},
 };
 constexpr int kStatCount = 4;
-constexpr float kPipW = 40, kPipH = 19, kPipGap = 7;
 
 } // namespace
 
@@ -423,13 +500,15 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   choreograph::Output<float> scanY{0};
   choreograph::Output<float> jitterX{0};
   choreograph::Output<float> holoAlpha{1.0f};
-  choreograph::Output<float> cursorPhase{0};
 
   // the legend pip masses: one atlas (2 cells), one pool per row
   std::shared_ptr<instancing::Atlas> pips =
       std::make_shared<instancing::Atlas>(2.0f);
   std::array<std::shared_ptr<instancing::Pool>, kStatCount> pipPools;
   int pipFilled = 0, pipEmpty = 1;
+  int glowSlot = 0;
+  // held so it prunes across re-describes (a raw shader mints fresh)
+  Material grain = patterns::noise(0.62f, 2, 7.0f, /*turbulence=*/true);
 
   double nextGlitch = 4.2, glitchEnd = 0;
 
@@ -440,14 +519,14 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     Element filled =
         box().outline(chevron())
             .fill(Material::linear({0, 0}, {0, kPipH},
-                                   {{0.0f, rgb(0xD8E7E7)},
-                                    {0.45f, rgb(0x9FB6B8)},
-                                    {0.55f, rgb(0x7E979A)},
-                                    {1.0f, rgb(0xC2D6D8)}}))
-            .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.55f)),
+                                   {{0.0f, rgb(0xC8DADA)},
+                                    {0.42f, rgb(0x92AAAC)},
+                                    {0.52f, rgb(0x70898C)},
+                                    {1.0f, rgb(0xB0C6C8)}}))
+            .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
                            PathFormat::Align::Inner));
     Element empty = box().outline(chevron()).stroke(
-        stroke(1.2f, Fill::color(alpha(kDim, 0.85f)),
+        stroke(1.1f, Fill::color(alpha(kDim, 0.9f)),
                PathFormat::Align::Inner));
     pipFilled = pips->cell(std::move(filled), {kPipW, kPipH});
     pipEmpty = pips->cell(std::move(empty), {kPipW, kPipH});
@@ -465,9 +544,9 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
         const bool on = i < kStats[r].filled;
         frames[i] = on ? pipFilled : pipEmpty;
         // the tint channel carries the row's identity into a shared cell
-        tints[i] = on ? SkColor4f{0.72f + 0.28f * art.ring.fR,
-                                  0.72f + 0.28f * art.ring.fG,
-                                  0.72f + 0.28f * art.ring.fB, 1.0f}
+        tints[i] = on ? SkColor4f{0.66f + 0.34f * art.ring.fR,
+                                  0.66f + 0.34f * art.ring.fG,
+                                  0.66f + 0.34f * art.ring.fB, 1.0f}
                       : SkColor4f{1, 1, 1, 1};
       }
       pool->touch();
@@ -485,25 +564,24 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                      .width(Dim(w)).height(Dim(kH + 80))
                      .fill(Material::linear(
                          {0, 0}, {0, kH},
-                         {{0.0f, rgb(0x16262F, a * 0.4f)},
-                          {0.38f, rgb(0x1E3340, a)},
-                          {1.0f, rgb(0x0A141C, a * 0.2f)}}))
+                         {{0.0f, rgb(0x16262F, a * 0.35f)},
+                          {0.38f, rgb(0x1C303C, a)},
+                          {1.0f, rgb(0x080F16, a * 0.2f)}}))
                      .effect(Effect::filter(
-                         SkImageFilters::Blur(11, 16, nullptr)))
+                         SkImageFilters::Blur(12, 18, nullptr)))
                      .zIndex(0));
     };
-    strut(-30, 96, 0.85f);
-    strut(64, 34, 0.5f);
-    strut(1104, 92, 0.85f);
-    strut(1036, 30, 0.45f);
-    // one horizontal beam behind the panel's head
+    strut(-30, 96, 0.8f);
+    strut(66, 30, 0.45f);
+    strut(1108, 92, 0.8f);
+    strut(1040, 26, 0.4f);
     root.child(box()
-                   .absolute().left(Dim(-40.0f)).top(Dim(6.0f))
-                   .width(Dim(kW + 80)).height(Dim(30.0f))
-                   .fill(Material::linear({0, 0}, {0, 30},
-                                          {{0.0f, rgb(0x2A424F, 0.55f)},
-                                           {1.0f, rgb(0x0C1820, 0.3f)}}))
-                   .effect(Effect::filter(SkImageFilters::Blur(6, 9, nullptr)))
+                   .absolute().left(Dim(-40.0f)).top(Dim(2.0f))
+                   .width(Dim(kW + 80)).height(Dim(28.0f))
+                   .fill(Material::linear({0, 0}, {0, 28},
+                                          {{0.0f, rgb(0x243B47, 0.5f)},
+                                           {1.0f, rgb(0x0A141C, 0.25f)}}))
+                   .effect(Effect::filter(SkImageFilters::Blur(7, 10, nullptr)))
                    .zIndex(0));
   }
 
@@ -511,7 +589,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   // the panel plate + its frame vocabulary
 
   void plate(Element &root) {
-    // body: solid + the live scanline field + a radial lift, ONE shader
+    // body: solid + a radial lift + the live scanline field, ONE shader
     root.child(
         box()
             .key("plate")
@@ -520,14 +598,25 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
             .fill(Material::blend(
                 {{Material::solid(kBody), SkBlendMode::kSrcOver},
-                 {Material::radial({kPW * 0.42f, kPH * 0.34f}, kPW * 0.72f,
+                 {Material::radial({kPW * 0.40f, kPH * 0.32f}, kPW * 0.78f,
                                    {{0.0f, rgb(0xFFFFFF)},
-                                    {0.55f, rgb(0xC9D8D8)},
-                                    {1.0f, rgb(0x63797B)}}),
+                                    {0.5f, rgb(0xC0D0D0)},
+                                    {1.0f, rgb(0x4E6264)}}),
                   SkBlendMode::kMultiply},
-                 {scanField(alpha(kCyan, 0.085f), 3.0f),
+                 {scanField(alpha(kCyan, 0.075f), 3.0f),
                   SkBlendMode::kScreen}}))
             .zIndex(1));
+
+    // the grain the compressed CRT capture carries — enough to kill the
+    // "clean vector art" read without becoming VHS noise
+    root.child(box()
+                   .absolute().left(Dim(kPX)).top(Dim(kPY))
+                   .width(Dim(kPW)).height(Dim(kPH))
+                   .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+                   .fill(grain)
+                   .opacity(0.07f)
+                   .blend(SkBlendMode::kOverlay)
+                   .zIndex(2));
 
     // frame: a soft plus-blended halo under a crisp cyan keyline
     root.child(box()
@@ -535,10 +624,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .width(Dim(kPW)).height(Dim(kPH))
                    .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .stroke(LayeredBrush{{
-                       {13, alpha(kCyan, 0.10f), 7, {}, 0, SkBlendMode::kPlus},
-                       {5, alpha(kCyan, 0.24f), 2.6f, {}, 0,
+                       {14, alpha(kCyan, 0.09f), 8, {}, 0, SkBlendMode::kPlus},
+                       {5, alpha(kCyan, 0.22f), 2.6f, {}, 0,
                         SkBlendMode::kPlus},
-                       {2.6f, alpha(rgb(0xD8F6F8), 0.95f)},
+                       {2.4f, alpha(rgb(0xCFF2F5), 0.95f)},
                    }})
                    .zIndex(6));
 
@@ -548,7 +637,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .width(Dim(kPW - 2 * kInset)).height(Dim(kPH - 2 * kInset))
                    .outline(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
                                        kInnerShoulderR))
-                   .stroke(stroke(1.15f, Fill::color(alpha(kCyan, 0.62f))))
+                   .stroke(stroke(1.1f, Fill::color(alpha(kCyan, 0.55f))))
                    .zIndex(6));
     // and a dotted echo just inside it (the frame's second, ticked pass)
     root.child(box()
@@ -561,7 +650,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                        kInnerShoulderR - 7))
                    .stroke(PathFormat{.width = 1.0f,
                                       .strokeFill =
-                                          Fill::color(alpha(kCyan, 0.30f)),
+                                          Fill::color(alpha(kCyan, 0.26f)),
                                       .dashIntervals = {2.0f, 6.0f}})
                    .zIndex(6));
   }
@@ -571,7 +660,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void header(Element &root) {
     root.child(box()
-                   .absolute().left(Dim(kPX)).top(Dim(kPY + 22))
+                   .absolute().left(Dim(kPX)).top(Dim(kPY + 20))
                    .width(Dim(kPW)).height(Dim(kRuleY - kPY - 22))
                    .alignItems(Align::Center).justify(Justify::Center)
                    .zIndex(7)
@@ -582,24 +671,43 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                   .stagger = {.eachMs = 26,
                                               .durationMs = 190},
                                   .progress = withFrom(0.0f, 1.0f, {760ms})})
-                              .effect(styles::textGlow(alpha(kCyan, 0.55f),
+                              .effect(styles::textGlow(alpha(kCyan, 0.5f),
                                                        5.0f))));
 
-    root.child(box().absolute().left(Dim(kPX + 40)).top(Dim(kRuleY - 26))
+    root.child(box().absolute().left(Dim(kPX + 44)).top(Dim(kRuleY + 12))
                    .zIndex(7)
                    .child(text(toU8("NANOCIRCUIT REPAIR"),
-                               type(11, alpha(kCyan, 0.62f), 0.14f, false))));
+                               type(11, alpha(kCyan, 0.55f), 0.18f, false))));
     root.child(box().absolute().right(Dim(kW - kPR + 44))
-                   .top(Dim(kRuleY - 26)).zIndex(7)
-                   .child(text(toU8("RIG LINK / OK"),
-                               type(11, alpha(kCyan, 0.62f), 0.14f, false))));
+                   .top(Dim(kRuleY + 12)).zIndex(7)
+                   .child(text(toU8("RIG LINK · OK"),
+                               type(11, alpha(kCyan, 0.55f), 0.18f, false))));
   }
 
   // -------------------------------------------------------------------
   // the entry socket: the bracket-and-arrow the current flows in through
 
-  void entrySocket(Element &root) {
-    const SkPoint at = nodeAt(4);
+  void entrySocket(Element &root, SkPoint at, bool big) {
+    if (!big) {
+      root.child(custom([](SkCanvas &canvas, const PaintContext &ctx) {
+                   const float w = ctx.size.width(), h = ctx.size.height();
+                   SkPaint p;
+                   p.setAntiAlias(true);
+                   p.setColor4f(alpha(kCyan, 0.8f), nullptr);
+                   SkPathBuilder t;
+                   t.moveTo(0, h * 0.16f);
+                   t.lineTo(w * 0.8f, h * 0.5f);
+                   t.lineTo(0, h * 0.84f);
+                   t.close();
+                   canvas.drawPath(t.detach(), p);
+                 })
+                     .absolute()
+                     .left(Dim(at.fX - 34)).top(Dim(at.fY - 9))
+                     .width(Dim(16.0f)).height(Dim(18.0f))
+                     .opacity(&socketPulse)
+                     .zIndex(8));
+      return;
+    }
     root.child(
         custom([](SkCanvas &canvas, const PaintContext &ctx) {
           const float w = ctx.size.width(), h = ctx.size.height();
@@ -607,83 +715,80 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           p.setAntiAlias(true);
           p.setStyle(SkPaint::kStroke_Style);
           p.setStrokeWidth(1.6f);
-          p.setColor4f(alpha(kCyan, 0.8f), nullptr);
-          // the outer socket housing: a rectangle open on the left
+          p.setColor4f(alpha(kCyan, 0.78f), nullptr);
+          // the socket housing: a rectangle broken on the left, where the
+          // feed enters
           SkPathBuilder b;
-          b.moveTo(w * 0.30f, h * 0.10f);
-          b.lineTo(w * 0.98f, h * 0.10f);
-          b.lineTo(w * 0.98f, h * 0.90f);
-          b.lineTo(w * 0.30f, h * 0.90f);
+          b.moveTo(w * 0.30f, h * 0.34f);
+          b.lineTo(w * 0.30f, h * 0.06f);
+          b.lineTo(w * 0.99f, h * 0.06f);
+          b.lineTo(w * 0.99f, h * 0.94f);
+          b.lineTo(w * 0.30f, h * 0.94f);
+          b.lineTo(w * 0.30f, h * 0.66f);
           // the inner bracket
-          b.moveTo(w * 0.52f, h * 0.28f);
-          b.lineTo(w * 0.40f, h * 0.28f);
-          b.lineTo(w * 0.40f, h * 0.72f);
-          b.lineTo(w * 0.52f, h * 0.72f);
+          b.moveTo(w * 0.58f, h * 0.26f);
+          b.lineTo(w * 0.44f, h * 0.26f);
+          b.lineTo(w * 0.44f, h * 0.74f);
+          b.lineTo(w * 0.58f, h * 0.74f);
           canvas.drawPath(b.detach(), p);
-          // the feed arrow
           SkPathBuilder t;
-          t.moveTo(w * 0.02f, h * 0.30f);
+          t.moveTo(w * 0.02f, h * 0.31f);
           t.lineTo(w * 0.24f, h * 0.50f);
-          t.lineTo(w * 0.02f, h * 0.70f);
+          t.lineTo(w * 0.02f, h * 0.69f);
           t.close();
           p.setStyle(SkPaint::kFill_Style);
           canvas.drawPath(t.detach(), p);
         })
             .absolute()
-            .left(Dim(at.fX - 96)).top(Dim(at.fY - 44))
-            .width(Dim(104.0f)).height(Dim(88.0f))
+            .left(Dim(at.fX - 100)).top(Dim(at.fY - 46))
+            .width(Dim(108.0f)).height(Dim(92.0f))
             .opacity(&socketPulse)
             .zIndex(8));
   }
 
   // -------------------------------------------------------------------
-  // traces — every edge an independent routed connector sharing node keys
+  // one circuit: traces first (so node glow sits on the wire), then nodes
 
-  void traces(Element &root) {
-    auto layer = box().absolute().inset(0).zIndex(4)
-                     .staggerChildren(34ms, Stagger::From::Start);
-    for (int i = 0; i < kEdgeCount; ++i) {
-      const Edge &e = kEdges[i];
-      layer.child(
-          connector(nodeKey(e.a), nodeKey(e.b), routers::orthogonal())
-              .key("e" + std::to_string(i))
+  void circuit(Element &root, const Circuit &c) {
+    auto wires = box().absolute().inset(0).zIndex(4)
+                     .staggerChildren(30ms, Stagger::From::Start);
+    for (int i = 0; i < c.edgeCount; ++i) {
+      const EdgeDef &e = c.edges[i];
+      wires.child(
+          connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
+              .key(std::string(c.tag) + "e" + std::to_string(i))
               .absolute().inset(0)
               .trim(0.0f, withFrom(0.0f, 1.0f, {620ms}))
-              .stroke(LayeredBrush{{{7.0f, alpha(kCyan, 0.085f), 3.4f, {}, 0,
+              .stroke(LayeredBrush{{{7.0f, alpha(kCyan, 0.075f), 3.4f, {}, 0,
                                      SkBlendMode::kPlus}}})
-              .stroke(lines::cased(1.25f, Fill::color(alpha(kCyan, 0.62f)),
-                                   4.4f)));
+              .stroke(lines::cased(1.2f, Fill::color(alpha(kCyan, 0.66f)),
+                                   4.2f)));
     }
-    root.child(std::move(layer));
-  }
+    root.child(std::move(wires));
 
-  // -------------------------------------------------------------------
-  // node stamps: one SDF pass each (well + corona + fill + ring)
-
-  void nodes(Element &root) {
     auto layer = box().absolute().inset(0).zIndex(5)
-                     .staggerChildren(34ms, Stagger::From::Start);
-    for (int i = 0; i < kNodeCount; ++i) {
-      const SkPoint at = nodeAt(i);
-      const KindArt art = artOf(kNodes[i].kind);
-      const bool typed = kNodes[i].kind != Blank;
-      const float dia = typed ? kTypedDia : kBlankDia;
+                     .staggerChildren(30ms, Stagger::From::Start);
+    for (int i = 0; i < c.nodeCount; ++i) {
+      const SkPoint at = c.at(i);
+      const KindArt art = artOf(c.nodes[i].kind);
+      const bool typed = c.nodes[i].kind != Blank;
+      const float dia = typed ? c.typedDia : c.blankDia;
 
       const sdf::Style st{
-          .fill = typed ? art.fill : SkColor4f{0.03f, 0.09f, 0.10f, 0.55f},
-          .borderWidth = typed ? 2.6f : 1.9f,
-          .borderColor = typed ? art.ring : alpha(kCyan, 0.9f),
-          .glowRadius = typed ? 7.5f : 4.5f,
-          .glowColor = alpha(kCyan, typed ? 0.5f : 0.3f),
+          .fill = art.fill,
+          .borderWidth = typed ? 2.4f : 1.7f,
+          .borderColor = art.ring,
+          .glowRadius = typed ? 7.0f : 4.0f,
+          .glowColor = alpha(kCyan, typed ? 0.46f : 0.26f),
           .shadowOffset = {0, 0},
-          .shadowBlur = typed ? 9.0f : 5.5f,
-          .shadowColor = rgb(0x020A0C, typed ? 0.92f : 0.7f)};
+          .shadowBlur = typed ? 8.0f : 5.0f,
+          .shadowColor = rgb(0x01080A, typed ? 0.95f : 0.8f)};
       Material m = sdf::material(sdf::circle(), st);
-      m.uniform("uGlowR", &glow[(size_t)(i % (int)glow.size())]);
+      m.uniform("uGlowR", &glow[(size_t)(glowSlot++ % (int)glow.size())]);
 
       const float boxSize = sdf::minBoxFor(st, dia);
       layer.child(box()
-                      .key(nodeKey(i))
+                      .key(c.key(i))
                       .width(Dim(boxSize)).height(Dim(boxSize))
                       .centerAt(at)
                       .fill(std::move(m))
@@ -696,32 +801,48 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                      }}))
                       .zIndex(typed ? 3 : 2));
 
-      if (typed) {
-        // the speckled corona + the type label, both keyed leaves: the
-        // atlas has no per-instance string, so labels stay real text
-        layer.child(box()
-                        .width(Dim(dia + 26)).height(Dim(dia + 26))
-                        .centerAt(at)
-                        .outline(burst(22, 0.70f))
-                        .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
-                        .opacity(withFrom(0.0f, 1.0f, {320ms}))
-                        .zIndex(4));
-        layer.child(box()
-                        .width(Dim(dia * 0.44f)).height(Dim(dia * 0.44f))
-                        .centerAt(at)
-                        .fill(Material::radial(
-                            {dia * 0.22f, dia * 0.22f}, dia * 0.30f,
-                            {{0.0f, alpha(art.ring, 0.55f)},
-                             {1.0f, alpha(art.ring, 0.0f)}}))
-                        .zIndex(5));
-        layer.child(text(toU8(art.label), type(11.5f, alpha(kCyan, 0.9f),
-                                               0.11f))
-                        .centerAt({at.fX + 27, at.fY - 30})
-                        .opacity(withFrom(0.0f, 1.0f, {320ms}))
-                        .zIndex(5));
-      }
+      if (!typed)
+        continue;
+      // the speckled corona + the type label, both keyed leaves: the
+      // instancing atlas has no per-instance string, so labels stay text
+      layer.child(box()
+                      .width(Dim(dia + 24)).height(Dim(dia + 24))
+                      .centerAt(at)
+                      .outline(burst(24, 0.72f))
+                      .stroke(stroke(0.9f, Fill::color(alpha(kCyan, 0.20f))))
+                      .opacity(withFrom(0.0f, 1.0f, {320ms}))
+                      .zIndex(4));
+      layer.child(box()
+                      .width(Dim(dia * 0.42f)).height(Dim(dia * 0.42f))
+                      .centerAt({at.fX - dia * 0.09f, at.fY - dia * 0.10f})
+                      .fill(Material::radial(
+                          {dia * 0.21f, dia * 0.21f}, dia * 0.28f,
+                          {{0.0f, alpha(art.ring, 0.42f)},
+                           {1.0f, alpha(art.ring, 0.0f)}}))
+                      .zIndex(5));
+      layer.child(text(toU8(art.label),
+                       type(typed && dia > 26 ? 11.5f : 10.0f,
+                            alpha(kCyan, 0.85f), 0.11f))
+                      .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
+                      .opacity(withFrom(0.0f, 1.0f, {320ms}))
+                      .zIndex(5));
     }
     root.child(std::move(layer));
+
+    entrySocket(root, c.at(0), c.bigSocket);
+
+    if (c.caption) {
+      root.child(box().absolute().left(Dim(c.x0 - 40)).top(Dim(c.y0 - 46))
+                     .zIndex(8)
+                     .child(text(toU8(c.caption),
+                                 type(11, alpha(kCyan, 0.62f), 0.18f))));
+      root.child(box().absolute().left(Dim(c.x0 - 40))
+                     .top(Dim(c.y0 - 26)).width(Dim(126.0f))
+                     .height(Dim(1.0f))
+                     .outline(hline())
+                     .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.3f))))
+                     .zIndex(8));
+    }
   }
 
   // -------------------------------------------------------------------
@@ -732,10 +853,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     const KindArt art = artOf(s.kind);
     const float barW = (float)s.total * kPipW + (float)(s.total - 1) * kPipGap;
     return box()
-        .row().alignItems(Align::Center).height(Dim(30.0f))
-        .child(box().width(Dim(168.0f)).alignItems(Align::End)
+        .row().alignItems(Align::Center).height(Dim(24.0f))
+        .child(box().width(Dim(160.0f)).alignItems(Align::End)
                    .child(text(toU8(s.label),
-                               type(14.5f, alpha(kCyan, 0.95f), 0.10f))))
+                               type(14, alpha(kCyan, 0.95f), 0.10f))))
         .child(box().width(Dim(9.0f)).height(Dim(9.0f)).margin(13, 0, 13, 0)
                    .outline(shapes::polygon(12))
                    .fill(Material::radial({4.5f, 4.5f}, 5.0f,
@@ -745,8 +866,8 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .opacity(withFrom(0.0f, 1.0f, {320ms}))
                    .translateX(withFrom(-16.0f, 0.0f, {380ms}))
                    .child(instancing::instances(pips, pipPools[(size_t)r])))
-        .child(box().width(Dim(30.0f)))
-        .child(box().width(Dim(96.0f))
+        .child(box().grow(1))
+        .child(box().width(Dim(84.0f))
                    .child(text(toU8(s.value),
                                type(13, rgb(0xDCEEF2), 0.02f, false))));
   }
@@ -757,46 +878,46 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .absolute().left(Dim(kLegX)).top(Dim(kBandY))
             .width(Dim(kLegW)).height(Dim(kBandH))
             .fill(Material::blend(
-                {{Material::solid(alpha(kStrip, 0.55f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.055f), 3.0f),
+                {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
+                 {scanField(alpha(kCyan, 0.05f), 3.0f),
                   SkBlendMode::kScreen}}))
             .outline(chamfer(12))
             .zIndex(7)
-            .column().padding(20, 16).gap(4)
+            .column().padding(20, 12).gap(3)
             .staggerChildren(70ms, Stagger::From::Start);
 
-    // column heads
-    card.child(box().row().height(Dim(16.0f))
-                   .child(box().width(Dim(168.0f)).alignItems(Align::End)
+    card.child(box().row().height(Dim(14.0f))
+                   .child(box().width(Dim(160.0f)).alignItems(Align::End)
                               .child(text(toU8("SPECIFICATION"),
-                                          type(9.5f, alpha(kCyan, 0.45f),
-                                               0.20f, false))))
-                   .child(box().width(Dim(31.0f)))
+                                          type(9, alpha(kCyan, 0.42f),
+                                               0.22f, false))))
+                   .child(box().width(Dim(35.0f)))
                    .child(text(toU8("NANOCIRCUIT LOAD"),
-                               type(9.5f, alpha(kCyan, 0.45f), 0.20f, false)))
+                               type(9, alpha(kCyan, 0.42f), 0.22f, false)))
                    .child(box().grow(1))
-                   .child(text(toU8("VALUE"),
-                               type(9.5f, alpha(kCyan, 0.45f), 0.20f, false))));
+                   .child(box().width(Dim(84.0f))
+                              .child(text(toU8("VALUE"),
+                                          type(9, alpha(kCyan, 0.42f), 0.22f,
+                                               false)))));
     for (int r = 0; r < kStatCount; ++r)
       card.child(statRow(r));
     root.child(std::move(card));
 
-    // the bracket chrome the Bench frames its regions with
     root.child(box().absolute().left(Dim(kLegX - 8)).top(Dim(kBandY - 8))
                    .width(Dim(kLegW + 16)).height(Dim(kBandH + 16))
                    .outline(cornerBrackets(26))
-                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.75f))))
+                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
-    root.child(box().absolute().left(Dim(kLegX + 18)).top(Dim(kBandY + 44))
-                   .width(Dim(kLegW - 36)).height(Dim(1.0f))
+    root.child(box().absolute().left(Dim(kLegX + 16)).top(Dim(kBandY + 32))
+                   .width(Dim(kLegW - 32)).height(Dim(1.0f))
                    .outline(hline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
+                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
-    root.child(box().absolute().left(Dim(kLegX + kLegW - 128))
-                   .top(Dim(kBandY + 16)).width(Dim(1.0f))
-                   .height(Dim(kBandH - 32))
+    root.child(box().absolute().left(Dim(kLegX + kLegW - 108))
+                   .top(Dim(kBandY + 14)).width(Dim(1.0f))
+                   .height(Dim(kBandH - 28))
                    .outline(vline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
+                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
   }
 
@@ -810,54 +931,58 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .width(Dim(kCntW)).height(Dim(kBandH))
             .outline(chamfer(12))
             .fill(Material::blend(
-                {{Material::solid(alpha(kStrip, 0.55f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.055f), 3.0f),
+                {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
+                 {scanField(alpha(kCyan, 0.05f), 3.0f),
                   SkBlendMode::kScreen}}))
-            .column().alignItems(Align::Center).padding(14, 12).gap(0)
+            .row().alignItems(Align::Center).padding(16, 12).gap(4)
             .zIndex(7)
-            .child(box().width(Dim(118.0f)).height(Dim(26.0f))
-                       .alignItems(Align::Center).justify(Justify::Center)
-                       .outline(chamfer(6))
-                       .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f))))
-                       .child(text(toU8("NODES"),
-                                   type(12.5f, alpha(kCyan, 0.95f), 0.16f))))
             // the brass power-node puck: side wall, top face, bore ring
-            .child(box().width(Dim(76.0f)).height(Dim(52.0f))
-                       .margin(0, 14, 0, 8)
-                       .child(box().absolute().left(Dim(4.0f)).top(Dim(16.0f))
-                                  .width(Dim(68.0f)).height(Dim(32.0f))
-                                  .corners({16})
+            .child(box().width(Dim(66.0f)).height(Dim(46.0f))
+                       .child(box().absolute().left(Dim(2.0f)).top(Dim(14.0f))
+                                  .width(Dim(62.0f)).height(Dim(28.0f))
+                                  .corners({14})
                                   .fill(Material::linear(
-                                      {0, 0}, {0, 32},
+                                      {0, 0}, {0, 28},
                                       {{0.0f, kBrassLo},
-                                       {0.45f, rgb(0x8A6E1C)},
+                                       {0.45f, rgb(0x7E6318)},
                                        {1.0f, kBrassDk}})))
-                       .child(box().absolute().left(Dim(4.0f)).top(Dim(2.0f))
-                                  .width(Dim(68.0f)).height(Dim(30.0f))
+                       .child(box().absolute().left(Dim(2.0f)).top(Dim(2.0f))
+                                  .width(Dim(62.0f)).height(Dim(27.0f))
                                   .outline(shapes::squircle(2.0f))
                                   .fill(Material::linear(
-                                      {0, 0}, {58, 30},
+                                      {0, 0}, {52, 27},
                                       {{0.0f, kBrassHi},
-                                       {0.4f, rgb(0xD9B23C)},
-                                       {1.0f, rgb(0x9C7B22)}}))
-                                  .stroke(stroke(1.0f,
-                                                 Fill::color(rgb(0xF3DC94,
-                                                                 0.8f)))))
-                       .child(box().absolute().left(Dim(24.0f))
-                                  .top(Dim(9.0f)).width(Dim(28.0f))
-                                  .height(Dim(15.0f))
+                                       {0.4f, rgb(0xD3AA33)},
+                                       {1.0f, rgb(0x8E6F1E)}}))
+                                  .stroke(stroke(
+                                      1.0f,
+                                      Fill::color(rgb(0xF3DC94, 0.75f)))))
+                       .child(box().absolute().left(Dim(22.0f))
+                                  .top(Dim(8.0f)).width(Dim(24.0f))
+                                  .height(Dim(13.0f))
                                   .outline(shapes::squircle(2.0f))
-                                  .stroke(stroke(1.4f,
-                                                 Fill::color(rgb(0x7A5F16,
-                                                                 0.9f))))))
-            .child(text(toU8("2"), type(42, kTitle, 0.0f))
-                       .key("nodecount")
-                       .transition({.duration = 200ms})));
+                                  .stroke(stroke(
+                                      1.3f,
+                                      Fill::color(rgb(0x74590F, 0.9f))))))
+            .child(box().column().grow(1).alignItems(Align::Center).gap(2)
+                       .child(box().width(Dim(104.0f)).height(Dim(22.0f))
+                                  .alignItems(Align::Center)
+                                  .justify(Justify::Center)
+                                  .outline(chamfer(6))
+                                  .stroke(stroke(
+                                      1.0f,
+                                      Fill::color(alpha(kCyan, 0.45f))))
+                                  .child(text(toU8("NODES"),
+                                              type(12, alpha(kCyan, 0.95f),
+                                                   0.16f))))
+                       .child(text(toU8("2"), type(40, kTitle, 0.0f))
+                                  .key("nodecount")
+                                  .transition({.duration = 200ms}))));
 
     root.child(box().absolute().left(Dim(kCntX - 8)).top(Dim(kBandY - 8))
                    .width(Dim(kCntW + 16)).height(Dim(kBandH + 16))
                    .outline(cornerBrackets(22))
-                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.75f))))
+                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
   }
 
@@ -868,59 +993,58 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(box().absolute().left(Dim(kPX + 32)).top(Dim(kHintY))
                    .width(Dim(kPW - 64)).height(Dim(1.0f))
                    .outline(hline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.4f))))
+                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.36f))))
                    .zIndex(8));
 
     auto hint = [&](std::string label) {
-      return box().row().alignItems(Align::Center).gap(7).child(
-          text(toU8(label), type(12, alpha(kCyan, 0.8f), 0.06f, false)));
+      return text(toU8(label), type(12, alpha(kCyan, 0.78f), 0.06f, false));
     };
 
     root.child(
         box().absolute().left(Dim(kPX)).top(Dim(kHintY + 8))
-            .width(Dim(kPW)).height(Dim(28.0f))
-            .row().alignItems(Align::Center).justify(Justify::Center).gap(52)
+            .width(Dim(kPW)).height(Dim(26.0f))
+            .row().alignItems(Align::Center).justify(Justify::Center).gap(56)
             .zIndex(8)
             .child(box().row().alignItems(Align::Center).gap(8)
-                       .child(custom([this](SkCanvas &canvas,
-                                            const PaintContext &ctx) {
+                       .child(custom([](SkCanvas &canvas,
+                                        const PaintContext &ctx) {
                                 const float r = ctx.size.width() * 0.5f;
                                 SkPaint p;
                                 p.setAntiAlias(true);
                                 p.setStyle(SkPaint::kStroke_Style);
-                                p.setStrokeWidth(1.4f);
-                                p.setColor4f(alpha(kCyan, 0.85f), nullptr);
-                                canvas.drawCircle(r, r, r - 1.2f, p);
+                                p.setStrokeWidth(1.3f);
+                                p.setColor4f(alpha(kCyan, 0.82f), nullptr);
+                                canvas.drawCircle(r, r, r - 1.1f, p);
                                 const float k =
-                                    0.5f + 0.5f * std::sin(
-                                               (float)ctx.elapsedSeconds * 3.4f);
+                                    0.5f +
+                                    0.5f * std::sin(
+                                        (float)ctx.elapsedSeconds * 3.4f);
                                 p.setStyle(SkPaint::kFill_Style);
-                                p.setColor4f(alpha(kCyan, 0.35f + 0.5f * k),
+                                p.setColor4f(alpha(kCyan, 0.3f + 0.5f * k),
                                              nullptr);
-                                canvas.drawCircle(r, r, r * 0.42f, p);
+                                canvas.drawCircle(r, r, r * 0.4f, p);
                                 p.setStyle(SkPaint::kStroke_Style);
                                 for (int i = 0; i < 4; ++i) {
                                   const float a = 1.5707963f * (float)i;
-                                  const float c = std::cos(a), s = std::sin(a);
-                                  canvas.drawLine(r + c * r * 0.62f,
-                                                  r + s * r * 0.62f,
-                                                  r + c * r * 0.92f,
-                                                  r + s * r * 0.92f, p);
+                                  const float c = std::cos(a),
+                                              s = std::sin(a);
+                                  canvas.drawLine(r + c * r * 0.6f,
+                                                  r + s * r * 0.6f,
+                                                  r + c * r * 0.9f,
+                                                  r + s * r * 0.9f, p);
                                 }
                               })
                                   .width(Dim(15.0f)).height(Dim(15.0f))
                                   .cache(Cache::None))
-                       .child(text(toU8("Navigate"),
-                                   type(12, alpha(kCyan, 0.8f), 0.06f,
-                                        false))))
+                       .child(hint("Navigate")))
             .child(hint("[Enter] Select"))
             .child(hint("[Esc] Exit")));
 
-    // the two empty hardware sockets the bezel carries at its corners
+    // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {
-      root.child(box().absolute().left(Dim(x)).top(Dim(kHintY + 14))
+      root.child(box().absolute().left(Dim(x)).top(Dim(kHintY + 13))
                      .width(Dim(12.0f)).height(Dim(12.0f))
-                     .stroke(stroke(1.2f, Fill::color(alpha(kCyan, 0.5f))))
+                     .stroke(stroke(1.2f, Fill::color(alpha(kCyan, 0.45f))))
                      .zIndex(8));
     }
   }
@@ -936,17 +1060,16 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .backdrop(styles::ripple(1.6f, 78.0f, 0.0f))
                    .fill(Material::linear({0, 0}, {0, 34},
                                           {{0.0f, alpha(kCyan, 0.0f)},
-                                           {0.5f, alpha(kCyan, 0.055f)},
+                                           {0.5f, alpha(kCyan, 0.05f)},
                                            {1.0f, alpha(kCyan, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::None)
                    .zIndex(9));
-    // the vignette that seats the panel back into the dark
     root.child(box().absolute().inset(0)
-                   .fill(Material::radial({kW * 0.5f, kH * 0.46f}, kW * 0.62f,
+                   .fill(Material::radial({kW * 0.5f, kH * 0.46f}, kW * 0.60f,
                                           {{0.0f, rgb(0x000000, 0.0f)},
-                                           {0.62f, rgb(0x000000, 0.10f)},
-                                           {1.0f, rgb(0x02060A, 0.72f)}}))
+                                           {0.55f, rgb(0x000000, 0.14f)},
+                                           {1.0f, rgb(0x01050A, 0.86f)}}))
                    .zIndex(11));
   }
 
@@ -954,10 +1077,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   Element describe(sketch::SketchContext &ctx) {
     (void)ctx;
+    glowSlot = 0;
     auto root = stack().fill(Material::radial(
-        {kW * 0.5f, kH * 0.5f}, 900,
-        {{0.0f, rgb(0x0A141C)}, {0.62f, rgb(0x060C12)},
-         {1.0f, rgb(0x030507)}}));
+        {kW * 0.5f, kH * 0.5f}, 880,
+        {{0.0f, rgb(0x09131B)}, {0.6f, rgb(0x050B11)},
+         {1.0f, rgb(0x020406)}}));
     backdrop(root);
 
     // everything that belongs to the hologram rides one jittering group,
@@ -970,9 +1094,9 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                     .zIndex(2);
     plate(holo);
     header(holo);
-    traces(holo);
-    nodes(holo);
-    entrySocket(holo);
+    circuit(holo, kBeam);
+    circuit(holo, kRig);
+    circuit(holo, kStasis);
     legend(holo);
     counter(holo);
     hints(holo);
@@ -989,12 +1113,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       for (size_t i = 0; i < glow.size(); ++i)
-        glow[i] = 6.2f + 2.1f * (float)std::sin(t * 2.75 + (double)i * 0.62);
+        glow[i] = 6.0f + 2.1f * (float)std::sin(t * 2.75 + (double)i * 0.62);
       socketPulse = 0.78f + 0.22f * (float)std::sin(t * 3.9);
-      cursorPhase = (float)std::fmod(t, 1.0);
       scanY = (float)std::fmod(t * 96.0, (double)(kPH - 40));
 
-      // the hologram stutter: 90-120 ms of snap (not eased) jitter every
+      // the hologram stutter: ~100 ms of snap (not eased) jitter every
       // 4-7 s, scheduled deterministically so a capture is reproducible
       if (t >= nextGlitch && t > glitchEnd) {
         glitchEnd = t + 0.10;

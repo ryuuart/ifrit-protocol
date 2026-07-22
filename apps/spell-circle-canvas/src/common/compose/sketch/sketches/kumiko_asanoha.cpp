@@ -132,16 +132,18 @@ const float kCellH = kFieldH / (float)kRows;
 
 const SkRect kField = SkRect::MakeXYWH(700 - kFieldW / 2, 500 - kFieldH / 2,
                                        kFieldW, kFieldH);
-constexpr float kBand = 60;   // plain masu register band
-constexpr float kBorder = 45; // kumiko-buchi frame
+// The register band is exactly HALF the field pitch, so its plain cells come
+// out square (masu = "measuring box") and its members interleave with the
+// field's own jigumi at a clean 2:1.
+const float kBand = kCell * 0.5f; // plain masu register band
+constexpr float kBorder = 45;     // kumiko-buchi frame
 const SkRect kRegOuter = kField.makeOutset(kBand, kBand);
 const SkRect kFrameOuter = kRegOuter.makeOutset(kBorder, kBorder);
 
 // Stock face widths (12.7 mm deep × 3.2 mm face; 3.2/22 ≈ 0.145 of pitch).
-const float kJigumiW = std::max(6.0f, 0.135f * kCell);
-const float kHaW = std::max(5.0f, 0.108f * kCell);
-constexpr float kRegW = 9.0f;
-constexpr float kRegCell = 40.0f;
+const float kJigumiW = std::max(6.0f, 0.125f * kCell);
+const float kHaW = std::max(5.0f, 0.096f * kCell);
+const float kRegW = kJigumiW * 0.80f;
 
 // ---------------------------------------------------------------------------
 // Timeline (brief §9). One clock, per-piece delays computed from role/row/col.
@@ -189,21 +191,23 @@ sk_sp<SkRuntimeEffect> timberEffect() {
         float2 xy = (uSwap > 0.5) ? float2(p.y, p.x) : p;
         float v = clamp(xy.y / max(uSpan, 1.0), 0.0, 1.0);
         v = (uFlip > 0.5) ? 1.0 - v : v;
-        // Planed arris: a hot edge, a broad body, a shadowed far edge.
-        float lit   = smoothstep(0.40, 0.00, v);
-        float shade = smoothstep(0.52, 1.00, v);
+        // A PLANED board, not a dowel: a flat face between a narrow lit
+        // arris and a narrow shadowed one. Widen these two and the piece
+        // immediately reads as rope.
+        float lit   = smoothstep(0.17, 0.00, v);
+        float shade = smoothstep(0.78, 1.00, v);
         float s = uSeed;
         float x = xy.x * uGrain + s * 17.3;
         float g = sin(x) * 0.5 + sin(x * 2.31 + s * 3.1) * 0.3
                 + sin(x * 5.77 + s * 7.7) * 0.2;
         g = g * 0.5 + 0.5;
-        float fig = smoothstep(0.55, 0.98, g);
+        float fig = smoothstep(0.48, 0.96, g);
         // A slow lengthwise tone drift so no two pieces read identical.
         float drift = sin(xy.x * 0.011 + s * 5.0) * 0.5 + 0.5;
-        float4 c = mix(uBase, uLight, lit * 0.92);
-        c = mix(c, uDark, shade * 0.80);
+        float4 c = mix(uBase, uLight, lit * 0.95);
+        c = mix(c, uDark, shade * 0.85);
         c = mix(c, uDark, fig * uFigure);
-        c = mix(c, uLight, drift * 0.10);
+        c = mix(c, uLight, drift * 0.12);
         return half4(half3(c.rgb), 1.0);
       }
     )"));
@@ -220,8 +224,12 @@ struct Timber {
   float figure;
 };
 
-const Timber kHinokiTimber{kHinoki, kHinokiLit, kHinokiDark, 0.16f, 0.20f};
-const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.34f};
+const Timber kHinokiTimber{kHinoki, kHinokiLit, kHinokiDark, 0.19f, 0.26f};
+const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.38f};
+// The room-side members face AWAY from the far room's lamp, so the same
+// keyaki reads two stops down on the nageshi/kamoi and the posts.
+const Timber kKeyakiShade{rgb(0x33200F), rgb(0x54341B), rgb(0x140C05), 0.045f,
+                          0.42f};
 
 // Materials are held (the Pattern/Material identity contract) and shared by
 // (timber, span, flip, seed-bucket) so hundreds of pieces cost ~a hundred
@@ -356,14 +364,16 @@ struct Panel {
          kRoleFrame, &kKeyakiTimber, kTFrame + 0.30, kDFrame, dTR, dTL, true);
   }
 
-  // --- the plain masu register: two rails per side, ties every 40 px -------
+  // --- the plain masu register ---------------------------------------------
+  // Its inner boundary IS the field's outermost jigumi (in real work one
+  // member serves both), so this emits only the outer ring that seats into the
+  // frame groove plus the half-pitch ties that square the band's cells up.
   void buildRegister() {
     const SkRect &o = kRegOuter;
     const float h = kRegW * 0.5f;
     int n = 0;
-    auto stagger = [&] { return kTReg + 0.006 * (double)(n++); };
+    auto stagger = [&] { return kTReg + 0.008 * (double)(n++); };
 
-    // Outer ring.
     push({o.left(), o.top() + h}, {o.right(), o.top() + h}, kRegW,
          kRoleRegister, &kHinokiTimber, stagger(), kDReg);
     push({o.left(), o.bottom() - h}, {o.right(), o.bottom() - h}, kRegW,
@@ -372,69 +382,55 @@ struct Panel {
          kRoleRegister, &kHinokiTimber, stagger(), kDReg);
     push({o.right() - h, o.top()}, {o.right() - h, o.bottom()}, kRegW,
          kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    // Inner ring, hugging the field.
-    const SkRect in = kField.makeOutset(h, h);
-    push({in.left() - h, in.top()}, {in.right() + h, in.top()}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({in.left() - h, in.bottom()}, {in.right() + h, in.bottom()}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({in.left(), in.top() - h}, {in.left(), in.bottom() + h}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({in.right(), in.top() - h}, {in.right(), in.bottom() + h}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
 
-    // Ties. Horizontal bands run full width (they own the corners); vertical
-    // bands only span the field's height.
-    const int nx = std::max(2, (int)std::lround(o.width() / kRegCell));
-    const float sx = o.width() / (float)nx;
-    for (int i = 1; i < nx; ++i) {
-      const float x = o.left() + sx * (float)i;
-      push({x, o.top() + kRegW}, {x, kField.top() - kRegW}, kRegW,
-           kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-      push({x, kField.bottom() + kRegW}, {x, o.bottom() - kRegW}, kRegW,
-           kRoleRegister, &kHinokiTimber, stagger(), kDReg);
+    // Half-pitch ties: one per field cell, landing exactly between the jigumi
+    // members that already run through the band — square masu cells.
+    for (int i = 0; i < kCols; ++i) {
+      const float x = kField.left() + kCellW * ((float)i + 0.5f);
+      push({x, o.top() + h}, {x, kField.top()}, kRegW, kRoleRegister,
+           &kHinokiTimber, stagger(), kDReg);
+      push({x, kField.bottom()}, {x, o.bottom() - h}, kRegW, kRoleRegister,
+           &kHinokiTimber, stagger(), kDReg);
     }
-    const int ny = std::max(2, (int)std::lround(kField.height() / kRegCell));
-    const float sy = kField.height() / (float)ny;
-    for (int j = 1; j < ny; ++j) {
-      const float y = kField.top() + sy * (float)j;
-      push({o.left() + kRegW, y}, {kField.left() - kRegW, y}, kRegW,
-           kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-      push({kField.right() + kRegW, y}, {o.right() - kRegW, y}, kRegW,
-           kRoleRegister, &kHinokiTimber, stagger(), kDReg);
+    for (int j = 0; j < kRows; ++j) {
+      const float y = kField.top() + kCellH * ((float)j + 0.5f);
+      push({o.left() + h, y}, {kField.left(), y}, kRegW, kRoleRegister,
+           &kHinokiTimber, stagger(), kDReg);
+      push({kField.right(), y}, {o.right() - h, y}, kRegW, kRoleRegister,
+           &kHinokiTimber, stagger(), kDReg);
     }
   }
 
-  // --- the structural jigumi, seated through the register's inner rail ----
+  // --- the structural jigumi, running the whole opening -------------------
+  // Brief §10: never a strip sliced mid-length. Every jigumi member runs
+  // groove to groove and carries a tenon head where it seats.
   void buildJigumi() {
-    const float seat = kRegW * 1.6f; // the tenon reaching into the groove
+    const SkRect &o = kRegOuter;
     for (int i = 0; i <= kCols; ++i) {
       const float x = kField.left() + kCellW * (float)i;
-      push({x, kField.top() - seat}, {x, kField.bottom() + seat}, kJigumiW,
-           kRoleJigumiV, &kHinokiTimber,
-           kTJigV + 0.012 * (double)i, kDJig);
-      addNub({x, kField.top() - seat}, {0, 1});
-      addNub({x, kField.bottom() + seat}, {0, 1});
+      push({x, o.top()}, {x, o.bottom()}, kJigumiW, kRoleJigumiV,
+           &kHinokiTimber, kTJigV + 0.012 * (double)i, kDJig);
+      addNub({x, o.top() + 2.5f}, {0, 1});
+      addNub({x, o.bottom() - 2.5f}, {0, 1});
     }
     for (int j = 0; j <= kRows; ++j) {
       const float y = kField.top() + kCellH * (float)j;
-      push({kField.left() - seat, y}, {kField.right() + seat, y}, kJigumiW,
-           kRoleJigumiH, &kHinokiTimber,
-           kTJigH + 0.016 * (double)j, kDJig);
-      addNub({kField.left() - seat, y}, {1, 0});
-      addNub({kField.right() + seat, y}, {1, 0});
+      push({o.left(), y}, {o.right(), y}, kJigumiW, kRoleJigumiH,
+           &kHinokiTimber, kTJigH + 0.016 * (double)j, kDJig);
+      addNub({o.left() + 2.5f, y}, {1, 0});
+      addNub({o.right() - 2.5f, y}, {1, 0});
     }
   }
 
-  // A tenon-nub cap so a terminated strip reads as SEATED into a milled
-  // groove rather than sliced by a rectangle (brief §10).
+  // A tenon head so a terminated strip reads as SEATED into a milled groove
+  // rather than sliced by a rectangle (brief §10) — one per termination.
   void addNub(SkPoint at, SkVector along) {
     const SkVector n = perp(norm(along));
-    const float half = kJigumiW * 0.95f;
+    const float half = kJigumiW * 0.80f;
     Strip s;
     s.a = {at.x() - n.x() * half, at.y() - n.y() * half};
     s.b = {at.x() + n.x() * half, at.y() + n.y() * half};
-    s.w = kRegW * 0.62f;
+    s.w = kRegW * 0.5f;
     s.role = kRoleRegister;
     s.timber = &kHinokiTimber;
     s.seed = seedCounter++ * 2654435761u >> 13;
@@ -505,23 +501,55 @@ struct Panel {
   // --- the half-lap seam marks, from the crossing graph -------------------
   // Every jigumi vertical crosses every jigumi horizontal; a half-lap shows
   // as the pair of hairlines where the upper piece's edges cross the lower.
-  void buildSeams() {
-    for (int i = 0; i <= kCols; ++i) {
-      const float x = kField.left() + kCellW * (float)i;
-      for (int j = 0; j <= kRows; ++j) {
-        const float y = kField.top() + kCellH * (float)j;
-        seams.push_back({{x, y}, {0, 1}, kJigumiW * 0.5f, kJigumiW});
-      }
+  static int rank(Role r) {
+    switch (r) {
+    case kRoleDiagonal: return 1;
+    case kRoleFiller: return 2;
+    case kRoleLock: return 3;
+    case kRoleJigumiH: return 4;
+    case kRoleJigumiV: return 5;
+    case kRoleRegister: return 6;
+    default: return 0;
     }
-    // The register's own crossings, and the tenon seats.
-    const SkRect &o = kRegOuter;
-    const int nx = std::max(2, (int)std::lround(o.width() / kRegCell));
-    const float sx = o.width() / (float)nx;
-    for (int i = 1; i < nx; ++i) {
-      const float x = o.left() + sx * (float)i;
-      seams.push_back({{x, o.top() + kRegW * 0.5f}, {1, 0}, kRegW * 0.5f, kRegW});
-      seams.push_back(
-          {{x, o.bottom() - kRegW * 0.5f}, {1, 0}, kRegW * 0.5f, kRegW});
+  }
+
+  void buildSeams() {
+    std::vector<size_t> lat;
+    for (size_t i = 0; i < strips.size(); ++i)
+      if (rank(strips[i].role) >= 4)
+        lat.push_back(i);
+
+    for (size_t a = 0; a < lat.size(); ++a) {
+      for (size_t b = a + 1; b < lat.size(); ++b) {
+        const Strip &s1 = strips[lat[a]], &s2 = strips[lat[b]];
+        if (rank(s1.role) == rank(s2.role))
+          continue; // same notch layer: they butt, they don't lap
+        const SkVector d1{s1.b.x() - s1.a.x(), s1.b.y() - s1.a.y()};
+        const SkVector d2{s2.b.x() - s2.a.x(), s2.b.y() - s2.a.y()};
+        const float det = d1.x() * d2.y() - d1.y() * d2.x();
+        if (std::abs(det) < 1e-3f)
+          continue;
+        const float rx = s2.a.x() - s1.a.x(), ry = s2.a.y() - s1.a.y();
+        const float t = (rx * d2.y() - ry * d2.x()) / det;
+        const float u = (rx * d1.y() - ry * d1.x()) / det;
+        const float l1 = d1.length(), l2 = d2.length();
+        const float m1 = 2.5f / std::max(l1, 1.0f);
+        const float m2 = 2.5f / std::max(l2, 1.0f);
+        if (t < m1 || t > 1 - m1 || u < m2 || u > 1 - m2)
+          continue; // an endpoint meeting is a butt joint, not a half-lap
+        const bool oneOnTop = rank(s1.role) > rank(s2.role);
+        const Strip &up = oneOnTop ? s1 : s2;
+        const Strip &lo = oneOnTop ? s2 : s1;
+        const SkVector uu = norm(oneOnTop ? d1 : d2);
+        const SkVector ul = norm(oneOnTop ? d2 : d1);
+        const float sinT = std::abs(uu.x() * ul.y() - uu.y() * ul.x());
+        const float halfSpan =
+            std::min(lo.w * 3.0f, (lo.w * 0.5f) / std::max(sinT, 0.15f));
+        seams.push_back({{s1.a.x() + d1.x() * t, s1.a.y() + d1.y() * t},
+                         uu,
+                         halfSpan,
+                         up.w});
+      }
     }
   }
 };
@@ -696,14 +724,16 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .height(open.height())
         .clip(true)
         .opacity(&glow)
-        .background(styles::OuterGlow{rgb(0xF4E3B8, 0.32f), 60, 4})
+        .background(styles::OuterGlow{rgb(0xF4E3B8, 0.34f), 70, 6})
+        // Brief §7: core inner radius ~80 px, fading out by ~520 px.
         .child(box().absolute().inset(0, 0, 0, 0).fill(Material::radial(
-            {open.width() * 0.5f, open.height() * 0.5f}, 560,
-            {{0.00f, rgb(0xFFF6DE, 1.0f)},
-             {0.14f, rgb(0xF4E3B8, 0.96f)},
-             {0.42f, rgb(0xC79A57, 0.60f)},
-             {0.72f, rgb(0x53341A, 0.26f)},
-             {1.00f, rgb(0x0D0906, 0.0f)}})));
+            {open.width() * 0.5f, open.height() * 0.5f}, 520,
+            {{0.00f, rgb(0xFFFBF0, 1.00f)},
+             {0.15f, rgb(0xF7EBCB, 0.99f)},
+             {0.38f, rgb(0xE2B979, 0.80f)},
+             {0.62f, rgb(0x9A6432, 0.42f)},
+             {0.85f, rgb(0x3A2210, 0.14f)},
+             {1.00f, rgb(0x0D0906, 0.00f)}})));
   }
 
   Element beam(float y, float h, bool top) {
@@ -713,12 +743,12 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .top(y)
         .width(kW)
         .height(h)
-        .fill(bank.get(kKeyakiTimber, h, !top, 7))
-        .foreground(styles::InnerShadow{{0, 0, 0, 0.55f}, {0, top ? 6.f : -6.f},
-                                        14})
+        .fill(bank.get(kKeyakiShade, h, !top, 7))
+        .foreground(styles::InnerShadow{{0, 0, 0, 0.65f}, {0, top ? 8.f : -8.f},
+                                        18})
         .foreground(styles::BevelEmboss{2.5f, 4, top ? 300.0f : 120.0f,
-                                        {1, 0.93f, 0.78f, 0.30f},
-                                        {0, 0, 0, 0.55f}});
+                                        {1, 0.88f, 0.68f, 0.16f},
+                                        {0, 0, 0, 0.60f}});
   }
 
   Element post(float x, float w) {
@@ -728,9 +758,10 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .top(118)
         .width(w)
         .height(kH - 236)
-        .fill(bank.get(kKeyakiTimber, w, x > 700, 3, /*swap=*/true))
-        .foreground(styles::InnerShadow{{0, 0, 0, 0.45f}, {x > 700 ? -5.f : 5.f, 0},
-                                        12});
+        .fill(bank.get(kKeyakiShade, w, x > 700, 3, /*swap=*/true))
+        .foreground(
+            styles::InnerShadow{{0, 0, 0, 0.60f}, {x > 700 ? -7.f : 7.f, 0},
+                                16});
   }
 
   Element describe(sketch::SketchContext &ctx) {
