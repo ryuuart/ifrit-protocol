@@ -222,6 +222,36 @@ inline float hashNoise(uint32_t seed, uint32_t i) {
   z ^= z >> 31;
   return (float)(z & 0xffffff) / (float)0x7fffff - 1.0f;
 }
+/** Localise the point where a property of a contour CHANGES, given a
+ *  bracket that straddles it.
+ *
+ *  Every scanner that walks a contour at a stride has the same two
+ *  halves: notice between two samples that something flipped, then
+ *  narrow the bracket. This is the second half, once, and it exists
+ *  because the first half's convention is a bug magnet: **the answer is
+ *  `hi`, the first distance PROVEN past the transition — never the
+ *  midpoint of the bracket.** Recording the midpoint puts the result up
+ *  to stride/2 early, which was measured at 3 px on a corner scan with
+ *  advance 24, diagnosed, fixed in one copy, and then written again from
+ *  the shape of the surrounding code in a second one days later.
+ *
+ *  @param stillNear answers "is @p d still on the starting side?" for any
+ *         distance in the bracket. A sample it cannot evaluate must
+ *         answer `true`: that can only move `lo`, so it can never report
+ *         a transition earlier than the truth. */
+template <typename Pred>
+inline float bisectTransition(float lo, float hi, Pred stillNear,
+                              int iterations = 8) {
+  for (int i = 0; i < iterations; ++i) {
+    const float mid = (lo + hi) * 0.5f;
+    if (stillNear(mid))
+      lo = mid;
+    else
+      hi = mid;
+  }
+  return hi;
+}
+
 } // namespace detail
 
 /** Organic closed blob: @p lobes control points on the inscribed
@@ -649,19 +679,19 @@ inline SkPath edges(const SkPath &outline, Edge mask, float step = 3.0f) {
         continue;
       const Edge e = classify(pos);
       if (e != runEdge) {
-        // Refine the boundary between the previous sample and this one.
-        float lo = length * (float)(i - 1) / (float)samples, hi = d;
-        for (int r = 0; r < 8; ++r) {
-          const float mid = (lo + hi) / 2;
-          SkPoint mp;
-          if (contour->getPosTan(mid, &mp, nullptr) &&
-              classify(mp) == runEdge)
-            lo = mid;
-          else
-            hi = mid;
-        }
-        flushRun(hi);
-        runStart = hi;
+        // The boundary between the previous sample and this one. Shared
+        // with lines::detail::findCorners — the SCANNERS differ (that one
+        // brackets a tangent break, this one a quadrant change) but the
+        // refinement is the same operation, and it is the half that has
+        // been got wrong twice.
+        const float at = detail::bisectTransition(
+            length * (float)(i - 1) / (float)samples, d, [&](float mid) {
+              SkPoint mp;
+              return contour->getPosTan(mid, &mp, nullptr) &&
+                     classify(mp) == runEdge;
+            });
+        flushRun(at);
+        runStart = at;
         runEdge = e;
       }
     }

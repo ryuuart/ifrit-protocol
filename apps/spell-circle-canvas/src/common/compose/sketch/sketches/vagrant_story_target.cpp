@@ -178,6 +178,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 #include <sigilcompose/Util.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
@@ -217,23 +218,18 @@ inline float snapG(float v) { return std::round(v / 4.0f) * 4.0f; }   // 320-gri
 inline float snapX(float v) { return std::round(v / 2.5f) * 2.5f; }   // 512-grid
 inline float snapY(float v) { return std::round(v / 4.0f) * 4.0f; }
 
-inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 255) / 255.0f, (float)((hex >> 8) & 255) / 255.0f,
-          (float)(hex & 255) / 255.0f, a};
-}
-inline SkColor4f mul(SkColor4f c, float k, float a = -1) {
-  return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
-}
+using studio::hex;   // the same four lines as twenty-three other files
+using studio::mul;
 
 // Reconstructed palette: pale bone rules and type over translucent slate, RISK
 // amber -> blood, target highlight cold cyan.
-const SkColor4f kBone = rgb(0xE8E4D8);
-const SkColor4f kBoneDim = rgb(0xE8E4D8, 0.42f);
-const SkColor4f kSlate = rgb(0x1A1E2A, 0.55f);
-const SkColor4f kAmber = rgb(0xD8A038);
-const SkColor4f kBlood = rgb(0xA81820);
-const SkColor4f kCyan = rgb(0x7FD8E8);
-const SkColor4f kVoid = rgb(0x090B11);
+const SkColor4f kBone = hex(0xE8E4D8);
+const SkColor4f kBoneDim = hex(0xE8E4D8, 0.42f);
+const SkColor4f kSlate = hex(0x1A1E2A, 0.55f);
+const SkColor4f kAmber = hex(0xD8A038);
+const SkColor4f kBlood = hex(0xA81820);
+const SkColor4f kCyan = hex(0x7FD8E8);
+const SkColor4f kVoid = hex(0x090B11);
 
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
@@ -727,12 +723,11 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
   Element sphereGroup(float spin) const {
     constexpr float kDeg = 0.017453293f;
-    Element g = box().absolute().inset(0).key("sphere");
+    Element g = box().inset(0).key("sphere");
 
     auto wireEl = [&](const vs::Wire &w, const char *key, bool ring) {
       vs::Wire wire = w;
       Element e = box()
-                      .absolute()
                       .width(halfExtent * 2)
                       .height(halfExtent * 2)
                       .centerAt(sphereCentre)
@@ -803,7 +798,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   Element silhouette() const {
     const float r = cam.apparentRadius();
     Element e = box()
-                    .absolute()
                     .width(halfExtent * 2)
                     .height(halfExtent * 2)
                     .centerAt(sphereCentre)
@@ -845,21 +839,20 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const float ry = vs::snapG(rx * squash);
     const SkPoint at = feet();
 
-    Element g = box().absolute().inset(0).key("ground");
+    Element g = box().inset(0).key("ground");
 
     // The attack wedge: shapes::sector at currentAttackShapeAngle * 11.25 deg,
     // inscribed in a foreshortened box, so the wedge IS an ellipse sector.
     const float sweep = (float)vs::kAttackShapeAngle * vs::kAngleStep;
     const float start = -12.5f - sweep * 0.5f;   // aimed at the Dullahan
     Element wedge = box()
-                        .absolute()
                         .width(rx * 2)
                         .height(ry * 2)
                         .centerAt(at)
                         .key("wedge")
                         .outline(shapes::sector(start, sweep))
-                        .fill(Fill::color(vs::rgb(0x7FD8E8, 0.035f)));
-    wedge.overlay(lines::Hatch{.strokeFill = Fill::color(vs::rgb(0x7FD8E8, 0.11f)),
+                        .fill(Fill::color(vs::hex(0x7FD8E8, 0.035f)));
+    wedge.overlay(lines::Hatch{.strokeFill = Fill::color(vs::hex(0x7FD8E8, 0.11f)),
                                .spacing = 15.0f,
                                .width = 1.0f,
                                .angleDeg = 118.0f});
@@ -873,7 +866,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // passes on two annular bands — every 8th tick long.
     const float outerRx = rx * 1.06f, outerRy = ry * 1.06f;
     g.child(box()
-                .absolute()
                 .width(outerRx * 2)
                 .height(outerRy * 2)
                 .centerAt(at)
@@ -882,7 +874,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .foreground(lines::radialHatch(
                     Fill::color(vs::mul(vs::kBone, 1, 0.55f)), 32, 1.4f)));
     g.child(box()
-                .absolute()
                 .width(outerRx * 2)
                 .height(outerRy * 2)
                 .centerAt(at)
@@ -892,7 +883,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     Fill::color(vs::mul(vs::kBone, 1, 0.80f)), 4, 2.0f)));
     // The rim itself: a solid outer rule with a counter-dashed inner strand.
     g.child(box()
-                .absolute()
                 .width(outerRx * 2)
                 .height(outerRy * 2)
                 .centerAt(at)
@@ -941,14 +931,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const SkPoint at = feet();
     const float w = 104, h = 288;
     Element e = box()
-                    .absolute()
                     .width(w)
                     .height(h)
-                    .left(vs::snapG(at.fX - w * 0.5f))
-                    .top(vs::snapG(at.fY - h))
+                    .at({vs::snapG(at.fX - w * 0.5f), vs::snapG(at.fY - h)})
                     .key("ashley")
                     .outline([w, h](SkSize) { return figurePath(w, h, false); })
-                    .fill(Fill::color(vs::rgb(0x05070C, 1.0f)));
+                    .fill(Fill::color(vs::hex(0x05070C, 1.0f)));
     e.stroke(PathFormat{.width = 1.8f,
                         .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.72f))});
     e.foreground(lines::Hatch{
@@ -976,7 +964,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         {0.085f, 0.300f},  // R.LEG
         {0.085f, 0.300f},  // L.LEG
     };
-    Element g = box().absolute().inset(0).key("dullahan");
+    Element g = box().inset(0).key("dullahan");
 
     // The bones first, under the parts: BODY out to each of the other five.
     const SkPoint torso = limbPoint(1, spin);
@@ -991,11 +979,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const SkPath bonePath = bones.detach();
     const SkRect bb = bonePath.getBounds().makeOutset(12, 12);
     g.child(box()
-                .absolute()
-                .left(bb.left())
-                .top(bb.top())
-                .width(bb.width())
-                .height(bb.height())
+                .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
                 .key("bones")
                 .outline([bonePath, bb](SkSize) {
                   return bonePath.makeTransform(
@@ -1003,7 +987,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 })
                 .stroke(lines::Rails{
                     .rails = {{.offset = 0, .width = 9.0f,
-                               .fill = Fill::color(vs::rgb(0x0A0F18, 1.0f))},
+                               .fill = Fill::color(vs::hex(0x0A0F18, 1.0f))},
                               {.offset = 0, .width = 1.6f,
                                .fill = Fill::color(
                                    vs::mul(vs::kCyan, 1, 0.70f)),
@@ -1023,13 +1007,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                                          shapes::Corner::Diagonal); break;
       }
       Element part = box()
-                         .absolute()
                          .width(w)
                          .height(h)
                          .centerAt(at)
                          .key(std::string("part") + std::to_string(i))
                          .outline(shape)
-                         .fill(Fill::color(vs::rgb(0x0A0F18, 0.94f)));
+                         .fill(Fill::color(vs::hex(0x0A0F18, 0.94f)));
       part.foreground(lines::Hatch{
           .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.20f)),
           .spacing = 5.0f, .width = 1.0f,
@@ -1099,7 +1082,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   brushes::PatternBrush leaderBrush;
 
   Element leaders(float spin) const {
-    Element g = box().absolute().inset(0).key("leaders");
+    Element g = box().inset(0).key("leaders");
     for (int i = 0; i < 6; ++i) {
       const SkPoint from = limbPoint(i, spin);
       const SkPoint card = cardAt[(size_t)slotOf[(size_t)i]];
@@ -1137,11 +1120,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       const SkRect b = path.getBounds().makeOutset(30, 30);
 
       Element e = box()
-                      .absolute()
-                      .left(b.left())
-                      .top(b.top())
-                      .width(b.width())
-                      .height(b.height())
+                      .rect(SkRect::MakeXYWH(b.left(), b.top(), b.width(), b.height()))
                       .key(std::string("leader") + std::to_string(i))
                       .outline([path, b](SkSize) {
                         return path.makeTransform(
@@ -1155,7 +1134,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       const bool sel = i == vs::kSelected;
       const float mr = sel ? 30.0f : 19.0f;
       Element mark = box()
-                         .absolute()
                          .width(mr * 2)
                          .height(mr * 2)
                          .centerAt(from)
@@ -1175,7 +1153,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       g.child(std::move(mark));
       if (sel)
         g.child(box()
-                    .absolute()
                     .width(mr * 2.9f)
                     .height(mr * 2.9f)
                     .centerAt(from)
@@ -1214,9 +1191,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   Element labelAt(const std::string &s, float x, float y, float px,
                   SkColor4f col, float track = 0.0f) const {
     return label(s, px, col, track)
-        .absolute()
-        .left(vs::snapX(x))
-        .top(vs::snapY(y));
+        .at({vs::snapX(x), vs::snapY(y)});
   }
 
   // -------------------------------------------------------------------------
@@ -1232,7 +1207,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const SkPoint at = cardAt[(size_t)slot];
 
     Element c = box()
-                    .absolute()
                     .width(w)
                     .height(h)
                     .centerAt(at)
@@ -1241,8 +1215,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .outline(shapes::chamfered(
                         sel ? 20.0f : 13.0f,
                         sel ? shapes::Corner::All : shapes::Corner::Diagonal))
-                    .fill(Fill::color(sel ? vs::rgb(0x101826, 0.86f)
-                                          : vs::rgb(0x11141D, 0.72f)));
+                    .fill(Fill::color(sel ? vs::hex(0x101826, 0.86f)
+                                          : vs::hex(0x11141D, 0.72f)));
     c.foreground(decorations::gappedRule(
         1.0f, Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)), 22.0f,
         6.0f));
@@ -1266,11 +1240,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const float bw = w - 32 - gutter, bh = 13;
     const float frac = (float)L.hp / (float)L.maxHp;
     c.child(box()
-                .absolute()
-                .left(16)
-                .top(sel ? 48 : 40)
-                .width(bw)
-                .height(bh)
+                .rect(SkRect::MakeXYWH(16, sel ? 48 : 40, bw, bh))
                 .outline(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
                 .foreground(lines::Hatch{
                     .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.16f)),
@@ -1280,11 +1250,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .foreground(decorations::border(
                     1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.34f)))));
     c.child(box()
-                .absolute()
-                .left(16)
-                .top(sel ? 48 : 40)
-                .width(vs::snapG(bw * frac))
-                .height(bh)
+                .rect(SkRect::MakeXYWH(16, sel ? 48 : 40, vs::snapG(bw * frac), bh))
                 .outline(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
                 .foreground(lines::Hatch{
                     .strokeFill = Fill::color(sel ? vs::kCyan : vs::kBone),
@@ -1329,7 +1295,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const vs::PixFont *small = &fontS;
     const ch::Output<float> *r = &risk;
     return box()
-        .absolute()
         .width(w)
         .height(h)
         .centerAt(at)
@@ -1358,7 +1323,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // casing, dotted core — and drives two more bind() shapings besides.
 
   Element gauges() const {
-    Element g = box().absolute().inset(0).key("gauges").zIndex(8);
+    Element g = box().inset(0).key("gauges").zIndex(8);
     const float x0 = -54, w = 470, top = 664;
     // The cluster runs off the LEFT edge, plate and all — the gauge is not a
     // card, it is the frame of the screen, so its plate is nearly clear and
@@ -1371,18 +1336,13 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // thing in the panel is the RISK note at ~845, so 248 keeps 23 px of
     // padding under it and clears the ability block by 14.
     g.child(panel(-70, 620, 512, 248, "gaugepanel", 22.0f,
-                  vs::rgb(0x0B0E15, 0.42f)));
+                  vs::hex(0x0B0E15, 0.42f)));
 
     auto bar = [&](float y, const char *name, float frac, SkColor4f col,
                    float dens) {
-      Element row = box().absolute().left(x0).top(vs::snapG(y)).width(w)
-                        .height(34);
+      Element row = box().rect(SkRect::MakeXYWH(x0, vs::snapG(y), w, 34));
       row.child(box()
-                    .absolute()
-                    .left(66)
-                    .top(6)
-                    .width(w - 84)
-                    .height(20)
+                    .rect(SkRect::MakeXYWH(66, 6, w - 84, 20))
                     .outline(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
                     .foreground(lines::Hatch{
                         .strokeFill = Fill::color(vs::mul(vs::kBone, 1, 0.13f)),
@@ -1392,11 +1352,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .foreground(decorations::border(
                         1.2f, Fill::color(vs::mul(vs::kBone, 1, 0.40f)))));
       row.child(box()
-                    .absolute()
-                    .left(66)
-                    .top(6)
-                    .width(vs::snapG((w - 84) * frac))
-                    .height(20)
+                    .rect(SkRect::MakeXYWH(66, 6, vs::snapG((w - 84) * frac), 20))
                     .outline(shapes::chamfered(8.0f, shapes::Corner::AntiDiagonal))
                     .foreground(lines::Hatch{.strokeFill = Fill::color(col),
                                              .spacing = dens,
@@ -1420,11 +1376,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     // shapings off the same Output that feeds the hatch.
     const float ry = vs::snapG(top + 100);
     Element track = box()
-                        .absolute()
-                        .left(x0 + 66)
-                        .top(ry)
-                        .width(w - 84)
-                        .height(38)
+                        .rect(SkRect::MakeXYWH(x0 + 66, ry, w - 84, 38))
                         .key("risktrack")
                         .outline(shapes::chamfered(11.0f, shapes::Corner::All));
     // 8.0 px at RISK 0 down to 2.4 px at RISK 100 — the floor is deliberately
@@ -1446,11 +1398,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
 
     // The needle: one bind() shaping, straight to px.
     g.child(box()
-                .absolute()
-                .left(x0 + 66)
-                .top(ry - 9)
-                .width(3)
-                .height(56)
+                .rect(SkRect::MakeXYWH(x0 + 66, ry - 9, 3, 56))
                 .key("riskneedle")
                 .fill(Fill::color(vs::kBlood))
                 .translateX(bind(&risk).from(0, 100).to(0.0f, w - 87)));
@@ -1469,11 +1417,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const vs::PixFont *fs = &fontS;
     const ch::Output<float> *r = &risk;
     g.child(box()
-                .absolute()
-                .left(x0 + 66)
-                .top(ry - 34)
-                .width(w - 84)
-                .height(32)
+                .rect(SkRect::MakeXYWH(x0 + 66, ry - 34, w - 84, 32))
                 .key("risknum")
                 .cache(Cache::None)
                 .background(vs::prog([fm, fs, r, w](SkCanvas &c,
@@ -1507,17 +1451,16 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   Element shapeDial() const {
     const SkPoint at{188, 448};
     const float r = 88;
-    Element g = box().absolute().inset(0).key("dial").zIndex(8);
+    Element g = box().inset(0).key("dial").zIndex(8);
 
     const float sweep = (float)vs::kAttackShapeAngle * vs::kAngleStep;
     g.child(box()
-                .absolute()
                 .width(r * 1.5f)
                 .height(r * 1.5f)
                 .centerAt(at)
                 .key("dialsector")
                 .outline(shapes::sector(-90.0f - sweep * 0.5f, sweep))
-                .fill(Fill::color(vs::rgb(0x7FD8E8, 0.05f)))
+                .fill(Fill::color(vs::hex(0x7FD8E8, 0.05f)))
                 .overlay(lines::Hatch{
                     .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.30f)),
                     .spacing = 5.0f, .width = 1.0f, .angleDeg = 45.0f})
@@ -1525,7 +1468,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .width = 1.2f,
                     .strokeFill = Fill::color(vs::mul(vs::kCyan, 1, 0.75f))}));
     g.child(box()
-                .absolute()
                 .width(r * 2)
                 .height(r * 2)
                 .centerAt(at)
@@ -1535,7 +1477,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     Fill::color(vs::mul(vs::kBone, 1, 0.60f)), 32, 1.4f,
                     {0.5f, 0.5f})));
     g.child(box()
-                .absolute()
                 .width(r * 2)
                 .height(r * 2)
                 .centerAt(at)
@@ -1545,7 +1486,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     Fill::color(vs::mul(vs::kBone, 1, 0.88f)), 4, 2.2f,
                     {0.5f, 0.5f})));
     g.child(box()
-                .absolute()
                 .width(r * 2)
                 .height(r * 2)
                 .centerAt(at)
@@ -1561,7 +1501,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       float frac = std::fmod(deg + 360.0f, 360.0f) / 360.0f;
       g.child(label(std::to_string(kMark[i]), 17.0f,
                     vs::mul(vs::kBone, 1, 0.86f), 1.0f)
-                  .absolute()
                   .width(r * 2)
                   .height(r * 2)
                   .centerAt(at)
@@ -1584,16 +1523,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // limb, each a hatch-density strip, plus the four damage types.
 
   Element defenceLadder() const {
-    Element g = box().absolute().inset(0).key("defence").zIndex(8);
+    Element g = box().inset(0).key("defence").zIndex(8);
     const float x = 1024, y0 = 92;
     g.child(labelAt("DEFENCE / R.ARM", x, y0 - 34, 15.0f,
                     vs::mul(vs::kBone, 1, 0.70f), 1.6f));
     g.child(box()
-                .absolute()
-                .left(x)
-                .top(vs::snapG(y0 - 12))
-                .width(192)
-                .height(2)
+                .rect(SkRect::MakeXYWH(x, vs::snapG(y0 - 12), 192, 2))
                 .key("defrule")
                 .outline([](SkSize s) {
                   SkPathBuilder p;
@@ -1612,11 +1547,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       vs::mul(vs::kBone, 1, 0.62f), 0.8f));
       const float mag = std::clamp(std::abs((float)v) / 26.0f, 0.06f, 1.0f);
       g.child(box()
-                  .absolute()
-                  .left(vs::snapG(x + 104))
-                  .top(y + 2)
-                  .width(vs::snapG(20 + 72 * mag))
-                  .height(12)
+                  .rect(SkRect::MakeXYWH(vs::snapG(x + 104), y + 2, vs::snapG(20 + 72 * mag), 12))
                   .key(std::string("def") + std::to_string(i))
                   .outline(shapes::chamfered(4.0f, shapes::Corner::AntiDiagonal))
                   .foreground(lines::Hatch{
@@ -1638,14 +1569,10 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
    *  four brackets — never a rounded rect, and never an opaque box: the sphere
    *  reads THROUGH it, which is the whole reason the game's HUD works. */
   Element panel(float x, float y, float w, float h, const char *key,
-                float cut = 18.0f, SkColor4f tint = vs::rgb(0x0B0E15, 0.62f))
+                float cut = 18.0f, SkColor4f tint = vs::hex(0x0B0E15, 0.62f))
       const {
     return box()
-        .absolute()
-        .left(vs::snapG(x))
-        .top(vs::snapG(y))
-        .width(vs::snapG(w))
-        .height(vs::snapG(h))
+        .rect(SkRect::MakeXYWH(vs::snapG(x), vs::snapG(y), vs::snapG(w), vs::snapG(h)))
         .key(key)
         .outline(shapes::chamfered(cut, shapes::Corner::All))
         .fill(Fill::color(tint))
@@ -1656,16 +1583,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   }
 
   Element titleBlock() const {
-    Element g = box().absolute().inset(0).key("title").zIndex(9);
+    Element g = box().inset(0).key("title").zIndex(9);
     g.child(panel(24, 20, 600, 200, "titlepanel", 26.0f));
     g.child(labelAt("BATTLE MODE \xE2\x80\x94 TARGET SELECT", 40, 30, 24.0f,
                     vs::kBone, 2.6f));
     g.child(box()
-                .absolute()
-                .left(40)
-                .top(66)
-                .width(556)
-                .height(3)
+                .rect(SkRect::MakeXYWH(40, 66, 556, 3))
                 .key("titlerule")
                 .outline([](SkSize s) {
                   SkPathBuilder p;
@@ -1696,11 +1619,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     const vs::PixFont *fm = &fontM;
     const ch::Output<float> *r = &risk;
     g.child(box()
-                .absolute()
-                .left(40)
-                .top(142)
-                .width(590)
-                .height(74)
+                .rect(SkRect::MakeXYWH(40, 142, 590, 74))
                 .key("divergence")
                 .cache(Cache::None)
                 .background(vs::prog([fs, fm, r](SkCanvas &c, const PaintContext &) {
@@ -1731,14 +1650,10 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // the chain / defense ability slots (14 of each, battleAbilities.yaml).
 
   Element marginalia() const {
-    Element g = box().absolute().inset(0).key("margin").zIndex(9);
+    Element g = box().inset(0).key("margin").zIndex(9);
     // Registration marks: four bracket sets on a chamfered full-bleed box.
     g.child(box()
-                .absolute()
-                .left(20)
-                .top(20)
-                .width(vs::kW - 40)
-                .height(vs::kH - 40)
+                .rect(SkRect::MakeXYWH(20, 20, vs::kW - 40, vs::kH - 40))
                 .key("reg")
                 .outline(shapes::chamfered(34.0f, shapes::Corner::All))
                 .foreground(decorations::brackets(
@@ -1760,11 +1675,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       for (int i = 0; i < 14; ++i) {
         const bool lit = k == 0 ? (i < 5) : (i < 3);
         g.child(box()
-                    .absolute()
-                    .left(vs::snapG(ax + 116 + (float)i * 15.0f))
-                    .top(vs::snapG(ay + (float)k * 30.0f - 20.0f))
-                    .width(9)
-                    .height(lit ? 20.0f : 11.0f)
+                    .rect(SkRect::MakeXYWH(vs::snapG(ax + 116 + (float)i * 15.0f), vs::snapG(ay + (float)k * 30.0f - 20.0f), 9, lit ? 20.0f : 11.0f))
                     .key(std::string("ab") + std::to_string(k * 14 + i))
                     .fill(Fill::color(lit ? vs::mul(vs::kAmber, 1, 0.9f)
                                           : vs::mul(vs::kBone, 1, 0.22f))));
@@ -1782,9 +1693,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   Element chainPrompt(float spin) const {
     const SkPoint impact = limbPoint(vs::kSelected, spin);
     const float r = 56;
-    Element g = box().absolute().inset(0).key("chain").zIndex(11);
+    Element g = box().inset(0).key("chain").zIndex(11);
     g.child(box()
-                .absolute()
                 .width(r * 2)
                 .height(r * 2)
                 .centerAt(impact)
@@ -1803,7 +1713,6 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                                              .dashIntervals = {2.0f, 6.0f}},
                                  {ops::Offset{.px = 6.0f, .step = 2.0f}})));
     g.child(box()
-                .absolute()
                 .width(r * 2.5f)
                 .height(r * 2.5f)
                 .centerAt(impact)
@@ -1818,11 +1727,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     wavy.leg(lines::Line{.width = 1.6f,
                          .fill = Fill::color(vs::mul(vs::kAmber, 1, 0.85f))});
     g.child(box()
-                .absolute()
-                .left(vs::snapG(impact.fX + 62))
-                .top(vs::snapG(impact.fY - 96))
-                .width(150)
-                .height(3)
+                .rect(SkRect::MakeXYWH(vs::snapG(impact.fX + 62), vs::snapG(impact.fY - 96), 150, 3))
                 .key("popRule")
                 .outline([](SkSize s) {
                   SkPathBuilder p;
@@ -1906,7 +1811,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   }
 
   Element worldGroup(float spin) const {
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     g.child(sphereGroup(spin).staggerChildren(24ms));
     g.child(limbBody(spin).zIndex(2));
     g.child(leaders(spin).zIndex(3));
@@ -1968,21 +1873,20 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
     });
 
     // ---- the tree --------------------------------------------------------
-    Element root = box().absolute().inset(0);
+    Element root = box().inset(0);
 
     // 0. the plate: a slate wash with grain, baked to PIXELS. A full-canvas
     //    generated material is a shader, and a picture replays the draw call,
     //    not the result — this is the Cache::Texture that keeps it free.
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .key("plate")
                    .cache(Cache::Texture)
                    .fill(Material::blend(
                        {{Material::radialUnit({0.32f, 0.62f}, 1.1f,
-                                              {{0.0f, vs::rgb(0x141A26)},
-                                               {0.62f, vs::rgb(0x0C0F16)},
-                                               {1.0f, vs::rgb(0x070910)}}),
+                                              {{0.0f, vs::hex(0x141A26)},
+                                               {0.62f, vs::hex(0x0C0F16)},
+                                               {1.0f, vs::hex(0x070910)}}),
                          SkBlendMode::kSrcOver},
                         {patterns::grain(1.9f, 3, 11), SkBlendMode::kOverlay}}))
                    .overlay(decorations::wash(Material::solid(vs::kSlate),

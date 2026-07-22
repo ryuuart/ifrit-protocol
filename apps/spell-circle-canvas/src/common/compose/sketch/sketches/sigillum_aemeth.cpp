@@ -176,6 +176,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -196,10 +197,7 @@ namespace ch = choreograph;
 
 namespace {
 
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
+using studio::hex;   // the same four lines as twenty-three other files
 
 // ---------------------------------------------------------------------------
 // palette — beeswax, four centuries old, under museum light: one hue and
@@ -507,24 +505,15 @@ shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
 // ---------------------------------------------------------------------------
 // paint helpers
 
+// The six-statement core is in Studio.h now; this file keeps its positional
+// shorthand because it has one type signature and hundreds of call sites.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                            float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(face);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor4f(c, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+                             float tracking = 0) {
+  return studio::type({.face = std::move(face), .size = size, .color = c,
+                       .track = tracking});
 }
 
-Transition ramp(float delayMs, float durMs, ch::EaseFn e = ch::easeOutQuad) {
-  Transition t;
-  t.duration = std::chrono::milliseconds((int)durMs);
-  t.delay = std::chrono::milliseconds((int)delayMs);
-  t.ease = std::move(e);
-  return t;
-}
+using studio::ramp;   // six sketches wrote this seven-line body
 
 /** THE ENGRAVED V-GROOVE, borrowed wholesale from chaucer_astrolabe. A cut
  *  in wax is a cross-section — a shadowed wall and a lit wall — which is
@@ -592,7 +581,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // THE WAX
 
   Element waxGround() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     // the cake: rim, body, and the tool-marks of a warm knife
     g.child(disc({kRR, kRR}, kWaxEdge * 1.055f * kR)
@@ -654,7 +643,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
    *  their own centre, so they stay OUT of the turning layer. Keeping them
    *  in cost 11 ms a frame during the settle, for no visible difference. */
   Element circumferenceRules() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     // the greatest Circle and its hairline companion — heavy OUTSIDE,
     // hair INSIDE. lines::Line cannot say this; lines::Rails can.
@@ -718,12 +707,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   /** What the 40 divisions actually are: the cells, and only the cells. */
   Element circumferenceCells() {
-    auto g = box().absolute().inset(0).transformOrigin(0.5f, 0.5f);
+    auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
 
     // the 40 radial dividers: INTERRUPTED rules that stop short of both
     // circles. One node, forty contours, one trim window on the stroke.
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize) {
                   SkPathBuilder b;
@@ -755,7 +743,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const bool dim = !visited[(size_t)i];
       auto cellLetter =
           text(toU8(c.glyph), letStyle)
-              .absolute()
               .width(Dim(2 * rCellLet * kR))
               .height(Dim(2 * rCellLet * kR))
               .centerAt({kRR, kRR})
@@ -773,7 +760,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       if (c.number > 0) {
         const float rr = c.step > 0 ? rNumOut : rNumIn;
         g.child(text(toU8(std::to_string(c.number)), numStyle)
-                    .absolute()
                     .width(Dim(2 * rr * kR))
                     .height(Dim(2 * rr * kR))
                     .centerAt({kRR, kRR})
@@ -795,7 +781,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // a little cross at every corner of the segments they sit in.
 
   Element angles() {
-    auto g = box().absolute().inset(0).transformOrigin(0.5f, 0.5f);
+    auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
 
     // the seven "segments of circles" — annular plates, radially hatched,
     // with brushes::PatternBrush corner tiles: "at each corner of these
@@ -825,7 +811,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                             .fill(Fill::color(hex(0x402c10, 0.92f)));
     Element sideTile = box().width(20).height(3).fill(Fill::none());
 
-    auto plates = box().absolute().inset(0).cache(Cache::Texture);
+    auto plates = box().inset(0).cache(Cache::Texture);
     for (int k = 0; k < 7; ++k) {
       const float mid = ((float)k + 0.5f) * 360.0f / 7.0f;
       const float half = 360.0f / 7.0f * 0.5f - 1.1f;
@@ -869,7 +855,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       // promoted to textures. The entrance is now a plain ramp, and the
       // birds' arrival is marked by a separate cheap rule on each plate.
       g.child(text(toU8(row), angStyle)
-                  .absolute()
                   .inset(0)
                   .key("ang" + std::to_string(k))
                   .onPath(TextPath{.path = heptChords(rAngleHept, 0.0f),
@@ -902,10 +887,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // quill — the seven sides come out at seven weights from one nib.
 
   Element heptagonNames() {
-    auto g = box().absolute().inset(0).transformOrigin(0.5f, 0.5f);
+    auto g = box().inset(0).transformOrigin(0.5f, 0.5f);
 
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(wobbled(heptChords(rHept, 0.0f), 30, 30.0f, 0.45f))
                 .fill(Fill::none())
@@ -922,7 +906,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
     // the second, inner heptagon rule — the Names sit between the two
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(heptChords(rNameHept - 0.043f, 0.0f))
                 .fill(Fill::none())
@@ -944,7 +927,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         row += (gl[0] == '*') ? "\xc9\x9b" : gl; // the 21/8 ligature stands in
       }
       g.child(text(toU8(row), nameStyle)
-                  .absolute()
                   .inset(0)
                   .key("god" + std::to_string(k))
                   .onPath(TextPath{.path = heptChords(rNameHept, 0.0f),
@@ -957,7 +939,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       // the Latin marginal reading, inside the heptagon, smaller
       g.child(text(toU8(kGodNames[(size_t)k].gloss),
                    type(faceItalic, 0.022f * kR, hex(0x53380f, 0.88f)))
-                  .absolute()
                   .inset(0)
                   .key("gloss" + std::to_string(k))
                   .onPath(TextPath{.path = heptChords(rNameHept - 0.056f, 0.0f),
@@ -1047,7 +1028,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       }
     };
     return box()
-        .absolute()
         .inset(0)
         .background(paint)
         .key("weave");
@@ -1060,11 +1040,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   /** Concentric circles and a crosshatched annular recess: also invariant
    *  under rotation, also lifted out of the turning layer. */
   Element innerRings() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     // the deepest recesses — crosshatched wax between the star's limbs
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize) {
                   SkPathBuilder b;
@@ -1107,7 +1086,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   }
 
   Element inner() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     // The four orders, each with the tablet the record gives it: an
     // arc-segment worn in the forehead, a round gold plate on the breast,
@@ -1137,7 +1116,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         const SkPoint at = P(th, rTab);
         Element tablet =
             box()
-                .absolute()
                 .width(Dim(em))
                 .height(Dim(em))
                 .centerAt(at)
@@ -1163,7 +1141,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         const std::string nm = ord.names[k];
         g.child(text(toU8(nm == "*" ? "E\xc9\x9b" : nm),
                      type(faceSeal, ord.size * kR, hex(0x201404, 1.0f)))
-                    .absolute()
                     .width(Dim(2 * ord.radius * kR))
                     .height(Dim(2 * ord.radius * kR))
                     .centerAt({kRR, kRR})
@@ -1181,7 +1158,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // ZABATHIEL — "this name must be distributed in his letters into 7 sides
     // of that innermost Heptagonum. So have you just 7 places."
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(heptChords(rInnerHept, 0.0f))
                 .fill(Fill::none())
@@ -1196,7 +1172,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const std::string s = kZabathiel[k];
       g.child(text(toU8(s == "I*" ? "I\xc9\x9b" : s),
                    type(faceSeal, 0.030f * kR, hex(0x201404, 1.0f)))
-                  .absolute()
                   .inset(0)
                   .key("zab" + std::to_string(k))
                   .onPath(TextPath{.path = heptChords(rInnerHept - 0.028f, 0.0f),
@@ -1214,11 +1189,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   Element pentagram() {
     auto g = box()
-                 .absolute()
-                 .left(kRR - kHp)
-                 .top(kRR - kHp)
-                 .width(Dim(2 * kHp))
-                 .height(Dim(2 * kHp))
+                 .rect(SkRect::MakeXYWH(kRR - kHp, kRR - kHp, 2 * kHp, 2 * kHp))
                  .transformOrigin(0.5f, 0.5f);
     // "Set Z, of Zedekieil within the angle which standeth up toward the
     // begynning of the greatest Circle" — point-up, aligned on division 1.
@@ -1238,7 +1209,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const float th = (float)k * 72.0f;
       g.child(text(toU8(kPentaNames[(size_t)k].initial),
                    type(faceSeal, 0.052f * kR, hex(0x241704, 1.0f)))
-                  .absolute()
                   .width(Dim(2 * rPentaInit * kR))
                   .height(Dim(2 * rPentaInit * kR))
                   .centerAt({kHp, kHp})
@@ -1255,7 +1225,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       // the rest of the name runs circularly outward into the exterior angle
       g.child(text(toU8(kPentaNames[(size_t)k].tail),
                    type(faceQuill, 0.024f * kR, hex(0x40300f, 0.92f)))
-                  .absolute()
                   .width(Dim(2 * rPentaTail * kR))
                   .height(Dim(2 * rPentaTail * kR))
                   .centerAt({kHp, kHp})
@@ -1277,14 +1246,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   Element centreCross() {
     auto g = box()
-                 .absolute()
-                 .left(kRR - kHc)
-                 .top(kRR - kHc)
-                 .width(Dim(2 * kHc))
-                 .height(Dim(2 * kHc));
+                 .rect(SkRect::MakeXYWH(kRR - kHc, kRR - kHc, 2 * kHc, 2 * kHc));
     const float arm = rCross * kR;
     g.child(box()
-                .absolute()
                 .width(Dim(2.4f * arm))
                 .height(Dim(2.4f * arm))
                 .centerAt({kHc, kHc})
@@ -1321,7 +1285,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 4; ++i) {
       g.child(text(toU8(kArms[i].s),
                    type(faceSeal, 0.025f * kR, hex(0x2b1d08, 1.0f)))
-                  .absolute()
                   .width(Dim(2 * kArms[i].r * kR))
                   .height(Dim(2 * kArms[i].r * kR))
                   .centerAt({kHc, kHc})
@@ -1342,7 +1305,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   // rim, drawn on by a trim window.
 
   Element solverOverlay() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     for (int n = 0; n < 7; ++n) {
       const Solved &s = solved[(size_t)n];
       const float t0 = tSolve + (float)n * tSolveEach;
@@ -1382,7 +1345,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                     : PropValue<float>(1.0f);
       };
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([from, to, ctrl](SkSize) {
                     SkPathBuilder b;
@@ -1401,7 +1363,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                   .opacity(fade(0))
                   .key("hops" + std::to_string(n)));
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([land](SkSize) {
                     SkPathBuilder b;
@@ -1426,37 +1387,23 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   Element margin() {
     const float w = 690;
     auto g = box()
-                 .absolute()
-                 .left(1660 * kS)
-                 .top(56 * kS)
-                 .width(w)
-                 .height(1588)
+                 .rect(SkRect::MakeXYWH(1660 * kS, 56 * kS, w, 1588))
                  .scale(kS)
                  .transformOrigin(0.0f, 0.0f);
 
     g.child(text(toU8("SIGILLVM DEI \xc3\x86M\xc3\x86TH"),
                  type(faceDisplay, 46, kVellum, 2.6f))
-                .absolute()
-                .left(0)
-                .top(0));
+                .at({0, 0}));
     g.child(text(toU8("EMETH nuncupatum \xc2\xb7 Mortlake by Richemond \xc2\xb7 "
                       "21 Martii 1582"),
                  type(faceItalic, 19, hex(0xc7ab74)))
-                .absolute()
-                .left(2)
-                .top(58));
+                .at({2, 58}));
     g.child(text(toU8("BL Sloane MS 3188 f.30r \xc2\xb7 wax disc BM 1838,1232.90.a "
                       "\xc2\xb7 23.2 cm"),
                  type(faceSerif, 15, hex(0x8d7a58)))
-                .absolute()
-                .left(2)
-                .top(86));
+                .at({2, 86}));
     g.child(box()
-                .absolute()
-                .left(0)
-                .top(114)
-                .width(w)
-                .height(2)
+                .rect(SkRect::MakeXYWH(0, 114, w, 2))
                 .fill(Fill::none())
                 .outline([w](SkSize) {
                   SkPathBuilder b;
@@ -1475,15 +1422,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // the seven Names, printing as the walk finds them
     g.child(text(toU8("THE SEVEN NAMES, WALKED OFF THE RIM"),
                  type(faceMono, 15, kRubric, 1.6f))
-                .absolute()
-                .left(0)
-                .top(136));
+                .at({0, 136}));
     g.child(box()
-                .absolute()
-                .left(0)
-                .top(158)
-                .width(w)
-                .height(324)
+                .rect(SkRect::MakeXYWH(0, 158, w, 324))
                 .outline([w](SkSize) {
                   SkPathBuilder b;
                   for (int n = 0; n <= 7; ++n) {
@@ -1505,26 +1446,18 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         chain += (i ? "\xc2\xb7" : "") + std::to_string(s.cells[i]);
       g.child(text(toU8(std::to_string(n + 1) + "."),
                    type(faceMono, 17, hex(0x8d7a58)))
-                  .absolute()
-                  .left(0)
-                  .top(y + 6)
+                  .at({0, y + 6})
                   .opacity(withFrom(0.0f, 1.0f, ramp(at, 300))));
       g.child(text(toU8(kNames[(size_t)n].name),
                    type(faceDisplay, 30, kVellum, 1.2f))
-                  .absolute()
-                  .left(34)
-                  .top(y)
+                  .at({34, y})
                   .opacity(withFrom(0.0f, 1.0f, ramp(at + 120, 420))));
       g.child(text(toU8(s.raw == s.reduced ? "" : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9"),
                    type(faceItalic, 15, hex(0x6f5f45)))
-                  .absolute()
-                  .left(212)
-                  .top(y + 10)
+                  .at({212, y + 10})
                   .opacity(withFrom(0.0f, 1.0f, ramp(at + 240, 420))));
       g.child(text(toU8(chain), type(faceMono, 14, kTrace))
-                  .absolute()
-                  .left(320)
-                  .top(y + 10)
+                  .at({320, y + 10})
                   .opacity(withFrom(0.0f, 1.0f, ramp(at + 60, 420))));
     }
 
@@ -1539,32 +1472,24 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       g.child(text(toU8(fmt("%d of 40 cells consumed \xc2\xb7 %d never visited",
                             usedCells, 40 - usedCells)),
                    type(faceMono, 15, hex(0x8d7a58)))
-                  .absolute()
-                  .left(0)
-                  .top(492)
+                  .at({0, 492})
                   .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000, 500))));
       g.child(text(toU8("unvisited  " + un + "   =  " + unl),
                    type(faceMono, 15, kRubric))
-                  .absolute()
-                  .left(0)
-                  .top(514)
+                  .at({0, 514})
                   .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000 + 200, 500))));
       g.child(text(toU8("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
                         "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
                         "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6"),
                    type(faceItalic, 14, hex(0x6f5f45)))
-                  .absolute()
-                  .left(0)
-                  .top(536)
+                  .at({0, 536})
                   .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000 + 400, 500))));
     }
 
     // the 7×7 square the birds delivered; read DOWN the columns
     g.child(text(toU8("SEVEN BASKETS, SEVEN BIRDS \xc2\xb7 READ DOWN"),
                  type(faceMono, 15, kRubric, 1.6f))
-                .absolute()
-                .left(0)
-                .top(580));
+                .at({0, 580}));
     // The seven angles UNROLLED, not tabulated. On the plate these rows lie
     // along seven sides of a heptagon; here they lie on seven nested arcs of
     // the same fan, so a "column" is a RADIAL RAY and reading down a column
@@ -1583,11 +1508,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     };
     // the seven arcs the rows sit on — ruled first, as on a prepared sheet
     g.child(box()
-                .absolute()
-                .left(0)
-                .top(560)
-                .width(w)
-                .height(300)
+                .rect(SkRect::MakeXYWH(0, 560, w, 300))
                 .outline([&](SkSize) {
                   SkPathBuilder b;
                   for (int r = 0; r <= 7; ++r) {
@@ -1614,7 +1535,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       const SkPoint a1 = fanPt(6, c, -fanDR * 0.55f);
       const SkPoint nameAt{452.0f, 612.0f + (float)c * 33.0f};
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([a0, a1](SkSize) {
                     SkPathBuilder b;
@@ -1632,7 +1552,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                         .fill = Fill::color(hex(0x62b0dc, 0.60f))}}))
                   .opacity(withFrom(0.0f, 1.0f, ramp(delay, 360))));
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([a1, nameAt](SkSize) {
                     SkPathBuilder b;
@@ -1649,9 +1568,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                   .trim(0.0f, withFrom(0.0f, 1.0f, ramp(delay + 120, 420)))
                   .opacity(withFrom(0.0f, 1.0f, ramp(delay + 120, 300))));
       g.child(text(toU8(kArchangels[c]), type(faceQuill, 21, hex(0xd8c08a)))
-                  .absolute()
-                  .left(nameAt.fX)
-                  .top(nameAt.fY)
+                  .at({nameAt.fX, nameAt.fY})
                   .opacity(withFrom(0.0f, 1.0f, ramp(delay + 220, 360))));
     }
     // the 49 letters, one per (row, column) slot on the fan
@@ -1662,7 +1579,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         const SkPoint at = fanPt(r, c, 0.0f);
         g.child(text(toU8(kAngles[r][c]),
                      type(faceSeal, 23, isCross ? kRubric : kVellum))
-                    .absolute()
                     .width(30)
                     .height(30)
                     .centerAt(at)
@@ -1673,9 +1589,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     g.child(text(toU8("48 letters, and one is noted by a Cross: which maketh "
                       "the 49th."),
                  type(faceItalic, 15, hex(0x8d7a58)))
-                .absolute()
-                .left(0)
-                .top(840)
+                .at({0, 840})
                 .opacity(withFrom(0.0f, 1.0f, ramp(tBirds * 1000 + 2600, 400))));
 
     // the four orders and their tablets
@@ -1688,16 +1602,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                       hex(0xf7f1e2, 0.95f), hex(0x9dbfa2, 0.95f)};
     g.child(text(toU8("THE FOUR ORDERS OF THE CHILDREN OF LIGHT"),
                  type(faceMono, 15, kRubric, 1.6f))
-                .absolute()
-                .left(0)
-                .top(870));
+                .at({0, 870}));
     for (int i = 0; i < 4; ++i) {
       Element swatch = box()
-                           .absolute()
-                           .left(2)
-                           .top(898 + (float)i * 26)
-                           .width(16)
-                           .height(16)
+                           .rect(SkRect::MakeXYWH(2, 898 + (float)i * 26, 16, 16))
                            .fill(Fill::color(kLegendTint[i]));
       if (i == 1)
         swatch.outline(shapes::circle());
@@ -1707,9 +1615,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         swatch.outline(shapes::sector(-100.0f, 200.0f, 0.55f));
       g.child(std::move(swatch));
       g.child(text(toU8(kLegend[i]), type(faceSerif, 15, hex(0x9d8a66)))
-                  .absolute()
-                  .left(28)
-                  .top(896 + (float)i * 26));
+                  .at({28, 896 + (float)i * 26}));
     }
     return g;
   }
@@ -1726,12 +1632,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // paren ("vs r(letter"), and the {7/2} verdict lost its full stop. The
     // longest line is 50 characters, so the type has to be 11 x 47/50 or less.
     constexpr float kMono = 10.2f;
-    console::Style s;
-    s.text = type(faceMono, kMono, hex(0x9d8a66));
-    s.palette = {type(faceMono, kMono, hex(0x6b5c44)),  // 0 dim
-                 type(faceMono, kMono, kRubric),        // 1 heading
-                 type(faceMono, kMono, hex(0x59b98a)),  // 2 PASS
-                 type(faceMono, kMono, hex(0x62b0dc))}; // 3 number
+    console::Style s = console::monoStyle(faceMono, kMono, hex(0x9d8a66),
+                                          {hex(0x6b5c44),   // 0 dim
+                                           kRubric,         // 1 heading
+                                           hex(0x59b98a),   // 2 PASS
+                                           hex(0x62b0dc)}); // 3 number
     s.gap = 1.0f;
     s.visibleLines = 16;
     return s;
@@ -1740,22 +1645,14 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
   Element consolePanel() {
     const float px = 1660 * kS, py = 1058 * kS, pw = 690, ph = 468;
     auto g = box()
-                 .absolute()
-                 .left(px)
-                 .top(py)
-                 .width(pw)
-                 .height(ph)
+                 .rect(SkRect::MakeXYWH(px, py, pw, ph))
                  .scale(kS)
                  .transformOrigin(0.0f, 0.0f)
                  .fill(Fill::color(hex(0x1b1e26, 0.86f)))
                  .stroke(stroke(1.0f, Fill::color(hex(0xc7ab74, 0.22f)),
                                 PathFormat::Align::Inner));
     g.child(box()
-                .absolute()
-                .left(12)
-                .top(8)
-                .width(pw - 24)
-                .height(ph - 16)
+                .rect(SkRect::MakeXYWH(12, 8, pw - 24, ph - 16))
                 .row()
                 .gap(14)
                 .child(box()
@@ -1776,19 +1673,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
 
   Element colophon() {
     auto g = box()
-                 .absolute()
-                 .left(1660 * kS)
-                 .top(1552 * kS)
-                 .width(690)
-                 .height(120)
+                 .rect(SkRect::MakeXYWH(1660 * kS, 1552 * kS, 690, 120))
                  .scale(kS)
                  .transformOrigin(0.0f, 0.0f);
     g.child(box()
-                .absolute()
-                .left(0)
-                .top(0)
-                .width(690)
-                .height(2)
+                .rect(SkRect::MakeXYWH(0, 0, 690, 2))
                 .outline([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(0, 1);
@@ -1807,30 +1696,23 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     g.child(text(toU8("\xe2\x80\x9cThis is the Seale, whose Name is \xc3\x86meth: "
                       "and it is to be made of perfect wax.\xe2\x80\x9d"),
                  type(faceItalic, 17, hex(0xb59a6c)))
-                .absolute()
                 .left(0)
                 .top(16)
                 .width(690));
     g.child(text(toU8("Uriel, 14 March 1582 \xc2\xb7 reconstruction from the "
                       "rule, not a tracing \xc2\xb7 SigilCompose study"),
                  type(faceMono, 12, hex(0x6f5f45)))
-                .absolute()
-                .left(0)
-                .top(62));
+                .at({0, 62}));
     return g;
   }
 
   // =========================================================================
 
   Element describe(sketch::SketchContext &) {
-    auto root = box().absolute().inset(0);
+    auto root = box().inset(0);
 
     auto seal = box()
-                    .absolute()
-                    .left(kCx - kRR)
-                    .top(kCy - kRR)
-                    .width(Dim(2 * kRR))
-                    .height(Dim(2 * kRR));
+                    .rect(SkRect::MakeXYWH(kCx - kRR, kCy - kRR, 2 * kRR, 2 * kRR));
     seal.child(waxGround().cache(Cache::Texture));
     seal.child(circumferenceRules());
     // The settle. The rim is the FRAME and the two inner systems turn
@@ -1846,7 +1728,6 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // letter bands, the heptagram woven on its vertices, and everything the
     // heptagram's points contain.
     seal.child(box()
-                   .absolute()
                    .inset(0)
                    .transformOrigin(0.5f, 0.5f)
                    .rotate(bind(&settle).to(0.0f, -360.0f / 7.0f))
