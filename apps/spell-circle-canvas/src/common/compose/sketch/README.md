@@ -161,6 +161,14 @@ SIGIL_SKETCH(MySketch)
   useful. Build with `SkPathBuilder` and `SkPathBuilder::addPath`, then
   `detach()`. The same applies to most in-place `SkPath` mutation:
   paths are values here, builders are the mutable half.
+- **`SkRect::join` early-outs on an empty rect, and a single POINT is an
+  empty rect.** Accumulating a bounding box point by point —
+  `bounds.join(SkRect::MakeXYWH(x, y, 0, 0))` — leaves the rect inverted,
+  and every node placed inside it then silently draws nothing. `join`
+  tests whether the ARGUMENT is empty, and a zero-extent rect is empty by
+  that test even though the point is real. Use
+  `MakeXYWH(x, y, 1, 1)`, or seed the accumulator with the first point
+  and use `joinPossiblyEmptyRect`. It cost one study a full render.
 - Open-licensed demo assets (fonts, so far) come from
   `cmake --build build --config Release --target fetch_assets`, which
   writes `build/assets/`. Point the host at them with

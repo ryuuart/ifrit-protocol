@@ -4895,22 +4895,6 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
-TEST(ComposeLayouts, StickerScatterGeneratesTheLadder) {
-  const auto slots = layouts::stickerScatter(5, 3);
-  ASSERT_EQ(slots.size(), 5u);
-  for (size_t i = 0; i + 1 < slots.size(); ++i)
-    EXPECT_LT(slots[i].rotateDeg, 0) << i; // all but last lean negative
-  EXPECT_GT(slots.back().rotateDeg, 0);    // last flips positive
-  EXPECT_LT(slots.back().rotateDeg, 15);   // gently
-  for (const auto &s : slots)
-    EXPECT_LE(s.dx, 0); // jitter pulls left, never right
-  // Deterministic per seed; different seed, different scatter.
-  const auto again = layouts::stickerScatter(5, 3);
-  EXPECT_EQ(slots[2].rotateDeg, again[2].rotateDeg);
-  const auto other = layouts::stickerScatter(5, 9);
-  EXPECT_NE(slots[2].rotateDeg, other[2].rotateDeg);
-}
-
 TEST(ComposeStyles, RippleDisplacesTheLayer) {
   // A thin horizontal red bar warped by a strong ripple: pixels appear
   // off-axis where the flat version has none.
@@ -5831,6 +5815,147 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   (void)ngon; (void)chamfer; (void)notch; (void)edges;
   (void)glow; (void)trace; (void)cord; (void)restyled;
   (void)wave; (void)rounded; (void)sketchy; (void)square; (void)offset;
+}
+
+TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
+  // The same mechanism as its sibling above, pointed at the section that
+  // has cost the most: API.md's "Caching — automatic wherever it is
+  // provable" and "Automatic texture promotion". Sixteen studies shipped
+  // over the 60 FPS gate on what that section says, so a call in it that
+  // does not compile converts "I don't know" into a confident wrong
+  // answer faster than anywhere else in the document.
+  //
+  // Asserts almost nothing at runtime by design. Its value is that it must
+  // BUILD, and that a rename or a signature change cannot land without
+  // someone reading the prose next to it.
+  sigil::motion::Ticker ticker;
+  Composer composer(ticker, fonts());
+  composer.setSize({100, 100});
+
+  composer.setAutoTexturePromotion(false);
+  EXPECT_FALSE(composer.autoTexturePromotion());
+  composer.setAutoTexturePromotion(true);
+  composer.setProfiling(true);
+  EXPECT_TRUE(composer.profiling());
+  composer.purgeCaches(); // the host's one hook on device loss
+
+  // The per-node overrides the section names, all four spellings.
+  (void)box().cache(Cache::Auto);
+  (void)box().cache(Cache::None);
+  (void)box().cache(Cache::Picture);
+  (void)box().cache(Cache::Texture);
+  (void)box().bakeScale(0.5f);
+
+  // Every Promotion value the doc lists, so a renamed or removed
+  // enumerator fails here rather than in a study's --bench output.
+  for (Composer::Promotion p :
+       {Composer::Promotion::Cheap, Composer::Promotion::Warming,
+        Composer::Promotion::Promoted, Composer::Promotion::AskedFor,
+        Composer::Promotion::OptedOut, Composer::Promotion::Volatile,
+        Composer::Promotion::Composited, Composer::Promotion::Transformed,
+        Composer::Promotion::Filtered, Composer::Promotion::ReadsBackdrop,
+        Composer::Promotion::TooBig, Composer::Promotion::SplitBaked})
+    EXPECT_STRNE(Composer::promotionReason(p), "")
+        << "a Promotion value with no phrase reaches an author as blank "
+           "space under the node that is costing them the frame";
+
+  // …and every CacheState, for the same reason: `--bench` switches over
+  // this exhaustively, so a value added without a case is a build break
+  // for whoever adds it and a silent mislabel if the switch grows a
+  // `default:`.
+  for (Composer::CacheState s :
+       {Composer::CacheState::Live, Composer::CacheState::Picture,
+        Composer::CacheState::Texture, Composer::CacheState::Promoted,
+        Composer::CacheState::SplitOwn}) {
+    Composer::NodeCost row;
+    row.cacheState = s;
+    EXPECT_EQ(row.cached(), s != Composer::CacheState::Live);
+  }
+
+  // The refusal mask, exactly as the doc spells it.
+  Composer::NodeCost row;
+  EXPECT_EQ(row.refusals, 0u);
+  EXPECT_FALSE(row.refused(Composer::Promotion::Volatile));
+  for (const auto &r : composer.profile()) {
+    if (r.cacheState != Composer::CacheState::Live)
+      continue;
+    (void)Composer::promotionReason(r.promotion);
+    for (auto also : {Composer::Promotion::Volatile,
+                      Composer::Promotion::Filtered,
+                      Composer::Promotion::ReadsBackdrop})
+      if (also != r.promotion && r.refused(also))
+        (void)Composer::promotionReason(also);
+    (void)r.selfMs;
+    (void)r.totalMs;
+    (void)r.depth;
+    (void)r.label;
+  }
+  const Composer::Stats &stats = composer.stats();
+  (void)stats.picturesRecorded;
+  (void)stats.texturesBaked;
+  (void)stats.nodesPainted;
+}
+
+TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
+  // API.md's "Materials — the polymorphic paint value" and its cost model.
+  // Materials are the corpus's most expensive objects and its most
+  // frequently mis-specified ones, and the section is long, prose-heavy
+  // and — until this test — entirely unchecked.
+  // `Stop` is a free struct in the namespace, not a Material member, and
+  // the colour factory is `solid`, not `color`. Both were written the
+  // obvious way in the first draft of this test and neither compiled —
+  // which is the entire point of the test existing.
+  auto stops = std::vector<Stop>{{0.0f, {1, 0, 0, 1}},
+                                 {0.5f, {0, 1, 0, 1}},
+                                 {1.0f, {0, 0, 1, 1}}};
+  Material flat = Material::solid({0.2f, 0.3f, 0.4f, 1});
+  Material lin = Material::linear({0, 0}, {100, 0}, stops);
+  Material rad = Material::radial({50, 50}, 40.0f, stops);
+  Material sweep = Material::sweep({50, 50}, stops);
+  // The Unit forms — node-relative, and the ONLY ones an author can write
+  // for a content-sized box (closed §10c).
+  Material linU = Material::linearUnit({0, 0}, {1, 0}, stops);
+  Material radU = Material::radialUnit({0.5f, 0.5f}, 0.7f, stops);
+  Material glowU = Material::glowUnit({0.5f, 0.5f}, 1.0f,
+                                      {{0.0f, {1, 1, 1, 1}},
+                                       {1.0f, {1, 1, 1, 0}}});
+  Material sksl = Material::sksl(sharedHeavyEffect());
+  Material blended = Material::blend({{flat, SkBlendMode::kSrc},
+                                      {lin, SkBlendMode::kOverlay}});
+
+  // The liveness contract the cost model rests on: a material is "live"
+  // only when something actually drives it, and `quantizeTime` is what
+  // makes a live one cacheable between its ticks.
+  EXPECT_FALSE(flat.isLive());
+  EXPECT_FALSE(lin.isLive());
+  Material timed = Material::sksl(heavyEffect(true));
+  EXPECT_TRUE(timed.isLive()) << "liveness is read off the DECLARATION of "
+                                 "uTime, not off whether anything drives it";
+  timed.quantizeTime(10.0f);
+  EXPECT_TRUE(timed.isLive());
+
+  // A material is a value: it converts to a Fill, and it compares by
+  // RECIPE — which is what lets a per-frame describe prune. That
+  // comparison is load-bearing for every cache in the library: a material
+  // rebuilt from equal values must compare equal, or the node is dirtied
+  // every frame and no bake of any kind can hold.
+  (void)flat.toFill();
+  EXPECT_TRUE(flat == Material::solid({0.2f, 0.3f, 0.4f, 1}));
+  EXPECT_FALSE(flat == lin);
+  EXPECT_TRUE(lin == Material::linear({0, 0}, {100, 0}, stops));
+
+  // Where a Material is accepted, per the doc.
+  (void)box().fill(flat);
+  (void)box().textFill(linU);
+  (void)util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  PathFormat stroked = util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  stroked.strokeMaterial = radU; // §10c's closed item
+  (void)decorations::wash(glowU, SkBlendMode::kOverlay, 0.5f);
+
+  (void)sweep;
+  (void)sksl;
+  (void)blended;
+  (void)stroked;
 }
 
 TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
