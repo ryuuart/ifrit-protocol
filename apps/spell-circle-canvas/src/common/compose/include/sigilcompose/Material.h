@@ -269,64 +269,83 @@ namespace detail {
 
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
                          bool radial) {
-  static constexpr char kSrc[] = R"(
-uniform float2 uResolution;
-uniform float2 uA;      // linear: from; radial: centre
-uniform float2 uB;      // linear: to;   radial: (radius, radius)
-uniform float  uRadial;
-uniform float  uCount;
-uniform float4 uC0; uniform float4 uC1; uniform float4 uC2;
-uniform float4 uC3; uniform float4 uC4; uniform float4 uC5;
-uniform float  uS0; uniform float  uS1; uniform float  uS2;
-uniform float  uS3; uniform float  uS4; uniform float  uS5;
+  // The stop count is BAKED INTO THE SOURCE and one effect is cached per
+  // count — the rule Patterns.h already follows for grain's octaves, and
+  // for the same two reasons: a uniform-guarded loop faults across the
+  // split-Skia boundary, and main() has to stay monolithic.
+  //
+  // It used to be a fixed six with the tail clamped, which two studies
+  // ran out of from opposite directions: a 24-run tartan sett and a
+  // 72-step chromatic sweep, both falling back to hand-written pattern
+  // programs for want of stops.
+  if (stops.empty())
+    return Material::solid(SkColor4f{0, 0, 0, 0});
+  if (stops.size() == 1)
+    return Material::solid(stops.front().color);
+  constexpr size_t kMaxStops = 256; // uniform budget, not a design limit
+  if (stops.size() > kMaxStops)
+    stops.resize(kMaxStops);
+  const size_t n = stops.size();
 
-half4 main(float2 xy) {
-  float2 p = xy / max(uResolution, float2(1.0, 1.0));
-  float t;
-  if (uRadial > 0.5) {
-    // radius is a fraction of the box's half-diagonal, so {0.5,0.5} r=1
-    // reaches the corners of ANY box
-    float2 d = p - uA;
-    t = length(d) / max(uB.x * 0.70710678, 1e-6);
-  } else {
-    float2 d = uB - uA;
-    t = dot(p - uA, d) / max(dot(d, d), 1e-6);
+  struct Cached {
+    size_t count;
+    sk_sp<SkRuntimeEffect> effect;
+  };
+  static std::vector<Cached> cache;
+  sk_sp<SkRuntimeEffect> fx;
+  for (const Cached &c : cache)
+    if (c.count == n) {
+      fx = c.effect;
+      break;
+    }
+  if (!fx) {
+    std::string src =
+        "uniform float2 uResolution;\n"
+        "uniform float2 uA;\n"
+        "uniform float2 uB;\n"
+        "uniform float  uRadial;\n";
+    for (size_t i = 0; i < n; ++i) {
+      src += "uniform float4 uC" + std::to_string(i) + ";\n";
+      src += "uniform float  uS" + std::to_string(i) + ";\n";
+    }
+    src +=
+        "half4 main(float2 xy) {\n"
+        "  float2 p = xy / max(uResolution, float2(1.0, 1.0));\n"
+        "  float t;\n"
+        "  if (uRadial > 0.5) {\n"
+        // radius is a fraction of the box's half-diagonal, so {0.5,0.5}
+        // r = 1 reaches the corners of ANY box (glowUnit divides it back
+        // down to the inscribed circle).
+        "    float2 d = p - uA;\n"
+        "    t = length(d) / max(uB.x * 0.70710678, 1e-6);\n"
+        "  } else {\n"
+        "    float2 d = uB - uA;\n"
+        "    t = dot(p - uA, d) / max(dot(d, d), 1e-6);\n"
+        "  }\n"
+        "  t = clamp(t, 0.0, 1.0);\n"
+        "  float4 col = uC0;\n";
+    for (size_t i = 1; i < n; ++i) {
+      const std::string p0 = std::to_string(i - 1), p1 = std::to_string(i);
+      src += "  col = mix(col, uC" + p1 + ", clamp((t - uS" + p0 +
+             ") / max(uS" + p1 + " - uS" + p0 + ", 1e-6), 0.0, 1.0));\n";
+    }
+    src += "  return half4(half3(col.rgb) * half(col.a), half(col.a));\n}\n";
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
+    if (!effect) {
+      SkDebugf("sigilcompose unitRamp shader (%zu stops): %s\n", n,
+               error.c_str());
+      return Material::solid(stops.front().color);
+    }
+    fx = effect;
+    cache.push_back({n, fx});
   }
-  t = clamp(t, 0.0, 1.0);
-  float4 col = uC0;
-  if (uCount > 1.5) { col = mix(col, uC1, clamp((t - uS0) / max(uS1 - uS0, 1e-6), 0.0, 1.0)); }
-  if (uCount > 2.5) { col = mix(col, uC2, clamp((t - uS1) / max(uS2 - uS1, 1e-6), 0.0, 1.0)); }
-  if (uCount > 3.5) { col = mix(col, uC3, clamp((t - uS2) / max(uS3 - uS2, 1e-6), 0.0, 1.0)); }
-  if (uCount > 4.5) { col = mix(col, uC4, clamp((t - uS3) / max(uS4 - uS3, 1e-6), 0.0, 1.0)); }
-  if (uCount > 5.5) { col = mix(col, uC5, clamp((t - uS4) / max(uS5 - uS4, 1e-6), 0.0, 1.0)); }
-  return half4(half3(col.rgb) * half(col.a), half(col.a));
-}
-)";
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-    if (!effect)
-      SkDebugf("sigilcompose unitRamp shader: %s\n", error.c_str());
-    return effect;
-  }();
-  if (!fx || stops.empty())
-    return Material::solid(stops.empty() ? SkColor4f{0, 0, 0, 0}
-                                         : stops.front().color);
-  if (stops.size() > 6)
-    stops.resize(6);
-  Material m = Material::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f},
-                                   {"uCount", (float)stops.size()}});
+
+  Material m = Material::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f}});
   m.uniform("uA", std::array<float, 2>{a.x(), a.y()});
   m.uniform("uB", std::array<float, 2>{b.x(), b.y()});
-  static const char *kColorNames[6] = {"uC0", "uC1", "uC2",
-                                       "uC3", "uC4", "uC5"};
-  static const char *kStopNames[6] = {"uS0", "uS1", "uS2",
-                                      "uS3", "uS4", "uS5"};
-  for (size_t i = 0; i < 6; ++i) {
-    const bool live = i < stops.size();
-    m.uniform(kColorNames[i],
-              live ? stops[i].color : stops.back().color);
-    m.uniform(kStopNames[i],
-              live ? stops[i].pos : 1.0f);
+  for (size_t i = 0; i < n; ++i) {
+    m.uniform(("uC" + std::to_string(i)).c_str(), stops[i].color);
+    m.uniform(("uS" + std::to_string(i)).c_str(), stops[i].pos);
   }
   return m;
 }
