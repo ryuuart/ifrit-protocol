@@ -756,19 +756,67 @@ struct PatternBrush {
    *  will shift side-tile phase very slightly; that is the corner finally
    *  taking up its own room. */
   float cornerLength = 0.0f;
-  /** Which way a corner tile faces.
+  /** Which way a corner tile faces. **CHOOSE THIS EXPLICITLY WHENEVER YOU
+   *  SET `corner`.** It is not a preference; it is a statement about what
+   *  the art looks like, and the library cannot see the art.
    *
-   *  `Bisector` (the default, and what an ornamental elbow wants) points
-   *  the tile along the angle bisector of the two legs, so the same art
-   *  serves all four corners of a rectangle. `Outgoing` points it along
-   *  the departing leg, which is what a directional marker — an arrow
-   *  turning a corner, a flow tick — actually wants.
+   *  WHICH ONE:
    *
-   *  Until the tangent-break search learned to bisect its own bracket,
-   *  every corner silently got `Outgoing` and there was no way to ask for
-   *  anything else. */
+   *  - `Bisector` — for an ORNAMENT: art symmetric about its own
+   *    bisector, drawn once and serving all four corners of a frame. A
+   *    fleuron, a rosette, a bracket.
+   *  - `Outgoing` — for anything with a distinguishable ENTRY and EXIT:
+   *    an elbow of pipe, a flow tick, an arrow turning a corner, a cross
+   *    whose arms are meant to lie along the edges. This class is not
+   *    exotic — it is **two of the five corner consumers in this corpus,
+   *    and both of them shipped broken.**
+   *
+   *  Bisector does NOT buy you one art instead of two. The arms of a
+   *  bisector-aligned tile sit at `(turn/2, 180 − turn/2)` off the
+   *  bisector and mirror with the SIGN of the turn, so a handed ornament
+   *  costs two drawings either way.
+   *
+   *  ---
+   *  **CHANGELOG — if your art predates `f706f5d` (2026-07-22 12:03),
+   *  IT IS ALIGNED WRONG AND YOU MUST ASK FOR `Outgoing` EXPLICITLY.**
+   *
+   *  Before that commit the bisector was computed by re-probing at d±2
+   *  from a point already past the vertex, so both probes landed on the
+   *  SAME leg and every corner in every study behaved as `Outgoing` — not
+   *  as a choice, as a bug. Art authored then is authored in the outgoing
+   *  frame. `f706f5d` fixed the probe and added this field defaulting to
+   *  `Bisector`, and the two correct halves together silently re-aimed
+   *  every corner stamp in the corpus by half the turn angle. It was
+   *  source-compatible, warned nothing, and edited no file its victims
+   *  owned. (The commit's subject line is about caching; the corner
+   *  change is buried in it, so `git log --oneline` gives no hint either.)
+   *
+   *  Two studies shipped visibly wrong through review. The worst case of
+   *  the class is structural and worth knowing: **every corner of an
+   *  annular sector is a right angle**, so the bisector sits 45° from
+   *  BOTH legs — and a shape with 90° symmetry (a Greek cross) is
+   *  therefore corner-agnostic under `Outgoing` and uniformly, maximally
+   *  wrong under `Bisector`. Twenty-eight crosses had been twenty-eight
+   *  saltires.
+   *
+   *  **TO AUDIT A STUDY, IN THIRTY SECONDS:** set the other value in a
+   *  scratch copy, re-render the same `--at`, and diff. If nothing moves,
+   *  the art is rotationally forgiving and the study is *proved* clean;
+   *  if corners snap, it was broken. Render a third variant with `corner`
+   *  unset to mask the stamps, and you can MEASURE the rotation instead
+   *  of judging it. Judging it by eye failed twice on the same plate. */
   enum class CornerAlign { Bisector, Outgoing };
-  CornerAlign cornerAlign = CornerAlign::Bisector;
+  /** Unset means `Bisector`, and warns once when `corner` art is present:
+   *  a defaulted enum on a field whose correct value depends on what the
+   *  art LOOKS LIKE is a default that cannot be right, so the library
+   *  says so rather than choosing silently. Kept as an optional rather
+   *  than made a required constructor argument so that every existing
+   *  designated-initializer call site still compiles and still renders
+   *  identically — the diagnostic is the change, not the behaviour. */
+  std::optional<CornerAlign> cornerAlign;
+  CornerAlign resolvedCornerAlign() const {
+    return cornerAlign.value_or(CornerAlign::Bisector);
+  }
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
   StampModFn mod;              ///< side tiles only
@@ -930,6 +978,22 @@ struct PatternBrush {
 
       // Corner tiles sit on the bisector of the break — the two leg
       // tangents came out of the detection, so no re-probing is needed.
+      if (cache->corner && !cornerAlign && !corners.empty()) {
+        // The whole point of §27: the wrong alignment is invisible in
+        // source and obvious on the plate, and nobody reads a header
+        // sentence as being about their own file. Once per process.
+        static bool warned = false;
+        if (!warned) {
+          warned = true;
+          SkDebugf("[compose] PatternBrush has corner art but no "
+                   "cornerAlign — defaulting to Bisector. That is a "
+                   "statement about what your art LOOKS like, so say it: "
+                   "Bisector for a symmetric ornament, Outgoing for "
+                   "anything with an entry and an exit (an elbow, a flow "
+                   "tick, a cross whose arms lie on the edges). Art "
+                   "authored before f706f5d wants Outgoing.\n");
+        }
+      }
       if (cache->corner)
         for (const detail::CornerHit &hit : corners) {
           SkPoint pos;
@@ -938,7 +1002,8 @@ struct PatternBrush {
           SkVector dir{hit.in.x() + hit.out.x(), hit.in.y() + hit.out.y()};
           // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
           // silent zero rotation. Fall back to the outgoing leg.
-          if (dir.length() < 1e-3f || cornerAlign == CornerAlign::Outgoing)
+          if (dir.length() < 1e-3f ||
+              resolvedCornerAlign() == CornerAlign::Outgoing)
             dir = hit.out;
           caps.push_back({{pos, dir, hit.d, len > 0 ? hit.d / len : 0},
                           cache->corner.get()});
