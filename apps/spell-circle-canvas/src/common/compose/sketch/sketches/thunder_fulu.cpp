@@ -1522,29 +1522,17 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   }
 
   Element consolePanel() {
-    const float x = 1228, y = 768, w = 638, h = 420;
-    auto g = box()
-                 .left(x)
-                 .top(y)
-                 .width(Dim(w))
-                 .height(Dim(h))
-                 .fill(Fill::color(hex(0x131215, 0.88f)))
-                 .stroke(stroke(1.0f, Fill::color(hex(0xb2914f, 0.20f)),
-                                PathFormat::Align::Inner))
-                 .key("console");
-    g.child(box()
-                .left(11)
-                .top(8)
-                .width(Dim(w - 22))
-                .height(Dim(h - 16))
-                .column()
-                .gap(7)
-                .child(console::console(logA, logStyle()))
-                .child(box().height(1).fill(Fill::color(hex(0xb2914f, 0.14f))))
-                .child(console::console(logB, logStyle()))
-                .child(box().height(1).fill(Fill::color(hex(0xb2914f, 0.14f))))
-                .child(console::console(logC, logStyle())));
-    return g;
+    return console::panel({.rings = {&logA, &logB, &logC},
+                           .style = logStyle(),
+                           .column = true,
+                           .paddingX = 11,
+                           .paddingY = 8,
+                           .gap = 7,
+                           .fill = Fill::color(hex(0x131215, 0.88f)),
+                           .border = Fill::color(hex(0xb2914f, 0.20f)),
+                           .divider = Fill::color(hex(0xb2914f, 0.14f))})
+        .rect(SkRect::MakeXYWH(1228, 768, 638, 420))
+        .key("console");
   }
 
   Element tempoPanel() {

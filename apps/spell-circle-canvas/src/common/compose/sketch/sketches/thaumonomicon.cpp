@@ -1513,13 +1513,23 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
           p.addRect(SkRect::MakeLTRB(in, in, s.width() - in, s.height() - in));
           return p.detach();
         })
-        .stroke(brushes::PatternBrush{.side = runTile,
-                                      .corner = cornerTile,
-                                      .advance = g(64),
-                                      .cornerAngleDeg = 35.0f,
-                                      .cornerLength = g(20),
-                                      .stretchToFit = true,
-                                      .reach = g(26)});
+        // Bisector, spelled out, and the value is the DEFAULT. edgeEl() needed
+        // Outgoing because its elbow art is drawn along the outgoing leg and a
+        // 2x2 route is all corner; this corner is a rotationally forgiving
+        // lozenge, so the bisector is right and the output does not change.
+        // Writing it anyway is the point: it records that someone looked. This
+        // file already documented the Outgoing decision three times and still
+        // left its OTHER brush unexamined, which is what a file that reads as
+        // audited but is only half audited looks like.
+        .stroke(brushes::PatternBrush{
+            .side = runTile,
+            .corner = cornerTile,
+            .advance = g(64),
+            .cornerAngleDeg = 35.0f,
+            .cornerLength = g(20),
+            .cornerAlign = brushes::PatternBrush::CornerAlign::Bisector,
+            .stretchToFit = true,
+            .reach = g(26)});
   }
 
   /** The inner rule: four OPEN contours that STOP SHORT of the corners — a
