@@ -5720,3 +5720,54 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
   EXPECT_FALSE(decorations::wash(Material::solid({1, 0, 0, 1})) ==
                decorations::wash(Material::solid({0, 1, 0, 1})));
 }
+
+TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
+  // The most-used missing primitive in the study program. A compose text
+  // node's top is the LINE BOX top; almost every artefact worth
+  // reconstructing positions type by its CAP TOP, so aligning a rebuild
+  // to a reference needs the slack between them — and measure() returns
+  // only an SkSize. One study inferred it as an empirical
+  // 0.20 × measure("H").height() across ~134 runs and three faces.
+  const auto m = metrics(whiteStyle(40), fonts());
+  EXPECT_GT(m.ascent, 0.0f);   // reported as a positive distance, not
+  EXPECT_GT(m.descent, 0.0f);  // Skia's signed convention
+  EXPECT_GT(m.capHeight, 0.0f);
+  EXPECT_GT(m.xHeight, 0.0f);
+  // Sanity, and the reason both have fallbacks: x-height sits under cap
+  // height, which sits under the ascent.
+  EXPECT_LT(m.xHeight, m.capHeight);
+  EXPECT_LE(m.capHeight, m.ascent + 0.01f);
+  EXPECT_GT(m.capSlack(), 0.0f);
+  EXPECT_NEAR(m.lineHeight, m.ascent + m.descent + m.leading, 1e-4f);
+
+  // It scales with the size, which is what makes it usable as a constant
+  // per style rather than per run.
+  const auto twice = metrics(whiteStyle(80), fonts());
+  EXPECT_NEAR(twice.capHeight, m.capHeight * 2.0f, 0.5f);
+}
+
+TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
+  // ~30 open contours of line art all ended square and mitred because
+  // this paint was built and never asked.
+  auto elbow = [](SkSize) {
+    SkPathBuilder b;
+    b.moveTo(40, 40).lineTo(160, 40).lineTo(160, 160);
+    return b.detach();
+  };
+  auto corner = [&](SkPaint::Join join) {
+    PathFormat f = util::stroke(24, Fill::color({1, 1, 1, 1}));
+    f.join = join;
+    Host host(200, 200);
+    host.composer.render(box().child(box()
+                                         .absolute()
+                                         .inset(0)
+                                         .outline(elbow)
+                                         .fill(Fill::none())
+                                         .foreground(f)));
+    host.frame();
+    // The outer corner of the elbow: a miter reaches it, a round does not.
+    return host.pixel(171, 29) != SK_ColorBLACK;
+  };
+  EXPECT_TRUE(corner(SkPaint::kMiter_Join));
+  EXPECT_FALSE(corner(SkPaint::kRound_Join));
+}
