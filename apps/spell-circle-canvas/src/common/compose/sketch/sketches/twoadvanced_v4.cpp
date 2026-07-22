@@ -90,6 +90,8 @@ constexpr SkColor4f kD2 = C(0x260909);
 constexpr SkColor4f kD3 = C(0x370C0D);
 constexpr SkColor4f kD4 = C(0x400E0F);
 constexpr SkColor4f kD5 = C(0x4C1010);
+constexpr SkColor4f kD6 = C(0x7A2626); // dock hairline/label ink
+constexpr SkColor4f kD7 = C(0xA34040); // dock title ink
 constexpr SkColor4f kCyan = C(0x7BDAD6);    // logo wordmark core
 constexpr SkColor4f kCyanRing = C(0x95C9CC);
 constexpr SkColor4f kDust = C(0x8D7777);    // the dusty-rose third neutral
@@ -439,6 +441,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   ch::Output<float> stripePan{0.0f};    // hazard-stripe conveyor
   ch::Output<float> portalGlow{54.0f};  // MAINFRAME portal glow radius
   ch::Output<float> pressScroll{0.0f};  // PRESS UPDATES auto-scroll
+  ch::Output<float> wirePhase{0.0f};    // status-bus marquee phase
+  float wireW = 1;                      // measured once (compose::measure)
   ch::Output<float> vuLeft{0.4f}, vuRight{0.6f};
   std::array<ch::Output<float>, 21> dot{}; // 7 clusters × 3 dots
   std::array<ch::Output<float>, 3> gauge{};
@@ -529,44 +533,6 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       )"));
       if (!e)
         SkDebugf("twoadvanced stripe: %s\n", err.c_str());
-      return e;
-    }();
-    return fx;
-  }
-
-  /** Luminance film grain. patterns::grain() is the library's own answer
-   *  to this and is exactly right in principle (equal channels, so an
-   *  overlay reads as LIGHT rather than hue-shifting the oxblood ramp) —
-   *  but it segfaults the moment its material paints (reported), so this
-   *  is the same idea hand-rolled: one value-noise octave pair, no
-   *  uniform-bounded loop. */
-  static sk_sp<SkRuntimeEffect> grainFx() {
-    static const sk_sp<SkRuntimeEffect> fx = [] {
-      auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-        uniform float uFreq;
-        uniform float uSeed;
-        float hash21(float2 p) {
-          p = fract(p * float2(123.34, 456.21) + uSeed);
-          p += dot(p, p + 45.32);
-          return fract(p.x * p.y);
-        }
-        float vnoise(float2 p) {
-          float2 i = floor(p);
-          float2 f = fract(p);
-          float2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
-                     mix(hash21(i + float2(0, 1)),
-                         hash21(i + float2(1, 1)), u.x), u.y);
-        }
-        half4 main(float2 pos) {
-          float2 q = pos * uFreq;
-          float v = 0.5 * vnoise(q) + 0.3 * vnoise(q * 2.0) +
-                    0.2 * vnoise(q * 4.0);
-          return half4(half3(v), 1.0);
-        }
-      )"));
-      if (!e)
-        SkDebugf("twoadvanced grain: %s\n", err.c_str());
       return e;
     }();
     return fx;
@@ -777,7 +743,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     auto meter = [&](float w, const ch::Output<float> *bind, SkColor4f c) {
       return box().width(Dim(w)).height(6).fill(C(0x1B0708))
           .child(box().absolute().left(Dim(0)).top(Dim(0)).width(Dim(w))
-                     .height(6).fill(c).scale(bind).transformOrigin(0, 0.5f));
+                     .height(6).fill(c).scaleX(bind).transformOrigin(0, 0.5f));
     };
 
     Element panel =
@@ -915,7 +881,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .justify(Justify::Center).alignItems(Align::Center)
                        .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
 
-    return box().width(700).height(182).column()
+    return box().width(700).height(236).column()
         .translateX(withFrom(320.0f, 0.0f, {420ms, &ch::easeOutQuint, 1850ms}))
         .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 1850ms}))
         .child(box().grow(1).row().alignItems(Align::Center)
@@ -941,7 +907,27 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                        micro(10, kDustDim, 200)))))
         // the glowing 2px cyan divider under the whole masthead panel
         .child(box().height(2).fill(kCyan)
-                   .background(styles::OuterGlow{fade(kGlow, 0.55f), 10, 1}));
+                   .background(styles::OuterGlow{fade(kGlow, 0.55f), 10, 1}))
+        // …and the readout rail beneath it, so the masthead block ends on
+        // the same baseline as QUICK LAUNCH instead of leaving an L-void
+        .child(box().height(50).row().alignItems(Align::Center)
+                   .padding(26, 0, 8, 0).gap(12)
+                   .child(t("\xe2\x96\xb8 SESSION", micro(10, kCyan, 220)))
+                   .child(t("A4-1187-PRPH", micro(10, kDustDim, 200)))
+                   .child(box().width(1).height(12).fill(fade(kDust, 0.3f)))
+                   .child(t("LOCALE", micro(10, kDustDim, 220)))
+                   .child(t("EN-US", micro(10, kDust, 200)))
+                   .child(box().width(1).height(12).fill(fade(kDust, 0.3f)))
+                   .child(t("LOAD", micro(10, kDustDim, 220)))
+                   .child(box().width(90).height(6).fill(C(0x240607))
+                              .child(box().absolute().left(Dim(0)).top(Dim(0))
+                                         .width(74).height(6)
+                                         .fill(fade(kCyan, 0.8f))))
+                   .child(t("543 KB", micro(10, kDust, 200)))
+                   .child(box().grow(1))
+                   .child(tickDots(4, fade(kCyan, 0.9f)))
+                   .child(box().width(120).height(10).foreground(TickRail{
+                       fade(kDust, 0.5f), 6, 3, 8, 1, 4, false, true})));
   }
 
   // ---- the hero -----------------------------------------------------------
@@ -1016,11 +1002,11 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                            horizon - 108 - pbox * 0.5f, pbox, pbox)
                          .blend(SkBlendMode::kPlus);
     if (!still)
-      // the one deliberately bouncy beat: the power core kicking on
-      portal.scale(withKeyframes<float>({{2400ms, 0.80f},
-                                         {2820ms, 1.06f},
-                                         {2980ms, 0.985f},
-                                         {3060ms, 1.0f}}));
+      // the one deliberately bouncy beat: the power core kicking on.
+      // ease::outBack() is the curve this always wanted — a bound
+      // parameter, so it converts to EaseFn (the withKeyframes path
+      // that used to be necessary is three lines shorter and reads).
+      portal.scale(withFrom(0.80f, 1.0f, {620ms, ease::outBack(2.1f), 2400ms}));
     scene.child(portal);
 
     // an orbital ring, trim-revealed with the panel
@@ -1161,6 +1147,43 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          PathFormat::Align::Inner)));
   }
 
+  /** Four procedural "stills" — each a different flat-shape composition
+   *  over the same portal recipe, tinted per index. */
+  std::vector<Element> relatedStills() {
+    using namespace tav;
+    static const char *caps[4] = {"REEL 02", "BOARDS", "RIG TEST", "PLATE"};
+    std::vector<Element> out;
+    for (int i = 0; i < 4; ++i) {
+      const float g = 0.30f + 0.18f * (float)i;
+      Element cell =
+          box().grow(1).column().gap(3)
+              .child(box().grow(1)
+                         .outline(chamfer(7, kTL | kBR))
+                         .fill(Material::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, C(0x0A2C33)}, {1.0f, C(0x02171B)}}))
+                         .stroke(util::stroke(
+                             1, Fill::color(fade(C(0x0B3B40), 0.9f)),
+                             PathFormat::Align::Inner))
+                         .child(box().absolute().inset(0)
+                                    .fill(Material::radialUnit(
+                                        {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
+                                        {{0.0f, fade(kGlow, g)},
+                                         {1.0f, fade(kGlow, 0.0f)}})))
+                         .child(place(box().fill(C(0x011114)),
+                                      6 + 4 * (float)i, 18, 12, 30))
+                         .child(place(box().fill(C(0x01191D)),
+                                      24 + 3 * (float)i, 8, 16, 40))
+                         .child(place(box().fill(fade(kGlow, 0.55f)), 0, 40,
+                                      200, 1))
+                         .foreground(Brackets{fade(kCyan, 0.5f), 6, 1, 2, 0xF})
+                         .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1}))
+              .child(t(caps[i], micro(9, C(0x123B3D), 220)));
+      out.push_back(std::move(cell));
+    }
+    return out;
+  }
+
   /** A label-over-value pair on a teal panel — the tabular voice. */
   Element specPair(const char *k, const char *v) {
     using namespace tav;
@@ -1173,7 +1196,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   Element featureSystem() {
     using namespace tav;
     Element thumb =
-        box().width(150).height(150)
+        box().width(150).height(150).shrink(0)
             .outline(chamfer(12, kTL | kBR))
             .fill(Material::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, C(0x06232A)},
@@ -1203,7 +1226,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(box().grow(1).height(1).fill(fade(kDate, 0.35f))))
             .child(t("N.O.-XPLODE TV COMMERCIAL",
                      type(blackFace(), 17, C(0x0E3234), 40, 0.92f)))
-            .child(box().grow(1).padding(9)
+            .child(box().height(84).padding(9)
                        .fill(dither.material())
                        .foreground(util::stroke(
                            1, Fill::color(fade(kPanelSh, 0.9f)),
@@ -1215,6 +1238,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                 "delivered in nine weeks on a Maxon pipeline "
                                 "against a live-action plate.",
                                 prose(13, C(0x0B2C2E)))))
+            // the related-work strip: four chamfered stills over the
+            // dither ground, the way the FEATURE panel filled its slack
+            .child(box().grow(1).row().gap(7).alignItems(Align::Stretch)
+                       .children(relatedStills()))
             // the spec readout: dense, tabular, and never actually read
             .child(box().row().gap(14)
                        .child(specPair("CLIENT", "BSN / N.O.-XPLODE"))
@@ -1230,11 +1257,37 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                   .child(box().absolute().left(Dim(0))
                                              .top(Dim(0)).width(112).height(6)
                                              .fill(C(0x0E3234))))
-                       .child(t("74%", micro(10, C(0x123B3D), 160))));
+                       .child(t("74%", micro(10, C(0x123B3D), 160)))
+                       .child(box().width(126)));
+
+    Element leftCol =
+        box().width(150).shrink(0).column().gap(8)
+            .child(thumb)
+            .child(box().grow(1).column().gap(4).padding(8)
+                       .fill(dither.material())
+                       .foreground(util::stroke(
+                           1, Fill::color(fade(kPanelSh, 0.9f)),
+                           PathFormat::Align::Inner))
+                       .child(t("CREDITS", micro(9, fade(C(0x123B3D), 0.8f),
+                                                 260)))
+                       .child(box().height(1).fill(fade(kDate, 0.28f)))
+                       .child(t("DIRECTION", micro(9, kDate, 200)))
+                       .child(t("ERIC JORDAN",
+                                type(blackFace(), 11, C(0x0E3234), 40, 0.92f)))
+                       .child(box().height(3))
+                       .child(t("STUDIO", micro(9, kDate, 200)))
+                       .child(t("2ADVANCED",
+                                type(blackFace(), 11, C(0x0E3234), 40, 0.92f)))
+                       .child(box().grow(1))
+                       .child(box().row().gap(4).alignItems(Align::Center)
+                                  .child(box().width(7).height(7)
+                                             .fill(fade(kDate, 0.8f)))
+                                  .child(t("ARCHIVED",
+                                           micro(9, kDate, 200)))));
 
     Element bodyArea =
         monitorBody(690, 316).row().padding(11).gap(11)
-            .child(thumb)
+            .child(leftCol)
             .child(copy);
     // the hazard wedge, bottom-left — the STATIC baked-tile pattern path
     bodyArea.child(place(box().outline([](SkSize s) {
@@ -1343,8 +1396,20 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return panel;
   }
 
+  Element auxStat(const char *k, const char *v) {
+    using namespace tav;
+    return box().column().gap(1)
+        .child(t(k, micro(9, kDustDim, 240)))
+        .child(t(v, type(blackFace(), 12, fade(kCyan, 0.9f), 40, 0.92f)));
+  }
+
   Element auxiliary() {
     using namespace tav;
+    static const char *stats[3][6] = {
+        {"CHANNEL", "04", "BITRATE", "384K", "VIEWERS", "1,204"},
+        {"LIST", "41,208", "SENT", "118", "OPEN", "62%"},
+        {"FILES", "14", "SIZE", "88 MB", "DL", "9,442"},
+    };
     struct Col {
       const char *icon, *title, *l1, *l2, *link;
     };
@@ -1383,6 +1448,17 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                      .child(t(cols[i].l1, prose(12.5f, kBody)))
                      .child(t(cols[i].l2, prose(12.5f, fade(kBody, 0.7f)))))
           .child(box().grow(1))
+          // the micro stat rail nobody reads — three keyed values on a
+          // hairline grid, the density this idiom is actually made of
+          .child(box().row().gap(10).alignItems(Align::Center)
+                     .child(auxStat(stats[i][0], stats[i][1]))
+                     .child(box().width(1).height(16).fill(fade(kDust, 0.28f)))
+                     .child(auxStat(stats[i][2], stats[i][3]))
+                     .child(box().width(1).height(16).fill(fade(kDust, 0.28f)))
+                     .child(auxStat(stats[i][4], stats[i][5]))
+                     .child(box().grow(1))
+                     .child(box().width(52).height(14).foreground(TickRail{
+                         fade(kCyan, 0.45f), 5, 3, 7, 1, 4, false, true})))
           .child(box().row().alignItems(Align::Center).gap(8)
                      .child(t(cols[i].link, micro(11, fade(kCyan, 0.9f), 220)))
                      .child(box().grow(1))
@@ -1423,7 +1499,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                  {1.0f, fade(kTealBar, 0.3f)}})));
     }
 
-    static const char *hexLines[7] = {
+    static const char *hexLines[12] = {
         "0x0000  4A 10 0F 57 11 19 6A 1B  21 7B DA D6 95 C9 CC 8D",
         "0x0010  77 77 2C 7B 80 01 D0 D5  57 97 97 84 B8 B6 3C 82",
         "0x0020  82 70 00 00 B2 7E 82 F3  F3 F3 18 07 07 26 09 09",
@@ -1431,12 +1507,17 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         "0x0040  46 4C 41 53 48 49 4E 44  45 58 2E 53 57 46 00 00",
         "0x0050  43 57 53 06 EC 45 08 00  78 9C 00 00 00 00 00 00",
         "0x0060  50 52 4F 50 48 45 43 59  20 50 52 49 4D 45 00 00",
+        "0x0070  46 53 69 6E 67 6C 65 42  65 76 65 6C 50 61 6E 65",
+        "0x0080  6C 43 6C 61 73 73 00 46  44 6F 75 62 6C 65 42 65",
+        "0x0090  76 65 6C 50 61 6E 65 6C  43 6C 61 73 73 00 00 00",
+        "0x00A0  48 65 6C 76 65 74 69 63  61 20 39 35 20 42 6C 61",
+        "0x00B0  63 6B 00 41 72 69 61 6C  20 42 6C 61 63 6B 00 00",
     };
     Element hexRows = box().column().gap(2);
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < 12; ++i)
       hexRows.child(t(hexLines[i],
                       type(arial(), 11,
-                           fade(kCyanRing, i < 5 ? 0.6f : 0.32f), 60)));
+                           fade(kCyanRing, i < 7 ? 0.6f : 0.30f), 60)));
 
     Element gauges = box().row().gap(10).alignItems(Align::Center);
     for (int i = 0; i < 3; ++i)
@@ -1468,18 +1549,71 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    .child(box().width(120).height(10).foreground(TickRail{
                        fade(kCyan, 0.5f), 5, 3, 8, 1, 4, false, true})))
         .child(box().row().gap(10).grow(1)
-                   .child(box().width(380).padding(7).clip()
+                   .child(box().width(380).padding(8).clip().column().gap(5)
                               .fill(C(0x180505))
                               .foreground(InsetBevel{fade(kChromeHi, 0.5f),
                                                      {0, 0, 0, 0.5f}, 0, 1, 1})
                               .foreground(Brackets{fade(kCyan, 0.4f), 9, 2, 3,
                                                    0xF})
-                              .child(bars))
-                   .child(box().grow(1).padding(8)
+                              .child(box().row().alignItems(Align::Center)
+                                         .gap(6)
+                                         .child(t("SPECTRUM 34CH",
+                                                  micro(10, fade(kCyan, 0.9f),
+                                                        220)))
+                                         .child(box().grow(1).height(1)
+                                                    .fill(fade(kChromeHi,
+                                                               0.9f)))
+                                         .child(t("-12 dB",
+                                                  micro(10, kDustDim, 200))))
+                              .child(box().grow(1))
+                              .child(bars)
+                              .child(box().height(9).foreground(TickRail{
+                                  fade(kCyan, 0.4f), 10, 3, 7, 1, 4, false,
+                                  false}))
+                              .child(box().row()
+                                         .justify(Justify::SpaceBetween)
+                                         .child(t("20", micro(9, kDustDim,
+                                                              180)))
+                                         .child(t("400", micro(9, kDustDim,
+                                                               180)))
+                                         .child(t("2K", micro(9, kDustDim,
+                                                              180)))
+                                         .child(t("8K", micro(9, kDustDim,
+                                                              180)))
+                                         .child(t("16K", micro(9, kDustDim,
+                                                               180)))))
+                   .child(box().grow(1).padding(8).clip().column().gap(4)
                               .fill(C(0x140404))
                               .foreground(InsetBevel{fade(kChromeHi, 0.5f),
                                                      {0, 0, 0, 0.5f}, 0, 1, 1})
-                              .child(hexRows))
+                              .child(box().row().alignItems(Align::Center)
+                                         .gap(6)
+                                         .child(t("PACKET DUMP \xc2\xb7 "
+                                                  "flashindex.swf",
+                                                  micro(10,
+                                                        fade(kCyan, 0.85f),
+                                                        220)))
+                                         .child(box().grow(1).height(1)
+                                                    .fill(fade(kChromeHi,
+                                                               0.9f)))
+                                         .child(t("543,340 B",
+                                                  micro(10, kDustDim, 200))))
+                              .child(hexRows)
+                              .child(box().grow(1))
+                              .child(box().row().alignItems(Align::Center)
+                                         .gap(6)
+                                         .child(t("CRC 0x8E41",
+                                                  micro(9, kDustDim, 200)))
+                                         .child(box().width(1).height(9)
+                                                    .fill(fade(kDust, 0.3f)))
+                                         .child(t("CWS \xc2\xb7 SWF6 \xc2\xb7 "
+                                                  "ZLIB",
+                                                  micro(9, kDustDim, 200)))
+                                         .child(box().grow(1))
+                                         .child(t("\xe2\x96\xb8 VERIFIED",
+                                                  micro(9,
+                                                        fade(kCyan, 0.8f),
+                                                        200)))))
                    .child(box().column().gap(6).alignItems(Align::Center)
                               .padding(9, 6)
                               .fill(C(0x1B0607))
@@ -1489,6 +1623,80 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                               .child(t("EQUIPMENT STATUS",
                                        micro(10, kDustDim, 220)))));
     return panel;
+  }
+
+  /** The wire ticker: the content of ONE marquee unit. Measured once in
+   *  setup() so the strip's wrap length is exact (util::marquee's
+   *  width-pinned overload — an unpinned strip wraps against the clip). */
+  Element wireContent() {
+    using namespace tav;
+    return box().row().alignItems(Align::Center).height(24).gap(14)
+        .child(t("\xe2\x96\xb8 UPLINK NOMINAL", micro(11, kCyan, 220)))
+        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
+        .child(t("RENDER FARM 08/08 ONLINE", micro(11, kDust, 220)))
+        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
+        .child(t("PROPHECY PRIME SKIN NOW SHIPPING", micro(11, kDust, 220)))
+        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
+        .child(t("FWA SITE OF THE MONTH \xe2\x80\x94 03.11.06",
+                 micro(11, kDust, 220)))
+        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
+        .child(t("SUBSCRIBE TO THE DISPATCH \xe2\x80\x94 41,208 STRONG",
+                 micro(11, kDust, 220)))
+        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
+        .child(t("BEST VIEWED AT 1024\xc3\x97" "768 \xc2\xb7 FLASH PLAYER 6",
+                 micro(11, kDustDim, 220)));
+  }
+
+  /** The full-width status bus between the panel grid and SUB SYSTEM. */
+  Element statusWire() {
+    using namespace tav;
+    Element strip = util::marquee(wireContent(), wireW, &wirePhase, 60);
+    strip.grow(1).height(24);
+    return singleBevel(box().width(1892).height(38).row()
+                           .alignItems(Align::Center).padding(12, 0).gap(10),
+                       C(0x3E1013))
+        .key("wire")
+        .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad, 3550ms}))
+        .foreground(TickRail{fade(kDust, 0.3f), 8, 3, 6, 1, 4, false, true})
+        .child(t("STATUS BUS", heavy(12, kNear, 60)))
+        .child(box().width(1).height(16).fill(fade(kCyan, 0.4f)))
+        .child(box().width(40).height(10).foreground(TickRail{
+            fade(kCyan, 0.55f), 5, 3, 7, 1, 4, false, false}))
+        .child(strip)
+        .child(box().width(1).height(16).fill(fade(kDust, 0.35f)))
+        .child(tickDots(5))
+        .child(t("LIVE", micro(11, fade(kCyan, 0.9f), 220)));
+  }
+
+  /** A tiny chamfered radio key — the SUB SYSTEM row's preference bank. */
+  Element toggle(const char *lbl, bool on) {
+    using namespace tav;
+    return box().height(18).padding(7, 0)
+        .outline(chamfer(5, kTL | kBR))
+        .fill(on ? Material::linearUnit({0, 0}, {0, 1},
+                                        {{0.0f, C(0x0A4148)},
+                                         {1.0f, C(0x02181C)}})
+                 : Material::solid(C(0x220608)))
+        .stroke(util::stroke(1,
+                             Fill::color(on ? fade(kCyan, 0.7f)
+                                            : fade(kDust, 0.35f)),
+                             PathFormat::Align::Inner))
+        .justify(Justify::Center).alignItems(Align::Center)
+        .child(t(lbl, micro(10, on ? kCyan : kDustDim, 160)));
+  }
+
+  std::vector<Element> footerLinks() {
+    using namespace tav;
+    static const char *l[8] = {"HOME",         "COMPANY",   "SERVICES",
+                               "PORTFOLIO",    "ACCOLADES", "EXPERIMENTAL",
+                               "EQUIPMENT",    "CONTACT"};
+    std::vector<Element> out;
+    for (int i = 0; i < 8; ++i) {
+      if (i)
+        out.push_back(box().width(1).height(9).fill(fade(kDust, 0.3f)));
+      out.push_back(t(l[i], micro(10, kDustDim, 200)));
+    }
+    return out;
   }
 
   Element subSystem() {
@@ -1539,6 +1747,24 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         .child(selector("DESKTOPS", "'FIBERGLASS'"))
         .child(box().width(1).height(30).fill(fade(kDust, 0.35f)))
         .child(selector("APP SKINS", "'PROPHECY PRIME'"))
+        .child(box().width(1).height(30).fill(fade(kDust, 0.35f)))
+        .child(box().column().gap(3)
+                   .child(t("SOUND", micro(10, kDustDim, 240)))
+                   .child(box().row().gap(4).alignItems(Align::Center)
+                              .child(toggle("ON", true))
+                              .child(toggle("OFF", false))))
+        .child(box().width(1).height(30).fill(fade(kDust, 0.35f)))
+        .child(box().column().gap(3)
+                   .child(t("QUALITY", micro(10, kDustDim, 240)))
+                   .child(box().row().gap(4).alignItems(Align::Center)
+                              .child(toggle("LOW", false))
+                              .child(toggle("MED", false))
+                              .child(toggle("HIGH", true))))
+        .child(box().width(1).height(30).fill(fade(kDust, 0.35f)))
+        .child(box().column().gap(3)
+                   .child(t("RESOLUTION", micro(10, kDustDim, 240)))
+                   .child(t("\xe2\x96\xb8 1024\xc3\x97" "768 \xc2\xb7 32-BIT",
+                            label(13, kNear, 90))))
         .child(box().grow(1))
         .child(box().column().alignItems(Align::End).gap(3)
                    .child(t("BANDWIDTH  \xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa0"
@@ -1583,6 +1809,11 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                          .child(t("\xe2\x96\xbe",
                                                   micro(9, kDust, 0))))))
         .child(box().grow(1))
+        .child(box().row().gap(9).alignItems(Align::Center)
+                   .child(box().width(40).height(1).fill(fade(kDust, 0.3f)))
+                   .children(footerLinks())
+                   .child(box().width(40).height(1).fill(fade(kDust, 0.3f))))
+        .child(box().height(4))
         .child(t("COPYRIGHT (C) 2003 2ADVANCED STUDIOS, LLC.  ALL RIGHTS "
                  "RESERVED.",
                  micro(12, kDust, 240)))
@@ -1598,6 +1829,23 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
    *  no accent colour anywhere (the real asset saves colour for the SWF's
    *  live states). Crosshatch dither, bracketed windows, chevrons, and the
    *  three-circle gauge cluster in its dark bezel. */
+  /** The dock's oscilloscope bars — monochrome oxblood, like the rest of
+   *  sitefooter.gif. Deterministic, so the strip stays picture-cached. */
+  std::vector<Element> dockBars() {
+    using namespace tav;
+    std::vector<Element> bars;
+    for (int i = 0; i < 56; ++i) {
+      const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
+                                               std::cos(i * 0.19f + 0.7f));
+      bars.push_back(box().grow(1).shrink(0).height(Dim(72 * v))
+                         .fill(Material::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, fade(kD7, 1.0f)},
+                              {1.0f, fade(kD4, 0.9f)}})));
+    }
+    return bars;
+  }
+
   Element footerDock() {
     using namespace tav;
     Element strip =
@@ -1621,17 +1869,17 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       return readout(w, 150, C(0x140404))
           .column().padding(10).gap(5)
           .child(box().row().alignItems(Align::Center).gap(6)
-                     .child(t(title, type(blackFace(), 12, kD5, 60, 0.92f)))
+                     .child(t(title, type(blackFace(), 12, kD7, 60, 0.92f)))
                      .child(box().grow(1).height(1).fill(kD4))
                      .child(t("\xc2\xbb", micro(11, kD5, 0))))
-          .child(t(a, micro(10, fade(kD5, 0.95f), 220)))
-          .child(t(b, micro(10, kD4, 220)))
+          .child(t(a, micro(10, kD6, 220)))
+          .child(t(b, micro(10, fade(kD6, 0.7f), 220)))
           .child(box().grow(1))
           .child(box().row().gap(5).alignItems(Align::Center)
                      .child(box().width(58).height(8).foreground(TickRail{
-                         kD5, 5, 3, 7, 1, 3, false, false}))
+                         kD6, 5, 3, 7, 1, 3, false, false}))
                      .child(box().grow(1))
-                     .child(t("v v", micro(10, kD4, 200))));
+                     .child(t("v v", micro(10, kD6, 200))));
     };
 
     strip.child(window("NAVIGATION", "SECTOR / PROPHECY", "NODE 04.11.22", 300));
@@ -1651,9 +1899,33 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                    instancing::Mode::Data)))
                     .child(box().absolute().left(Dim(12)).top(Dim(122))
                                .child(t("ARRAY 6\xc3\x97" "14 \xc2\xb7 IDLE",
-                                        micro(10, fade(kD5, 0.95f), 220)))));
+                                        micro(10, kD6, 220)))));
 
-    strip.child(box().grow(1));
+    strip.child(box().grow(1).height(150)
+                    .outline(chamfer(7, kTR | kBL))
+                    .fill(C(0x140404))
+                    .column().padding(10).gap(5)
+                    .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
+                    .foreground(Brackets{kD6, 9, 2, 3, 0xF})
+                    .child(box().row().alignItems(Align::Center).gap(6)
+                               .child(t("SIGNAL",
+                                        type(blackFace(), 12, kD7, 60, 0.92f)))
+                               .child(box().grow(1).height(1).fill(kD4))
+                               .child(t("\xc2\xbb", micro(11, kD5, 0))))
+                    .child(box().grow(1).fill(C(0x0D0202))
+                               .foreground(InsetBevel{kD4, {0, 0, 0, 0.5f},
+                                                      0, 1, 1})
+                               .row().alignItems(Align::End).gap(2)
+                               .padding(6)
+                               .children(dockBars()))
+                    .child(box().row().gap(6).alignItems(Align::Center)
+                               .child(t("GAIN 0.42 \xc2\xb7 SWEEP 20 MS",
+                                        micro(10, kD6, 220)))
+                               .child(box().grow(1))
+                               .child(box().width(70).height(8)
+                                          .foreground(TickRail{kD5, 5, 3, 7, 1,
+                                                               3, false,
+                                                               false}))));
 
     Element cluster =
         box().width(310).height(150)
@@ -1661,7 +1933,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .fill(Material::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kD3}, {1.0f, C(0x0C0202)}}))
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 5, 2, 1})
-            .foreground(Brackets{kD5, 12, 2, 5, 0xF})
+            .foreground(Brackets{kD6, 12, 2, 5, 0xF})
             .row().justify(Justify::Center).alignItems(Align::Center).gap(14);
     for (int i = 0; i < 3; ++i)
       cluster.child(
@@ -1669,15 +1941,15 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               .fill(sdf::material(sdf::circle(),
                                   {.fill = C(0x0A0202),
                                    .borderWidth = 3,
-                                   .borderColor = kD5}))
+                                   .borderColor = kD6}))
               .justify(Justify::Center).alignItems(Align::Center)
-              .child(radarSweep(i, C(0x8A2A2C), 0.42f))
+              .child(radarSweep(i, C(0xB65050), 0.42f))
               .child(box().absolute().inset(26).corners({16})
                          .fill(fade(kD1, 0.92f))
                          .stroke(util::stroke(1, Fill::color(kD4),
                                               PathFormat::Align::Inner)))
               .child(t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
-                       micro(11, kD5, 140))));
+                       micro(11, kD7, 140))));
     strip.child(cluster);
     return strip;
   }
@@ -1784,14 +2056,16 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     stage.child(statusBar());
     stage.child(place(audioModule(), 0, 48, 596, 174));
     stage.child(place(navBar(), 604, 48, 584, 46));
-    stage.child(place(masthead(), 1192, 8, 700, 182));
+    stage.child(place(quickLaunch(), 604, 100, 584, 144));
+    stage.child(place(masthead(), 1192, 8, 700, 236));
     stage.child(place(mainframe(), 0, 246, 1180, 350));
     stage.child(place(featureSystem(), 1196, 246, 696, 350));
     stage.child(place(auxiliary(), 0, 616, 1180, 154));
     stage.child(place(transmissionLog(), 0, 790, 1180, 236));
     stage.child(place(pressUpdates(), 1196, 616, 696, 410));
-    stage.child(place(subSystem(), 0, 1080, 1892, 100));
-    stage.child(place(legalStrip(), 0, 1190, 1892, 90));
+    stage.child(place(statusWire(), 0, 1038, 1892, 38));
+    stage.child(place(subSystem(), 0, 1090, 1892, 96));
+    stage.child(place(legalStrip(), 0, 1196, 1892, 96));
     stage.child(place(footerDock(), 0, 1310, 1892, 220));
 
     // sitebackground.gif is a 1×1600 strip: the oxblood is only the top
@@ -1828,9 +2102,12 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     hatchB.rotate(-45);
     dither = patterns::checker(1.5f, fade(kPanelSh, 0.28f),
                                fade(kPanelHi, 0.15f));
-    // LUMINANCE grain — patterns::grain() would be the right call here
-    // (see grainFx()); it crashes, so this is the same recipe by hand.
-    grain = Material::sksl(grainFx(), {{"uFreq", 0.9f}, {"uSeed", 4.0f}});
+    // LUMINANCE grain (equal channels), so the kOverlay pass reads as
+    // LIGHT on the oxblood ramp instead of hue-shifting it — patterns::
+    // noise() is fractal RGB and turns the page into rainbow terrazzo.
+    // `stretch` gives the grain a slight vertical tooth, which is what
+    // the real 1×1600 sitebackground.gif strip has.
+    grain = patterns::grain(0.9f, 3, 4.0f, 1.25f, 1.6f);
 
     spectrum = Material::sksl(spectrumFx(), {{"uBars", 32.0f}})
                    .uniform("uHot", kGlow)
@@ -1847,6 +2124,11 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     waterStreaks = Material::sksl(waterFx());
 
+    // measure the ticker's ONE unit so the marquee's wrap is exact
+    wireW = std::ceil(ctx.measure(wireContent()).width());
+    if (wireW < 1)
+      wireW = 1;
+
     // --- the instanced chevron array in the footer dock ---
     dockAtlas = std::make_shared<instancing::Atlas>(2.0f);
     const int chev = dockAtlas->cell(
@@ -1859,7 +2141,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               b.close();
               return b.detach();
             })
-            .fill(kD5),
+            .fill(kD6),
         {12, 10});
     dockPool = std::make_shared<instancing::Pool>();
     instancing::place::grid(*dockPool, 6 * 14, 14, {14, 12}, {0, 0}, {2, 4});
@@ -1879,6 +2161,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       t += dt;
       const float s = (float)t;
       stripePan = s * 2.5f;                                // 20 px / 8 s
+      wirePhase = -(float)std::fmod(t * 46.0, (double)(wireW + 60.0f));
       portalGlow = 54.0f + 4.4f * std::sin(s * 1.5708f);   // ±8 %, period 4 s
       vuLeft = 0.45f + 0.42f * std::abs(std::sin(s * 3.1f));
       vuRight = 0.40f + 0.45f * std::abs(std::sin(s * 2.3f + 1.1f));

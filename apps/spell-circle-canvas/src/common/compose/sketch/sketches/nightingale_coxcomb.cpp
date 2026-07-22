@@ -55,8 +55,6 @@
 #include <sigilcompose/Shapes.h>
 
 #include <include/core/SkFont.h>
-#include <include/core/SkString.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
@@ -85,16 +83,16 @@ constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
           (v & 0xffu) / 255.0f, a};
 }
 
-constexpr SkColor4f kPaper = hex(0xf4e8e4);   // aged ivory, pink undertone
+constexpr SkColor4f kPaper = hex(0xf1e4e0);   // aged ivory, pink undertone
 constexpr SkColor4f kInk = hex(0x241c15);     // engraver's warm black-brown
 constexpr SkColor4f kInkSoft = hex(0x241c15, 0.55f);
-constexpr SkColor4f kFox = hex(0xc9a688, 0.075f);
+constexpr SkColor4f kFox = hex(0xc9a688, 0.10f);
 
 // per band: the paper-side wash and the ink dot laid over it
 constexpr SkColor4f kBlueWash = hex(0xc6d1d5);
 constexpr SkColor4f kBlueInk = hex(0x527a88);
-constexpr SkColor4f kRoseWash = hex(0xe6d1cc);
-constexpr SkColor4f kRoseInk = hex(0xa9776b);
+constexpr SkColor4f kRoseWash = hex(0xedd3ca);
+constexpr SkColor4f kRoseInk = hex(0xb26d5b);
 constexpr SkColor4f kGreyWash = hex(0xdfd5ce);
 constexpr SkColor4f kGreyInk = hex(0x241f19);
 
@@ -204,45 +202,19 @@ std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
   };
 }
 
-/** Fractal LUMINANCE noise (equal channels) — plate tone and the ink-density
- *  wander inside each band. `patterns::grain()` is the library's answer and
- *  is what this should be, but its shader defines helper functions that call
- *  each other, and SkSL's inliner faults on a runtime effect minted inside a
- *  sketch dylib when the HOST raster-compiles it. Keeping main() monolithic
- *  — exactly how patterns::halftoneRamp is written — sidesteps it. */
-Material lithoTone(float frequency, float seed) {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform float uFreq;
-      uniform float uSeed;
-      half4 main(float2 pos) {
-        float2 q = pos * uFreq;
-        float sum = 0.0, amp = 0.5, tot = 0.0;
-        for (int o = 0; o < 4; ++o) {
-          float2 i = floor(q), f = fract(q);
-          float2 u = f * f * (3.0 - 2.0 * f);
-          float2 a = fract(i * float2(123.34, 456.21) + uSeed);
-          a += dot(a, a + 45.32);
-          float2 b = fract((i + float2(1, 0)) * float2(123.34, 456.21) + uSeed);
-          b += dot(b, b + 45.32);
-          float2 c = fract((i + float2(0, 1)) * float2(123.34, 456.21) + uSeed);
-          c += dot(c, c + 45.32);
-          float2 d = fract((i + float2(1, 1)) * float2(123.34, 456.21) + uSeed);
-          d += dot(d, d + 45.32);
-          float n = mix(mix(fract(a.x * a.y), fract(b.x * b.y), u.x),
-                        mix(fract(c.x * c.y), fract(d.x * d.y), u.x), u.y);
-          sum += amp * n; tot += amp; q *= 2.0; amp *= 0.5;
-        }
-        float v = tot > 0.0 ? sum / tot : 0.5;
-        return half4(half3(v), 1.0);
-      })"));
-    if (!effect)
-      SkDebugf("lithoTone: %s\n", err.c_str());
-    return effect;
-  }();
-  if (!fx)
-    return Material::solid({0.5f, 0.5f, 0.5f, 1});
-  return Material::sksl(fx, {{"uFreq", frequency}, {"uSeed", seed}});
+/** Thickens a face at the glyph level: a stroke pass under the fill. The
+ *  engraved title on the plate is heavier than any installed digital face
+ *  at the same cap height. */
+sigil::weave::TextStyle inked(sigil::weave::TextStyle style, float width,
+                              SkColor4f color) {
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(width);
+  p.setStrokeJoin(SkPaint::kRound_Join);
+  p.setColor4f(color, nullptr);
+  style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
+  return style;
 }
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
@@ -501,8 +473,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
     // ---- title block -------------------------------------------------
-    const auto title1 = type(faceDisplay, 47, kInk, 1.0f);
-    const auto title2 = type(faceGrotesque, 30, kInk, 0.8f);
+    const auto title1 = inked(type(faceDisplay, 39, kInk, 0.8f), 2.0f, kInk);
+    const auto title2 = inked(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
 
     GlyphFx t1;
     t1.effect = glyphfx::typeOn();
@@ -511,8 +483,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(text(toU8("DIAGRAM of the CAUSES of MORTALITY"), title1)
                    .key("title1")
                    .glyphFx(std::move(t1))
+                   .echo({0.8f, 0.5f}, hex(0x241c15, 0.8f))
                    .absolute()
-                   .centerAt({968, 40}));
+                   .centerAt({968, 38}));
 
     GlyphFx t2;
     t2.effect = glyphfx::typeOn();
@@ -521,8 +494,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(text(toU8("in the ARMY in the EAST."), title2)
                    .key("title2")
                    .glyphFx(std::move(t2))
+                   .echo({0.6f, 0.4f}, hex(0x241c15, 0.7f))
                    .absolute()
-                   .centerAt({952, 84}));
+                   .centerAt({945, 84}));
 
     // the double hairline under the title
     for (int i = 0; i < 2; ++i)
@@ -539,14 +513,14 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                                           420, ch::easeOutQuint))));
 
     // ---- the two diagram captions -----------------------------------
-    const auto capNum = type(faceGrotesque, 26, kInk);
-    const auto capText = type(faceGrotesque, 24, kInk, 0.6f);
+    const auto capNum = type(faceGrotesque, 24, kInk);
+    const auto capText = type(faceGrotesque, 21, kInk, 0.4f);
     auto caption = [&](const char *num, const char *label, float cx,
                        float numX, float startSec, const char *key) {
       root.child(text(toU8(num), capNum)
                      .key(std::string(key) + "n")
                      .absolute()
-                     .centerAt({numX, 34})
+                     .centerAt({numX, 40})
                      .opacity(withFrom(0.0f, 1.0f, ramp(startSec * 1000, 320))));
       root.child(text(toU8(label), capText)
                      .key(std::string(key) + "t")
@@ -556,9 +530,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                                        ramp(startSec * 1000 + 90, 320))));
       root.child(box()
                      .absolute()
-                     .left(cx - 150)
+                     .left(cx - 140)
                      .top(94)
-                     .width(300)
+                     .width(280)
                      .height(1)
                      .fill(Fill::color(kInkSoft))
                      .transformOrigin(0.0f, 0.5f)
@@ -566,7 +540,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                                      ramp(startSec * 1000 + 180, 380,
                                           ch::easeOutQuint))));
     };
-    caption("1.", "APRIL 1854 to MARCH 1855.", 1313, 1487, tCap1, "cap1");
+    caption("1.", "APRIL 1854 to MARCH 1855.", 1320, 1489, tCap1, "cap1");
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
 
     // ---- the wheels --------------------------------------------------
@@ -574,8 +548,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(wheel(ctx, kD2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
-    const auto labelStyle = type(faceLabel, 20, kInk, 0.4f);
-    const auto smallLabel = type(faceLabel, 16, kInk, 0.2f);
+    const auto labelStyle = inked(type(faceLabel, 20, kInk, 0.4f), 0.35f, kInk);
+    const auto smallLabel = type(faceLabel, 12, kInk, 0.0f);
+    const auto campaign = type(faceLabel, 16, kInk, 0.4f);
     std::vector<Element> labels;
 
     // The floor is not decoration: twelve labels must fit the circumference
@@ -604,16 +579,16 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       }
     };
     ringLabels(kD1, kC1, kR1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
-    ringLabels(kD2, kC2, kR2, 152.0f, smallLabel, 17.0f, 18.0f, tLabel2, "b");
+    ringLabels(kD2, kC2, kR2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
 
     // the campaign annotations — set RADIALLY along their spoke
-    arcRun(labels, ctx, smallLabel, kC1, "BULGARIA", 358.0f, 150.0f, true, 1.2f,
+    arcRun(labels, ctx, campaign, kC1, "BULGARIA", 358.0f, 150.0f, true, 2.0f,
            tLabel1 * 1000 + 380, "bulg");
-    arcRun(labels, ctx, smallLabel, kC1, "CRIMEA", 94.0f, 268.0f, true, 1.2f,
+    arcRun(labels, ctx, campaign, kC1, "CRIMEA", 94.0f, 268.0f, true, 1.8f,
            tLabel1 * 1000 + 460, "crim");
     // the left wheel's year marker, upside down at 6 o'clock — which is
     // simply the outward-up rule arriving at the bottom of the circle
-    arcRun(labels, ctx, smallLabel, kC2, "1856", 180.0f, 145.0f, false, 0.6f,
+    arcRun(labels, ctx, smallLabel, kC2, "1856", 180.0f, 134.0f, false, 0.6f,
            tLabel2 * 1000 + 300, "y1856");
 
     for (Element &e : labels)
@@ -629,7 +604,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                    .fill(Fill::none())
                    .outline([](SkSize) {
                      SkPathBuilder p;
-                     p.moveTo(196, 380);
+                     p.moveTo(202, 398);
                      p.lineTo(614, 522);
                      p.lineTo(1024, 374);
                      return p.detach();
@@ -682,12 +657,22 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
         return nullptr;
       return ctx.fonts->fontManager()->matchFamilyStyle(name, style);
     };
+    // The plate's title face is an ornamental Victorian INLINE Roman —
+    // dark stems carrying a white hairline. "Academy Engraved LET" is the
+    // only installed face of that genre; it draws lighter than the plate,
+    // so the title carries a glyph-level stroke underlay to thicken the
+    // ink ribbon (Bodoni 72 Bold matches the WEIGHT but loses the genre).
     faceDisplay = family("Academy Engraved LET", SkFontStyle::Normal());
     faceGrotesque = family("Copperplate", SkFontStyle::Bold());
     faceLabel = family("Copperplate", SkFontStyle::Normal());
     faceScript = family("Snell Roundhand", SkFontStyle::Normal());
     if (!faceDisplay)
-      faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
+      // The plate's title face is an ornamental Victorian INLINE Roman —
+    // dark stems carrying a white hairline. "Academy Engraved LET" is the
+    // only installed face of that genre; it draws lighter than the plate,
+    // so the title carries a glyph-level stroke underlay to thicken the
+    // ink ribbon (Bodoni 72 Bold matches the WEIGHT but loses the genre).
+    faceDisplay = family("Academy Engraved LET", SkFontStyle::Normal());
     if (!faceScript)
       faceScript = family("Apple Chancery", SkFontStyle::Normal());
 
@@ -697,9 +682,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // separates a stone-printed tint from a flat vector fill.
     auto band = [](SkColor4f wash, SkColor4f ink, int fine, int coarse,
                    uint32_t seed, Pattern &grainOut) {
-      grainOut = patterns::speckle(64, fine, 0.42f, 1.25f, {ink});
+      grainOut = patterns::speckle(40, fine, 0.25f, 0.66f, {ink});
       grainOut.seed(seed);
-      Pattern blot = patterns::speckle(150, coarse, 2.5f, 7.0f,
+      Pattern blot = patterns::speckle(110, coarse, 1.8f, 5.0f,
                                        {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
       blot.seed(seed * 7 + 3);
       return Material::blend(
@@ -708,14 +693,14 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
            {blot.material(), SkBlendMode::kSrcOver},
            // ink density wanders across the stone: LUMINANCE noise, so it
            // reads as light on the tint instead of hue-shifting it
-           {lithoTone(0.010f, (float)seed), SkBlendMode::kSoftLight}});
+           {patterns::grain(0.010f, 3, (float)seed), SkBlendMode::kSoftLight}});
     };
-    blueMat = band(kBlueWash, kBlueInk, 830, 26, 11, blueGrain);
-    roseMat = band(kRoseWash, kRoseInk, 380, 18, 23, roseGrain);
-    greyMat = band(kGreyWash, kGreyInk, 630, 34, 37, greyGrain);
+    blueMat = band(kBlueWash, kBlueInk, 1150, 14, 11, blueGrain);
+    roseMat = band(kRoseWash, kRoseInk, 900, 10, 23, roseGrain);
+    greyMat = band(kGreyWash, kGreyInk, 900, 18, 37, greyGrain);
 
-    paperMat = lithoTone(0.011f, 5.0f);
-    foxing = patterns::speckle(210, 3, 1.5f, 5.5f, {kFox});
+    paperMat = patterns::grain(0.011f, 4, 5.0f);
+    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {kFox});
     foxing.seed(91);
 
     // The needles and the rim flashes they ring.

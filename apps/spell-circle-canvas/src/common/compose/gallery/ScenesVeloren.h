@@ -247,13 +247,12 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
 } // namespace worldhud
 
 struct WorldHudScene final : Scene {
-  // These carry PIXEL offsets, not fractions. Element has only a uniform
-  // scale() and a bound value cannot be scaled at the binding site, so a
-  // bar's fill is a full-width child inside a clip, slid left by
-  // -(1 - fraction) * width. The vertical gradient makes the horizontal
-  // slide invisible, which is what makes the trick honest here.
-  choreograph::Output<float> hpSlide{0}, energySlide{0}, poiseSlide{0};
-  choreograph::Output<float> xpSlide{0}, enemySlide{0};
+  // Plain fractions. Every bar here is a full-size fill with its growing
+  // edge pinned by transformOrigin() and its extent carried by scaleX —
+  // which is what these Outputs used to encode as pixel slides inside a
+  // clip, back when Element had only a uniform scale().
+  choreograph::Output<float> hp{0.62f}, energy{0.78f}, poise{0.55f};
+  choreograph::Output<float> xp{0}, enemyHp{0.4f};
   choreograph::Output<float> lowPulse{0}, compass{0};
   std::array<choreograph::Output<float>, 4> cooldown{};
 
@@ -264,11 +263,11 @@ struct WorldHudScene final : Scene {
 
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     namespace wh = worldhud;
-    hpSlide = 0;
-    energySlide = 0;
-    poiseSlide = 0;
-    xpSlide = 0;
-    enemySlide = 0;
+    hp = 0.62f;
+    energy = 0.78f;
+    poise = 0.55f;
+    xp = 0;
+    enemyHp = 0.4f;
     lowPulse = 0;
     compass = 0;
     for (auto &c : cooldown)
@@ -298,25 +297,20 @@ struct WorldHudScene final : Scene {
         h = 0.20f + 0.55f * (float)((cycle - 3.0) / 0.5);
       else
         h = 0.75f - 0.13f * (float)((cycle - 3.5) / 5.5);
-      hpSlide = -(1.0f - h) * wh::kHealthInnerW;
+      hp = h;
       // Veloren's hp_ani: below 20% the bar breathes.
       lowPulse = h < 0.25f
                      ? 0.5f + 0.5f * (float)std::sin(t * 9.0)
                      : 0.0f;
-      const float e = 0.35f + 0.45f * (float)(0.5 + 0.5 * std::sin(t * 0.9));
-      const float ps =
-          0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
-      energySlide = -(1.0f - e) * wh::kEnergyInnerW;
-      poiseSlide = -(1.0f - ps) * wh::kEnergyInnerW;
+      energy = 0.35f + 0.45f * (float)(0.5 + 0.5 * std::sin(t * 0.9));
+      poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
       compass = (float)std::fmod(t * 8.0, 360.0);
-      xpSlide = -(1.0f - (float)std::fmod(t * 0.11, 1.0)) * 28.0f;
-      const float eh = std::max(0.0f, 0.85f - (float)std::fmod(t * 0.16, 1.0));
-      enemySlide = -(1.0f - eh) * 166.0f;
+      xp = (float)std::fmod(t * 0.11, 1.0);
+      enemyHp = std::max(0.0f, 0.85f - (float)std::fmod(t * 0.16, 1.0));
       for (size_t i = 0; i < cooldown.size(); ++i) {
         const double period = 2.4 + 0.9 * (double)i;
-        const float left = 1.0f - (float)(std::fmod(t, period) / period);
-        // the sweep wipes DOWNWARD off the icon as the cooldown expires
-        cooldown[i] = -(1.0f - left) * (wh::kSlot - 4.0f);
+        // the dark cover keeps its top edge and its bottom edge rises
+        cooldown[i] = 1.0f - (float)(std::fmod(t, period) / period);
       }
       return true;
     });
@@ -339,17 +333,15 @@ struct WorldHudScene final : Scene {
     // the live fill rides on top of the static frame so only IT repaints
     stackEl.child(box().absolute()
                       .left(wh::kBarX + 2).top(wh::kBarY + 3)
-                      .width(Dim(wh::kHealthInnerW)).height(Dim(wh::kHealthInnerH))
-                      .clip()
-                      .child(box().absolute().left(0).top(0)
-                                 .width(Dim(wh::kHealthInnerW))
-                                 .height(Dim(wh::kHealthInnerH))
-                                 .translateX(&hpSlide)
-                                 .fill(Material::linear(
-                                     {0, 0}, {0, wh::kHealthInnerH},
-                                     {{0.0f, worldhud::C(0x7FE000)},
-                                      {0.5f, wh::kHp},
-                                      {1.0f, worldhud::C(0x2F5C00)}}))));
+                      .width(Dim(wh::kHealthInnerW))
+                      .height(Dim(wh::kHealthInnerH))
+                      .transformOrigin(0.0f, 0.5f)
+                      .scaleX(&hp)
+                      .fill(Material::linear(
+                          {0, 0}, {0, wh::kHealthInnerH},
+                          {{0.0f, worldhud::C(0x7FE000)},
+                           {0.5f, wh::kHp},
+                           {1.0f, worldhud::C(0x2F5C00)}})));
     stackEl.child(box().absolute()
                       .left(wh::kBarX).top(wh::kBarY)
                       .width(Dim(wh::kHealthW)).height(Dim(wh::kHealthH))
@@ -371,12 +363,10 @@ struct WorldHudScene final : Scene {
                                      1.0f, wh::kStamina)));
     stackEl.child(box().absolute().left(ex + 2).top(wh::kEnergyY + 3)
                       .width(Dim(wh::kEnergyInnerW))
-                      .height(Dim(wh::kEnergyInnerH)).clip()
-                      .child(box().absolute().left(0).top(0)
-                                 .width(Dim(wh::kEnergyInnerW))
-                                 .height(Dim(wh::kEnergyInnerH))
-                                 .translateX(&energySlide)
-                                 .fill(Material::solid(wh::kStamina))));
+                      .height(Dim(wh::kEnergyInnerH))
+                      .transformOrigin(0.0f, 0.5f)
+                      .scaleX(&energy)
+                      .fill(Material::solid(wh::kStamina)));
 
     // poise, with skillbar.rs's 3x10 ticks along it
     stackEl.child(box().absolute().left(ex).top(wh::kPoiseY)
@@ -385,12 +375,10 @@ struct WorldHudScene final : Scene {
                                      1.0f, wh::kPoise)));
     stackEl.child(box().absolute().left(ex + 2).top(wh::kPoiseY + 3)
                       .width(Dim(wh::kEnergyInnerW))
-                      .height(Dim(wh::kEnergyInnerH)).clip()
-                      .child(box().absolute().left(0).top(0)
-                                 .width(Dim(wh::kEnergyInnerW))
-                                 .height(Dim(wh::kEnergyInnerH))
-                                 .translateX(&poiseSlide)
-                                 .fill(Material::solid(wh::kPoise))));
+                      .height(Dim(wh::kEnergyInnerH))
+                      .transformOrigin(0.0f, 0.5f)
+                      .scaleX(&poise)
+                      .fill(Material::solid(wh::kPoise)));
     for (int i = 1; i < 6; ++i)
       stackEl.child(box().absolute()
                         .left(ex + 2 + wh::kEnergyInnerW * (float)i / 6.0f)
@@ -436,15 +424,12 @@ struct WorldHudScene final : Scene {
       if (i >= 1 && i <= 4)
         rail.child(box().absolute().left(x + 3).top(3)
                        .width(Dim(wh::kSlot - 4)).height(Dim(wh::kSlot - 4))
-                       .clip()
-                       .child(box().absolute().left(0).top(0)
-                                  .width(Dim(wh::kSlot - 4))
-                                  .height(Dim(wh::kSlot - 4))
-                                  .translateY(&cooldown[(size_t)i - 1])
-                                  .fill(Material::linear(
-                                      {0, 0}, {0, wh::kSlot - 4},
-                                      {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
-                                       {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}}))));
+                       .transformOrigin(0.5f, 0.0f)
+                       .scaleY(&cooldown[(size_t)i - 1])
+                       .fill(Material::linear(
+                           {0, 0}, {0, wh::kSlot - 4},
+                           {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
+                            {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
       rail.child(text(toU8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
                      .absolute().left(x + 4).top(wh::kSlotFrame - 13));
     }
@@ -457,7 +442,8 @@ struct WorldHudScene final : Scene {
                               .fill(Material::solid(worldhud::kTrack))
                               .child(box().absolute().left(0).top(0)
                                          .width(Dim(28.0f)).height(Dim(6.0f))
-                                         .translateX(&xpSlide)
+                                         .transformOrigin(0.0f, 0.5f)
+                                         .scaleX(&xp)
                                          .fill(Material::solid(
                                              worldhud::kXp))))
                    .child(text(toU8("34"), wh::type(13, wh::kInk, 0.4f, 640))
@@ -611,7 +597,8 @@ struct WorldHudScene final : Scene {
                        1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                    .child(box().absolute().left(1).top(1)
                               .width(Dim(166.0f)).height(Dim(7.0f))
-                              .translateX(&enemySlide)
+                              .transformOrigin(0.0f, 0.5f)
+                              .scaleX(&enemyHp)
                               .fill(Material::solid(wh::kEnemyHp))));
   }
 
