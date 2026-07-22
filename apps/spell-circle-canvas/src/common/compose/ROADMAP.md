@@ -6,7 +6,8 @@ gallery scenes rebuilt on referenced geometry, and a set of study
 sketches under `sketch/sketches/` each reconstructing a named artefact —
 a Dead Space 2 bench screen, a hinoki asanoha ranma, Nightingale's 1858
 mortality plate, 2Advanced Studios' v4 Prophecy interface, the DOOM
-PlayStation title flame.
+PlayStation title flame, the spirals John Whitney drew for *Vertigo* on a
+repurposed anti-aircraft gun director.
 
 The rule the program ran on: an author who hits a wall works around it
 and **writes down what the natural API would have been**. Entries are
@@ -32,10 +33,13 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `textFill()` dropping the style's other passes | A chrome wordmark silently lost its cast shadow and keyline | `Paint.cpp` |
 | `brushes::rope(state, zoom)` | Widths tuned for a wide study swamped a real 43 px-spacing tree | `Brushes.h` |
 | The split-Skia SkSL rule | Stock materials with helper functions or uniform-guarded breaks **segfaulted every sketch that painted them**, with no diagnostic | `Patterns.h`, `compose_sketch_stock` |
+| `shapes::inset(px, Decoration)` | "The same bevel again, 6 px in" is the whole vocabulary of nested chrome and needed a second element every time | `Shapes.h` |
+| `shapes::arrow`, `util::disc` | Every HUD, gizmo and diagram draws one; every inscribed-in-the-box polar shape wrote the same four lines | `Shapes.h`, `Util.h` |
+| Two `onPath` bugs, found hours after it shipped | `autoFlip` turned each glyph over **in place**, mirroring the run; a centred run at `at = 0` silently ate every glyph before the seam | `Paint.cpp` |
 
 ---
 
-## 1. Bindings that cannot be shaped — *four studies*
+## 1. Bindings that cannot be shaped — *five studies*
 
 A bound `choreograph::Output<float>` lands on the property **raw**. There
 is no scale, no offset, no curve at the binding site.
@@ -45,7 +49,11 @@ The consequences compound. A phase that lives in `[0,1]` — which is what
 without a **second** Output updated in the same steppable. One per-piece
 progress driving both opacity and scale needs two Output vectors: the
 kumiko study carries 1028 objects where 514 would do, with the easing
-written in the tick loop, far from the properties it shapes.
+written in the tick loop, far from the properties it shapes. The Vertigo
+study needs `growth − 0.008` for the pen-tip highlight and a curve of
+`growth` for its trailing alpha, so it keeps eight scalars in sync by hand
+across four cards — the fifth study to arrive here from an unrelated
+direction.
 
 ```cpp
 // wanted
@@ -79,7 +87,7 @@ their own lanes. Or, failing that, say plainly in the header that
 labelled lists stay real elements — the doc currently reads as if they
 are covered.
 
-## 3. `outline()` can never prune — *three studies*
+## 3. `outline()` can never prune, and parametric curves have no generator — *four studies*
 
 It takes an incomparable `std::function<SkPath(SkSize)>`, so every shaped
 node re-records on each `render()`: 514 in the kumiko lattice, every
@@ -91,6 +99,16 @@ recipe** rather than by shader pointer, and `Brushes.h` solved it with the
 `GeometryOp` value / `PathOp` lambda split. Shapes want the identical
 move: a comparable `Outline` value (kind + params) covering the stock
 generators, with the raw lambda as the escape hatch that never prunes.
+
+The Vertigo study says which generators are missing, and it is a whole
+family. `Shapes.h` builds closed **shapes** from parameters; nothing
+evaluates a caller's `t → (x, y)`. So every curve *defined* by a
+parameter — Lissajous, harmonograph, rose, epitrochoid, spirograph, phase
+portrait, orbit trace — is a hand-rolled `SkPathBuilder` loop inside
+`outline()`, i.e. lands in the escape hatch by default rather than by
+choice. `shapes::parametric(fn, t0, t1, samples)` plus named
+`lissajous(a, b, delta)` / `harmonograph(...)` — **as comparable values** —
+closes the two halves of this at once.
 
 ## 4. No `Material::buffer` — content that changes without re-describing
 
@@ -128,7 +146,24 @@ angle still has none.
 Natural API: `.wipe(angleDeg, PropValue<float>)` — an axis-aligned clip
 fraction, rotatable.
 
-## 7. `routers::orthogonal()` is unusable for its most natural application
+## 7. One trim window per node
+
+`trim()` is an `Element` property, and decorations receive the **already
+trimmed** outline. So a second window over the same geometry is not a
+second `stroke()` — it is a duplicate node that rebuilds and re-measures
+the same path. The Vertigo cards pay for a 2000-segment precessing rosette
+twice each, purely so a bright pen tip can ride just behind the drawn
+head.
+
+That gesture is not exotic: the comet on a radar sweep, a marching
+highlight on a border, a second progress arc on one ring, the leading spark
+on a drawn signature. All of them are one geometry with two windows.
+
+Natural API: `trim` as a field on `PathFormat`, so each stroke and each
+decoration carries its own window over the shared outline, with the node
+property staying as the shorthand.
+
+## 8. `routers::orthogonal()` is unusable for its most natural application
 
 Found building a PCB-style node graph, three problems at once:
 
@@ -147,12 +182,34 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
 `cornerRadius` (45° cut corners are the game-UI convention;
 `SkCornerPathEffect` only rounds).
 
-## 8. Text: three missing spellings
+## 9. Text: the missing spellings
 
+- **Per-glyph animation and per-glyph *style* are mutually exclusive** —
+  *two studies*. `paintKineticText()` reduces every glyph to
+  `(font, colour, RSXform)` and drops the style's `SkPaint`;
+  `paintTextOnPath()`, written this same night, inherited the shape. So a
+  hollow display face, a gradient fill, an underlay or a `glyphFx` cannot
+  ride a kinetic or curved run, and Vertigo's title rebuilds `pop()` one
+  tier up out of seven letter nodes under `staggerChildren(30ms)`.
+
+  The obvious fix is to bucket the batch on a resolved `SkPaint`, which
+  covers both call sites. But the implementer's sharper point is worth
+  pinning **before** that lands in SigilWeave: a glyph run with underlays
+  and overlays is not one paint, it is an *ordered list* of them — that
+  hollow face wants a blurred-stroke underlay under a stroked foreground.
+  One pass per layer is the right answer, so the entry point wants the
+  whole `PaintStyle`, not one `SkPaint`.
+- **No hollow-type preset.** Outline display type — a stroked face with
+  the counters left open, the single most common title-card treatment
+  there is — has no spelling at all. It is `PaintStyle` surgery: switch
+  the foreground paint to `kStroke_Style`, then hand-build a blurred
+  stroke underlay for the shadow, because `decorations::dropShadow`
+  operates on the node and **fills the letterforms' interiors**.
 - **No glyph-level stroke.** `Element::stroke()` dresses the node's *box*.
   Thickening engraved display type means dropping to
   `PaintStyle::addUnderlay` with a hand-built stroke paint.
-  Wanted: `Element::textStroke(width, Fill)`.
+  Wanted: `Element::textStroke(width, Fill)` — the sibling of the item
+  above (that one *hollows* a face, this one *thickens* one).
 - **No way to shape a run without building an Element.** `measure()` is
   per-Element, so hand-placing 230 glyphs costs 230 layouts. Wanted:
   `FontContext::measureRun(u8string, TextStyle) -> vector<float>`.
@@ -162,14 +219,8 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
   but the obvious first attempt is to hunt for `text(&output)`, and
   API.md never names slots as *the* counter idiom.
 
-## 9. Decorations: adaptors and frames
+## 10. Decorations: adaptors and frames
 
-- **No inset adaptor.** "The same bevel again, 6 px in" is the whole
-  vocabulary of nested chrome, and there is no way to run a decoration
-  against an offset outline. `shapes::EdgeSlice` is the exact precedent —
-  an adaptor that rewrites `PaintContext::outline` and delegates. Its
-  sibling `shapes::inset(px, Decoration)` is two lines of library and
-  turns every nested frame into composition.
 - **Light angles are in the node's LOCAL frame.** `BevelEmboss`,
   `InnerShadow` and `util::Shadow` take an angle in node space, so on a
   rotated node you write `120 + angDeg` by hand or 514 boards light from
@@ -184,14 +235,14 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
   does not, so a route always runs to the node box's *centre* — and with
   `sdf::` chrome the box is far larger than the visible shape.
 
-## 10. `Effect` has no live uniforms
+## 11. `Effect` has no live uniforms
 
 `Material` solved this with `uniform(name, &output)` and a volatility
 contract. `Effect::shader(fx, uniforms)` takes constants only, so
 animating a ripple phase or a bloom threshold requires a full re-describe
 per frame.
 
-## 11. `Ticker` has no fixed-timestep helper
+## 12. `Ticker` has no fixed-timestep helper
 
 `add()` yields variable `dt` only, so every simulation-shaped sketch
 reinvents the accumulator **and** its spiral-of-death clamp. Conspicuous
@@ -200,7 +251,7 @@ declared choppiness for shaders and nothing for logic.
 
 Natural API: `ticker.addFixed(hz, fn)`.
 
-## 12. Sampling, and the pixel-art path
+## 13. Sampling, and the pixel-art path
 
 `Paint.cpp`, `Decorations.h` (Slice), `Pattern.h`, `Instances.h`,
 `Brushes.h` and `Web.h` all hardcode `SkFilterMode::kLinear`.
@@ -212,7 +263,7 @@ and the fix is discoverable only by diffing two signatures.
 Natural API: `Element::sampling(SkSamplingOptions)` on image leaves, plus
 a `sampling` field on `Slice` / `PatternBrush` / `Atlas`.
 
-## 13. Smaller, but each cost someone an iteration
+## 14. Smaller, but each cost someone an iteration
 
 - **`sdf::` glow eats the shape silently.** `pad()` is reserved *inside*
   the node's box, so a 300×300 box with `glowRadius: 54` renders a 0.5 px
@@ -242,11 +293,8 @@ a `sampling` field on `Slice` / `PatternBrush` / `Atlas`.
   it; it just replays one stamp. A
   `stampAt(const PathSample&, size_t) -> optional<Element>` callback turns
   it into ruler ticks with numbers, ribbon menus, chained ornament.
-- **`shapes::arrow()` does not exist**, and every HUD, gizmo and diagram
-  draws one.
-- **`util::disc(centre, radius)`** — five lines; two sketches wrote it
-  locally because every inscribed-in-the-box shape in a polar chart needs
-  `width(2r).height(2r).centerAt(c)`.
+- **`echo()` takes a single stamp.** Registration doubling on a light
+  display face wants one each side of the glyph run, not one behind it.
 - **A fixed `width()` flex child still shrinks**, and the failure is
   silent overlap. Faithful Yoga semantics, so not a bug — but `width(150)`
   reads as "this is 150" at the call site. One sentence in API.md's layout
