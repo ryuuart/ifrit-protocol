@@ -1,10 +1,13 @@
 #pragma once
 // The Persona 3 Reload pause-menu card (REFERENCES.md sec.1,
 // recreation-verified), ported from sketch/sketches/p3r_study.cpp:
-//  - sticker SCATTER: each row carries its OWN rotation from deltea's
-//    ladder scaled to five items (-25,-15,-20,-15, last flipped +8),
-//    per-row x-jitter, rows overlapping ~40% of their height, shuffled
-//    zIndex -- scattered stickers converging to straight.
+//  - sticker SCATTER: nine rows, and every offset, rotation, colour and
+//    z_index is lifted from Ultipuk/persona_3_reload_pause_menu's
+//    main_menu_pause_ui.tscn rather than invented -- see the kRows
+//    comment for the conversion. Rows overlap; that is the design.
+//  - the date stamp (day numeral + weekday/block + location under a
+//    fading rule) and the party rail (four skewed parallelogram cards
+//    with HP/SP bars, entering on a 60ms stagger from the right).
 //  - selection: BLACK text on a WHITE sliver-triangle wedge (rotate
 //    +8 deg) over a PINK #FD77D9 back-wedge, plus the RED misprint echo
 //    of the label offset (3,-6) clipped inside the wedge. Unselected
@@ -19,7 +22,8 @@
 //  - chrome: giant rotated index numeral (rotate 90 deg, #787878,
 //    condense 0.88) behind the menu; right-anchored tooltip title over
 //    a "COMMAND ----" rule; button prompt circles.
-//  - entrance: items fade + drop from -30px over 0.4s, 33ms stagger
+//  - entrance: items fade + drop from -30px over 0.4s (the recreation's
+//    own 0.4s tween from Vector2.UP * 30), 33ms stagger
 //    BOTTOM-UP (children declared bottom-first; zIndex owns paint
 //    order); the two-triangle cursor spawns at +0.4s and lands with a
 //    damped diagonal overshoot along (1,-1): +40 -> -20 -> +10 -> 0.
@@ -45,6 +49,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <functional>
 
 namespace compose_gallery {
@@ -79,20 +84,42 @@ constexpr SkColor4f kInk{0, 0, 0, 1};
 
 constexpr SkColor4f kCyans[3] = {kCyanA, kCyanB, kCyanC};
 
-// The sticker scatter, deltea's ladder scaled to five items: -25,-15,-20,
-// -15, LAST flipped positive (+8). x-jitter 0..-66px (compressed from the
-// study's 0..-70 for the 900px canvas), y pitch ~60% of the rotated row
-// height (rows overlap), shuffled z.
+// The sticker scatter is NOT invented any more: every row's offset,
+// rotation and colour comes from Ultipuk/persona_3_reload_pause_menu
+// (a Godot recreation of the P3R pause menu), file
+// data/ui/pause_ui/main_menu/main_menu_pause_ui.tscn. There the nine
+// Labels are anchored to the screen CENTRE with pixel offsets, a
+// per-label `rotation` in radians, scale (0.82, 1) and font_size 84.
+//
+// Converted here at s = 0.58 (1080 -> 640 stage) with the recreation's
+// screen centre landing at menu-container-local (190, 250):
+//     dx  = 100 + offset_left * s      (the scene's kBaseX is 90)
+//     y   = 250 + offset_top  * s
+//     rot = rotation * 180 / pi
+// so the ladder below is the real one, digit for digit — then the y
+// column is stretched 1.18x about the group centre. That last step is
+// ours and it is a compromise: the recreation sets FOT-Rodin at 84px in
+// a 104px box, and the face macOS ships in its place puts more ink in
+// less box, so nine rows at the literal pitch buried each other. z_index
+// -1 on ITEM and STATS is the recreation's too.
 struct Row {
   const char *label;
   float dx, y, rot;
   int z;
+  SkColor4f color;
 };
-constexpr Row kRows[] = {{"SKILL", -11, 124, -25, 3},
-                         {"ITEM", -60, 182, -15, 5},
-                         {"EQUIP", -26, 238, -20, 2},
-                         {"PERSONA", -66, 296, -15, 6},
-                         {"SYSTEM", -6, 396, +8, 4}};
+constexpr Row kRows[] = {
+    {"SKILL", 1.9f, 106.0f, -24.60f, 3, {0.4157f, 0.9020f, 0.9843f, 1}},
+    {"ITEM", 29.3f, 144.7f, -9.19f, 1, {0.0431f, 0.7843f, 1.0000f, 1}},
+    {"EQUIP", 2.6f, 181.6f, -17.93f, 4, {0.4157f, 0.9020f, 0.9843f, 1}},
+    {"PERSONA", -27.9f, 221.3f, -17.44f, 9, {0.4078f, 1.0000f, 0.9882f, 1}},
+    {"STATS", 22.3f, 266.2f, 1.79f, 1, {0.0471f, 0.7961f, 1.0000f, 1}},
+    {"QUEST", -12.2f, 309.3f, -12.56f, 5, {0.4078f, 0.9098f, 0.9882f, 1}},
+    {"SOCIAL LINK", -0.6f, 340.9f, -7.51f, 2, {0.4078f, 0.9922f, 0.9765f, 1}},
+    {"CALENDAR", -25.9f, 387.0f, -1.51f, 6, {0.4078f, 0.9098f, 0.9882f, 1}},
+    {"SYSTEM", 15.9f, 439.6f, 12.48f, 3, {0.0431f, 0.7961f, 0.9843f, 1}},
+};
+constexpr int kRowCount = (int)(sizeof(kRows) / sizeof(kRows[0]));
 constexpr int kSelected = 3; // PERSONA -- black on the white wedge
 constexpr float kBaseX = 90; // menu-container-local scatter origin
 constexpr float kMenuX = 60, kMenuY = 70; // menu container origin
@@ -415,7 +442,7 @@ struct PersonaMenuScene final : Scene {
         .translateY(withFrom(-30.0f, 0.0f, {400ms, &ch::easeOutQuint}))
         .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
-        .child(text(toU8(r.label), nn::menuType(46, nn::kCyans[i % 3], 2.0f))
+        .child(text(toU8(r.label), nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
   }
 
@@ -429,12 +456,14 @@ struct PersonaMenuScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     const nn::Row &r = nn::kRows[nn::kSelected];
-    const float lx = 26, ly = -2; // label, row-local
-    const float wW = 330, wH = 92;
+    // The wedge is cut to the SELECTED label, not to the widest one:
+    // at nine rows a 330px slab buried its neighbours.
+    const float lx = 20, ly = -2; // label, row-local
+    const float wW = 250, wH = 68;
 
     Element row = box().key(r.label)
-                      .left(nn::kBaseX + r.dx).top(r.y - 18)
-                      .width(346).height(104)
+                      .left(nn::kBaseX + r.dx).top(r.y - 12)
+                      .width(264).height(78)
                       .rotate(r.rot).zIndex(r.z)
                       .translateY(withFrom(-30.0f, 0.0f,
                                            {400ms, &ch::easeOutQuint}))
@@ -452,11 +481,11 @@ struct PersonaMenuScene final : Scene {
                   .outline(nn::sliverWedge()).rotate(8).clip(true)
                   .fill(Material::solid(nn::kPaper))
                   .scale(&wedgePulse)
-                  .child(text(toU8(r.label), nn::menuType(64, nn::kRedC, 0))
+                  .child(text(toU8(r.label), nn::menuType(50, nn::kRedC, 0))
                              .left(lx + 3).top(3)
                              .rotate(-8)));
     // the black label (1.5x the unselected size), no glow -- ink on paper
-    row.child(text(toU8(r.label), nn::menuType(64, nn::kInk, 0))
+    row.child(text(toU8(r.label), nn::menuType(50, nn::kInk, 0))
                   .left(lx).top(ly));
     return row;
   }
@@ -499,6 +528,102 @@ struct PersonaMenuScene final : Scene {
         .child(text(toU8(glyph), nn::smallType(14, nn::kPaper, 0)));
   }
 
+  /** The date stamp the pause menu wears in its top-left corner: the day
+   *  as a big italic numeral pair, the weekday and the block of day beside
+   *  it, the location under a hairline. */
+  Element dateBlock() {
+    namespace nn = persona_menu;
+    namespace ch = choreograph;
+    using namespace std::chrono_literals;
+    return box().key("date").left(44).top(34).column().zIndex(8)
+        .translateX(withFrom(-30.0f, 0.0f, {420ms, &ch::easeOutQuint}))
+        .opacity(withFrom(0.0f, 1.0f, {340ms}))
+        .child(box().row().alignItems(Align::End)
+                   .child(text(toU8("07/22"),
+                               nn::menuType(38, nn::kPaper, 2.0f))
+                              .effect(styles::textGlow({0, 0, 0, 0.45f}, 3)))
+                   .child(box().column().margin(11, 0, 0, 5)
+                              .child(text(toU8("SUNDAY"),
+                                          nn::smallType(11, nn::kCyanC, 2.6f)))
+                              .child(text(toU8("EVENING"),
+                                          nn::smallType(11, nn::kCyanB, 2.6f))
+                                         .margin(0, 3, 0, 0))))
+        .child(box().width(168).height(2).margin(0, 7, 0, 5)
+                   .fill(Material::linear({0, 0}, {168, 0},
+                                          {{0.0f, {1, 1, 1, 0.85f}},
+                                           {1.0f, {1, 1, 1, 0.0f}}})))
+        .child(text(toU8("IWATODAI DORM"),
+                    nn::smallType(11, nn::kPaper, 2.2f)));
+  }
+
+  /** The party rail: four slanted cards with HP and SP. P3R skews every
+   *  card, so these are parallelograms, not rectangles, and each one
+   *  slides in from the right on the list's own stagger. */
+  Element partyPanel() {
+    namespace nn = persona_menu;
+    namespace ch = choreograph;
+    using namespace std::chrono_literals;
+    struct Member {
+      const char *name;
+      int level, hp, hpMax, sp, spMax;
+    };
+    static const Member kParty[] = {
+        {"MAKOTO", 42, 312, 380, 88, 150},
+        {"YUKARI", 41, 268, 296, 121, 164},
+        {"JUNPEI", 41, 355, 355, 42, 96},
+        {"MITSURU", 43, 241, 302, 149, 188},
+    };
+    constexpr SkColor4f kHp{0.549f, 0.910f, 0.627f, 1};  // #8CE8A0
+    constexpr SkColor4f kSp{0.416f, 0.722f, 1.000f, 1};  // #6ABBFF
+
+    auto bar = [&](const char *label, int value, int max, SkColor4f color) {
+      const float frac = max > 0 ? (float)value / (float)max : 0.0f;
+      char numbers[24];
+      std::snprintf(numbers, sizeof(numbers), "%d/%d", value, max);
+      return box().row().alignItems(Align::Center).gap(6)
+          .child(text(toU8(label), nn::smallType(9, color, 1.4f))
+                     .width(16))
+          .child(box().width(84).height(6).grow(0)
+                     .fill(Material::solid({0, 0.05f, 0.18f, 0.55f}))
+                     .child(box().absolute().left(0).top(0)
+                                .width(Dim(84 * frac)).height(Dim(6.0f))
+                                .fill(Material::linear(
+                                    {0, 0}, {0, 6},
+                                    {{0.0f, {std::min(1.0f, color.fR * 1.4f),
+                                             std::min(1.0f, color.fG * 1.4f),
+                                             std::min(1.0f, color.fB * 1.4f),
+                                             1}},
+                                     {1.0f, color}}))))
+          .child(text(toU8(numbers), nn::smallType(9, nn::kPaper, 0.6f)));
+    };
+
+    Element rail = box().key("party").right(41).bottom(74).column().gap(7)
+                       .zIndex(8).staggerChildren(60ms);
+    for (const Member &m : kParty) {
+      char level[16];
+      std::snprintf(level, sizeof(level), "LV %d", m.level);
+      rail.child(
+          box().width(246).height(52).rotate(-4)
+              .translateX(withFrom(46.0f, 0.0f, {440ms, &ch::easeOutQuint}))
+              .opacity(withFrom(0.0f, 1.0f, {360ms}))
+              .outline(shapes::parallelogram(9))
+              .fill(Material::linear({0, 0}, {246, 0},
+                                     {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
+                                      {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
+              .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
+              .column().padding(17, 7).gap(2)
+              .child(box().row().alignItems(Align::End)
+                         .child(text(toU8(m.name),
+                                     nn::menuType(17, nn::kPaper, 1.0f))
+                                    .grow(1))
+                         .child(text(toU8(level),
+                                     nn::smallType(10, nn::kCyanB, 1.6f))))
+              .child(bar("HP", m.hp, m.hpMax, kHp))
+              .child(bar("SP", m.sp, m.spMax, kSp)));
+    }
+    return rail;
+  }
+
   Element describe() {
     namespace nn = persona_menu;
     namespace ch = choreograph;
@@ -529,12 +654,21 @@ struct PersonaMenuScene final : Scene {
                    .width(450).height(530)
                    .zIndex(2)
                    .staggerChildren(33ms)
-                   .child(plainRow(4))   // SYSTEM (bottom -- enters first)
+                   // declared BOTTOM-UP: the stagger runs in declaration
+                   // order and zIndex owns paint order, so the list
+                   // enters from SYSTEM upward the way the game does
+                   .child(plainRow(8))   // SYSTEM (bottom -- enters first)
+                   .child(plainRow(7))   // CALENDAR
+                   .child(plainRow(6))   // SOCIAL LINK
+                   .child(plainRow(5))   // QUEST
+                   .child(plainRow(4))   // STATS
                    .child(selectedRow()) // PERSONA
                    .child(plainRow(2))   // EQUIP
                    .child(plainRow(1))   // ITEM
                    .child(plainRow(0)))  // SKILL
         .child(cursor())
+        .child(dateBlock())
+        .child(partyPanel())
         // ---- right-anchored tooltip title over the COMMAND rule ----
         .child(box().key("tooltip").top(40 - 12).right(43 - 12).zIndex(8)
                    .alignItems(Align::End)
