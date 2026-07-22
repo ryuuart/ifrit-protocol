@@ -462,7 +462,14 @@ struct Border {
   }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if (ctx.outline.isEmpty() || width <= 0)
+    // `width` is the RUN's width, and Weighted mode has a second width for
+    // the corners — so width == 0 is not "draw nothing", it is "corners
+    // only, no runs between them", which is a real frame and one of the
+    // things the corner vocabulary exists for. Bailing on width <= 0 made
+    // weightedCorners(0, w, …) silently draw nothing at all.
+    const float heaviest =
+        mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
+    if (ctx.outline.isEmpty() || heaviest <= 0)
       return;
     const SkPath base =
         inset != 0 ? lines::insetOutline(ctx.outline, inset) : ctx.outline;

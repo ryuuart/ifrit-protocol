@@ -252,13 +252,21 @@ Element rule(float x, float y, float w, Decoration dec) {
       .stroke(std::move(dec));
 }
 
+/** The numeral and the name, set as a ROW rather than at a hand-measured
+ *  offset. They used to be two absolutely-placed children 26 px apart,
+ *  which is exactly the width of "VII" in this face and 8 px short of
+ *  "VIII" — so the eighth section ran its name into its own number. A
+ *  baseline-aligned row cannot get that wrong for any numeral. */
 Element sectionTitle(float x, float y, const char *n, const char *name) {
   return box()
       .absolute()
       .left(x)
       .top(y)
-      .child(romanBold(n, 15, kRed, 1.0f).absolute().left(0).top(0))
-      .child(romanBold(name, 12, kInk, 2.2f).absolute().left(26).top(2));
+      .row()
+      .gap(11)
+      .alignItems(Align::Baseline)
+      .child(romanBold(n, 15, kRed, 1.0f))
+      .child(romanBold(name, 12, kInk, 2.2f));
 }
 
 // ---------------------------------------------------------------------------
@@ -939,19 +947,118 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       }
     }
 
+    // ---- VIII. WHICH WAY A CORNER FACES ----------------------------------
+    // The corner tile is the one piece of brush art whose ROTATION is a
+    // design decision rather than a consequence, and until this plate
+    // there was no way to see which one you were getting — every corner
+    // silently took the outgoing tangent, and on a rectangle that made
+    // three corners agree and the fourth (the closed contour's seam,
+    // which alone wrapped its probes) sit 45 degrees off.
+    //
+    // The art below is a CHEVRON pointing along its own local +x, so the
+    // difference is unmissable: on the bisector it points out of each
+    // corner diagonally; on the outgoing tangent it reads as flow, four
+    // arrows chasing each other round the frame.
+    plate.child(sectionTitle(56, 1700, "VIII",
+                             "THE CORNER \xc2\xb7 WHICH WAY IT FACES"));
+    plate.child(call("brushes::PatternBrush{cornerAlign} \xe2\x80\x94 the same "
+                     "art, the same rect, one field different",
+                     9.0f, kInkSoft)
+                    .absolute()
+                    .left(56)
+                    .top(1720));
+    {
+      // A chevron pointing along local +x: two strokes meeting at the tip.
+      auto chevron = [] {
+        return box()
+            .width(17)
+            .height(17)
+            .outline([](SkSize s) {
+              SkPathBuilder b;
+              b.moveTo(s.width() * 0.15f, s.height() * 0.12f);
+              b.lineTo(s.width() * 0.88f, s.height() * 0.5f);
+              b.lineTo(s.width() * 0.15f, s.height() * 0.88f);
+              return b.detach();
+            })
+            .stroke(lines::Line{.width = 1.6f, .fill = red()});
+      };
+      auto tick = [] {
+        return box().width(12).height(7).outline(hline()).stroke(
+            lines::Line{.width = 1.1f, .fill = ink()});
+      };
+      struct Corner {
+        const char *label;
+        brushes::PatternBrush::CornerAlign align;
+      };
+      const Corner variants[] = {
+          {"cornerAlign = Bisector  (the default)",
+           brushes::PatternBrush::CornerAlign::Bisector},
+          {"cornerAlign = Outgoing  (a marker that keeps going)",
+           brushes::PatternBrush::CornerAlign::Outgoing},
+      };
+      for (int i = 0; i < 2; ++i) {
+        brushes::PatternBrush pb;
+        pb.side = tick();
+        pb.corner = chevron();
+        pb.advance = 12.0f;
+        pb.cornerLength = 20.0f;
+        pb.reach = 20.0f;
+        pb.cornerAlign = variants[i].align;
+        plate.child(box()
+                        .absolute()
+                        .left(56.0f + 360.0f * (float)i)
+                        .top(1762)
+                        .width(230)
+                        .height(120)
+                        .outline(frameRect(10))
+                        .stroke(std::move(pb))
+                        .child(call(variants[i].label, 7.5f, kInkSoft)
+                                   .absolute()
+                                   .left(0)
+                                   .top(126)));
+      }
+      // And the placement itself: the corner sits ON the vertex now. A
+      // chamfer has EIGHT of them, which is the case that makes a
+      // half-a-detection-step error obvious.
+      brushes::PatternBrush octo;
+      octo.side = tick();
+      octo.corner = box()
+                        .width(13)
+                        .height(13)
+                        .outline(shapes::polygon(4, 45.0f))
+                        .foreground(util::stroke(1.3f, red()));
+      octo.advance = 12.0f;
+      octo.cornerLength = 16.0f;
+      octo.reach = 18.0f;
+      plate.child(box()
+                      .absolute()
+                      .left(776)
+                      .top(1762)
+                      .width(230)
+                      .height(120)
+                      .outline(shapes::chamfered(20.0f))
+                      .stroke(std::move(octo))
+                      .child(call("on shapes::chamfered(20) \xe2\x80\x94 eight "
+                                  "vertices, eight tiles",
+                                  7.5f, kInkSoft)
+                                 .absolute()
+                                 .left(0)
+                                 .top(126)));
+    }
+
     // ---- colophon --------------------------------------------------------
-    plate.child(rule(56, 1690, 1488, lines::cased(0.8f, soft(), 3.0f)));
+    plate.child(rule(56, 1940, 1488, lines::cased(0.8f, soft(), 3.0f)));
     plate.child(call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
                      "yourself: ComposeSketch stroke_atlas.cpp --frame out.png",
                      8.5f, kInkSoft)
                     .absolute()
                     .left(56)
-                    .top(1700));
+                    .top(1950));
     return plate;
   }
 
   void setup(sketch::SketchContext &ctx) override {
-    ctx.canvas(1600, 1736);
+    ctx.canvas(1600, 1990);
     ctx.background(kPaper);
 
     gType.mono = face(ctx, "Menlo");

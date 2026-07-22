@@ -194,13 +194,17 @@ void Composer::draw(SkCanvas &canvas) {
 
   impl.stats.picturesRecorded = 0;
   impl.stats.nodesPainted = 0;
+  impl.promotedBytesLast = impl.promotedBytes;
+  impl.promotedBytes = 0;
 
   // PaintContext::contentScale — device px per layout px under the host's
   // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
   // capture the scale current when they re-record.
   {
-    const SkMatrix &m = canvas.getTotalMatrix();
-    const float s = std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
+    // maxScaleOf, not the diagonal: a host that rotates its canvas reports
+    // getScaleX/Y == 0 at a quarter turn and every material would have been
+    // handed uContentScale = 1 regardless of the real zoom.
+    const float s = detail::maxScaleOf(canvas.getTotalMatrix());
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 
@@ -262,6 +266,45 @@ void Composer::setProfiling(bool on) {
 }
 
 bool Composer::profiling() const { return m_impl->profileEnabled; }
+
+void Composer::setAutoTexturePromotion(bool on) {
+  m_impl->autoPromote = on;
+  if (!on && m_impl->root) {
+    // Drop every promoted bake so a study can prove the promotion is what
+    // changed its numbers, rather than measuring a stale texture.
+    const auto clear = [](auto &&self, detail::Instance &inst) -> void {
+      inst.autoTexture = false;
+      inst.hotFrames = 0;
+      inst.replayMs = 0;
+      inst.liveStableRate = 0;
+      if (inst.desc && inst.desc->cacheMode != Cache::Texture)
+        inst.textureImage.reset();
+      for (auto &child : inst.children)
+        self(self, *child);
+    };
+    clear(clear, *m_impl->root);
+  }
+}
+
+bool Composer::autoTexturePromotion() const { return m_impl->autoPromote; }
+
+const char *Composer::promotionReason(Promotion p) {
+  switch (p) {
+  case Promotion::Cheap:      return "cheap enough to leave alone";
+  case Promotion::Warming:    return "expensive — counting frames before a bake";
+  case Promotion::Promoted:   return "baked by the library";
+  case Promotion::AskedFor:   return "Cache::Texture — you asked for it";
+  case Promotion::OptedOut:   return "promotion opted out";
+  case Promotion::Volatile:   return "its content changes every frame";
+  case Promotion::Composited: return "opacity/blend — a bake would round twice; "
+                                     "ask for Cache::Texture yourself";
+  case Promotion::Transformed:return "rotated, mirrored or skewed";
+  case Promotion::Filtered:   return "layer/backdrop effect, clip, or blends "
+                                     "against the canvas";
+  case Promotion::TooBig:     return "too large to bake, or over the bake budget";
+  }
+  return "";
+}
 
 const std::vector<Composer::NodeCost> &Composer::profile() const {
   return m_impl->profileRows;

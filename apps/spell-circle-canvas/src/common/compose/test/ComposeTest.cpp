@@ -14,7 +14,9 @@
 #include <include/core/SkSurface.h>
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -1869,6 +1871,50 @@ TEST(ComposeCaching, TextureBakeScaleQuantized) {
   EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
 }
 
+TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
+  // The same guarantee from the side the test above cannot see. A bake
+  // taken in DEVICE space is exact but pinned to one device rect, so it
+  // may only be taken while the node is holding still — and "still" has
+  // two independent measures that are easy to mistake for one:
+  //
+  //   * the node's own transform is not declared as animating, and
+  //   * the device rect it LANDS on has not moved.
+  //
+  // This node declares nothing. It is dragged across the canvas by an
+  // ancestor, through a Cache::None parent so no recording intervenes —
+  // the one arrangement where a moving rect reaches a node that looks
+  // static from every declaration available to it. A device-pinned bake
+  // would re-rasterize every frame here, which is precisely the cost the
+  // quantized local bake exists to avoid.
+  //
+  // Note this cannot be a pixel assertion: every arrangement below draws
+  // the correct picture. Only the bake COUNT tells them apart.
+  Host host(300, 300);
+  choreograph::Output<float> slide{0.0f};
+  host.composer.render(
+      box().cache(Cache::None).child(
+          box()
+              .cache(Cache::None)
+              .absolute()
+              .translateX(&slide)
+              .child(box()
+                         .width(60)
+                         .height(60)
+                         .cache(Cache::Texture)
+                         .fill(red())
+                         .child(box().width(20).height(20).fill(green())))));
+  host.frame();
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u); // the first bake
+  for (int i = 1; i <= 4; ++i) {
+    slide = (float)i * 7.0f; // a whole-pixel slide: the rect really moves
+    host.frame();
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "frame " << i
+        << ": the bake was re-rasterized while the node slid, instead of "
+           "being reused and blitted through the transform";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Kernel-completeness round: wrap, per-edge spacing, per-corner radii,
 // Dim literals, atlas regions, Paragraph overload, contentScale.
@@ -3679,6 +3725,494 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
 }
 
 // ---------------------------------------------------------------------------
+// Cache::Auto texture promotion — the library fixing a slow frame by itself.
+
+namespace {
+/** A subtree expensive enough to trip the promotion threshold, built from
+ *  ordinary drawing rather than a timer, so the test exercises the real
+ *  decision path. */
+Element expensivePanel() {
+  Element panel = box().width(180).height(180).fill(blue());
+  for (int i = 0; i < 220; ++i) {
+    const float t = (float)i / 220.0f;
+    panel.child(box()
+                    .absolute()
+                    .left(4 + t * 170)
+                    .top(2)
+                    .width(2)
+                    .height(176)
+                    .fill(i % 2 ? green() : red())
+                    .foreground(util::stroke(0.7f, Fill::color({1, 1, 1, 0.5f})))); 
+  }
+  return panel;
+}
+std::vector<SkColor> grab(Host &host) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  host.surface->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve(200 * 200);
+  for (int y = 0; y < 200; ++y)
+    for (int x = 0; x < 200; ++x)
+      out.push_back(bm.getColor(x, y));
+  return out;
+}
+} // namespace
+
+TEST(ComposeCache, AutoPromotionIsPixelIdentical) {
+  // THE constraint. A texture cache that resolved at the wrong scale and
+  // softened a hairline would trade a perf bug for a fidelity bug, and this
+  // library's whole output is hairlines at 1x. So promotion bakes in DEVICE
+  // space at an integer-snapped rect and blits with the matrix reset: an
+  // integer device translation cannot change rasterisation. This asserts
+  // that claim on every one of 40,000 pixels rather than trusting it.
+  Host reference;
+  reference.composer.setAutoTexturePromotion(false);
+  reference.composer.render(box().child(expensivePanel()));
+  for (int i = 0; i < 30; ++i)
+    reference.frame();
+  const std::vector<SkColor> before = grab(reference);
+
+  Host promoted;
+  promoted.composer.setAutoTexturePromotion(true);
+  promoted.composer.render(box().child(expensivePanel()));
+  for (int i = 0; i < 30; ++i)
+    promoted.frame();
+  const std::vector<SkColor> after = grab(promoted);
+
+  ASSERT_EQ(before.size(), after.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < before.size(); ++i)
+    differing += before[i] != after[i];
+  EXPECT_EQ(differing, 0u)
+      << differing << " pixels changed when the library promoted a node";
+}
+
+TEST(ComposeCache, PromotionIsVisibleInTheProfile) {
+  // A silent good outcome and a silent bad outcome look identical without an
+  // instrument, so a promotion the library performs must be attributable to
+  // the library. Whether this particular node trips the threshold depends on
+  // the machine, so the assertion is about REPORTING, not about promoting:
+  // no node may ever be labelled Promoted while promotion is switched off.
+  Host host;
+  host.composer.setAutoTexturePromotion(false);
+  host.composer.setProfiling(true);
+  host.composer.render(box().child(expensivePanel()));
+  for (int i = 0; i < 30; ++i)
+    host.frame();
+  bool sawPromoted = false, sawPicture = false;
+  for (const auto &row : host.composer.profile()) {
+    sawPromoted |= row.cacheState == Composer::CacheState::Promoted;
+    sawPicture |= row.cacheState == Composer::CacheState::Picture;
+  }
+  EXPECT_FALSE(sawPromoted) << "promotion is off, yet a node reported Promoted";
+  EXPECT_TRUE(sawPicture) << "nothing cached as a picture at all";
+  // And cached() still answers the coarse question.
+  for (const auto &row : host.composer.profile())
+    EXPECT_EQ(row.cached(), row.cacheState != Composer::CacheState::Live);
+}
+
+TEST(ComposeCache, CachePictureOptsOutOfPromotion) {
+  // The per-node switch: Cache::Picture means "record, and never promote".
+  Host host;
+  host.composer.setProfiling(true);
+  // Cache::None on the wrapper, or the panel is recorded into its parent
+  // once and never profiled again — and the loop below would then assert
+  // nothing at all, which is how it read before this line existed.
+  host.composer.render(box().cache(Cache::None).child(
+      expensivePanel().cache(Cache::Picture).key("optout")));
+  for (int i = 0; i < 30; ++i)
+    host.frame();
+  bool sawIt = false;
+  for (const auto &row : host.composer.profile())
+    if (row.label.rfind("optout", 0) == 0) {
+      sawIt = true;
+      EXPECT_NE(row.cacheState, Composer::CacheState::Promoted);
+      EXPECT_EQ(row.promotion, Composer::Promotion::OptedOut);
+    }
+  EXPECT_TRUE(sawIt) << "the node under test was never profiled";
+}
+
+// ---------------------------------------------------------------------------
+// The quarter turn. getScaleX()/getScaleY() are the matrix DIAGONAL, and a
+// ±90° rotation moves the entire scale into the skew terms — Skia snaps
+// cos(90°) to exactly zero, so the bake read "scale 0", clamped to its 0.25
+// floor, rasterized at QUARTER resolution and linear-upscaled 4×.
+
+namespace {
+/** 196×33 of 1 px hairlines: content that a bake at the wrong resolution
+ *  cannot fake. This library's entire output is hairlines at 1×. */
+Element hairlinePill() {
+  Element p = box().width(196).height(33).fill(Fill::color({0.85f, 0.86f, 0.9f, 1}));
+  for (int i = 0; i < 46; ++i)
+    p.child(box()
+                .absolute()
+                .left(4 + (float)i * 4)
+                .top(5)
+                .width(1)
+                .height(23)
+                .fill(Fill::color({0.05f, 0.06f, 0.08f, 1})));
+  return p;
+}
+/** Cache::None on the wrapper, and NOT as a convenience: a device-space
+ *  bake is pinned to one device rect, so it must never be recorded into a
+ *  picture — a picture can be replayed under a different matrix than it
+ *  was recorded at (an ancestor with a live transform keeps its picture
+ *  and replays it under the motion). Inside a recording the node keeps the
+ *  local bake, which is matrix-independent and inexact. A cacheable
+ *  wrapper would therefore paint this node exactly once, into its parent's
+ *  recording, and measure the path this test is not about. */
+Element rotatedPill(float degrees, bool cached) {
+  Element p = hairlinePill().absolute().left(52).top(133).rotate(degrees);
+  if (cached)
+    p.cache(Cache::Texture);
+  return box().cache(Cache::None).child(std::move(p));
+}
+bool identicalPixels(Host &a, Host &b, int w, int h) {
+  SkBitmap ba, bb;
+  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  a.surface->readPixels(ba.pixmap(), 0, 0);
+  b.surface->readPixels(bb.pixmap(), 0, 0);
+  for (int y = 0; y < h; ++y)
+    if (std::memcmp(ba.getAddr32(0, y), bb.getAddr32(0, y),
+                    (size_t)w * 4) != 0)
+      return false;
+  return true;
+}
+/** Pixels that differ at all, and the mean |Δ| over ink — the count is the
+ *  claim, the mean is what makes a failure legible. */
+struct BakeError {
+  size_t differing = 0;
+  double meanInk = 0;
+};
+BakeError bakeErrorAt(float degrees) {
+  Host plain(300, 300), baked(300, 300);
+  plain.composer.render(rotatedPill(degrees, false));
+  baked.composer.render(rotatedPill(degrees, true));
+  // Three frames: the bake must be taken on the first (the gate reads the
+  // node's declared transform, not paint history) AND still be the same
+  // pixels on the third, which is what catches a bake mode that oscillates.
+  for (int i = 0; i < 3; ++i) {
+    plain.frame();
+    baked.frame();
+  }
+  SkBitmap ba, bb;
+  ba.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  bb.allocPixels(SkImageInfo::MakeN32Premul(300, 300));
+  plain.surface->readPixels(ba.pixmap(), 0, 0);
+  baked.surface->readPixels(bb.pixmap(), 0, 0);
+  BakeError out;
+  double total = 0;
+  size_t ink = 0;
+  for (int y = 0; y < 300; ++y)
+    for (int x = 0; x < 300; ++x) {
+      const SkColor pa = ba.getColor(x, y), pb = bb.getColor(x, y);
+      if (pa != pb)
+        ++out.differing;
+      if (pa == SK_ColorBLACK && pb == SK_ColorBLACK)
+        continue;
+      ++ink;
+      total += (std::abs((int)SkColorGetR(pa) - (int)SkColorGetR(pb)) +
+                std::abs((int)SkColorGetG(pa) - (int)SkColorGetG(pb)) +
+                std::abs((int)SkColorGetB(pa) - (int)SkColorGetB(pb))) /
+               3.0;
+    }
+  out.meanInk = ink ? total / (double)ink : 0.0;
+  return out;
+}
+} // namespace
+
+TEST(ComposeCache, TextureBakeSurvivesAQuarterTurn) {
+  // A settled bake is taken in DEVICE space, snapped out to whole device
+  // pixels and blitted with the matrix reset, so it is a literal copy of
+  // the pixels the uncached draw would have produced — at ANY angle, not
+  // merely close at the convenient ones.
+  //
+  // The history is worth keeping, because each stage looked finished:
+  // mean |Δ| over the ink of a rotated pill was 30–32/255 at ±90° while
+  // upright measured 4.4 (the bake read the matrix DIAGONAL, saw scale 0
+  // at a quarter turn, and rasterized at the 0.25 floor). Fixing the scale
+  // took ±90° to 13.5 and upright to 0 — better, and still wrong, because
+  // a bake held in LOCAL space is resampled by whatever transform blits
+  // it: the texel grid landed half a texel off the device grid, costing
+  // 21% of the gradient across that axis. Correct resolution was necessary
+  // and not sufficient.
+  for (float degrees : {0.0f, 90.0f, -90.0f, 180.0f, 45.0f}) {
+    const BakeError e = bakeErrorAt(degrees);
+    EXPECT_EQ(e.differing, 0u)
+        << "rotate(" << degrees << "): " << e.differing
+        << " pixels differ from the uncached render (mean |delta| over ink "
+        << e.meanInk << ") — the bake is being resampled, not copied";
+  }
+}
+
+TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
+  // The exact bake blits with the matrix RESET, and an opacity/blend node
+  // is already inside a saveLayer when it does. That is only correct
+  // because an identity CTM is global canvas space even inside a layer —
+  // the layer device carries its own origin. If that were wrong the image
+  // would land somewhere else entirely, so it is worth an assertion rather
+  // than an argument.
+  const auto pill = [](bool cached, bool rotate) {
+    Element p = hairlinePill()
+                    .absolute()
+                    .left(52)
+                    .top(133)
+                    .rotate(rotate ? -90.0f : 0.0f)
+                    .opacity(0.5f)
+                    .blend(SkBlendMode::kScreen);
+    if (cached)
+      p.cache(Cache::Texture);
+    return box().cache(Cache::None).child(std::move(p));
+  };
+  for (bool rotate : {false, true}) {
+    Host plain(300, 300), baked(300, 300);
+    plain.composer.render(pill(false, rotate));
+    baked.composer.render(pill(true, rotate));
+    for (int i = 0; i < 3; ++i) {
+      plain.frame();
+      baked.frame();
+    }
+    // Not "roughly where it should be" — the layer receives exactly the
+    // pixels paintContent would have drawn into it, so the composite is
+    // the same composite.
+    EXPECT_TRUE(identicalPixels(plain, baked, 300, 300))
+        << "a cached node at opacity/blend" << (rotate ? " + rotate(-90)" : "")
+        << " did not composite the same as the uncached one";
+  }
+}
+
+TEST(ComposeCache, PromotionRefusesEveryRotation) {
+  // Promotion's envelope is upright, unmirrored and unskewed, and ±90° is
+  // "axis aligned" in the loose sense that would have let it through. A
+  // promoted node that resampled would be a fidelity bug bought with a
+  // perf win, which is worse than the perf bug.
+  for (float degrees : {90.0f, -90.0f, 180.0f, 45.0f}) {
+    Host host(300, 300);
+    host.composer.setProfiling(true);
+    // Cache::None on the wrapper so the panel is painted every frame; under
+    // a cacheable parent it would be recorded once and never profiled, and
+    // every assertion below would pass without testing anything.
+    host.composer.render(box().cache(Cache::None).child(expensivePanel()
+                                                            .absolute()
+                                                            .left(40)
+                                                            .top(40)
+                                                            .rotate(degrees)
+                                                            .key("turned")));
+    for (int i = 0; i < 30; ++i)
+      host.frame();
+    for (const auto &row : host.composer.profile())
+      if (row.label.rfind("turned", 0) == 0) {
+        EXPECT_NE(row.cacheState, Composer::CacheState::Promoted)
+            << "promoted a node at rotate(" << degrees << ")";
+        EXPECT_EQ(row.promotion, Composer::Promotion::Transformed);
+      }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Promotion, part two: the nodes it could not previously SEE.
+//
+// A leaf never records a picture — one drawRect beats a nested recording —
+// and the promoter only ever measured the replay path. So a full-canvas box
+// carrying one shader, which is the most expensive object in this corpus by
+// an order of magnitude (663 ms of a 697 ms frame in chladni_tab1), was
+// structurally invisible to it.
+
+namespace {
+/** Expensive per PIXEL rather than per op, which is the shape of the real
+ *  problem: a leaf whose cost no tree-shaped instrument can find. */
+sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
+  // The static variant must not so much as DECLARE uTime: Material::sksl
+  // reads liveness off the declaration, not off whether anything drives it.
+  SkString src;
+  if (withTime)
+    src.append("uniform float uTime;");
+  src.append("half4 main(float2 p) {");
+  src.append(withTime ? "  float t = uTime;" : "  float t = 0.0;");
+  src.append("  float v = 0.0;"
+             "  for (int i = 0; i < 40; ++i) {"
+             "    float f = float(i) + 1.0;"
+             "    v += sin(p.x * 0.031 * f + t) *"
+             "         cos(p.y * 0.027 * f - t) / f;"
+             "  }"
+             "  float g = clamp(v * 0.5 + 0.5, 0.0, 1.0);"
+             "  return half4(half(g), half(g * 0.5), half(1.0 - g), 1.0);"
+             "}");
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(src);
+  if (!effect)
+    ADD_FAILURE() << err.c_str();
+  return effect;
+}
+/** The wrapper is Cache::None ON PURPOSE. A static leaf under a CACHEABLE
+ *  parent is painted exactly once — into the parent's recording — and never
+ *  visited again, so it would never appear in the profile and every
+ *  assertion about it would pass vacuously. A live root is also the real
+ *  shape of the corpus: these leaves sit under a stack() with animated
+ *  siblings, which is why their cost is paid every frame. */
+Element heavyLeaf(const char *key) {
+  return box().cache(Cache::None).child(
+      box().width(400).height(400).key(key).fill(
+          Material::sksl(heavyEffect(false))));
+}
+const Composer::NodeCost *rowFor(const Composer &c, const char *key) {
+  for (const auto &row : c.profile())
+    if (row.label.rfind(key, 0) == 0)
+      return &row;
+  return nullptr;
+}
+} // namespace
+
+TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
+  Host promoted(400, 400);
+  promoted.composer.setProfiling(true);
+  promoted.composer.render(heavyLeaf("field"));
+  for (int i = 0; i < 24; ++i)
+    promoted.frame();
+  const Composer::NodeCost *row = rowFor(promoted.composer, "field");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
+      << "a leaf costing " << row->selfMs
+      << " ms per frame was never considered for a bake";
+  EXPECT_EQ(row->promotion, Composer::Promotion::Promoted);
+
+  // …and it is the same picture. This is the whole constraint: the corpus
+  // is hairlines at 1x, and a bake that resolved anywhere but the device
+  // grid would trade a perf bug for a fidelity bug.
+  Host plain(400, 400);
+  plain.composer.setAutoTexturePromotion(false);
+  plain.composer.render(heavyLeaf("field"));
+  for (int i = 0; i < 24; ++i)
+    plain.frame();
+  EXPECT_TRUE(identicalPixels(plain, promoted, 400, 400))
+      << "promoting the leaf changed its pixels";
+}
+
+TEST(ComposeCache, ARefusalSaysWhy) {
+  // The refusals are individually correct and individually invisible, and
+  // an author staring at `live paint  663 ms` cannot act on silence. The
+  // opacity case is the honest one: compositing a bake applies the alpha
+  // to an already-rounded 8-bit colour where the direct draw applies it to
+  // the shader's float output, so the two agree to within 1 LSB — which is
+  // not agreement. Cache::Texture is how you say you accept that.
+  Host host(400, 400);
+  host.composer.setProfiling(true);
+  host.composer.render(box().cache(Cache::None).child(
+      box()
+          .width(400)
+          .height(400)
+          .key("wash")
+          .fill(Material::sksl(heavyEffect(false)))
+          .opacity(0.4f)));
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = rowFor(host.composer, "wash");
+  ASSERT_NE(row, nullptr);
+  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(row->promotion, Composer::Promotion::Composited);
+  EXPECT_STRNE(Composer::promotionReason(row->promotion), "");
+}
+
+// ---------------------------------------------------------------------------
+// Temporal promotion: "static" is the wrong eligibility test. The right one
+// is STABLE SINCE THE LAST BAKE.
+
+namespace {
+/** Host with a real FrameClock, so a material's injected uTime advances.
+ *  (The shared Host deliberately has none — most tests want elapsed 0.) */
+struct ClockedHost {
+  sigil::motion::Ticker ticker;
+  sigil::motion::FrameClock clock;
+  Composer composer{ticker, fonts()};
+  sk_sp<SkSurface> surface;
+  double now = 0;
+
+  ClockedHost(int w, int h) {
+    composer.setClock(&clock);
+    composer.setSize({(float)w, (float)h});
+    surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
+  }
+  void frame(double dt) {
+    now += dt;
+    clock.tick(now);
+    ticker.tick(dt);
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    composer.draw(*surface->getCanvas());
+  }
+  SkBitmap grab(int w, int h) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+    surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  }
+};
+Element timedLeaf(float quantizeHz) {
+  Material m = Material::sksl(heavyEffect(true));
+  if (quantizeHz > 0)
+    m.quantizeTime(quantizeHz);
+  return box().child(box().width(400).height(400).key("plasma").fill(
+      std::move(m)));
+}
+} // namespace
+
+TEST(ComposeCache, AQuantizedMaterialIsCacheableBetweenItsTicks) {
+  // quantizeTime(4) at 60 FPS means the shader's inputs change four times a
+  // second and the other 56 frames resolve to the SAME shader. Their pixels
+  // are therefore identical to the last bake's — not similar, identical —
+  // so the bake is still valid and the shader need not run.
+  ClockedHost host(400, 400);
+  host.composer.setProfiling(true);
+  host.composer.render(timedLeaf(4.0f));
+  for (int i = 0; i < 24; ++i)
+    host.frame(1.0 / 60.0);
+  const Composer::NodeCost *row = rowFor(host.composer, "plasma");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
+      << "a material stepping at 4 Hz still paid its shader 60 times a second";
+}
+
+TEST(ComposeCache, AContinuousMaterialStaysLive) {
+  // The other half of the same rule, and the reason it is MEASURED rather
+  // than read off quantizeTime(): a material whose inputs really do change
+  // every frame would re-bake every frame, which costs more than the replay
+  // it replaced. Its stability rate never reaches the threshold.
+  ClockedHost host(400, 400);
+  host.composer.setProfiling(true);
+  host.composer.render(timedLeaf(0.0f));
+  for (int i = 0; i < 24; ++i)
+    host.frame(1.0 / 60.0);
+  const Composer::NodeCost *row = rowFor(host.composer, "plasma");
+  ASSERT_NE(row, nullptr);
+  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(row->promotion, Composer::Promotion::Volatile);
+}
+
+TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
+  // Held to the same standard as the static case, over a window that
+  // straddles the quantizer's step: 4 Hz at 60 FPS steps on frames 15, 30
+  // and 45, so frames 24..40 cover a full hold, the tick, and the hold
+  // after it. Every frame must match the unpromoted render exactly.
+  ClockedHost promoted(400, 400), plain(400, 400);
+  plain.composer.setAutoTexturePromotion(false);
+  promoted.composer.render(timedLeaf(4.0f));
+  plain.composer.render(timedLeaf(4.0f));
+  for (int i = 0; i < 41; ++i) {
+    promoted.frame(1.0 / 60.0);
+    plain.frame(1.0 / 60.0);
+    if (i < 24)
+      continue;
+    SkBitmap a = plain.grab(400, 400), b = promoted.grab(400, 400);
+    size_t differing = 0;
+    for (int y = 0; y < 400; ++y)
+      for (int x = 0; x < 400; ++x)
+        differing += a.getColor(x, y) != b.getColor(x, y);
+    EXPECT_EQ(differing, 0u) << "frame " << i << ": " << differing
+                             << " pixels changed under temporal promotion";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // decorations::Border — brackets, gapped rules, weighted corners, insets.
 
 namespace {
@@ -4679,6 +5213,157 @@ TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
                                        .stroke(std::move(brush))));
   host.frame();
   EXPECT_EQ(host.pixel(56, 44), SK_ColorBLUE);
+}
+
+namespace {
+/** A corner tile whose EXTENT is symmetric but whose colour is not: a 24x8
+ *  bar, red on its local -x half and green on its local +x half. The stamp
+ *  centres on the art's cull rect, so the midpoint of the two blobs is the
+ *  placement and the vector between them is the rotation — both readable
+ *  off the pixels, neither inferred. */
+Element directedCornerTile() {
+  return box()
+      .width(24)
+      .height(8)
+      .child(box().absolute().left(0).top(0).width(12).height(8).fill(
+          Fill::color({1, 0, 0, 1})))
+      .child(box().absolute().left(12).top(0).width(12).height(8).fill(
+          Fill::color({0, 1, 0, 1})));
+}
+struct Blob {
+  double x = 0, y = 0;
+  size_t n = 0;
+  void add(int px, int py) { x += px; y += py; ++n; }
+  SkPoint centre() const {
+    return {(float)(x / (double)n), (float)(y / (double)n)};
+  }
+};
+} // namespace
+
+TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
+  // Two defects in one placement, both found by a study that needed a real
+  // 48 px elbow against 24 px sides.
+  //
+  //  a. The scan STRADDLES the vertex — it compares the tangent at d-step
+  //     with the tangent at d — so the break is first seen one step after
+  //     the bend, and recording the midpoint of that bracket put the art
+  //     up to step/2 past it. With advance 24 the step is 6, and the study
+  //     measured its corners a consistent 3 px along the OUTGOING leg.
+  //  b. The bisector was then built by re-probing at d±2. From a point
+  //     already past the vertex both probes land on the same leg, so every
+  //     corner faced the outgoing tangent — except a closed contour's seam,
+  //     inserted at d = 0, whose probes wrap. On a rectangle that is three
+  //     corners one way and the fourth 45 degrees off.
+  //
+  // The rect's vertices are exact, so both claims are arithmetic.
+  Host host(400, 340);
+  brushes::PatternBrush brush;
+  brush.side = box().width(24).height(10).child(
+      box().absolute().left(2).top(4).width(20).height(2).fill(
+          Fill::color({0.35f, 0.45f, 0.95f, 1})));
+  brush.corner = directedCornerTile();
+  brush.advance = 24;
+  brush.cornerLength = 40;
+  brush.reach = 40;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(0)
+                                       .outline([](SkSize) {
+                                         SkPathBuilder p;
+                                         p.moveTo(100, 100);
+                                         p.lineTo(300, 100);
+                                         p.lineTo(300, 240);
+                                         p.lineTo(100, 240);
+                                         p.close();
+                                         return p.detach();
+                                       })
+                                       .stroke(std::move(brush))));
+  host.frame();
+
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 340));
+  ASSERT_TRUE(host.surface->readPixels(bm.pixmap(), 0, 0));
+  // Quadrant assignment about the rect's centre — unbiased, and every tile
+  // sits within 30 px of its own vertex, nowhere near the middle.
+  Blob red[4], green[4];
+  for (int y = 0; y < 340; ++y)
+    for (int x = 0; x < 400; ++x) {
+      const SkColor c = bm.getColor(x, y);
+      const int r = (int)SkColorGetR(c), g = (int)SkColorGetG(c),
+                b = (int)SkColorGetB(c);
+      const int q = (x > 200 ? 1 : 0) + (y > 170 ? 2 : 0);
+      if (r > 150 && r > 2 * g && r > 2 * b)
+        red[q].add(x, y);
+      else if (g > 150 && g > 2 * r && g > 2 * b)
+        green[q].add(x, y);
+    }
+
+  // quadrant order: 0 = top-left, 1 = top-right, 2 = bottom-left, 3 = BR
+  const SkPoint vertex[4] = {{100, 100}, {300, 100}, {100, 240}, {300, 240}};
+  for (int q = 0; q < 4; ++q) {
+    ASSERT_GT(red[q].n, 20u) << "no corner tile in quadrant " << q;
+    ASSERT_GT(green[q].n, 20u) << "no corner tile in quadrant " << q;
+    const SkPoint rc = red[q].centre(), gc = green[q].centre();
+    const SkPoint place{(rc.x() + gc.x()) * 0.5f, (rc.y() + gc.y()) * 0.5f};
+    EXPECT_NEAR(place.x(), vertex[q].x(), 1.5f)
+        << "corner " << q << " landed off its vertex in x";
+    EXPECT_NEAR(place.y(), vertex[q].y(), 1.5f)
+        << "corner " << q << " landed off its vertex in y";
+    // Every vertex of an axis-aligned rectangle bisects to a diagonal, so
+    // |dx| == |dy|. The outgoing tangent is axis aligned and one of them
+    // would be ~0.
+    const float dx = std::abs(gc.x() - rc.x()), dy = std::abs(gc.y() - rc.y());
+    EXPECT_NEAR(dx, dy, (dx + dy) * 0.2f)
+        << "corner " << q << " faces (" << (gc.x() - rc.x()) << ", "
+        << (gc.y() - rc.y()) << ") — not the bisector";
+  }
+}
+
+TEST(ComposeBrushes, PatternCornerAlignOutgoingIsStillAvailable) {
+  // The other alignment is what a directional marker wants — an arrow that
+  // turns a corner should keep pointing the way it is going.
+  Host host(400, 340);
+  brushes::PatternBrush brush;
+  brush.side = box().width(24).height(2).fill(Fill::color({0.2f, 0.2f, 0.6f, 1}));
+  brush.corner = directedCornerTile();
+  brush.advance = 24;
+  brush.cornerLength = 40;
+  brush.reach = 40;
+  brush.cornerAlign = brushes::PatternBrush::CornerAlign::Outgoing;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(0)
+                                       .outline([](SkSize) {
+                                         SkPathBuilder p;
+                                         p.moveTo(100, 100);
+                                         p.lineTo(300, 100);
+                                         p.lineTo(300, 240);
+                                         p.lineTo(100, 240);
+                                         p.close();
+                                         return p.detach();
+                                       })
+                                       .stroke(std::move(brush))));
+  host.frame();
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 340));
+  ASSERT_TRUE(host.surface->readPixels(bm.pixmap(), 0, 0));
+  Blob red, green;
+  for (int y = 0; y < 170; ++y)
+    for (int x = 201; x < 400; ++x) { // the top-right vertex only
+      const SkColor c = bm.getColor(x, y);
+      const int r = (int)SkColorGetR(c), g = (int)SkColorGetG(c),
+                b = (int)SkColorGetB(c);
+      if (r > 150 && r > 2 * g && r > 2 * b)
+        red.add(x, y);
+      else if (g > 150 && g > 2 * r && g > 2 * b)
+        green.add(x, y);
+    }
+  ASSERT_GT(red.n, 20u);
+  ASSERT_GT(green.n, 20u);
+  // Leaving (300,100) the contour heads straight DOWN: dx ~ 0, dy > 0.
+  const SkPoint rc = red.centre(), gc = green.centre();
+  EXPECT_NEAR(gc.x() - rc.x(), 0.0f, 2.0f);
+  EXPECT_GT(gc.y() - rc.y(), 6.0f);
 }
 
 TEST(ComposeMaterials, StableLiveResolveReplaysThePicture) {

@@ -82,11 +82,22 @@ The phase line answers "what dominates" first:
 - **`update` / `reconcile` high** → you are rebuilding the tree every
   frame. Describe once in `setup()` and bind `choreograph::Output`s, or
   `memo()` the subtrees whose props did not change.
-- **`paint` high** → per-pixel cost. `debug::coverage` finds the node; a
-  static SkSL Material's *shader* caches but its *pixels do not* (a
-  picture records the draw call, not the result), so
-  `.cache(Cache::Texture)` on a full-canvas material is the usual
-  hundred-millisecond win.
+- **`paint` high** → per-pixel cost, and the per-node list below the
+  phase line names the culprit. (**Not `debug::coverage`** — that is a
+  geometric path-tiling check and has nothing to do with paint cost.
+  A whole run was authored against that signpost.) A static SkSL
+  Material's *shader* caches but its *pixels do not*: a picture records
+  the draw CALL, not the result, so replaying it re-runs the shader over
+  every pixel forever.
+
+  On a FAIL, `--bench` prints the six most expensive nodes with how each
+  produced its pixels and, under any expensive one that is not a bake, a
+  **`not baked:` line saying why**. The library promotes what it can
+  prove is safe. The refusal you will actually hit is
+  `opacity/blend — a bake would round twice`: that is the full-canvas
+  paper-grain idiom, and it is yours to ask for with
+  `.cache(Cache::Texture)`, because typing it is how you say you accept
+  the rounding.
 - **`pictures recorded` non-zero every frame** → something incomparable
   (a raw `custom()` program, a `StampModFn`, an `ops::PathOp`) is
   defeating the cache. `memo()` the host node or keep the callable
@@ -145,6 +156,11 @@ SIGIL_SKETCH(MySketch)
   `update()` and `setup()` are handed. `hello.cpp` sidesteps the trap
   by capturing only `this`, which makes it invisible until a steppable
   needs `ctx.composer`.
+- **`SkPath::addPath` no longer exists in this Skia.** The obvious
+  spelling fails to compile and the error does not point anywhere
+  useful. Build with `SkPathBuilder` and `SkPathBuilder::addPath`, then
+  `detach()`. The same applies to most in-place `SkPath` mutation:
+  paths are values here, builders are the mutable half.
 - Open-licensed demo assets (fonts, so far) come from
   `cmake --build build --config Release --target fetch_assets`, which
   writes `build/assets/`. Point the host at them with
