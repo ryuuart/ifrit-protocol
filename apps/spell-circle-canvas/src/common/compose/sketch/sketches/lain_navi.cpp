@@ -1223,15 +1223,25 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     root.child(slot("phrases"));
 
     // ---- the tube -----------------------------------------------------------
-    // THE CREEP RIDES A WRAPPER, NOT THE BAKED NODE. Measured: with
-    // .translateY(&creep) on the Texture-cached node itself, every whole-pixel
-    // step of the creep RE-BAKES the 1016x744 SkSL layer — p99 3.6 -> 33.4 ms,
-    // three spikes in five seconds, one per creep step. Moving the binding to
-    // a parent box that owns no paint leaves the bake keyed on nothing that
-    // changes and the child simply blits under a live transform: p99 5.5 ms.
-    // (Same shape as the MAGI study's rule that a cached node's transform
-    // belongs on a wrapper, arrived at from the opposite direction — there it
-    // was a rotated RESAMPLE, here it is a re-BAKE.)
+    // The creep rides a wrapper rather than the baked node. This was originally
+    // written up as a library bug — .translateY(&creep) on the Texture-cached
+    // node measured p99 33.4 ms, three spikes in five seconds, one per creep
+    // step — and it DOES NOT REPRODUCE at f706f5d. Re-measured both ways, 480
+    // frames, four creep steps:
+    //
+    //     creep on the baked node   p50 3.84  p99 6.52  max 7.31
+    //     creep on this wrapper     p50 3.72  p99 6.39  max 7.42
+    //
+    // Statistically identical, and a re-bake of a 1016x744 SkSL layer costs
+    // ~30 ms — it cannot hide under a 7.31 ms maximum. Either the promotion
+    // work landed in that window fixed it incidentally, or "one spike per creep
+    // step" was three events read as a period. Both are consistent with the
+    // evidence and neither can be shown from here.
+    //
+    // The wrapper stays because it is free and it is the right habit — a cached
+    // node's transform belongs on a parent that owns no paint. But it is a
+    // habit, not a workaround for a demonstrated defect, and the next study to
+    // read this should not believe otherwise.
     root.child(box()
                    .absolute()
                    .inset(0)
