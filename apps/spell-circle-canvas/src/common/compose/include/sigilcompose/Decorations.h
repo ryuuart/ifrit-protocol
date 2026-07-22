@@ -56,6 +56,13 @@ struct PathFormat {
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
+  /** Bind the dash phase to a wrapping Output and the dashes MARCH —
+   *  the commonest animated-line idiom in map and diagram UI (a selected
+   *  route, a live link, a cut line). Like `trimPhase`, it supersedes the
+   *  constant and declares the decoration animated, so the node repaints
+   *  without a re-describe. A study wrote a 25-line DecorationScheme for
+   *  want of this. */
+  const choreograph::Output<float> *dashPhaseBinding = nullptr;
 
   /** Stamp this path repeatedly along the contour (advance px apart),
    *  rotated to follow it — vines, chains, ornament runs. */
@@ -101,7 +108,12 @@ struct PathFormat {
                                    : width * 0.5f;
   }
   /** A bound trim phase repaints per frame (declared volatility). */
-  bool animated() const { return trimPhase != nullptr; }
+  bool animated() const {
+    return trimPhase != nullptr || dashPhaseBinding != nullptr;
+  }
+  float phase() const {
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+  }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     SkPaint p;
@@ -118,11 +130,11 @@ struct PathFormat {
 
     sk_sp<SkPathEffect> chosen = effect;
     if (!chosen && stampAdvance > 0 && !stampPath.isEmpty())
-      chosen = SkPath1DPathEffect::Make(stampPath, stampAdvance, dashPhase,
+      chosen = SkPath1DPathEffect::Make(stampPath, stampAdvance, phase(),
                                         SkPath1DPathEffect::kRotate_Style);
     if (!chosen && !dashIntervals.empty())
       chosen = SkDashPathEffect::Make(
-          SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase);
+          SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
     p.setPathEffect(std::move(chosen));
 
     // The decoration's own trim window (wrapping; the marching sliver).

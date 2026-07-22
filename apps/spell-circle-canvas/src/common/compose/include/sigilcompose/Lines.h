@@ -242,6 +242,8 @@ struct Line {
    *  strokes, never to heads or ties). */
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
+  /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
+  const choreograph::Output<float> *dashPhaseBinding = nullptr;
 
   /** Along-arc gradient (mapbox line-gradient, §9): color as a ramp over
    *  the run's arc fraction — the energy fade, the elevation-colored
@@ -252,6 +254,13 @@ struct Line {
   std::vector<Stop> alongStops;
 
   bool operator==(const Line &) const = default;
+
+  /** A bound dash phase makes the node volatile, the same declared-
+   *  volatility contract PathFormat::trimPhase uses. */
+  bool animated() const { return dashPhaseBinding != nullptr; }
+  float phase() const {
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+  }
 
   /** Paint reach beyond the outline (cull growth): outer parallels, tie
    *  arms, and heads all overhang. */
@@ -301,7 +310,7 @@ struct Line {
     applyFill(stroke);
     if (!dashIntervals.empty())
       stroke.setPathEffect(SkDashPathEffect::Make(
-          SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase));
+          SkSpan(dashIntervals.data(), dashIntervals.size()), phase()));
 
     // 1b. The along-arc gradient: chunked solid strokes (single run only).
     if (!alongStops.empty() && parallels <= 1 && dashIntervals.empty()) {
@@ -360,7 +369,7 @@ struct Line {
       // the one-parameterization property the references get from shaders.
       SkPath dashedBody = body;
       if (sk_sp<SkPathEffect> dashFx = SkDashPathEffect::Make(
-              SkSpan(dashIntervals.data(), dashIntervals.size()), dashPhase)) {
+              SkSpan(dashIntervals.data(), dashIntervals.size()), phase())) {
         SkPathBuilder dashed;
         SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
         if (dashFx->filterPath(&dashed, body, &rec))
