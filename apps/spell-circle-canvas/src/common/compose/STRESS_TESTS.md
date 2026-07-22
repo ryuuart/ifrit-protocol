@@ -383,7 +383,17 @@ replay re-rasterizes, Data≈Live there) vs **0.18 ms Graphite Live**
 (18 ns/sprite, ~200×) — masses are a GPU play, as designed. Data mode
 prunes on (atlas, pool, revision); Live is the Cache::None particle path.
 
-**ElementNode split (2026-07-21):** the monolithic ~46-field description
+**ElementNode split (2026-07-21) — SUPERSEDED; the sizes below are the
+figures as of that date, not current.** A later arc took `PaintProps`
+856 → 256 B and `ElementNode` 1288 → **688 B**, and tightened the guard
+from 1400 to **768**. That correction is 40 lines down, under
+"PaintProps compaction", and this entry is left in place because this
+document is a dated LOG — but a benchmark table is read for its numbers
+and not for its date, so the pointer belongs at the top rather than
+below. `Composer.cpp` is the authority: `static_assert(sizeof(ElementNode)
+<= 768)`.
+
+The monolithic ~46-field description
 struct became a lean base (hot fields: kind/key/layout/paint/corners/
 decorations/children) + seven out-of-line `Box<T>` blocks (Text, Image,
 Custom, Derive, Fx, Material, Memo — value-semantic deep-copying boxes,

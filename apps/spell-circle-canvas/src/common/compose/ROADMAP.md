@@ -1337,6 +1337,74 @@ Use `MakeXYWH(x, y, 1, 1)`, or seed the accumulator with the first point
 and `joinPossiblyEmptyRect`. Documented in `sketch/README.md` beside the
 bounds discussion.
 
+## 24. `layouts::stickerScatter` is DELETED, and the record is the point
+
+Zero users. Refused in writing by the one scene that wants a sticker
+ladder, which kept its hand-authored `{−25,−15,−20,−15,…,+8}`. Conceded
+in its own doc comment. Shipped anyway.
+
+The generator encoded one reference plate's scatter as six parameters —
+decaying rotations with the last item flipped positive, x-jitter,
+overlapping pitch, shuffled z. The refusal is the interesting part and
+it is not "the generator was inaccurate": it produced ladders *in that
+family*, and **a ladder in that family is exactly what the design is
+not.** The value of the reference ladder is that somebody CHOSE it.
+
+> A scheme belongs in `Layouts.h` when the placement is a FUNCTION the
+> author would otherwise write out — a radial ring, a modular grid, a
+> baseline rhythm. It does not when the placement IS the design
+> decision. Parameterising a judgement produces something that can only
+> be right by accident, and it costs a maintained API forever.
+
+The header keeps that paragraph where the code was. `EXTRACT.md` §1.2
+carries the long version.
+
+## 25. Ten documentation defects, and what they say about doc tests
+
+A documentation site built against these sources found ten defects in
+`API.md`, `EXTRACT.md` and `STRESS_TESTS.md`. Two of them were **code
+that does not compile**: `PathFormat{.effects = …, .paint = …}` at two
+sites, where the header has `effect` (singular, one `SkPathEffect`, not
+a chain) and `strokeFill`. That is the primitive an author meets on page
+one.
+
+**The lesson is about the guard, not the defects.**
+`ComposeDocs.EverySignatureInTheLineAndBorderDocsCompiles` exists
+precisely to make a non-compiling documented call impossible, and it did
+not catch these — because `PathFormat` is documented in a section that
+test does not cover.
+
+> **A doc test that covers one section proves the mechanism works and
+> leaves every other section exactly as wrong as before.** It is worse
+> than no test in one specific way: the suite now contains something
+> named as though documentation is checked.
+
+The same shape as the four corner scanners, `Promotion::Filtered`'s four
+causes, the sweep tool that did not know `rect()`/`at()` had become edge
+setters, and §15's split bake missing the `upright` gate its neighbour
+had. Sixth instance. `ComposeDocs` now covers the caching/promotion,
+material, decoration, shape, layout, text-path and pattern surfaces, and
+**its own first draft did not compile in six places** — `Material::color`
+(it is `solid`), `Material::Stop` (a free struct), `glowUnit`'s two
+colours (it takes a stop vector), `util::shadow`'s argument order,
+`PathSample::pos` (it is `position`) and `t()` for `text()`.
+
+The rest, fixed: `PathSample::fraction` is per CONTOUR (the same trap
+`Ribbon::widthFn` documents under `trim()`); `patterns::grain` has five
+parameters and `stretch` aliases past ~8; `Layouts.h` ships seven
+schemes and `API.md` listed three, omitting `BaselineGrid`, the only
+consumer of `LayoutInput::childBaselines`; `TextPath::Orient` has three
+values and `API.md` had two; a caching paragraph was spliced mid-sentence
+across four paragraphs; and `<sigilcompose/compose.h>` / `util.h` were
+lowercase at four sites — **fine on macOS, broken on Linux**, which is
+the kind of defect that cannot be found by anyone able to find it.
+
+`TextPath::atDeg` was struck rather than shipped: `kit::Frame::fraction()`
+answers the same need from a better place, since θ→arc-length-fraction is
+a property of the FRAME and not of text, and every consumer of a circular
+contour wanted it. A field on `TextPath` would have been the fifth copy
+of the arithmetic wearing the name of its first caller.
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers
