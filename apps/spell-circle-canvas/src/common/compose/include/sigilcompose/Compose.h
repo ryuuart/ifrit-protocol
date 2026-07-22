@@ -77,6 +77,42 @@ struct Transition {
   std::chrono::milliseconds delay{0};
 };
 
+/** The house curves, as EaseFn VALUES.
+ *
+ *  `Transition::ease` holds a `choreograph::EaseFn` (float→float), and
+ *  choreograph's most useful curves — back, elastic, bounce — take a
+ *  shape parameter with a default, so `&choreograph::easeOutBack` will
+ *  not convert and the error is a wall of overload-resolution noise. Every
+ *  overshoot entrance in the gallery hit this and every one of them
+ *  silently settled for easeOutQuint instead. These bind the parameter:
+ *
+ *      .scale(withFrom(0.86f, 1.0f, {520ms, ease::outBack()}))
+ */
+namespace ease {
+/** Overshoot and settle. `s` is the overshoot amount (Penner's 1.70158
+ *  overshoots by ~10%); larger exaggerates the anticipation. */
+inline choreograph::EaseFn outBack(float s = 1.70158f) {
+  return [s](float t) { return choreograph::easeOutBack(t, s); };
+}
+inline choreograph::EaseFn inBack(float s = 1.70158f) {
+  return [s](float t) { return choreograph::easeInBack(t, s); };
+}
+inline choreograph::EaseFn inOutBack(float s = 1.70158f) {
+  return [s](float t) { return choreograph::easeInOutBack(t, s); };
+}
+/** Ring down to rest. `a` is amplitude, `p` the period. */
+inline choreograph::EaseFn outElastic(float a = 1.0f, float p = 0.3f) {
+  return [a, p](float t) { return choreograph::easeOutElastic(t, a, p); };
+}
+inline choreograph::EaseFn inElastic(float a = 1.0f, float p = 0.3f) {
+  return [a, p](float t) { return choreograph::easeInElastic(t, a, p); };
+}
+/** Land and bounce. */
+inline choreograph::EaseFn outBounce(float a = 1.70158f) {
+  return [a](float t) { return choreograph::easeOutBounce(t, a); };
+}
+} // namespace ease
+
 template <typename T> struct Transitioned {
   T value;
   Transition spec;
@@ -649,6 +685,20 @@ public:
   Element &translateY(PropValue<float> v);
   Element &rotate(PropValue<float> degrees);
   Element &scale(PropValue<float> factor);
+  /** Per-axis scale about the transform origin, multiplied INTO scale().
+   *  Paint-only like scale(): animating one never relayouts, and the
+   *  content picture replays under the new transform.
+   *
+   *  Bars, wipes, meters, cooldown sweeps, drain rings and "slide this
+   *  piece into its slot" are the most common animated primitive a UI
+   *  has, and not one of them is uniform. Without these the idiom was a
+   *  full-width fill inside a clip translated by -(1 - fraction) * width,
+   *  which only survives while the fill happens to be a gradient along
+   *  the OTHER axis. Set transformOrigin() to pin the growing edge —
+   *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
+   *  from its left edge. */
+  Element &scaleX(PropValue<float> factor);
+  Element &scaleY(PropValue<float> factor);
   /** Shear, in degrees, about the transform origin — the diagonal-slash
    *  language (P3R cards ≈ −12°, P5R ≈ −20°; REFERENCES.md §1). Paint-only
    *  like rotate/scale: animating skews never relayouts, and content
@@ -676,6 +726,12 @@ public:
   }
   template <std::integral T> Element &scale(T f) {
     return scale(PropValue<float>((float)f));
+  }
+  template <std::integral T> Element &scaleX(T f) {
+    return scaleX(PropValue<float>((float)f));
+  }
+  template <std::integral T> Element &scaleY(T f) {
+    return scaleY(PropValue<float>((float)f));
   }
   template <std::integral T> Element &skewX(T deg) {
     return skewX(PropValue<float>((float)deg));

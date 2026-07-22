@@ -594,6 +594,65 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 
+TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
+  // choreograph's back/elastic/bounce take a shape parameter with a
+  // default, so &choreograph::easeOutBack does not convert to an EaseFn.
+  // These adapters bind it — and outBack must actually OVERSHOOT, which
+  // is the only reason to reach for it.
+  const choreograph::EaseFn back = ease::outBack();
+  float peak = 0.0f;
+  for (int i = 0; i <= 100; ++i)
+    peak = std::max(peak, back((float)i / 100.0f));
+  EXPECT_GT(peak, 1.05f) << "outBack did not overshoot";
+  EXPECT_NEAR(back(0.0f), 0.0f, 1e-4f);
+  EXPECT_NEAR(back(1.0f), 1.0f, 1e-4f);
+
+  // and it is usable where the papercut was: inside a Transition.
+  Host host(100, 100);
+  host.composer.render(box().child(
+      box().width(40).height(40).absolute().left(30).top(30)
+          .scale(withFrom(0.5f, 1.0f,
+                          {std::chrono::milliseconds(200), ease::outBack()}))
+          .fill(Material::solid({1, 1, 1, 1}))));
+  host.frame();
+  SUCCEED();
+}
+
+TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
+  // The bar primitive. transformOrigin pins the LEFT edge, scaleX carries
+  // the fraction, and the fill grows rightward — no clip, no counter-
+  // translation, and correct for any fill (the translate-inside-a-clip
+  // workaround is only correct for gradients along the other axis).
+  Host host(200, 40);
+  choreograph::Output<float> fraction{0.25f};
+  host.composer.render(box().child(
+      box().width(200).height(40).absolute().left(0).top(0)
+          .transformOrigin(0.0f, 0.5f)
+          .scaleX(&fraction)
+          .fill(Material::solid({1, 0, 0, 1}))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u);  // inside the quarter
+  EXPECT_LT(SkColorGetR(host.pixel(80, 20)), 60u);   // past it
+  fraction = 0.75f; // bound value moves — no re-render
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u);
+  EXPECT_LT(SkColorGetR(host.pixel(180, 20)), 60u);
+}
+
+TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
+  Host host(200, 200);
+  host.composer.render(box().child(
+      box().width(200).height(200).absolute().left(0).top(0)
+          .transformOrigin(0.0f, 0.0f)
+          .scaleX(0.25f).scaleY(0.75f)
+          .fill(Material::solid({0, 1, 0, 1}))));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(10, 10)), 200u);   // inside both
+  EXPECT_LT(SkColorGetG(host.pixel(90, 10)), 60u);    // past x, inside y
+  EXPECT_GT(SkColorGetG(host.pixel(10, 140)), 200u);  // inside x, inside y
+  EXPECT_LT(SkColorGetG(host.pixel(10, 190)), 60u);   // past y
+}
+
 TEST(ComposeShapes, SectorIsClosedAndFillable) {
   // shapes::arc() is open by contract; a pie wedge needs a closed path.
   // A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the

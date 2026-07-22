@@ -142,6 +142,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   ownPaint |= boundOrRunning(Instance::kScale, node.paint.scale);
   ownPaint |= boundOrRunning(Instance::kSkewX, node.paint.skewX);
   ownPaint |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
+  ownPaint |= boundOrRunning(Instance::kScaleX, node.paint.scaleX);
+  ownPaint |= boundOrRunning(Instance::kScaleY, node.paint.scaleY);
 
   // Content volatility: what actually invalidates the node's own recording
   // (bound/lerping fills, per-frame programs, animated decorations and image
@@ -354,6 +356,8 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     const float ty = child->resolveFloat(Instance::kTy, cn.paint.translateY);
     const float rot = child->resolveFloat(Instance::kRotate, cn.paint.rotate);
     const float scl = child->resolveFloat(Instance::kScale, cn.paint.scale);
+    const float sx = child->resolveFloat(Instance::kScaleX, cn.paint.scaleX);
+    const float sy = child->resolveFloat(Instance::kScaleY, cn.paint.scaleY);
     const float skx = child->resolveFloat(Instance::kSkewX, cn.paint.skewX);
     const float sky = child->resolveFloat(Instance::kSkewY, cn.paint.skewY);
     SkMatrix m = SkMatrix::Translate(crect.left() + tx, crect.top() + ty);
@@ -364,7 +368,7 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
       if (rot != 0)
         m.preRotate(rot);
       if (scl != 1)
-        m.preScale(scl, scl);
+        m.preScale(scl * sx, scl * sy);
       if (skx != 0 || sky != 0)
         m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
       m.preTranslate(-origin.x(), -origin.y());
@@ -741,18 +745,20 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const float ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
   const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
+  const float sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
+  const float sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
   const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
   const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
   if (tx != 0 || ty != 0)
     canvas.translate(tx, ty);
-  if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
+  if (rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 || sky != 0) {
     const SkPoint origin =
         resolveOrigin(node.paint, rect.width(), rect.height());
     canvas.translate(origin.x(), origin.y());
     if (rot != 0)
       canvas.rotate(rot);
-    if (scl != 1)
-      canvas.scale(scl, scl);
+    if (scl != 1 || sx != 1 || sy != 1)
+      canvas.scale(scl * sx, scl * sy);
     if (skx != 0 || sky != 0)
       canvas.skew(std::tan(skx * 0.017453293f),
                   std::tan(sky * 0.017453293f));

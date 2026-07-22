@@ -155,6 +155,8 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   entrance(Instance::kScale, node.paint.scale);
   entrance(Instance::kSkewX, node.paint.skewX);
   entrance(Instance::kSkewY, node.paint.skewY);
+  entrance(Instance::kScaleX, node.paint.scaleX);
+  entrance(Instance::kScaleY, node.paint.scaleY);
   if (node.hasTrim()) {
     entrance(Instance::kTrimStart, node.fxData->trimStart);
     entrance(Instance::kTrimEnd, node.fxData->trimEnd);
@@ -206,6 +208,10 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.skewX, nd);
   transitionFloat(*this, inst, Instance::kSkewY, prev.paint.skewY,
                   next.paint.skewY, nd);
+  transitionFloat(*this, inst, Instance::kScaleX, prev.paint.scaleX,
+                  next.paint.scaleX, nd);
+  transitionFloat(*this, inst, Instance::kScaleY, prev.paint.scaleY,
+                  next.paint.scaleY, nd);
   if (next.hasTrim() || prev.hasTrim()) {
     static const PropValue<float> kTrimStart0 = 0.0f, kTrimEnd1 = 1.0f,
                                   kTrimOffset0 = 0.0f;

@@ -55,9 +55,12 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
                -inst.resolveFloat(Instance::kTy, node.paint.translateY));
   const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
+  const float sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
+  const float sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
   const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
   const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
-  if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
+  if (rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
+      sky != 0) {
     const SkPoint origin =
         resolveOrigin(node.paint, rect.width(), rect.height());
     SkPoint v{local.x() - origin.x(), local.y() - origin.y()};
@@ -69,8 +72,9 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
       if (std::abs(det) > 1e-6f)
         v = {(v.x() - kx * v.y()) / det, (v.y() - ky * v.x()) / det};
     }
-    if (scl != 0 && scl != 1)
-      v = {v.x() / scl, v.y() / scl};
+    const float kx2 = scl * sx, ky2 = scl * sy;
+    if (kx2 != 0 && ky2 != 0 && (kx2 != 1 || ky2 != 1))
+      v = {v.x() / kx2, v.y() / ky2};
     if (rot != 0) {
       const float rad = -rot * SK_FloatPI / 180.0f;
       const float c = std::cos(rad), s = std::sin(rad);

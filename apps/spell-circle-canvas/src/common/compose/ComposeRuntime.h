@@ -60,6 +60,7 @@ struct Instance {
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
     kTrimStart, kTrimEnd, kTrimOffset, kGlyphProgress, kSkewX, kSkewY,
+    kScaleX, kScaleY,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];

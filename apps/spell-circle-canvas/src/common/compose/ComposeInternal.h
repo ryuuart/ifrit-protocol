@@ -47,6 +47,10 @@ struct PaintProps {
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
   PropValue<float> translateX = 0.0f, translateY = 0.0f;
   PropValue<float> rotate = 0.0f, scale = 1.0f;
+  // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
+  // cooldown sweeps and drain rings are the most common animated
+  // primitive in a UI and none of them are uniform.
+  PropValue<float> scaleX = 1.0f, scaleY = 1.0f;
   PropValue<float> skewX = 0.0f, skewY = 0.0f; // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
   bool originPx = false; // origin in node-local px instead of fractions

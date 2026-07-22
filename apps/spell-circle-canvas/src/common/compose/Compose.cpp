@@ -242,6 +242,14 @@ Element &Element::scale(PropValue<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
+Element &Element::scaleX(PropValue<float> v) {
+  m_node->paint.scaleX = std::move(v);
+  return *this;
+}
+Element &Element::scaleY(PropValue<float> v) {
+  m_node->paint.scaleY = std::move(v);
+  return *this;
+}
 Element &Element::skewX(PropValue<float> v) {
   m_node->paint.skewX = std::move(v);
   return *this;
