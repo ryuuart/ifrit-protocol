@@ -1312,6 +1312,69 @@ clipped off. `bleed()` is `max(width/2 + 3σ)` over the layers. If you
 write your own decoration scheme and it paints outside the outline,
 declare `float bleed() const` or it will be cut.
 
+### Borders and corners — the frame vocabulary
+
+**A frame is not a 1 px rounded rect**, and this is the part of the
+library that was least discoverable: `sketch/sketches/stroke_atlas.cpp`
+exists because the vocabulary was there and nobody could see it. **Render
+it and look at it before writing a stroke** — every specimen carries the
+literal call that made it, which is faster than reading this section:
+
+```sh
+ComposeSketch src/common/compose/sketch/sketches/stroke_atlas.cpp \
+    --frame atlas.png
+```
+
+```cpp
+// the rules (Decorations.h) — all Border modes, all comparable values
+decorations::border(width, fill, inset)                    // continuous
+decorations::brackets(width, fill, arm, inset, angleDeg)   // corners only
+decorations::gappedRule(width, fill, gap, inset, angleDeg) // corners omitted
+decorations::weightedCorners(runW, cornerW, fill, arm, inset, angleDeg)
+decorations::doubleBorder(outer, inner)                    // as a LayerStyle
+
+// the rails (Lines.h) — per-rail offset, width, fill, dash and phase
+lines::rails(count, width, fill, gap)      // n symmetric rails
+lines::rails({{.offset=-3, .width=1.6f, .fill=ink},
+              {.offset= 0, .width=0.6f, .fill=red, .dash={0.01f, 9.4f},
+               .cap=SkPaint::kRound_Cap}, ...})   // heavy outer, dotted core
+lines::cased / triple / railway / wavy / arrow / dottedCore
+
+// the silhouettes (Shapes.h) — a Corner mask picks WHICH corners
+shapes::chamfered(size, Corner mask)   shapes::notched(size, depth, mask)
+```
+
+**`cornerAngleDeg` is the one number that will surprise you.** It is the
+tangent break that counts as a corner, and it defaults to 30°. A regular
+n-gon turns 360/n per vertex, **so the default finds nothing above 12
+sides** — a 20-gon turns 18° and its brackets render blank. Pass roughly
+0.6× the turn angle. A gently *rounded* corner has no hard break and
+therefore takes no bracket, which is correct and is the other half of the
+same surprise. When a scan finds nothing, the library prints the sharpest
+break it did see and what to pass.
+
+**Rails vs `Line::parallels`.** Neither is a superset. `Line` spells the
+symmetric cases (`cased`, `triple`) in one value; `Rails` gives every rail
+its own offset, width, fill, dash and phase — heavy-outer-plus-hairline,
+solid outer with a dotted core, unequal gaps — none of which parallels can
+express. Both are geometrically exact at hard corners: the offset routine
+finds real vertices and joins them (arc on the outside of a turn, miter on
+the inside) rather than chording across.
+
+**Dashing happens in the CENTRELINE's arc space, then displaces.** That is
+what keeps a dashed multi-rail set in register through curvature — every
+rail is measured in one parameterisation. A consequence worth knowing:
+`{0.01f, N}` gives round dots via the cap, but a 0.01-long dash under a
+thin stroke has very low peak coverage and can read as absent against a
+bright ground. If dots are faint, widen the rail or lengthen the "on"
+interval — the offset is not the problem.
+
+**Live pitch and angle.** `lines::Hatch` takes `spacingBinding` and
+`angleBinding` (raw `const Output<float>*`, the same convention as
+`PathFormat::dashPhaseBinding` and `Line::dashPhaseBinding`), so a moiré,
+a tightening engraving or a rotating shade pass animates without leaving
+the decoration.
+
 `Element::stroke(brush)` attaches it; rails/connectors hand the routed
 path to the same pipeline, so a transit line, a directed edge, and a
 sketchy river are all `Brush` values on routes.
