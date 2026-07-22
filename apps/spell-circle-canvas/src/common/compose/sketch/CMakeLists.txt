@@ -54,7 +54,7 @@ set(SIGIL_SKETCH_STUDIES
   # Motion and film
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   # The kit itself
-  hello stock_materials
+  hello stock_materials stroke_atlas
 )
 set(sigil_study_sources "")
 foreach(study IN LISTS SIGIL_SKETCH_STUDIES)
