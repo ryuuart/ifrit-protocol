@@ -143,7 +143,6 @@ struct FlourishScene final : Scene {
     };
 
     return box()
-        .absolute()
         .inset(kFrameInset)
         .corners({22})
         .background(sigil::compose::util::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
@@ -152,14 +151,14 @@ struct FlourishScene final : Scene {
         .foreground(shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
                                     Decoration(crestWalk)))
         .cache(Cache::Texture)
-        .child(box().absolute().inset(13).corners({15})
+        .child(box().inset(13).corners({15})
                    .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
                    .foreground(giltDash(st.gold, 1.2f)))
-        .child(box().absolute().inset(22)
+        .child(box().inset(22)
                    .foreground(sigil::compose::util::stroke(
                        0.8f, Fill::color(st.bronze))))
         .child(layout(layouts::AlongPath{innerRect})
-                   .absolute().inset(0)
+                   .inset(0)
                    .children(std::move(studs)));
   }
 
@@ -176,7 +175,7 @@ struct FlourishScene final : Scene {
       p.setColor4f({g.fR, g.fG, g.fB, 0.14f + 0.45f * w}, nullptr);
       c.drawCircle(0, 0, 1.0f + 1.5f * w, p);
     };
-    return box().absolute().inset(kFrameInset).corners({22})
+    return box().inset(kFrameInset).corners({22})
         .foreground(glow).blend(SkBlendMode::kPlus).cache(Cache::None);
   }
 
@@ -208,23 +207,22 @@ struct FlourishScene final : Scene {
 
     return box()
         .key("med" + std::to_string(q))
-        .absolute()
         .inset(cx - kMedD / 2, cy - kMedD / 2, kW - (cx + kMedD / 2),
                kH - (cy + kMedD / 2))
         .width(kMedD).height(kMedD)
         .transformOrigin(0.5f, 0.5f)
         .rotate(&spin[q]).scale(&breathe[q])
         .cache(Cache::Picture)
-        .child(box().absolute().inset(15)
+        .child(box().inset(15)
                    .outline(shapes::squircle(4.0f))
                    .fill(disc)
                    .foreground(sigil::compose::util::stroke(
                        2.2f, Fill::color(st.gold)))
                    .foreground(sigil::compose::util::stroke(
                        0.7f, Fill::color(st.goldBright))))
-        .child(layout(layouts::Radial{0.82f}).absolute().inset(0)
+        .child(layout(layouts::Radial{0.82f}).inset(0)
                    .children(std::move(petals)))
-        .child(box().absolute()
+        .child(box()
                    .inset(kMedD / 2 - 9, kMedD / 2 - 9, kMedD / 2 - 9,
                           kMedD / 2 - 9)
                    .outline(shapes::star(8, 0.5f))
@@ -246,18 +244,18 @@ struct FlourishScene final : Scene {
     beaded.stampAdvance = 11.0f;
 
     auto arc = [&](const char *a, const char *b) {
-      return connector(a, b, routers::arc(0.05f)).absolute().inset(0)
+      return connector(a, b, routers::arc(0.05f)).inset(0)
           .foreground(gild);
     };
-    return stack().absolute().inset(0).zIndex(2)
+    return stack().inset(0).zIndex(2)
         .child(arc("med0", "med1"))
         .child(arc("med1", "med2"))
         .child(arc("med2", "med3"))
         .child(arc("med3", "med0"))
         .child(connector("med0", "med2", routers::orthogonal(18.0f))
-                   .absolute().inset(0).foreground(beaded))
+                   .inset(0).foreground(beaded))
         .child(connector("med1", "med3", routers::orthogonal(18.0f))
-                   .absolute().inset(0).foreground(beaded));
+                   .inset(0).foreground(beaded));
   }
 
   // ---- the central cartouche (the box being framed) ----------------------
@@ -305,14 +303,14 @@ struct FlourishScene final : Scene {
             .blend(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
-      return box().absolute().inset(0).column()
+      return box().inset(0).column()
           .alignItems(Align::Center).justify(Justify::Center)
           .child(std::move(t));
     };
 
     return box()
         .key("cartouche")
-        .absolute().inset(224, 188, 224, 188) // ~452×264 centered box
+        .inset(224, 188, 224, 188) // ~452×264 centered box
         .corners({16}).zIndex(3).clip()
         .backdrop(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
@@ -320,7 +318,7 @@ struct FlourishScene final : Scene {
         .background(hatchDeco)
         .background(carved)
         .column().padding(30, 26).gap(9).alignItems(Align::Center)
-        .child(layout(layouts::Scatter{7, 0.7f}).absolute().inset(22)
+        .child(layout(layouts::Scatter{7, 0.7f}).inset(22)
                    .children(std::move(sparks)))
         .child(stack().width(258).height(66)
                    .outline(scallopOutline(12))
@@ -405,7 +403,7 @@ struct FlourishScene final : Scene {
                drawDiamond(c, {x0, y0}, 4.5f, st.goldBright);
              c.restore();
            })
-        .absolute().inset(0).zIndex(4).cache(Cache::None);
+        .inset(0).zIndex(4).cache(Cache::None);
   }
 
   // Truncate a point list to the leading `fraction` for the draw-on reveal.
@@ -439,7 +437,7 @@ struct FlourishScene final : Scene {
                             1.1f + (float)(i % 3) * 0.5f, p);
              }
            })
-        .absolute().inset(0).zIndex(6).cache(Cache::None)
+        .inset(0).zIndex(6).cache(Cache::None)
         .blend(SkBlendMode::kPlus);
   }
 
@@ -460,7 +458,7 @@ struct FlourishScene final : Scene {
                                  {})));
              c.drawRect(SkRect::MakeWH(w, h), p);
            })
-        .absolute().inset(kFrameInset).zIndex(5).cache(Cache::None)
+        .inset(kFrameInset).zIndex(5).cache(Cache::None)
         .blend(SkBlendMode::kPlus);
   }
 

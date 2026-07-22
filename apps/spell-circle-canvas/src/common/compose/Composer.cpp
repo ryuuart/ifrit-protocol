@@ -299,12 +299,25 @@ const char *Composer::promotionReason(Promotion p) {
   case Promotion::Volatile:   return "its content changes every frame";
   case Promotion::Composited: return "opacity/blend — a bake would round twice; "
                                      "ask for Cache::Texture yourself";
-  case Promotion::Transformed:return "rotated, mirrored or skewed";
+  // "rotated, mirrored or skewed" describes the GEOMETRY and leaves the
+  // author with nothing to do about it. A study lost 24.5 ms of a 29.9 ms
+  // frame to a scroll band tilted a constant −0.42°, because a scroll does
+  // not lie square, and two .cache(Cache::Texture) calls took the frame
+  // from 29.92 to 5.81 ms with no visual change. The refusal is real — an
+  // automatic bake at an angle differs by 1 LSB on the antialiased edges of
+  // a shader fill, and 1 LSB is not agreement — but it is the author's to
+  // accept, and they can only accept it if they are told it exists.
+  case Promotion::Transformed:
+    return "rotated, mirrored or skewed: a bake would differ by ~1 LSB on "
+           "the antialiased edges, so the library will not take it for you "
+           "— add .cache(Cache::Texture) if you accept that (often 5x)";
   case Promotion::Filtered:   return "layer/backdrop effect or clip";
   case Promotion::ReadsBackdrop:
     return "something in this subtree blends with the canvas (a non-srcOver "
            "blend or backdrop filter, here or in a descendant)";
   case Promotion::TooBig:     return "too large to bake, or over the bake budget";
+  case Promotion::SplitBaked:
+    return "own paint baked, volatile children painted live over the blit";
   }
   return "";
 }
@@ -320,9 +333,11 @@ void Composer::purgeCaches() {
   std::function<void(Instance &)> walk = [&walk](Instance &inst) {
     inst.picture.reset();
     inst.textureImage.reset();
+    inst.ownImage.reset(); // §15's split bake is a cache like any other
     inst.bakedLiveShader.reset();
     inst.hasPendingLiveFill = false;
     inst.paintDirty = true;
+    inst.ownPaintDirty = true;
     for (auto &child : inst.children)
       walk(*child);
   };

@@ -63,7 +63,7 @@ struct OrganicScene final : Scene {
         box().key("sigil").width(300).height(300)
             .inset((w - 300) / 2, (h - 300) / 2, (w - 300) / 2,
                    (h - 300) / 2)
-            .absolute().zIndex(3)
+            .zIndex(3)
             .outline(shapes::rounded(shapes::star(7, 0.62f), 14))
             .fill(Fill::color({0.96f, 0.42f, 0.29f, 0.92f}))
             .rotate(&spin).scale(&pulse)
@@ -86,7 +86,7 @@ struct OrganicScene final : Scene {
     // -- satellites: blob moons the connectors route between ----------
     auto moon = [&](const char *key, uint32_t seed, float l, float t) {
       return box().key(key).width(90).height(90)
-          .inset(l, t, w - l - 90, h - t - 90).absolute().zIndex(2)
+          .inset(l, t, w - l - 90, h - t - 90).zIndex(2)
           .outline(shapes::blob(seed, 0.28f, 7))
           .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
           .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
@@ -119,7 +119,7 @@ struct OrganicScene final : Scene {
     };
     auto plaque =
         box().key("plaque").width(250).height(120)
-            .inset(40, h - 170, w - 290, 50).absolute().zIndex(2)
+            .inset(40, h - 170, w - 290, 50).zIndex(2)
             .corners({0, 26, 0, 26})
             .fill(Fill::color({0.11f, 0.12f, 0.2f, 0.96f}))
             .foreground(shapes::onEdges(shapes::Edge::Top, topDash))
@@ -152,8 +152,8 @@ struct OrganicScene final : Scene {
                    .inset(0).foreground(wire).zIndex(1))
         .child(connector("moon-a", "moon-b", routers::arc(0.35f))
                    .inset(0).foreground(bow).zIndex(1))
-        .child(slot("probe").inset(0).absolute().zIndex(6))
-        .child(slot("hud").inset(16, 12, 16, h - 44).absolute().zIndex(6));
+        .child(slot("probe").inset(0).zIndex(6))
+        .child(slot("hud").inset(16, 12, 16, h - 44).zIndex(6));
   }
 
   Element probeDot() const {

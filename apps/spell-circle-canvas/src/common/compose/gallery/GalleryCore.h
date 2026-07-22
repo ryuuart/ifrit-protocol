@@ -275,7 +275,6 @@ struct GalleryStage {
         box()
             .row()
             .inset(12, sceneSize.height() - 80, 12, 12)
-            .absolute()
             .corners({8})
             .padding(10, 6)
             .fill(Fill::color({0, 0, 0, 0.55f}))

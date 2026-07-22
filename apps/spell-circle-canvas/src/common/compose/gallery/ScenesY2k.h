@@ -100,7 +100,7 @@ inline Element gelOrb(float d = kOrbD) {
       // light-from-below, which the preset's inner lift undersells on a
       // sphere: a screen-blended bottom rim glow (child rides under the
       // preset's over-layer gloss, so the lens stays on top).
-      .child(box().absolute()
+      .child(box()
                  .inset(d * 0.14f, d * 0.50f, d * 0.14f, d * 0.02f)
                  .corners({d * 0.24f})
                  .fill(Material::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
@@ -141,21 +141,21 @@ inline Element aquaPill(std::string_view label, const PillTint &t,
       .foreground(rim(shapes::Edge::Bottom, C(0x4F93CA)))
       .foreground(rim(shapes::Edge::Left, C(0x768FA5)))
       // bottom glow: inset 2, fades out by 45% up from the bottom, screen
-      .child(box().absolute().inset(2, h * 0.55f, 2, 2).corners({r - 2})
+      .child(box().inset(2, h * 0.55f, 2, 2).corners({r - 2})
                  .fill(Material::linear(
                      {0, h * 0.45f - 4}, {0, 0},
                      {{0.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.85f}},
                       {1.0f, {t.glow.fR, t.glow.fG, t.glow.fB, 0.0f}}}))
                  .blend(SkBlendMode::kScreen))
       // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
-      .child(box().absolute()
+      .child(box()
                  .inset(w * 0.05f, h * 0.04f, w * 0.05f, h * 0.48f)
                  .corners({h * 0.24f})
                  .fill(Material::linear({0, 0}, {0, h * 0.48f},
                                         {{0.0f, {1, 1, 1, 0.72f}},
                                          {1.0f, {1, 1, 1, 0.0f}}})))
       // label, centered, riding above the lens
-      .child(box().absolute().inset(0).row().justify(Justify::Center)
+      .child(box().inset(0).row().justify(Justify::Center)
                  .alignItems(Align::Center).zIndex(1)
                  .child(text(toU8(std::string(label)),
                              gelLabel({t.deep.fR * 1.3f, t.deep.fG * 1.3f,
@@ -329,12 +329,12 @@ struct Y2kChromeScene final : Scene {
             // (the preset's own sliver rides the plate BEHIND the type now —
             // the duplicate over-type sliver was the strikethrough)
             // starburst glints riding the horizon + one cap top
-            .child(box().absolute().inset(22, horizonY - 12, 0, 0)
+            .child(box().inset(22, horizonY - 12, 0, 0)
                        .child(yc::glint(24, 0)))
-            .child(box().absolute().inset(0, horizonY - 9, 26, 0)
+            .child(box().inset(0, horizonY - 9, 26, 0)
                        .row().justify(Justify::End)
                        .child(yc::glint(18, 18, 0.9f)))
-            .child(box().absolute().inset(0, 4, 110, 0)
+            .child(box().inset(0, 4, 110, 0)
                        .row().justify(Justify::End)
                        .child(yc::glint(13, 12, 0.85f)));
 
@@ -402,7 +402,7 @@ struct Y2kChromeScene final : Scene {
     // filter bakes once; the identically rounded live content still clips and
     // keeps the border in its original foreground paint order.
     Element windowBackplate =
-        box().absolute()
+        box()
             .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
             .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
             .fill(Fill::color(yc::C(0xE9EBEE)))
@@ -414,11 +414,11 @@ struct Y2kChromeScene final : Scene {
         .fill(Material::linear({0, 0}, {0, yc::kH},
                                {{0.0f, yc::C(0xB9BFC7)},
                                 {1.0f, yc::C(0xA2A8B1)}}))
-        .child(box().absolute().inset(0).fill(weave))
+        .child(box().inset(0).fill(weave))
         .child(windowBackplate)
         // the window
         .child(
-            box().absolute()
+            box()
                 .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
                 .column()
                 .corners({6}).clip()

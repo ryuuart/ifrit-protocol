@@ -127,6 +127,24 @@ Element &Element::centerAt(SkPoint p) {
   m_node->layout.centerAt = p;
   return *this;
 }
+// rect()/at() go through the edge setters rather than writing LayoutProps
+// themselves. That is the whole safety argument: they cannot describe a node
+// the longhand could not, they touch no field the longhand does not, and
+// they cannot drift from it when a setter changes. Nine studies wrote this
+// by hand under four names and two of those bodies are the same line twice
+// (black_watch.cpp:544, chevreul_circle.cpp:406).
+Element &Element::rect(const SkRect &r) {
+  left(Dim(r.fLeft));
+  top(Dim(r.fTop));
+  width(Dim(r.width()));
+  height(Dim(r.height()));
+  return *this;
+}
+Element &Element::at(SkPoint topLeft) {
+  left(Dim(topLeft.fX));
+  top(Dim(topLeft.fY));
+  return *this;
+}
 
 // ---- shape ----------------------------------------------------------------
 

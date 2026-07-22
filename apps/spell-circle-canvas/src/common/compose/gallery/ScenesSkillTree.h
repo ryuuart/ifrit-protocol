@@ -490,7 +490,7 @@ struct SkillTreeScene final : Scene {
         router = routers::orbit({g.x, g.y});
       }
       root.child(rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
-                     .absolute().inset(0)
+                     .inset(0)
                      .stroke(brushes::rope(state, pt::kRopeScale))
                      .zIndex(1));
     }
@@ -562,12 +562,12 @@ struct SkillTreeScene final : Scene {
     // Straight router: the spine crosses groups, and routers::orbit only
     // curves same-radius pairs anyway — a single focus would be a lie.
     root.child(rail(anchors)
-                   .absolute().inset(0)
+                   .inset(0)
                    .trim(0.0f, withFrom(0.0f, 1.0f, {900ms}))
                    .stroke(brushes::rope(2, pt::kRopeScale))
                    .zIndex(2));
     root.child(rail(anchors)
-                   .absolute().inset(0)
+                   .inset(0)
                    .trim(&pulseS, &pulseE)
                    .stroke(brushes::pulse({pt::kHalo.fR, pt::kHalo.fG,
                                            pt::kHalo.fB, 0.35f},
@@ -623,7 +623,7 @@ struct SkillTreeScene final : Scene {
     using namespace std::chrono_literals;
     constexpr float kCardW = 268, kCardX = 34, kCardY = 428;
     Element card =
-        box().width(Dim(kCardW)).absolute().left(kCardX).top(kCardY)
+        box().width(Dim(kCardW)).left(kCardX).top(kCardY)
             .column().padding(16, 13).gap(0).corners({3})
             .fill(Material::linear({0, 0}, {0, 170},
                                    {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
@@ -665,7 +665,7 @@ struct SkillTreeScene final : Scene {
                      .margin(0, 9, 0, 0));
     // the leader from the card back to the node it describes
     root.child(rail({{"detail"}, {nodeKey(sel)}})
-                   .absolute().inset(0)
+                   .inset(0)
                    .stroke(util::stroke(
                        1.0f, Fill::color({pt::kGold.fR, pt::kGold.fG,
                                           pt::kGold.fB, 0.35f})))

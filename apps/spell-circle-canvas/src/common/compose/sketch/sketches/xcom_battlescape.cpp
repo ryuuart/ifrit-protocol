@@ -824,7 +824,6 @@ inline Element pixelTextEl(const PixelText &t, float x, float y) {
   if (!t.image)
     return box().width(0).height(0);
   return box()
-      .absolute()
       .left(x)
       .top(y)
       .width((float)t.w * PX)
@@ -840,7 +839,7 @@ inline Element pixelTextEl(const PixelText &t, float x, float y) {
 // visibleMapHeight = 144 and the panel is (0,144)-(320,200).
 
 inline Element at(float x, float y, float w, float h) {
-  return box().absolute().left(n(x)).top(n(y)).width(n(w)).height(n(h));
+  return box().left(n(x)).top(n(y)).width(n(w)).height(n(h));
 }
 
 /** A 32x16 button plate: rounded by RUN LENGTH, not by a corner radius. A
@@ -962,7 +961,7 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
   // The KEY goes on the fill rect, never on the shell: a keyed full-bleed shell
   // with no fill still answers hitTest, and four of them stacked over the frame
   // made every probe return `barMorale`. There is no pointer-events: none.
-  Element g = box().absolute().inset(0);
+  Element g = box().inset(0);
   g.child(at(x, y, (float)(maxValue + 1), 1).fill(C(outline)));
   g.child(at(x, y + 2, (float)(maxValue + 1), 1).fill(C(outline)));
   g.child(at(x + (float)maxValue, y + 1, 1, 1).fill(C(outline)));
@@ -976,7 +975,7 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
  *  GREEN block rather than its own yellow-green, at +7..+13. Copy that — it is
  *  what the screen looks like. */
 inline Element recess(float x, float y, int firstIdx) {
-  Element g = box().absolute().inset(0);
+  Element g = box().inset(0);
   for (int r = 0; r < 7; ++r)
     g.child(at(x, y + (float)r, 17, 1).fill(C(firstIdx + r)));
   return g;
@@ -1302,7 +1301,6 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       const SkPoint tl = mapToScreen(u.mx, u.my, 0);
       const int sh = tileShade(u.mx, u.my);
       root.child(box()
-                     .absolute()
                      .left(tl.fX)
                      .top(tl.fY)
                      .width(kCellW)
@@ -1317,7 +1315,6 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       const SkPoint tl = mapToScreen(kSoldierA.mx, kSoldierA.my, 0);
       const int frame = phase.frame;
       root.child(box()
-                     .absolute()
                      .left(tl.fX)
                      .top(tl.fY - n(4))
                      .width(kCellW)
@@ -1338,7 +1335,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // ---- z6 spotted-enemy tags. visibleUnits pos [300,-16] out of
     //      interfaces.rul, hence the y-16 and the upward stack.
     for (int i = 0; i < phase.tags; ++i) {
-      Element tag = box().absolute().inset(0);
+      Element tag = box().inset(0);
       tag.child(at(300, 128 - 13 * i, 15, 12).fill(C(blk(0, 15))));
       tag.child(at(301, 129 - 13 * i, 13, 10).fill(C(phase.tag)));
       root.child(tag);
@@ -1362,7 +1359,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // which is a screen coordinate, and Yoga resolves an absolute child against
     // its parent. Nesting them inside a box at (0,144) shifted the entire panel
     // off the bottom of the frame on the first render.
-    Element p = box().absolute().inset(0);
+    Element p = box().inset(0);
     // The metal body: a dithered block-5 field, no gradient, no direction.
     p.child(at(0, 144, 320, 56).fill(metalPattern.material()));
     p.child(at(0, 144, 320, 1).fill(C(blk(5, 1))));
@@ -1377,10 +1374,10 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                     .key("btn" + std::to_string(id))
                     .child(custom([](SkCanvas &c, const PaintContext &) {
                              paintPlate(c, 32, 16);
-                           }).absolute().inset(0))
+                           }).inset(0))
                     .child(custom([id](SkCanvas &c, const PaintContext &) {
                              paintButtonGlyph(c, id);
-                           }).absolute().inset(0)));
+                           }).inset(0)));
       }
 
     // The six reserve buttons. buttonReserveNone declares 67, the other three
@@ -1504,7 +1501,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
    *  stagger, slide or fade. */
   Element popupEl() {
     using namespace xcom;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     for (int i = 0; i < 3; ++i) {
       const float y = 160.0f - (float)i * 40.0f;
       g.child(at(24, y, 272, 40).fill(C(blk(3, 11))));

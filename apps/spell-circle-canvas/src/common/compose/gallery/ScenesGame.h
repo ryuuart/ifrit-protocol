@@ -112,7 +112,7 @@ struct BotanicalScene final : Scene {
             c.drawCircle(s, s, s * 0.28f, eye);
           })
               .width(2 * s).height(2 * s)
-              .inset(x, y, 0, 0).absolute()
+              .inset(x, y, 0, 0)
               .rotate(&sway).transformOrigin(0.5f, 1.0f));
     }
 
@@ -150,7 +150,7 @@ struct BotanicalScene final : Scene {
         .child(std::move(field))
         .child(text(u8"seeded regrowth every few seconds",
                     styleAt(15, 0xfff6e7d8))
-                   .absolute().inset(24, 20, 24, 590));
+                   .inset(24, 20, 24, 590));
   }
 
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {

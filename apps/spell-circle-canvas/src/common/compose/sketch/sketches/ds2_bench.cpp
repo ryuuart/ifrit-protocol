@@ -63,6 +63,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -87,20 +88,20 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f,
-          (hex & 0xFF) / 255.0f, a};
-}
-inline SkColor4f alpha(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
+// hex() and alpha() were four and one lines here, and the same four lines in
+// twenty-three other files under three names. <sigilcompose/Studio.h> now
+// holds the one body; the palette below is unchanged.
+using studio::alpha;
+using studio::hex;
 
-const SkColor4f kBody = rgb(0x0B1E21);
-const SkColor4f kStrip = rgb(0x102A2A);
-const SkColor4f kCyan = rgb(0x8FE0E6);
-const SkColor4f kTitle = rgb(0xE4F7F8);
-const SkColor4f kDim = rgb(0x33514E);
-const SkColor4f kBrassLo = rgb(0xC9A227);
-const SkColor4f kBrassHi = rgb(0xE8C860);
-const SkColor4f kBrassDk = rgb(0x5E4914);
+const SkColor4f kBody = hex(0x0B1E21);
+const SkColor4f kStrip = hex(0x102A2A);
+const SkColor4f kCyan = hex(0x8FE0E6);
+const SkColor4f kTitle = hex(0xE4F7F8);
+const SkColor4f kDim = hex(0x33514E);
+const SkColor4f kBrassLo = hex(0xC9A227);
+const SkColor4f kBrassHi = hex(0xE8C860);
+const SkColor4f kBrassDk = hex(0x5E4914);
 
 // ---------------------------------------------------------------------------
 // canvas geometry (1200 x 800)
@@ -428,12 +429,12 @@ struct EdgeDef { int a, b; float jog; };
 struct KindArt { SkColor4f fill, ring; const char *label; };
 inline KindArt artOf(Kind k) {
   switch (k) {
-  case DMG: return {rgb(0x6E332F), rgb(0xE9BCB4), "DMG"};
-  case CAP: return {rgb(0x274963), rgb(0xB2D6EC), "CAP"};
-  case CHR: return {rgb(0x4C5E2B), rgb(0xD6E8AA), "CHR"};
-  case REL: return {rgb(0x563F1D), rgb(0xE2C088), "REL"};
+  case DMG: return {hex(0x6E332F), hex(0xE9BCB4), "DMG"};
+  case CAP: return {hex(0x274963), hex(0xB2D6EC), "CAP"};
+  case CHR: return {hex(0x4C5E2B), hex(0xD6E8AA), "CHR"};
+  case REL: return {hex(0x563F1D), hex(0xE2C088), "REL"};
   case Blank:
-  default: return {rgb(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
+  default: return {hex(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
   }
 }
 
@@ -563,10 +564,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     Element filled =
         box().outline(chevron())
             .fill(Material::linear({0, 0}, {0, kPipH},
-                                   {{0.0f, rgb(0xC8DADA)},
-                                    {0.42f, rgb(0x92AAAC)},
-                                    {0.52f, rgb(0x70898C)},
-                                    {1.0f, rgb(0xB0C6C8)}}))
+                                   {{0.0f, hex(0xC8DADA)},
+                                    {0.42f, hex(0x92AAAC)},
+                                    {0.52f, hex(0x70898C)},
+                                    {1.0f, hex(0xB0C6C8)}}))
             .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
                            PathFormat::Align::Inner));
     Element empty = box().outline(chevron()).stroke(
@@ -604,13 +605,12 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   void backdrop(Element &root) {
     auto strut = [&](float x, float w, float a) {
       root.child(box()
-                     .absolute().left(Dim(x)).top(Dim(-40.0f))
-                     .width(Dim(w)).height(Dim(kH + 80))
+                     .rect(SkRect::MakeXYWH(x, -40.0f, w, kH + 80))
                      .fill(Material::linear(
                          {0, 0}, {0, kH},
-                         {{0.0f, rgb(0x16262F, a * 0.35f)},
-                          {0.38f, rgb(0x1C303C, a)},
-                          {1.0f, rgb(0x080F16, a * 0.2f)}}))
+                         {{0.0f, hex(0x16262F, a * 0.35f)},
+                          {0.38f, hex(0x1C303C, a)},
+                          {1.0f, hex(0x080F16, a * 0.2f)}}))
                      .effect(Effect::filter(
                          SkImageFilters::Blur(12, 18, nullptr)))
                      .zIndex(0));
@@ -620,11 +620,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     strut(1108, 92, 0.8f);
     strut(1040, 26, 0.4f);
     root.child(box()
-                   .absolute().left(Dim(-40.0f)).top(Dim(2.0f))
-                   .width(Dim(kW + 80)).height(Dim(28.0f))
+                   .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
                    .fill(Material::linear({0, 0}, {0, 28},
-                                          {{0.0f, rgb(0x243B47, 0.5f)},
-                                           {1.0f, rgb(0x0A141C, 0.25f)}}))
+                                          {{0.0f, hex(0x243B47, 0.5f)},
+                                           {1.0f, hex(0x0A141C, 0.25f)}}))
                    .effect(Effect::filter(SkImageFilters::Blur(7, 10, nullptr)))
                    .zIndex(0));
   }
@@ -637,17 +636,16 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(
         box()
             .key("plate")
-            .absolute().left(Dim(kPX)).top(Dim(kPY))
-            .width(Dim(kPW)).height(Dim(kPH))
+            .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
             .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
             .fill(Material::blend(
                 {{Material::solid(kBody), SkBlendMode::kSrcOver},
                  // unit-square ramp: the lift is authored against the box,
                  // not against a pixel extent transcribed by hand
                  {Material::radialUnit({0.40f, 0.32f}, 1.15f,
-                                       {{0.0f, rgb(0xFFFFFF)},
-                                        {0.5f, rgb(0xC0D0D0)},
-                                        {1.0f, rgb(0x4E6264)}}),
+                                       {{0.0f, hex(0xFFFFFF)},
+                                        {0.5f, hex(0xC0D0D0)},
+                                        {1.0f, hex(0x4E6264)}}),
                   SkBlendMode::kMultiply},
                  {scanField(alpha(kCyan, 0.075f), 3.0f),
                   SkBlendMode::kScreen}}))
@@ -656,8 +654,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // the grain the compressed CRT capture carries — enough to kill the
     // "clean vector art" read without becoming VHS noise
     root.child(box()
-                   .absolute().left(Dim(kPX)).top(Dim(kPY))
-                   .width(Dim(kPW)).height(Dim(kPH))
+                   .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
                    .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .fill(grain)
                    .opacity(0.07f)
@@ -666,31 +663,26 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
     // frame: a soft plus-blended halo under a crisp cyan keyline
     root.child(box()
-                   .absolute().left(Dim(kPX)).top(Dim(kPY))
-                   .width(Dim(kPW)).height(Dim(kPH))
+                   .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
                    .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .stroke(LayeredBrush{{
                        {14, alpha(kCyan, 0.09f), 8, {}, 0, SkBlendMode::kPlus},
                        {5, alpha(kCyan, 0.22f), 2.6f, {}, 0,
                         SkBlendMode::kPlus},
-                       {2.4f, alpha(rgb(0xCFF2F5), 0.95f)},
+                       {2.4f, alpha(hex(0xCFF2F5), 0.95f)},
                    }})
                    .zIndex(6));
 
     // the inner contour: a thin line whose dipped centre IS the header rule
     root.child(box()
-                   .absolute().left(Dim(kPX + kInset)).top(Dim(kPY + kInset))
-                   .width(Dim(kPW - 2 * kInset)).height(Dim(kPH - 2 * kInset))
+                   .rect(SkRect::MakeXYWH(kPX + kInset, kPY + kInset, kPW - 2 * kInset, kPH - 2 * kInset))
                    .outline(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
                                        kInnerShoulderR))
                    .stroke(stroke(1.1f, Fill::color(alpha(kCyan, 0.55f))))
                    .zIndex(6));
     // and a dotted echo just inside it (the frame's second, ticked pass)
     root.child(box()
-                   .absolute().left(Dim(kPX + kInset + 7))
-                   .top(Dim(kPY + kInset + 7))
-                   .width(Dim(kPW - 2 * kInset - 14))
-                   .height(Dim(kPH - 2 * kInset - 14))
+                   .rect(SkRect::MakeXYWH(kPX + kInset + 7, kPY + kInset + 7, kPW - 2 * kInset - 14, kPH - 2 * kInset - 14))
                    .outline(panelInner(kInnerCut - 4, kInnerDip - 7,
                                        kInnerShoulderL - 7,
                                        kInnerShoulderR - 7))
@@ -706,8 +698,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void header(Element &root) {
     root.child(box()
-                   .absolute().left(Dim(kPX)).top(Dim(kPY + 20))
-                   .width(Dim(kPW)).height(Dim(kRuleY - kPY - 22))
+                   .rect(SkRect::MakeXYWH(kPX, kPY + 20, kPW, kRuleY - kPY - 22))
                    .alignItems(Align::Center).justify(Justify::Center)
                    .zIndex(7)
                    .child(text(toU8("CONTACT BEAM"), type(31, kTitle, 0.10f))
@@ -723,7 +714,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // under the rule: the repair caption at left, and at right the RIG's
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
     // the track and the fill are the same generator twice
-    root.child(box().absolute().left(Dim(kPX + 34)).top(Dim(kRuleY + 13))
+    root.child(box().at({kPX + 34, kRuleY + 13})
                    .zIndex(7)
                    .child(text(toU8("NANOCIRCUIT REPAIR · TIER III"),
                                type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
@@ -732,17 +723,15 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
     // gauge's own track — the most obvious call there is — silently
     // disappears at the natural value.
-    root.child(box().absolute().left(Dim(gaugeX)).top(Dim(gaugeY))
-                   .width(Dim(gaugeD)).height(Dim(gaugeD))
+    root.child(box().rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
                    .outline(shapes::sector(0, 359.99f, 0.58f))
                    .fill(Material::solid(alpha(kCyan, 0.18f)))
                    .zIndex(7));
-    root.child(box().absolute().left(Dim(gaugeX)).top(Dim(gaugeY))
-                   .width(Dim(gaugeD)).height(Dim(gaugeD))
+    root.child(box().rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
                    .outline(shapes::sector(-90, 360 * 0.78f, 0.58f))
                    .fill(Material::solid(alpha(kCyan, 0.9f)))
                    .zIndex(7));
-    root.child(box().absolute().left(Dim(gaugeX + 34)).top(Dim(kRuleY + 13))
+    root.child(box().at({gaugeX + 34, kRuleY + 13})
                    .zIndex(7)
                    .child(text(toU8("R.I.G. INTEGRITY 78%"),
                                type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
@@ -765,9 +754,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    t.close();
                    canvas.drawPath(t.detach(), p);
                  })
-                     .absolute()
-                     .left(Dim(at.fX - 24)).top(Dim(at.fY - 9))
-                     .width(Dim(16.0f)).height(Dim(18.0f))
+                     .rect(SkRect::MakeXYWH(at.fX - 24, at.fY - 9, 16.0f, 18.0f))
                      .opacity(&socketPulse)
                      .zIndex(8));
       return;
@@ -803,9 +790,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           p.setStyle(SkPaint::kFill_Style);
           canvas.drawPath(t.detach(), p);
         })
-            .absolute()
-            .left(Dim(at.fX - 100)).top(Dim(at.fY - 46))
-            .width(Dim(108.0f)).height(Dim(92.0f))
+            .rect(SkRect::MakeXYWH(at.fX - 100, at.fY - 46, 108.0f, 92.0f))
             .opacity(&socketPulse)
             .zIndex(8));
   }
@@ -814,14 +799,14 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   // one circuit: traces first (so node glow sits on the wire), then nodes
 
   void circuit(Element &root, const Circuit &c) {
-    auto wires = box().absolute().inset(0).zIndex(4)
+    auto wires = box().inset(0).zIndex(4)
                      .staggerChildren(30ms, Stagger::From::Start);
     for (int i = 0; i < c.edgeCount; ++i) {
       const EdgeDef &e = c.edges[i];
       wires.child(
           connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
               .key(std::string(c.tag) + "e" + std::to_string(i))
-              .absolute().inset(0)
+              .inset(0)
               .trim(0.0f, withFrom(0.0f, 1.0f, {620ms}))
               .stroke(LayeredBrush{{{7.0f, alpha(kCyan, 0.075f), 3.4f, {}, 0,
                                      SkBlendMode::kPlus}}})
@@ -831,7 +816,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     }
     root.child(std::move(wires));
 
-    auto layer = box().absolute().inset(0).zIndex(5)
+    auto layer = box().inset(0).zIndex(5)
                      .staggerChildren(30ms, Stagger::From::Start);
     for (int i = 0; i < c.nodeCount; ++i) {
       const SkPoint at = c.at(i);
@@ -847,7 +832,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           .glowColor = alpha(kCyan, typed ? 0.32f : 0.22f),
           .shadowOffset = {0, 0},
           .shadowBlur = typed ? 6.0f : 4.5f,
-          .shadowColor = rgb(0x01080A, 1.0f)};
+          .shadowColor = hex(0x01080A, 1.0f)};
       Material m = sdf::material(sdf::circle(), st);
       m.uniform("uGlowR", &glow[(size_t)(glowSlot++ % (int)glow.size())]);
 
@@ -903,15 +888,13 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     char slots[24];
     std::snprintf(slots, sizeof(slots), "%d / %d NODES", typedCount,
                   c.nodeCount);
-    root.child(box().absolute().left(Dim(c.x0 - 34)).top(Dim(c.y0 - 58))
+    root.child(box().at({c.x0 - 34, c.y0 - 58})
                    .row().alignItems(Align::Center).gap(14).zIndex(8)
                    .child(text(toU8(c.caption),
                                type(11, alpha(kCyan, 0.62f), 0.18f)))
                    .child(text(toU8(slots),
                                type(9.5f, alpha(kCyan, 0.4f), 0.18f, false))));
-    root.child(box().absolute().left(Dim(c.x0 - 34))
-                   .top(Dim(c.y0 - 32)).width(Dim(280.0f))
-                   .height(Dim(1.0f))
+    root.child(box().rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, 280.0f, 1.0f))
                    .outline(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
                    .zIndex(8));
@@ -941,14 +924,13 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
         .child(box().grow(1))
         .child(box().width(Dim(84.0f))
                    .child(text(toU8(s.value),
-                               type(13, rgb(0xDCEEF2), 0.02f, false))));
+                               type(13, hex(0xDCEEF2), 0.02f, false))));
   }
 
   void legend(Element &root) {
     auto card =
         box().key("legend")
-            .absolute().left(Dim(kLegX)).top(Dim(kBandY))
-            .width(Dim(kLegW)).height(Dim(kBandH))
+            .rect(SkRect::MakeXYWH(kLegX, kBandY, kLegW, kBandH))
             .fill(Material::blend(
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
                  {scanField(alpha(kCyan, 0.05f), 3.0f),
@@ -975,19 +957,15 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
       card.child(statRow(r));
     root.child(std::move(card));
 
-    root.child(box().absolute().left(Dim(kLegX - 8)).top(Dim(kBandY - 8))
-                   .width(Dim(kLegW + 16)).height(Dim(kBandH + 16))
+    root.child(box().rect(SkRect::MakeXYWH(kLegX - 8, kBandY - 8, kLegW + 16, kBandH + 16))
                    .outline(cornerBrackets(26))
                    .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
-    root.child(box().absolute().left(Dim(kLegX + 16)).top(Dim(kBandY + 32))
-                   .width(Dim(kLegW - 32)).height(Dim(1.0f))
+    root.child(box().rect(SkRect::MakeXYWH(kLegX + 16, kBandY + 32, kLegW - 32, 1.0f))
                    .outline(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
-    root.child(box().absolute().left(Dim(kLegX + kLegW - 108))
-                   .top(Dim(kBandY + 14)).width(Dim(1.0f))
-                   .height(Dim(kBandH - 28))
+    root.child(box().rect(SkRect::MakeXYWH(kLegX + kLegW - 108, kBandY + 14, 1.0f, kBandH - 28))
                    .outline(vline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
@@ -999,8 +977,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   void counter(Element &root) {
     root.child(
         box().key("counter")
-            .absolute().left(Dim(kCntX)).top(Dim(kBandY))
-            .width(Dim(kCntW)).height(Dim(kBandH))
+            .rect(SkRect::MakeXYWH(kCntX, kBandY, kCntW, kBandH))
             .outline(chamfer(12))
             .fill(Material::blend(
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
@@ -1017,38 +994,33 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                    type(12, alpha(kCyan, 0.95f), 0.16f))))
             // the brass power-node puck: side wall, top face, bore ring
             .child(box().width(Dim(66.0f)).height(Dim(46.0f)).margin(0, 6, 0, 0)
-                       .child(box().absolute().left(Dim(2.0f)).top(Dim(14.0f))
-                                  .width(Dim(62.0f)).height(Dim(28.0f))
+                       .child(box().rect(SkRect::MakeXYWH(2.0f, 14.0f, 62.0f, 28.0f))
                                   .corners({14})
                                   .fill(Material::linear(
                                       {0, 0}, {0, 28},
                                       {{0.0f, kBrassLo},
-                                       {0.45f, rgb(0x7E6318)},
+                                       {0.45f, hex(0x7E6318)},
                                        {1.0f, kBrassDk}})))
-                       .child(box().absolute().left(Dim(2.0f)).top(Dim(2.0f))
-                                  .width(Dim(62.0f)).height(Dim(27.0f))
+                       .child(box().rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
                                   .outline(shapes::squircle(2.0f))
                                   .fill(Material::linear(
                                       {0, 0}, {52, 27},
                                       {{0.0f, kBrassHi},
-                                       {0.4f, rgb(0xD3AA33)},
-                                       {1.0f, rgb(0x8E6F1E)}}))
+                                       {0.4f, hex(0xD3AA33)},
+                                       {1.0f, hex(0x8E6F1E)}}))
                                   .stroke(stroke(
                                       1.0f,
-                                      Fill::color(rgb(0xF3DC94, 0.75f)))))
-                       .child(box().absolute().left(Dim(22.0f))
-                                  .top(Dim(8.0f)).width(Dim(24.0f))
-                                  .height(Dim(13.0f))
+                                      Fill::color(hex(0xF3DC94, 0.75f)))))
+                       .child(box().rect(SkRect::MakeXYWH(22.0f, 8.0f, 24.0f, 13.0f))
                                   .outline(shapes::squircle(2.0f))
                                   .stroke(stroke(
                                       1.3f,
-                                      Fill::color(rgb(0x74590F, 0.9f))))))
+                                      Fill::color(hex(0x74590F, 0.9f))))))
             .child(text(toU8("2"), type(40, kTitle, 0.0f))
                        .key("nodecount")
                        .transition({.duration = 200ms})));
 
-    root.child(box().absolute().left(Dim(kCntX - 8)).top(Dim(kBandY - 8))
-                   .width(Dim(kCntW + 16)).height(Dim(kBandH + 16))
+    root.child(box().rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16, kBandH + 16))
                    .outline(cornerBrackets(22))
                    .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
@@ -1058,8 +1030,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   // the hardware hint row along the panel's bottom rail
 
   void hints(Element &root) {
-    root.child(box().absolute().left(Dim(kPX + 32)).top(Dim(kHintY))
-                   .width(Dim(kPW - 64)).height(Dim(1.0f))
+    root.child(box().rect(SkRect::MakeXYWH(kPX + 32, kHintY, kPW - 64, 1.0f))
                    .outline(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.36f))))
                    .zIndex(8));
@@ -1069,8 +1040,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     };
 
     root.child(
-        box().absolute().left(Dim(kPX)).top(Dim(kHintY + 8))
-            .width(Dim(kPW)).height(Dim(26.0f))
+        box().rect(SkRect::MakeXYWH(kPX, kHintY + 8, kPW, 26.0f))
             .row().alignItems(Align::Center).justify(Justify::Center).gap(56)
             .zIndex(8)
             .child(box().row().alignItems(Align::Center).gap(8)
@@ -1110,8 +1080,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
     // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {
-      root.child(box().absolute().left(Dim(x)).top(Dim(kHintY + 13))
-                     .width(Dim(12.0f)).height(Dim(12.0f))
+      root.child(box().rect(SkRect::MakeXYWH(x, kHintY + 13, 12.0f, 12.0f))
                      .stroke(stroke(1.2f, Fill::color(alpha(kCyan, 0.45f))))
                      .zIndex(8));
     }
@@ -1122,8 +1091,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void overlay(Element &root) {
     root.child(box()
-                   .absolute().left(Dim(kPX + 6)).top(Dim(kPY + 30))
-                   .width(Dim(kPW - 12)).height(Dim(34.0f))
+                   .rect(SkRect::MakeXYWH(kPX + 6, kPY + 30, kPW - 12, 34.0f))
                    .translateY(&scanY)
                    .backdrop(styles::ripple(1.0f, 130.0f, 0.0f))
                    .fill(Material::linear({0, 0}, {0, 34},
@@ -1133,11 +1101,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::None)
                    .zIndex(9));
-    root.child(box().absolute().inset(0)
+    root.child(box().inset(0)
                    .fill(Material::radial({kW * 0.5f, kH * 0.46f}, kW * 0.60f,
-                                          {{0.0f, rgb(0x000000, 0.0f)},
-                                           {0.55f, rgb(0x000000, 0.14f)},
-                                           {1.0f, rgb(0x01050A, 0.86f)}}))
+                                          {{0.0f, hex(0x000000, 0.0f)},
+                                           {0.55f, hex(0x000000, 0.14f)},
+                                           {1.0f, hex(0x01050A, 0.86f)}}))
                    .zIndex(11));
   }
 
@@ -1148,13 +1116,13 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     glowSlot = 0;
     auto root = stack().fill(Material::radial(
         {kW * 0.5f, kH * 0.5f}, 880,
-        {{0.0f, rgb(0x09131B)}, {0.6f, rgb(0x050B11)},
-         {1.0f, rgb(0x020406)}}));
+        {{0.0f, hex(0x09131B)}, {0.6f, hex(0x050B11)},
+         {1.0f, hex(0x020406)}}));
     backdrop(root);
 
     // everything that belongs to the hologram rides one jittering group,
     // so a glitch reads as "the whole panel stuttered"
-    auto holo = box().absolute().inset(0)
+    auto holo = box().inset(0)
                     .translateX(&jitterX)
                     .opacity(&holoAlpha)
                     .scale(withFrom(0.955f, 1.0f, {380ms}))
@@ -1175,7 +1143,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas((int)kW, (int)kH);
-    ctx.background(rgb(0x02060A));
+    ctx.background(hex(0x02060A));
     bakePips();
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {

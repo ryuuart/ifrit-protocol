@@ -242,7 +242,7 @@ inline Element &outlineText(Element &e, float r) {
 // Geometry sugar
 
 inline Element rect(float x, float y, float w, float h) {
-  return box().absolute().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
 }
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
@@ -541,7 +541,7 @@ inline Element navLabel(sigil::weave::FontContext &fonts, const char *s,
   // width and wraps against the image box. Pinning the node to that natural
   // width is what keeps it one line; the artBox's clip() takes the
   // overhang, and the paint-time condense brings it back inside.
-  t.absolute().left(Dim(x)).top(Dim(y)).width(Dim(m.width() + 4.0f));
+  t.left(Dim(x)).top(Dim(y)).width(Dim(m.width() + 4.0f));
   if (sx < 0.999f)
     t.scaleX(sx).transformOrigin(0.0f, 0.5f);
   return t;
@@ -656,7 +656,6 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
                   .stroke(stroke(S(1.5f), Fill::color(limb),
                                  PathFormat::Align::Inner));
   d.child(box()
-              .absolute()
               .inset(0)
               .fill(Material::glowUnit(
                   {0.34f, 0.28f}, 1.35f,
@@ -942,7 +941,7 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
       t.echo({v[0] * r, v[1] * r}, C5(0x101831));
     const SkSize m = measure(text(U(s), ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
-    return t.absolute()
+    return t
         .left(Dim(x))
         .top(Dim(capTopY - 0.20f * size))
         .width(Dim(m.width() + 4.0f))
@@ -994,7 +993,7 @@ inline Element wordmark(sigil::weave::FontContext &fonts, const char *s,
     sx = target / m.width();
   Element t = text(U(s), styleAt(size));
   t.echo({kScale, kScale}, C5(0x8C0000));
-  t.absolute()
+  t
       .left(Dim(rightAlign ? w - target : 0))
       .top(Dim(-h * 0.22f))
       .width(Dim(m.width() + 4.0f));
@@ -1290,7 +1289,6 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     //    step is the shaping, and it lives at the property instead of in
     //    the tick loop.
     Element field = box()
-                        .absolute()
                         .inset(0)
                         .fill(starsMat)
                         .opacity(bind(&got[kStars]).scale(1000.0f)
@@ -1302,17 +1300,14 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     const bool ballIn = (arrivedMask & (1u << kFastbreak)) != 0;
     Element fastRow =
         stack()
-            .absolute()
             .left(Dim(S(70)))
             .top(Dim(S(86)))
             .width(Dim(S(500)))
             .height(Dim(S(46)))
             .child(revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
-                       .absolute()
                        .left(Dim(S(3)))
                        .top(Dim(S(17.5f))))
             .child(revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
-                       .absolute()
                        .left(Dim(S(93)))
                        .top(Dim(S(17.5f))));
     if (ballIn) {
@@ -1327,7 +1322,6 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
       // Still arriving: a partially-downloaded animated GIF shows its first
       // frame and does not animate. Same picture path as everything else.
       fastRow.child(revealed(kFastbreak, true)
-                        .absolute()
                         .left(Dim(S(53)))
                         .top(Dim(S(3))));
     }
@@ -1335,7 +1329,6 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     // 3. the planet table. Nothing below is hand-placed: `TableScheme` runs
     //    the auto-layout rule over the children's measured sizes.
     Element grid = layout(table)
-                       .absolute()
                        .left(Dim(S(70)))
                        .top(Dim(S(168)))
                        .width(Dim(S(500)))
@@ -1362,7 +1355,6 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     auto small = ty(serif(), S(13.33f), kBodyText);
     Element colophon =
         box()
-            .absolute()
             .left(Dim(0))
             .top(Dim(S(757)))
             .width(Dim(S(640)))
@@ -1394,7 +1386,6 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     jobs.push_back({kBreak, wordmark(f, "BREAK", S(50), S(11), false), S(50), S(11)});
     jobs.push_back({kFastbreak,
                     rect(0, 0, S(40), S(40))
-                        .absolute()
                         .left(Dim(0))
                         .top(Dim(0))
                         .outline(shapes::circle())

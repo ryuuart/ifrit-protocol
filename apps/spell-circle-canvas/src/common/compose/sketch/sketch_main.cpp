@@ -260,17 +260,31 @@ int runBench(sigil::compose::sketch::SketchHost &host,
       case sigil::compose::Composer::CacheState::Promoted:
         state = "[TEXTURE, promoted by the library — not by you]";
         break;
+      case sigil::compose::Composer::CacheState::SplitOwn:
+        state = "[OWN PAINT baked, live children over the blit]";
+        break;
       }
       std::printf("    %8.2f ms  %-40s %s\n", row.selfMs, row.label.c_str(),
                   state);
       // WHY it is not a bake. "live paint, 663 ms" with nothing beside it
       // is how sixteen studies shipped over the gate: every refusal is
       // individually correct and individually invisible.
-      if (row.cacheState != sigil::compose::Composer::CacheState::Promoted &&
-          row.cacheState != sigil::compose::Composer::CacheState::Texture &&
-          row.selfMs >= 1.0)
+      if (row.cacheState == sigil::compose::Composer::CacheState::Live &&
+          row.selfMs >= 1.0) {
         std::printf("              not baked: %s\n",
                     sigil::compose::Composer::promotionReason(row.promotion));
+        // …and every OTHER reason, because the line above is a first-match
+        // verdict. Fixing the one it names and meeting a second refusal
+        // behind it costs an author a whole iteration each time, and a node
+        // has more than one reason more often than not.
+        using Prom = sigil::compose::Composer::Promotion;
+        for (Prom also :
+             {Prom::Volatile, Prom::Composited, Prom::Transformed,
+              Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig})
+          if (also != row.promotion && row.refused(also))
+            std::printf("                    …and: %s\n",
+                        sigil::compose::Composer::promotionReason(also));
+      }
     }
   }
   if (pass) {

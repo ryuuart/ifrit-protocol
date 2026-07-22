@@ -22,6 +22,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Console.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -32,7 +33,12 @@
 #include <include/core/SkSurface.h>
 
 #include <algorithm>
+#include <cmath>
+#include <concepts>
+#include <cstdio>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace sigil::compose::debug {
@@ -340,6 +346,134 @@ inline Raster rasterize(Element root, sigil::weave::FontContext &fonts,
   if (!surface->readPixels(out.bitmap.pixmap(), 0, 0))
     out.bitmap.reset();
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Saying whether it was right — the half that was missing
+
+/** One claim, its evidence, and its verdict.
+ *
+ *  Every proving plate in this corpus proves itself on screen, and **not one
+ *  of them can be falsified by its own output**. `sigillum_aemeth` calls
+ *  `debug::coverage` twice and then hand-formats a sentence about the
+ *  result; `thunder_fulu` calls no `debug::` at all. Between them they make
+ *  53 `fmt()` calls producing strings whose truth is not connected to the
+ *  assertion — a plate that reads "RING GEOMETRY  EXACT" reads exactly the
+ *  same whether it is or not.
+ *
+ *  `minard_1869.cpp:2580` independently invented the fix as a lambda, and
+ *  that is the whole idea: the library supplied the MEASUREMENT and nothing
+ *  supplied the REPORTING, so the two were joined by hand at every site and
+ *  could drift apart at any of them. Here the printed verdict is computed
+ *  from the same two values it prints.
+ *
+ *  The line saving is small (~130 lines over 5 studies). The point is that a
+ *  study's claim stops being a sentence that happens to read well and
+ *  becomes a value you can fail a build on — see `failures()`. */
+struct Check {
+  std::string label;
+  std::string expected, actual; ///< already formatted, for printing
+  bool pass = false;
+
+  /** `  <label padded> <actual, right-aligned>   PASS`, or
+   *  `… FAIL want <expected>` — `"  %-44s %8ld   %s"`, which is the format
+   *  `minard_1869.cpp:2580` snprintf'd by hand, plus the half it could not
+   *  print. Values right-align because a proving plate is a table and a
+   *  ragged number column is unreadable at 8 pt.
+   *
+   *  The `want` clause is the point. Minard's version prints the computed
+   *  number and the word DIFF, and a reader cannot act on that: it says
+   *  something is wrong and not what would have been right.
+   *
+   *  Long labels are NOT truncated. `sigillum_aemeth.cpp:1719` documents
+   *  losing four checks' units and one closing paren to a console column
+   *  that silently clipped at 46 characters; a proving plate that hides
+   *  half of a claim is worse than one that wraps. */
+  std::string line(int labelWidth = 44, int valueWidth = 8) const {
+    std::string out = "  " + label;
+    if ((int)label.size() < labelWidth)
+      out.append((size_t)labelWidth - label.size(), ' ');
+    out += ' ';
+    if ((int)actual.size() < valueWidth)
+      out.append((size_t)valueWidth - actual.size(), ' ');
+    out += actual;
+    out += pass ? "   PASS" : "   FAIL want " + expected;
+    return out;
+  }
+};
+
+namespace detail {
+inline std::string fmtLong(long v) {
+  char buf[32];
+  std::snprintf(buf, sizeof buf, "%ld", v);
+  return buf;
+}
+inline std::string fmtDouble(double v) {
+  char buf[48];
+  std::snprintf(buf, sizeof buf, "%.6g", v);
+  return buf;
+}
+} // namespace detail
+
+/** Integer identity — the conservation check (`422,000 − 22,000 == 400,000`
+ *  on Minard's own engraved numbers).
+ *
+ *  Constrained to integral types on purpose. A plain `long` parameter would
+ *  swallow `check("r", 257.972, measured)` through an implicit truncation
+ *  and report EXACT on two numbers that differ; requiring integers makes
+ *  that a compile error and sends you to the tolerance overload, which is
+ *  the only correct way to compare floats. */
+template <std::integral T, std::integral U>
+Check check(std::string label, T expected, U actual) {
+  return {std::move(label), detail::fmtLong((long)expected),
+          detail::fmtLong((long)actual), expected == actual};
+}
+
+/** Float agreement within @p tol. There is no default tolerance on purpose:
+ *  a measured radius and a solved one agree to a number the study chose, and
+ *  a library-chosen epsilon would be a claim the library is not entitled to
+ *  make. */
+inline Check check(std::string label, double expected, double actual,
+                   double tol) {
+  Check c{std::move(label), detail::fmtDouble(expected),
+          detail::fmtDouble(actual), std::fabs(expected - actual) <= tol};
+  c.expected += " \xc2\xb1 " + detail::fmtDouble(tol);
+  return c;
+}
+
+inline Check check(std::string label, std::string_view expected,
+                   std::string_view actual) {
+  return {std::move(label), std::string(expected), std::string(actual),
+          expected == actual};
+}
+
+/** The bare assertion, for a claim with no two numbers to compare
+ *  ("every interior arc endpoint has degree 2"). */
+inline Check check(std::string label, bool condition) {
+  return {std::move(label), "true", condition ? "true" : "false", condition};
+}
+
+/** Append a check to a console ring, palette index chosen by the verdict.
+ *
+ *  The indices are parameters because the six hand-built plates do not agree
+ *  on their palettes — `minard_1869` reads {dim, pass, fail, …} and
+ *  `thunder_fulu` reads {dim, heading, pass, number, fail}. The defaults are
+ *  minard's, being the plate that invented this. */
+inline void report(console::LineRing &ring, const Check &c,
+                   size_t passPalette = 1, size_t failPalette = 2,
+                   int labelWidth = 44, int valueWidth = 8) {
+  const std::string text = c.line(labelWidth, valueWidth);
+  ring.append(std::u8string(text.begin(), text.end()),
+              c.pass ? passPalette : failPalette);
+}
+
+/** How many of @p checks failed — a `--verify` exit code, and the thing that
+ *  makes the plate's claims mean something off the screen. */
+inline int failures(std::span<const Check> checks) {
+  int n = 0;
+  for (const Check &c : checks)
+    n += c.pass ? 0 : 1;
+  return n;
 }
 
 } // namespace sigil::compose::debug

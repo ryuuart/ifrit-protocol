@@ -237,25 +237,25 @@ struct CosmatiScene final : Scene {
                      .scale(withFrom(0.86f, 1.0f, {520ms, &ch::easeOutQuint,
                                                    delay}));
     // the bed
-    el.child(box().absolute().inset(0).corners({r})
+    el.child(box().inset(0).corners({r})
                  .fill(Material::solid(cs::kMortar)));
     // outer fillet
-    el.child(box().absolute().inset(0).corners({r})
+    el.child(box().inset(0).corners({r})
                  .foreground(util::stroke(3.0f,
                                           Fill::color(cs::kMarble),
                                           PathFormat::Align::Inner)));
     // two ring courses of lozenges, counter-phased
-    el.child(box().absolute().inset(0)
+    el.child(box().inset(0)
                  .outline(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
                  .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 40))
                  .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
-    el.child(box().absolute().inset(0)
+    el.child(box().inset(0)
                  .outline(cs::lozengeRing(8, r * 0.30f, r * 0.54f,
                                           0.3926991f))
                  .fill(cs::stone(cs::kGiallo, cs::kGialloLo, 12))
                  .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
     // the eye
-    el.child(box().absolute().inset(r * 0.72f).corners({r * 0.28f})
+    el.child(box().inset(r * 0.72f).corners({r * 0.28f})
                  .fill(cs::stone(eyeHi, eyeLo, 60))
                  .foreground(util::stroke(1.6f, Fill::color(cs::kMarble))));
     return el;
@@ -275,17 +275,17 @@ struct CosmatiScene final : Scene {
                        .cache(Cache::Texture)
                        .opacity(withFrom(0.0f, 1.0f,
                                          {360ms, &ch::easeOutQuad, delay}));
-    band.child(box().absolute().inset(0)
+    band.child(box().inset(0)
                    .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 8))
                    .foreground(util::stroke(1.4f, Fill::color(cs::kMarble),
                                             PathFormat::Align::Inner)));
-    band.child(box().absolute().inset(0)
+    band.child(box().inset(0)
                    .outline(cs::guillocheStrand((float)periods, 0.0f,
                                                 h * 0.26f))
                    .trim(0.0f, &lay)
                    .stroke(util::stroke(h * 0.20f,
                                         Fill::color(cs::kGiallo))));
-    band.child(box().absolute().inset(0)
+    band.child(box().inset(0)
                    .outline(cs::guillocheStrand((float)periods, 3.14159265f,
                                                 h * 0.26f))
                    .trim(0.0f, &lay)
@@ -294,7 +294,7 @@ struct CosmatiScene final : Scene {
     // the discs the strands plait around
     for (int i = 0; i < periods; ++i) {
       const float cx = w * ((float)i + 0.5f) / (float)periods;
-      band.child(box().absolute().left(cx - h * 0.20f).top(h * 0.30f)
+      band.child(box().left(cx - h * 0.20f).top(h * 0.30f)
                      .width(Dim(h * 0.40f)).height(Dim(h * 0.40f))
                      .corners({h * 0.20f})
                      .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 30))
@@ -316,22 +316,22 @@ struct CosmatiScene final : Scene {
     // difference is noise, on the CPU raster backend it is the difference
     // between 12 fps and 100.
     Element q = stack().width(Dim(side)).height(Dim(side))
-                    .absolute().left(x).top(y)
+                    .left(x).top(y)
                     .cache(Cache::Texture)
                     .opacity(withFrom(0.0f, 1.0f,
                                       {420ms, &ch::easeOutQuad, delay}));
-    q.child(box().absolute().inset(0).fill(Material::solid(cs::kMortar)));
+    q.child(box().inset(0).fill(Material::solid(cs::kMortar)));
     const int cols = 11, rows = 11;
-    q.child(box().absolute().inset(0)
+    q.child(box().inset(0)
                 .outline(cs::triangleCourse(cols, rows, 0))
                 .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 18)));
-    q.child(box().absolute().inset(0)
+    q.child(box().inset(0)
                 .outline(cs::triangleCourse(cols, rows, 1))
                 .fill(cs::stone(cs::kMarble, cs::kMarbleLo, 52)));
-    q.child(box().absolute().inset(0)
+    q.child(box().inset(0)
                 .outline(cs::triangleCourse(cols, rows, 2))
                 .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 34)));
-    q.child(box().absolute().inset(0)
+    q.child(box().inset(0)
                 .foreground(util::stroke(2.0f, Fill::color(cs::kMarble),
                                          PathFormat::Align::Inner)));
     return q;
@@ -348,12 +348,12 @@ struct CosmatiScene final : Scene {
 
     // ---- the pavement ------------------------------------------------
     Element floorPlate =
-        stack().key("floor").absolute()
+        stack().key("floor")
             .left(cs::kFieldX).top(cs::kFieldY)
             .width(Dim(cs::kFieldSide)).height(Dim(cs::kFieldSide));
 
     // the Purbeck frame carrying the inscription band
-    floorPlate.child(box().absolute().inset(0)
+    floorPlate.child(box().inset(0)
                          // one octave: this fill covers the whole plate
                          // even though only its border shows, and on the
                          // raster backend every pixel of it is an SkSL
@@ -367,15 +367,15 @@ struct CosmatiScene final : Scene {
     floorPlate.child(text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
                                "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
                           cs::type(11, cs::kInkDim, 3.4f))
-                         .absolute().left(cs::kBandW).top(13));
+                         .left(cs::kBandW).top(13));
     floorPlate.child(text(toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
                                "MCCLXVIII \xc2\xb7"),
                           cs::type(11, cs::kInkDim, 3.4f))
-                         .absolute().left(cs::kBandW)
+                         .left(cs::kBandW)
                          .top(cs::kFieldSide - 24));
 
     // the mortar bed inside the frame
-    floorPlate.child(box().absolute().inset(cs::kBandW)
+    floorPlate.child(box().inset(cs::kBandW)
                          .fill(Material::solid(cs::kMortar)));
 
     // ---- the quincunx of quincunxes ---------------------------------
@@ -440,7 +440,7 @@ struct CosmatiScene final : Scene {
                          .zIndex(6));
 
     // the raking light: a soft band crossing the polished floor
-    floorPlate.child(box().absolute().left(-260).top(-40)
+    floorPlate.child(box().left(-260).top(-40)
                          .width(Dim(210.0f))
                          .height(Dim(cs::kFieldSide + 80))
                          .rotate(14.0f)
@@ -456,7 +456,7 @@ struct CosmatiScene final : Scene {
 
     // ---- the apparatus beside the floor ------------------------------
     const float px = cs::kFieldX + cs::kFieldSide + 34;
-    root.child(box().column().absolute().left(px).top(cs::kFieldY + 4)
+    root.child(box().column().left(px).top(cs::kFieldY + 4)
                    .child(text(toU8("OPUS SECTILE"),
                                cs::type(21, cs::kInk, 3.4f, 640)))
                    .child(text(toU8("Cosmatesque \xc2\xb7 Westminster "
@@ -496,7 +496,7 @@ struct CosmatiScene final : Scene {
         {"glass \xc2\xb7 cobalt", cs::kGlassCobalt, cs::kPurbeckLo},
     };
     Element legend = box().key("quarries").column().gap(6)
-                         .absolute().left(px).bottom(46)
+                         .left(px).bottom(46)
                          .staggerChildren(60ms);
     for (const Quarry &q : kQuarries)
       legend.child(box().row().alignItems(Align::Center).gap(9)

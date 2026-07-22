@@ -332,7 +332,7 @@ inline Element panel(float w, float h) {
                              {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
       .clip()
       // quarried, not smooth: the grain is generated, never a texture file
-      .child(box().absolute().inset(0)
+      .child(box().inset(0)
                  .fill(patterns::noise(0.06f, 4, 7.0f))
                  .opacity(0.16f)
                  .blend(SkBlendMode::kOverlay))
@@ -349,13 +349,13 @@ inline Element panel(float w, float h) {
 inline Element rivets(float w, float h, float inset = 11) {
   auto stud = [](float x, float y) {
     return box().width(Dim(6.0f)).height(Dim(6.0f)).corners({3})
-        .absolute().left(x - 3).top(y - 3)
+        .left(x - 3).top(y - 3)
         .fill(Material::radial({3, 3}, 3.4f,
                                {{0.0f, kBronzeLit},
                                 {0.7f, kBronze},
                                 {1.0f, kBronzeDim}}));
   };
-  return stack().absolute().inset(0)
+  return stack().inset(0)
       .child(stud(inset, inset))
       .child(stud(w - inset, inset))
       .child(stud(inset, h - inset))
@@ -457,7 +457,7 @@ struct LootGridScene final : Scene {
     namespace lt = loot;
     constexpr float pad = 15;
     Element grid = stack().width(Dim(lt::kGridW)).height(Dim(lt::kGridH))
-                       .absolute().left(pad).top(pad + 26);
+                       .left(pad).top(pad + 26);
 
     // the empty wells — forty cells, one stamp
     grid.child(instances(cellAtlas, cellPool));
@@ -471,7 +471,7 @@ struct LootGridScene final : Scene {
                        item.rarity == lt::Rarity::Set;
       Element cell =
           box().width(Dim(w)).height(Dim(h)).corners({2})
-              .absolute().left(lt::cellX(item.col)).top(lt::cellY(item.row))
+              .left(lt::cellX(item.col)).top(lt::cellY(item.row))
               .fill(Material::linear(
                   {0, 0}, {0, h},
                   {{0.0f, {rc.fR * 0.30f, rc.fG * 0.30f, rc.fB * 0.30f, 0.85f}},
@@ -487,9 +487,8 @@ struct LootGridScene final : Scene {
                                            {0, 0}, 9));
       // uniques catch a light band that sweeps them
       if (item.rarity == lt::Rarity::Unique)
-        cell.child(box().absolute().inset(1).clip()
+        cell.child(box().inset(1).clip()
                        .child(box().width(Dim(w * 0.30f)).height(Dim(h * 1.8f))
-                                  .absolute()
                                   .left(-w * 0.4f).top(-h * 0.4f)
                                   .translateX(bind(&shimmer).to(-70, 170))
                                   .rotate(18.0f)
@@ -507,7 +506,7 @@ struct LootGridScene final : Scene {
     // FarrokhGames' two cell sprites, cross-faded: green while the
     // footprint is free, red the moment it overlaps something.
     grid.child(box().width(Dim(dw)).height(Dim(dh)).corners({2})
-                   .absolute().left(0).top(0)
+                   .left(0).top(0)
                    .translateX(&dragX).translateY(&dragY)
                    .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.26f}))
                    .foreground(util::stroke(
@@ -515,7 +514,7 @@ struct LootGridScene final : Scene {
                    .opacity(&fitsMix)
                    .zIndex(5));
     grid.child(box().width(Dim(dw)).height(Dim(dh)).corners({2})
-                   .absolute().left(0).top(0)
+                   .left(0).top(0)
                    .translateX(&dragX).translateY(&dragY)
                    .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.30f}))
                    .foreground(util::stroke(
@@ -524,7 +523,7 @@ struct LootGridScene final : Scene {
                    .zIndex(6));
     // and the item riding it
     grid.child(box().width(Dim(dw)).height(Dim(dh))
-                   .absolute().left(0).top(0)
+                   .left(0).top(0)
                    .translateX(&dragX).translateY(&dragY)
                    .row().justify(Justify::Center).alignItems(Align::Center)
                    .zIndex(7)
@@ -533,14 +532,14 @@ struct LootGridScene final : Scene {
 
     return stack().width(Dim(lt::kGridW + 2 * pad))
         .height(Dim(lt::kGridH + 2 * pad + 26))
-        .absolute().left(452).top(96)
+        .left(452).top(96)
         .child(loot::panel(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26)
-                   .absolute().inset(0))
+                   .inset(0))
         .child(loot::rivets(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26))
         .child(text(toU8("HOARD"), lt::type(12, lt::kBronzeLit, 4.5f, 650))
-                   .absolute().left(pad).top(pad + 2))
+                   .left(pad).top(pad + 2))
         .child(text(toU8("10 \xc3\x97" " 4"), lt::type(11, lt::kAsh, 2.0f))
-                   .absolute().right(pad).top(pad + 3))
+                   .right(pad).top(pad + 3))
         .child(std::move(grid));
   }
 
@@ -577,7 +576,7 @@ struct LootGridScene final : Scene {
         {9, lt::Rarity::Normal, lt::C(0x7A6A55)},
     };
 
-    Element body = stack().absolute().inset(0);
+    Element body = stack().inset(0);
     for (int i = 0; i < (int)(sizeof(kSlots) / sizeof(kSlots[0])); ++i) {
       const Slot &s = kSlots[i];
       const float w = lt::spanW(s.w), h = lt::spanW(s.h);
@@ -588,11 +587,11 @@ struct LootGridScene final : Scene {
 
       Element socket =
           stack().width(Dim(w)).height(Dim(h))
-              .absolute().left(pad + s.x).top(pad + 22 + s.y)
-              .child(lt::well(w, h).absolute().inset(0));
+              .left(pad + s.x).top(pad + 22 + s.y)
+              .child(lt::well(w, h).inset(0));
       if (equipped) {
         const SkColor4f rc = lt::rarityColor(equipped->rarity);
-        socket.child(box().absolute().inset(2).corners({2})
+        socket.child(box().inset(2).corners({2})
                          .fill(Material::linear(
                              {0, 0}, {0, h},
                              {{0.0f, {rc.fR * 0.28f, rc.fG * 0.28f,
@@ -602,21 +601,21 @@ struct LootGridScene final : Scene {
                          .foreground(util::stroke(
                              1.0f,
                              Fill::color({rc.fR, rc.fG, rc.fB, 0.45f}))));
-        socket.child(box().absolute().inset(0)
+        socket.child(box().inset(0)
                          .row().justify(Justify::Center)
                          .alignItems(Align::Center)
                          .child(lt::artwork(s.ghost, w * 0.72f, h * 0.76f,
                                             equipped->tint)));
       } else {
         // empty sockets hint at what belongs in them
-        socket.child(box().absolute().inset(0)
+        socket.child(box().inset(0)
                          .row().justify(Justify::Center)
                          .alignItems(Align::Center)
                          .opacity(0.13f)
                          .child(lt::artwork(s.ghost, w * 0.64f, h * 0.68f,
                                             lt::kParch)));
         socket.child(text(toU8(s.label), lt::type(7.0f, lt::kAsh, 1.3f))
-                         .absolute().left(0).right(0).bottom(3)
+                         .left(0).right(0).bottom(3)
                          .textAlign(sigil::weave::TextAlignment::kCenter));
       }
       body.child(std::move(socket));
@@ -633,7 +632,7 @@ struct LootGridScene final : Scene {
           .child(text(toU8(value), lt::type(12, valueColor, 0.5f, 620)));
     };
     body.child(box().row().gap(20)
-                   .absolute().left(pad + 10).bottom(pad + 8)
+                   .left(pad + 10).bottom(pad + 8)
                    .child(box().column().gap(4)
                               .child(statRow("STRENGTH", "142", lt::kParch))
                               .child(statRow("DEXTERITY", "97", lt::kParch))
@@ -652,11 +651,11 @@ struct LootGridScene final : Scene {
                                              lt::C(0xD04040)))));
 
     return stack().width(Dim(pw)).height(Dim(ph))
-        .absolute().left(30).top(96)
-        .child(loot::panel(pw, ph).absolute().inset(0))
+        .left(30).top(96)
+        .child(loot::panel(pw, ph).inset(0))
         .child(loot::rivets(pw, ph))
         .child(text(toU8("EQUIPPED"), lt::type(12, lt::kBronzeLit, 4.5f, 650))
-                   .absolute().left(pad).top(pad))
+                   .left(pad).top(pad))
         .child(std::move(body));
   }
 
@@ -670,7 +669,7 @@ struct LootGridScene final : Scene {
       return text(toU8(s), lt::type(11.5f, c, 0.2f));
     };
     return box().width(Dim(262.0f))
-        .absolute().left(452).top(340)
+        .left(452).top(340)
         .column().alignItems(Align::Center).padding(14, 11).gap(2).corners({2})
         .fill(Material::solid({0.02f, 0.02f, 0.02f, 0.90f}))
         .foreground(util::stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB,
@@ -710,13 +709,13 @@ struct LootGridScene final : Scene {
          {1.0f, lt::C(0x080706)}}));
 
     // a faint speckled floor so the panels sit ON something
-    root.child(box().absolute().inset(0)
+    root.child(box().inset(0)
                    .fill(patterns::speckle(140, 26, 0.4f, 1.4f,
                                            {{0.55f, 0.48f, 0.36f, 0.20f}})
                              .material())
                    .opacity(0.5f));
 
-    root.child(box().column().absolute().left(30).top(34)
+    root.child(box().column().left(30).top(34)
                    .child(text(toU8("HOARD OF THE HORADRIM"),
                                lt::type(23, lt::kParch, 3.4f, 640)))
                    .child(text(toU8("grid inventory \xe2\x80\x94 generated "
@@ -730,7 +729,7 @@ struct LootGridScene final : Scene {
 
     // gold, on its own little plaque
     root.child(box().row().alignItems(Align::Center).gap(9)
-                   .absolute().right(30).top(38)
+                   .right(30).top(38)
                    .padding(13, 7).corners({3})
                    .fill(Material::linear({0, 0}, {0, 32},
                                           {{0.0f, lt::kStoneHi},
@@ -758,7 +757,7 @@ struct LootGridScene final : Scene {
           .child(text(toU8(label), lt::type(10.5f, c, 0.8f)));
     };
     root.child(box().row().gap(15).alignItems(Align::Center)
-                   .absolute().right(30).bottom(26)
+                   .right(30).bottom(26)
                    .child(chip(lt::Rarity::Normal, "normal"))
                    .child(chip(lt::Rarity::Magic, "magic"))
                    .child(chip(lt::Rarity::Rare, "rare"))
@@ -766,7 +765,7 @@ struct LootGridScene final : Scene {
                    .child(chip(lt::Rarity::Unique, "unique")));
 
     root.child(box().row().gap(8).alignItems(Align::Center)
-                   .absolute().left(30).bottom(26)
+                   .left(30).bottom(26)
                    .child(box().width(Dim(11.0f)).height(Dim(11.0f))
                               .corners({2})
                               .fill(Material::solid({0.16f, 0.80f, 0.24f,

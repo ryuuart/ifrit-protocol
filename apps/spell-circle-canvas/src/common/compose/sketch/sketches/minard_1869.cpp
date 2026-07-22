@@ -131,6 +131,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMgr.h>
@@ -156,10 +157,7 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-constexpr SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {((v >> 16) & 0xffu) / 255.0f, ((v >> 8) & 0xffu) / 255.0f,
-          (v & 0xffu) / 255.0f, a};
-}
+using studio::hex;   // the same four lines as twenty-three other files
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
@@ -800,20 +798,11 @@ SkPath rectPath(float l, float t, float r, float bm) {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(face);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return studio::type({.face = std::move(face), .size = size, .color = color,
+                       .track = tracking});
 }
 
-std::string fmt(const char *f, double v) {
-  char buf[128];
-  std::snprintf(buf, sizeof buf, f, v);
-  return buf;
-}
+using studio::fmt;   // variadic, and it sizes the result
 std::string fmt2(const char *f, double a, double b) {
   char buf[192];
   std::snprintf(buf, sizeof buf, f, a, b);
@@ -915,7 +904,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   Element paperGround() {
     return box()
-        .absolute()
         .inset(0)
         .fill(paperMat)
         // the ageing: warmer and dirtier toward the edges
@@ -925,13 +913,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element frames() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     // the two printed frames are ONE rule around each panel, drawn as a
     // double rule the way the plate cuts them
     auto rule = [&](float l, float t, float r, float bm, const char *k,
                     float t0, float t1) {
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(rectPath(l, t, r, bm)))
                   .stroke(lines::Line{.width = 1.1f,
@@ -945,7 +932,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     rule(kFrameL, kDivHN + 4, kFrameR, kFrameB, "frameN", 0.35f, 1.2f);
     // the map | temperature divider
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({kFrameL, kDivNT}, {kFrameR, kDivNT}))
                 .stroke(util::stroke(1.0f, Fill::color(kInk)))
@@ -957,34 +943,24 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** Minard's own hand across the top margin, and the two donation
    *  stamps. This is the part of the object that makes it HIS copy. */
   Element provenance() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     g.child(text(toU8("pour la Bibliothèque impériale"),
                  type(faceScript, 30, kManuscript, 1.0f))
-                .absolute()
-                .left(Dim(40))
-                .top(Dim(4))
+                .at({40, 4})
                 .key("dedic")
                 .wipe(0.0f, beat(0.45f, 1.15f)));
     g.child(text(toU8("Ge Don 4182"), type(faceScript, 16, kManuscript, 0.4f))
-                .absolute()
-                .left(Dim(1218))
-                .top(Dim(12))
+                .at({1218, 12})
                 .key("gedon")
                 .opacity(beat(0.9f, 1.2f)));
     auto stamp = [&](float cx, float cy, float r, const char *label,
                      const char *k, float t0) {
       g.child(box()
-                  .absolute()
-                  .left(Dim(cx - r))
-                  .top(Dim(cy - r * 0.66f))
-                  .width(Dim(2 * r))
-                  .height(Dim(1.32f * r))
+                  .rect(SkRect::MakeXYWH(cx - r, cy - r * 0.66f, 2 * r, 1.32f * r))
                   .outline(shapes::circle())
                   .stroke(util::stroke(1.5f, Fill::color(kStampRed)))
                   .child(text(toU8(label), type(faceRoman, 7.5f, kStampRed, 0.3f))
-                             .absolute()
-                             .left(Dim(r * 0.35f))
-                             .top(Dim(r * 0.42f)))
+                             .at({r * 0.35f, r * 0.42f}))
                   .key(k)
                   .scale(withFrom(0.0f, 1.0f,
                                   ramp(t0 * 1000, 420, ch::EaseOutBack())))
@@ -1031,7 +1007,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       rings.push_back(lines::offsetAlong(line, d, 4.0f));
     }
 
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     g.child(custom([sea, rings](SkCanvas &c, const PaintContext &) {
               SkPaint p;
               p.setAntiAlias(true);
@@ -1045,23 +1021,19 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
               }
               c.restore();
             })
-                .absolute()
                 .inset(0)
                 .cache(Cache::Texture)
                 .key("seahatch")
                 .opacity(beat(tHann + 0.25f, tHann + 1.0f)));
     // the shore itself, engraved on top
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(pathFn(line))
                 .stroke(util::stroke(1.1f, Fill::color(kInk)))
                 .trim(0.0f, beat(tHann, tHann + 0.5f))
                 .key("coast"));
     g.child(text(toU8("Iles Baléares"), type(faceItalic, 9, kInk, 0.2f))
-                .absolute()
-                .left(Dim(150))
-                .top(Dim(500))
+                .at({150, 500})
                 .key("baleares")
                 .opacity(beat(tHann + 0.9f, tHann + 1.2f)));
     return g;
@@ -1113,7 +1085,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                }
              }
            })
-        .absolute()
         .inset(0)
         .cache(Cache::Texture)
         .key(key)
@@ -1121,36 +1092,28 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element hannibalPanel() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     g.child(text(toU8("Carte Figurative des pertes successives en hommes de "
                       "l'armée qu'Annibal conduisit d'Espagne"),
                  type(faceScript, 19, kInk, 0.2f))
-                .absolute()
-                .left(Dim(210))
-                .top(Dim(58))
+                .at({210, 58})
                 .key("htitle1")
                 .opacity(beat(tHann, tHann + 0.4f)));
     g.child(text(toU8("en Italie en traversant les Gaules (selon Polybe)."),
                  type(faceScript, 17, kInk, 0.2f))
-                .absolute()
-                .left(Dim(320))
-                .top(Dim(84))
+                .at({320, 84})
                 .key("htitle2")
                 .opacity(beat(tHann + 0.1f, tHann + 0.5f)));
     g.child(text(toU8("Dressée par M. Minard, Inspecteur Général "
                       "des Ponts et Chaussées en retraite."),
                  type(faceScript, 14, kInk, 0.15f))
-                .absolute()
-                .left(Dim(300))
-                .top(Dim(110))
+                .at({300, 110})
                 .key("htitle3")
                 .opacity(beat(tHann + 0.2f, tHann + 0.6f)));
     g.child(text(toU8("Paris, le 20 Novembre 1869."),
                  type(faceScript, 14, kInk, 0.15f))
-                .absolute()
-                .left(Dim(700))
-                .top(Dim(132))
+                .at({700, 132})
                 .key("htitle4")
                 .opacity(beat(tHann + 0.3f, tHann + 0.7f)));
 
@@ -1170,7 +1133,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // rivers, in a lighter sloped hand
     auto river = [&](std::vector<SkPoint> pts, const char *k, float t0) {
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(smooth(pts)))
                   .stroke(util::stroke(0.8f, Fill::color(hex(0x4e4436, 0.8f))))
@@ -1212,9 +1174,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
           : p.kind == 3 ? type(faceItalic, 10, hex(0x4e4436), 1.2f)
                         : type(faceItalic, 9, kInk, 0.2f);
       g.child(text(toU8(p.name), st)
-                  .absolute()
-                  .left(Dim(p.x))
-                  .top(Dim(p.y))
+                  .at({p.x, p.y})
                   .key("hp" + std::to_string(i))
                   .opacity(beat(tHann + 1.0f + 0.012f * (float)i,
                                 tHann + 1.4f + 0.012f * (float)i)));
@@ -1229,7 +1189,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                      "hbar", tHann + 1.45f));
     // the compass arrow in the Mediterranean
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({846, 486}, {900, 424}))
                 .stroke(lines::arrow(1.2f, Fill::color(kInk), 9.0f))
@@ -1241,19 +1200,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element legendBox() {
     const float l = 1010, t = 52, w = 344, h = 108;
     auto g = box()
-                 .absolute()
-                 .left(Dim(l))
-                 .top(Dim(t))
-                 .width(Dim(w))
-                 .height(Dim(h))
+                 .rect(SkRect::MakeXYWH(l, t, w, h))
                  .outline(pathFn(rectPath(0, 0, w, h)))
                  .stroke(util::stroke(1.0f, Fill::color(kInk)))
                  .key("legendbox")
                  .opacity(beat(tHann + 1.5f, tHann + 1.8f));
     g.child(text(toU8("Légende."), type(faceScript, 14, kInk))
-                .absolute()
-                .left(Dim(140))
-                .top(Dim(4)));
+                .at({140, 4}));
     const char *lines_[] = {
         "Les nombres d'hommes restés à Annibal sont "
         "représentés",
@@ -1268,9 +1221,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     };
     for (int i = 0; i < 5; ++i)
       g.child(text(toU8(lines_[i]), type(faceScript, 9.6f, kInk, 0.05f))
-                  .absolute()
-                  .left(Dim(8))
-                  .top(Dim(24 + 16.0f * (float)i)));
+                  .at({8, 24 + 16.0f * (float)i}));
     return g;
   }
 
@@ -1297,11 +1248,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       return p.pxAt(s.distance) * (scale->value() / kMmPer10k);
     };
     return box()
-        .absolute()
-        .left(Dim(bb.left()))
-        .top(Dim(bb.top()))
-        .width(Dim(bb.width()))
-        .height(Dim(bb.height()))
+        .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
         .outline([local](SkSize) { return local; })
         .stroke(r)
         .cache(Cache::None)
@@ -1321,7 +1268,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     const std::vector<SkPoint> pts = pointsOf(st);
     const SkPath band = quadUnion(pts, menOf(st), mmScale.value() / kMmPer10k);
     return box()
-        .absolute()
         .inset(0)
         .outline(pathFn(band))
         .fill(Material::solid(colour))
@@ -1348,11 +1294,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     const SkPoint a{at.x() - n.x() * half, at.y() - n.y() * half};
     const SkPoint b{at.x() + n.x() * half, at.y() + n.y() * half};
     return text(toU8(french(men)), type(faceNum, size, kInk, 0.2f))
-        .absolute()
-        .left(Dim(0))
-        .top(Dim(0))
-        .width(Dim(kSheetW))
-        .height(Dim(kSheetH))
+        .rect(SkRect::MakeXYWH(0, 0, kSheetW, kSheetH))
         .onPath(TextPath{.path = segFn(a, b),
                          .at = 0.5f,
                          .align = TextPath::Align::Center,
@@ -1365,7 +1307,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   Element advanceZones() {
     return box()
-        .absolute()
         .inset(0)
         .child(quadBandElement(kAdvTrunk, kZone, "advTrunk",
                                beat(tAdv, tAdv + 1.6f), 0.0f))
@@ -1376,24 +1317,20 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element napoleonPanel(sketch::SketchContext &ctx) {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
 
     g.child(text(toU8("Carte Figurative des pertes successives en hommes de "
                       "l'Armée Française dans la campagne de Russie "
                       "1812—1813."),
                  type(faceScript, 18, kInk, 0.15f))
-                .absolute()
-                .left(Dim(200))
-                .top(Dim(kDivHN + 14))
+                .at({200, kDivHN + 14})
                 .key("ntitle")
                 .opacity(beat(tLegend, tLegend + 0.3f)));
     g.child(text(toU8("Dressée par M. Minard, Inspecteur Général "
                       "des Ponts et Chaussées en retraite.        Paris, "
                       "le 20 Novembre 1869."),
                  type(faceScript, 13, kInk, 0.1f))
-                .absolute()
-                .left(Dim(300))
-                .top(Dim(kDivHN + 40))
+                .at({300, kDivHN + 40})
                 .key("ntitle2")
                 .opacity(beat(tLegend + 0.1f, tLegend + 0.4f)));
 
@@ -1402,9 +1339,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const bool jerome = i >= 3; // the sentence almost nobody quotes
       g.child(text(toU8(kLegendNapoleon[i]),
                    type(faceScript, 9.8f, jerome ? kInk : kInk, 0.02f))
-                  .absolute()
-                  .left(Dim(i == 3 ? 148 : 128))
-                  .top(Dim(kDivHN + 58 + 14.6f * (float)i))
+                  .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
                   .key("nleg" + std::to_string(i))
                   .wipe(0.0f, beat(tLegend + 0.25f + 0.16f * (float)i,
                                    tLegend + 0.55f + 0.16f * (float)i)));
@@ -1414,16 +1349,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto river = [&](std::vector<SkPoint> pts, const char *label, SkPoint lp,
                      const char *k, float t0) {
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(smooth(pts)))
                   .stroke(util::stroke(0.7f, Fill::color(hex(0x4e4436, 0.85f))))
                   .trim(0.0f, beat(t0, t0 + 0.35f))
                   .key(k));
       g.child(text(toU8(label), type(faceItalic, 8, hex(0x4e4436), 0.6f))
-                  .absolute()
-                  .left(Dim(lp.x()))
-                  .top(Dim(lp.y()))
+                  .at({lp.x(), lp.y()})
                   .key(std::string(k) + "L")
                   .opacity(beat(t0 + 0.2f, t0 + 0.5f)));
     };
@@ -1455,7 +1387,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // The red-brown is a SEPARATE STONE from the black, so it is very
     // slightly out of register. One translate, and it is the single most
     // convincing "this is a lithograph" cue on the sheet.
-    auto redStone = box().absolute().inset(0).translateX(0.4f).translateY(-0.3f);
+    auto redStone = box().inset(0).translateX(0.4f).translateY(-0.3f);
     const SkPath trunk = polyline(kAdvTrunk);
     const SkPath north = polyline(kAdvNorth);
     const SkPath polotzk = polyline(kAdvPolotzk);
@@ -1471,7 +1403,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the stone took unevenly: a very low-amplitude speckle in the zone
     // colour, NOT a gradient (the Commons p10/p90 are two units apart)
     redStone.child(box()
-                       .absolute()
                        .inset(0)
                        .fill(tintSpeckle.material())
                        .blend(SkBlendMode::kMultiply)
@@ -1502,18 +1433,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       float x = kFrameL + 16;
       for (int i = 0; i < 5; ++i) {
         g.child(text(toU8(ident[i]), type(faceUiBold, 9.5f, kBlue))
-                    .absolute()
-                    .left(Dim(x))
-                    .top(Dim(kDivNT - 26))
+                    .at({x, kDivNT - 26})
                     .key("ar" + std::to_string(i))
                     .opacity(beat(tAdv + 0.5f + 0.35f * (float)i,
                                   tAdv + 0.75f + 0.35f * (float)i)));
         x += 20.0f + 6.4f * (float)std::char_traits<char>::length(ident[i]);
       }
       g.child(text(toU8("all five EXACT"), type(faceUiBold, 9.5f, kPass))
-                  .absolute()
-                  .left(Dim(x))
-                  .top(Dim(kDivNT - 26))
+                  .at({x, kDivNT - 26})
                   .key("arok")
                   .opacity(beat(tRet + 1.8f, tRet + 2.1f)));
     }
@@ -1550,9 +1477,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
           moscou ? text(toU8("MOSCOU"), type(faceRoman, 13, kInk, 2.2f))
                        .textStroke(0.5f, Fill::color(kInk))
                  : text(toU8(c.plate), type(faceItalic, 9.6f, kInk, 0.2f));
-      g.child(e.absolute()
-                  .left(Dim(mapX(c.lon) + c.dx))
-                  .top(Dim(mapY(c.lat) + c.dy))
+      g.child(e
+                  .at({mapX(c.lon) + c.dx, mapY(c.lat) + c.dy})
                   .key("city" + std::to_string(i))
                   .opacity(beat(tAdv + 0.1f + 0.03f * (float)i,
                                 tAdv + 0.4f + 0.03f * (float)i)));
@@ -1569,7 +1495,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       fb.addRect(SkRect::MakeLTRB(mapX(24.1f), y - floorPx * 0.5f,
                                   mapX(25.0f), y + floorPx * 0.5f));
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(fb.detach()))
                   .stroke(util::stroke(0.9f, Fill::color(kBlue)))
@@ -1578,9 +1503,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       g.child(text(toU8("what the crayon actually laid — 1.57 mm, "
                         "2.6× the rule"),
                    type(faceUi, 9, kBlue))
-                  .absolute()
-                  .left(Dim(mapX(24.1f)))
-                  .top(Dim(y + 10))
+                  .at({mapX(24.1f), y + 10})
                   .key("floorinklab")
                   .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
     }
@@ -1590,18 +1513,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "lieues = 933 km.  The truth is 520 km.  ×1.79 — "
                       "UNEXPLAINED"),
                  type(faceUiBold, 10.0f, kAmber))
-                .absolute()
-                .left(Dim(880))
-                .top(Dim(958))
+                .at({880, 958})
                 .key("barlies")
                 .opacity(beat(tBar, tBar + 0.4f)));
     g.child(text(toU8("hypotheses: the labels are half their true value · "
                       "copied unrescaled from Fezensac · my longitude "
                       "scale is wrong.  None asserted."),
                  type(faceUi, 9.0f, hex(0xb5761e, 0.9f)))
-                .absolute()
-                .left(Dim(880))
-                .top(Dim(972))
+                .at({880, 972})
                 .key("barhyp")
                 .opacity(beat(tBar + 0.4f, tBar + 0.8f)));
 
@@ -1618,10 +1537,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  to know WHICH sample it is. Hand-built for want of stampAt(). */
   Element scaleBar(float x, float y, float pxPerUnit, int span, int step,
                    const char *label, const char *key, float t0) {
-    auto g = box().absolute().inset(0).key(key).opacity(beat(t0, t0 + 0.3f));
+    auto g = box().inset(0).key(key).opacity(beat(t0, t0 + 0.3f));
     const float w = pxPerUnit * (float)span;
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({x, y}, {x + w, y}))
                 .stroke(util::stroke(0.9f, Fill::color(kInk))));
@@ -1630,13 +1548,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       if (v > 25 && v < span)
         continue; // the plate's own graduation: 0 5 10 15 20 25 ...... 50
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(segFn({tx, y - 4}, {tx, y})));
       g.child(text(toU8(std::to_string(v)), type(faceNum, 6.5f, kInk))
-                  .absolute()
-                  .left(Dim(tx - 3))
-                  .top(Dim(y + 2)));
+                  .at({tx - 3, y + 2}));
     }
     // the ticks as one stroked path so they are one node
     {
@@ -1649,15 +1564,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         tb.lineTo(tx, y);
       }
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(tb.detach()))
                   .stroke(util::stroke(0.9f, Fill::color(kInk))));
     }
     g.child(text(toU8(label), type(faceItalic, 7.5f, kInk, 0.1f))
-                .absolute()
-                .left(Dim(x))
-                .top(Dim(y - 18)));
+                .at({x, y - 18}));
     return g;
   }
 
@@ -1670,14 +1582,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element temperaturePanel() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     g.child(text(toU8("TABLEAU GRAPHIQUE de la température en degrés "
                       "du thermomètre de Réaumur au dessous de "
                       "zéro."),
                  type(faceScript, 13, kInk, 0.3f))
-                .absolute()
-                .left(Dim(300))
-                .top(Dim(kDivNT + 4))
+                .at({300, kDivNT + 4})
                 .key("tempTitle")
                 .opacity(beat(tTemp, tTemp + 0.3f)));
 
@@ -1685,7 +1595,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     for (int r = 0; r <= 30; r += 5) {
       const float y = tempY((float)-r);
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(segFn({kFrameL, y}, {kFrameR - 34, y}))
                   .stroke(util::stroke(0.4f, Fill::color(hex(0x4e4436, 0.45f))))
@@ -1694,9 +1603,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                   .key("taxis" + std::to_string(r)));
       g.child(text(toU8(r == 30 ? "30 degrés" : std::to_string(r)),
                    type(faceNum, 7, kInk))
-                  .absolute()
-                  .left(Dim(kFrameR - 30))
-                  .top(Dim(y - 4))
+                  .at({kFrameR - 30, y - 4})
                   .key("tlab" + std::to_string(r))
                   .opacity(beat(tTemp + 0.15f + 0.03f * (float)r,
                                 tTemp + 0.5f + 0.03f * (float)r)));
@@ -1711,7 +1618,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       i == 0 ? cb.moveTo(curve[i]) : cb.lineTo(curve[i]);
     const SkPath curvePath = cb.detach();
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(pathFn(curvePath))
                 .stroke(util::stroke(1.2f, Fill::color(kInk)))
@@ -1737,7 +1643,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 }
               }
             })
-                .absolute()
                 .inset(0)
                 .cache(Cache::Texture)
                 .key("thatch")
@@ -1761,7 +1666,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
            {0.66f, hex(0x4e4436, 0.22f)},
            {1.0f, hex(0x4e4436, 0.75f)}});
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(d.detach()))
                   .stroke(f)
@@ -1773,9 +1677,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       // November / December — the old Roman-calendar notation, and a
       // caption that "corrects" Xbre to 10bre is wrong twice over.
       g.child(text(toU8(kTemps[i].label), type(faceNum, 7.4f, kInk, 0.1f))
-                  .absolute()
-                  .left(Dim(x - 26))
-                  .top(Dim(tempY(kTemps[i].reaumur) + 5))
+                  .at({x - 26, tempY(kTemps[i].reaumur) + 5})
                   .key("tann" + std::to_string(i))
                   .opacity(beat(tTemp + 0.5f + 0.06f * (float)i,
                                 tTemp + 0.8f + 0.06f * (float)i)));
@@ -1783,44 +1685,34 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     // the undated −11°, and its two independent recoveries
     g.child(text(toU8("24 novembre  (derived, days column)"),
                  type(faceUi, 8, kBlue))
-                .absolute()
-                .left(Dim(mapX(29.2f) - 26))
-                .top(Dim(tempY(-11) + 16))
+                .at({mapX(29.2f) - 26, tempY(-11) + 16})
                 .key("recov1")
                 .opacity(beat(tTemp + 1.35f, tTemp + 1.6f)));
     g.child(text(toU8("25 novembre  (derived, lon interpolation)"),
                  type(faceUi, 8, kBlue))
-                .absolute()
-                .left(Dim(mapX(29.2f) - 26))
-                .top(Dim(tempY(-11) + 27))
+                .at({mapX(29.2f) - 26, tempY(-11) + 27})
                 .key("recov2")
                 .opacity(beat(tTemp + 1.5f, tTemp + 1.75f)));
 
     g.child(text(toU8("Les Cosaques passent au galop\nle Niémen gelé."),
                  type(faceScript, 10, kInk, 0.1f))
-                .absolute()
-                .left(Dim(kFrameL + 20))
-                .top(Dim(kDivNT + 40))
+                .at({kFrameL + 20, kDivNT + 40})
                 .key("cosaques")
                 .opacity(beat(tTemp + 1.1f, tTemp + 1.5f)));
     return g;
   }
 
   Element imprints() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     g.child(text(toU8("Autog. par Regnier, 8. Pas. Sᵗᵉ Marie Sᵗ "
                       "Gᵃᵉᵐ à Paris."),
                  type(faceItalic, 7, kInk))
-                .absolute()
-                .left(Dim(kFrameL + 6))
-                .top(Dim(kFrameB + 6))
+                .at({kFrameL + 6, kFrameB + 6})
                 .key("imp1")
                 .opacity(beat(1.0f, 1.3f)));
     g.child(text(toU8("Imp. Lith. Regnier et Dourdet"),
                  type(faceItalic, 7, kInk))
-                .absolute()
-                .left(Dim(kFrameR - 140))
-                .top(Dim(kFrameB + 6))
+                .at({kFrameR - 140, kFrameB + 6})
                 .key("imp2")
                 .opacity(beat(1.0f, 1.3f)));
     return g;
@@ -1852,7 +1744,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
    *  paper rather than as ink. */
   Element caliper() {
     const SpotRead r = spot(calStep);
-    auto g = box().absolute().inset(0).key("caliperGrp").opacity(&calAlpha);
+    auto g = box().inset(0).key("caliperGrp").opacity(&calAlpha);
     auto jaw = [&](float x, float y, float halfPx, const char *k) {
       SkPathBuilder p;
       p.moveTo(x - 16, y - halfPx);
@@ -1862,7 +1754,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       p.moveTo(x + 12, y - halfPx);
       p.lineTo(x + 12, y + halfPx);
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(p.detach()))
                   .background(util::shadow(hex(0x000000, 0.30f), {1.5f, 2.0f},
@@ -1873,41 +1764,29 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     jaw(r.x, r.y, r.halfPx, "jaw1");
     const float rx = kFrameL + 10, ry = 686.0f;
     g.child(text(toU8(fmt("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(ry))
+                .at({rx, ry})
                 .key("calread"));
     g.child(text(toU8(fmt2("÷ %.0f = %.4f mm / 10.000", r.men,
                            r.mm / (r.men / 10000.0f))),
                  type(faceUi, 9.5f, kBlue))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(ry + 20))
+                .at({rx, ry + 20})
                 .key("calread2"));
     g.child(text(toU8(std::string(r.where) +
                       "\n(measured on the BnF sheet, no cross-scan "
                       "calibration)"),
                  type(faceUi, 9, hex(0x2f6f9c, 0.9f)))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(ry + 33))
+                .at({rx, ry + 33})
                 .key("calread3"));
     g.child(text(toU8("the legend says 1.0000"),
                  type(faceUiBold, 10, kClaimRed))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(ry + 58))
+                .at({rx, ry + 58})
                 .key("calread4"));
     return g;
   }
 
   Element sheet(sketch::SketchContext &ctx) {
     return box()
-        .absolute()
-        .left(Dim(kSheetX))
-        .top(Dim(kSheetY))
-        .width(Dim(kSheetW))
-        .height(Dim(kSheetH))
+        .rect(SkRect::MakeXYWH(kSheetX, kSheetY, kSheetW, kSheetH))
         .background(util::shadow(hex(0x000000, 0.55f), {6, 10}, 26))
         .child(paperGround())
         .child(frames())
@@ -1917,7 +1796,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         .child(imprints())
         .child(provenance())
         .child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Fill::color(hex(0x120f0b)))
                    .opacity(&dimAmt)
@@ -1945,22 +1823,15 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   Element card(float y, float h, const char *title, const char *key,
                float t0, Element body) {
     auto c = box()
-                 .absolute()
-                 .left(Dim(kAuditX))
-                 .top(Dim(y))
-                 .width(Dim(kAuditW))
-                 .height(Dim(h))
+                 .rect(SkRect::MakeXYWH(kAuditX, y, kAuditW, h))
                  .fill(Material::solid(kCard))
                  .stroke(util::stroke(1.0f, Fill::color(hex(0xcfc6b4))))
                  .key(key)
                  .opacity(beat(t0, t0 + 0.4f))
                  .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
     c.child(text(toU8(title), type(faceUiBold, 15, kCardInk, 1.6f))
-                .absolute()
-                .left(Dim(18))
-                .top(Dim(12)));
+                .at({18, 12}));
     c.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({18, 36}, {kAuditW - 18, 36}))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
@@ -1980,15 +1851,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }};
     const float slope = 3.828f, intercept = -0.19f, r2 = 0.99266f;
     const float px0 = 60, py0 = 60, pw = 560, ph = 236;
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     // axes
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({px0, py0}, {px0, py0 + ph}))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
@@ -1996,7 +1865,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto Y = [&](float px) { return py0 + ph - px / 180.0f * ph; };
     // the fitted line
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({X(0), Y(intercept)},
                                {X(440000), Y(intercept + slope * 44.0f)}))
@@ -2015,28 +1883,20 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(text(toU8("width_px = 3.828 px per 10,000 men,  intercept "
                       "−0.19 px,  R² = 0.99266"),
                  type(faceUi, 11, kBlue))
-                .absolute()
-                .left(Dim(px0 + 6))
-                .top(Dim(py0 + 4))
+                .at({px0 + 6, py0 + 4})
                 .key("fitlab")
                 .opacity(beat(tScale + 2.3f, tScale + 2.6f)));
     g.child(text(toU8("the fitted line goes through the ORIGIN to a fifth of "
                       "a pixel — the zones are not merely\nlinear in men, "
                       "they are proportional"),
                  type(faceUi, 10, kGrey))
-                .absolute()
-                .left(Dim(px0 + 6))
-                .top(Dim(py0 + 22))
+                .at({px0 + 6, py0 + 22})
                 .key("proplab")
                 .opacity(beat(tScale + 2.4f, tScale + 2.7f)));
     g.child(text(toU8("men →"), type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(px0 + pw - 40))
-                .top(Dim(py0 + ph + 6)));
+                .at({px0 + pw - 40, py0 + ph + 6}));
     g.child(text(toU8("px"), type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(px0 - 24))
-                .top(Dim(py0 - 2)));
+                .at({px0 - 24, py0 - 2}));
 
     // the two horizontal rules that matter
     // the two rules are drawn PROPORTIONAL: their lengths are the two
@@ -2046,22 +1906,17 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                        const char *k, float t0, float mm) {
       const float rw = rwUnit * mm;
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(segFn({rx, y}, {rx + rw, y}))
                   .stroke(util::stroke(2.0f, Fill::color(col)))
                   .trim(0.0f, beat(t0, t0 + 0.3f))
                   .key(k));
       g.child(text(toU8(v), type(faceUiBold, 17, col))
-                  .absolute()
-                  .left(Dim(rx))
-                  .top(Dim(y - 26))
+                  .at({rx, y - 26})
                   .key(std::string(k) + "v")
                   .opacity(beat(t0, t0 + 0.3f)));
       g.child(text(toU8(what), type(faceUi, 10, col))
-                  .absolute()
-                  .left(Dim(rx))
-                  .top(Dim(y + 6))
+                  .at({rx, y + 6})
                   .key(std::string(k) + "w")
                   .opacity(beat(t0, t0 + 0.3f)));
     };
@@ -2070,7 +1925,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     ruleRow(196, "1.126 mm", "what the ink measures  (12.6% wider)", kBlue,
             "ruleMeasured", tScale + 2.0f, kMmPer10k);
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({rx + rwUnit, 132}, {rx + rwUnit, 204}))
                 .stroke(PathFormat{.width = 1.0f,
@@ -2080,25 +1934,19 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .opacity(beat(tScale + 2.0f, tScale + 2.3f)));
     g.child(text(toU8("half a French ligne = 1.1279 mm      (SPECULATION)"),
                  type(faceUi, 10, kGrey))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(238))
+                .at({rx, 238})
                 .key("ligneNote")
                 .opacity(beat(tLigne, tLigne + 0.4f)));
     g.child(text(toU8("competing: litho reduction · catalogued paper size "
                       "wrong (this one would kill it)"),
                  type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(254))
+                .at({rx, 254})
                 .key("ligneAlt")
                 .opacity(beat(tLigne + 0.4f, tLigne + 0.8f)));
     g.child(text(toU8("and the SAME factor appears on the Hannibal panel, "
                       "drawn from different data."),
                  type(faceUi, 10, kCardInk))
-                .absolute()
-                .left(Dim(rx))
-                .top(Dim(276))
+                .at({rx, 276})
                 .key("hannSame")
                 .opacity(beat(tScale + 2.5f, tScale + 2.8f)));
     return g;
@@ -2113,14 +1961,13 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         {8000, 7.04f},  {4000, 10.48f},
     }};
     const float px0 = 60, py0 = 58, pw = 470, ph = 108;
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     auto X = [&](float men) {
       const float l = std::log10(std::max(men, 1000.0f));
       return px0 + (l - 3.5f) / (5.05f - 3.5f) * pw;
     };
     auto Y = [&](float v) { return py0 + ph - (v - 3.0f) / 8.5f * ph; };
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
@@ -2130,7 +1977,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       i == pts.size() - 1 ? line.moveTo(q) : line.lineTo(q);
     }
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(pathFn(line.detach()))
                 .stroke(util::stroke(1.6f, Fill::color(kBlue)))
@@ -2138,7 +1984,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .key("floorline"));
     // the crayon floor
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({px0, Y(3.83f)}, {px0 + pw, Y(3.83f)}))
                 .stroke(PathFormat{.width = 1.0f,
@@ -2149,9 +1994,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(text(toU8("3.8 px per 10,000 — the advance band's slope; the "
                       "retreat holds it above ~35,000 men"),
                  type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(px0 + 120))
-                .top(Dim(py0 - 14))
+                .at({px0 + 120, py0 - 14})
                 .key("floorLab")
                 .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
     for (size_t i = 0; i < pts.size(); ++i)
@@ -2163,23 +2006,17 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                                 tScale + 1.2f + 0.05f * (float)i)));
     for (float men : {4000.0f, 10000.0f, 30000.0f, 100000.0f})
       g.child(text(toU8(french(men)), type(faceUi, 8.5f, kGrey))
-                  .absolute()
-                  .left(Dim(X(men) - 12))
-                  .top(Dim(py0 + ph + 4))
+                  .at({X(men) - 12, py0 + ph + 4})
                   .key("fx" + std::to_string((int)men)));
     g.child(text(toU8("4,000 men drawn 2.6× too wide — 0.4 mm is "
                       "below what a lithographic crayon will hold"),
                  type(faceUi, 10, kAmber))
-                .absolute()
-                .left(Dim(px0))
-                .top(Dim(py0 + ph + 18))
+                .at({px0, py0 + ph + 18})
                 .key("floorAmber")
                 .opacity(beat(tScale + 1.8f, tScale + 2.1f)));
     g.child(text(toU8("minimum drawn width 5.4 px = 1.57 mm"),
                  type(faceUi, 10, kCardInk))
-                .absolute()
-                .left(Dim(px0 + 480))
-                .top(Dim(py0 + 44))
+                .at({px0 + 480, py0 + 44})
                 .key("floorMin")
                 .opacity(beat(tScale + 1.9f, tScale + 2.2f)));
     g.child(text(toU8("NEGATIVE RESULT — and it is the more useful half: "
@@ -2187,7 +2024,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "in the ink. At the floor both readings are 5.4 px. The "
                       "prettier finding does not exist."),
                  type(faceUi, 10, kClaimRed))
-                .absolute()
                 .left(Dim(px0 + 480))
                 .top(Dim(py0 + 10))
                 .width(Dim(kAuditW - px0 - 500))
@@ -2198,7 +2034,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   /** Card 3 — THE MAP IS A REAL MAP. The received account is wrong. */
   Element cardGeo() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     const float ox = 40, oy = 52, sc = 31.0f; // px per degree, inset map
     const float exagg = 8.0f;
     auto MX = [&](float lon) { return ox + (lon - 23.5f) * sc; };
@@ -2215,7 +2051,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
           i == 0 ? rt.moveTo(q) : rt.lineTo(q);
         }
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline(pathFn(rt.detach()))
                   .stroke(util::stroke(1.4f, Fill::color(hex(0x1c1a17, 0.35f))))
@@ -2235,14 +2070,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       vectors.lineTo(rx, ry);
     }
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(pathFn(vectors.detach()))
                 .stroke(util::stroke(0.8f, Fill::color(hex(0x2f6f9c, 0.6f))))
                 .trim(0.0f, beat(tGeo + 0.5f, tGeo + 1.1f))
                 .key("geovec"));
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(pathFn(crosses.detach()))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk)))
@@ -2259,9 +2092,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                                 tGeo + 0.35f + 0.02f * (float)i)));
       if (out)
         g.child(text(toU8(c.plate), type(faceUiBold, 10, kAmber))
-                    .absolute()
-                    .left(Dim(MX(c.lon) + 7))
-                    .top(Dim(MY(c.lat) - 6))
+                    .at({MX(c.lon) + 7, MY(c.lat) - 6})
                     .key("gcl" + std::to_string(i))
                     .opacity(beat(tGeo + 1.6f, tGeo + 1.9f)));
     }
@@ -2277,11 +2108,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const float bw = hw / 8.0f;
       const float bh = (float)bins[i] / 9.0f * hh;
       g.child(box()
-                  .absolute()
-                  .left(Dim(hx + bw * (float)i + 1))
-                  .top(Dim(hy + hh - bh))
-                  .width(Dim(bw - 2))
-                  .height(Dim(std::max(bh, 1.0f)))
+                  .rect(SkRect::MakeXYWH(hx + bw * (float)i + 1, hy + hh - bh, bw - 2, std::max(bh, 1.0f)))
                   .fill(Material::solid(i >= 4 ? kAmber : kBlue))
                   .key("hist" + std::to_string(i))
                   .scale(withFrom(0.0f, 1.0f,
@@ -2293,30 +2120,21 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     }
     // the digitisation quantum, as a grey band behind
     g.child(box()
-                .absolute()
-                .left(Dim(hx + hw * 6.41f / 40.0f - 6))
-                .top(Dim(hy))
-                .width(Dim(12))
-                .height(Dim(hh))
+                .rect(SkRect::MakeXYWH(hx + hw * 6.41f / 40.0f - 6, hy, 12, hh))
                 .fill(Material::solid(hex(0x6d675c, 0.22f)))
                 .key("quantum")
                 .opacity(beat(tGeo + 1.3f, tGeo + 1.6f)));
     g.child(text(toU8("residual vectors ×8"), type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(ox))
-                .top(Dim(oy + 150))
+                .at({ox, oy + 150})
                 .key("exaggLab")
                 .opacity(beat(tGeo + 0.6f, tGeo + 0.9f)));
     g.child(text(toU8("0.1° grid = 6.41 km"), type(faceUi, 9, kGrey))
-                .absolute()
-                .left(Dim(hx + hw * 6.41f / 40.0f + 10))
-                .top(Dim(hy + 4))
+                .at({hx + hw * 6.41f / 40.0f + 10, hy + 4})
                 .key("quantumLab")
                 .opacity(beat(tGeo + 1.35f, tGeo + 1.65f)));
     g.child(text(toU8("median 5.35 km on an 871 km span — 0.6%. The "
                       "received account is wrong."),
                  type(faceUiBold, 12, kPass))
-                .absolute()
                 .left(Dim(hx))
                 .top(Dim(hy + hh + 10))
                 .width(Dim(330))
@@ -2325,7 +2143,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     g.child(text(toU8("residual is within 1.8× of what the 0.1° "
                       "digitisation grid alone produces"),
                  type(faceUi, 9, kGrey))
-                .absolute()
                 .left(Dim(hx))
                 .top(Dim(hy + hh + 42))
                 .width(Dim(330))
@@ -2352,11 +2169,10 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         {"Chjat→Mojaisk", 1.528f},
         {"Mojaisk→Moscou", 1.021f},
     }};
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     const float bx = 250, by = 50, bw = 480, rowH = 12.2f;
     const float mid = bx + bw * 0.5f;
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline(segFn({mid, by - 4}, {mid, by + rowH * 10 + 4}))
                 .stroke(util::stroke(1.0f, Fill::color(kCardInk))));
@@ -2365,18 +2181,12 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const bool bad = legs[i].ratio < 0.7f || legs[i].ratio > 1.3f;
       const float dx = (legs[i].ratio - 1.0f) * bw * 0.62f;
       g.child(text(toU8(legs[i].name), type(faceUi, 9.5f, bad ? kAmber : kGrey))
-                  .absolute()
-                  .left(Dim(60))
-                  .top(Dim(y - 2))
+                  .at({60, y - 2})
                   .key("legn" + std::to_string(i))
                   .opacity(beat(tDistort + 0.1f + 0.04f * (float)i,
                                 tDistort + 0.3f + 0.04f * (float)i)));
       g.child(box()
-                  .absolute()
-                  .left(Dim(dx < 0 ? mid + dx : mid))
-                  .top(Dim(y))
-                  .width(Dim(std::max(std::fabs(dx), 1.0f)))
-                  .height(Dim(7))
+                  .rect(SkRect::MakeXYWH(dx < 0 ? mid + dx : mid, y, std::max(std::fabs(dx), 1.0f), 7))
                   .fill(Material::solid(bad ? kAmber : kBlue))
                   .key("legb" + std::to_string(i))
                   .scale(withFrom(0.0f, 1.0f,
@@ -2388,9 +2198,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                                 tDistort + 0.4f + 0.05f * (float)i)));
       g.child(text(toU8(fmt("%.3f", legs[i].ratio)),
                    type(faceUi, 9.5f, bad ? kAmber : kGrey))
-                  .absolute()
-                  .left(Dim(bx + bw + 20))
-                  .top(Dim(y - 2))
+                  .at({bx + bw + 20, y - 2})
                   .key("legv" + std::to_string(i))
                   .opacity(beat(tDistort + 0.2f + 0.04f * (float)i,
                                 tDistort + 0.4f + 0.04f * (float)i)));
@@ -2401,7 +2209,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "Chjat and Mojaisk crowd into 130 px of lettering.  "
                       "That the room was for the labels is an INFERENCE."),
                  type(faceUi, 10, kCardInk))
-                .absolute()
                 .left(Dim(60))
                 .top(Dim(by + rowH * 10 + 12))
                 .width(Dim(900))
@@ -2413,16 +2220,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   /** Card 5 — RÉAUMUR. °C = °R × 5/4 and °F = °R × 9/4 + 32, both exact,
    *  and the axis relabels itself live. */
   Element cardReaumur() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     const float x0 = 40, y0 = 50, rowH = 15.0f;
     const char *heads[] = {"date on the plate", "°R", "°C",
                            "°F", "days"};
     const float cols[] = {0, 250, 330, 410, 500};
     for (int c = 0; c < 5; ++c)
       g.child(text(toU8(heads[c]), type(faceUiBold, 9.5f, kGrey))
-                  .absolute()
-                  .left(Dim(x0 + cols[c]))
-                  .top(Dim(y0 - 16))
+                  .at({x0 + cols[c], y0 - 16})
                   .key("rh" + std::to_string(c)));
     for (size_t i = 0; i < kTemps.size(); ++i) {
       const Temp &t = kTemps[i];
@@ -2431,9 +2236,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
       const float y = y0 + rowH * (float)i;
       auto cell = [&](int c, const std::string &s, SkColor4f cc, float sz) {
         g.child(text(toU8(s), type(faceUi, sz, cc))
-                    .absolute()
-                    .left(Dim(x0 + cols[c]))
-                    .top(Dim(y))
+                    .at({x0 + cols[c], y})
                     .key("rc" + std::to_string(i) + "_" + std::to_string(c))
                     .opacity(beat(tReaumur + 0.05f * (float)i,
                                   tReaumur + 0.25f + 0.05f * (float)i)));
@@ -2452,9 +2255,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "× 9/4 + 32      (exact — Réaumur puts 80 "
                       "degrees between ice and steam)"),
                  type(faceUi, 10, kGrey))
-                .absolute()
-                .left(Dim(x0))
-                .top(Dim(y0 + rowH * 9 + 2))
+                .at({x0, y0 + rowH * 9 + 2})
                 .key("reqs")
                 .opacity(beat(tReaumur + 0.5f, tReaumur + 0.8f)));
     g.child(text(toU8("−30 °R = −37.50 °C = −35.50 "
@@ -2463,7 +2264,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "still\nrelabel the axis Celsius while keeping his "
                       "numbers."),
                  type(faceUi, 10, kClaimRed))
-                .absolute()
                 .left(Dim(x0 + 560))
                 .top(Dim(y0 + 4))
                 .width(Dim(400))
@@ -2474,7 +2274,6 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                       "27.08%\nNapoleon 1812     422,000 → 10,000    "
                       "survived  2.37%\nThis is why he printed them together."),
                  type(faceUiBold, 12, kCardInk))
-                .absolute()
                 .left(Dim(x0 + 560))
                 .top(Dim(y0 + 74))
                 .width(Dim(420))
@@ -2484,7 +2283,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   }
 
   Element auditColumn() {
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     g.child(card(128, 326, "DOES THE PLATE OBEY ITS OWN LEGEND?", "card1",
                  tScale, cardScale()));
     g.child(card(466, 196, "THE FLOOR", "card2", tScale + 0.8f, cardFloor()));
@@ -2499,68 +2298,52 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   // THE TITLE STRIP and THE CONSOLE
 
   Element titleStrip() {
-    auto g = box().absolute().left(Dim(48)).top(Dim(28)).width(Dim(2464))
-                 .height(Dim(80));
+    auto g = box().rect(SkRect::MakeXYWH(48, 28, 2464, 80));
     g.child(text(toU8("Carte figurative des pertes successives en hommes de "
                       "l'armée française dans la campagne de Russie "
                       "1812–1813, comparée à celle d'Annibal "
                       "durant la 2ᵉᵐᵉ guerre punique"),
                  type(faceUi, 20, hex(0xe3dccd)))
-                .absolute()
-                .left(Dim(0))
-                .top(Dim(0)));
+                .at({0, 0}));
     g.child(text(toU8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
                       "cm · Paris, 20 novembre 1869 · Minard was 88, "
                       "and died ten months later during the siege of Paris"),
                  type(faceUi, 12, hex(0x9a9285)))
-                .absolute()
-                .left(Dim(0))
-                .top(Dim(30)));
+                .at({0, 30}));
     g.child(text(toU8("the sheet is drawn at its own aspect — 2.258 px "
                       "per millimetre of Minard's paper, so every band width "
                       "on screen is a real millimetre count"),
                  type(faceUi, 11, hex(0x2f6f9c)))
-                .absolute()
-                .left(Dim(0))
-                .top(Dim(50)));
+                .at({0, 50}));
     g.child(text(toU8("THE PLATE STATES ITS OWN CONSTRUCTION RULE.  THIS "
                       "SKETCH CHECKS IT — AND THEN CHECKS ITSELF WITH THE "
                       "SAME MEASUREMENT."),
                  type(faceUiBold, 12, hex(0xb5761e), 1.2f))
-                .absolute()
-                .left(Dim(1444))
-                .top(Dim(50)));
+                .at({1444, 50}));
     return g;
   }
 
   Element consoleStrip() {
-    console::Style s;
-    s.text = type(faceMono, 8.2f, hex(0xb9b2a4));
-    s.palette = {type(faceMono, 8.2f, hex(0x6d675c)),   // 0 dim
-                 type(faceMono, 8.2f, hex(0x62ab74)),   // 1 pass
-                 type(faceMono, 8.2f, hex(0xd08a2a)),   // 2 fail/anomaly
-                 type(faceMono, 8.2f, hex(0x64a8d8)),   // 3 measured
-                 type(faceMono, 8.8f, hex(0xf0e8d8))};  // 4 heading
+    console::Style s = console::monoStyle(faceMono, 8.2f, hex(0xb9b2a4),
+                                          {hex(0x6d675c),    // 0 dim
+                                           hex(0x62ab74),    // 1 pass
+                                           hex(0xd08a2a),    // 2 fail/anomaly
+                                           hex(0x64a8d8),    // 3 measured
+                                           hex(0xf0e8d8)});  // 4 heading
+    s.palette[4].shaping.fontSize = 8.8f;  // the heading runs a shade larger
     s.gap = 0.0f;
     s.visibleLines = 20;
-    auto g = box()
-                 .absolute()
-                 .left(Dim(48))
-                 .top(Dim(kConsoleY))
-                 .width(Dim(2464))
-                 .height(Dim(kConsoleH))
-                 .fill(Material::solid(hex(0x141311)))
-                 .stroke(util::stroke(1.0f, Fill::color(hex(0x2c2a26))))
-                 .row()
-                 .padding(8)
-                 .gap(12)
-                 .key("console");
-    g.child(box().width(Dim(480)).child(console::console(colA, s)));
-    g.child(box().width(Dim(480)).child(console::console(colB, s)));
-    g.child(box().width(Dim(480)).child(console::console(colC, s)));
-    g.child(box().width(Dim(480)).child(console::console(colD, s)));
-    g.child(box().width(Dim(480)).child(console::console(colE, s)));
-    return g;
+    return console::panel({.rings = {&colA, &colB, &colC, &colD, &colE},
+                           .style = s,
+                           .paddingX = 8,
+                           .paddingY = 8,
+                           .gap = 12,
+                           .fill = Fill::color(hex(0x141311)),
+                           .border = Fill::color(hex(0x2c2a26)),
+                           .borderAlign = PathFormat::Align::Center,
+                           .ringExtent = 480})
+        .rect(SkRect::MakeXYWH(48, kConsoleY, 2464, kConsoleH))
+        .key("console");
   }
 
   // =======================================================================
@@ -2582,12 +2365,14 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     auto say = [&](console::LineRing &r, const std::string &s, size_t pal) {
       r.append(toU8(s), pal);
     };
+    // This lambda used to snprintf its own verdict, which is the failure the
+    // whole corpus shares: the printed word and the assertion were joined by
+    // hand and could drift. debug::check computes the verdict FROM the two
+    // values and debug::report prints it in the palette that verdict chose,
+    // so a DIFF cannot read EXACT — and a failure now says what it wanted.
     auto chk = [&](console::LineRing &r, const std::string &label, long lhs,
                    long rhs) {
-      char buf[160];
-      std::snprintf(buf, sizeof buf, "  %-44s %8ld   %s", label.c_str(), lhs,
-                    lhs == rhs ? "EXACT" : "DIFF");
-      r.append(toU8(buf), lhs == rhs ? 1 : 2);
+      debug::report(r, debug::check(label, rhs, lhs), 1, 2);
     };
 
     say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", 4);

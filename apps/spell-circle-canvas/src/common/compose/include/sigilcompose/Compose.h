@@ -1527,6 +1527,11 @@ public:
     Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
     Texture,  ///< blitted a raster bake — the author asked for it
     Promoted, ///< blitted a raster bake the LIBRARY decided to make
+    /** Blitted the node's OWN paint and drew its live children over it.
+     *  Volatility is declared per node, so a static ground plane carrying
+     *  one moving child shares the child's verdict and loses; this state
+     *  says the two were separated. */
+    SplitOwn,
   };
   /** WHY a node is, or is not, a pixel bake.
    *
@@ -1554,6 +1559,11 @@ public:
      *  levels down that they will not find without being told. */
     ReadsBackdrop,
     TooBig,     ///< beyond the per-bake area cap or the composer's bake budget
+    /** The node's OWN paint is baked and its volatile children are painted
+     *  live over the blit. Not a refusal — the outcome for a node whose
+     *  static self was being re-rasterized every frame to redraw a moving
+     *  child on top of it. */
+    SplitBaked,
   };
   struct NodeCost {
     std::string label;   ///< key() if set, else kind + size — actionable
@@ -1562,6 +1572,21 @@ public:
     int depth = 0;
     CacheState cacheState = CacheState::Live;
     Promotion promotion = Promotion::Cheap;
+    /** EVERY condition that refused a bake, not just the first one.
+     *
+     *  `promotion` is a first-match verdict, so a node that is both
+     *  volatile and clipped reports only `Volatile` — and an author who
+     *  fixes the volatility then meets a second refusal nobody mentioned.
+     *  That is honest and it costs an iteration each time. The mask carries
+     *  all of them at once; `promotion` stays the primary outcome so every
+     *  existing assertion on it keeps its meaning.
+     *
+     *  The bit index IS the Promotion ordinal, so there is no second table
+     *  to drift out of sync with the enum. */
+    uint16_t refusals = 0;
+    bool refused(Promotion p) const {
+      return (refusals & (uint16_t)(1u << (unsigned)p)) != 0;
+    }
     bool cached() const { return cacheState != CacheState::Live; }
   };
   /** One short phrase for a Promotion, for printing next to a cost. */

@@ -109,6 +109,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Frame.h>
 
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMgr.h>
@@ -164,9 +165,17 @@ constexpr float kFrameL = 48 * kScale, kFrameT = 153 * kScale;
 constexpr float kFrameR = 1517 * kScale, kFrameB = 1977 * kScale;
 constexpr float kRuleGap = 11 * kScale;
 
+// The plate's own convention, as a value: 0 deg is 12 o'clock and bearings
+// run clockwise, which is how every one of Chladni's twelve figures gives
+// the bearing of its Linien. `kUnit` has radius 1, so `at()` takes a
+// FRACTION of the disc and `about(c).px()` takes canvas px.
+constexpr kit::Frame kUnit{.centre = {0, 0},
+                           .radius = 1.0f,
+                           .zero = kit::Zero::North,
+                           .sense = kit::Sense::CW};
+
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
-  return {c.x() + radius * std::sin(bearingDeg * kDeg),
-          c.y() - radius * std::cos(bearingDeg * kDeg)};
+  return kUnit.about(c).px(bearingDeg, radius);
 }
 
 // ---------------------------------------------------------------------------
@@ -256,13 +265,12 @@ const std::vector<Linie> &linienOf(int num) {
  *  instead of a table of Bezier control points. */
 shapes::OutlineFn linieOutline(Linie l) {
   if (l.straight) {
-    const SkPoint a{std::sin(l.bearing * kDeg), -std::cos(l.bearing * kDeg)};
+    const SkPoint a = kUnit.at(l.bearing, 1.0f);
     return shapes::parametric(
         [a](float t) { return SkPoint{a.fX * (1 - 2 * t), a.fY * (1 - 2 * t)}; },
         0.0f, 1.0f, 2);
   }
-  const SkPoint o{std::sin(l.bearing * kDeg) * l.centreRadius,
-                  -std::cos(l.bearing * kDeg) * l.centreRadius};
+  const SkPoint o = kUnit.at(l.bearing, l.centreRadius);
   const float on = std::sqrt(o.fX * o.fX + o.fY * o.fY);
   const float k = (1.0f + on * on - l.arcRadius * l.arcRadius) * 0.5f;
   const float d = on > 1e-4f ? k / on : 2.0f;

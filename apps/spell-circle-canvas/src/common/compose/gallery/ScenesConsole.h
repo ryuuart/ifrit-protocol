@@ -192,7 +192,7 @@ struct DaemonConsoleScene final : Scene {
             // The SDF style reserves ~24px of pad inside the box (glow
             // room), so the panel's content padding matches it -- children
             // sit inside the DRAWN chrome, not the layout box.
-            box().column().absolute().inset(44, 40, 44, 40).fill(chrome)
+            box().column().inset(44, 40, 44, 40).fill(chrome)
                 .clip().padding(34, 30)
                 .child(box().row().gap(10).margin(0, 0, 0, 10)
                            .child(text(toU8("DAEMON WATCH"),
@@ -204,10 +204,10 @@ struct DaemonConsoleScene final : Scene {
                 .child(box().column().grow(1).clip()
                            .child(sigil::compose::console::console(ring, style()))
                            .zIndex(1))
-                .child(box().height(90).absolute().inset(30, 58, 30, 0)
+                .child(box().height(90).inset(30, 58, 30, 0)
                            .fill(fade).zIndex(2)))
         // living scanlines across everything
-        .child(box().absolute().inset(0).zIndex(3)
+        .child(box().inset(0).zIndex(3)
                    .fill(Material::sksl(dc::scanEffect()))
                    .blend(SkBlendMode::kScreen));
   }

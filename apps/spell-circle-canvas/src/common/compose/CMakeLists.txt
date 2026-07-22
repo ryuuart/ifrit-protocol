@@ -32,8 +32,16 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Layouts.h
   include/sigilcompose/Routers.h
   include/sigilcompose/Shapes.h
+  include/sigilcompose/Studio.h
   include/sigilcompose/Util.h
   include/sigilcompose/Web.h
+  # The KIT tier — header-only components ON TOP of the API above, which
+  # they do not change. See include/sigilcompose/kit/Kit.h.
+  include/sigilcompose/kit/Divisions.h
+  include/sigilcompose/kit/Frame.h
+  include/sigilcompose/kit/Kit.h
+  include/sigilcompose/kit/Legibility.h
+  include/sigilcompose/kit/PixelType.h
 )
 
 target_compile_features(SigilCompose PUBLIC cxx_std_20)
@@ -71,6 +79,16 @@ add_executable(compose_test
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_test COMMAND compose_test)
+
+# The kit tier (include/sigilcompose/kit/*.h). Separate binary rather than
+# more cases in compose_test: the kit changes nothing in the kernel, so a
+# kit failure must never look like a kernel failure on the dashboard.
+add_executable(compose_kit_test
+  test/ComposeKitTest.cpp
+)
+target_link_libraries(compose_kit_test PRIVATE
+  SigilCompose SigilWeavePorts GTest::gtest_main)
+add_test(NAME compose_kit_test COMMAND compose_kit_test)
 
 # GPU-backend behavior tests (Graphite Metal): the raster suite proves
 # semantics, this one proves the same pixels arrive on the GPU — it

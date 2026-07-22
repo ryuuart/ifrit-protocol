@@ -384,7 +384,6 @@ Element panel(float height, const char *heading, int order) {
 /** A stage inset: the scrim over the world. */
 Element stageInset(float x, float y, float w, float h, int order) {
   return box()
-      .absolute()
       .left(Dim(x))
       .top(Dim(y))
       .width(Dim(w))
@@ -1088,12 +1087,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
   Element worldBox() {
     return box()
-        .absolute()
         .inset(0)
         .stroke(stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.45f)),
                        PathFormat::Align::Inner))
         .child(box() // the cube's top wall — real, just not interesting
-                   .absolute()
                    .left(Dim(0))
                    .top(Dim(0))
                    .width(Dim(kStage))
@@ -1117,11 +1114,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     // the surface line the paper's projection actually clamps to.
     const float floorTop = kStage - kCapsule * kUnit;
     return box()
-        .absolute()
         .inset(0)
         .opacity(withFrom(0.0f, 1.0f, {.duration = 400ms, .delay = 520ms}))
         .child(box()
-                   .absolute()
                    .left(Dim(0))
                    .top(Dim(floorTop))
                    .width(Dim(kStage))
@@ -1135,7 +1130,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                        patterns::grain(0.035f, 3, 11.0f, 0.5f),
                        SkBlendMode::kSoftLight, 0.6f)))
         .child(box()
-                   .absolute()
                    .left(Dim(0))
                    .top(Dim(floorTop))
                    .width(Dim(kStage))
@@ -1146,7 +1140,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         // texture. A box().outline(shapes::polygon(3)) INSCRIBES, which is
         // the wrong shape; the three points go in directly.
         .child(box()
-                   .absolute()
                    .left(Dim(kBumpA.fX * kUnit))
                    .top(Dim(kStage - kBumpB.fY * kUnit))
                    .width(Dim((kBumpC.fX - kBumpA.fX) * kUnit))
@@ -1269,7 +1262,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                c.drawPath(b.detach(), chev);
              }
            })
-        .absolute()
         .inset(0)
         .width(Dim(kStage))
         .height(Dim(kStage))
@@ -1294,7 +1286,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element instancingStrip() {
     constexpr float w = 330, h = 108;
     return box()
-        .absolute()
         .left(Dim(16))
         .top(Dim(178))
         .width(Dim(w))
@@ -1314,7 +1305,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(box()
                    .grow(1)
                    .child(box() // the instanced half
-                              .absolute()
                               .left(Dim(0))
                               .top(Dim(0))
                               .width(Dim(150))
@@ -1350,14 +1340,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                                                s1 - s0)
                                                .count();
                           })
-                              .absolute()
                               .left(Dim(0))
                               .top(Dim(0))
                               .width(Dim(w - 14))
                               .height(Dim(76))
                               .cache(Cache::None))
                    .child(box()
-                              .absolute()
                               .left(Dim(158))
                               .top(Dim(0))
                               .width(Dim(1))
@@ -1382,7 +1370,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
           .child(t(label, mono(6.5f, kTick, 0.2f)));
     };
     return box()
-        .absolute()
         .left(Dim(16))
         .top(Dim(302))
         .width(Dim(336))
@@ -1533,24 +1520,20 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(stageChrome())
         .child(simulation())
         .child(box()
-                   .absolute()
                    .inset(0)
                    .child(instancing::instances(dotAtlas, dotPool,
                                                 instancing::Mode::Live)))
         .child(blastFlash())
         .child(t("(0, 0)", mono(7.5f, kTick))
-                   .absolute()
                    .left(Dim(7))
                    .top(Dim(kStage - 13)))
         .child(t("(1000, 1000)", mono(7.5f, kTick))
-                   .absolute()
                    .left(Dim(kStage - 62))
                    .top(Dim(5)))
         .child(t("\xc2\xa7" "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
                  "PINNED \xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE "
                  "ITERATION COUNT",
                  ui(7.0f, kTick, 0.5f))
-                   .absolute()
                    .left(Dim(452))
                    .top(Dim(412))
                    .width(Dim(268))
@@ -1558,7 +1541,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(t("\xc2\xa7" "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 "
                  "ONE ITERATION \xc2\xb7 BASE ROW PINNED",
                  ui(7.0f, kTick, 0.5f))
-                   .absolute()
                    .left(Dim(452))
                    .top(Dim(596))
                    .width(Dim(268))
@@ -1567,9 +1549,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .child(figFriction())
         .child(instancingStrip())
         .child(errorLegend())
-        .child(slot("phase").absolute().left(Dim(16)).top(Dim(690)))
+        .child(slot("phase").left(Dim(16)).top(Dim(690)))
         .child(box()
-                   .absolute()
                    .left(Dim(240))
                    .top(Dim(18))
                    .width(Dim(262))
@@ -1673,7 +1654,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       if (!approx)
         f.dashIntervals = {3.5f, 3.0f};
       return box()
-          .absolute()
           .inset(0)
           .outline(curve(approx))
           .stroke(f)
@@ -1707,14 +1687,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .height(Dim(64))
                    .shrink(0)
                    .child(box() // s = 0
-                              .absolute()
                               .left(Dim(0))
                               .top(Dim(39.1f))
                               .width(Dim(324))
                               .height(Dim(1))
                               .fill(hex(0x2A2E38)))
                    .child(box() // u = 1
-                              .absolute()
                               .left(Dim(108))
                               .top(Dim(0))
                               .width(Dim(1))
@@ -1723,15 +1701,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .child(plotCurve(false, kSteel, 1.4f))
                    .child(plotCurve(true, kBlue, 1.8f))
                    .child(t("s_exact", mono(7.0f, kSteel))
-                              .absolute()
                               .left(Dim(4))
                               .top(Dim(2)))
                    .child(t("s_approx", mono(7.0f, kBlue))
-                              .absolute()
                               .left(Dim(4))
                               .top(Dim(13)))
                    .child(t("u = d/r   0.5 \xe2\x86\x92 2.0", mono(7.0f, kTick))
-                              .absolute()
                               .left(Dim(244))
                               .top(Dim(52))))
         .child(t("approx/exact:  0.60\xc3\x97 at u=0.5 \xc2\xb7 0.88 \xc2\xb7 "

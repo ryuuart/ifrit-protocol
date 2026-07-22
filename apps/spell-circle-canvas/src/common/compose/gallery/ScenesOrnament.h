@@ -71,7 +71,7 @@ struct ManuscriptScene final : Scene {
       return box().width(w).height(h)
           .inset(l, t, kSceneSize.width() - l - w,
                  kSceneSize.height() - t - h)
-          .absolute().zIndex(2)
+          .zIndex(2)
           .child(custom(edgeFlourish(pal, quadrant, vertical)).inset(0));
     };
     // A keyed sprig the body text flows around.
@@ -79,7 +79,7 @@ struct ManuscriptScene final : Scene {
       return box().key(key).width(54).height(64)
           .inset(l, t, kSceneSize.width() - l - 54,
                  kSceneSize.height() - t - 64)
-          .absolute().zIndex(2).rotate(rot)
+          .zIndex(2).rotate(rot)
           .child(custom(sprig(pal)).inset(0));
     };
 
@@ -87,9 +87,9 @@ struct ManuscriptScene final : Scene {
     // dense (noise fills, hundreds of vine stamps, flowed text), so
     // picture replay would re-rasterize ~20ms/frame on raster — baked,
     // the per-frame cost is one image blit. Re-bakes on verse turns.
-    auto pageStack = stack().inset(0).absolute().cache(Cache::Texture)
+    auto pageStack = stack().inset(0).cache(Cache::Texture)
         // The page: parchment ground, stem-colored rule, vine border.
-        .child(box().inset(26, 22, 26, 22).absolute().corners({6})
+        .child(box().inset(26, 22, 26, 22).corners({6})
                    .background(sigil::compose::util::shadow(
                        {0, 0, 0, 0.55f}, {5, 7}, 16))
                    .fill(parchmentFill(pal.parchment))
@@ -97,12 +97,11 @@ struct ManuscriptScene final : Scene {
                        2.2f, Fill::color(pal.stem)))
                    // Inner gilded dashed rule (the broken hairline the
                    // corner flourishes dance around).
-                   .child(box().inset(14).absolute()
+                   .child(box().inset(14)
                               .foreground(goldDash)))
         // Title rubric line.
         .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
                     styleAt(24, toColor(rubric.stem)))
-                   .absolute()
                    .inset(200, 88, 200, kSceneSize.height() - 126)
                    .zIndex(1))
         // The illuminated initial: first grapheme on a cobalt block
@@ -111,28 +110,28 @@ struct ManuscriptScene final : Scene {
                    .width(92).height(98)
                    .inset(84, 146, kSceneSize.width() - 84 - 92,
                           kSceneSize.height() - 146 - 98)
-                   .absolute().zIndex(3).corners({8})
+                   .zIndex(3).corners({8})
                    .background(sigil::compose::util::shadow(
                        {0, 0, 0, 0.35f}, {2, 3}, 7))
                    .fill(Fill::color(pal.stem))
                    .foreground(sigil::compose::util::stroke(
                        1.6f, Fill::color(pal.gold)))
                    .alignItems(Align::Center).justify(Justify::Center)
-                   .child(box().inset(5).absolute().foreground(goldDash))
+                   .child(box().inset(5).foreground(goldDash))
                    .child(text(letter, styleAt(62, toColor(pal.gold)))))
         // Rubric side panel: the same component, crimson palette.
         .child(illuminatedPanel(rubric).key("rubric")
                    .width(200).height(148)
                    .inset(600, 270, kSceneSize.width() - 600 - 200,
                           kSceneSize.height() - 270 - 148)
-                   .absolute().zIndex(3).padding(18).gap(8)
+                   .zIndex(3).padding(18).gap(8)
                    .child(text(u8"nota bene",
                                styleAt(15, toColor(rubric.stem))))
                    .child(text(u8"the gate takes no coin but memory",
                                styleAt(16, toColor(rubric.ink)))))
         // Body text weaving between drop cap, rubric, and all four
         // corner flourishes.
-        .child(box().inset(100, 132, 100, 82).absolute()
+        .child(box().inset(100, 132, 100, 82)
                    .child(text(body, styleAt(19.5f, toColor(pal.ink)))
                               .key("body")
                               .flowAround("dropcap", 14)
@@ -179,7 +178,7 @@ struct ManuscriptScene final : Scene {
                    c.drawCircle(x, y, 1.6f + (float)(i % 3) * 0.7f, p);
                  }
                })
-                   .inset(0).absolute().zIndex(4).cache(Cache::None));
+                   .inset(0).zIndex(4).cache(Cache::None));
   }
 
   static SkColor toColor(SkColor4f c) {
@@ -229,7 +228,6 @@ struct NineSliceScene final : Scene {
       return box().width(w).height(h)
           .inset(l, t, kSceneSize.width() - l - w,
                  kSceneSize.height() - t - h)
-          .absolute()
           .background(carvedFrameSlice(f))
           .padding(24);
     };
@@ -244,7 +242,7 @@ struct NineSliceScene final : Scene {
         // The source texture at natural size, labeled.
         .child(box().inset(24, 24, kSceneSize.width() - 24 - 200,
                            kSceneSize.height() - 24 - 150)
-                   .absolute().column().gap(8)
+                   .column().gap(8)
                    .child(image(oakFrame).width(96).height(96))
                    .child(text(u8"the source texture — drawn 2x on an "
                                u8"offscreen canvas, wrapped, nine-sliced",

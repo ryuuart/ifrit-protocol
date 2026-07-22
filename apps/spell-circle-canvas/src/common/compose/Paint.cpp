@@ -224,6 +224,12 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // here or ANY volatility below (children paint inside the recording,
   // transforms included) — but not by own paint volatility.
   const bool blocked = ownContent || childrenVolatile;
+  // …and WHICH of the two it was. `subtreeVolatile && !ownContentVolatile`
+  // is the split bake's whole population: the node's own paint is provably
+  // static and only its children move.
+  inst.ownContentVolatile = ownContent;
+  if (ownContent)
+    inst.ownImage.reset(); // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
   // stable and re-records only when the shader actually changes.
@@ -574,7 +580,7 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
  *  transforms are fine: resolveFloat reads the record-time value, and a
  *  RUNNING transform makes the subtree volatile — nothing records at all.
  *  A clipped node contributes only its own box: children can't escape. */
-SkRect Composer::Impl::recordBounds(Instance &inst) {
+SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   const ElementNode &node = *inst.desc;
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
@@ -602,6 +608,12 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     route.outset(bleed + 8.0f, bleed + 8.0f);
     local.join(route);
   }
+  return local;
+}
+
+SkRect Composer::Impl::recordBounds(Instance &inst) {
+  const ElementNode &node = *inst.desc;
+  SkRect local = ownPaintBounds(inst);
   if (node.clipContent)
     return local;
   for (auto &child : inst.children) {
@@ -639,8 +651,15 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
 
 void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                   float contentScale, SkBlendMode leafBlend,
-                                  float leafOpacity) {
+                                  float leafOpacity, Phase phase) {
   const ElementNode &node = *inst.desc;
+  // §15. The two halves of a node's paint, split at the children loop. A
+  // split bake is only ever offered to a node with no clip, no wipe and no
+  // layer effect — each of those WRAPS BOTH HALVES, so a bake of the prefix
+  // alone would have to reproduce the wrapper — which is why the phases can
+  // be a pair of skips over an otherwise untouched function.
+  const bool emitOwn = phase != Phase::ChildrenOnly;
+  const bool emitChildren = phase != Phase::OwnOnly;
   const SkRect bounds = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
                                        YGNodeLayoutGetHeight(inst.yoga));
   const SkRRect rrect = cornersRRect(bounds, node.corners);
@@ -800,8 +819,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // ordering): shadow/pattern layers first, then the surface. Decorations
   // are NEVER clipped — they dress the outline (shadows keep their
   // reach, outer strokes survive on clipped nodes; the aero-study fix).
-  for (const Decoration &decoration : node.backgrounds)
-    decoration.paint(canvas, paintCtx);
+  if (emitOwn)
+    for (const Decoration &decoration : node.backgrounds)
+      decoration.paint(canvas, paintCtx);
 
   // clip() bounds the fill, the content, and the children — not the
   // decorations (above and below), which trace the outline itself.
@@ -817,7 +837,14 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // uniforms + the PaintContext; otherwise the stored Fill (binding, lerp, or
   // plain).
   std::optional<Fill> resolvedFill;
-  if (const Material *live = liveMaterialOf(node)) {
+  if (!emitOwn) {
+    // ChildrenOnly: the prefix above already ran into the bake. Skip
+    // straight past the fill, the echoes, the overlays and the leaf
+    // content to the children loop. (The outline and the clip/wipe/effect
+    // wrappers above are recomputed rather than skipped — they are cheap,
+    // they must stay balanced against their restores below, and the
+    // foregrounds still trace the outline.)
+  } else if (const Material *live = liveMaterialOf(node)) {
     resolvedFill = inst.hasPendingLiveFill
                        ? inst.pendingLiveFill
                        : live->resolve(paintCtx);
@@ -883,11 +910,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // Overlays: over the fill, under the content and children. The slot a
   // textured button needs so its own hazard stripe does not grey out its
   // label. Unclipped like the other decorations — they dress the outline.
-  if (node.fxData)
+  if (emitOwn && node.fxData)
     for (const Decoration &decoration : node.fxData->overlays)
       decoration.paint(canvas, paintCtx);
 
   // Content
+  if (emitOwn)
   switch (node.kind) {
   case Kind::Text:
     if (inst.paragraph) {
@@ -1054,14 +1082,19 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
   // Children in stacking order (each clean static child replays its own nested
   // picture — ancestor re-records don't repaint clean subtrees).
-  for (size_t index : inst.paintOrder)
-    paint(*inst.children[index], canvas);
+  if (emitChildren)
+    for (size_t index : inst.paintOrder)
+      paint(*inst.children[index], canvas);
 
   if (node.clipContent)
     canvas.restore(); // decorations below stay unclipped
 
-  for (const Decoration &decoration : node.foregrounds)
-    decoration.paint(canvas, paintCtx);
+  // FOREGROUNDS PAINT AFTER THE CHILDREN, so they belong to the children
+  // half and can never be in an own-paint bake. §15's spec originally read
+  // "own paint is everything except the children"; it is not.
+  if (emitChildren)
+    for (const Decoration &decoration : node.foregrounds)
+      decoration.paint(canvas, paintCtx);
 
   if (wiped)
     canvas.restore();
@@ -1340,15 +1373,65 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // under which a device-aligned bake is provably the same pixels as the
   // replay; anything else keeps replaying. See Composer::setAutoTexturePromotion.
   const SkMatrix &totalM = canvas.getTotalMatrix();
-  // Upright, unmirrored, unrotated and unskewed. A ±90° turn IS axis
-  // aligned in the loose sense and is deliberately excluded here: the
-  // scale then lives in the skew terms, and every bake path that mistook
-  // the diagonal for the scale resampled it (see maxScaleOf). Reading
-  // BOTH the skews and the signs of the diagonal is what keeps quarter
-  // turns, flips and 180° rotations out.
+  // Upright, unmirrored, unrotated and unskewed — and MEASURED, after this
+  // gate was relaxed on an argument and the measurement took it back.
+  //
+  // The argument was: a device-space bake concatenates the full matrix into
+  // the layer and blits with the matrix reset at an integer offset, so it
+  // cannot resample and must be exact at any angle; `upright` was a
+  // leftover from the LOCAL bake, which really is resampled (mean |Δ|
+  // 13.5/255 at ±90°). It sounded right, `TextureBakeSurvivesAQuarterTurn`
+  // appeared to support it at 45°, and it is wrong. Measured on a 220 px
+  // box carrying a runtime shader, promoted vs. the identical unpromoted
+  // render:
+  //
+  //     rotate(0),  bounds inside the canvas    0 pixels differ
+  //     rotate(0),  bounds overflow the canvas  0 pixels differ
+  //     rotate(45), bounds inside the canvas    5 pixels differ, Δ1
+  //     rotate(30), bounds inside the canvas    2 pixels differ, Δ1
+  //     rotate(45), bounds overflow the canvas  1157 differ, Δ up to 40
+  //
+  // Two separate effects, and the mechanism explains both. A shader's local
+  // coordinates come from INVERTING the CTM, and the layer's CTM differs
+  // from the canvas's by an integer device translation. Inverting a
+  // rotation maps that integer offset through irrational entries, so the
+  // cancellation is only approximate — while an axis-aligned matrix maps it
+  // through ±1 and 0 and cancels exactly. Hence 0 at 0° and ±1 LSB at every
+  // other angle. Separately, a bake rect larger than the device clip gives
+  // Skia a different clip to rasterize the AA edges against, and that one
+  // is worth tens of levels, not one.
+  //
+  // The quarter-turn test does not contradict this: its pill is colour
+  // fills at a size that fits, so it exercises neither effect, and
+  // `Cache::Texture` is opt-in — the author accepted the trade. Automatic
+  // promotion did not, and `ARefusalSaysWhy` already states the standard
+  // for exactly this case: agreement to within 1 LSB "is not agreement".
+  //
+  // So the gate stays square, and the refusal now names Cache::Texture as
+  // the remedy instead of describing the geometry, which is what a
+  // dunhuang_star_chart author staring at a CONSTANT −0.42° tilt and 24.5
+  // ms of a 29.9 ms frame actually needed to be told.
   const bool upright = totalM.getSkewX() == 0 && totalM.getSkewY() == 0 &&
                        totalM.getScaleX() > 0 && totalM.getScaleY() > 0 &&
                        !totalM.hasPerspective();
+  // recordBounds() walks the whole subtree, and three tiers below ask for
+  // it. Memoised per paint() so the walk happens at most once; lazy so a
+  // node that reaches none of them never pays for it at all.
+  SkRect localPaintBounds = SkRect::MakeEmpty();
+  bool localBoundsDone = false;
+  const auto localBoundsOf = [&]() -> const SkRect & {
+    if (!localBoundsDone) {
+      localBoundsDone = true;
+      localPaintBounds = recordBounds(inst);
+    }
+    return localPaintBounds;
+  };
+  const auto deviceRectOf = [&] {
+    const SkRect f = totalM.mapRect(localBoundsOf());
+    return SkIRect::MakeLTRB(
+        (int)std::floor(f.left()), (int)std::floor(f.top()),
+        (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));
+  };
   // The temporal rule: a node whose ONLY volatility is a live material is
   // promotable while that material is provably holding still, and re-bakes
   // when it ticks. Sticky, with hysteresis, so a material sitting near the
@@ -1362,29 +1445,56 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // DIFFERENT PIXELS, or would not pay for itself. Naming them is not
   // decoration: a node reading `live paint · 663 ms` with no reason beside
   // it is exactly how sixteen studies shipped over the 60 FPS gate.
+  //
+  // ALL of them, not the first. `why` used to be a first-match `else if`
+  // chain, so a node that is both volatile and clipped reported only
+  // `Volatile` — and an author who fixed the volatility then met a second
+  // refusal nobody had mentioned. The split bake GROWS that population
+  // rather than shrinking it, so the mask lands in the same batch. `why` is
+  // derived from the mask below rather than computed alongside it, which is
+  // what stops the two from ever disagreeing.
   using Prom = Composer::Promotion;
+  uint16_t refusals = 0;
+  const auto flag = [&](Prom p) {
+    refusals |= (uint16_t)(1u << (unsigned)p);
+  };
+  const bool optedOut = !autoPromote || node.cacheMode != Cache::Auto;
+  if (optedOut)
+    flag(Prom::OptedOut);
+  if (!contentStable)
+    flag(Prom::Volatile);
+  if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
+    flag(Prom::Composited);
+  if (layerEffectOf(node) || node.clipContent)
+    flag(Prom::Filtered);
+  if (inst.subtreeReadsBackdrop) // incl. this node's own backdrop()
+    flag(Prom::ReadsBackdrop);
+  if (rect.width() < 0.5f || rect.height() < 0.5f)
+    flag(Prom::TooBig); // degenerate, not large — same "cannot bake" bucket
+  if (!upright)
+    flag(Prom::Transformed);
+
+  // The PRIMARY verdict: the first refusal in the order an author should
+  // address them (their own switches first, then content, then geometry).
+  static constexpr Prom kRefusalOrder[] = {
+      Prom::OptedOut,  Prom::Volatile,      Prom::Composited,
+      Prom::Transformed, Prom::Filtered,    Prom::ReadsBackdrop,
+      Prom::TooBig};
   Prom why = Prom::Cheap;
-  if (!autoPromote || node.cacheMode != Cache::Auto)
-    why = Prom::OptedOut;
-  else if (!contentStable)
-    why = Prom::Volatile;
-  else if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
-    why = Prom::Composited;
-  else if (!upright)
-    why = Prom::Transformed;
-  else if (layerEffectOf(node) || node.clipContent)
-    why = Prom::Filtered;
-  else if (inst.subtreeReadsBackdrop) // incl. this node's own backdrop()
-    why = Prom::ReadsBackdrop;
-  else if (rect.width() < 0.5f || rect.height() < 0.5f)
-    why = Prom::TooBig; // degenerate, not large — same "cannot bake" bucket
+  for (Prom p : kRefusalOrder)
+    if (refusals & (uint16_t)(1u << (unsigned)p)) {
+      why = p;
+      break;
+    }
 
   const bool promotable = why == Prom::Cheap && !liveOnly;
   if (!promotable)
     inst.autoTexture = false;
   const auto note = [&](Prom p) {
-    if (profileScope.row != SIZE_MAX)
+    if (profileScope.row != SIZE_MAX) {
       profileRows[profileScope.row].promotion = p;
+      profileRows[profileScope.row].refusals = refusals;
+    }
   };
   note(why);
 
@@ -1411,12 +1521,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   if (promotable && inst.autoTexture) {
     // Bake in DEVICE space, snapped OUT to whole device pixels, then blit
     // with the matrix reset. An integer device translation cannot change
-    // rasterisation, so this is a literal copy of the replay's pixels.
-    const SkRect local = recordBounds(inst);
-    SkRect deviceF = totalM.mapRect(local);
-    const SkIRect device = SkIRect::MakeLTRB(
-        (int)std::floor(deviceF.left()), (int)std::floor(deviceF.top()),
-        (int)std::ceil(deviceF.right()), (int)std::ceil(deviceF.bottom()));
+    // rasterisation for an AXIS-ALIGNED matrix — which is what `upright`
+    // above is really guarding, and the measurement in its comment is why
+    // the guard is not about resampling.
+    const SkIRect device = deviceRectOf();
     const int64_t area = (int64_t)device.width() * device.height();
     const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
     // The bake this frame would ADD to what the previous frame already held.
@@ -1478,6 +1586,185 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     note(Prom::TooBig);
   }
 
+  // ---- §15: the SPLIT bake ------------------------------------------------
+  //
+  // Volatility is declared per NODE, and a node is one verdict. So a static
+  // full-canvas ground plane carrying one 264 px disc on a bound Output is
+  // `subtreeVolatile`, nothing about it is cached, and the whole plane is
+  // re-rasterized every frame in order to redraw the disc on top of it —
+  // 34.9 ms and 14.9 ms of SELF time on two 888x666 nodes of genesis_fire,
+  // both reporting "its content changes every frame" about a child.
+  //
+  // THE PIXEL-IDENTITY ARGUMENT, which is NOT promotion's argument.
+  // Promotion bakes a whole subtree and blits it in place of everything the
+  // node contains; the claim there is "an integer device translation cannot
+  // change rasterisation". Here the bake replaces only PART of what the
+  // node paints and the children are drawn over the blit afterwards, so the
+  // claim needed is:
+  //
+  //   painting the own layer into a transparent device-aligned surface,
+  //   blitting it, then painting the children over the result must produce
+  //   the same pixels as painting own-then-children directly.
+  //
+  //  - The own paint is a run of srcOver draws into a transparent layer,
+  //    blitted srcOver at an integer device offset. srcOver is associative,
+  //    so the composite is the same composite. (The 8-bit double-rounding
+  //    of the intermediate is the one real risk and it is asserted, not
+  //    argued — see SplitBakeIsPixelIdenticalAcrossTheChildsMotion, whose
+  //    own paint deliberately OVERLAPS itself so intra-layer compositing
+  //    actually happens.)
+  //  - A child with a non-srcOver blend is FINE here, and this is the one
+  //    place the split is safer than promotion: the blit lands BEFORE the
+  //    children, so the child resolves against the same destination bytes
+  //    either way. Under promotion the child was inside the bake and would
+  //    have resolved against transparent black. Same for a child with a
+  //    backdrop filter — it samples a blitted copy of identical pixels.
+  //  - The real failure is the node's OWN paint reading the backdrop, where
+  //    the bake would resolve against transparent black. That is
+  //    `ownReadsBackdrop`, which is why the flag was split from
+  //    `subtreeReadsBackdrop` before any of this existed.
+  //  - A LAYER EFFECT is the exclusion, and it is the only one of the three
+  //    wrappers that is. An image filter applies to the UNION of own paint
+  //    and children; filtering the own half alone and drawing the children
+  //    over the result is a different picture.
+  //  - clipContent and wipe() are NOT excluded, and the spec this was
+  //    written from said they were. They wrap both halves, and the phase
+  //    flag skips only the CONTENT — the clip is opened and closed inside
+  //    each phase, so both halves get the identical clip, in the identical
+  //    device geometry, and the composition is unchanged. That correction
+  //    is not academic: §15's own citation node, genesis_fire's regolith(),
+  //    carries `.clip(true)` because it clips its disc to a limb outline —
+  //    which is exactly WHY the disc is a child. Excluding clips would have
+  //    shipped a feature that refuses the example it was written for.
+  //
+  // And the promotion is measured on the OWN paint alone. A split candidate
+  // paints in two phases from the first eligible frame precisely so that
+  // half can be timed by itself: judging it by the node's total would bake
+  // a cheap ground plane because it carries an expensive child, which is
+  // the same inversion that made the corpus's largest cost centre invisible
+  // to the promoter before leaves were measured.
+  const bool splitCandidate =
+      !optedOut && !liveOnly && inst.subtreeVolatile &&
+      !inst.ownContentVolatile && // the CHILDREN are what block this node
+      !inst.children.empty() && !inst.ownReadsBackdrop &&
+      !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
+      leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
+      recordingDepth == 0 && !inst.transformLive && !totalM.hasPerspective();
+  if (!splitCandidate)
+    inst.splitBake = false;
+  if (splitCandidate) {
+    // ownPaintBounds, NOT recordBounds. recordBounds unions the children
+    // in, so it moves every frame a child moves — and a bake rect that
+    // moves every frame is a bake remade every frame, which is the one
+    // failure mode that would make this feature cost more than it saves on
+    // precisely the scenes it exists for. The own paint's extent does not
+    // depend on the children at all.
+    const SkRect ownF = totalM.mapRect(ownPaintBounds(inst));
+    const SkIRect device = SkIRect::MakeLTRB(
+        (int)std::floor(ownF.left()), (int)std::floor(ownF.top()),
+        (int)std::ceil(ownF.right()), (int)std::ceil(ownF.bottom()));
+    const int64_t area = (int64_t)device.width() * device.height();
+    const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
+    const bool affordable =
+        inst.ownImage ||
+        std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
+    bool blitted = false;
+    if (inst.splitBake && device.width() > 0 && device.height() > 0 &&
+        area <= 16 * 1024 * 1024 && affordable) {
+      // `ownPaintDirty`, NOT `paintDirty`. markPaintDirtyUp() propagates a
+      // descendant's patch to every ancestor, which is right for a
+      // recording (it baked the child's draw calls) and wrong here: the
+      // children were never in this bake, and the whole point is that they
+      // change. If that ever inverts, the feature silently does nothing and
+      // still passes every pixel test.
+      const SkRect want = SkRect::Make(device);
+      if (!inst.ownImage || inst.ownPaintDirty || inst.ownBakeRect != want) {
+        sk_sp<SkSurface> layer = canvas.makeSurface(
+            SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (!layer)
+          layer = SkSurfaces::Raster(
+              SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (layer) {
+          SkCanvas *lc = layer->getCanvas();
+          lc->translate(-(float)device.left(), -(float)device.top());
+          lc->concat(totalM); // identical device geometry, offset by ints
+          paintContent(inst, *lc, hostScale, leafBlend, leafOpacity,
+                       Phase::OwnOnly);
+          inst.ownImage = layer->makeImageSnapshot();
+          inst.ownBakeRect = want;
+          inst.ownPaintDirty = false;
+          stats.texturesBaked++;
+          // A bake per frame costs MORE than the live draw it replaced, so
+          // a node whose own paint really is being invalidated every frame
+          // must not hold the promotion on the strength of a measurement
+          // taken while it was still cheap. Three consecutive re-bakes and
+          // it goes live and has to earn it again over the full warmup.
+          if (inst.ownRebakes < 255)
+            ++inst.ownRebakes;
+          if (inst.ownRebakes > 3) {
+            inst.splitBake = false;
+            inst.ownHotFrames = 0;
+            inst.ownRebakes = 0;
+          }
+        }
+      } else {
+        inst.ownRebakes = 0;
+      }
+      if (inst.ownImage && inst.splitBake) {
+        promotedBytes += bytes;
+        if (profileScope.row != SIZE_MAX)
+          profileRows[profileScope.row].cacheState =
+              Composer::CacheState::SplitOwn;
+        note(Prom::SplitBaked);
+        canvas.save();
+        canvas.resetMatrix();
+        profDraw("split blit", [&] {
+          canvas.drawImage(inst.ownImage, (float)device.left(),
+                           (float)device.top(), SkSamplingOptions());
+        });
+        canvas.restore();
+        blitted = true;
+      }
+    }
+    if (!blitted) {
+      // The own half, live and TIMED. This is the number the split is
+      // promoted on — the node's own paint, with its children excluded by
+      // construction rather than by subtraction.
+      const auto ownStart = std::chrono::steady_clock::now();
+      profDraw("live own", [&] {
+        paintContent(inst, canvas, hostScale, leafBlend, leafOpacity,
+                     Phase::OwnOnly);
+      });
+      const double ownMs = std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - ownStart)
+                               .count();
+      inst.ownPaintMs = inst.ownPaintMs * 0.6f + (float)ownMs * 0.4f;
+      if (inst.ownPaintMs > kPromoteMs) {
+        if (inst.ownHotFrames < 255)
+          ++inst.ownHotFrames;
+        if (inst.ownHotFrames >= kPromoteFrames) {
+          inst.splitBake = true;
+          inst.ownPaintDirty = true; // force the first bake
+        } else {
+          note(Prom::Warming);
+        }
+      } else if (inst.ownHotFrames > 0) {
+        --inst.ownHotFrames;
+      }
+    }
+    // The children and the foregrounds over them — always live, whatever
+    // happened above. Foregrounds paint AFTER the children, so they are in
+    // this half and never in the bake.
+    paintContent(inst, canvas, hostScale, leafBlend, leafOpacity,
+                 Phase::ChildrenOnly);
+    stats.nodesPainted++;
+    inst.paintDirty = false;
+    if (needsLayer)
+      canvas.restore();
+    canvas.restore();
+    return;
+  }
+
   if (!liveOnly && cacheHolds && node.cacheMode == Cache::Texture &&
       !backdropEffectOf(node)) {
     // ---- the exact bake -------------------------------------------------
@@ -1515,14 +1802,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     //        device-pinned texture every frame.
     //    While either says "moving", the quantized local bake is correct
     //    and cheap: one bake per coarse scale step, reused across the rest.
-    const SkRect localBounds = recordBounds(inst);
+    const SkRect localBounds = localBoundsOf();
     bool deviceRectStable = false;
     SkIRect deviceR = SkIRect::MakeEmpty();
     if (recordingDepth == 0) {
-      const SkRect deviceF = totalM.mapRect(localBounds);
-      deviceR = SkIRect::MakeLTRB(
-          (int)std::floor(deviceF.left()), (int)std::floor(deviceF.top()),
-          (int)std::ceil(deviceF.right()), (int)std::ceil(deviceF.bottom()));
+      deviceR = deviceRectOf();
       deviceRectStable = !inst.deviceRectSeen || deviceR == inst.lastDeviceRect;
       inst.lastDeviceRect = deviceR;
       inst.deviceRectSeen = true;

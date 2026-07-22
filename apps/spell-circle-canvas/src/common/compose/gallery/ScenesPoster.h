@@ -239,24 +239,22 @@ struct MotionPosterScene final : Scene {
     return stack()
         .fill(ground)
         // halo + ring share the focus point
-        .child(box().absolute().inset(0).fill(halo))
+        .child(box().inset(0).fill(halo))
         .child(box().width(560).height(560)
                    .inset(focus.x() - 280, focus.y() - 280,
                           W - focus.x() - 280, H - focus.y() - 280)
-                   .absolute()
                    .fill(ring))
         // spinning star sigil at the ring's heart
         .child(box().width(140).height(140)
                    .inset(focus.x() - 70, focus.y() - 70, W - focus.x() - 70,
                           H - focus.y() - 70)
-                   .absolute()
                    .outline(shapes::rounded(shapes::star(9, 0.58f), 3))
                    .fill(starFill)
                    .rotate(&spin)
                    .opacity(0.92f))
         // the typographic block
         .child(
-            box().column().absolute().inset(64, 0, 64, 0).zIndex(2)
+            box().column().inset(64, 0, 64, 0).zIndex(2)
                 .child(box().grow(1)) // push type into the lower third
                 .child(text(toU8("EMBER GATE"), ep::type(108, ep::kBone, 2))
                            .key("title")
@@ -296,7 +294,7 @@ struct MotionPosterScene final : Scene {
         // space and the scale transform replays its pictures — no
         // re-authoring, no re-records.
         .child(
-            box().absolute().inset(ep::kPanelX, 0, ep::kPanelX, 0)
+            box().inset(ep::kPanelX, 0, ep::kPanelX, 0)
                 .fill(Fill::color(ep::kInk))
                 .clip()
                 .child(poster().width(ep::kPW).height(ep::kPH)
@@ -305,7 +303,7 @@ struct MotionPosterScene final : Scene {
                            .scale(ep::kScale))
                 // living film grain at panel-native resolution (outside the
                 // scaled subtree, so the noise stays pixel-sized)
-                .child(box().absolute().inset(0).zIndex(3)
+                .child(box().inset(0).zIndex(3)
                            .fill(Material::sksl(ep::grainEffect()))
                            .blend(SkBlendMode::kSoftLight)))
         // caption in the left letterbox panel, fading in with the info line

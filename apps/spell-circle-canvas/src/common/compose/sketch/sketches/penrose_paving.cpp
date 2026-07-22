@@ -748,7 +748,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     };
 
     Element e = box()
-                    .absolute()
                     .left(bb.left())
                     .top(bb.top())
                     .width(bb.width())
@@ -805,7 +804,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
          inner + (outer - inner) * 0.66f, outer, 1.0f});
 
     return box()
-        .absolute()
         .left(bb.left() - parentOrg.x())
         .top(bb.top() - parentOrg.y())
         .width(bb.width())
@@ -828,7 +826,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   Element diagram(int gen) {
     const std::vector<Tri> &tri = gens[(size_t)std::clamp(gen, 0, 3)];
     auto group = stack()
-                     .absolute()
                      .inset(0, 0, 0, 0)
                      .key("gen" + std::to_string(gen))
                      .staggerChildren(9ms, Stagger::From::Center)
@@ -863,7 +860,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       SkPath p = b.detach();
       group.child(box()
                       .key("g" + std::to_string(gen) + "_" + std::to_string(i))
-                      .absolute()
                       .left(bb.left())
                       .top(bb.top())
                       .width(bb.width())
@@ -899,7 +895,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                     c.drawPath(b.detach(), p);
                   }
                 })
-                    .absolute()
                     .inset(0, 0, 0, 0)
                     .cache(Cache::None));
     return group;
@@ -908,7 +903,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   Element inset() {
     const SkRect r = SkRect::MakeXYWH(1178, 76, 348, 268);
     return box()
-        .absolute()
         .left(r.left())
         .top(r.top())
         .width(r.width())
@@ -920,11 +914,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
                          "\xc3\x97" "1/\xcf\x86"),
                     type(10.5f, rgb(0x8E9295), 1.0f))
-                   .absolute()
                    .left(14)
                    .top(12))
         .child(box()
-                   .absolute()
                    .left(10)
                    .top(34)
                    .width(kDiagW)
@@ -936,7 +928,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   Element describe(sketch::SketchContext &ctx) {
     (void)ctx;
-    auto field = box().absolute().inset(0, 0, 0, 0);
+    auto field = box().inset(0, 0, 0, 0);
     for (size_t i = 0; i < tiles.size(); ++i)
       field.child(sett(tiles[i], i));
 
@@ -949,7 +941,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     return stack()
         .fill(Fill::color(kJointBed))
         // the bedding course showing through the saw cuts
-        .child(box().absolute().inset(0, 0, 0, 0).fill(
+        .child(box().inset(0, 0, 0, 0).fill(
             patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f))
         .child(field)
         // Weathering at PLAZA scale — 250 px cells, i.e. a couple of metres
@@ -957,7 +949,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // where the setts are. Baked: it never changes, and one grain octave
         // over 1.9 Mpx is the most expensive thing in the frame.
         .child(box()
-                   .absolute()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
                    .opacity(0.42f)
@@ -970,7 +961,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // across the plaza and the corner vignette; a plaza is not evenly lit
         // and an evenly lit tiling is exactly what reads as a diagram.
         .child(box()
-                   .absolute()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
                    .fill(util::radialGradient(
@@ -980,7 +970,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
         // the sun pool itself, added back
         .child(box()
-                   .absolute()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kPlus)
                    .opacity(0.5f)
@@ -993,7 +982,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // loop as the arcs finish, so the field reads as a wet surface
         // catching the sky rather than as flat fill
         .child(box()
-                   .absolute()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kScreen)
                    .opacity(&sheen)
@@ -1007,7 +995,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // it a shadowed band to sit in rather than dropping 10 px type onto
         // speckled granite where it cannot be read at any exposure.
         .child(box()
-                   .absolute()
                    .left(0)
                    .top(kH - 190)
                    .width(kW)
@@ -1018,7 +1005,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                         rgb(0x08090A, 0.72f)},
                        {0.0f, 0.5f, 1.0f})))
         .child(box()
-                   .absolute()
                    .left(56)
                    .top(1084)
                    .width(1010)
@@ -1032,19 +1018,16 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                          "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
                          "STAINLESS INSERTS"),
                     type(13.0f, rgb(0xDCE0E2), 1.9f))
-                   .absolute()
                    .left(76)
                    .top(1100)
                    .opacity(1.0f))
         .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
                          "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
                     type(11.5f, rgb(0xA9AEB1), 1.5f))
-                   .absolute()
                    .left(76)
                    .top(1126)
                    .opacity(1.0f))
         .child(text(toU8(spec), type(10.5f, rgb(0x8E9598), 1.3f))
-                   .absolute()
                    .left(76)
                    .top(1152)
                    .opacity(1.0f));

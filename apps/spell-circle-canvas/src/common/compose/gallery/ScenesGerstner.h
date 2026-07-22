@@ -174,17 +174,17 @@ struct GerstnerGridScene final : Scene {
    *  column hairline, every fifth baseline, and the field's own frame. */
   Element gridPlate() {
     namespace g = gerstner;
-    Element plate = stack().absolute()
+    Element plate = stack()
                         .left(g::kFieldX).top(g::kFieldY)
                         .width(Dim(g::kFieldW)).height(Dim(g::kFieldH));
     for (int u = 0; u <= g::kUnits; ++u)
-      plate.child(box().absolute().left((float)u * g::kUnit).top(0)
+      plate.child(box().left((float)u * g::kUnit).top(0)
                       .width(Dim(0.5f)).height(Dim(g::kFieldH))
                       .fill(Material::solid({g::kBlue.fR, g::kBlue.fG,
                                              g::kBlue.fB,
                                              u % 2 == 0 ? 0.16f : 0.07f})));
     for (int r = 0; r <= g::kRows; ++r)
-      plate.child(box().absolute().left(0).top((float)r * g::kUnit)
+      plate.child(box().left(0).top((float)r * g::kUnit)
                       .width(Dim(g::kFieldW)).height(Dim(0.5f))
                       .fill(Material::solid({g::kBlue.fR, g::kBlue.fG,
                                              g::kBlue.fB,
@@ -200,7 +200,7 @@ struct GerstnerGridScene final : Scene {
     const g::Config &c = g::kConfigs[config];
     const float colW = c.width * g::kUnit;
 
-    Element bands = stack().key("bands").absolute()
+    Element bands = stack().key("bands")
                         .left(g::kFieldX).top(g::kFieldY)
                         .width(Dim(g::kFieldW)).height(Dim(g::kFieldH))
                         .staggerChildren(52ms);
@@ -209,7 +209,7 @@ struct GerstnerGridScene final : Scene {
       // the column's own tint, so the configuration reads at a glance
       Element band =
           box().key("col" + std::to_string(i))
-              .absolute().left(x).top(0)
+              .left(x).top(0)
               .width(Dim(colW)).height(Dim(g::kFieldH))
               .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad}))
               .translateY(withFrom(9.0f, 0.0f, {420ms, &ch::easeOutQuint}))
@@ -225,7 +225,7 @@ struct GerstnerGridScene final : Scene {
       // two paragraphs per column, so a narrow measure actually fills its
       // depth and the reflow is visible rather than implied
       const char *copy2 = g::kBody[(i + 1) % g::kBodyCount];
-      band.child(box().absolute().left(0).top(g::kUnit * 5).right(0)
+      band.child(box().left(0).top(g::kUnit * 5).right(0)
                      .column().gap(g::kUnit)
                      .child(text(toU8(copy),
                                  g::type(size, g::kInk, 0, 0))
@@ -234,13 +234,13 @@ struct GerstnerGridScene final : Scene {
                                  g::type(size, g::kInkSoft, 0, 0))
                                 .width(Dim(colW))));
       // a column rule at the head, the way Capital marked its columns
-      band.child(box().absolute().left(0).top(g::kUnit * 3.4f)
+      band.child(box().left(0).top(g::kUnit * 3.4f)
                      .width(Dim(colW)).height(Dim(1.4f))
                      .fill(Material::solid(g::kInk)));
       char label[24];
       std::snprintf(label, sizeof(label), "%02d", i + 1);
       band.child(text(toU8(label), g::type(10, g::kRed, 1.6f, 620))
-                     .absolute().left(0).top(g::kUnit * 1.7f));
+                     .left(0).top(g::kUnit * 1.7f));
       bands.child(std::move(band));
     }
     return bands;
@@ -256,7 +256,7 @@ struct GerstnerGridScene final : Scene {
     std::snprintf(count, sizeof(count), "%d COLUMN%s", c.columns,
                   c.columns == 1 ? "" : "S");
     return box().key("head").column()
-        .absolute().left(g::kFieldX).top(38)
+        .left(g::kFieldX).top(38)
         .child(box().row().alignItems(Align::End)
                    .child(text(toU8("PROGRAMME"),
                                g::type(30, g::kInk, 3.2f, 680)))
@@ -274,7 +274,7 @@ struct GerstnerGridScene final : Scene {
     using namespace std::chrono_literals;
     const g::Config &c = g::kConfigs[config];
     Element row = box().key("sum").row().alignItems(Align::Center).gap(10)
-                      .absolute().left(g::kFieldX)
+                      .left(g::kFieldX)
                       .top(g::kFieldY + g::kFieldH + 16)
                       .opacity(withFrom(0.0f, 1.0f, {300ms}))
                       .child(text(toU8("58 ="),
@@ -283,7 +283,7 @@ struct GerstnerGridScene final : Scene {
                                   g::type(15, g::kInk, 0.8f, 640)));
     // the ladder of all six, with the live one marked
     Element ladder = box().row().gap(9).alignItems(Align::Center)
-                         .absolute().right(84)
+                         .right(84)
                          .top(g::kFieldY + g::kFieldH + 16);
     for (int i = 0; i < g::kConfigCount; ++i) {
       const bool live = i == config;
@@ -299,7 +299,7 @@ struct GerstnerGridScene final : Scene {
                                    g::type(12, live ? g::kPaper : g::kInkSoft,
                                            0.6f, 620))));
     }
-    return stack().absolute().inset(0)
+    return stack().inset(0)
         .child(std::move(row))
         .child(std::move(ladder));
   }
@@ -310,7 +310,7 @@ struct GerstnerGridScene final : Scene {
         {0, 0}, {0, g::kH}, {{0.0f, g::kPaper}, {1.0f, g::kPaperLo}}));
 
     // paper tooth
-    root.child(box().absolute().inset(0)
+    root.child(box().inset(0)
                    .fill(patterns::noise(0.9f, 3, 5.0f))
                    .opacity(0.05f)
                    .blend(SkBlendMode::kMultiply));
@@ -322,7 +322,7 @@ struct GerstnerGridScene final : Scene {
 
     // the reading index: one hairline sweeping the baseline grid, the
     // only continuous motion on a page of discrete states
-    root.child(box().absolute().left(g::kFieldX - 22)
+    root.child(box().left(g::kFieldX - 22)
                    .width(Dim(g::kFieldW + 44)).height(Dim(1.0f))
                    .top(0).translateY(&sweep)
                    .fill(Material::linear(
@@ -333,7 +333,7 @@ struct GerstnerGridScene final : Scene {
                         {1.0f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}}}))
                    .zIndex(6));
 
-    root.child(box().column().absolute().left(g::kFieldX).bottom(26)
+    root.child(box().column().left(g::kFieldX).bottom(26)
                    .child(text(toU8("KARL GERSTNER \xc2\xb7 CAPITAL "
                                     "\xc2\xb7 1962"),
                                g::type(10, g::kInkSoft, 2.6f, 600)))

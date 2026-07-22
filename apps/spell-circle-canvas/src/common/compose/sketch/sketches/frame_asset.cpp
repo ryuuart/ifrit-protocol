@@ -23,7 +23,7 @@ struct FrameAsset : sigil::compose::sketch::Sketch {
     ctx.background({0, 0, 0, 0}); // transparent: it's a texture
 
     ctx.composer.render(
-        box().inset(0).absolute()
+        box().inset(0)
             .child(custom([](SkCanvas &c, const PaintContext &paint) {
                      const float s = paint.size.width();
                      SkPaint brush;

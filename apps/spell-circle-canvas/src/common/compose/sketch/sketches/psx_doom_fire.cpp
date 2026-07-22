@@ -398,7 +398,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   /** A corner tick pair — the placard's registration marks. */
   Element tick(float dx, float dy, bool left, bool top) {
     return box()
-        .absolute()
         .left(left ? Dim(dx) : autoDim())
         .right(left ? autoDim() : Dim(dx))
         .top(top ? Dim(dy) : autoDim())
@@ -419,14 +418,13 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .clip()
         // ink under the flame — the fire's own alpha-0 cells reveal it and
         // whatever else sits below the custom() leaf
-        .child(box().absolute().inset(0).fill(kPanelInk))
+        .child(box().inset(0).fill(kPanelInk))
         // §8, the reveal trick: the word is never drawn "on top". It sits
         // BEHIND the flame, and the rasterizer's alpha-0 for heat 0 lets the
         // cold core show it through, breathing as the simulation runs. Its
         // cap band deliberately straddles the flame's ragged front (≈ row 60
         // of 168), so the tongues eat into it from below.
         .child(text(toU8("DOOM"), doomType())
-                   .absolute()
                    .left(0)
                    .top(80)
                    .width(kPanelW)
@@ -436,7 +434,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .zIndex(1))
         // the automaton
         .child(custom(fireProgram())
-                   .absolute()
                    .inset(0)
                    .zIndex(2)
                    .opacity(withFrom(0.0f, 1.0f,
@@ -444,7 +441,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .cache(Cache::None))
         // seed-row annotation: the fire's only permanent energy source
         .child(box()
-                   .absolute()
                    .left(0)
                    .bottom(0)
                    .width(kPanelW)
@@ -454,7 +450,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(chip(text(toU8("SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
                              "WRITTEN ONCE, NEVER RE-RANDOMISED"),
                          mono(10, hex(0xEFEFC7), 1.0f)))
-                   .absolute()
                    .left(10)
                    .bottom(12)
                    .opacity(withFrom(0.0f, 1.0f,
@@ -462,7 +457,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .zIndex(4))
         // where the sidebar's inspector is looking
         .child(box()
-                   .absolute()
                    .left((float)(kCropX * kBlit))
                    .top((float)(kCropY * kBlit))
                    .width((float)(kInspectCells * kBlit))
@@ -474,7 +468,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .zIndex(5))
         .child(chip(text(toU8("INSPECT \xe2\x86\x92"), mono(9, kAmber, 1.4f)),
                     0.8f)
-                   .absolute()
                    .left((float)(kCropX * kBlit))
                    .top((float)(kCropY * kBlit) - 17.0f)
                    .opacity(withFrom(0.0f, 1.0f,
@@ -482,7 +475,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .zIndex(5))
         // the bezel, trim()-revealed on mount
         .child(box()
-                   .absolute()
                    .inset(0)
                    .stroke(stroke(1.5f, Fill::color(kKeyline),
                                   PathFormat::Align::Inner))
@@ -500,7 +492,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         // touches this mount point only — the rest of the tree keeps its
         // caches, and describe() is never called at 27 Hz.
         .child(box()
-                   .absolute()
                    .right(14)
                    .top(26)
                    .zIndex(6)
@@ -511,7 +502,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                               "PANEL 960 \xc3\x97 504 PX"),
                          mono(10, kSteel, 1.0f)),
                     0.0f)
-                   .absolute()
                    .left(22)
                    .top(24)
                    .opacity(withFrom(0.0f, 1.0f,
@@ -662,7 +652,6 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                                     .ease = &easeOutBack,
                                     .delay = 700ms}))
                    .child(custom(inspectorProgram())
-                              .absolute()
                               .inset(0)
                               .cache(Cache::None)))
         .child(text(toU8(caption), mono(9.5f, kSteel, 1.0f)));
