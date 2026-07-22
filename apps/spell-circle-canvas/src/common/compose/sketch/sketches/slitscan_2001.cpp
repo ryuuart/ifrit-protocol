@@ -1591,6 +1591,14 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     SkFont f7(monoFace(), 6.8f);
     SkPaint qt;
     qt.setAntiAlias(true);
+    // EIGHT EQUAL STEPS IN ln z means the ticks CROWD at the near end, and
+    // the labels cannot all be set: over 180 -> 1.5 in the last four ticks
+    // fall 17.3 / 8.8 / 4.4 px apart while "11.68" measures ~20 px, so
+    // 11.68 / 5.898 / 2.977 / 1.5 all landed on one another and the near
+    // end of the rule read as a blot. Every tick is still drawn — a ruler
+    // whose crowded end is tick-only is what a drafting plate does — and a
+    // label is set only when it clears the last one set.
+    float lastRight = -1e9f;
     for (int i = 0; i <= 7; ++i) {
       const float zz = kZ0In * std::pow(kR, -(float)i / 7.0f);
       const float x = plateX - zz * S;
@@ -1601,7 +1609,11 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
       const std::string lab = fmt("%.4g", zz);
       const float tw =
           f7.measureText(lab.c_str(), lab.size(), SkTextEncoding::kUTF8);
-      c.drawString(lab.c_str(), x - tw * 0.5f, trackY - 11, f7, qt);
+      const float left = x - tw * 0.5f;
+      if (left < lastRight + 3.0f || left + tw > plateX - 2.0f)
+        continue;
+      c.drawString(lab.c_str(), left, trackY - 11, f7, qt);
+      lastRight = left + tw;
     }
   }
 

@@ -878,13 +878,19 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .child(flourish(true))
         // The hanger: the plate reads as a hung sign, so it hangs from a rule.
         .child(rule(166.0f, 118.0f, 192.0f, engraved, 1.0f))
-        .child(label("D C", 148.0f + 74.0f, 10.0f, 21.0f,
+        // The plate box (148..376) and its hanger (166..358) are both centred
+        // on local 262; the three runs were each placed by eye and none of
+        // them was — D C sat 16 px left of centre and the numeral 8.5 right,
+        // so the two stacked runs disagreed by 24.5 px on a symmetric sign.
+        // Offsets below are measured ink centres, not advances: D C carries a
+        // trailing 7 px letterspace and the caption 1.2.
+        .child(label("D C", 148.0f + 90.0f, 10.0f, 21.0f,
                      bg3::alpha(bg3::kInk, 0.72f), 7.0f))
-        .child(label(std::to_string(bg3::kDC), 148.0f + 100.0f, 26.0f, 42.0f,
+        .child(label(std::to_string(bg3::kDC), 148.0f + 91.5f, 26.0f, 42.0f,
                      bg3::kInk))
         // The caption lives INSIDE the plate: below it the plate deliberately
         // bleeds over the bezel's top flat, and type on the band is unreadable.
-        .child(label("SkillCheck \xc2\xb7 StatsRollType", 148.0f + 30.0f, 82.0f,
+        .child(label("SkillCheck \xc2\xb7 StatsRollType", 148.0f + 26.5f, 82.0f,
                      9.5f, bg3::alpha(bg3::kInk, 0.5f), 1.2f, true));
   }
 
@@ -1191,21 +1197,10 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                       std::to_string(bg3::kDiscardedDiceTotal),
                   kAx2, kAy2 + 51.0f, 9.0f, bg3::alpha(bg3::kInk, 0.55f), 0.8f,
                   true));
-    // The leader to the discarded die, up-left of the winner.
-    g.child(box()
-                .absolute()
-                .left(kAx2 + 238.0f)
-                .top(kAy2 + 64.0f)
-                .width(232.0f)
-                .height(196.0f)
-                .outline(shapes::parametric(
-                    [](float t) {
-                      return SkPoint{-1.0f + 2.0f * t,
-                                     -1.0f + 2.0f * t * t};
-                    },
-                    0.0f, 1.0f, 48))
-                .background(stroke(
-                    1.0f, Fill::color(bg3::alpha(bg3::kInk, 0.32f)))));
+    // The leader to the discarded die is NOT drawn here — see
+    // advantageLeader(). Marginalia paints under the roundel, and the rosette
+    // is opaque by design, so a leader laid down at this point loses its last
+    // 29% at the rosette's rim and ends in mid-air on the gilt band.
 
     // The footer: four lines, each on its own baseline, clear of the outcome
     // banner's left edge at x = 636.
@@ -1302,6 +1297,26 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .child(die(bg3::kDieRadius * 0.86f, 0.45f, false, 1.9f));
   }
 
+  /** The leader from the ADVANTAGE block to the discarded die. It has to be
+   *  laid down AFTER the roundel — the rosette is opaque, and its rim sits at
+   *  t = 0.71 of this curve, so drawn with the rest of the marginalia the
+   *  callout stopped short of the thing it calls out. */
+  Element advantageLeader() const {
+    constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
+    return box()
+        .absolute()
+        .left(kAx2 + 238.0f)
+        .top(kAy2 + 64.0f)
+        .width(232.0f)
+        .height(196.0f)
+        .outline(shapes::parametric(
+            [](float t) {
+              return SkPoint{-1.0f + 2.0f * t, -1.0f + 2.0f * t * t};
+            },
+            0.0f, 1.0f, 48))
+        .background(stroke(1.0f, Fill::color(bg3::alpha(bg3::kInk, 0.32f))));
+  }
+
   /** The winner, punching in on a keyframe path: one ramp cannot shape a
    *  landing. */
   Element heroDie() const {
@@ -1346,6 +1361,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .child(once([this] { return bezelBand(); }))
         .child(once([this] { return rosette(); }))
         .child(once([this] { return discardedDie(); }))
+        .child(once([this] { return advantageLeader(); }))
         .child(once([this] { return bezel(); }))
         .child(once([this] { return portrait(); }))
         .child(once([this] { return heroDie(); }))

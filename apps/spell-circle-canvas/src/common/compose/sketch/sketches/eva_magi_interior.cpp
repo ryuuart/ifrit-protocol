@@ -1118,9 +1118,12 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     const auto k2 = fitEmSpan(u8"決議", 244.0f, magi::kKanji, &sK2);
     g.child(inked(u8"決議", k2, {810, 246}, sK2));
 
-    // MAGI, in the hole the three panels leave — cap 37, ink span 118.
+    // MAGI, in the hole the three panels leave — cap 37, ink span 118. The
+    // flat plate's own runs are M 559-592, A 595-622, G 627-655, I 664-673:
+    // ink 559..673 over rows 648..683. Set 40/138 it ran to 696 and the I was
+    // cut by MELCHIOR's chamfer, which reaches x 684 at that baseline.
     g.child(inked(u8"MAGI",
-                  fitRun(magi::latin(), u8"MAGI", 40.0f, 138.0f, magi::kOrange,
+                  fitRun(magi::latin(), u8"MAGI", 37.0f, 118.0f, magi::kOrange,
                          &sMagi),
                   {558, 646}, sMagi));
     return g;
@@ -1156,11 +1159,14 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     const SkColor4f ink = carried ? magi::kGoldPeak : magi::kRedHot;
     float sl = 0;
     const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink, &sl);
+    // 620 put the card straight through portrait labels 1-3 — it is only
+    // ever up after 6.5 s, and the anchor capture is at 2.5. 430 is the gap
+    // the margin actually leaves, between the countdown and the first rail.
     Element card =
         box()
             .absolute()
             .left(1130)
-            .top(620)
+            .top(430)
             .width(220)
             .height(120)
             .outline(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
@@ -1551,6 +1557,10 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // 2000-space y 664/734/811/914/984/1079/1202/1279 about centre 717,
     // x 0.62 — spacings 70,77,103,70,95,123,77: irregular, NOT a grid. The
     // space before the closing paren is Khara's own typo; kept.
+    // Run 2's caption is three lines on the design art and is trimmed to two
+    // here; its tail ("at the time of partition un-developing. )") was tried
+    // and taken back out — a third line closes to 15 px of run 3, the same
+    // leading the label uses internally, and the two captions read as one.
     static const float kDy[8] = {-33, 11, 58, 122, 166, 224, 301, 349};
     Element g = box().absolute().inset(0);
     const auto hi = magi::type(magi::latinPlain(), 11.5f, magi::kPRailHi);
@@ -1632,23 +1642,56 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .foreground(decorations::border(
                       1.8f, Fill::color(magi::hex(0x6E5E70)))));
     }
-    g.child(box()
-                .absolute()
-                .left(Wd * 0.30f)
-                .top(Ht * 0.26f)
-                .width(Wd * 0.44f)
-                .height(Ht * 0.52f)
-                .rotate(-9.0f)
-                .fill(Material::radialUnit({0.44f, 0.40f}, 1.05f,
-                                           {{0.0f, magi::hex(0xDBC49A)},
-                                            {0.62f, magi::hex(0xC0A277)},
-                                            {1.0f, magi::hex(0x97785D)}}))
-                .overlay(lines::Line{.width = 2.0f,
-                                     .fill = Fill::color(magi::hex(0x4A2E1E)),
-                                     .waveAmplitude = 3.2f,
-                                     .waveLength = 16.0f})
-                .foreground(decorations::border(
-                    1.8f, Fill::color(magi::hex(0x1A0F14)))));
+    Element tissue =
+        box()
+            .absolute()
+            .left(Wd * 0.30f)
+            .top(Ht * 0.26f)
+            .width(Wd * 0.44f)
+            .height(Ht * 0.52f)
+            .rotate(-9.0f)
+            .fill(Material::radialUnit({0.44f, 0.40f}, 1.05f,
+                                       {{0.0f, magi::hex(0xDBC49A)},
+                                        {0.62f, magi::hex(0xC0A277)},
+                                        {1.0f, magi::hex(0x97785D)}}))
+            .overlay(lines::Line{.width = 2.0f,
+                                 .fill = Fill::color(magi::hex(0x4A2E1E)),
+                                 .waveAmplitude = 3.2f,
+                                 .waveLength = 16.0f})
+            .foreground(
+                decorations::border(1.8f, Fill::color(magi::hex(0x1A0F14))));
+    // THE SULCI. `overlay()` dresses a node's OUTLINE, and this node's
+    // outline is its rectangle — so the wavy Line above deckles the tissue's
+    // EDGE and lays nothing across it, which left the one thing the hatch
+    // exists to show (a human brain behind glass) reading as a blank card.
+    // The folds need geometry of their own; the ink and the wave are the
+    // ones already chosen above.
+    tissue.child(
+        box()
+            .absolute()
+            .inset(0)
+            .outline([](SkSize s) {
+              const float w = s.width(), h = s.height();
+              SkPathBuilder b;
+              // the longitudinal fissure
+              b.moveTo(w * 0.54f, h * 0.03f);
+              b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
+              b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
+              // gyri, each stopping short of the fissure and of the rim
+              const float ys[3] = {0.24f, 0.52f, 0.79f};
+              for (float y : ys) {
+                b.moveTo(w * 0.06f, h * y);
+                b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
+                b.moveTo(w * 0.62f, h * (y + 0.05f));
+                b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f, h * (y + 0.07f));
+              }
+              return b.detach();
+            })
+            .stroke(lines::Line{.width = 1.6f,
+                                .fill = Fill::color(magi::hex(0x4A2E1E)),
+                                .waveAmplitude = 1.5f,
+                                .waveLength = 10.0f}));
+    g.child(std::move(tissue));
     g.child(box()
                 .absolute()
                 .left(Wd * 0.31f)

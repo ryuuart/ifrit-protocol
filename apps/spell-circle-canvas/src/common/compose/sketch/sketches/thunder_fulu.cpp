@@ -1264,8 +1264,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // where each station's plate stands relative to it — five step right,
     // two step ABOVE, so the tread's own line stays legible where the
     // handle folds back on itself
+    // JIANG BAO (6) hangs 24 lower than its neighbours: at the common 26 its
+    // plate top landed inside JUAN WU's caption band and swallowed the first
+    // two letters of "roll up fog" against its own lit top edge.
     static const float kOffX[9] = {-56, 48, 48, -56, 48, -58, 50, 54, 52};
-    static const float kOffY[9] = {26, 26, 26, 26, 26, -104, 26, 26, 34};
+    static const float kOffY[9] = {26, 26, 26, 26, 26, -104, 50, 26, 34};
     auto g = box()
                  .absolute()
                  .left(x0)
@@ -1407,9 +1410,19 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       const int srcs[4] = {YU, WU, LEI, YUN};
       const std::vector<Poly> ms = medians(srcs[i % 4]);
       const int take = 3 + (i % 3);
+      // The rows must FIT the plate, and a fixed 17 px pitch did not: the
+      // fourth row hung 6 px past the bottom edge and the FIFTH landed
+      // entirely below it, on the plate's own caption — which is why QI YU,
+      // QI XUE and QI QING (the three plates where i % 3 == 2) each carried a
+      // red mark struck through their gloss. Pitch the band between the head
+      // hook and the foot tick instead, so any `take` is contained.
+      const float rowTop = 24.0f, rowBot = ph - 19.0f;
+      const float rowH = std::min(16.0f, (rowBot - rowTop) / (float)take);
+      const float pitch =
+          take > 1 ? (rowBot - rowTop - rowH) / (float)(take - 1) : 0.0f;
       for (int k = 0; k < take && k < (int)ms.size(); ++k) {
-        Poly q = place(ms[(size_t)((k * 5 + i) % ms.size())], {9.0f, 26.0f + (float)k * 17.0f},
-                       pw - 18.0f, 16.0f);
+        Poly q = place(ms[(size_t)((k * 5 + i) % ms.size())],
+                       {9.0f, rowTop + (float)k * pitch}, pw - 18.0f, rowH);
         b.addPath(cloud(smoothPath(q), 1.8f, 13.0f));
       }
       // the head: one hook. the foot: one tick.
