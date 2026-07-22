@@ -50,6 +50,35 @@ struct SketchContext {
   CanvasSpec *spec = nullptr; // host-owned; written via the calls below
   sigil::weave::FontContext *fonts = nullptr; // the composer's fonts —
                                               // measure()/snapshot() fuel
+  /** `--deterministic`: the host is taking a capture that will be DIFFED,
+   *  so anything the sketch measured about its own execution must be
+   *  pinned. See `measured()` below — read the flag directly only when
+   *  you need to suppress a whole panel rather than one number. */
+  bool deterministic = false;
+
+  /** A number the sketch measured about ITS OWN EXECUTION — a build time,
+   *  a bake cost, a live node count, a frame counter. Returns @p value
+   *  normally and @p pinned under `--deterministic`.
+   *
+   *  WHY THIS EXISTS. A study that draws its own measurements into its own
+   *  plate is not a reproducible capture: it differs from ITSELF between
+   *  two runs of the same binary. Measured on this corpus —
+   *  `genesis_fire` 34 differing pixels, `slitscan_2001` 16, against a
+   *  negative control at 0. So every pixel sweep reports those studies as
+   *  changed by any patch, including a patch that changes nothing, and the
+   *  false positive has exactly the shape (small, clustered, plausible) of
+   *  the real regression a sweep is for. It cost this program two rounds
+   *  of cropping and looking to clear a change that had altered nothing.
+   *
+   *  The rule is broader than clocks: it is any value the sketch computed
+   *  from its own execution rather than from its data. A node count is
+   *  usually stable and a bake time never is, but both belong here,
+   *  because "usually stable" is what makes the eventual diff mystifying.
+   *
+   *      std::snprintf(buf, n, "BUILD %.2f ms", ctx.measured(buildMs)); */
+  double measured(double value, double pinned = 0.0) const {
+    return deterministic ? pinned : value;
+  }
 
   /** One-shot intrinsic measurement (compose::measure with the host's
    *  fonts): size marquee strips, tooltips, badges from their content. */

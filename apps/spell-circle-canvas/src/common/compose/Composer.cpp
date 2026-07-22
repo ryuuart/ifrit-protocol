@@ -16,8 +16,10 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
+#include <include/core/SkTypes.h> // SkDebugf — the renderSlot diagnostic
 
 #include <algorithm>
+#include <set>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -159,8 +161,33 @@ void Composer::renderSlot(std::string_view name, Element content) {
   Impl &impl = *m_impl;
   const auto start = std::chrono::steady_clock::now();
   auto it = impl.bySlot.find(std::string(name));
-  if (it == impl.bySlot.end())
+  if (it == impl.bySlot.end()) {
+    // Silence here costs an hour, reliably, because the SYMPTOM is not
+    // "my slot is empty" — it is "my slot lays out W x 0", which reads as
+    // a layout bug and sends you into Yoga. It was filed as exactly that,
+    // twice, before anyone looked at the name.
+    //
+    // The overwhelmingly likely cause is the one named below: `slot(name)`
+    // stores the name in `key`, so any later `.key(...)` on that element
+    // RENAMES the slot, silently, with no type error and no second field
+    // to disagree with itself. Listing the names that DO exist turns the
+    // diagnosis into one read.
+    static std::set<std::string> warned; // once per name, not per frame
+    if (warned.insert(std::string(name)).second) {
+      std::string have;
+      for (const auto &[key, inst] : impl.bySlot)
+        have += (have.empty() ? "" : ", ") + key;
+      SkDebugf("[compose] renderSlot(\"%.*s\") — no slot by that name, so "
+               "nothing was rendered into it and it will lay out at zero "
+               "on its content axis. Slots that DO exist: [%s]. NOTE: "
+               "slot(name) stores the name in key(), so slot(\"%.*s\")"
+               ".key(\"something\") RENAMES the slot to \"something\".\n",
+               (int)name.size(), name.data(),
+               have.empty() ? "none" : have.c_str(), (int)name.size(),
+               name.data());
+    }
     return;
+  }
   Instance &slotInst = *it->second;
 
   // Patch or mount the slot's single content child.

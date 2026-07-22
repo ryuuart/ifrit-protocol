@@ -1478,11 +1478,72 @@ The negative control is what turns "explaining away a difference" into a
 measurement, and it should be the standard move: re-render with the SAME
 binary before attributing any diff to a change.
 
-Remedies, cheapest first: a `--deterministic` capture flag that blanks
-self-measured readouts; or those two studies bind their readout to a
-value the host pins under `--frame`; or the sweep tool masks the known
-regions, which is the worst of the three because the mask is a second
-thing to keep in sync.
+**CLOSED — `--deterministic`.** `SketchContext` carries the flag and a
+channel for it:
+
+```cpp
+double measured(double value, double pinned = 0.0) const;   // ctx.measured(buildMs)
+bool   deterministic;                                       // whole-panel case
+```
+
+Deliberately NOT a list of blanked readouts. The unit is **any value the
+sketch computed from its own execution rather than from its data** — a
+build time, a bake cost, a live node count, a frame counter. A node count
+is usually stable and a bake time never is, and both belong here, because
+*"usually stable"* is exactly what makes the eventual diff mystifying.
+The host cannot identify such values by inspection, so the study routes
+them and the flag pins them.
+
+Measured, three runs each, same binary, same `--at`:
+
+```
+                 without the flag        with it
+genesis_fire       33 differing px       0
+slitscan_2001      20 differing px       0
+```
+
+And inert where it is not read — `kumiko_asanoha`, `thaumonomicon`,
+`stroke_atlas`, `penrose_paving` all render identically with and without.
+
+> Masking the known regions in the sweep tool was the third option and
+> remains the worst: the mask is a second thing to keep in sync, and it
+> would have had to grow an entry every time a study learned to measure
+> itself.
+
+### A postscript, because the fix reproduced the bug it was fixing
+
+The first attempt "did not work" — both studies still differed under the
+flag. The flag was fine. The private test harness linked a **stale
+`SketchHost.o`**, compiled against the previous `SketchContext`, so the
+new field was never propagated and the two struct layouts disagreed.
+
+That is the **third** form of the same error in one session: a stale
+binary, a stale baseline, and a control that had been rebuilt with the
+code under test. Each one produced a confident, plausible, wrong reading,
+and each was caught only by a control built for the comparison. It is
+worth stating in the imperative:
+
+> Before believing a negative result about your own change, check that the
+> thing you ran contains it.
+
+## 26b. `renderSlot()` on a name that does not exist was SILENT — **CLOSED**
+
+The symptom is not "my slot is empty". It is **"my slot lays out W × 0"**,
+which reads as a layout bug and sends you into Yoga — and it was filed as
+exactly that, twice, before anyone looked at the name.
+
+The cause is almost always the one the message now names: **`slot(name)`
+stores the name in `key`**, so any later `.key(...)` on that element
+renames the slot. No type error, no second field to disagree with itself,
+and `renderSlot` then returned silently. It cost an hour, and the probe
+written to investigate it reproduced the same mistake for the same
+reason.
+
+`renderSlot` now warns once per name, lists the slot names that DO exist,
+and names the rename trap with the caller's own string substituted in —
+which turns the diagnosis into one read. Same shape as §27's remedy: the
+library cannot know which spelling the author meant, so it says what it
+saw instead of choosing.
 
 ## 27. A default that encodes a judgement about the caller's art cannot be changed compatibly
 
