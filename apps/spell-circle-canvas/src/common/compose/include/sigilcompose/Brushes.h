@@ -132,8 +132,12 @@ inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
 /** Path of Exile's rope connector, 3-state (REFERENCES.md §5 — palette
  *  ladder verified against Path of Building): counter-dashed strand layers
  *  read as rope; Active adds the warm halo and specular ridge. state:
- *  0 Normal, 1 Intermediate (hover-path), 2 Active. */
-inline LayeredBrush rope(int state) {
+ *  0 Normal, 1 Intermediate (hover-path), 2 Active.
+ *
+ *  `scale` is the zoom the rope is drawn at — every width, dash and blur
+ *  moves together, the way the game's own line art does. The default is
+ *  the widely-spaced study; a dense cluster wants ~0.6. */
+inline LayeredBrush rope(int state, float scale = 1.0f) {
   struct P { SkColor4f body, ridge; };
   static constexpr P kStates[3] = {
       {{0.227f, 0.200f, 0.165f, 1}, {0.341f, 0.286f, 0.227f, 1}}, // #3A332A/#57493A
@@ -145,13 +149,15 @@ inline LayeredBrush rope(int state) {
                        p.body.fB * 1.15f, 1};
   SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f,
                         p.ridge.fB * 1.3f, 0.6f};
+  const float k = scale <= 0 ? 1.0f : scale;
   LayeredBrush b;
   if (state >= 2)
-    b.layers.push_back({18, {1.0f, 0.788f, 0.439f, 0.13f}, 6}); // halo
-  b.layers.push_back({11, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  b.layers.push_back({7, p.ridge, 0, {7, 5}, 0});   // strand
-  b.layers.push_back({7, bodyLit, 0, {7, 5}, 6});   // counter-strand
-  b.layers.push_back({2, ridgeLit, 0, {7, 5}, 3});  // ridge light
+    b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k}); // halo
+  b.layers.push_back(
+      {11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});   // strand
+  b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k}); // counter
+  b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k}); // ridge
   return b;
 }
 
