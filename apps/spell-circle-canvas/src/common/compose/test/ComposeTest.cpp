@@ -4220,6 +4220,81 @@ TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
 }
 
 // ---------------------------------------------------------------------------
+// The same argument for animated SCALARS. Volatility asks whether a motion
+// is CONNECTED; it never asked whether the value MOVED — so a keyframe
+// path's hold segment repainted every frame while provably constant.
+
+namespace {
+/** A stroked ring whose trim end follows a keyframe path with a HOLD:
+ *  0 -> 0.6 over 200 ms, then flat until 600 ms, then on to 1. The flat
+ *  stretch is the whole point — it is a running motion whose value is not
+ *  changing, which is the case the volatility model could not express. */
+Element trimmedRing(Cache mode) {
+  return box().cache(Cache::None).child(
+      box()
+          .width(120)
+          .height(120)
+          .key("ring")
+          .cache(mode)
+          .outline(shapes::circle())
+          .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
+          .trim(0.0f,
+                withKeyframes<float>({{std::chrono::milliseconds(0), 0.0f},
+                                      {std::chrono::milliseconds(200), 0.6f},
+                                      {std::chrono::milliseconds(600), 0.6f},
+                                      {std::chrono::milliseconds(800), 1.0f}},
+                                     &choreograph::easeNone),
+                0.0f));
+}
+} // namespace
+
+TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
+  Host host;
+  host.composer.render(trimmedRing(Cache::Auto));
+  host.frame();
+  for (int i = 0; i < 18; ++i)
+    host.frame(1.0 / 60.0); // t ~ 0.30 s: inside the hold
+  unsigned duringHold = 0;
+  for (int i = 0; i < 15; ++i) { // 0.30 -> 0.55 s, still flat
+    host.frame(1.0 / 60.0);
+    duringHold += host.composer.stats().picturesRecorded;
+  }
+  EXPECT_EQ(duringHold, 0u)
+      << "re-recorded " << duringHold
+      << " times across a keyframe segment whose value never changed";
+  unsigned afterHold = 0;
+  for (int i = 0; i < 12; ++i) { // 0.55 -> 0.75 s: moving again
+    host.frame(1.0 / 60.0);
+    afterHold += host.composer.stats().picturesRecorded;
+  }
+  EXPECT_GT(afterHold, 0u)
+      << "the memo went stale-blind: the trim moved and nothing re-recorded";
+}
+
+TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
+  // The constraint carried from the temporal-promotion work: every frame
+  // identical, not just the held ones. A hold that goes stale by one frame
+  // at a waypoint is exactly the bug this could introduce, and it would be
+  // invisible in any single still.
+  //
+  // Cache::None on the node under test is the ground truth — it re-paints
+  // from scratch every frame by construction — so the two hosts differ in
+  // nothing but whether the memo is allowed to hold.
+  Host memo, truth;
+  memo.composer.render(trimmedRing(Cache::Auto));
+  truth.composer.render(trimmedRing(Cache::None));
+  memo.frame();
+  truth.frame();
+  for (int i = 0; i < 60; ++i) { // a full second, over all three waypoints
+    memo.frame(1.0 / 60.0);
+    truth.frame(1.0 / 60.0);
+    ASSERT_TRUE(identicalPixels(memo, truth, 200, 200))
+        << "frame " << i << " (t = " << (double)i / 60.0
+        << " s) differs from the uncached render";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // decorations::Border — brackets, gapped rules, weighted corners, insets.
 
 namespace {

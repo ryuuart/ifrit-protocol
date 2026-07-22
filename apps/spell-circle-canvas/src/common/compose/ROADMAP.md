@@ -149,6 +149,7 @@ missing ones.
 | `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
 | `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
 | §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
+| **`withKeyframes` repainted through its own hold segments** (§17) | Volatility asked whether a motion was CONNECTED and never whether the value MOVED, so a keyframe hold, a settled easing, or any waypoint pair with equal values repainted every frame while provably constant — 29 ms of a 38 ms frame in one study. The recording made with those numbers is still exact while they hold | `Paint.cpp`, `ComposeRuntime.h` |
 | Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
 | **`Cache::Texture` baked a quarter turn at QUARTER resolution** | `getScaleX/getScaleY` are the matrix DIAGONAL, and Skia snaps cos(90°) to exactly zero — so a ±90° node reported scale 0, clamped to the 0.25 floor and linear-upscaled 4×. Measured mean \|Δ\| over ink: 30–32/255 at ±90°, 14.5 at 45°, 2.4 at 180°. Singular values (`maxScaleOf`) instead | `ComposeRuntime.h`, `Paint.cpp`, `Composer.cpp` |
 | **Promotion could not SEE a leaf** | A bare box never records a picture (one `drawRect` beats a nested recording) and the promoter only ever measured the replay path — so the corpus's largest cost centre, a full-canvas box carrying one shader, was structurally invisible to it: 663 of 697 ms in `chladni_tab1`, 476 of 568 in `twoadvanced_v4`, 818 of 1115 in `chaucer_astrolabe`, every one of them `live paint` | `Paint.cpp` |
@@ -985,7 +986,29 @@ brush would silently inherit the wrong art. It needs either a weak handle
 to the node or a generation counter. Worth doing: this is the only place
 in the library where re-describing costs raster work rather than a diff.
 
-## 17. `withKeyframes` is live volatility even where its value is constant
+## 17. `withKeyframes` is live volatility even where its value is constant — **CLOSED**
+
+> Shipped as `Instance::scalarMemo` in `Paint.cpp`. The section stays with
+> its number. One correction to what it said when it was filed: **§15 and
+> §17 are not the same change.** They share a slogan — "provably not
+> changing, believed to be changing" — and nothing else. §17 extends an
+> INPUT MEMO (compare what you baked with against what you have; the
+> material memo already did exactly this for shaders). §15 splits paint
+> GRANULARITY (a node's own layer, separate from its children). Merging
+> them would have produced one design serving two mechanisms.
+>
+> Kept deliberately disjoint from `liveMatOnly` rather than unified with
+> it: the two memos compare different things — a shader pointer and five
+> floats — and unifying them meant rewriting fifteen call sites of the
+> subtlest function in the library to gain nothing. A node carrying BOTH a
+> live material and an animated trim takes neither memo, which is the
+> conservative answer and costs exactly what it costs today.
+>
+> Scope is the content-volatility slots only: trim start/end/offset, wipe
+> fraction, glyph progress. Not the transform slots — those are paint-only
+> volatility and already replay the content picture under a live matrix.
+> Note `TextPath::at` is a plain float, not a `PropValue`, so an animated
+> `onPath` position is a re-describe and is NOT covered by this.
 
 Reported with a number: **29 ms of a 38 ms frame**, seven text-on-path
 runs whose keyframe paths were between waypoints and therefore not

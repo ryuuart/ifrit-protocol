@@ -124,6 +124,30 @@ struct Instance {
   // baked (quantized/held materials repaint at their own rate, not the
   // frame rate).
   bool liveMatOnly = false;
+  // §17, the same argument for animated SCALARS. Volatility asks whether a
+  // motion is CONNECTED; it never asked whether the value moved. A keyframe
+  // path's hold segment, a settled easing, and any waypoint pair with equal
+  // values are all provably constant — and a recording made with those
+  // values is still exact while they hold. Measured before this existed:
+  // 29 ms of a 38 ms frame, on runs whose keyframes were between waypoints
+  // and therefore not changing at all.
+  //
+  // Set when the node's content volatility is ENTIRELY these scalars; the
+  // painter then re-records only when one of them actually ticks. Kept
+  // separate from liveMatOnly rather than merged into it: the two memos
+  // compare different things (a shader pointer, five floats), and merging
+  // them would have meant rewriting fifteen call sites of the subtlest
+  // function in the library to gain nothing.
+  bool scalarMemo = false;
+  /** The content scalars a recording was baked with. Trim/wipe/glyph
+   *  default to their no-op values, so a node that has none compares
+   *  equal to itself forever. */
+  struct ContentScalars {
+    float trimStart = 0.0f, trimEnd = 1.0f, trimOffset = 0.0f;
+    float wipe = 1.0f, glyph = 1.0f;
+    bool operator==(const ContentScalars &) const = default;
+  };
+  ContentScalars bakedScalars;
   // Auto texture promotion: a rolling estimate of what this node's PAINT
   // costs each frame — a picture replay for a cached subtree, the live
   // draw for a leaf that never records one — and how many consecutive
