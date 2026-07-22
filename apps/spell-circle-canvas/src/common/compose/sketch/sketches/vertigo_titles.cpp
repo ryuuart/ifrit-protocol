@@ -116,6 +116,14 @@
 //     rebuilds pop() one tier up: seven letter nodes under
 //     staggerChildren(30ms). Element::onPath() has the same limitation.
 //
+// Two more turned up in Element::onPath() and were fixed the same night
+// (8498b1d), so the ring captions below now read the straightforward way
+// rather than around a workaround: autoFlip used to turn each glyph over
+// IN PLACE, which mirrors the run ("TECHNICOLOR" came out "ROLOCINHCET"),
+// and a centred run at at = 0 dropped every glyph at a negative distance,
+// eating half the caption on a ring where fraction 0 and 1 are the same
+// point.
+//
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/vertigo_titles.cpp \
@@ -288,23 +296,17 @@ Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
   return t;
 }
 
-/** A circle of radius @p r centred on the node's box, starting at
- *  @p startDeg — the baseline for onPath() ring captions (fraction 0.25
- *  is 12 o'clock when startDeg is 180 and ccw is false).
- *
- *  `ccw` exists because TextPath::autoFlip turns each glyph over IN
- *  PLACE without reversing the run's direction of travel, so a caption
- *  on the lower half of a clockwise ring comes out mirror-reversed
- *  ("TECHNICOLOR" reads "ROLOCINHCET"). Handing the bottom caption a
- *  counter-clockwise baseline and autoFlip = false is the fix that
- *  works today. */
-std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f,
-                                         bool ccw = false) {
-  return [r, startDeg, ccw](SkSize s) {
+/** A clockwise circle of radius @p r centred on the node's box, starting
+ *  at @p startDeg — the baseline for the onPath() ring captions.
+ *  Fraction 0.25 is 12 o'clock and 0.75 is 6 o'clock at the default
+ *  start. The last sample repeats the first, so the contour reads as
+ *  geometrically closed and centred runs straddle the seam. */
+std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
+  return [r, startDeg](SkSize s) {
     SkPathBuilder p;
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     for (int i = 0; i <= 360; ++i) {
-      const float a = (startDeg + (ccw ? -1.0f : 1.0f) * (float)i) * kDeg;
+      const float a = (startDeg + (float)i) * kDeg;
       const SkPoint q{cx + r * std::cos(a), cy + r * std::sin(a)};
       if (i == 0)
         p.moveTo(q);
@@ -318,12 +320,7 @@ std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f,
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, SkColor4f color, float width) {
-  return box()
-      .absolute()
-      .left(kEye.x() - r)
-      .top(kEye.y() - r)
-      .width(2 * r)
-      .height(2 * r)
+  return disc(kEye, r) // util::disc — was four lines of box() arithmetic
       .corners({r})
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(color)));
@@ -501,15 +498,15 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             .key("ring-bottom")
             .absolute()
             .inset(0)
-            // start the ccw baseline at the TOP so the bottom of the ring
-            // lands at fraction 0.5 — Align::Center at at = 0 would set
-            // start = −runWidth/2 and onPath drops every glyph at d < 0,
-            // silently eating the first half of the caption.
-            .onPath({.path = circlePath(272.0f, 270.0f, /*ccw=*/true),
-                     .at = 0.5f,
+            // Same clockwise baseline as the top caption, half a turn
+            // round, flipped so it reads right way up — which is the
+            // straightforward spelling, and only became the straight-
+            // forward spelling once autoFlip stopped mirroring the run.
+            .onPath({.path = circlePath(272.0f),
+                     .at = 0.75f,
                      .align = TextPath::Align::Center,
                      .offset = 3.0f,
-                     .autoFlip = false})
+                     .autoFlip = true})
             .opacity(withFrom(0.0f, 1.0f, ramp(1120, 500))));
 
     // the card slug: four of them stacked in the same corner, each riding
