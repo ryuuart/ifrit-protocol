@@ -155,13 +155,13 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   entrance(Instance::kScale, node.paint.scale);
   entrance(Instance::kSkewX, node.paint.skewX);
   entrance(Instance::kSkewY, node.paint.skewY);
-  if (node.hasTrim) {
-    entrance(Instance::kTrimStart, node.trimStart);
-    entrance(Instance::kTrimEnd, node.trimEnd);
-    entrance(Instance::kTrimOffset, node.trimOffset);
+  if (node.hasTrim()) {
+    entrance(Instance::kTrimStart, node.fxData->trimStart);
+    entrance(Instance::kTrimEnd, node.fxData->trimEnd);
+    entrance(Instance::kTrimOffset, node.fxData->trimOffset);
   }
-  if (node.glyphFx)
-    entrance(Instance::kGlyphProgress, node.glyphFx->progress);
+  if (node.textData && node.textData->glyphFx)
+    entrance(Instance::kGlyphProgress, node.textData->glyphFx->progress);
 
   // Color fill entrance: from → to through the kFillLerp progress.
   if (node.paint.fill) {
@@ -206,20 +206,34 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.skewX, nd);
   transitionFloat(*this, inst, Instance::kSkewY, prev.paint.skewY,
                   next.paint.skewY, nd);
-  if (next.hasTrim || prev.hasTrim) {
-    transitionFloat(*this, inst, Instance::kTrimStart, prev.trimStart,
-                    next.trimStart, nd);
-    transitionFloat(*this, inst, Instance::kTrimEnd, prev.trimEnd,
-                    next.trimEnd, nd);
-    transitionFloat(*this, inst, Instance::kTrimOffset, prev.trimOffset,
-                    next.trimOffset, nd);
+  if (next.hasTrim() || prev.hasTrim()) {
+    static const PropValue<float> kTrimStart0 = 0.0f, kTrimEnd1 = 1.0f,
+                                  kTrimOffset0 = 0.0f;
+    const FxData *pf = prev.fxData ? &*prev.fxData : nullptr;
+    const FxData *nf = next.fxData ? &*next.fxData : nullptr;
+    transitionFloat(*this, inst, Instance::kTrimStart,
+                    pf ? pf->trimStart : kTrimStart0,
+                    nf ? nf->trimStart : kTrimStart0, nd);
+    transitionFloat(*this, inst, Instance::kTrimEnd,
+                    pf ? pf->trimEnd : kTrimEnd1,
+                    nf ? nf->trimEnd : kTrimEnd1, nd);
+    transitionFloat(*this, inst, Instance::kTrimOffset,
+                    pf ? pf->trimOffset : kTrimOffset0,
+                    nf ? nf->trimOffset : kTrimOffset0, nd);
   }
-  if (next.glyphFx || prev.glyphFx) {
-    static const PropValue<float> kFullProgress = 1.0f;
-    transitionFloat(*this, inst, Instance::kGlyphProgress,
-                    prev.glyphFx ? prev.glyphFx->progress : kFullProgress,
-                    next.glyphFx ? next.glyphFx->progress : kFullProgress,
-                    nd);
+  {
+    const GlyphFx *pg =
+        prev.textData && prev.textData->glyphFx ? &*prev.textData->glyphFx
+                                                : nullptr;
+    const GlyphFx *ng =
+        next.textData && next.textData->glyphFx ? &*next.textData->glyphFx
+                                                : nullptr;
+    if (pg || ng) {
+      static const PropValue<float> kFullProgress = 1.0f;
+      transitionFloat(*this, inst, Instance::kGlyphProgress,
+                      pg ? pg->progress : kFullProgress,
+                      ng ? ng->progress : kFullProgress, nd);
+    }
   }
 
   // Fill: color→color lerp via a progress output. A next fill with NO

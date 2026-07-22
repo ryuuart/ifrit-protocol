@@ -20,7 +20,8 @@ bool Composer::Impl::shapeContains(Instance &inst, SkPoint local,
   // Routed elements (rails, connectors) hit near their PATH, not their
   // layout box — a rail placed absolute().inset(0) must not eclipse the
   // scene. The stroke-expanded hit path is built at derive time.
-  if (!node.connectFrom.empty() || !node.railAnchors.empty())
+  if (node.deriveData && (!node.deriveData->connectFrom.empty() ||
+                          !node.deriveData->railAnchors.empty()))
     return !inst.routedHitPath.isEmpty() &&
            inst.routedHitPath.contains(local.x(), local.y());
   if (node.shapeFn)

@@ -555,22 +555,23 @@ Fill Material::resolve(const PaintContext &ctx) const {
 }
 
 Element &Element::textFill(Material m) {
-  m_node->textMetricFill = std::move(m);
+  m_node->textData.ensure().metricFill = std::move(m);
   return *this;
 }
 
 Element &Element::fill(Material m) {
+  detail::MaterialData &slots = m_node->materialData.ensure();
   if (m.isLive() || m.geometryDependent()) {
     // Live materials re-resolve per frame; geometry-dependent ones resolve
     // when the node records (and re-record on size change) — both route
     // through the material slot so the painter resolves with PaintContext.
-    m_node->liveMaterial = std::move(m);
+    slots.live = std::move(m);
     m_node->paint.fill.reset();
-    m_node->staticMaterial.reset();
+    slots.recipe.reset();
   } else {
     m_node->paint.fill = PropValue<Fill>{m.toFill()};
-    m_node->staticMaterial = std::move(m); // the prune signature
-    m_node->liveMaterial.reset();
+    slots.recipe = std::move(m); // the prune signature
+    slots.live.reset();
   }
   return *this;
 }

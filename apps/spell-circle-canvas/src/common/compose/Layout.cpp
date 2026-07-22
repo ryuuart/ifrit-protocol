@@ -41,12 +41,17 @@ void Composer::Impl::layoutText(Instance &inst, float constraint) {
   if (constraint == inst.measuredForWidth &&
       inst.measuredRev == inst.contentRev)
     return; // layout is already valid for this content and width
-  const sigil::weave::ParagraphLayoutOptions &options = inst.desc->layoutOptions;
+  static const sigil::weave::ParagraphLayoutOptions kDefaultOptions;
+  const sigil::weave::ParagraphLayoutOptions &options =
+      inst.desc->textData ? inst.desc->textData->layoutOptions
+                          : kDefaultOptions;
   if (!inst.exclusionsLocal.empty()) {
     sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+    const float flowMargin =
+        inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
     for (const SkRect &exclusion : inst.exclusionsLocal)
       flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromRectangle(
-          exclusion, inst.desc->flowAroundMargin));
+          exclusion, flowMargin));
     inst.textLayout =
         sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
   } else {
@@ -157,7 +162,8 @@ bool Composer::Impl::applyCenterPins(Instance &inst) {
 
 bool Composer::Impl::applyCustomLayouts(Instance &inst) {
   bool applied = false;
-  if (inst.desc->placeFn && !inst.children.empty()) {
+  if (inst.desc->deriveData && inst.desc->deriveData->placeFn &&
+      !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
@@ -173,7 +179,7 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
       }
       input.childBaselines.push_back(baseline);
     }
-    std::vector<SkRect> rects = inst.desc->placeFn(input);
+    std::vector<SkRect> rects = inst.desc->deriveData->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {
       // A centerAt() child opts OUT of the scheme's placement — the pin

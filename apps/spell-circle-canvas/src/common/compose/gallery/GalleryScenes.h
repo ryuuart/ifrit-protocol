@@ -188,6 +188,11 @@ inline int runHeadless(const std::string &outDir, bool gpu = false) {
     if (gpu)
       continue;
     constexpr float kCapture = 2.0f;
+    // Clean captures: the FPS overlay bakes live wall-clock digits into the
+    // pixels, which makes every capture differ run-to-run — with it off the
+    // scene content is deterministic (fixed dt, seeded rngs) and captures
+    // diff meaningfully across builds.
+    stage.showStats = false;
     sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)(kSceneSize.width() * kCapture),
         (int)(kSceneSize.height() * kCapture)));

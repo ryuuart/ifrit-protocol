@@ -33,6 +33,39 @@ namespace sigil::compose {
 using namespace detail;
 
 // ---------------------------------------------------------------------------
+// Null-safe views into ElementNode's rare-field blocks (see ComposeInternal.h)
+
+namespace {
+
+inline const Material *liveMaterialOf(const ElementNode &n) {
+  return n.materialData && n.materialData->live ? &*n.materialData->live
+                                                : nullptr;
+}
+inline const Material *metricFillOf(const ElementNode &n) {
+  return n.textData && n.textData->metricFill ? &*n.textData->metricFill
+                                              : nullptr;
+}
+inline const GlyphFx *glyphFxOf(const ElementNode &n) {
+  return n.textData && n.textData->glyphFx ? &*n.textData->glyphFx : nullptr;
+}
+inline const sigil::image::ImageAsset *imageAssetOf(const ElementNode &n) {
+  return n.imageData ? n.imageData->asset.get() : nullptr;
+}
+inline const Effect *layerEffectOf(const ElementNode &n) {
+  return n.fxData && n.fxData->layerEffect ? &*n.fxData->layerEffect : nullptr;
+}
+inline const Effect *backdropEffectOf(const ElementNode &n) {
+  return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect
+                                              : nullptr;
+}
+inline const std::vector<Echo> &echoesOf(const ElementNode &n) {
+  static const std::vector<Echo> kNoEchoes;
+  return n.fxData ? n.fxData->echoes : kNoEchoes;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
 // Volatility & caching
 
 bool Composer::Impl::computeVolatile(Instance &inst) {
@@ -68,11 +101,12 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       std::holds_alternative<const choreograph::Output<Fill> *>(
           *node.paint.fill))
     ownContent = true;
-  const bool liveMat = node.liveMaterial && node.liveMaterial->isLive();
+  const Material *nodeLiveMat = liveMaterialOf(node);
+  const bool liveMat = nodeLiveMat && nodeLiveMat->isLive();
   if (liveMat)
     ownContent = true; // truly live (bound/uTime) — geometry-dependent
                        // materials resolve at record time and stay cacheable
-  if (node.textMetricFill && node.textMetricFill->isLive())
+  if (const Material *mf = metricFillOf(node); mf && mf->isLive())
     ownContent = true; // animated chrome type paints per frame
   if (node.cacheMode == Cache::None)
     ownContent = true;
@@ -80,16 +114,16 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent |= d.animated();
   for (const Decoration &d : node.foregrounds)
     ownContent |= d.animated();
-  if (node.kind == Kind::Image && node.imageAsset && node.imageAsset->animated())
+  if (node.kind == Kind::Image && imageAssetOf(node) &&
+      imageAssetOf(node)->animated())
     ownContent = true;
-  if (node.hasTrim) { // moving trim rebuilds the painted geometry
-    ownContent |= boundOrRunning(Instance::kTrimStart, node.trimStart);
-    ownContent |= boundOrRunning(Instance::kTrimEnd, node.trimEnd);
-    ownContent |= boundOrRunning(Instance::kTrimOffset, node.trimOffset);
+  if (node.hasTrim()) { // moving trim rebuilds the painted geometry
+    ownContent |= boundOrRunning(Instance::kTrimStart, node.fxData->trimStart);
+    ownContent |= boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd);
+    ownContent |= boundOrRunning(Instance::kTrimOffset, node.fxData->trimOffset);
   }
-  if (node.glyphFx) // moving glyph progress rebuilds the glyph transforms
-    ownContent |= boundOrRunning(Instance::kGlyphProgress,
-                                 node.glyphFx->progress);
+  if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
+    ownContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
 
   bool childrenVolatile = false;
   for (auto &child : inst.children)
@@ -102,8 +136,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
   // stable and re-records only when the shader actually changes.
+  const Material *mfLive = metricFillOf(node);
   inst.liveMatOnly = liveMat && ownContent && !nonLiveMatContent &&
-                     !(node.textMetricFill && node.textMetricFill->isLive()) &&
+                     !(mfLive && mfLive->isLive()) &&
                      node.cacheMode != Cache::None && !childrenVolatile;
   // (decoration/image/trim/glyph volatility all set ownContent through
   // nonLiveMatContent's snapshot point or below — re-derive precisely:)
@@ -113,15 +148,15 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       other |= d.animated();
     for (const Decoration &d : node.foregrounds)
       other |= d.animated();
-    if (node.kind == Kind::Image && node.imageAsset &&
-        node.imageAsset->animated())
+    if (node.kind == Kind::Image && imageAssetOf(node) &&
+        imageAssetOf(node)->animated())
       other = true;
-    if (node.hasTrim)
-      other |= boundOrRunning(Instance::kTrimStart, node.trimStart) ||
-               boundOrRunning(Instance::kTrimEnd, node.trimEnd) ||
-               boundOrRunning(Instance::kTrimOffset, node.trimOffset);
-    if (node.glyphFx)
-      other |= boundOrRunning(Instance::kGlyphProgress, node.glyphFx->progress);
+    if (node.hasTrim())
+      other |= boundOrRunning(Instance::kTrimStart, node.fxData->trimStart) ||
+               boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd) ||
+               boundOrRunning(Instance::kTrimOffset, node.fxData->trimOffset);
+    if (const GlyphFx *g = glyphFxOf(node))
+      other |= boundOrRunning(Instance::kGlyphProgress, g->progress);
     if (other)
       inst.liveMatOnly = false;
   }
@@ -238,7 +273,7 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     bleed = std::max(bleed, d.bleed());
   for (const Decoration &d : node.foregrounds)
     bleed = std::max(bleed, d.bleed());
-  for (const Echo &e : node.echoes)
+  for (const Echo &e : echoesOf(node))
     bleed = std::max(
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
   if (bleed > 0)
@@ -246,7 +281,9 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
   // Routed elements paint their derive-resolved PATH, which is not bounded
   // by the layout rect (a connector's box is one thing, its wire another) —
   // the cull must hold the route plus its stroke reach.
-  if ((!node.connectFrom.empty() || !node.railAnchors.empty()) &&
+  if (node.deriveData &&
+      (!node.deriveData->connectFrom.empty() ||
+       !node.deriveData->railAnchors.empty()) &&
       !inst.connectorPath.isEmpty()) {
     SkRect route = inst.connectorPath.getBounds();
     route.outset(bleed + 8.0f, bleed + 8.0f);
@@ -295,7 +332,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
   // The node's shape: routed connector/rail path, custom outline(), or the
   // corner-rounded box.
-  const bool routed = !node.connectFrom.empty() || !node.railAnchors.empty();
+  const bool routed = node.deriveData &&
+                      (!node.deriveData->connectFrom.empty() ||
+                       !node.deriveData->railAnchors.empty());
   const bool customShape = node.shapeFn && !routed;
   SkPath outlinePath;
   if (routed) {
@@ -317,14 +356,16 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // before PaintContext is built, so the fill and every outline-following
   // decoration trace the trimmed path (draw-on borders, self-drawing wires).
   bool trimmed = false;
-  if (node.hasTrim) {
-    const float off = inst.resolveFloat(Instance::kTrimOffset, node.trimOffset);
+  if (node.hasTrim()) {
+    const float off =
+        inst.resolveFloat(Instance::kTrimOffset, node.fxData->trimOffset);
     const float s0 =
-        inst.resolveFloat(Instance::kTrimStart, node.trimStart) + off;
-    const float e0 = inst.resolveFloat(Instance::kTrimEnd, node.trimEnd) + off;
+        inst.resolveFloat(Instance::kTrimStart, node.fxData->trimStart) + off;
+    const float e0 =
+        inst.resolveFloat(Instance::kTrimEnd, node.fxData->trimEnd) + off;
     sk_sp<SkPathEffect> fx;
     bool emptyWindow = false;
-    if (node.trimMode == TrimMode::Wrap) {
+    if (node.fxData->trimMode == TrimMode::Wrap) {
       // The outline is a CYCLE: fractions wrap mod 1, and a window that
       // crosses the seam keeps both pieces (inverted trim = the complement
       // of the gap) — the marching-ants / orbiting-comet mode.
@@ -383,10 +424,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots.
-  const bool hasEffect = node.layerEffect && node.layerEffect->imageFilter();
+  const Effect *layerFx = layerEffectOf(node);
+  const bool hasEffect = layerFx && layerFx->imageFilter();
   if (hasEffect) {
     SkPaint effectPaint;
-    effectPaint.setImageFilter(node.layerEffect->imageFilter());
+    effectPaint.setImageFilter(layerFx->imageFilter());
     // BOUNDED: with nullptr bounds the layer allocates at the CLIP size —
     // on a root-level canvas that filtered 900x640 for a 92x72 icon
     // shadow (13.5ms/frame, the aero-icon defect). recordBounds is what
@@ -422,10 +464,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // uniforms + the PaintContext; otherwise the stored Fill (binding, lerp, or
   // plain).
   std::optional<Fill> resolvedFill;
-  if (node.liveMaterial) {
+  if (const Material *live = liveMaterialOf(node)) {
     resolvedFill = inst.hasPendingLiveFill
                        ? inst.pendingLiveFill
-                       : node.liveMaterial->resolve(paintCtx);
+                       : live->resolve(paintCtx);
   } else if (node.paint.fill) {
     Fill fill;
     if (const auto *binding =
@@ -451,9 +493,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   }
 
   // Misprint echoes of the FILL SHAPE, under the real pass (bottom first).
-  if (!node.echoes.empty() && resolvedFill &&
+  if (!echoesOf(node).empty() && resolvedFill &&
       resolvedFill->kind != Fill::Kind::None) {
-    for (const Echo &e : node.echoes) {
+    for (const Echo &e : echoesOf(node)) {
       SkPaint stamp;
       stamp.setAntiAlias(true);
       stamp.setColor4f(e.color, nullptr);
@@ -497,14 +539,15 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       // lines place within the flow width, so a measure-time constraint
       // that differs from the resolved box would push them off target.
       if (inst.measuredRev != inst.contentRev ||
-          (node.layoutOptions.alignment !=
+          (node.textData && node.textData->layoutOptions.alignment !=
                sigil::weave::TextAlignment::kStart &&
            inst.measuredForWidth != bounds.width()))
         layoutText(inst, bounds.width());
       // Misprint echoes of the TEXT, under the real pass (kinetic text
       // draws its own buckets — echoes skip it by contract).
-      if (!node.echoes.empty() && !(node.glyphFx && node.glyphFx->effect)) {
-        for (const Echo &e : node.echoes) {
+      const GlyphFx *glyphs = glyphFxOf(node);
+      if (!echoesOf(node).empty() && !(glyphs && glyphs->effect)) {
+        for (const Echo &e : echoesOf(node)) {
           sigil::weave::PaintStyle stamp;
           stamp.foreground.setColor4f(e.color, nullptr);
           canvas.save();
@@ -513,19 +556,19 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           canvas.restore();
         }
       }
-      if (node.glyphFx && node.glyphFx->effect) {
-        paintKineticText(inst, canvas, *node.glyphFx);
-      } else if (node.textMetricFill) {
+      if (glyphs && glyphs->effect) {
+        paintKineticText(inst, canvas, *glyphs);
+      } else if (const Material *metricMat = metricFillOf(node)) {
         // Chrome type: the material's unit square mapped to the text's
         // metric band — x across the widest line, y from the first line's
         // cap top (real cap height when the face reports one) to the last
         // line's baseline.
         sigil::weave::PaintStyle metric;
         bool havePaint = false;
-        const Fill f = (node.textMetricFill->isLive() ||
-                        node.textMetricFill->geometryDependent())
-                           ? node.textMetricFill->resolve(paintCtx)
-                           : node.textMetricFill->toFill();
+        const Fill f =
+            (metricMat->isLive() || metricMat->geometryDependent())
+                ? metricMat->resolve(paintCtx)
+                : metricMat->toFill();
         if (f.kind == Fill::Kind::Shader && f.shaderValue &&
             !inst.lines.empty()) {
           const sigil::weave::ShapedWord *firstFont = nullptr;
@@ -570,11 +613,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     }
     break;
   case Kind::Image:
-    if (node.imageAsset && !node.imageAsset->frames().empty()) {
-      const auto &frame = node.imageAsset->frameAt(elapsed() * 1000.0);
+    if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
+      const auto &frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
       if (frame.image) {
-        if (node.imageRegion)
-          canvas.drawImageRect(frame.image, *node.imageRegion, bounds,
+        if (node.imageData->region)
+          canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
                                SkSamplingOptions(SkFilterMode::kLinear), nullptr,
                                SkCanvas::kStrict_SrcRectConstraint);
         else
@@ -584,8 +627,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     }
     break;
   case Kind::Custom:
-    if (node.program)
-      node.program(canvas, paintCtx);
+    if (node.customData && node.customData->program)
+      node.customData->program(canvas, paintCtx);
     break;
   case Kind::Box:
   case Kind::Stack:
@@ -648,7 +691,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   }
 
   const bool hasBackdrop =
-      node.backdropEffect && node.backdropEffect->imageFilter();
+      backdropEffectOf(node) && backdropEffectOf(node)->imageFilter();
   if (hasBackdrop) {
     // The filtered backdrop composites as a CLOSED pass clipped to the
     // node's shape — the node's own decorations and overflowing children
@@ -662,7 +705,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                                     node.corners),
                        true);
     SkCanvas::SaveLayerRec rec(nullptr, nullptr,
-                               node.backdropEffect->imageFilter().get(), 0);
+                               backdropEffectOf(node)->imageFilter().get(), 0);
     canvas.saveLayer(rec);
     canvas.restore(); // composite the filtered backdrop through the clip
     canvas.restore(); // release the clip — content is NOT bounded by it
@@ -681,7 +724,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&
-      node.foregrounds.empty() && !node.layerEffect && !node.backdropEffect &&
+      node.foregrounds.empty() && !layerEffectOf(node) &&
+      !backdropEffectOf(node) &&
       !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture;
   const bool needsLayer =
       (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
@@ -706,14 +750,14 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // repaint at the material's rate, not the frame rate).
   bool liveStable = false;
   inst.hasPendingLiveFill = false;
-  if (inst.liveMatOnly && node.liveMaterial) {
+  if (inst.liveMatOnly && liveMaterialOf(node)) {
     PaintContext probe{{rect.width(), rect.height()},
                        SkPath(),
                        elapsed(),
                        hostScale,
                        ticker.active(),
                        &fonts};
-    inst.pendingLiveFill = node.liveMaterial->resolve(probe);
+    inst.pendingLiveFill = liveMaterialOf(node)->resolve(probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
                  inst.pendingLiveFill.shaderValue == inst.bakedLiveShader;
@@ -750,7 +794,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   };
 
   if (!liveOnly && (!inst.subtreeVolatile || inst.liveMatOnly) &&
-      node.cacheMode == Cache::Texture && !node.backdropEffect) {
+      node.cacheMode == Cache::Texture && !backdropEffectOf(node)) {
     // Rasterize at the canvas's current scale so zoomed hosts stay crisp — but
     // quantized UP to a coarse step, so a continuously changing scale (window
     // resize, pinch zoom) reuses one bake per step instead of re-rasterizing
@@ -805,7 +849,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
               !node.backgrounds.empty() || !node.foregrounds.empty() ||
-              node.layerEffect || inst.liveMatOnly)) {
+              layerEffectOf(node) || inst.liveMatOnly)) {
     // (liveMatOnly bare boxes DO record — the memo's point is replaying
     // the rasterized shader while resolve() stays stable.)
     // (Childless Image leaves deliberately absent: one drawImageRect is

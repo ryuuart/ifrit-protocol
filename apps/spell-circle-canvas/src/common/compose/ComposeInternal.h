@@ -53,6 +53,107 @@ struct PaintProps {
   int zIndex = 0;
 };
 
+/** Value-semantic heap box for ElementNode's rare-field blocks: absent
+ *  costs one null pointer; copying deep-copies a present block (the COW
+ *  clone in Element::NodeHandle::operator-> relies on ElementNode's
+ *  defaulted copy constructor). ensure() is the builder-side entry. */
+template <class T> class Box {
+public:
+  Box() = default;
+  Box(const Box &other)
+      : m_ptr(other.m_ptr ? std::make_unique<T>(*other.m_ptr) : nullptr) {}
+  Box(Box &&) noexcept = default;
+  Box &operator=(const Box &other) {
+    m_ptr = other.m_ptr ? std::make_unique<T>(*other.m_ptr) : nullptr;
+    return *this;
+  }
+  Box &operator=(Box &&) noexcept = default;
+
+  explicit operator bool() const { return m_ptr != nullptr; }
+  T *operator->() { return m_ptr.get(); }
+  const T *operator->() const { return m_ptr.get(); }
+  T &operator*() { return *m_ptr; }
+  const T &operator*() const { return *m_ptr; }
+  T &ensure() {
+    if (!m_ptr)
+      m_ptr = std::make_unique<T>();
+    return *m_ptr;
+  }
+
+private:
+  std::unique_ptr<T> m_ptr;
+};
+
+// ---- ElementNode blocks: rare/kind-specific fields live out-of-line so a
+// plain box costs a fraction of the monolith (2752 B → see sizeof test) and
+// each phase's inputs are visible in the type. HOT fields every kind touches
+// (layout/paint/corners/decorations/children) stay inline.
+
+struct TextData {
+  std::u8string utf8;
+  sigil::weave::TextStyle style;
+  // Full-control overload: identity (the pointer) is the change signal.
+  std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
+  sigil::weave::ParagraphLayoutOptions layoutOptions;
+  // Kinetic typography
+  std::optional<GlyphFx> glyphFx;
+  // textFill(): glyph paint in text-metric space (unit square → cap band).
+  // Resolved at paint from the line metrics; live materials re-resolve per
+  // frame; static ones compare by recipe for the prune.
+  std::optional<Material> metricFill;
+};
+
+struct ImageData {
+  std::shared_ptr<const sigil::image::ImageAsset> asset;
+  std::optional<SkRect> region; // atlas sub-rect, source px
+};
+
+struct CustomData {
+  PaintProgram program;
+};
+
+struct DeriveData {
+  // Custom layout (layout() containers)
+  std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;
+  std::vector<std::string> flowAroundKeys;
+  float flowAroundMargin = 0;
+  std::string connectFrom, connectTo;
+  Router router;
+  std::vector<Anchor> railAnchors; // rail(): ordered waypoints
+  RailRouter railRouter;
+};
+
+struct FxData {
+  std::optional<Effect> layerEffect;
+  std::optional<Effect> backdropEffect;
+  // Misprint echoes (offset flat-color re-stamps under fill/text)
+  std::vector<Echo> echoes;
+  // Trim Path: painted-outline reveal (fractions of arc length).
+  bool hasTrim = false;
+  PropValue<float> trimStart = 0.0f, trimEnd = 1.0f;
+  PropValue<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
+  TrimMode trimMode = TrimMode::Clamp;
+  float staggerChildrenMs = 0; // extra order·each mount delay per subtree
+  Stagger::From staggerFrom = Stagger::From::Start;
+};
+
+struct MaterialData {
+  // Live material fill: a Material with a ch::Output-bound uniform, resolved
+  // per frame. Supersedes paint.fill when present (a static Material
+  // collapses to paint.fill instead). Declares the node volatile.
+  std::optional<Material> live;
+  // The comparable recipe behind paint.fill when it was set via
+  // fill(Material): propsEqual compares this structurally, so a re-described
+  // material fill prunes even though each describe minted a fresh shader.
+  std::optional<Material> recipe;
+};
+
+struct MemoData {
+  std::any props;
+  std::function<bool(const std::any &, const std::any &)> equal;
+  std::function<Element(const std::any &)> invoke;
+};
+
 struct ElementNode {
   Kind kind = Kind::Box;
   std::string key;
@@ -61,78 +162,27 @@ struct ElementNode {
   Corners corners;
   std::function<SkPath(SkSize)> shapeFn; // custom outline; overrides corners
   bool clipContent = false;
-
-  // Trim Path: painted-outline reveal (fractions of arc length).
-  bool hasTrim = false;
-  PropValue<float> trimStart = 0.0f, trimEnd = 1.0f;
-  PropValue<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
-  TrimMode trimMode = TrimMode::Clamp;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f; // Texture-bake resolution multiplier (see Element)
   std::optional<Transition> nodeTransition;
-  float staggerChildrenMs = 0; // extra order·each mount delay per subtree
-  Stagger::From staggerFrom = Stagger::From::Start;
-
-  // Text
-  std::u8string textUtf8;
-  sigil::weave::TextStyle textStyle;
-  // Full-control overload: identity (the pointer) is the change signal.
-  std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
-  sigil::weave::ParagraphLayoutOptions layoutOptions;
-
-  // Image
-  std::shared_ptr<const sigil::image::ImageAsset> imageAsset;
-  std::optional<SkRect> imageRegion; // atlas sub-rect, source px
-
-  // Custom
-  PaintProgram program;
-
-  // Kinetic typography (text leaves)
-  std::optional<GlyphFx> glyphFx;
-
-  // Misprint echoes (offset flat-color re-stamps under fill/text)
-  std::vector<Echo> echoes;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;
   std::vector<Decoration> foregrounds;
 
-  // Layer effects
-  std::optional<Effect> layerEffect;
-  std::optional<Effect> backdropEffect;
-
-  // Live material fill: a Material with a ch::Output-bound uniform, resolved
-  // per frame. Supersedes paint.fill when present (a static Material collapses
-  // to paint.fill instead). Declares the node volatile (computeVolatile).
-  std::optional<Material> liveMaterial;
-  // The comparable recipe behind paint.fill when it was set via
-  // fill(Material): propsEqual compares this structurally, so a re-described
-  // material fill prunes even though each describe minted a fresh shader.
-  std::optional<Material> staticMaterial;
-
-  // textFill(): glyph paint in text-metric space (unit square → cap band).
-  // Resolved at paint from the line metrics; live materials re-resolve per
-  // frame; static ones compare by recipe for the prune.
-  std::optional<Material> textMetricFill;
-
-  // Custom layout (layout() containers)
-  std::function<std::vector<SkRect>(const LayoutInput &)> placeFn;
-
-  // Derive phase
-  std::vector<std::string> flowAroundKeys;
-  float flowAroundMargin = 0;
-  std::string connectFrom, connectTo;
-  Router router;
-  std::vector<Anchor> railAnchors; // rail(): ordered waypoints
-  RailRouter railRouter;
-
-  // Memo (deferred description)
-  bool isMemo = false;
-  std::any memoProps;
-  std::function<bool(const std::any &, const std::any &)> memoEqual;
-  std::function<Element(const std::any &)> memoInvoke;
+  // Rare/kind-specific blocks (see the struct docs above).
+  Box<TextData> textData;
+  Box<ImageData> imageData;
+  Box<CustomData> customData;
+  Box<DeriveData> deriveData;
+  Box<FxData> fxData;
+  Box<MaterialData> materialData;
+  Box<MemoData> memoData; // present ⇔ this is a memo shell
 
   std::vector<Element> children;
+
+  bool isMemo() const { return (bool)memoData; }
+  bool hasTrim() const { return fxData && fxData->hasTrim; }
 };
 
 /** Constant, binding, or transitioned — flattened for the reconciler. */

@@ -138,11 +138,12 @@ Element &Element::outline(std::function<SkPath(SkSize)> shape) {
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
 Element &Element::trim(PropValue<float> start, PropValue<float> end,
                        PropValue<float> offset, TrimMode mode) {
-  m_node->hasTrim = true;
-  m_node->trimStart = std::move(start);
-  m_node->trimEnd = std::move(end);
-  m_node->trimOffset = std::move(offset);
-  m_node->trimMode = mode;
+  detail::FxData &fx = m_node->fxData.ensure();
+  fx.hasTrim = true;
+  fx.trimStart = std::move(start);
+  fx.trimEnd = std::move(end);
+  fx.trimOffset = std::move(offset);
+  fx.trimMode = mode;
   return *this;
 }
 
@@ -154,8 +155,9 @@ Element &Element::fill(PropValue<Fill> f) {
   // fill after a live-material fill must actually take effect (and release
   // the node from the live-volatile path). staticMaterial must drop too, or
   // a stale equal-comparing recipe would over-prune this new fill.
-  m_node->liveMaterial.reset();
-  m_node->staticMaterial.reset();
+  // Dropping the WHOLE block (not just its members) keeps propsEqual's
+  // block-presence check aligned with a node that never had a material.
+  m_node->materialData = {};
   return *this;
 }
 Effect Effect::filter(sk_sp<SkImageFilter> f) {
@@ -198,7 +200,7 @@ Element &Element::stroke(Decoration brush) {
   return foreground(std::move(brush));
 }
 Element &Element::echo(SkVector offset, SkColor4f color) {
-  m_node->echoes.push_back(Echo{offset, color});
+  m_node->fxData.ensure().echoes.push_back(Echo{offset, color});
   return *this;
 }
 Element &Element::style(LayerStyle s) {
@@ -209,11 +211,11 @@ Element &Element::style(LayerStyle s) {
   return *this;
 }
 Element &Element::effect(Effect e) {
-  m_node->layerEffect = std::move(e);
+  m_node->fxData.ensure().layerEffect = std::move(e);
   return *this;
 }
 Element &Element::backdrop(Effect e) {
-  m_node->backdropEffect = std::move(e);
+  m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }
 Element &Element::opacity(PropValue<float> o) {
@@ -279,8 +281,9 @@ Element &Element::transition(Transition t) {
 }
 Element &Element::staggerChildren(std::chrono::milliseconds each,
                                   Stagger::From from) {
-  m_node->staggerChildrenMs = (float)each.count();
-  m_node->staggerFrom = from;
+  detail::FxData &fx = m_node->fxData.ensure();
+  fx.staggerChildrenMs = (float)each.count();
+  fx.staggerFrom = from;
   return *this;
 }
 
@@ -302,8 +305,9 @@ Element stack() {
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;
-  e.node()->textUtf8 = std::move(utf8);
-  e.node()->textStyle = std::move(style);
+  detail::TextData &text = e.node()->textData.ensure();
+  text.utf8 = std::move(utf8);
+  text.style = std::move(style);
   // "The box fits the type": measured text must not stretch on the
   // cross axis (the spike's API lesson) — but that demotion happens at
   // layout-apply time, where the resolved alignment is known, so a
@@ -315,43 +319,45 @@ Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
   e.node()->kind = Kind::Text;
-  e.node()->paragraphOverride = std::move(paragraph);
-  e.node()->layoutOptions = std::move(options);
+  detail::TextData &text = e.node()->textData.ensure();
+  text.paragraphOverride = std::move(paragraph);
+  text.layoutOptions = std::move(options);
   return e;
 }
 
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   Element e;
   e.node()->kind = Kind::Image;
-  e.node()->imageAsset = std::move(asset);
+  e.node()->imageData.ensure().asset = std::move(asset);
   return e;
 }
 
 Element &Element::region(SkRect sourceRect) {
-  m_node->imageRegion = sourceRect;
+  m_node->imageData.ensure().region = sourceRect;
   return *this;
 }
 
 Element custom(PaintProgram program) {
   Element e;
   e.node()->kind = Kind::Custom;
-  e.node()->program = std::move(program);
+  e.node()->customData.ensure().program = std::move(program);
   return e;
 }
 
 Element &Element::glyphFx(GlyphFx fx) {
-  m_node->glyphFx = std::move(fx);
+  m_node->textData.ensure().glyphFx = std::move(fx);
   return *this;
 }
 
 Element &Element::textAlign(sigil::weave::TextAlignment a) {
-  m_node->layoutOptions.alignment = a;
+  m_node->textData.ensure().layoutOptions.alignment = a;
   return *this;
 }
 
 Element &Element::flowAround(std::string_view key, float margin) {
-  m_node->flowAroundKeys.push_back(std::string(key));
-  m_node->flowAroundMargin = margin;
+  detail::DeriveData &derive = m_node->deriveData.ensure();
+  derive.flowAroundKeys.push_back(std::string(key));
+  derive.flowAroundMargin = margin;
   return *this;
 }
 
@@ -359,17 +365,19 @@ Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router) {
   Element e;
   e.node()->kind = Kind::Custom; // painted via derive-resolved outline
-  e.node()->connectFrom = std::string(fromKey);
-  e.node()->connectTo = std::string(toKey);
-  e.node()->router = std::move(router);
+  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  derive.connectFrom = std::string(fromKey);
+  derive.connectTo = std::string(toKey);
+  derive.router = std::move(router);
   return e;
 }
 
 Element rail(std::vector<Anchor> anchors, RailRouter router) {
   Element e;
   e.node()->kind = Kind::Custom; // painted via the derive-routed outline
-  e.node()->railAnchors = std::move(anchors);
-  e.node()->railRouter = std::move(router);
+  detail::DeriveData &derive = e.node()->deriveData.ensure();
+  derive.railAnchors = std::move(anchors);
+  derive.railRouter = std::move(router);
   return e;
 }
 
@@ -384,7 +392,7 @@ namespace detail {
 Element makeLayout(
     std::function<std::vector<SkRect>(const LayoutInput &)> place) {
   Element e;
-  e.node()->placeFn = std::move(place);
+  e.node()->deriveData.ensure().placeFn = std::move(place);
   return e;
 }
 
@@ -392,10 +400,10 @@ Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
                  std::function<Element(const std::any &)> invoke) {
   Element e;
-  e.node()->isMemo = true;
-  e.node()->memoProps = std::move(props);
-  e.node()->memoEqual = std::move(equal);
-  e.node()->memoInvoke = std::move(invoke);
+  detail::MemoData &memo = e.node()->memoData.ensure();
+  memo.props = std::move(props);
+  memo.equal = std::move(equal);
+  memo.invoke = std::move(invoke);
   return e;
 }
 } // namespace detail

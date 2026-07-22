@@ -100,21 +100,111 @@ bool effectEqual(const std::optional<Effect> &a,
   return a->imageFilter().get() == b->imageFilter().get();
 }
 
+// ---- block equality (presence must match; then contents, preserving the
+// monolith's exact semantics — callables stay conservatively unequal) ----
+
+bool textEqual(const ElementNode &a, const ElementNode &b) {
+  if ((bool)a.textData != (bool)b.textData)
+    return false;
+  if (!a.textData)
+    return true;
+  const TextData &ta = *a.textData, &tb = *b.textData;
+  if (ta.glyphFx.has_value() != tb.glyphFx.has_value())
+    return false;
+  if (ta.glyphFx)
+    return false; // effect is a callable — memo covers settled kinetic text
+  if (ta.utf8 != tb.utf8 || !(ta.style == tb.style))
+    return false;
+  // layoutOptions aren't comparable in full, but alignment is the one knob
+  // the simple text() path exposes (textAlign) — compare it so an alignment
+  // change actually patches.
+  if (a.kind == Kind::Text &&
+      ta.layoutOptions.alignment != tb.layoutOptions.alignment)
+    return false;
+  if (ta.paragraphOverride != tb.paragraphOverride)
+    return false;
+  if (ta.paragraphOverride)
+    return false; // layoutOptions aren't comparable — memo these
+  // textFill(): live never prunes, static compares by recipe.
+  if (ta.metricFill.has_value() != tb.metricFill.has_value())
+    return false;
+  if (ta.metricFill) {
+    if (ta.metricFill->isLive() || tb.metricFill->isLive())
+      return false;
+    if (!(*ta.metricFill == *tb.metricFill))
+      return false;
+  }
+  return true;
+}
+
+bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
+  if ((bool)a != (bool)b)
+    return false;
+  if (!a)
+    return true;
+  // Incomparable callables → conservative inequality.
+  if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
+      b->railRouter)
+    return false;
+  return a->railAnchors == b->railAnchors &&
+         a->flowAroundKeys == b->flowAroundKeys &&
+         a->flowAroundMargin == b->flowAroundMargin &&
+         a->connectFrom == b->connectFrom && a->connectTo == b->connectTo;
+}
+
+bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
+  if ((bool)a != (bool)b)
+    return false;
+  if (!a)
+    return true;
+  if (a->echoes != b->echoes)
+    return false;
+  if (a->hasTrim != b->hasTrim)
+    return false;
+  if (a->hasTrim && (!propEqual(a->trimStart, b->trimStart) ||
+                     !propEqual(a->trimEnd, b->trimEnd) ||
+                     !propEqual(a->trimOffset, b->trimOffset) ||
+                     a->trimMode != b->trimMode))
+    return false;
+  if (a->staggerChildrenMs != b->staggerChildrenMs ||
+      a->staggerFrom != b->staggerFrom)
+    return false;
+  return effectEqual(a->layerEffect, b->layerEffect) &&
+         effectEqual(a->backdropEffect, b->backdropEffect);
+}
+
+bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
+  if ((bool)a != (bool)b)
+    return false;
+  if (!a)
+    return true;
+  // Material-slot fills: truly live ones (bound/uTime) never prune —
+  // conservative, like an incomparable callable. Geometry-dependent-but-
+  // static ones (SDF chrome and friends) compare by recipe, so identical
+  // re-describes prune like any other static material.
+  if (a->live.has_value() != b->live.has_value())
+    return false;
+  if (a->live) {
+    if (a->live->isLive() || b->live->isLive())
+      return false;
+    if (!(*a->live == *b->live))
+      return false;
+  }
+  return true; // ->recipe is handled with the fill compare in propsEqual
+}
+
 bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind != b.kind || a.key != b.key)
     return false;
   // Incomparable callables → conservative inequality.
-  if (a.shapeFn || b.shapeFn || a.program || b.program || a.placeFn ||
-      b.placeFn || a.router || b.router || a.railRouter || b.railRouter)
+  if (a.shapeFn || b.shapeFn || (bool)a.customData || (bool)b.customData)
     return false;
-  if (a.railAnchors != b.railAnchors)
+  if (!deriveEqual(a.deriveData, b.deriveData))
     return false;
   // Decorations compare when they wrap value-comparable schemes (PathFormat,
   // Slice, Shadow…); an incomparable one (bare program, ContourWalk with a
   // draw lambda) makes Decoration::operator== false, so the node stays
   // conservative — static chrome prunes, live/opaque decorations don't.
-  if (a.echoes != b.echoes)
-    return false;
   if (a.backgrounds.size() != b.backgrounds.size() ||
       a.foregrounds.size() != b.foregrounds.size())
     return false;
@@ -128,61 +218,37 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       a.clipContent != b.clipContent || a.cacheMode != b.cacheMode ||
       a.bakeScale != b.bakeScale)
     return false;
-  if (a.glyphFx.has_value() != b.glyphFx.has_value())
-    return false;
-  if (a.glyphFx)
-    return false; // effect is a callable — memo covers settled kinetic text
-  if (a.hasTrim != b.hasTrim)
-    return false;
-  if (a.hasTrim && (!propEqual(a.trimStart, b.trimStart) ||
-                    !propEqual(a.trimEnd, b.trimEnd) ||
-                    !propEqual(a.trimOffset, b.trimOffset) ||
-                    a.trimMode != b.trimMode))
+  if (!fxEqual(a.fxData, b.fxData))
     return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition && !transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
-  if (a.staggerChildrenMs != b.staggerChildrenMs ||
-      a.staggerFrom != b.staggerFrom)
-    return false;
   // Paint.
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (pa.fill.has_value() != pb.fill.has_value())
+    return false;
+  if (!materialEqual(a.materialData, b.materialData))
     return false;
   // Material-set fills compare by RECIPE (the structural signature): equal
   // recipes mean interchangeable shaders, even though each describe minted a
   // fresh one — the §8.1 "materials CAN be compared" payoff. Everything else
   // falls through to the plain fill compare (color values, shader pointers).
-  if (a.staticMaterial.has_value() != b.staticMaterial.has_value())
+  const Material *recipeA = a.materialData ? (a.materialData->recipe
+                                                  ? &*a.materialData->recipe
+                                                  : nullptr)
+                                           : nullptr;
+  const Material *recipeB = b.materialData ? (b.materialData->recipe
+                                                  ? &*b.materialData->recipe
+                                                  : nullptr)
+                                           : nullptr;
+  if ((recipeA != nullptr) != (recipeB != nullptr))
     return false;
-  if (a.staticMaterial) {
-    if (!(*a.staticMaterial == *b.staticMaterial))
+  if (recipeA) {
+    if (!(*recipeA == *recipeB))
       return false;
   } else if (pa.fill && !propEqual(*pa.fill, *pb.fill)) {
     return false;
-  }
-  // Material-slot fills: truly live ones (bound/uTime) never prune —
-  // conservative, like an incomparable callable. Geometry-dependent-but-
-  // static ones (SDF chrome and friends) compare by recipe, so identical
-  // re-describes prune like any other static material.
-  if (a.liveMaterial.has_value() != b.liveMaterial.has_value())
-    return false;
-  if (a.liveMaterial) {
-    if (a.liveMaterial->isLive() || b.liveMaterial->isLive())
-      return false;
-    if (!(*a.liveMaterial == *b.liveMaterial))
-      return false;
-  }
-  // textFill(): same rules as the material slot — live never prunes,
-  // static compares by recipe.
-  if (a.textMetricFill.has_value() != b.textMetricFill.has_value())
-    return false;
-  if (a.textMetricFill) {
-    if (a.textMetricFill->isLive() || b.textMetricFill->isLive())
-      return false;
-    if (!(*a.textMetricFill == *b.textMetricFill))
-      return false;
   }
   if (!propEqual(pa.opacity, pb.opacity) || pa.blendMode != pb.blendMode ||
       !propEqual(pa.translateX, pb.translateX) ||
@@ -192,28 +258,13 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       pa.originX != pb.originX || pa.originY != pb.originY ||
       pa.originPx != pb.originPx || pa.zIndex != pb.zIndex)
     return false;
-  if (!effectEqual(a.layerEffect, b.layerEffect) ||
-      !effectEqual(a.backdropEffect, b.backdropEffect))
-    return false;
   // Content.
-  if (a.textUtf8 != b.textUtf8 || !(a.textStyle == b.textStyle))
+  if (!textEqual(a, b))
     return false;
-  // layoutOptions aren't comparable in full, but alignment is the one knob
-  // the simple text() path exposes (textAlign) — compare it so an alignment
-  // change actually patches.
-  if (a.kind == Kind::Text &&
-      a.layoutOptions.alignment != b.layoutOptions.alignment)
+  if ((bool)a.imageData != (bool)b.imageData)
     return false;
-  if (a.paragraphOverride != b.paragraphOverride)
-    return false;
-  if (a.paragraphOverride)
-    return false; // layoutOptions aren't comparable — memo these
-  if (a.imageAsset != b.imageAsset || a.imageRegion != b.imageRegion)
-    return false;
-  // Derive.
-  if (a.flowAroundKeys != b.flowAroundKeys ||
-      a.flowAroundMargin != b.flowAroundMargin ||
-      a.connectFrom != b.connectFrom || a.connectTo != b.connectTo)
+  if (a.imageData && (a.imageData->asset != b.imageData->asset ||
+                      a.imageData->region != b.imageData->region))
     return false;
   return true;
 }
@@ -226,19 +277,19 @@ std::shared_ptr<ElementNode>
 Composer::Impl::resolveMemo(Instance *existing,
                             const std::shared_ptr<ElementNode> &node,
                             bool &described) {
-  if (!node->isMemo) {
+  if (!node->isMemo()) {
     described = true;
     return node;
   }
   if (existing && existing->memoShell &&
-      existing->memoShell->memoEqual(existing->memoShell->memoProps,
-                                     node->memoProps)) {
+      existing->memoShell->memoData->equal(existing->memoShell->memoData->props,
+                                           node->memoData->props)) {
     stats.memoHits++;
     described = false;
     return existing->desc; // reuse the previously described payload
   }
   described = true;
-  Element produced = node->memoInvoke(node->memoProps);
+  Element produced = node->memoData->invoke(node->memoData->props);
   return produced.node();
 }
 
@@ -259,7 +310,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
   bool described = true;
   std::shared_ptr<ElementNode> resolved =
       resolveMemo(inst.desc ? &inst : nullptr, node, described);
-  if (node->isMemo)
+  if (node->isMemo())
     inst.memoShell = node;
   else
     inst.memoShell = nullptr;
@@ -293,19 +344,22 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     if (!prev || prev->layout.centerAt != resolved->layout.centerAt)
       needsLayout = true;
 
-    if (resolved->kind == Kind::Text) {
+    if (resolved->kind == Kind::Text && resolved->textData) {
+      const TextData &text = *resolved->textData;
+      const TextData *prevText =
+          prev && prev->textData ? &*prev->textData : nullptr;
       const bool textChanged =
-          !prev || kindChanged || prev->textUtf8 != resolved->textUtf8 ||
-          !(prev->textStyle == resolved->textStyle) ||
-          prev->paragraphOverride != resolved->paragraphOverride ||
-          prev->layoutOptions.alignment != resolved->layoutOptions.alignment;
+          !prevText || kindChanged || prevText->utf8 != text.utf8 ||
+          !(prevText->style == text.style) ||
+          prevText->paragraphOverride != text.paragraphOverride ||
+          prevText->layoutOptions.alignment != text.layoutOptions.alignment;
       if (textChanged) {
         inst.contentRev++;
-        if (resolved->paragraphOverride)
-          inst.paragraph.emplace(*resolved->paragraphOverride);
+        if (text.paragraphOverride)
+          inst.paragraph.emplace(*text.paragraphOverride);
         else {
           inst.paragraph.emplace();
-          inst.paragraph->appendText(resolved->textUtf8, resolved->textStyle);
+          inst.paragraph->appendText(text.utf8, text.style);
         }
         YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
         YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
@@ -323,8 +377,16 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // flowAround changes (margin or key set) re-derive too: exclusions are
     // cached per instance and the derive guards compare geometry, not the
     // description.
-    if (prev && (prev->flowAroundKeys != resolved->flowAroundKeys ||
-                 prev->flowAroundMargin != resolved->flowAroundMargin)) {
+    const auto flowKeys = [](const std::shared_ptr<ElementNode> &n)
+        -> const std::vector<std::string> * {
+      static const std::vector<std::string> kNone;
+      return n->deriveData ? &n->deriveData->flowAroundKeys : &kNone;
+    };
+    const auto flowMargin = [](const std::shared_ptr<ElementNode> &n) {
+      return n->deriveData ? n->deriveData->flowAroundMargin : 0.0f;
+    };
+    if (prev && (*flowKeys(prev) != *flowKeys(resolved) ||
+                 flowMargin(prev) != flowMargin(resolved))) {
       inst.exclusionsLocal.clear();
       inst.contentRev++; // relayout the text without exclusions, then derive
       needsLayout = true;
@@ -334,8 +396,10 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // patched override node re-lays its text unconditionally — stale
     // justification/hyphenation is worse than a relayout on describe
     // (these nodes never prune anyway; hosts re-render on data change).
-    if (prev && resolved->paragraphOverride &&
-        prev->paragraphOverride == resolved->paragraphOverride) {
+    if (prev && resolved->textData && resolved->textData->paragraphOverride &&
+        prev->textData &&
+        prev->textData->paragraphOverride ==
+            resolved->textData->paragraphOverride) {
       inst.contentRev++;
       YGNodeMarkDirty(inst.yoga);
       needsLayout = true;
@@ -344,7 +408,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // A container LOSING its custom layout must release the out-of-band
     // yoga writes place() left on the children (absolute + pinned rects
     // survive the structural prune otherwise — frozen children).
-    if (prev && prev->placeFn && !resolved->placeFn) {
+    if (prev && prev->deriveData && prev->deriveData->placeFn &&
+        !(resolved->deriveData && resolved->deriveData->placeFn)) {
       for (auto &child : inst.children)
         if (child)
           applyLayoutProps(*child);
@@ -356,8 +421,10 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     // description — a router swap or an anchor-norm change would otherwise
     // keep replaying the stale path. Clearing the cached inputs defeats the
     // guards, and needsLayout makes ensureLayout run the derive pass.
-    if (!resolved->railAnchors.empty() ||
-        (!resolved->connectFrom.empty() && !resolved->connectTo.empty())) {
+    if (resolved->deriveData &&
+        (!resolved->deriveData->railAnchors.empty() ||
+         (!resolved->deriveData->connectFrom.empty() &&
+          !resolved->deriveData->connectTo.empty()))) {
       inst.railPoints.clear();
       inst.connectorFrom = SkRect::MakeLTRB(-1, -1, -1, -1);
       inst.connectorTo = SkRect::MakeLTRB(-1, -1, -1, -1);
@@ -365,10 +432,11 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     }
   }
 
-  if (!resolved->flowAroundKeys.empty() || !resolved->connectFrom.empty() ||
-      !resolved->railAnchors.empty())
+  if (resolved->deriveData && (!resolved->deriveData->flowAroundKeys.empty() ||
+                               !resolved->deriveData->connectFrom.empty() ||
+                               !resolved->deriveData->railAnchors.empty()))
     hasDerived = true;
-  if (resolved->placeFn)
+  if (resolved->deriveData && resolved->deriveData->placeFn)
     hasCustomLayout = true;
   if (resolved->layout.centerAt)
     hasCenterPins = true;
@@ -434,14 +502,16 @@ void Composer::Impl::patchChildren(Instance &inst,
       // order — End counts from the last child (the bottom-up cascade),
       // Center ripples outward.
       const float saved = mountDelayCarryMs;
-      if (inst.desc->staggerChildrenMs > 0) {
+      const float staggerMs =
+          inst.desc->fxData ? inst.desc->fxData->staggerChildrenMs : 0.0f;
+      if (staggerMs > 0) {
         // Order among NEWLY MOUNTED children: the initial cascade staggers
         // the whole list, but one item appended to a LIVE list enters with
         // no extra delay (it is the only new mount) instead of inheriting
         // its full-list ordinal.
         const float n = (float)newChildren.size();
         float order = (float)mountOrdinal;
-        switch (inst.desc->staggerFrom) {
+        switch (inst.desc->fxData->staggerFrom) {
         case Stagger::From::End:
           order = n - 1.0f - order;
           break;
@@ -451,7 +521,7 @@ void Composer::Impl::patchChildren(Instance &inst,
         case Stagger::From::Start:
           break;
         }
-        mountDelayCarryMs += inst.desc->staggerChildrenMs * order;
+        mountDelayCarryMs += staggerMs * order;
       }
       inst.children.push_back(mount(node, &inst));
       mountDelayCarryMs = saved;
@@ -506,7 +576,8 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   // extent as explicit W/H onto auto-dim absolute containers — releasing
   // those here would zero the container every re-describe and feed
   // place() a degenerate input for a pass.
-  const bool autoSized = inst.desc->placeFn && l.absolute;
+  const bool autoSized =
+      inst.desc->deriveData && inst.desc->deriveData->placeFn && l.absolute;
   if (!(autoSized && l.width.unit == Dim::Unit::Auto))
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
   if (!(autoSized && l.height.unit == Dim::Unit::Auto))

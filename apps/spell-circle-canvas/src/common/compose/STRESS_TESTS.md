@@ -357,3 +357,19 @@ repeat layer — Atlas of element-tree cells + user-owned SoA Pool + one
 replay re-rasterizes, Data≈Live there) vs **0.18 ms Graphite Live**
 (18 ns/sprite, ~200×) — masses are a GPU play, as designed. Data mode
 prunes on (atlas, pool, revision); Live is the Cache::None particle path.
+
+**ElementNode split (2026-07-21):** the monolithic ~46-field description
+struct became a lean base (hot fields: kind/key/layout/paint/corners/
+decorations/children) + seven out-of-line `Box<T>` blocks (Text, Image,
+Custom, Derive, Fx, Material, Memo — value-semantic deep-copying boxes,
+so the COW clone in `NodeHandle::operator->` still works). Measured:
+sizeof 2752 → **1288 B** (−53%); describe benches all improved —
+unchanged 100-row render 30.7 → 26.5 µs, one-changed 32.3 → 27.3,
+decorated-unchanged 130 → 112, cold mount 273 → 254 µs. Behavior
+preservation proven two ways: 190 tests green both configs AND a
+pixel-exact capture diff (26/26 gallery scenes identical pre/post split;
+the headless captures now render with the FPS overlay OFF so they are
+deterministic and diffable). A `static_assert(sizeof(ElementNode) <=
+1400)` guards regrowth — new rare/kind-specific state goes in a block.
+Next size target if ever needed: PaintProps is 856 B of the base (8 fat
+PropValue variants) — slimming PropValue is a public-API change, parked.

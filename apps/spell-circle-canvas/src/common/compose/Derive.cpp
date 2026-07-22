@@ -35,11 +35,12 @@ SkPath expandForHit(const SkPath &route) {
 bool Composer::Impl::resolveDerived(Instance &inst) {
   bool relayout = false;
   const ElementNode &node = *inst.desc;
+  const DeriveData *derive = node.deriveData ? &*node.deriveData : nullptr;
 
-  if (!node.flowAroundKeys.empty() && inst.paragraph) {
+  if (derive && !derive->flowAroundKeys.empty() && inst.paragraph) {
     std::vector<SkRect> exclusions;
     const SkRect own = absoluteRect(inst);
-    for (const std::string &key : node.flowAroundKeys) {
+    for (const std::string &key : derive->flowAroundKeys) {
       auto it = byKey.find(key);
       if (it == byKey.end())
         continue;
@@ -62,9 +63,9 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
-  if (!node.connectFrom.empty() && !node.connectTo.empty()) {
-    auto fromIt = byKey.find(node.connectFrom);
-    auto toIt = byKey.find(node.connectTo);
+  if (derive && !derive->connectFrom.empty() && !derive->connectTo.empty()) {
+    auto fromIt = byKey.find(derive->connectFrom);
+    auto toIt = byKey.find(derive->connectTo);
     if (fromIt != byKey.end() && toIt != byKey.end()) {
       SkRect own = absoluteRect(inst);
       SkRect from = absoluteRect(*fromIt->second);
@@ -74,8 +75,8 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
       if (from != inst.connectorFrom || to != inst.connectorTo) {
         inst.connectorFrom = from;
         inst.connectorTo = to;
-        if (node.router) {
-          inst.connectorPath = node.router(from, to);
+        if (derive->router) {
+          inst.connectorPath = derive->router(from, to);
         } else {
           SkPathBuilder b;
           b.moveTo(from.centerX(), from.centerY());
@@ -88,12 +89,12 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
-  if (node.railAnchors.size() >= 2) {
+  if (derive && derive->railAnchors.size() >= 2) {
     std::vector<SkPoint> pts;
-    pts.reserve(node.railAnchors.size());
+    pts.reserve(derive->railAnchors.size());
     const SkRect own = absoluteRect(inst);
     bool resolvedAll = true;
-    for (const Anchor &anchor : node.railAnchors) {
+    for (const Anchor &anchor : derive->railAnchors) {
       auto it = byKey.find(anchor.nodeKey);
       if (it == byKey.end()) {
         resolvedAll = false;
@@ -136,13 +137,13 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
         d.scale(pull / len);
         end += d;
       };
-      pullIn(pts.front(), pts[1], node.railAnchors.front().gap);
-      pullIn(pts.back(), pts[pts.size() - 2], node.railAnchors.back().gap);
+      pullIn(pts.front(), pts[1], derive->railAnchors.front().gap);
+      pullIn(pts.back(), pts[pts.size() - 2], derive->railAnchors.back().gap);
 
       if (pts != inst.railPoints) {
         inst.railPoints = std::move(pts);
-        if (node.railRouter) {
-          inst.connectorPath = node.railRouter(inst.railPoints);
+        if (derive->railRouter) {
+          inst.connectorPath = derive->railRouter(inst.railPoints);
         } else {
           SkPathBuilder b; // default: the straight polyline
           b.moveTo(inst.railPoints.front());
