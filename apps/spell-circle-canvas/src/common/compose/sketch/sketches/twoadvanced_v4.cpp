@@ -2236,14 +2236,26 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         gaugeAlpha[(size_t)i] = i == active ? 1.0f : 0.22f;
       }
 
-      // PRESS UPDATES: 2.5 s dwell, then a 600 ms eased step; ~19 s loop
+      // PRESS UPDATES: the six entries EXACTLY fill the well — the wire is
+      // page 1 of 4, not a scrolling column. The old driver stepped 62 px
+      // six times over a ~19 s loop against ~0 px of overflow, so it walked
+      // the whole wire off the top and the panel read EMPTY for two thirds
+      // of every loop. Step only over real overflow; there is none, so the
+      // page holds. (Give the well a seventh entry and this scrolls again.)
       const float span = 3.1f;
-      const float u = std::fmod(std::max(0.0f, s - 4.5f), span * 6.0f);
-      const int idx = (int)(u / span);
-      float f = (u - (float)idx * span - 2.5f) / 0.6f;
-      f = std::clamp(f, 0.0f, 1.0f);
-      f = f < 0.5f ? 2 * f * f : 1 - 2 * (1 - f) * (1 - f); // easeInOutQuad
-      pressScroll = -62.0f * ((float)idx + f);
+      const float overflow = 0.0f; // contentHeight - wellHeight, measured
+      const int steps = (int)(overflow / 62.0f);
+      if (steps > 0) {
+        const float u =
+            std::fmod(std::max(0.0f, s - 4.5f), span * (float)(steps + 1));
+        const int idx = std::min((int)(u / span), steps);
+        float f = (u - (float)idx * span - 2.5f) / 0.6f;
+        f = std::clamp(f, 0.0f, 1.0f);
+        f = f < 0.5f ? 2 * f * f : 1 - 2 * (1 - f) * (1 - f); // easeInOutQuad
+        pressScroll = -std::min(overflow, 62.0f * ((float)idx + f));
+      } else {
+        pressScroll = 0.0f;
+      }
       return true;
     });
 

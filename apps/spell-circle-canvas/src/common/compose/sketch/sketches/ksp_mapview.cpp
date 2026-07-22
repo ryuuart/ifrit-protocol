@@ -810,7 +810,13 @@ struct KspMapView : sigil::compose::sketch::Sketch {
   }
 
   /** Map marker: diamond + label, the Ap/Pe/AN/DN family. */
-  Element marker(const char *label, SkPoint p, SkColor4f c, bool filled) {
+  /** `lift` is the label's offset from the diamond. It is a parameter and not
+   *  a constant because the Ap/Pe arc label rides the orbit on the OUTSIDE at
+   *  offset +8, and a node whose label also sits above its diamond prints
+   *  straight through that run — "Ap 213,904DN m". Nodes that land in the arc
+   *  label's band hang their label the other way. */
+  Element marker(const char *label, SkPoint p, SkColor4f c, bool filled,
+                 SkVector lift = {12, -9}) {
     using namespace ksp;
     Element g = stack();
     Element d = at(box().outline(diamond()), p, 9, 9);
@@ -819,7 +825,8 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     else
       d.stroke(PathFormat{.width = 1.2f, .strokeFill = Fill::color(c)});
     g.child(d);
-    g.child(at(t(label, bold(9.0f, c, 0.6f)), {p.fX + 12, p.fY - 9}, 30, 12));
+    g.child(at(t(label, bold(9.0f, c, 0.6f)), {p.fX + lift.fX, p.fY + lift.fY},
+               30, 12));
     return g;
   }
 
@@ -1307,7 +1314,9 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                  .justify(Justify::Center)
                                  .fill(Material::solid(kStageTab))
                                  .child(t("×", bold(10, C(0xFFFFFF))))),
-                  kBall.fX + 92, kBall.fY - kBezelR - 2, 92, 20));
+                  // clear of SAS, which ends at kBall.fX + kBezelR - 6: at
+                  // +92 the chip printed over the toggle's right shoulder.
+                  kBall.fX + kBezelR + 6, kBall.fY - kBezelR - 2, 92, 20));
     // bezel index notch, top
     g.child(at(box()
                    .outline(shapes::polygon(3, 180))
@@ -1759,7 +1768,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     g.child(marker("Ap", cur.at(180), kApLabel, true));
     g.child(marker("Pe", cur.at(0), kPeLabel, true));
     g.child(marker("AN", cur.at(100), kAnLabel, false));
-    g.child(marker("DN", cur.at(280), kApLabel, false));
+    g.child(marker("DN", cur.at(280), kApLabel, false, {12, 13}));
     g.child(chip("◗", "Mun", tgt.at(28), kTarget, 12));
     g.child(chip("✦", "", tgt.at(-64), kTarget, 8));
     g.child(gizmo());

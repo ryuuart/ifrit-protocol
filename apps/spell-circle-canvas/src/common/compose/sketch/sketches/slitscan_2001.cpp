@@ -1696,11 +1696,25 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     c.drawLine(ax, trackY - 50, bx, trackY - 50, q);
     c.drawCircle((ax + bx) * 0.5f, trackY - 50, 11, q);
     c.drawLine((ax + bx) * 0.5f - 11, trackY - 50, 466, trackY - 22, q);
+    // HALOED. The carriage travels the whole rail over tau, so this caption
+    // is printed through by the camera body at some phase of every sweep —
+    // and there is no clear band to move it to: above is the clock block,
+    // below is the leader pair, the worm-gear rail and the scale note. A
+    // 2 px knockout in the panel colour is what a drafting plate does when
+    // a note has to cross the drawing.
+    SkPaint halo;
+    halo.setAntiAlias(true);
+    halo.setColor4f(kPanelBg);
+    halo.setStyle(SkPaint::kStroke_Style);
+    halo.setStrokeWidth(2.2f);
+    halo.setStrokeJoin(SkPaint::kRound_Join);
+    const char *r1 = "1½ in = 4.5 px [T68] — AND [C85]’s TRACK";
+    const char *r2 = "STOPS 12 in SHORT: THE RED DASHES.";
+    c.drawString(r1, 304, trackY - 26, f75, halo);
+    c.drawString(r2, 304, trackY - 16, f75, halo);
     tp.setColor4f(kRed);
-    c.drawString("1½ in = 4.5 px [T68] — AND [C85]’s TRACK",
-                 304, trackY - 26, f75, tp);
-    c.drawString("STOPS 12 in SHORT: THE RED DASHES.", 304, trackY - 16,
-                 f75, tp);
+    c.drawString(r1, 304, trackY - 26, f75, tp);
+    c.drawString(r2, 304, trackY - 16, f75, tp);
   }
 
   // The machine's own clock, which is the reason this study is called
@@ -1724,12 +1738,15 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     c.drawString("ABOUT A QUARTER REACHED THE FILM [FS].", 304, 152, f8, q);
   }
 
+  // Two lines, not one: the caption column runs out of room at the plate,
+  // and set as a single run the last nineteen characters were drawn UNDER
+  // the glass panel and never read.
   tp.setColor4f(al(kAmber, 0.9f));
-  c.drawString("6 ft PLATE [C85], 4 ft OPENING [NO] — PROBABLY NOT A "
-               "CONTRADICTION, AND NOTHING SAYS SO",
-               292, 16, f75, tp);
+  c.drawString("6 ft PLATE [C85], 4 ft OPENING [NO] —", 292, 10, f75, tp);
+  c.drawString("PROBABLY NOT A CONTRADICTION, AND NOTHING SAYS SO", 292, 21,
+               f75, tp);
   tp.setColor4f(al(kCold, 0.85f));
-  c.drawString("SLIT · X0 = 49.2 in OFF AXIS, w = 0.586 in, 82 : 1", 292, 28,
+  c.drawString("SLIT · X0 = 49.2 in OFF AXIS, w = 0.586 in, 82 : 1", 292, 32,
                f75, tp);
   tp.setColor4f(kTick);
   c.drawString("ONE SCALE: 3.0 px = 1 INCH.  180 in = 540 px · 168 in = 504 px "
