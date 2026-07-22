@@ -138,11 +138,13 @@ inline Style monoStyle(sk_sp<SkTypeface> face, float size, SkColor4f base,
  *  `gallery/ScenesConsole.h:205` — differing only in count, axis and
  *  colour. ~24 lines each.
  *
- *  Two of the seven are reproduced pixel-for-pixel by migration
- *  (`chaucer_astrolabe`, `minard_1869`). `psx_doom_fire` and
- *  `ScenesConsole.h` are a titled panel around ONE ring, which is a
- *  different thing and should stay hand-built; `thunder_fulu` needs a
- *  content-height column (see `ringExtent`).
+ *  Three of the seven are reproduced pixel-for-pixel by migration:
+ *  `chaucer_astrolabe` and `minard_1869` (rows), and `thunder_fulu` (a
+ *  column of three with dividers, verified at four phases — see
+ *  `ringExtent` for why the column case works when it looked like it
+ *  should not). `psx_doom_fire` and `ScenesConsole.h` are a titled panel
+ *  around ONE ring, which is a different thing and should stay
+ *  hand-built.
  *
  *  **It does not place itself.** That is the `Layouts.h` rule: a component
  *  that decides where a thing goes gets used zero times. Hand it a rect:
@@ -182,14 +184,25 @@ struct Panel {
   Fill divider;
   float dividerWidth = 1.0f;
   /** Fixed extent per ring across the stacking axis; 0 shares the space
-   *  equally (grow(1)). `minard_1869` pins 480 px, `chaucer_astrolabe` and
-   *  `sigillum_aemeth` share.
+   *  equally (grow(1)). `minard_1869` pins 480 px; everyone else shares.
    *
-   *  There is no third "size each ring to its content" mode, and that is a
-   *  limit worth stating rather than papering over: `thunder_fulu`'s column
-   *  plate stacks three content-height rings, and reproducing that would
-   *  need a mode this has no migration to verify against. That plate keeps
-   *  its longhand until someone migrates it and can measure the result. */
+   *  This comment used to claim there had to be a third "size each ring to
+   *  its content" mode, because `thunder_fulu`'s column plate stacks three
+   *  content-height rings and grow(1) looked like it would redistribute
+   *  them. **That was reasoning, and it was wrong.** Migrating the plate and
+   *  measuring gives zero differing pixels at four phases (t = 8, 14, 22.1,
+   *  30).
+   *
+   *  The reason is `shrink`, which defaults to 1. A console plate sizes
+   *  `visibleLines` to fill its panel, so the rings' natural height always
+   *  EXCEEDS the interior — and when they overflow, flex shrink distributes
+   *  the deficit to exactly the sizes grow(1) distributes the surplus to.
+   *  The two modes converge for every plate in the corpus.
+   *
+   *  Where they would genuinely differ is rings whose natural height is
+   *  LESS than the interior: grow(1) then stretches them and pushes the
+   *  later siblings down. No plate does that, so the mode stays unbuilt —
+   *  now on evidence rather than on a guess. */
   float ringExtent = 0.0f;
 };
 
