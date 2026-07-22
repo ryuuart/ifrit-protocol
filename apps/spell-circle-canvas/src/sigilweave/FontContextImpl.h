@@ -35,6 +35,12 @@ struct ShapeKey {
   ScriptTag script = 0;
   bool rightToLeft = false;
   bool vertical = false;
+  // Edging does not change SHAPING — the glyph ids, positions and
+  // advances are identical either way — but it does change the cached
+  // ShapedWord, which carries the flag through to the draw. Keying on it
+  // costs one duplicate entry per face-size actually used both ways,
+  // and not keying on it silently hands back the wrong rasterisation.
+  bool aliased = false;
   std::string languageTag;
   std::vector<FontFeature> fontFeatures;
   std::u16string text;
@@ -51,6 +57,7 @@ struct ShapeKeyView {
   ScriptTag script = 0;
   bool rightToLeft = false;
   bool vertical = false;
+  bool aliased = false;
   std::string_view languageTag;
   const FontFeature *fontFeatures = nullptr;
   size_t featureCount = 0;
@@ -58,10 +65,10 @@ struct ShapeKeyView {
 };
 
 inline ShapeKeyView makeShapeKeyView(const ShapeKey &key) {
-  return {key.typefaceId,  key.fontSizeBits,        key.letterSpacingBits,
-          key.scaleXBits,  key.script,              key.rightToLeft,
-          key.vertical,    key.languageTag,         key.fontFeatures.data(),
-          key.fontFeatures.size(), key.text};
+  return {key.typefaceId,  key.fontSizeBits, key.letterSpacingBits,
+          key.scaleXBits,  key.script,       key.rightToLeft,
+          key.vertical,    key.aliased,      key.languageTag,
+          key.fontFeatures.data(), key.fontFeatures.size(), key.text};
 }
 
 inline ShapeKeyView makeShapeKeyView(ShapeKeyView key) { return key; }
@@ -97,7 +104,7 @@ struct ShapeKeyHash {
     return absl::HashOf(key.typefaceId, key.fontSizeBits, key.letterSpacingBits,
                         key.scaleXBits,
                         key.script, key.rightToLeft, key.vertical,
-                        key.languageTag,
+                        key.aliased, key.languageTag,
                         objectBytes(key.fontFeatures, key.featureCount),
                         objectBytes(key.text.data(), key.text.size()));
   }
@@ -116,6 +123,7 @@ struct ShapeKeyEq {
            left.script == right.script &&
            left.rightToLeft == right.rightToLeft &&
            left.vertical == right.vertical &&
+           left.aliased == right.aliased &&
            left.languageTag == right.languageTag &&
            left.featureCount == right.featureCount &&
            (left.featureCount == 0 ||

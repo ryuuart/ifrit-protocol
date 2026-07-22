@@ -142,11 +142,27 @@ struct ShapingStyle {
   VerticalForm verticalForm = VerticalForm::kAuto; ///< ignored in horizontal
                                                    ///< paragraphs
 
+  /** Draw glyphs with HARD edges — no antialiasing.
+   *
+   *  Skia takes glyph edging from the `SkFont`, never from the paint, so
+   *  `paint.foreground.setAntiAlias(false)` is silently ignored on text
+   *  and there was no other way to ask. An X11 core font is 1-bit and a
+   *  1995 desktop is ~100% 13 px UI type, so a period reconstruction had
+   *  to leave this engine entirely — a raw `kAlias` SkFont in a
+   *  decoration on a hand-measured box, forfeiting shaping, bidi,
+   *  fallback and flowAround.
+   *
+   *  This is the cheap half of "no bitmap-font path": one field, not a
+   *  face. It does not give you a bitmap FACE — the outlines are still
+   *  the outlines — but it gives you their hard-edged rasterisation,
+   *  which is most of what the era looked like. */
+  bool aliased = false;
+
   /** Compares every input that participates in shaping identity. */
   bool operator==(const ShapingStyle &other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
-           scaleX == other.scaleX &&
+           scaleX == other.scaleX && aliased == other.aliased &&
            wordSpacing == other.wordSpacing &&
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&

@@ -78,7 +78,8 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord &shapedWord,
     return nullptr;
   SkTextBlobBuilder builder;
   const SkFont font =
-      makeFont(shapedWord.typeface, shapedWord.fontSize, shapedWord.scaleX);
+      makeFont(shapedWord.typeface, shapedWord.fontSize, shapedWord.scaleX,
+               shapedWord.aliased);
   const int glyphCount = static_cast<int>(shapedWord.glyphs.size());
   const auto &run = builder.allocRunRSXform(font, glyphCount);
 
@@ -1105,6 +1106,7 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
     sk_sp<SkTypeface> typeface;
     float fontSize = 0;
     float scaleX = 1.0f;
+    bool aliased = false;
     PaintStyle style;
     std::vector<SkGlyphID> glyphs;
     std::vector<SkPoint> positions;
@@ -1162,6 +1164,7 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
       if (candidate.typeface.get() == shapedWord.typeface.get() &&
           candidate.fontSize == shapedWord.fontSize &&
           candidate.scaleX == shapedWord.scaleX &&
+          candidate.aliased == shapedWord.aliased &&
           candidate.style == style) {
         bucket = &candidate;
         break;
@@ -1173,6 +1176,7 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
       bucket->typeface = shapedWord.typeface;
       bucket->fontSize = shapedWord.fontSize;
       bucket->scaleX = shapedWord.scaleX;
+      bucket->aliased = shapedWord.aliased;
       bucket->style = style;
       bucket->glyphs.clear();
       bucket->positions.clear();
@@ -1194,7 +1198,8 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
         !liveVariations->variations.empty())
       typeface = liveVariations->fonts->variedTypeface(
           typeface, liveVariations->variations);
-    const SkFont font = makeFont(typeface, bucket.fontSize, bucket.scaleX);
+    const SkFont font =
+        makeFont(typeface, bucket.fontSize, bucket.scaleX, bucket.aliased);
     const SkSpan<const SkGlyphID> glyphs(bucket.glyphs.data(),
                                          bucket.glyphs.size());
     const SkSpan<const SkPoint> positions(bucket.positions.data(),

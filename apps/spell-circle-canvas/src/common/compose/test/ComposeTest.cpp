@@ -6351,3 +6351,38 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   plain->add({100, 100});
   EXPECT_FALSE(plain->hasTexWindows());
 }
+
+TEST(ComposeText, AliasedTextHasHardEdges) {
+  // Skia takes glyph edging from the FONT, never the paint, so
+  // `paint.foreground.setAntiAlias(false)` is silently ignored on text
+  // and there was no other way to ask. An X11 core font is 1-bit and a
+  // 1995 desktop is ~100% 13 px UI type, so a period reconstruction had
+  // to leave SigilWeave entirely — a raw kAlias SkFont in a decoration on
+  // a hand-measured box, forfeiting shaping, bidi, fallback and
+  // flowAround. This is the cheap half of "no bitmap-font path": one
+  // field, not a face.
+  auto greys = [](bool aliased) {
+    auto style = whiteStyle(40);
+    style.shaping.aliased = aliased;
+    Host host(240, 100);
+    host.composer.render(box().padding(12).child(text(u8"AVWM", style)));
+    host.frame();
+    int partial = 0, full = 0;
+    for (int y = 0; y < 100; ++y)
+      for (int x = 0; x < 240; ++x) {
+        const int r = SkColorGetR(host.pixel(x, y));
+        full += r > 250;
+        partial += r > 15 && r < 240; // an antialiased edge pixel
+      }
+    return std::pair<int, int>{full, partial};
+  };
+
+  const auto soft = greys(false);
+  const auto hard = greys(true);
+  ASSERT_GT(soft.first, 200); // both actually drew
+  ASSERT_GT(hard.first, 200);
+  // Antialiased type is fringed with partial coverage; aliased type is
+  // not — every pixel is on or off.
+  EXPECT_GT(soft.second, 300);
+  EXPECT_LT(hard.second, soft.second / 8);
+}
