@@ -51,6 +51,7 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
+| `dashPhaseBinding` on `PathFormat` and `lines::Line` | `trimPhase` took a bound Output and declared `animated()`; `dashPhase` was a plain float, so marching ants — the commonest animated-line idiom in map UI — meant re-describing every frame | `Decorations.h`, `Lines.h` |
 | `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
 | `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
 | `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
@@ -381,16 +382,8 @@ the right thing internally and hands out only the finished result.
   does not, so a route always runs to the node box's *centre* — and with
   `sdf::` chrome the box is far larger than the visible shape.
 
-## 10b. Animated lines and paths: two missing bindings
+## 10b. Animated lines and paths: the parameter anchor
 
-- **`dashPhase` has no bound-Output form.** `PathFormat::trimPhase` takes
-  a `ch::Output<float>*` and declares `animated()`; `dashPhase` — in both
-  `PathFormat` and `lines::Line` — is a plain float. So marching ants can
-  only be had by re-describing every frame, which defeats the pruning the
-  library is built on. Marching dashes are the commonest animated-line
-  idiom in map and diagram UI; the KSP study wrote a 25-line
-  `MarchingDots` DecorationScheme instead (the seam worked, which is the
-  good news). Wanted: `dashPhaseBinding` beside `trimPhase`.
 - **No angle or parameter anchor for text on a path.** `TextPath::at` is
   an ARC-LENGTH fraction. On a conic — or a dial, or any non-uniformly
   parameterised curve — the author knows the *parameter* (true anomaly,

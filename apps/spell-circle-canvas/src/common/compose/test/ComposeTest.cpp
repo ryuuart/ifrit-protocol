@@ -5352,3 +5352,43 @@ TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
     EXPECT_EQ(steps, after);
   }
 }
+
+TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
+  // trimPhase took a bound Output and declared animated(); dashPhase was
+  // a plain float, so marching ants — the commonest animated-line idiom
+  // in map and diagram UI — could only be had by re-describing every
+  // frame, which defeats the pruning the library is built on. A study
+  // wrote a 25-line DecorationScheme for want of this.
+  choreograph::Output<float> march{0.0f};
+  PathFormat dashed = util::stroke(4, Fill::color({1, 1, 1, 1}));
+  dashed.dashIntervals = {10.0f, 10.0f};
+  dashed.dashPhaseBinding = &march;
+
+  Host host(200, 200);
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .left(0)
+                                       .top(90)
+                                       .width(200)
+                                       .height(20)
+                                       .fill(Fill::none())
+                                       .foreground(dashed)));
+  host.frame();
+  auto row = [&] {
+    std::vector<bool> lit;
+    for (int x = 0; x < 200; ++x)
+      lit.push_back(host.pixel(x, 90) != SK_ColorBLACK);
+    return lit;
+  };
+  const std::vector<bool> before = row();
+
+  // Advance the phase by half a dash — no render(), no re-describe.
+  march = 10.0f;
+  host.frame();
+  const std::vector<bool> after = row();
+
+  int moved = 0;
+  for (size_t i = 0; i < before.size(); ++i)
+    moved += before[i] != after[i];
+  EXPECT_GT(moved, 20); // the dashes actually travelled
+}

@@ -1006,8 +1006,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       line.setAntiAlias(true);
       line.setBlendMode(SkBlendMode::kPlus);
       // the streak itself: a 3x-magnified quad, additive
-      SkPoint quad[4] = {{x0, y - 5}, {x1, y - 5}, {x1, y + 5}, {x0, y + 5}};
-      SkColor cols[4] = {0x00000000, 0x00000000, 0x00000000, 0x00000000};
       const SkColor4f hot = overlap(9);
       const SkColor c = hot.toSkColor();
       SkPoint verts[6] = {{x0, y - 5}, {x1, y - 5}, {x1, y},
@@ -1017,8 +1015,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       auto v = SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 6, verts,
                                     nullptr, vc, 12, idx);
       canvas.drawVertices(v, SkBlendMode::kDst, line);
-      (void)quad;
-      (void)cols;
       // the two sample positions
       SkPaint dot;
       dot.setAntiAlias(true);
