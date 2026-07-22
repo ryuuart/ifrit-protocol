@@ -71,25 +71,33 @@
 // rim labels; the crops say no. Every one of the 62 reference letters on
 // this plate is UPRIGHT, never rotated to the tangent, on both halves of
 // every circle. Bending them would be a nicer sketch and a worse study.
+// (onPath was still exercised here as a throwaway probe on clear paper,
+// because I was asked to trust it: a centred run at at = 0 on a closed
+// shapes::circle() now keeps every glyph across the seam, confirmed. The
+// autoFlip half did not hold up — see the report.)
 //
 // BUILT FROM (the library, not by hand):
-//   shapes::star()      nine ink figures and two paper-coloured masks
-//   shapes::sector()    the ten hatch petals of figures 3 and 5
-//   lines::hatch()      their engraved tone, fanned per petal
-//   util::disc()        every circle on the plate
-//   instancing::Pool    ~5900 sand grains, ONE atlas stamp, Mode::Live
-//   bind()              one settle Output per figure, shaped three ways
-//   PathFormat::trim*   the bow's travelling contact arc
+//   shapes::star()       nine ink figures and two paper-coloured masks
+//   shapes::parametric() every Linie of figures 7, 9 and 10 — the arc is
+//                        written as maths, not as a path-builder loop
+//   shapes::circle()     the twelve rims and the bow's contact track
+//   shapes::sector()     the 120 sub-wedges the engraved fan is built from
+//   lines::hatch()       their tone, rotated per sub-wedge into a fan
+//   util::disc()         placement for every circle on the plate
+//   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live
+//   bind()               one settle Output per figure, shaped three ways
+//   PathFormat::trim*    the bow's travelling contact arc
 //   patterns::grain/speckle  plate tone and foxing
-//   trim()/withFrom()   the frame, the rims, the reading order
+//   trim()/withFrom()    the frame, the rims, the reading order
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/chladni_tab1.cpp \
-//       --frame /tmp/chladni_tab1.png --at 9.4
+//       --frame /tmp/chladni_tab1.png --at 10.6
 //
-// 9.4 s is the settled plate under one bow stroke. 3.2 s is the bow pass
-// in flight: the first figures drawn in sand, the last still scattered.
+// 10.6 s is the settled plate with the bow back on figure 8's rim. 3.4 s
+// is the argument being made: figures 1-3 drawn in sand, figure 4 in the
+// act of gathering into six arms, figures 5-12 still an even scatter.
 
 #include <sigilsketch/Sketch.h>
 
@@ -147,7 +155,7 @@ constexpr float kScale = 0.975f;
 constexpr float kW = 1600 * kScale; // 1560
 constexpr float kH = 2072 * kScale; // 2020
 constexpr float kR = 179.0f * kScale;       // every figure's radius: 174.5
-constexpr float kTip = 0.95f;               // star tips stop just inside it
+constexpr float kTip = 0.985f;              // the tips meet the rim, as drawn
 constexpr float kDeg = 3.14159265358979f / 180.0f;
 
 // frame: outer rule (48,153)-(1517,1977) scan; the double rule's partner
@@ -183,9 +191,9 @@ struct FigSpec {
 const std::array<FigSpec, 12> kFigures = {{
     {1, 289, 394, 2, 0.05f, Kind::Star, 1, -1, 240},
     {2, 776, 392, 4, 0.11f, Kind::Star, 2, -1, 300},
-    {3, 1253, 392, 4, 0.35f, Kind::Petals, 2, -1, 1900},
+    {3, 1253, 392, 4, 0.35f, Kind::Petals, 2, -1, 3100},
     {4, 293, 845, 6, 0.18f, Kind::Star, 3, -1, 360},
-    {5, 776, 843, 6, 0.66f, Kind::Petals, 3, -1, 1500},
+    {5, 776, 843, 6, 0.66f, Kind::Petals, 3, -1, 2600},
     {6, 1261, 843, 8, 0.24f, Kind::Star, 4, 24.0f, 420},
     {7, 297, 1304, 0, 0, Kind::Traced, 4, -1, 300},
     {8, 780, 1292, 10, 0.36f, Kind::Star, 5, 26.7f, 480},
@@ -239,60 +247,55 @@ const std::vector<Linie> &linienOf(int num) {
   return num == 7 ? kFig7 : (num == 9 ? kFig9 : kFig10);
 }
 
-/** The arc of `l` that lies inside the unit disc, sampled into a polyline
- *  in a box of side 2r (centre at (r, r)). Solving |P| = 1 against
- *  |P - O| = rho gives both rim crossings; the arc between them that stays
- *  inside is the one whose midpoint is nearer the origin. */
-SkPath liniePath(const Linie &l, float r) {
-  SkPathBuilder b;
-  const SkPoint mid{r, r};
+/** The arc of `l` that lies inside the unit disc, as a PARAMETRIC curve.
+ *  Solving |P| = 1 against |P - O| = rho gives both rim crossings; the
+ *  sweep between them that stays inside is the one whose midpoint is
+ *  nearer the origin. shapes::parametric then evaluates it, so the Linie
+ *  is written as the maths it is rather than as a path-builder loop —
+ *  which is also what makes figures 7, 9 and 10 three numbers each
+ *  instead of a table of Bezier control points. */
+shapes::OutlineFn linieOutline(Linie l) {
   if (l.straight) {
-    b.moveTo(polar(mid, r, l.bearing));
-    b.lineTo(polar(mid, r, l.bearing + 180.0f));
-    return b.detach();
+    const SkPoint a{std::sin(l.bearing * kDeg), -std::cos(l.bearing * kDeg)};
+    return shapes::parametric(
+        [a](float t) { return SkPoint{a.fX * (1 - 2 * t), a.fY * (1 - 2 * t)}; },
+        0.0f, 1.0f, 2);
   }
   const SkPoint o{std::sin(l.bearing * kDeg) * l.centreRadius,
                   -std::cos(l.bearing * kDeg) * l.centreRadius};
   const float on = std::sqrt(o.fX * o.fX + o.fY * o.fY);
-  if (on < 1e-4f)
-    return b.detach();
   const float k = (1.0f + on * on - l.arcRadius * l.arcRadius) * 0.5f;
-  const float d = k / on;
+  const float d = on > 1e-4f ? k / on : 2.0f;
   const float h2 = 1.0f - d * d;
-  if (h2 <= 0.0f)
-    return b.detach();
+  if (h2 <= 0.0f) // the compass never crosses the rim: nothing to draw
+    return shapes::parametric([](float) { return SkPoint{0, 0}; }, 0, 1, 2);
   const float h = std::sqrt(h2);
   const SkPoint u{o.fX / on, o.fY / on};
   const SkPoint nrm{-u.fY, u.fX};
   const SkPoint p0{d * u.fX + h * nrm.fX, d * u.fY + h * nrm.fY};
   const SkPoint p1{d * u.fX - h * nrm.fX, d * u.fY - h * nrm.fY};
   const float a0 = std::atan2(p0.fY - o.fY, p0.fX - o.fX);
-  float a1 = std::atan2(p1.fY - o.fY, p1.fX - o.fX);
-  // Pick the sweep whose midpoint stays inside the disc.
-  auto insideAt = [&](float a) {
-    const SkPoint p{o.fX + l.arcRadius * std::cos(a),
-                    o.fY + l.arcRadius * std::sin(a)};
-    return p.fX * p.fX + p.fY * p.fY;
-  };
+  const float a1 = std::atan2(p1.fY - o.fY, p1.fX - o.fX);
   float sweep = a1 - a0;
   while (sweep <= -SK_FloatPI)
     sweep += 2 * SK_FloatPI;
   while (sweep > SK_FloatPI)
     sweep -= 2 * SK_FloatPI;
-  if (insideAt(a0 + sweep * 0.5f) > 1.0f)
+  const float rho = l.arcRadius;
+  auto at = [o, rho](float a) {
+    return SkPoint{o.fX + rho * std::cos(a), o.fY + rho * std::sin(a)};
+  };
+  const SkPoint mid = at(a0 + sweep * 0.5f);
+  if (mid.fX * mid.fX + mid.fY * mid.fY > 1.0f)
     sweep += sweep > 0 ? -2 * SK_FloatPI : 2 * SK_FloatPI;
-  constexpr int kSamples = 72;
-  for (int i = 0; i <= kSamples; ++i) {
-    const float a = a0 + sweep * (float)i / kSamples;
-    const SkPoint p{o.fX + l.arcRadius * std::cos(a),
-                    o.fY + l.arcRadius * std::sin(a)};
-    const SkPoint q{mid.fX + p.fX * r, mid.fY + p.fY * r};
-    if (i == 0)
-      b.moveTo(q);
-    else
-      b.lineTo(q);
-  }
-  return b.detach();
+  return shapes::parametric(
+      [at, a0, sweep](float t) { return at(a0 + sweep * t); }, 0.0f, 1.0f, 72);
+}
+
+/** The same curve resolved into a box of side 2r — what the grain
+ *  sampler walks with SkContourMeasure. */
+SkPath liniePath(const Linie &l, float r) {
+  return linieOutline(l)(SkSize{2 * r, 2 * r});
 }
 
 // ---------------------------------------------------------------------------
@@ -429,11 +432,6 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     return shapes::star((int)points, inner);
   }
 
-  /** The path of one Linie in the node's own box. */
-  static std::function<SkPath(SkSize)> linieOutline(Linie l) {
-    return [l](SkSize s) { return liniePath(l, s.width() * 0.5f); };
-  }
-
   // ------------------------------------------------------------------
   // sand: ~5900 grains, one pool, one atlas stamp
 
@@ -494,14 +492,14 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
           grain.rotTo = rng.range(0, 2 * SK_FloatPI);
           grain.frame = rng.next() < 0.55f ? 0 : 2;
-          grain.scale = rng.range(0.62f, 1.06f);
+          grain.scale = rng.range(0.55f, 0.94f);
         } else if (f.kind == Kind::Petals) {
           // the valleys BETWEEN the star's arms, density biased outward
           // the way the engraved fan is
           SkPoint p{0, 0};
           for (int tries = 0; tries < 400; ++tries) {
             const float a = rng.range(0, 360.0f);
-            const float rr = kR * (0.30f + 0.68f * std::sqrt(rng.next()));
+            const float rr = kR * (0.30f + 0.665f * std::sqrt(rng.next()));
             p = polar({kR, kR}, rr, a);
             if (!starPath.contains(p.fX, p.fY))
               break;
@@ -510,8 +508,8 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           // the fan: every stroke points radially out of the centre
           grain.rotTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
                         rng.range(-0.09f, 0.09f);
-          grain.frame = 1;
-          grain.scale = rng.range(0.46f, 0.80f);
+          grain.frame = 3;
+          grain.scale = rng.range(0.44f, 0.88f);
         } else {
           float pick = rng.next() * totalLen;
           size_t ci = 0;
@@ -561,7 +559,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     // ---- the rim hairline ----
     root.child(disc(c, kR)
                    .key(tag + "rim")
-                   .corners({kR})
+                   .outline(shapes::circle())
                    .fill(Fill::none())
                    .stroke(stroke(1.5f, Fill::color(kInkLine)))
                    .trim(0.0f, withFrom(0.0f, 1.0f,
@@ -576,24 +574,33 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                      .opacity(inkIn()));
     } else if (f.kind == Kind::Petals) {
       // Figures 3 and 5 are figures 2 and 4's star worn as a mask: the
-      // hatched petals are the disc MINUS the star, so each valley gets
-      // its own sector with the engraved rules fanned to its bearing,
-      // and the star is then painted back in paper colour on top. No
-      // boolean path ops needed — z-order is the cutout.
+      // hatched petals are the disc MINUS the star, and the star is then
+      // painted back in paper colour on top. No boolean path ops needed —
+      // z-order is the cutout.
+      //
+      // The engraved tone inside each petal is a RADIAL FAN, and
+      // lines::hatch is a parallel lattice at one angle: there is no
+      // tangent-following hatch in the library. The fan is therefore
+      // built out of the shape kit instead — each petal is cut into ~9
+      // degree sectors and each sector carries its own rotated hatch, so
+      // the rules turn with the bearing the way the burin did.
       const int petals = (int)f.points;
       const float sweep = 360.0f / (float)petals;
-      for (int p = 0; p < petals; ++p) {
-        const float b0 = (float)p * sweep;
-        const float bc = b0 + sweep * 0.5f;
-        root.child(
-            disc(c, kR)
-                .key(tag + "petal" + std::to_string(p))
-                .outline(shapes::sector(b0 - 90.0f, sweep))
-                .fill(Fill::none())
-                .background(lines::hatch(Fill::color(hex(0x211c14, 0.60f)),
-                                         6.4f, 1.15f, bc - 90.0f))
-                .opacity(bind(&settle[fi]).from(0.52f, 0.98f).clamp(0, 1)));
-      }
+      const int sub = std::max(8, (int)std::lround(sweep / 6.0f));
+      const float ssw = sweep / (float)sub;
+      for (int p = 0; p < petals; ++p)
+        for (int k = 0; k < sub; ++k) {
+          const float b0 = (float)p * sweep + (float)k * ssw;
+          const float bc = b0 + ssw * 0.5f;
+          root.child(
+              disc(c, kR)
+                  .key(tag + "h" + std::to_string(p) + "_" + std::to_string(k))
+                  .outline(shapes::sector(b0 - 90.4f, ssw + 0.8f))
+                  .fill(Fill::none())
+                  .background(lines::hatch(Fill::color(hex(0x211c14, 0.52f)),
+                                           4.6f, 0.85f, bc - 90.0f))
+                  .opacity(bind(&settle[fi]).from(0.52f, 0.98f).clamp(0, 1)));
+        }
       root.child(disc(c, kR * 1.002f)
                      .key(tag + "mask")
                      .outline(starOutline(f.points, f.inner))
@@ -614,13 +621,14 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
     // per-decoration trim (one node, its own window) ----
-    PathFormat bow = stroke(4.4f, Fill::color(hex(0x211c14, 0.9f)));
+    PathFormat bow = stroke(3.0f, Fill::color(hex(0x211c14, 0.75f)));
+    bow.align = PathFormat::Align::Inner;
     bow.trimStart = 0.0f;
-    bow.trimEnd = 0.10f;
+    bow.trimEnd = 0.065f;
     bow.trimPhase = &bowPhase[fi];
     root.child(disc(c, kR)
                    .key(tag + "bow")
-                   .corners({kR})
+                   .outline(shapes::circle())
                    .fill(Fill::none())
                    .stroke(bow)
                    .opacity(&bowAlpha[fi])
@@ -632,7 +640,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                     type(faceNumeral, 37, kInk, 0.5f))
                    .key(tag + "num")
                    .absolute()
-                   .centerAt({c.fX - 0.71f * kR, c.fY - 1.11f * kR})
+                   .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
                    .opacity(withFrom(0.0f, 1.0f,
                                      ramp(tNumeral * 1000 + (float)fi * 22.0f,
                                           360))));
@@ -642,13 +650,13 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     for (size_t li = 0; li < labels.size(); ++li) {
       const Label &l = labels[li];
       root.child(
-          text(toU8(l.glyph), type(faceLabel, 30, kInk))
+          text(toU8(l.glyph), type(faceLabel, 33, kInk))
               .key(tag + "lab" + std::to_string(li))
               .absolute()
               .centerAt(polar(c, kR * l.radius, l.bearing))
-              .opacity(bind(&settle[fi]).from(0.86f, 1.06f).clamp(0.0f, 1.0f))
+              .opacity(bind(&settle[fi]).from(0.84f, 0.99f).clamp(0.0f, 1.0f))
               .translateY(bind(&settle[fi])
-                              .from(0.86f, 1.06f)
+                              .from(0.84f, 0.99f)
                               .map(ch::easeOutQuad)
                               .invert()
                               .to(0.0f, 7.0f)
@@ -662,21 +670,21 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
     // is), a vignette that lands on the sampled scan colour ----
-    root.child(box().absolute().inset(0).fill(paperMat).opacity(0.20f).blend(
+    root.child(box().absolute().inset(0).fill(paperMat).opacity(0.16f).blend(
         SkBlendMode::kSoftLight));
     root.child(box().absolute().inset(0).fill(foxing.material()));
     root.child(box()
                    .absolute()
                    .left(0)
-                   .top(kH * 0.52f)
-                   .width(kW * 0.55f)
-                   .height(kH * 0.48f)
+                   .top(kH * 0.50f)
+                   .width(kW * 0.52f)
+                   .height(kH * 0.50f)
                    .fill(foxingLL.material()));
     root.child(box().absolute().inset(0).fill(radialGradient(
-        {kW * 0.48f, kH * 0.44f}, kW * 0.86f,
+        {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
         {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
-         SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.38f}},
-        {0.0f, 0.55f, 1.0f})));
+         SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
+        {0.0f, 0.62f, 1.0f})));
 
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
@@ -705,7 +713,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                    .key("title")
                    .glyphFx(std::move(pen))
                    .absolute()
-                   .centerAt({1372 * kScale, 108 * kScale}));
+                   .centerAt({1436 * kScale, 106 * kScale}));
 
     // ---- the twelve figures ----
     for (size_t i = 0; i < kFigures.size(); ++i)
@@ -720,7 +728,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
                     type(faceSwash, 27, kInkSoft, 0.3f))
                    .key("credit")
                    .absolute()
-                   .centerAt({1352 * kScale, 1826 * kScale})
+                   .centerAt({1402 * kScale, 1917 * kScale})
                    .opacity(withFrom(0.0f, 1.0f, ramp(tCredit * 1000, 700))));
 
     return root;
@@ -752,9 +760,12 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
       faceSwash = faceLabel;
 
     paperMat = patterns::grain(0.013f, 4, 9.0f);
-    foxing = patterns::speckle(210, 5, 2.0f, 8.0f, {kFox});
+    // Sparse, and NOT on a grid you can see: the tile has to be big
+    // enough that its repeat is not the strongest mark on the page.
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {kFox});
     foxing.seed(17);
-    foxingLL = patterns::speckle(170, 6, 2.5f, 11.0f, {kFox});
+    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
+                                 {hex(0x94764c, 0.09f)});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
@@ -775,6 +786,9 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     atlas->cell(box().width(3.1f).height(3.1f).corners({1.55f}).fill(
                     Fill::color(hex(0x211c14, 0.9f))),
                 {5, 5});
+    atlas->cell(box().width(15.0f).height(1.35f).corners({0.68f}).fill(
+                    Fill::color(hex(0x211c14, 0.82f))),
+                {17, 3});
     seedGrains();
 
     // ---- the simulation ------------------------------------------------

@@ -325,17 +325,38 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   // autoFlip is a decision about the RUN, not about each glyph. Turning
   // glyphs over one at a time reverses the reading order — a caption on
   // the lower half of a clockwise ring came out mirrored — so the run
-  // decides once, from the tangent at its own midpoint, and then walks its
-  // along-path coordinate backwards.
+  // decides once and then walks its along-path coordinate backwards.
+  //
+  // The decision is a MAJORITY over the run, not a reading at its
+  // midpoint. A midpoint sample is exactly ambiguous where the tangent is
+  // vertical, which is precisely where a ring caption centred on 12 or 6
+  // o'clock puts it: `tan.x < 0` is false at x == 0, so the most natural
+  // spelling of all — circle(), at = 0, Center, autoFlip — silently did
+  // nothing. Sampling across the run has no such point.
+  //
+  // A run that wraps PAST the crossover cannot be fixed by one flip, and
+  // this model does not pretend otherwise: the majority reads right way
+  // up and the tail does not. That is a real limitation, and the
+  // engraver's answer to it is two runs — top and bottom set separately,
+  // which is how ring inscriptions have always been cut. See ROADMAP.md.
   bool flipRun = false;
   if (spec.autoFlip) {
-    SkPoint midPos;
-    SkVector midTan;
-    float mid = start + runWidth * 0.5f;
-    if (closed)
-      mid = std::fmod(std::fmod(mid, length) + length, length);
-    if (posTan(std::clamp(mid, 0.0f, length), &midPos, &midTan))
-      flipRun = midTan.x() < 0;
+    constexpr int kVotes = 9;
+    int upsideDown = 0, upright = 0;
+    for (int i = 0; i < kVotes; ++i) {
+      float at = start + runWidth * ((float)i + 0.5f) / (float)kVotes;
+      if (closed)
+        at = std::fmod(std::fmod(at, length) + length, length);
+      SkPoint pos;
+      SkVector tan;
+      if (!posTan(std::clamp(at, 0.0f, length), &pos, &tan))
+        continue;
+      if (tan.x() < 0)
+        ++upsideDown;
+      else if (tan.x() > 0)
+        ++upright;
+    }
+    flipRun = upsideDown > upright;
   }
 
   static thread_local sigil::weave::GlyphRSXformBatches batches;
