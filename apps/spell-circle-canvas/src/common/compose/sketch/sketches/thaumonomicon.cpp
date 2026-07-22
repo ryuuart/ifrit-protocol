@@ -116,7 +116,7 @@
 //      the same vector. The seam corner of a CLOSED contour is the exception —
 //      it is inserted at d = 0 and its probes wrap, so it alone gets a true
 //      bisector. On a rect that means three corners rotate one way and the
-//      fourth rotates 45 degrees off. Still true after the fix.
+//      fourth rotates 45 degrees off.
 //
 // (a) is FIXED: `PatternBrush::cornerLength` now reserves cornerLength/2 at
 // each end of a corner's two runs and refits the side tiles over the shortened
@@ -126,15 +126,32 @@
 // out to kCell*(yd-1) / kCell*(xd-1) — or (yd-2) / (xd-2) with the big elbow —
 // which is tile-for-tile what drawLine's `v` and `h` loops emit, at sx = 1.0.
 //
-// (b) and (c) are open, and (c) is the one that costs authoring work: because
-// the stamp is rotated to the OUTGOING tangent, a left turn and a right turn
-// are mirror images and need two arts rather than one. (A bisector-rotated
-// stamp would need only one, since a corner ornament is symmetric about its
-// own bisector.) Four elbow arts per ink tier is cheap here — each connector
-// has exactly one corner and picks its art up front — but it is a real cost
-// and it is invisible until you draw an asymmetric corner. The natural API is
-// `cornerAlign = Bisector | Outgoing`, plus recording the VERTEX distance
-// rather than the scan position so the 3 px never appears.
+// (b) and (c) ARE ALSO FIXED NOW, and the fix silently broke this study the
+// same afternoon it shipped — which is the part worth writing down. Nothing
+// in this file changed and no build failed; the render just went wrong, and
+// stayed wrong through a review. The scanner learned to bisect
+// its own bracket, so `hit.d` is the vertex (the 3 px is gone) and the two leg
+// tangents come out of the search, so a corner can finally face a REAL
+// bisector. `cornerAlign` was added at the same time and it defaults to
+// `Bisector`, because that is what an ornamental elbow wants.
+//
+// This study's elbow is not ornamental. It is a piece of PIPE: it has an
+// entry, an exit, and a handedness, and elbowTile() authors it in the frame
+// (c) described — local +x along the OUTGOING leg. The moment the library
+// started honouring the true bisector, that art was stamped 45 degrees off,
+// and because a 2x2 route is ALL corner (see the arithmetic above: yd-2 = 0
+// side tiles), whole edges turned into 45-degree chevrons hanging in space
+// with nothing orthogonal left of them. Nothing here changed; the default
+// under it did. So edgeEl() now asks for `cornerAlign = Outgoing` EXPLICITLY
+// rather than inheriting it from a bug.
+//
+// The authoring cost (c) predicted is real and stands: an outgoing-aligned
+// corner needs one art per turn direction. So does a bisector-aligned one, as
+// it happens — the two arms sit at (turn/2, 180 - turn/2) off the bisector,
+// which mirrors with the turn sign — so the "one art" hope in the original
+// report was wrong. Four elbow arts per ink tier (two sizes x two hands) is
+// the floor either way, and it is cheap: each connector has exactly one
+// corner and picks its art up front.
 //
 // One more, found while getting under the 60 FPS gate and not obvious from
 // either header: PatternBrush and ScatterBrush bake their art with snapshot(),
@@ -605,10 +622,11 @@ inline Element knotCell(SkColor4f tint) {
   return e;
 }
 
-/** The elbow tile, drawn in the frame PatternBrush actually stamps it in —
- *  local +x along the OUTGOING tangent (see THE CORNER REPORT: the recorded
- *  corner distance is already past the vertex, so both bisector probes land
- *  on the outgoing leg and the "bisector" is that tangent). In that frame:
+/** The elbow tile, drawn in the frame PatternBrush stamps it in — local +x
+ *  along the OUTGOING leg, which the brush only does when it is ASKED
+ *  (`cornerAlign = Outgoing`, set in edgeEl; the default is the bisector, and
+ *  under it this art lands 45 degrees off — see THE CORNER REPORT). In that
+ *  frame:
  *
  *    the bend    is the art's own centre,
  *    the exit    is at local (+arm, 0),
@@ -1393,6 +1411,12 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     if (elbow >= 0) {
       pb.corner = elbows[t][(size_t)elbow];
       pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
+      // An elbow of PIPE, not an ornament: entry, exit and a handedness, and
+      // elbowTile() authors it with local +x along the outgoing leg. The
+      // brush's default is the bisector, under which this art stamps 45
+      // degrees off — and a 2x2 route is all corner and no side tiles, so the
+      // whole edge becomes a chevron. Ask for the frame the art is drawn in.
+      pb.cornerAlign = brushes::PatternBrush::CornerAlign::Outgoing;
     }
     Brush br;
     br.leg(std::move(pb));
