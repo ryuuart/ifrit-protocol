@@ -584,6 +584,34 @@ things at once.
   Wanted: an optional `measure()` consulted by the container's Yoga
   measure func.
 
+## 10e. Colour has no space, and gradients have six stops
+
+Sixteen studies in, the first one whose entire content is a PALETTE — a
+reconstruction of Chevreul's 1864 chromatic circle as a measuring
+instrument — and it lands on something nothing else could have found.
+
+- **`Fill` and `Material` carry no colour space, and `Composer` has no
+  input space.** For a study of measured pigment values that is not a
+  nicety: "I deliberately did not set a view transform" and "nobody
+  thought about colour at all" produce IDENTICAL trees. There is an OCIO
+  seam (`Ocio.h`, `setView`) and it is opt-in and invisible, so a value
+  described as sRGB and a value described as anything else are the same
+  bytes with the same behaviour. Wanted, minimally: a declared input
+  space on the Composer so a mismatch is a question the library can ask,
+  rather than one nobody knows to.
+- **Gradients cap at six stops** — *two studies*, from opposite
+  directions. `Material::linearUnit`/`radialUnit` compile to one SkSL
+  pass with six chained mixes, which is a 24-run tartan sett or a 72-step
+  chromatic sweep short. Both fell back to hand-written
+  `PatternProgram`s. Wanted: a stop COUNT that scales the way
+  `patterns::grain` scales its octaves — bake the count into the source
+  and cache one effect per count, which is the rule that file already
+  follows.
+- **`TextPath` has no `operator==`**, deliberately (its baseline is a
+  `std::function`), so a node carrying one never prunes — 72 radial
+  labels re-record on every `render()`. The comparable-`Outline` fix in
+  §3 covers this too if it carries a key.
+
 ## 11. `Effect` has no live uniforms
 
 `Material` solved this with `uniform(name, &output)` and a volatility
