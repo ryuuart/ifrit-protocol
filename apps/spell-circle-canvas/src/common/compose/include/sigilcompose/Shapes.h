@@ -28,6 +28,8 @@
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
+#include <include/core/SkPathUtils.h>
+#include <include/pathops/SkPathOps.h>
 #include <include/utils/SkParsePath.h>
 
 #include <cmath>
@@ -367,6 +369,76 @@ struct EdgeSlice {
 
 inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {
   return EdgeSlice{mask, std::move(inner), step};
+}
+
+/** Runs a decoration against an INSET (or outset) copy of the node's
+ *  outline — EdgeSlice's sibling, and the same trick: rewrite
+ *  `PaintContext::outline` and delegate.
+ *
+ *  "The same bevel again, six pixels in" is the entire vocabulary of
+ *  nested chrome — 2Advanced's own SWF names two panel classes,
+ *  FSingleBevelPanel and FDoubleBevelPanel, and the second is literally
+ *  the first run twice at two insets. Without this, every nested frame is
+ *  either a second element or a bespoke decoration struct.
+ *
+ *  Positive `px` shrinks; negative grows. Implemented as a stroke-and-fill
+ *  offset of the resolved outline, so it follows any silhouette — a
+ *  chamfered panel, a star, a blob — not just rectangles. */
+struct Inset {
+  float px = 0;
+  Decoration inner{PaintProgram{}};
+
+  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+    PaintContext local = ctx;
+    if (px != 0) {
+      SkPaint offset;
+      offset.setStyle(SkPaint::kStroke_Style); // the RING, not the grown shape
+      offset.setStrokeWidth(std::abs(px) * 2.0f);
+      offset.setStrokeJoin(SkPaint::kMiter_Join);
+      // The stroke-and-fill of the outline is the RING of width 2|px|
+      // straddling it. Subtracting that ring shrinks the silhouette;
+      // unioning it grows the silhouette by the same amount.
+      const SkPath ring = skpathutils::FillPathWithPaint(ctx.outline, offset);
+      SkPath result;
+      if (Op(ctx.outline, ring,
+             px > 0 ? SkPathOp::kDifference_SkPathOp
+                    : SkPathOp::kUnion_SkPathOp,
+             &result))
+        local.outline = std::move(result);
+    }
+    inner.paint(canvas, local);
+  }
+  bool animated() const { return inner.animated(); }
+  bool operator==(const Inset &o) const {
+    return px == o.px && inner == o.inner;
+  }
+};
+
+inline Inset inset(float px, Decoration inner) {
+  return Inset{px, std::move(inner)};
+}
+
+/** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
+ *  height and a head of `headFrac` of the width. Every HUD, gizmo,
+ *  manoeuvre node and diagram draws one, and every one of them was
+ *  hand-built with SkPathBuilder. */
+inline OutlineFn arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
+  return [shaftFrac, headFrac](SkSize s) {
+    const float w = s.width(), h = s.height();
+    const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
+    const float head = std::clamp(headFrac, 0.05f, 1.0f) * w;
+    const float cy = h * 0.5f;
+    SkPathBuilder b;
+    b.moveTo(0, cy - half);
+    b.lineTo(w - head, cy - half);
+    b.lineTo(w - head, 0);
+    b.lineTo(w, cy);
+    b.lineTo(w - head, h);
+    b.lineTo(w - head, cy + half);
+    b.lineTo(0, cy + half);
+    b.close();
+    return b.detach();
+  };
 }
 
 } // namespace sigil::compose::shapes

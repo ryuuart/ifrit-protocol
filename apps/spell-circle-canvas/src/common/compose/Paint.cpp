@@ -280,6 +280,42 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   else if (spec.align == TextPath::Align::End)
     start -= runWidth;
 
+  // A CLOSED baseline has no ends: fraction 0 and 1 are the same point, so
+  // a centred run at at=0 must straddle the seam rather than lose the half
+  // that lands at a negative distance. (An open path keeps the drop — a
+  // run walking off the end of a line should look like it.)
+  //
+  // "Closed" here means geometrically closed, not flagged closed:
+  // shapes::arc() defaults to a 359.9-degree sweep and is the library's
+  // own spelling for a ring, but addArc leaves it open. Dropping half a
+  // centred caption off a ring because of a tenth of a degree is not a
+  // behaviour anyone wants.
+  bool closed = contour->isClosed();
+  if (!closed) {
+    SkPoint head, tail;
+    SkVector ignored;
+    if (contour->getPosTan(0, &head, &ignored) &&
+        contour->getPosTan(length, &tail, &ignored))
+      closed = SkPoint::Distance(head, tail) <=
+               std::max(1.0f, length * 0.002f);
+  }
+
+  // autoFlip is a decision about the RUN, not about each glyph. Turning
+  // glyphs over one at a time reverses the reading order — a caption on
+  // the lower half of a clockwise ring came out mirrored — so the run
+  // decides once, from the tangent at its own midpoint, and then walks its
+  // along-path coordinate backwards.
+  bool flipRun = false;
+  if (spec.autoFlip) {
+    SkPoint midPos;
+    SkVector midTan;
+    float mid = start + runWidth * 0.5f;
+    if (closed)
+      mid = std::fmod(std::fmod(mid, length) + length, length);
+    if (contour->getPosTan(std::clamp(mid, 0.0f, length), &midPos, &midTan))
+      flipRun = midTan.x() < 0;
+  }
+
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
   sigil::weave::forEachPlacedGlyph(
@@ -289,8 +325,11 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
         // The glyph rides its own CENTRE along the path, so a wide glyph
         // on a tight curve leans about its middle rather than its left
         // sidebearing.
-        const float d = start + rest.x() + advance * 0.5f;
-        if (d < 0 || d > length)
+        const float along = rest.x() + advance * 0.5f;
+        float d = flipRun ? start + runWidth - along : start + along;
+        if (closed)
+          d = std::fmod(std::fmod(d, length) + length, length);
+        else if (d < 0 || d > length)
           return;
         SkPoint pos;
         SkVector tangent;
@@ -299,25 +338,21 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
         const float mag = std::hypot(tangent.x(), tangent.y());
         if (mag <= 1e-6f)
           return;
+        float dirX = tangent.x() / mag, dirY = tangent.y() / mag;
+        if (flipRun) {
+          dirX = -dirX;
+          dirY = -dirY;
+        }
+        // Perpendicular offset, positive to the LEFT of travel (outward on
+        // a clockwise circle). The path replaces the glyph's own baseline.
+        pos.offset(dirY * spec.offset, -dirX * spec.offset);
         // Quantized for the same reason kinetic text quantizes: a
         // continuous per-glyph angle mints a fresh glyph mask per letter
         // in Skia's cache. 64 steps is 5.6 degrees, which on a ring whose
         // own letters sit ~7 degrees apart is under a pixel of lean at
         // label sizes.
         float cosv = 1.0f, sinv = 0.0f;
-        sigil::weave::quantizeAngle(
-            std::atan2(tangent.y() / mag, tangent.x() / mag), cosv, sinv);
-        // Perpendicular offset, positive to the LEFT of travel (outward on
-        // a clockwise circle). rest.y() carries the glyph's own baseline
-        // offset within the line, which the path replaces.
-        pos.offset(sinv * spec.offset, -cosv * spec.offset);
-        if (spec.autoFlip && cosv < 0) {
-          // Upside down on this stretch: turn the glyph over and step it
-          // back across its own advance so the run still reads forward.
-          cosv = -cosv;
-          sinv = -sinv;
-          pos.offset(sinv * spec.offset * 2.0f, -cosv * spec.offset * 2.0f);
-        }
+        sigil::weave::quantizeAngle(std::atan2(dirY, dirX), cosv, sinv);
         batches.addGlyph(font, color, glyph, advance * 0.5f, pos, cosv, sinv);
       });
   batches.draw(&canvas);

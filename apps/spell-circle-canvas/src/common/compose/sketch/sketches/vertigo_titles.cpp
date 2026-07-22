@@ -85,7 +85,7 @@
 // STATIONARY frame, is a Lissajous figure composed with a continuous
 // rotation — a precessing rosette:
 //
-//     t   = i/(N-1) · T                 T = 6π (3 pendulum periods)
+//     t   = i/(N-1) · T                 T = 12π (6 pendulum periods)
 //     env = exp(-damp·t)                (this study's damping)
 //     xl  = R·env·sin(a·t + δ)          pendulum, in the table's frame
 //     yl  = R·env·sin(b·t)
@@ -103,7 +103,7 @@
 //     SHAPES; nothing evaluates a caller's t → (x, y). The curve is a
 //     hand-rolled SkPathBuilder loop inside outline().
 //  2. No derived Outputs. `penTip` must be a second, independently-owned
-//     Output the ticker re-copies from `growth − 0.018` every tick; so
+//     Output the ticker re-copies from `growth − 0.008` every tick; so
 //     must `penA`. Four cards × two shadow cells = eight scalars kept in
 //     sync by hand.
 //  3. ONE trim window per NODE. trim() is an Element property and
@@ -119,7 +119,10 @@
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/vertigo_titles.cpp \
-//       --frame /tmp/vertigo_titles.png --at 5.2
+//       --frame shots/vertigo_titles.png --at 5.2
+//
+//   Motion check (the pen edge advancing along arc length across card B's
+//   1400 ms draw window):  --at 4.30 --frames 8 --fps 5
 
 #include <sigilsketch/Sketch.h>
 
@@ -573,7 +576,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                 .width(352)
                 .height(268)
                 .outline(lissajous(kCards[2], 74.0f, 900))
-                .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.42f))))
+                .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.55f))))
                 .rotate(&spin));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
@@ -795,8 +798,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         cardA[i] = op;
         growth[i] = g;
         // shadow state the sketch keeps in sync BY HAND — there is no
-        // "this Output, minus 0.018" PropValue form (see the gaps note).
-        penTip[i] = std::max(0.0f, g - 0.018f);
+        // "this Output, minus 0.008" PropValue form (see the gaps note).
+        penTip[i] = std::max(0.0f, g - 0.008f);
         penA[i] = op * std::clamp((1.0f - g) / 0.06f, 0.0f, 1.0f) *
                   std::clamp(g / 0.02f, 0.0f, 1.0f);
       }

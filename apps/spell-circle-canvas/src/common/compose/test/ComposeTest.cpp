@@ -653,6 +653,34 @@ TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
   EXPECT_LT(SkColorGetG(host.pixel(10, 190)), 60u);   // past y
 }
 
+TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
+  // "The same bevel again, six pixels in" is the whole vocabulary of
+  // nested chrome. A stroke run through inset(12, ...) must land INSIDE
+  // the box, not on its edge.
+  Host host(120, 120);
+  host.composer.render(box().child(
+      box().width(120).height(120).absolute().left(0).top(0)
+          .foreground(shapes::inset(
+              12.0f, util::stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(60, 12)), 150u); // the inset rule
+  EXPECT_LT(SkColorGetR(host.pixel(60, 1)), 60u);   // the edge is bare
+  EXPECT_LT(SkColorGetR(host.pixel(60, 60)), 60u);  // and so is the middle
+}
+
+TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
+  Host host(120, 60);
+  host.composer.render(box().child(
+      box().width(120).height(60).absolute().left(0).top(0)
+          .outline(shapes::arrow())
+          .fill(Material::solid({0, 1, 0, 1}))));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
+  EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
+  EXPECT_GT(SkColorGetG(host.pixel(80, 12)), 200u);  // head is tall
+  EXPECT_LT(SkColorGetG(host.pixel(118, 12)), 60u);  // and tapers to a point
+}
+
 TEST(ComposeShapes, SectorIsClosedAndFillable) {
   // shapes::arc() is open by contract; a pie wedge needs a closed path.
   // A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
@@ -2955,6 +2983,57 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   bottom.frame();
   EXPECT_GT(lit(bottom, 140, 240), 200);
   EXPECT_LT(lit(bottom, 0, 110), 40);
+}
+
+TEST(ComposeText, OnPathWrapsTheSeamAndFlipsWithoutMirroring) {
+  // Two bugs found by the Vertigo study, hours after onPath shipped.
+  //
+  // 1. Align::Center at at=0 on a CLOSED baseline put half the run at a
+  //    negative distance and dropped it. Fraction 0 and 1 are the same
+  //    point on a ring; the run has to straddle the seam.
+  // 2. autoFlip turned each glyph over IN PLACE, which reverses reading
+  //    order — a lower-half caption came out mirrored. The flip is a
+  //    decision about the RUN, so the run also walks backwards.
+  auto ink = [](Host &host, int x0, int x1, int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = x0; x < x1; ++x)
+        count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+
+  Host seam(240, 240);
+  seam.composer.render(box().child(
+      text(u8"HHHHHHHH", whiteStyle(20))
+          .width(240).height(240).absolute().left(0).top(0)
+          .onPath({.path = shapes::arc(180.0f, 359.9f), .at = 0.0f,
+                   .align = TextPath::Align::Center})));
+  seam.frame();
+  // at=0 on this arc is 9 o'clock, so a centred run straddles it: ink on
+  // BOTH sides of the horizontal midline, near the left edge.
+  EXPECT_GT(ink(seam, 0, 60, 0, 120), 60) << "the half before the seam was dropped";
+  EXPECT_GT(ink(seam, 0, 60, 120, 240), 60);
+
+  // Flipped, the run must still read left-to-right in the same order it
+  // does unflipped — mirrored text has its ink distribution reversed, so
+  // compare the first and last thirds of a deliberately lopsided run.
+  auto lopsided = [](bool flip) {
+    return text(u8"IIIIIIIIWWWW", whiteStyle(20))
+        .width(260).height(260).absolute().left(0).top(0)
+        .onPath({.path = shapes::arc(0.0f, 359.9f), .at = 0.30f,
+                 .align = TextPath::Align::Start, .autoFlip = flip});
+  };
+  Host plain(260, 260), flipped(260, 260);
+  plain.composer.render(box().child(lopsided(false)));
+  plain.frame();
+  flipped.composer.render(box().child(lopsided(true)));
+  flipped.frame();
+  // Both runs occupy the same stretch of the ring, so the heavy Ws land in
+  // the same place — which is exactly what mirroring would break.
+  const int plainLower = ink(plain, 0, 260, 130, 260);
+  const int flipLower = ink(flipped, 0, 260, 130, 260);
+  EXPECT_GT(plainLower, 100);
+  EXPECT_GT(flipLower, 100);
 }
 
 TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {

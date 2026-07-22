@@ -45,6 +45,17 @@ inline Fill radialGradient(SkPoint center, float radius,
                  {})));
 }
 
+/** A box of `radius` about `centre` — the polar-chart placement, since
+ *  every inscribed-in-the-box generator (sector, arc, circle, star) needs
+ *  `width(2r).height(2r).centerAt(c)` spelled out at every call site.
+ *  Two study sketches wrote this locally before it existed. */
+inline Element disc(SkPoint centre, float radius) {
+  return box()
+      .width(Dim(radius * 2))
+      .height(Dim(radius * 2))
+      .centerAt(centre);
+}
+
 /** A solid stroke of the node outline (dash/stamp via PathFormat).
  *  `align` positions it: Center (default) straddles the outline, Inner
  *  keeps it inside the silhouette, Outer outside (the keyline). */
