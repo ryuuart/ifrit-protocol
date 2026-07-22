@@ -206,6 +206,15 @@ rects and no flex participation, skipping the Yoga pass. Generated
 geometry (tilings, lattices, node graphs, particle fields drawn as real
 elements) never wants layout, and today there is no way to say so.
 
+**And a second thing the cell bakes: its SHADE.** The X-COM study
+measured it — block 3 at shade 8 needs per-channel multipliers R 0.17 /
+G 0.54 / B 0.42, and the best single scalar renders red 2.4× too bright,
+so `tints()` cannot shade a tile at all. The faithful flyweight is
+`frames = types × shades`. Together with KSP's gizmo (one cell, two arm
+lengths) and the astrolabe's hairlines, three studies now point at the
+same answer: **atlas VARIANTS** — several bakes of one recipe, addressed
+as `(cell, variant)` — rather than more `Pool` columns.
+
 **The blocker, finally named — it is not the transform, it is that the
 STROKE WIDTH is baked into the atlas cell.** The astrolabe study has both
 call sites in one file and they decide it. Its 360 limb ticks DID
@@ -229,6 +238,10 @@ plate's 9,580 settling sand grains:
 
 - **`tints()` is the only per-instance opacity lane**, so fading a subset
   means rewriting RGBA every frame when only alpha moves.
+- **`hitTest` cannot see a pool instance.** `instances()` is one
+  `custom()` leaf, so picking a stamped cell means writing your own
+  inverse projection beside the one that placed it. Wanted:
+  `instancing::pick(pool, atlas, point)`.
 - ~~**The non-uniform-scale half**~~ — **CLOSED**: `Pool::sizes()` is an
   opt-in `SkSize` lane, and the fix was smaller than the gap looked
   because `drawSpriteAtlas` was already decomposing to quads for backend
@@ -613,6 +626,20 @@ instrument — and it lands on something nothing else could have found.
   `std::function`), so a node carrying one never prunes — 72 radial
   labels re-record on every `render()`. The comparable-`Outline` fix in
   §3 covers this too if it carries a key.
+
+## 10f. `Material::sksl()` has no child shader and no array uniform
+
+`Material.cpp` already builds an `SkRuntimeShaderBuilder` internally, and
+nothing public reaches its **child** slot or hands it an array. So a
+palette LUT — the defining primitive of the entire 8-bit era, and the
+natural expression of any indexed-colour reconstruction — is unreachable,
+and so is any effect that wants to sample another material.
+
+Related and smaller, from the same study: X-COM's shading is
+`(src & 0xF0) | min(15, (src & 0x0F) + shade)` — index arithmetic with no
+multiplication anywhere in the renderer, and overflow snapping to
+absolute black rather than to the ramp's darkest entry. That is
+expressible as SkSL over a LUT and not otherwise.
 
 ## 11. `Effect` has no live uniforms
 
