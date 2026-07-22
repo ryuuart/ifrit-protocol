@@ -8,6 +8,7 @@
 #include "ScenesChrome.h"
 #include "ScenesData.h"
 #include "ScenesFlourish.h"
+#include "ScenesInventory.h"
 #include "ScenesGame.h"
 #include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
@@ -70,6 +71,8 @@ inline constexpr SceneInfo kScenes[] = {
      "EMBER GATE \xe2\x80\x94 the flagship living poster"},
     {"zellige", "Showcase", "girih Hankin PIC \xe2\x80\x94 regenerating"},
     {"beethoven", "Showcase", "\xc2\xa7""7 Brockmann arc table, trim reveal"},
+    {"loot grid", "Showcase",
+     "D2 hoard \xe2\x80\x94 generated materials, instances()"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -123,6 +126,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 16: return std::make_unique<MotionPosterScene>();
   case 17: return std::make_unique<ZelligeScene>();
   case 18: return std::make_unique<BeethovenScene>();
+  case 19: return std::make_unique<LootGridScene>();
   default: return nullptr;
   }
 }
