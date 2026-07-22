@@ -432,14 +432,8 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     }
   }
 
-  if (resolved->deriveData && (!resolved->deriveData->flowAroundKeys.empty() ||
-                               !resolved->deriveData->connectFrom.empty() ||
-                               !resolved->deriveData->railAnchors.empty()))
-    hasDerived = true;
-  if (resolved->deriveData && resolved->deriveData->placeFn)
-    hasCustomLayout = true;
-  if (resolved->layout.centerAt)
-    hasCenterPins = true;
+  // (hasDerived/hasCustomLayout/hasCenterPins are recomputed with the key
+  // index after the patch walk — see rebuildKeyIndex.)
 
   // Slot content is owned by renderSlot(), not the description.
   if (resolved->kind != Kind::Slot)
@@ -646,8 +640,15 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
 
 void Composer::Impl::rebuildKeyIndex() {
   byKey.clear();
+  routedInstances.clear();
+  flowInstances.clear();
+  routesByAnchor.clear();
+  hasDerived = false;
+  hasCustomLayout = false;
+  hasCenterPins = false;
   if (root)
     indexKeys(*root);
+  hasDerived = !routedInstances.empty() || !flowInstances.empty();
 }
 
 void Composer::Impl::indexKeys(Instance &inst) {
@@ -657,6 +658,34 @@ void Composer::Impl::indexKeys(Instance &inst) {
     byKey[shell->key] = &inst;
   else if (!inst.desc->key.empty())
     byKey[inst.desc->key] = &inst;
+  // The edge store (flat derive lists + anchor back-index) and the pass
+  // gates ride the same walk. Tree order here IS the derive order.
+  const ElementNode &node = *inst.desc;
+  if (node.deriveData) {
+    const DeriveData &derive = *node.deriveData;
+    if (!derive.flowAroundKeys.empty())
+      flowInstances.push_back(&inst);
+    const bool isConnector =
+        !derive.connectFrom.empty() && !derive.connectTo.empty();
+    const bool isRail = derive.railAnchors.size() >= 2;
+    if (isConnector || isRail) {
+      routedInstances.push_back(&inst);
+      if (isConnector) {
+        routesByAnchor[derive.connectFrom].push_back(&inst);
+        if (derive.connectTo != derive.connectFrom)
+          routesByAnchor[derive.connectTo].push_back(&inst);
+      }
+      for (const Anchor &anchor : derive.railAnchors) {
+        auto &at = routesByAnchor[anchor.nodeKey];
+        if (at.empty() || at.back() != &inst) // rails revisit anchors
+          at.push_back(&inst);
+      }
+    }
+    if (derive.placeFn)
+      hasCustomLayout = true;
+  }
+  if (node.layout.centerAt)
+    hasCenterPins = true;
   for (auto &child : inst.children)
     indexKeys(*child);
 }

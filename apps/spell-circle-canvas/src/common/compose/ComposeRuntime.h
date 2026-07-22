@@ -162,9 +162,20 @@ struct Composer::Impl {
   bool needsLayout = true;
   bool contentDirty = true;
   std::unordered_map<std::string, detail::Instance *> byKey;
+  // The EDGE STORE, rebuilt with the key index each render: routed nodes
+  // (connector()/rail()) as a flat list in tree order, plus the back-index
+  // anchor-key → routes-anchored-there. The derive pass iterates these flat
+  // lists instead of recursing the whole tree, and routesAt() answers graph
+  // queries ("which edges touch this node") in O(routes-at-node).
+  std::vector<detail::Instance *> routedInstances;
+  std::vector<detail::Instance *> flowInstances; // flowAround() text nodes
+  std::unordered_map<std::string, std::vector<detail::Instance *>>
+      routesByAnchor;
   bool volatileDirty = true; // recompute needed (render or animation)
   bool tickerWasActive = false;
-  bool hasDerived = false; // any flowAround/connector in the tree
+  // Recomputed with the key index (so unmounting the last derived/pinned
+  // node actually clears them — they were latch-only before).
+  bool hasDerived = false; // any flowAround/connector/rail in the tree
   bool hasCustomLayout = false;
   bool hasCenterPins = false; // any centerAt() in the tree
   bool liveOnly = false; // snapshot(): skip per-node caches
@@ -221,7 +232,12 @@ struct Composer::Impl {
   SkRect absoluteRect(const detail::Instance &inst) const;
 
   // ---- derive (Derive.cpp) ----
-  bool resolveDerived(detail::Instance &inst);
+  /** One pass over the flat flow/route lists (the edge store) — no tree
+   *  recursion. Returns true when a text exclusion changed (second layout
+   *  pass needed). */
+  bool resolveDerived();
+  bool deriveFlow(detail::Instance &inst);
+  void deriveRoute(detail::Instance &inst);
 
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f; // device px per layout px at draw() entry

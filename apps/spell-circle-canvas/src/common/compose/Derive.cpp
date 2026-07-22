@@ -30,14 +30,24 @@ SkPath expandForHit(const SkPath &route) {
 
 } // namespace
 
-/** The derive pass: content whose input is resolved geometry. Returns true
- *  when a text exclusion changed (second layout pass needed). */
-bool Composer::Impl::resolveDerived(Instance &inst) {
+/** The derive pass over the EDGE STORE's flat lists (rebuilt with the key
+ *  index each render): flowAround text nodes first, then routed nodes, both
+ *  in tree order — no tree recursion. Returns true when a text exclusion
+ *  changed (second layout pass needed). */
+bool Composer::Impl::resolveDerived() {
   bool relayout = false;
-  const ElementNode &node = *inst.desc;
-  const DeriveData *derive = node.deriveData ? &*node.deriveData : nullptr;
+  for (Instance *inst : flowInstances)
+    relayout |= deriveFlow(*inst);
+  for (Instance *inst : routedInstances)
+    deriveRoute(*inst);
+  return relayout;
+}
 
-  if (derive && !derive->flowAroundKeys.empty() && inst.paragraph) {
+bool Composer::Impl::deriveFlow(Instance &inst) {
+  bool relayout = false;
+  const DeriveData *derive = &*inst.desc->deriveData;
+
+  if (inst.paragraph) {
     std::vector<SkRect> exclusions;
     const SkRect own = absoluteRect(inst);
     for (const std::string &key : derive->flowAroundKeys) {
@@ -63,7 +73,13 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
-  if (derive && !derive->connectFrom.empty() && !derive->connectTo.empty()) {
+  return relayout;
+}
+
+void Composer::Impl::deriveRoute(Instance &inst) {
+  const DeriveData *derive = &*inst.desc->deriveData;
+
+  if (!derive->connectFrom.empty() && !derive->connectTo.empty()) {
     auto fromIt = byKey.find(derive->connectFrom);
     auto toIt = byKey.find(derive->connectTo);
     if (fromIt != byKey.end() && toIt != byKey.end()) {
@@ -89,7 +105,7 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
-  if (derive && derive->railAnchors.size() >= 2) {
+  if (derive->railAnchors.size() >= 2) {
     std::vector<SkPoint> pts;
     pts.reserve(derive->railAnchors.size());
     const SkRect own = absoluteRect(inst);
@@ -157,9 +173,6 @@ bool Composer::Impl::resolveDerived(Instance &inst) {
     }
   }
 
-  for (auto &child : inst.children)
-    relayout |= resolveDerived(*child);
-  return relayout;
 }
 
 } // namespace sigil::compose

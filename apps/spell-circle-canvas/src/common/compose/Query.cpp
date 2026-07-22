@@ -100,4 +100,22 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
   return std::nullopt;
 }
 
+std::vector<std::string> Composer::routesAt(std::string_view nodeKey) const {
+  std::vector<std::string> keys;
+  auto it = m_impl->routesByAnchor.find(std::string(nodeKey));
+  if (it == m_impl->routesByAnchor.end())
+    return keys;
+  keys.reserve(it->second.size());
+  for (const detail::Instance *route : it->second) {
+    // A route's addressable key may live on its memo shell (memo'd routes).
+    const std::shared_ptr<detail::ElementNode> &shell =
+        route->memoShell ? route->memoShell : route->desc;
+    if (!shell->key.empty())
+      keys.push_back(shell->key);
+    else if (!route->desc->key.empty())
+      keys.push_back(route->desc->key);
+  }
+  return keys;
+}
+
 } // namespace sigil::compose

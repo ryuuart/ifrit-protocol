@@ -96,13 +96,13 @@ void Composer::Impl::ensureLayout() {
     if (hasCenterPins)
       changed |= applyCenterPins(*root);
     if (hasDerived)
-      changed |= resolveDerived(*root);
+      changed |= resolveDerived();
     if (!changed)
       break;
     YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined,
                           YGDirectionLTR);
     if (hasDerived)
-      resolveDerived(*root); // refresh routes against the moved geometry
+      resolveDerived(); // refresh routes against the moved geometry
   }
   // Post-layout invalidation: recordings bake geometry (child offsets, text
   // lines, geometry-material uResolution), so any rect that moved or resized

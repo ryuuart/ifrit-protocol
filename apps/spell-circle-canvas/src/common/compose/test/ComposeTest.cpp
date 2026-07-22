@@ -4126,3 +4126,50 @@ TEST(ComposeInstances, RepeaterLawExponentialScaleLinearEverythingElse) {
   EXPECT_FLOAT_EQ(pool.tints()[0].fA, 1.0f);      // opacity lerp endpoints
   EXPECT_FLOAT_EQ(pool.tints()[3].fA, 0.25f);
 }
+
+// ---------------------------------------------------------------------------
+// The edge store: node→routes back-index + flat derive lists
+
+TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
+  Host host;
+  auto describe = [] {
+    return box()
+        .child(box().key("a").width(30).height(30).absolute().inset(
+            10, 10, 160, 160))
+        .child(box().key("b").width(30).height(30).absolute().inset(
+            160, 160, 10, 10))
+        .child(connector("a", "b").key("edge1"))
+        .child(rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"))
+        .child(connector("a", "b")); // keyless: anchored but unaddressable
+  };
+  host.composer.render(describe());
+  host.frame();
+  const std::vector<std::string> atA = host.composer.routesAt("a");
+  ASSERT_EQ(atA.size(), 2u); // the keyless route is omitted
+  EXPECT_EQ(atA[0], "edge1");
+  EXPECT_EQ(atA[1], "edge2");
+  EXPECT_EQ(host.composer.routesAt("b").size(), 2u);
+  EXPECT_TRUE(host.composer.routesAt("nowhere").empty());
+}
+
+TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
+  Host host;
+  bool withRoute = true;
+  auto describe = [&] {
+    auto tree = box()
+                    .child(box().key("a").width(30).height(30).absolute().inset(
+                        10, 10, 160, 160))
+                    .child(box().key("b").width(30).height(30).absolute().inset(
+                        160, 160, 10, 10));
+    if (withRoute)
+      tree.child(connector("a", "b").key("edge"));
+    return tree;
+  };
+  host.composer.render(describe());
+  host.frame();
+  ASSERT_EQ(host.composer.routesAt("a").size(), 1u);
+  withRoute = false;
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_TRUE(host.composer.routesAt("a").empty());
+}
