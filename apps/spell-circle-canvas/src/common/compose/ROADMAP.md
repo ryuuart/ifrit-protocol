@@ -110,6 +110,9 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `PathFormat::strokeMaterial` | `fill()` took a Material and a stroke took only the kernel `Fill`, so an object made of strokes wrote the same material twice, once per return type | `Decorations.h` |
+| `debug::coverage(…, SkPath region)`, `VertexDegrees::components()` | An annulus cannot be tested against its bounds; and "is this one piece of metal?" needed hand-rolled union-find | `Debug.h` |
+| `TextPath::Orient::Upright` | Neither Tangent nor Radial can leave a glyph level, which is what a calendar ring and a modern gauge use | `Compose.h` |
 | **`Element::textStroke(width, Fill)`** | Three studies dropped to hand-built `PaintStyle` underlays; one spelled a 1 px outline as 117 re-draws of a paragraph | `Compose.h`, `Paint.cpp` |
 | **`Element::wipe(angleDeg, fraction)`** | Three studies. `trim()` walks the perimeter and `scaleX` squashes; the last workaround left the retained tree entirely and forfeited decorations, hit-testing and pruning on twelve nodes | `Compose.h`, `Paint.cpp` |
 | `textFill` + the `Unit` ramps | The metric band already maps the shader to a unit square, then `linearUnit`'s SkSL divided by the NODE size on top: t ≈ 0.003, every glyph flat on the first stop, silently — and `Material.h` advertised the two as the same trick | `Paint.cpp` |
@@ -199,6 +202,24 @@ instances" but **a positioned leaf set** — N children with caller-supplied
 rects and no flex participation, skipping the Yoga pass. Generated
 geometry (tilings, lattices, node graphs, particle fields drawn as real
 elements) never wants layout, and today there is no way to say so.
+
+**The blocker, finally named — it is not the transform, it is that the
+STROKE WIDTH is baked into the atlas cell.** The astrolabe study has both
+call sites in one file and they decide it. Its 360 limb ticks DID
+instance: one cell, three lengths through `Pool::sizes()`, y-multiplier 1
+so the mark width holds — because a tick is a FILLED RECT. Its 45
+almucantars, 12 azimuths and 12 hour lines are literally one shape at 69
+(centre, radius) pairs and cannot, because there the mark width IS the
+stroke on the shape's outline, and RSXform's uniform scale would make a
+bigger circle a thicker line. An engraved line does not thicken as its
+circle grows. So the plate pays ~73 real Elements with zero layout in
+them.
+
+Wanted: a `Pool` **stroke-width lane**, or a `strokeInvariant` flag on
+`Atlas` that re-strokes at stamp time rather than magnifying baked
+pixels. That one change opens every dial, contour map, ripple field and
+concentric-ring diagram — the whole class this library keeps being asked
+to draw.
 
 Two more details that the lane list does not cover, both from the Chladni
 plate's 9,580 settling sand grains:
