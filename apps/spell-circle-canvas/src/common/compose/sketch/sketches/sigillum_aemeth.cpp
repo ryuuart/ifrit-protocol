@@ -92,7 +92,10 @@
 //                         cells, the seven angle plates, the 28 tablets,
 //                         and the deep recess between star and heptagon
 //   brushes::PatternBrush corner tiles — "at each corner of these segments
-//                         of circles, to make little Crosses", 1582
+//                         of circles, to make little Crosses", 1582 — and
+//                         `cornerAlign = Outgoing`, because the default
+//                         bisects a RIGHT angle and a cross turned 45
+//                         degrees is an X (see angles())
 //   brushes::ScatterBrush the compass pricks: forty divisions are STEPPED
 //                         round with dividers, not measured, and the point
 //                         leaves a mark at every step
@@ -786,6 +789,20 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // the seven "segments of circles" — annular plates, radially hatched,
     // with brushes::PatternBrush corner tiles: "at each corner of these
     // segments of circles, to make little Crosses."
+    //
+    // A CROSS TURNED 45 DEGREES IS AN X, and for one afternoon these were
+    // all X. The art below is a Greek cross drawn with its arms on local
+    // +x/+y, and every corner of an annular sector is a RIGHT ANGLE — the
+    // radial leg meets the arc at 90 degrees — so aligning the stamp to
+    // either leg puts one arm along the arc and one along the radius, at all
+    // four corners of all seven plates, which is what the record draws. The
+    // BISECTOR of a right angle is 45 degrees off both, and the same 90-fold
+    // symmetry that makes Outgoing corner-agnostic makes Bisector uniformly
+    // wrong: not a tilt to notice, a saltire. This shipped at 0ea8aa3 (11:44)
+    // when PatternBrush had no `cornerAlign` and every corner behaved as
+    // Outgoing; the scanner learned to bisect its own bracket at f706f5d
+    // (12:03) and defaulted to Bisector, and nothing in this file changed.
+    // So ask for the frame the art is drawn in, out loud.
     Element crossTile = box()
                             .width(13)
                             .height(13)
@@ -834,6 +851,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                   .corner = crossTile,
                                   .advance = 22.0f,
                                   .cornerAngleDeg = 40.0f,
+                                  .cornerAlign = brushes::PatternBrush::
+                                      CornerAlign::Outgoing,
                                   .reach = 16.0f}))
                   .key("plate" + std::to_string(k)));
     }
