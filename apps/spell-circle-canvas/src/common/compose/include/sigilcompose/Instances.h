@@ -230,7 +230,7 @@ namespace detail {
 inline constexpr size_t kCullThreshold = 2048;
 
 inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
-                  const Pool &pool) {
+                  const Pool &pool, SkBlendMode blend) {
   if (!ctx.fonts || pool.size() == 0 || !atlas.ensureBaked(*ctx.fonts))
     return;
   const float inv = 1.0f / atlas.oversample();
@@ -287,13 +287,14 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
                           xforms.data(), tex.data(),
                           tinted ? colors.data() : nullptr, xforms.size(),
-                          SkSamplingOptions(SkFilterMode::kLinear));
+                          SkSamplingOptions(SkFilterMode::kLinear), blend);
 }
 
 struct DataProps {
   std::shared_ptr<Atlas> atlas;
   std::shared_ptr<const Pool> pool;
   uint64_t revision = 0;
+  SkBlendMode blend = SkBlendMode::kSrcOver;
   bool operator==(const DataProps &) const = default; // ptr identity + rev
 };
 
@@ -313,24 +314,34 @@ enum class Mode {
 /** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset
  *  0) — wrap it in a sized or positioned box, and pool positions are that
  *  parent's local pixels. (A memo shell cannot carry layout props — the
- *  wrapper IS the placement API.) */
+ *  wrapper IS the placement API.)
+ *
+ *  @p blend is PER SPRITE, and that distinction is the whole point:
+ *  `Element::blend()` on this leaf would flatten the field into a layer
+ *  and composite it once, so overlapping particles could never accumulate.
+ *  Reeves' 1982 wall of fire — the first particle system — is additive
+ *  end to end; its palette is not a palette but an overlap count, red
+ *  saturating at 5 particles, green at 20, blue at 111. kSrcOver cannot
+ *  express any of that, and until now nothing in the chain from
+ *  instances() to drawSpriteAtlas carried a blend mode at all. */
 inline Element instances(std::shared_ptr<Atlas> atlas,
                          std::shared_ptr<const Pool> pool,
-                         Mode mode = Mode::Data) {
+                         Mode mode = Mode::Data,
+                         SkBlendMode blend = SkBlendMode::kSrcOver) {
   if (mode == Mode::Live) {
-    return custom([atlas = std::move(atlas), pool = std::move(pool)](
-                      SkCanvas &canvas, const PaintContext &ctx) {
-             detail::stamp(canvas, ctx, *atlas, *pool);
+    return custom([atlas = std::move(atlas), pool = std::move(pool),
+                   blend](SkCanvas &canvas, const PaintContext &ctx) {
+             detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()
         .inset(0)
         .cache(Cache::None);
   }
-  detail::DataProps props{atlas, pool, pool->revision()};
+  detail::DataProps props{atlas, pool, pool->revision(), blend};
   return memo(std::move(props), [](const detail::DataProps &p) {
-    return custom([atlas = p.atlas, pool = p.pool](SkCanvas &canvas,
-                                                   const PaintContext &ctx) {
-             detail::stamp(canvas, ctx, *atlas, *pool);
+    return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](
+                      SkCanvas &canvas, const PaintContext &ctx) {
+             detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()
         .inset(0);

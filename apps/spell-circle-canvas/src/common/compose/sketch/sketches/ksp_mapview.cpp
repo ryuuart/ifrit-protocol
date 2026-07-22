@@ -38,14 +38,41 @@
 // GEOMETRY IS REAL. Every orbit here is a conic r = p/(1 + e·cos ν) with
 // Kerbin at the FOCUS (not the centre — the brief's centred squircle is the
 // one thing a KSP player would notice instantly), sampled in true anomaly.
-// The manoeuvre node sits at ν = −110° on the current orbit; prograde is the
+// The manoeuvre node sits at ν = −130° on the current orbit; prograde is the
 // analytic tangent dP/dν there, radial-out is r̂, and the flight-path angle
-// between them comes out at 110.5° — so normal/antinormal drop into the two
-// wide gaps at ±55° and nothing collides. No stylised 60° fan was needed.
+// between them comes out at ≈113.8° — so normal/antinormal drop into the two
+// wide gaps at ±57° and nothing collides. No stylised 60° fan was needed:
+// the brief's predicted 12–20° collision is an artefact of picking a node
+// near an apsis, not a property of ellipses.
+//
+// The navball is a real orthographic sphere: one SkSL pass inverts the
+// projection per pixel (z = +√(1−r²) picks the FRONT hemisphere, so the back
+// is never sampled), undoes roll/pitch/heading, and draws latitude and
+// longitude bands as distances to the nearest grid PLANE — which gets the
+// limb foreshortening for free and needs no fwidth().
 //
 // PALETTE: every hex tagged "sampled" below was read off the reference
 // pixels; the rest are the documented colour conventions for the six
 // manoeuvre axes (green prograde / purple normal / blue radial).
+//
+// FOUR THINGS THE RENDER TAUGHT THAT NO AMOUNT OF READING WOULD HAVE:
+//  · `Material::radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so
+//    a planet terminator authored at 1.28 puts the dark end of its ramp
+//    entirely OUTSIDE the disc and the shading silently disappears. 1.02
+//    is where the ramp finishes at the far limb of an inscribed circle.
+//  · `patterns::grain` composited over a NEAR-TRANSPARENT base does not
+//    modulate it — it composites as its own luminance. The first nebula
+//    came back a white cloud. Grain belongs on opaque surfaces (it is on
+//    the altimeter plate here) and the milky way is mottle: eighteen small
+//    soft blobs beat one big one, at any alpha.
+//  · A `foreground()` hatch paints above the node's CHILDREN, so the stage
+//    tab's hazard stripe greyed out its own digit. Moving the hatch to
+//    `background()` hides it under the fill instead; the fix is a sibling —
+//    striped plate, then the digit, as two children of a stack().
+//  · A hyperbola sampled out to its asymptote drops off-canvas points and
+//    therefore splits into several contours, and `onPath` only uses the
+//    FIRST one — so the escape label rendered nothing until the ν window
+//    was hand-fitted to the part that crosses the frame.
 
 #include <sigilsketch/Sketch.h>
 

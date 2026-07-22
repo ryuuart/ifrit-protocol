@@ -619,6 +619,20 @@ std::vector<Tri> deflate(const std::vector<Tri> &in) {
   return out;
 }
 
+/** Is p inside triangle t (tolerantly)? The area audit below cannot see a
+ *  child that is the right SIZE in the wrong PLACE; this can. */
+inline bool insideTri(const Tri &t, SkPoint p, double eps) {
+  auto side = [](SkPoint a, SkPoint b, SkPoint q) {
+    return (double)(b.x() - a.x()) * (q.y() - a.y()) -
+           (double)(b.y() - a.y()) * (q.x() - a.x());
+  };
+  const double s1 = side(t.a, t.b, p), s2 = side(t.b, t.c, p),
+               s3 = side(t.c, t.a, p);
+  const bool neg = s1 < -eps || s2 < -eps || s3 < -eps;
+  const bool pos = s1 > eps || s2 > eps || s3 > eps;
+  return !(neg && pos);
+}
+
 inline double triArea(const Tri &t) {
   return std::abs((double)(t.b.x() - t.a.x()) * (t.c.y() - t.a.y()) -
                   (double)(t.c.x() - t.a.x()) * (t.b.y() - t.a.y())) *
@@ -797,8 +811,14 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   Element diagram(int gen) {
     const std::vector<Tri> &tri = gens[(size_t)std::clamp(gen, 0, 3)];
-    auto group = stack().absolute().inset(0, 0, 0, 0).staggerChildren(
-        7ms, Stagger::From::Center);
+    auto group = stack()
+                     .absolute()
+                     .inset(0, 0, 0, 0)
+                     .key("gen" + std::to_string(gen))
+                     .staggerChildren(9ms, Stagger::From::Center)
+                     .transformOrigin(0.5f, 0.5f)
+                     .scale(withFrom(0.94f, 1.0f,
+                                     Transition{320ms, ease::outBack(1.1f)}));
 
     for (size_t i = 0; i < tri.size(); ++i) {
       const Tri &src = tri[i];
@@ -833,12 +853,13 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                       .width(bb.width())
                       .height(bb.height())
                       .outline([p](SkSize) { return p; })
-                      .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7)
-                                                    : rgb(0x76797E)))
-                      .opacity(withFrom(0.0f, 1.0f,
-                                        Transition{240ms, choreograph::easeOutQuad}))
-                      .scale(withFrom(0.55f, 1.0f,
-                                      Transition{300ms, ease::outBack()})));
+                      .fill(Fill::color(rgb(0xFF0000 >> ((i%6)*3) | (0x2288FF * (uint32_t)(i%3)))))
+                      // NO per-piece scale: scaling each half about its own
+                      // centre pulls a subdivision apart, and a deflation
+                      // diagram that shows gaps is saying the opposite of
+                      // what it is for. The patch as a whole takes the
+                      // entrance instead (see the group below).
+                      .opacity(1.0f));
     }
 
     // The rhomb outlines: every triangle's a→b→c run WITHOUT the closing edge,
@@ -1045,13 +1066,28 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       for (const Tri &t : gens[0])
         genArea0 += triArea(t);
       genAreaFails = 0;
+      int genOutside = 0;
       for (int g = 0; g < 3; ++g) {
-        gens.push_back(deflate(gens.back()));
+        const std::vector<Tri> parents = gens.back();
+        gens.push_back(deflate(parents));
         double area = 0;
         for (const Tri &t : gens.back())
           area += triArea(t);
         if (std::abs(area - genArea0) > genArea0 * 1e-4)
           genAreaFails++;
+        // every child must lie inside SOME parent — equal areas alone would
+        // happily accept a correctly-sized child dropped in the wrong place
+        for (const Tri &ch : gens.back()) {
+          bool ok = false;
+          for (const Tri &pa : parents)
+            if (insideTri(pa, ch.a, 1e-6) && insideTri(pa, ch.b, 1e-6) &&
+                insideTri(pa, ch.c, 1e-6)) {
+              ok = true;
+              break;
+            }
+          if (!ok)
+            genOutside++;
+        }
       }
       // Deflation subdivides the SAME region, so one fit computed on the
       // seed lands every generation: the patch holds still while its tiles
@@ -1071,10 +1107,52 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
           for (SkPoint *q : {&tr.a, &tr.b, &tr.c})
             *q = {q->x() * k + ox, q->y() * k + oy};
 
+      // Point-sampled coverage: the audit that actually sees a hole. Area
+      // sums and containment both pass on a subdivision that overlaps here
+      // and gaps there.
+      {
+        SkRect bb0 = SkRect::MakeEmpty();
+        {
+          SkPoint pts[6] = {gens[0][0].a, gens[0][0].b, gens[0][0].c,
+                            gens[0][1].a, gens[0][1].b, gens[0][1].c};
+          bb0.setBounds({pts, 6});
+        }
+        int uncovered = 0, doubled = 0, inside = 0;
+        for (int iy = 0; iy < 120; ++iy)
+          for (int ix = 0; ix < 120; ++ix) {
+            const SkPoint q{bb0.left() + bb0.width() * ((float)ix + 0.5f) / 120,
+                            bb0.top() + bb0.height() * ((float)iy + 0.5f) / 120};
+            int inSeed = 0;
+            for (const Tri &t : gens[0])
+              if (insideTri(t, q, -1e-4))
+                inSeed++;
+            if (inSeed == 0)
+              continue;
+            inside++;
+            int n = 0;
+            for (const Tri &t : gens[3])
+              if (insideTri(t, q, -1e-4))
+                n++;
+            if (n == 0)
+              uncovered++;
+            else if (n > 1)
+              doubled++;
+          }
+        std::printf("[penrose] deflation coverage @gen3: %d samples in the seed,"
+                    " %d uncovered, %d double-covered\n",
+                    inside, uncovered, doubled);
+      }
+      for (size_t i = 0; i < gens[1].size(); ++i) {
+        const Tri &t = gens[1][i];
+        std::printf("[penrose]   gen1[%zu] type=%d  a=(%.1f,%.1f) b=(%.1f,%.1f)"
+                    " c=(%.1f,%.1f) area=%.1f\n",
+                    i, t.type, t.a.x(), t.a.y(), t.b.x(), t.b.y(), t.c.x(),
+                    t.c.y(), triArea(t));
+      }
       std::printf("[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
-                  "area-conservation failures=%d\n",
+                  "area failures=%d  children outside their parent=%d\n",
                   gens[0].size() / 2, gens[1].size() / 2, gens[2].size() / 2,
-                  gens[3].size() / 2, genAreaFails);
+                  gens[3].size() / 2, genAreaFails, genOutside);
       std::fflush(stdout);
     }
 
