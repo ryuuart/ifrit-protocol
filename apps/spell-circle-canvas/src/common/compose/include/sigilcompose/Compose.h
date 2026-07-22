@@ -930,6 +930,23 @@ public:
    *  field over a panel but under its readout, a paper tooth over the
    *  stock but under the ink. The workaround was a sibling stack, which
    *  costs a node and loses the outline. */
+  /** A directional REVEAL: shows the fraction of the node lying before a
+   *  moving edge travelling at @p angleDeg (0 = left-to-right, 90 = top
+   *  to bottom, and any angle between).
+   *
+   *  `trim()` walks the PERIMETER, so on a filled shape 0→1 sweeps a
+   *  wedge round the outline instead of extending the surface, and
+   *  `scaleX`/`scaleY` SQUASH rather than reveal — a striped or textured
+   *  fill visibly compresses. Three studies met this and the last one's
+   *  workaround was the worst in the program: it left the retained tree
+   *  entirely, snapshotting each node at setup and replaying it under a
+   *  hand-written clipRect in a `custom(Cache::None)` leaf, forfeiting
+   *  decorations, hit-testing and pruning on twelve nodes at once.
+   *
+   *  Paint-only and bindable, like the transforms — animating a wipe
+   *  never relayouts, and it covers the node's decorations too, because a
+   *  reveal reveals. */
+  Element &wipe(float angleDeg, PropValue<float> fraction);
   Element &overlay(Decoration d);
   Element &background(Decoration d);
   Element &foreground(Decoration d);

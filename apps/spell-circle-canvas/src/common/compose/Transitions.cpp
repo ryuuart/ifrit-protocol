@@ -163,6 +163,8 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   entrance(Instance::kSkewY, node.paint.skewY);
   entrance(Instance::kScaleX, node.paint.scaleX);
   entrance(Instance::kScaleY, node.paint.scaleY);
+  if (node.fxData && node.fxData->hasWipe)
+    entrance(Instance::kWipe, node.fxData->wipeFraction);
   if (node.hasTrim()) {
     entrance(Instance::kTrimStart, node.fxData->trimStart);
     entrance(Instance::kTrimEnd, node.fxData->trimEnd);

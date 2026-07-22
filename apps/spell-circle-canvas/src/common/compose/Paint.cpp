@@ -178,6 +178,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent |= boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd);
     ownContent |= boundOrRunning(Instance::kTrimOffset, node.fxData->trimOffset);
   }
+  if (node.fxData && node.fxData->hasWipe) // a moving reveal re-clips
+    ownContent |= boundOrRunning(Instance::kWipe, node.fxData->wipeFraction);
   if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
     ownContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
   if (node.textData && node.textData->driveValue)
@@ -212,6 +214,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     if (node.kind == Kind::Image && imageAssetOf(node) &&
         imageAssetOf(node)->animated())
       other = true;
+    if (node.fxData && node.fxData->hasWipe)
+      other |= boundOrRunning(Instance::kWipe, node.fxData->wipeFraction);
     if (node.hasTrim())
       other |= boundOrRunning(Instance::kTrimStart, node.fxData->trimStart) ||
                boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd) ||
@@ -695,6 +699,37 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                               ticker.active(),
                               &fonts};
 
+  // wipe(): a directional reveal, clipping the WHOLE node — decorations
+  // included, because a reveal reveals. Unlike clipContent this is not a
+  // containment rule, so it wraps everything below and restores at the
+  // end. `trim()` cannot express it (it walks the perimeter) and
+  // scaleX/scaleY squash rather than reveal.
+  bool wiped = false;
+  if (node.fxData && node.fxData->hasWipe) {
+    const float t = std::clamp(
+        inst.resolveFloat(Instance::kWipe, node.fxData->wipeFraction), 0.0f,
+        1.0f);
+    const float rad = node.fxData->wipeAngleDeg * SK_FloatPI / 180.0f;
+    const float c = std::cos(rad), s = std::sin(rad);
+    const SkPoint mid{bounds.centerX(), bounds.centerY()};
+    // Half-extent along the wipe direction, and a span wide enough to
+    // cover the box at any angle.
+    const float reach =
+        0.5f * (std::abs(bounds.width() * c) + std::abs(bounds.height() * s));
+    const float wide =
+        SkPoint{bounds.width(), bounds.height()}.length() * 0.5f + 1.0f;
+    const float edge = -reach + 2.0f * reach * t;
+    // The revealed half-plane, built in the wipe's own frame and rotated
+    // into place: {p : (p - mid)·d <= edge}.
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeLTRB(-reach - 1.0f, -wide, edge, wide));
+    SkMatrix m = SkMatrix::RotateDeg(node.fxData->wipeAngleDeg);
+    m.postTranslate(mid.x(), mid.y());
+    canvas.save();
+    canvas.clipPath(b.detach().makeTransform(m), true);
+    wiped = true;
+  }
+
   // Background decorations paint beneath the fill (the CSS box-shadow
   // ordering): shadow/pattern layers first, then the surface. Decorations
   // are NEVER clipped — they dress the outline (shadows keep their
@@ -934,6 +969,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   for (const Decoration &decoration : node.foregrounds)
     decoration.paint(canvas, paintCtx);
 
+  if (wiped)
+    canvas.restore();
+
   if (hasEffect)
     canvas.restore();
 }
@@ -1013,7 +1051,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&
       node.foregrounds.empty() &&
-      (!node.fxData || node.fxData->overlays.empty()) &&
+      (!node.fxData || (node.fxData->overlays.empty() &&
+                        !node.fxData->hasWipe)) &&
       !layerEffectOf(node) &&
       !backdropEffectOf(node) &&
       !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture;

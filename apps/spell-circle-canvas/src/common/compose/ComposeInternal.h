@@ -157,6 +157,12 @@ struct FxData {
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
   // rare-fields rule Composer.cpp's static_assert enforces.
   std::vector<Decoration> overlays;
+  // Element::wipe(): a directional reveal — an axis-aligned clip fraction
+  // at an arbitrary angle, covering the WHOLE node (decorations too,
+  // because a reveal reveals).
+  bool hasWipe = false;
+  float wipeAngleDeg = 0.0f;
+  PropValue<float> wipeFraction = 1.0f;
 };
 
 struct MaterialData {

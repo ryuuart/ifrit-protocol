@@ -198,6 +198,10 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
   if (a->staggerChildrenMs != b->staggerChildrenMs ||
       a->staggerFrom != b->staggerFrom)
     return false;
+  if (a->hasWipe != b->hasWipe ||
+      (a->hasWipe && (a->wipeAngleDeg != b->wipeAngleDeg ||
+                      !propEqual(a->wipeFraction, b->wipeFraction))))
+    return false;
   if (a->overlays.size() != b->overlays.size())
     return false;
   for (size_t i = 0; i < a->overlays.size(); ++i)

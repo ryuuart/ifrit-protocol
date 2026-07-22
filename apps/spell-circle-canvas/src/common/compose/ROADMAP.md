@@ -110,6 +110,7 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| **`Element::wipe(angleDeg, fraction)`** | Three studies. `trim()` walks the perimeter and `scaleX` squashes; the last workaround left the retained tree entirely and forfeited decorations, hit-testing and pruning on twelve nodes | `Compose.h`, `Paint.cpp` |
 | `textFill` + the `Unit` ramps | The metric band already maps the shader to a unit square, then `linearUnit`'s SkSL divided by the NODE size on top: t ≈ 0.003, every glyph flat on the first stop, silently — and `Material.h` advertised the two as the same trick | `Paint.cpp` |
 | `Slice::filter` | Nine-slice is mostly used FOR pixel art, and was locked to linear | `Decorations.h` |
 | `compose::metrics(style, fonts)` | A text node's top is the LINE BOX top and artefacts position type by the CAP TOP; ~134 runs were placed off an empirical guess at the slack | `Compose.h`, `Composer.cpp` |
@@ -319,16 +320,21 @@ problem.)
 Natural API: `blend({{base, kSrcOver}, {tex, kSoftLight, 0.30f}})`, or
 `Material::amount(float)` on the layer value.
 
-## 6. No directional wipe
+## 6. No directional wipe — *three studies* — **CLOSED**
 
-`trim()` walks the **perimeter**, so on a filled shape 0→1 sweeps a wedge
-round the outline rather than revealing it along an axis — which is the
-actual gesture for a piece sliding into its slot, a panel opening, a bar
-filling. `scaleX/scaleY` covers the axis-aligned case now; an arbitrary
-angle still has none.
+`Element::wipe(angleDeg, PropValue<float>)` reveals the fraction of a
+node lying before a moving edge at any angle. Paint-only and bindable
+like the transforms, and it covers the node's decorations too, because a
+reveal reveals.
 
-Natural API: `.wipe(angleDeg, PropValue<float>)` — an axis-aligned clip
-fraction, rotatable.
+`trim()` could never express it — it walks the PERIMETER, so on a filled
+shape 0→1 sweeps a wedge round the outline rather than extending the
+surface — and `scaleX`/`scaleY` squash, which a striped or textured fill
+shows immediately. The third study's workaround is the reason this got
+built: it left the retained tree entirely, snapshotting each node at
+setup and replaying it under a hand-written `clipRect` in a
+`custom(Cache::None)` leaf, forfeiting decorations, hit-testing and
+pruning on twelve nodes at once.
 
 ## 7. One trim window per node — **WRONG, and worth saying so loudly**
 
