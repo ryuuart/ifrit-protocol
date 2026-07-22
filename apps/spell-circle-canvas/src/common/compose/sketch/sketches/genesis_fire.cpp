@@ -90,6 +90,30 @@
 //   m = 4.83 + 5*log10(3.64) - 5 = 2.63, between Megrez (3.31) and
 //   Merak (2.37). The number is printed on the star field.
 //
+// WHY IT IS A SigilCompose STRESS TEST
+//   Reeves' §2.2 attribute list IS the Pool schema the roadmap keeps
+//   asking for, published in 1983. Five of its seven attributes fit:
+//   position, colour, transparency and initial size land on
+//   positions()/tints()/scales(), and per-sprite blend landed in
+//   d1ae3db, so the additive-and-clamp colour model finally reaches the
+//   destination — the sidebar's three-path bench shows the SAME pool at
+//   kSrcOver and kPlus side by side. Two do not:
+//     * `shape: streaked spherical` is per-instance NON-UNIFORM scale (a
+//       quad 0.5*|v| long by `size` wide, swinging ~2.4:1 at ejection to
+//       under 1:1 at apogee). SkRSXform is uniform by construction, so
+//       the 30,000-body field drops to custom() + one SkVertices list
+//       per 8,000 streaks. That is not a defeat — it is Reeves' own
+//       renderer, "merely antialiased lines" — but it is 69 lines the
+//       library should have owned.
+//     * `lifetime`, measured in frames, has no delay/progress lane, and
+//       the wall of fire IS a stagger. It lives in a parallel Site::t0.
+//   Everything else is the library: two CONTROL pools through
+//   instances() (the star field, Fig. 2's 149 ring marks), Materials for
+//   the regolith and every soft light, shapes:: outlines, onPath for the
+//   rim caption, bind() shaping ONE phase Output into four units,
+//   slot() for the two live readouts, and ticker.addFixed for the 24 Hz
+//   film clock.
+//
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/genesis_fire.cpp \
 //       --frame /tmp/genesis_fire.png --at 4.6
@@ -354,7 +378,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   std::vector<PlanMark> planMarks;
 
   // --- clocks --------------------------------------------------------------
-  double accumulator = 0, loopT = 0, elapsed = 0;
+  double loopT = 0, elapsed = 0;
+  bool stepped = false; // set by the fixed-timestep steppable
   uint64_t simSteps = 0;
   uint32_t rng = 0x9E3779B9u;
 
@@ -1488,8 +1513,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
 
-    accumulator = 0;
     loopT = 0;
+    stepped = false;
     elapsed = 0;
     simSteps = 0;
     liveCount = peakCount = 0;
@@ -1522,17 +1547,24 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     rng = 0x9E3779B9u;
 
     Composer &composer = ctx.composer;
+    // §7.1 — the clock. [R83] counts lifetimes in FRAMES and the frames
+    // in question are film frames, so the whole simulation runs at a
+    // fixed 24 Hz whatever the host draws at. This used to be a
+    // hand-rolled accumulator plus its own spiral-of-death clamp;
+    // ROADMAP §12 closed while this sketch was being written and it is
+    // now one line. The clamp matters here and is visible: a headless
+    // pre-roll at `--fps 1` hands the ticker dt = 1.0, addFixed runs its
+    // 8 steps and DROPS the other 16, so the sim lags the wall clock —
+    // which is the correct failure, not a bug.
+    ctx.ticker.addFixed(kSimHz, [this] {
+      stepSim();
+      stepped = true;
+      return true;
+    });
     ctx.ticker.add([this, &composer](double dt) {
       elapsed += dt;
-      accumulator += dt;
-      bool stepped = false;
-      int guard = 0;
-      while (accumulator >= kSimStep && guard++ < 8) {
-        accumulator -= kSimStep;
-        stepSim();
-        stepped = true;
-      }
       if (stepped) {
+        stepped = false;
         const auto t0 = std::chrono::steady_clock::now();
         buildStreaks(parts, fieldChunks);
         const auto t1 = std::chrono::steady_clock::now();
