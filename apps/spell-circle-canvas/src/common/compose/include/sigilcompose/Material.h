@@ -135,12 +135,37 @@ public:
     return detail::unitRamp(from01, to01, std::move(stops), false);
   }
   /** The unit-square radial: @p center01 and a radius as a fraction of the
-   *  box's half-diagonal, so a ramp centred at {0.5, 0.5} with radius 1
-   *  reaches the corners of any box. */
+   *  box's HALF-DIAGONAL, so a ramp centred at {0.5, 0.5} with radius 1
+   *  reaches the CORNERS of any box.
+   *
+   *  Which is a trap for the commonest use, and caught two studies: a
+   *  soft round light authored at radius 1 is still at ~10% alpha where
+   *  the inscribed circle is, so if the node also carries
+   *  `.outline(shapes::circle())` the glow gets a visible hard rim. The
+   *  magic number is 0.707. Use glowUnit() below when you mean "fills
+   *  this box", and keep radialUnit for when you genuinely mean the
+   *  corners (a vignette, a corner-to-corner wash). */
   static Material radialUnit(SkPoint center01, float radius01,
                              std::vector<Stop> stops) {
     return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),
                             true);
+  }
+  /** A soft round light that FILLS the box: the radius is a fraction of
+   *  the box's shorter side, so radius 1 reaches the inscribed circle —
+   *  which is what "a glow filling this node" means every time anyone
+   *  writes it. Everything else is radialUnit.
+   *
+   *  Like linearUnit and radialUnit it works in the box's UNIT SQUARE, so
+   *  on a non-square box the falloff is elliptical — it fills the box
+   *  rather than staying circular. That is what you want for a panel
+   *  wash and not for a lamp; for a true circle, put it on a square node. */
+  static Material glowUnit(SkPoint center01, float radius01,
+                           std::vector<Stop> stops) {
+    // half-diagonal = sqrt(2)/2 of the side on a square; the ratio a
+    // caller wants is radius-in-half-diagonals = radius01 / sqrt(2).
+    return detail::unitRamp(center01, {radius01 * 0.70710678f,
+                                       radius01 * 0.70710678f},
+                            std::move(stops), true);
   }
 
   // ---- uniforms ------------------------------------------------------------

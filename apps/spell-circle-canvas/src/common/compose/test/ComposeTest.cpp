@@ -5392,3 +5392,30 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
     moved += before[i] != after[i];
   EXPECT_GT(moved, 20); // the dashes actually travelled
 }
+
+TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
+  // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a
+  // "soft round light" authored at radius 1 is still at ~10% alpha where
+  // the inscribed circle is — and with .outline(shapes::circle()) on the
+  // same node that becomes a visible hard rim. Two studies lost an
+  // iteration to it. The magic number is 0.707, and glowUnit is it.
+  const std::vector<Stop> ramp = {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}};
+  auto edgeValue = [&](Material m) {
+    Host host(200, 200);
+    host.composer.render(box().child(
+        box().absolute().inset(0).fill(std::move(m))));
+    host.frame();
+    // Just inside the box edge, on the horizontal centre line — where the
+    // inscribed circle touches.
+    return SkColorGetR(host.pixel(197, 100));
+  };
+
+  // radialUnit(…, 1.0) is still bright at the inscribed circle, because
+  // its ramp does not reach black until the corners.
+  EXPECT_GT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 1.0f, ramp)), 40);
+  // glowUnit(…, 1.0) has landed by then. That is the whole difference.
+  EXPECT_LT(edgeValue(Material::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
+  // And the old spelling of the same thing still works, which is what
+  // makes this a convenience rather than a behaviour change.
+  EXPECT_LT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)), 8);
+}
