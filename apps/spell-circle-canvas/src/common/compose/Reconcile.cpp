@@ -82,7 +82,7 @@ bool transitionEqual(const Transition &a, const Transition &b) {
  *  pruned node would keep shaping through the old one forever. */
 bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
   return a.source == b.source && a.inScale == b.inScale &&
-         a.inOffset == b.inOffset && a.scale == b.scale &&
+         a.inOffset == b.inOffset && a.steps == b.steps && a.scale == b.scale &&
          a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
          a.hi == b.hi && easeEqual(a.curve, b.curve);
 }

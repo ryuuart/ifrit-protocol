@@ -28,6 +28,7 @@
 
 #include <any>
 #include <chrono>
+#include <cmath>
 #include <concepts>
 #include <ranges>
 #include <functional>
@@ -216,6 +217,7 @@ struct BoundFloat {
   const choreograph::Output<float> *source = nullptr;
   float inScale = 1.0f, inOffset = 0.0f; // from(): pre-curve normalisation
   choreograph::EaseFn curve;             // map()
+  int steps = 0;                         // quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;     // the affine chain
   bool clamped = false;
   float lo = 0.0f, hi = 1.0f;
@@ -224,6 +226,8 @@ struct BoundFloat {
     v = v * inScale + inOffset;
     if (curve)
       v = curve(v);
+    if (steps > 1)
+      v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
     v = v * scale + offset;
     if (clamped)
       v = v < lo ? lo : (v > hi ? hi : v);
@@ -269,6 +273,15 @@ public:
   Bound &invert() {
     m_b.scale = -m_b.scale;
     m_b.offset = 1.0f - m_b.offset;
+    return *this;
+  }
+  /** Snap to @p steps discrete levels across [0,1] BEFORE the affine
+   *  chain — the period-authentic move, not an approximation of one.
+   *  Winamp's volume slider is literally `round(percent * 28)` and its
+   *  28 sprite frames are what a user of it remembers; a smooth slider
+   *  sampled at draw time is a different widget. */
+  Bound &quantize(int steps) {
+    m_b.steps = steps > 1 ? steps : 0;
     return *this;
   }
   /** Bound the OUTPUT; always applied last, whenever it is written. */
@@ -1069,7 +1082,15 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  custom() node unchanged: it re-records on every render(). Wrap it in
  *  memo() (or keep its Element pointer-stable across renders) to prune it
  *  while its inputs are unchanged. Value decorations (PathFormat/Slice/
- *  Shadow) do prune automatically — prefer them for static chrome. */
+ *  Shadow) do prune automatically — prefer them for static chrome.
+ *
+ *  IT SIZES LIKE AN EMPTY BOX, and the failure is silent. Being literally
+ *  `box().background(p)`, a custom() leaf has no intrinsic size: dropped
+ *  into an `absolute().inset(0)` parent it stretches on the cross axis and
+ *  measures ZERO on the main one, so the program runs against a
+ *  zero-height context and draws nothing at all. Give it dims, or make it
+ *  `absolute().inset(0)` itself — which is exactly what
+ *  `instancing::instances()` returns, for exactly this reason. */
 Element custom(PaintProgram program);
 
 /** A container whose children are placed by @p scheme instead of
