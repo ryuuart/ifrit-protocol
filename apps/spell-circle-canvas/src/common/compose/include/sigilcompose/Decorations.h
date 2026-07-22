@@ -296,4 +296,32 @@ struct ContourWalk {
   std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
 };
 
+/** Paints a decoration against geometry you built yourself, inside a
+ *  `custom()` program.
+ *
+ *  The whole brush vocabulary — `PathFormat` with its stroke alignment,
+ *  dashes, stamps and its own trim window; `lines::Line`; `Brush`;
+ *  `shapes::inset` — reads only `PaintContext::outline`. So none of it
+ *  is actually restricted to a node's own shape, and geometry that
+ *  changes per frame (a simulated rope, a live EQ curve, a plotted
+ *  signal) can wear all of it:
+ *
+ *      custom([&](SkCanvas &c, const PaintContext &ctx) {
+ *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
+ *      }).cache(Cache::None)
+ *
+ *  Spelled out because the roadmap recorded the opposite — that live
+ *  geometry in `custom()` forfeits the decoration vocabulary along with
+ *  pruning — and a researcher caught it by reading the source rather than
+ *  the list. It was a discoverability gap wearing a capability gap's
+ *  clothes, which is the fourth of those this program has found. */
+namespace decorations {
+inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,
+                    const Decoration &decoration) {
+  PaintContext local = ctx;
+  local.outline = std::move(outline);
+  decoration.paint(canvas, local);
+}
+} // namespace decorations
+
 } // namespace sigil::compose

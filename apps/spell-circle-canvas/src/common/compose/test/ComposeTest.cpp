@@ -5547,3 +5547,67 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   EXPECT_GT(t.height(), t.width());
   EXPECT_GT(r.width(), r.height());
 }
+
+TEST(ComposeMotion, AddFixedPublishesTheRenderInterpolant) {
+  // A fixed-rate sim drawn at an unrelated rate judders unless you draw
+  // lerp(previous, current, alpha). The accumulator lived inside the
+  // steppable with no way to read it — and a verlet body's state is
+  // literally the pair (x*, x), so the integrator was already holding
+  // both ends of the interpolation while the library hid the one scalar
+  // that was missing.
+  sigil::motion::Ticker ticker;
+  choreograph::Output<float> alpha{-1.0f};
+  int steps = 0;
+  ticker.addFixed(10.0, [&] { ++steps; return true; }, 8, &alpha);
+
+  // Half a step in: no step taken, and alpha says exactly how far.
+  ticker.tick(0.05);
+  EXPECT_EQ(steps, 0);
+  EXPECT_NEAR(alpha.value(), 0.5f, 1e-4f);
+
+  // Cross the step: one step, and the leftover is what remains.
+  ticker.tick(0.07);
+  EXPECT_EQ(steps, 1);
+  EXPECT_NEAR(alpha.value(), 0.2f, 1e-4f);
+
+  // Landing exactly on a boundary leaves nothing over.
+  ticker.tick(0.08);
+  EXPECT_EQ(steps, 2);
+  EXPECT_NEAR(alpha.value(), 0.0f, 1e-4f);
+}
+
+TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
+  // The roadmap recorded that live geometry in custom() forfeits the
+  // decoration vocabulary along with pruning. Half wrong, and caught by a
+  // researcher reading the source: PathFormat, lines::Line and Brush read
+  // ONLY PaintContext::outline, Decoration::paint is public, and
+  // PaintContext is a plain aggregate. So a simulated rope, a live EQ
+  // curve or a plotted signal can wear all of it — including
+  // PathFormat's own trim window, which is the part the roadmap said was
+  // lost.
+  PathFormat dashedHead = util::stroke(5, Fill::color({0, 1, 0, 1}));
+  dashedHead.trimStart = 0.75f; // the last quarter only
+  dashedHead.trimEnd = 1.0f;
+
+  Host host(200, 200);
+  host.composer.render(box().child(
+      custom([dashedHead](SkCanvas &canvas, const PaintContext &ctx) {
+        // Geometry computed HERE, per paint — the case the roadmap
+        // claimed could not be decorated.
+        SkPathBuilder b;
+        b.moveTo(10, 100).lineTo(190, 100);
+        decorations::paintOn(canvas, ctx, b.detach(), dashedHead);
+      }).absolute().inset(0).cache(Cache::None)));
+  host.frame();
+
+  auto lit = [&](int x0, int x1) {
+    int n = 0;
+    for (int x = x0; x < x1; ++x)
+      n += SkColorGetG(host.pixel(x, 100)) > 180;
+    return n;
+  };
+  // The decoration's own trim window applied to hand-built geometry:
+  // the last quarter is drawn, the first three are not.
+  EXPECT_GT(lit(150, 190), 30);
+  EXPECT_EQ(lit(15, 130), 0);
+}
