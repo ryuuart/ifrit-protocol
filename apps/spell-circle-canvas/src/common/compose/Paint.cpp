@@ -258,11 +258,34 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   if (!spec.path)
     return;
   const SkPath baseline = spec.path(size);
-  SkContourMeasureIter iter(baseline, false);
-  sk_sp<SkContourMeasure> contour = iter.next();
-  if (!contour || contour->length() <= 0)
+  // ALL the contours, walked in order as one baseline. It used to be the
+  // first one only, silently: a trajectory clipped to the frame produces
+  // several contours, and the KSP study's hyperbola lost its label with
+  // no diagnostic at all.
+  static thread_local std::vector<sk_sp<SkContourMeasure>> contours;
+  contours.clear();
+  for (SkContourMeasureIter iter(baseline, false);;) {
+    sk_sp<SkContourMeasure> c = iter.next();
+    if (!c)
+      break;
+    if (c->length() > 0)
+      contours.push_back(std::move(c));
+  }
+  if (contours.empty())
     return;
-  const float length = contour->length();
+  float length = 0;
+  for (const auto &c : contours)
+    length += c->length();
+  // One arc-length coordinate over the whole chain.
+  auto posTan = [&](float d, SkPoint *pos, SkVector *tan) {
+    for (const auto &c : contours) {
+      if (d <= c->length())
+        return c->getPosTan(d, pos, tan);
+      d -= c->length();
+    }
+    const auto &last = contours.back();
+    return last->getPosTan(last->length(), pos, tan);
+  };
 
   // The run's own width, from the shaped advances — this is what Align
   // measures against, and it is why the run has to be shaped first.
@@ -290,12 +313,11 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
   // own spelling for a ring, but addArc leaves it open. Dropping half a
   // centred caption off a ring because of a tenth of a degree is not a
   // behaviour anyone wants.
-  bool closed = contour->isClosed();
+  bool closed = contours.size() == 1 && contours.front()->isClosed();
   if (!closed) {
     SkPoint head, tail;
     SkVector ignored;
-    if (contour->getPosTan(0, &head, &ignored) &&
-        contour->getPosTan(length, &tail, &ignored))
+    if (posTan(0, &head, &ignored) && posTan(length, &tail, &ignored))
       closed = SkPoint::Distance(head, tail) <=
                std::max(1.0f, length * 0.002f);
   }
@@ -312,7 +334,7 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
     float mid = start + runWidth * 0.5f;
     if (closed)
       mid = std::fmod(std::fmod(mid, length) + length, length);
-    if (contour->getPosTan(std::clamp(mid, 0.0f, length), &midPos, &midTan))
+    if (posTan(std::clamp(mid, 0.0f, length), &midPos, &midTan))
       flipRun = midTan.x() < 0;
   }
 
@@ -333,7 +355,7 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
           return;
         SkPoint pos;
         SkVector tangent;
-        if (!contour->getPosTan(d, &pos, &tangent))
+        if (!posTan(d, &pos, &tangent))
           return;
         const float mag = std::hypot(tangent.x(), tangent.y());
         if (mag <= 1e-6f)

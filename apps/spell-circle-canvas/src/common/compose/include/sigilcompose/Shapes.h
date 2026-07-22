@@ -112,6 +112,36 @@ inline OutlineFn star(int points, float innerRatio = 0.5f) {
   };
 }
 
+/** The circle (ellipse, on a non-square box) inscribed in the box.
+ *
+ *  Trivial, and missing anyway — the KSP study hand-wrote it, so did
+ *  ScenesSkillTree, and `onPath`'s own docs reach for one. `util::disc()`
+ *  is the ELEMENT form (a pre-sized box centred on a point); this is the
+ *  OutlineFn, which is what onPath, trim and the decorations take. */
+inline OutlineFn circle() {
+  return [](SkSize s) {
+    SkPathBuilder b;
+    b.addOval(SkRect::MakeWH(s.width(), s.height()));
+    return b.detach();
+  };
+}
+
+/** A ring: the inscribed circle with a concentric hole at @p innerRatio
+ *  of the radius. Even-odd, so it fills as an annulus. */
+inline OutlineFn annulus(float innerRatio = 0.6f) {
+  return [innerRatio](SkSize s) {
+    const float r = std::clamp(innerRatio, 0.0f, 0.999f);
+    const SkRect outer = SkRect::MakeWH(s.width(), s.height());
+    SkRect inner = outer;
+    inner.inset(outer.width() * 0.5f * (1 - r), outer.height() * 0.5f * (1 - r));
+    SkPathBuilder b;
+    b.setFillType(SkPathFillType::kEvenOdd);
+    b.addOval(outer);
+    b.addOval(inner);
+    return b.detach();
+  };
+}
+
 /** Superellipse |x|^e + |y|^e = 1 — the squircle. @p exponent 2 is an
  *  ellipse; 4–5 is the familiar app-icon softness; large values
  *  approach the rect. */
