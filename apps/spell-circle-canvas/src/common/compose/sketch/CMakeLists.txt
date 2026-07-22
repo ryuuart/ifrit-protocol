@@ -55,7 +55,7 @@ set(SIGIL_SKETCH_STUDIES
   thunder_fulu dunhuang_star_chart
   # Motion and film
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
-  eva_magi_defense lain_navi
+  eva_magi_defense lain_navi eva_magi_interior
   # The kit itself
   hello stock_materials stroke_atlas
 )
