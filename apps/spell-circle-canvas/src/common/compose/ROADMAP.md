@@ -40,6 +40,10 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | **`bind()` — a binding you can shape** | The most-cited gap in the program: five studies, five directions, all keeping a second Output in pixels beside the [0,1] one | `Compose.h`, `Transitions.cpp` |
 | An empty easing crashed instead of defaulting | `{360ms, {}, 220ms}` — the obvious spelling — aggregate-initialises an empty `std::function` and throws `bad_function_call` on frame one | `Compose.h` (`Transition::easing()`) |
 | A guest crash was exit 139 and silence | Four agents spent most of a night localising ONE bad shader with no diagnostic at all | `sketch/SketchCrash.*` |
+| `shapes::parametric` + `lissajous`/`harmonograph`/`rose`/`spiral`/`trochoid` | Nothing evaluated a caller's t → (x, y), so every curve DEFINED by a parameter was a hand-rolled `SkPathBuilder` loop | `Shapes.h` |
+| Per-sprite blend on `instances()` | Nothing in the chain to `drawSpriteAtlas` carried a blend mode, and `Element::blend()` flattens the field into a layer — so an additive particle system could not accumulate at all | `Instances.h`, `GpuImage.h` |
+| A fourth `onPath` bug: only the first contour | A trajectory clipped to the frame is several contours; its label vanished with no diagnostic | `Paint.cpp` |
+| `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 
 ---
 
@@ -87,7 +91,7 @@ Natural API: `PropValue(const Output<float>*, std::function<float(float)>)`,
 or a `.map()`/`.scale()`/`.offset()` chain on the binding. The paint path
 already reads through a pointer; this is one call site.
 
-## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *five studies*
+## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *six studies*, and now the most-cited item in the program
 
 `Instances.h` names inventory cells and node-graph nodes as its cases.
 Both are usually **labelled**, and a `Pool` carries only position,
@@ -98,7 +102,28 @@ rotation, uniform scale, tint and frame. So:
 - a staggered assembly has no per-instance progress or delay (kumiko, 2Advanced);
 - strips of varying length are outside RSXform's uniform scale (kumiko);
 - press-wire rows, chips and readout windows are all ineligible (2Advanced);
-- a playlist's rows are the textbook instancing case and carry text (Winamp).
+- a playlist's rows are the textbook instancing case and carry text (Winamp);
+- a manoeuvre gizmo with two different arm lengths is out of reach even
+  with six pre-coloured cells, because `Atlas::cell()` bakes ONE logical
+  size and `Pool` carries ONE uniform scale (KSP).
+
+Two refinements arrived independently and both point away from "more Pool
+columns":
+
+**The atlas, not the pool.** KSP's starfield instanced perfectly; its
+gizmo could not. The contract is right for masses and has no answer for
+small HETEROGENEOUS sets. The shaped fix there is `(cell, variant)`
+addressing on the `Atlas` — several bakes of one recipe — rather than
+widening every instance.
+
+**The schema already exists, and it is from 1983.** William Reeves' §2.2
+attribute list for the Genesis Demo — the first particle system — *is*
+the `Pool` the roadmap keeps asking for. Three of its seven attributes
+are inexpressible today: `shape: streaked spherical` is per-instance
+**non-uniform** scale (a quad `0.5·|v|` long by `size` wide, swinging
+~3.5:1 → 1:1 across one particle's life), and `lifetime` is the delay /
+progress lane. Non-uniform scale is the hard one: `SkRSXform` is uniform
+by construction, so that half is a different draw path, not a new lane.
 
 Also `place::repeat` writes lanes it does not own — it clobbers
 `tints[i].fA` and cannot set `frame`, so every mixed-frame call site
@@ -257,6 +282,44 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
 - **`connector()` has no endpoint gap.** `Anchor` has one; `connector()`
   does not, so a route always runs to the node box's *centre* — and with
   `sdf::` chrome the box is far larger than the visible shape.
+
+## 10b. Animated lines and paths: two missing bindings
+
+- **`dashPhase` has no bound-Output form.** `PathFormat::trimPhase` takes
+  a `ch::Output<float>*` and declares `animated()`; `dashPhase` — in both
+  `PathFormat` and `lines::Line` — is a plain float. So marching ants can
+  only be had by re-describing every frame, which defeats the pruning the
+  library is built on. Marching dashes are the commonest animated-line
+  idiom in map and diagram UI; the KSP study wrote a 25-line
+  `MarchingDots` DecorationScheme instead (the seam worked, which is the
+  good news). Wanted: `dashPhaseBinding` beside `trimPhase`.
+- **No angle or parameter anchor for text on a path.** `TextPath::at` is
+  an ARC-LENGTH fraction. On a conic — or a dial, or any non-uniformly
+  parameterised curve — the author knows the *parameter* (true anomaly,
+  degrees) and arc length is wildly non-uniform, so placing three orbit
+  labels cost three renders each of pure guessing. Wanted:
+  `atPoint(SkPoint)`, or letting an outline generator publish its own
+  parameterisation.
+
+## 10c. Materials: a radius that means something, and a slot that is missing
+
+- **`Material::radialUnit`'s radius is a fraction of the HALF-DIAGONAL.**
+  Documented, and still a live trap: a planet terminator authored at 1.28
+  puts the dark end of its ramp entirely outside an inscribed disc and the
+  shading silently disappears. A min-side-relative variant, or a doc that
+  reads as a warning.
+- **No offset-focus radial.** `SkShaders::TwoPointConicalGradient` is the
+  natural sphere-shading primitive; displacing the centre works but
+  couples falloff to offset.
+- **No paint slot between the fill and the content.** `foreground()`
+  paints ABOVE children, so a hazard stripe greys out its own digit;
+  `background()` hides under the fill. Every textured button with a label
+  meets this and works around it with a sibling stack. Wanted:
+  `Element::overlay()` — one entry in the paint order.
+- **`patterns::grain` over a near-transparent base composites as its own
+  luminance** rather than modulating what is beneath; the first nebula
+  came back a white cloud at 15% alpha. The header warns about `noise` vs
+  `grain` channels; it should also say grain wants an OPAQUE surface.
 
 ## 11. `Effect` has no live uniforms
 
