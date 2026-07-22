@@ -236,7 +236,7 @@ constexpr float kGravityStep = 0.757f; // a*dt^2, units/step^2 (derived)
 constexpr float kFriction = 0.14f;
 constexpr float kCapsule = 14.0f;   // world units
 constexpr float kKneeMin = 100.0f;  // the documented inequality, my threshold
-constexpr float kBlastK = 250000.0f;
+constexpr float kBlastK = 130000.0f;
 constexpr float kHitPush = 45.0f;
 constexpr double kLoop = 11.0;
 
@@ -265,7 +265,7 @@ constexpr float kFigureH = 100.0f / kThighRatio; // 486.17 world units
 // The bump — the paper's Fig. 4 obstacle, drawn to scale.
 constexpr SkPoint kBumpA{470, 0}, kBumpB{560, 120}, kBumpC{650, 0};
 // The blast sits LEFT of the spawn so the body is thrown INTO the bump.
-constexpr SkPoint kBlast{96, 44};
+constexpr SkPoint kBlast{170, 20};
 
 // ---------------------------------------------------------------------------
 // Vector helpers (SkPoint already carries +, -, and *float)
@@ -664,9 +664,9 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   void buildCloth() {
     cloth = Body{};
     cloth.iterations = 1; // documented
-    constexpr int C = 7, R = 8;
-    constexpr float sp = 22.0f;
-    const float x0 = 900.0f, y0 = 812.0f;
+    constexpr int C = 6, R = 6;
+    constexpr float sp = 20.0f;
+    const float x0 = 912.0f, y0 = 872.0f;
     cloth.worldCollide = true;
     cloth.radius = 3.0f;
     auto idx = [&](int c, int r) { return r * C + c; };
@@ -700,7 +700,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
    *  the CLOTH — two columns, every quad carrying a diagonal — pinned at
    *  its base row. That is a truss, and it stands. */
   void buildPlants() {
-    const float roots[4] = {332.0f, 398.0f, 706.0f, 762.0f};
+    const float roots[4] = {398.0f, 676.0f, 748.0f, 820.0f};
     for (int p = 0; p < 4; ++p) {
       Body &b = plants[(size_t)p];
       b = Body{};
@@ -782,8 +782,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       // |dx| = K / r^2  ->  dx = K (x-c) / r^3
       SkPoint push = d * (kBlastK / (r * r * r));
       const float m = len(push);
-      if (m > 60.0f)
-        push = push * (60.0f / m);
+      if (m > 45.0f)
+        push = push * (45.0f / m);
       b.x[i] = b.x[i] + push; // a POSITION displacement; verlet does the rest
     }
   }
@@ -1112,7 +1112,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
              // The cloth: one path for the triangle fill, one for the edges.
              {
                SkPathBuilder tri;
-               constexpr int C = 7, R = 8;
+               constexpr int C = 6, R = 6;
                for (int r = 0; r + 1 < R; ++r)
                  for (int c = 0; c + 1 < C; ++c) {
                    const int a = r * C + c;
@@ -1473,19 +1473,20 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .left(Dim(kStage - 62))
                    .top(Dim(5)))
         .child(t("\xc2\xa7" "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
-                 "PINNED \xc2\xb7 ONE ITERATION",
+                 "PINNED \xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE "
+                 "ITERATION COUNT",
                  ui(7.0f, kTick, 0.5f))
                    .absolute()
-                   .left(Dim(470))
-                   .top(Dim(352))
-                   .width(Dim(250))
+                   .left(Dim(456))
+                   .top(Dim(316))
+                   .width(Dim(264))
                    .textAlign(sigil::weave::TextAlignment::kEnd))
         .child(t("\xc2\xa7" "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 "
                  "ONE ITERATION",
                  ui(7.0f, kTick, 0.5f))
                    .absolute()
-                   .left(Dim(232))
-                   .top(Dim(670))
+                   .left(Dim(400))
+                   .top(Dim(660))
                    .width(Dim(250)))
         .child(figPenetration())
         .child(figFriction())
@@ -1674,8 +1675,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .child(bar(2, "90", 18))
                    .child(bar(3, "95", 19))
                    .child(bar(4, "97.5", 19.5f)))
-        .child(t("\xc2\xa7" "7 SOFT CONSTRAINTS \xe2\x80\x94 HALF THE DEVIATION "
-                 "REPAIRED PER FRAME (THE PAPER'S OWN SERIES).",
+        .child(t("\xc2\xa7" "7 SOFT CONSTRAINTS: HALF THE DEVIATION PER FRAME.",
                  ui(7.0f, kTick, 0.4f)));
   }
 

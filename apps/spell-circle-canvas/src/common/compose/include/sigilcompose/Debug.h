@@ -103,6 +103,56 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
   return out;
 }
 
+/** Coverage over an arbitrary REGION rather than a rect.
+ *
+ *  An annulus, a sector, a plate — anything whose outline is not a box —
+ *  cannot be tested against `region.bounds()` without counting the parts
+ *  outside it as gaps. Note the reference region should be built from the
+ *  SAME vertices as the pieces where it can be: testing a polyline
+ *  tiling against a true circle reports the chord error as phantom gaps
+ *  (it reported 62 of them, first try, on a ring of zodiac cells). */
+inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
+                         int grid = 128, size_t witnesses = 8) {
+  Coverage out;
+  const SkRect box = region.getBounds();
+  if (box.isEmpty() || grid < 2)
+    return out;
+
+  std::vector<SkRect> bounds;
+  bounds.reserve(pieces.size());
+  for (const SkPath &p : pieces)
+    bounds.push_back(p.getBounds());
+
+  const float dx = box.width() / (float)grid;
+  const float dy = box.height() / (float)grid;
+  for (int gy = 0; gy < grid; ++gy) {
+    const float y = box.top() + ((float)gy + 0.5f) * dy;
+    for (int gx = 0; gx < grid; ++gx) {
+      const float x = box.left() + ((float)gx + 0.5f) * dx;
+      if (!region.contains(x, y))
+        continue; // outside the region entirely — not a gap
+      int hits = 0;
+      for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
+        if (!bounds[i].contains(x, y))
+          continue;
+        if (pieces[i].contains(x, y))
+          ++hits;
+      }
+      ++out.samples;
+      if (hits == 0) {
+        ++out.uncovered;
+        if (out.uncoveredAt.size() < witnesses)
+          out.uncoveredAt.push_back({x, y});
+      } else if (hits > 1) {
+        ++out.doubled;
+        if (out.doubledAt.size() < witnesses)
+          out.doubledAt.push_back({x, y});
+      }
+    }
+  }
+  return out;
+}
+
 /** Every distinct endpoint in @p pieces, with how many pieces touch it,
  *  within @p tolerance. The chaining test for decorated tilings: on the
  *  Oxford Penrose paving every interior arc endpoint must have degree 2,
@@ -110,6 +160,36 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect &region,
 struct VertexDegrees {
   std::vector<SkPoint> points;
   std::vector<int> degree;
+  /** Which merged point each piece's endpoints landed on, two per
+   *  contour in order — the adjacency `components()` needs. */
+  std::vector<std::pair<size_t, size_t>> edges;
+
+  /** How many separate CONNECTED pieces the input is.
+   *
+   *  "Is this one piece of metal?" is the question a decorated tiling, a
+   *  knot, a wire graph and an astrolabe rete all actually ask, and the
+   *  degree list alone cannot answer it — a study hand-rolled union-find
+   *  for exactly this. 1 means one piece. */
+  size_t components() const {
+    std::vector<size_t> parent(points.size());
+    for (size_t i = 0; i < parent.size(); ++i)
+      parent[i] = i;
+    auto find = [&](size_t i) {
+      while (parent[i] != i)
+        i = parent[i] = parent[parent[i]];
+      return i;
+    };
+    for (const auto &e : edges) {
+      const size_t a = find(e.first), b = find(e.second);
+      if (a != b)
+        parent[a] = b;
+    }
+    size_t roots = 0;
+    for (size_t i = 0; i < parent.size(); ++i)
+      roots += find(i) == i;
+    return roots;
+  }
+
   /** Points with a degree not in [lo, hi] — the ones to look at. */
   std::vector<size_t> outside(int lo, int hi) const {
     std::vector<size_t> bad;
@@ -126,15 +206,18 @@ struct VertexDegrees {
 inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
                                      float tolerance = 0.05f) {
   VertexDegrees out;
-  auto note = [&](SkPoint p) {
+  auto note = [&](SkPoint p) -> size_t {
     for (size_t i = 0; i < out.points.size(); ++i)
       if (SkPoint::Distance(out.points[i], p) <= tolerance) {
         ++out.degree[i];
-        return;
+        return i;
       }
     out.points.push_back(p);
     out.degree.push_back(1);
+    return out.points.size() - 1;
   };
+  size_t contourStart = 0;
+  bool haveStart = false;
   for (const SkPath &path : pieces) {
     SkPath::Iter iter(path, false);
     SkPoint pts[4];
@@ -144,11 +227,15 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
          verb = iter.next(pts)) {
       switch (verb) {
       case SkPath::kMove_Verb:
-        if (open)
-          note(last);
+        if (open) {
+          const size_t end = note(last);
+          if (haveStart)
+            out.edges.emplace_back(contourStart, end);
+        }
         first = last = pts[0];
         open = true;
-        note(first);
+        contourStart = note(first);
+        haveStart = true;
         break;
       case SkPath::kLine_Verb: last = pts[1]; break;
       case SkPath::kQuad_Verb:
@@ -158,8 +245,12 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
       default: break;
       }
     }
-    if (open)
-      note(last);
+    if (open) {
+      const size_t end = note(last);
+      if (haveStart)
+        out.edges.emplace_back(contourStart, end);
+    }
+    haveStart = false;
   }
   return out;
 }
