@@ -8,6 +8,7 @@
 #include "ScenesChrome.h"
 #include "ScenesData.h"
 #include "ScenesFlourish.h"
+#include "ScenesGerstner.h"
 #include "ScenesInventory.h"
 #include "ScenesGame.h"
 #include "ScenesVeloren.h"
@@ -75,6 +76,8 @@ inline constexpr SceneInfo kScenes[] = {
     {"beethoven", "Showcase", "\xc2\xa7""7 Brockmann arc table, trim reveal"},
     {"loot grid", "Showcase",
      "D2 hoard \xe2\x80\x94 generated materials, instances()"},
+    {"gerstner grid", "Showcase",
+     "Capital 1962 \xe2\x80\x94 the mobile grid, run"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -129,6 +132,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 17: return std::make_unique<ZelligeScene>();
   case 18: return std::make_unique<BeethovenScene>();
   case 19: return std::make_unique<LootGridScene>();
+  case 20: return std::make_unique<GerstnerGridScene>();
   default: return nullptr;
   }
 }
