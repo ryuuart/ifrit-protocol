@@ -121,7 +121,6 @@ struct BeethovenScene final : Scene {
         box().width(2 * rMid).height(2 * rMid)
             .inset(C.x() - rMid, C.y() - rMid,
                    bp::kPlateW - C.x() - rMid, bp::kPlateH - C.y() - rMid)
-            .absolute()
             .outline([canvasStart](SkSize s) {
               SkPathBuilder b;
               b.addArc(SkRect::MakeWH(s.width(), s.height()), canvasStart,
@@ -161,7 +160,7 @@ struct BeethovenScene final : Scene {
     // collision); the bowl below the center line is the plate's one clear
     // field. Sizes/margins ride the plate scale.
     poster.child(
-        box().column().absolute()
+        box().column()
             .inset(0.07f * bp::kPlateW, 0.54f * bp::kPlateH,
                    0.45f * bp::kPlateW, 0.16f * bp::kPlateH)
             .zIndex(2)
@@ -187,13 +186,12 @@ struct BeethovenScene final : Scene {
         // The plate, centered on the wall — the letterbox panels are the
         // mat itself.
         .child(plate(phase)
-                   .absolute()
                    .inset(bp::kPlateX, bp::kPlateY,
                           bp::kW - bp::kPlateX - bp::kPlateW,
                           bp::kH - bp::kPlateY - bp::kPlateH)
                    .key("plate"))
         // The museum label, right panel, at hanging height.
-        .child(box().column().absolute().gap(4)
+        .child(box().column().gap(4)
                    .inset(bp::kPlateX + bp::kPlateW + 32, bp::kH - 150, 24,
                           64)
                    .child(text(toU8("josef m\xc3\xbcller-brockmann"),

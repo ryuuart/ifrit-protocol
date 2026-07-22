@@ -767,7 +767,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   Element starField() {
     return box()
-        .absolute()
         .inset(0)
         .opacity(withFrom(0.0f, 1.0f, {.duration = 700ms, .delay = 340ms}))
         .child(instancing::instances(starAtlas, starPool,
@@ -792,11 +791,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
       return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
     };
 
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
 
     // the asterism, drawn on
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([&, bx, by, bw, bh](SkSize) {
                   SkPathBuilder b;
@@ -834,7 +832,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                                     {.duration = 500ms, .delay = 1200ms})));
       g.child(t(kStars[i].name, mono(7.0f, sol ? kCyan : hex(0x9FB0CC, 0.85f),
                                      1.1f))
-                  .absolute()
                   .left(p.fX + rad + 5.0f)
                   .top(p.fY - 5.0f)
                   .opacity(withFrom(0.0f, 1.0f,
@@ -843,14 +840,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // Smith's joke, verified in the header block.
     const SkPoint s = at(7);
     g.child(box()
-                .absolute()
                 .left(s.fX + 4)
                 .top(s.fY + 6)
                 .width(1)
                 .height(16)
                 .fill(hex(0x4FB8D8, 0.5f)));
     g.child(box()
-                .absolute()
                 .left(s.fX + 9)
                 .top(s.fY + 12)
                 .column()
@@ -881,7 +876,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
           SkBlendMode::kOverlay}});
 
     return box()
-        .absolute()
         .inset(0)
         .outline(limbOutline())
         .clip(true)
@@ -912,7 +906,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // impact point (off-frame left). Documented as elements; timing is
     // reconstruction.
     const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     g.child(disc(impact, 170)
                 .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
                                            {{0.0f, {1, 1, 1, 0.95f}},
@@ -953,7 +947,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // planet's surface, live.
     Element inner =
         box()
-            .absolute()
             .left(12)
             .top(12)
             .width(184)
@@ -969,12 +962,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                        .scale(bind(&loopU)
                                   .scale(10.0f / (float)kFrontCrossSeconds)
                                   .clamp(0.004f, 1.0f)))
-            .child(box().absolute().inset(0).child(instancing::instances(
+            .child(box().inset(0).child(instancing::instances(
                 planAtlas, planPool, instancing::Mode::Live,
                 SkBlendMode::kPlus)));
 
     return box()
-        .absolute()
         .left(24)
         .top(24)
         .width(208)
@@ -989,7 +981,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(std::move(inner))
         // the impact point itself
         .child(box()
-                   .absolute()
                    .left(12 + 34 - 2)
                    .top(12 + 106 - 2)
                    .width(4)
@@ -999,7 +990,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         // rim caption on a curved baseline
         .child(t("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI",
                  mono(8.0f, kCyan, 1.4f))
-                   .absolute()
                    .left(12)
                    .top(12)
                    .width(184)
@@ -1014,7 +1004,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     return t("FIG. 2 \xe2\x80\x94 DISTRIBUTION OF PARTICLE SYSTEMS ON THE "
              "PLANET'S SURFACE",
              mono(8.5f, kSteel, 0.6f))
-        .absolute()
         .left(24)
         .top(236)
         .width(300)
@@ -1072,7 +1061,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   Element blurCallout() {
     return box()
-        .absolute()
         .left(24)
         .bottom(24)
         .width(268)
@@ -1104,7 +1092,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   Element stageCaption() {
     return box()
-        .absolute()
         .right(16)
         .bottom(14)
         .column()
@@ -1136,7 +1123,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(regolith().zIndex(3))
         .child(shockwave().zIndex(4))
         .child(custom(fieldProgram())
-                   .absolute()
                    .inset(0)
                    .cache(Cache::None)
                    .zIndex(5)
@@ -1150,7 +1136,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(blurCallout().zIndex(6))
         .child(stageCaption().zIndex(6))
         .child(box()
-                   .absolute()
                    .inset(0)
                    .stroke(stroke(1.5f, Fill::color(kKeyline),
                                   PathFormat::Align::Inner))
@@ -1189,7 +1174,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
   Element censusBar(float frac, SkColor4f c, const char *key) {
     Element fill = box()
-                       .absolute()
                        .left(0)
                        .top(0)
                        .width(96)
@@ -1343,14 +1327,14 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                    .row()
                    .gap(15)
                    .shrink(0)
-                   .child(benchCell(box().absolute().inset(0).child(
+                   .child(benchCell(box().inset(0).child(
                                         instancing::instances(
                                             abAtlas, abPool,
                                             instancing::Mode::Live,
                                             SkBlendMode::kSrcOver)),
                                     "instances() \xc2\xb7 kSrcOver",
                                     hex(0x8A93A8)))
-                   .child(benchCell(box().absolute().inset(0).child(
+                   .child(benchCell(box().inset(0).child(
                                         instancing::instances(
                                             abAtlas, abPool,
                                             instancing::Mode::Live,
@@ -1358,7 +1342,6 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                                     "instances() \xc2\xb7 kPlus",
                                     hex(0xFFB672)))
                    .child(benchCell(custom(benchQuadProgram())
-                                        .absolute()
                                         .inset(0)
                                         .cache(Cache::None),
                                     "custom() quads \xc2\xb7 kPlus",

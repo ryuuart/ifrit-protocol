@@ -408,7 +408,7 @@ struct Scanlines {
 // ---------------------------------------------------------------------------
 
 inline Element place(Element e, float x, float y, float w, float h) {
-  e.absolute().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  e.left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
   return e;
 }
 
@@ -642,7 +642,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   /** A radar wedge: shapes::sector, rotation BOUND. Every gauge on the
    *  page is this with a different bezel. */
   Element radarSweep(int i, SkColor4f tint, float inner = 0.30f) {
-    return box().absolute().inset(0)
+    return box().inset(0)
         .outline(shapes::sector(-100, 78, inner))
         .fill(Material::linearUnit({0, 0}, {1, 1},
                                    {{0.0f, tav::fade(tint, 0.85f)},
@@ -659,7 +659,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     // Two segments meeting on a DIAGONAL seam, not a vertical edge —
     // the teal leads, the maroon follows 80 ms later (§9 beat 5).
     Element teal =
-        singleBevel(box().absolute().left(Dim(0)).top(Dim(0)).width(560)
+        singleBevel(box().left(Dim(0)).top(Dim(0)).width(560)
                         .height(40)
                         .outline(chamfer(40, kBR))
                         .row().alignItems(Align::Center).padding(10, 0).gap(8),
@@ -686,7 +686,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .child(box().width(46));
 
     Element maroon =
-        singleBevel(box().absolute().left(Dim(548)).top(Dim(0))
+        singleBevel(box().left(Dim(548)).top(Dim(0))
                         .width(Dim(1892.0f - 548.0f)).height(40)
                         .outline(chamfer(40, kTL))
                         .row().alignItems(Align::Center)
@@ -702,7 +702,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .child(box().width(1).height(14).fill(fade(kDust, 0.4f)))
             .child(t("V4.PROPHECY", heavy(14, kNear, 80)));
 
-    return box().absolute().left(Dim(0)).top(Dim(0)).width(1892).height(40)
+    return box().left(Dim(0)).top(Dim(0)).width(1892).height(40)
         .child(maroon)
         .child(teal);
   }
@@ -753,7 +753,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     };
     auto meter = [&](float w, const ch::Output<float> *bind, SkColor4f c) {
       return box().width(Dim(w)).height(6).fill(C(0x1B0708))
-          .child(box().absolute().left(Dim(0)).top(Dim(0)).width(Dim(w))
+          .child(box().left(Dim(0)).top(Dim(0)).width(Dim(w))
                      .height(6).fill(c).scaleX(bind).transformOrigin(0, 0.5f));
     };
 
@@ -831,7 +831,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          .stroke(util::stroke(
                              1, Fill::color(fade(kCyan, 0.35f)),
                              PathFormat::Align::Inner))
-                         .child(box().absolute().inset(0)
+                         .child(box().inset(0)
                                     .fill(Material::radialUnit(
                                         {0.5f, 0.92f}, 1.0f,
                                         {{0.0f, fade(kGlow, g)},
@@ -843,7 +843,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                       200, 1))
                          .foreground(Brackets{fade(kCyan, 0.6f), 7, 1, 2, 0xF})
                          .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1})
-                         .child(box().absolute().left(Dim(4)).top(Dim(3))
+                         .child(box().left(Dim(4)).top(Dim(3))
                                     .child(t(nums[i],
                                              micro(9, fade(kCyan, 0.9f), 140)))))
               .child(t(secs[i], micro(9, i == 0 ? kCyan : kDust, 200))));
@@ -931,7 +931,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    .child(box().width(1).height(12).fill(fade(kDust, 0.3f)))
                    .child(t("LOAD", micro(10, kDustDim, 220)))
                    .child(box().width(90).height(6).fill(C(0x240607))
-                              .child(box().absolute().left(Dim(0)).top(Dim(0))
+                              .child(box().left(Dim(0)).top(Dim(0))
                                          .width(74).height(6)
                                          .fill(fade(kCyan, 0.8f))))
                    .child(t("543 KB", micro(10, kDust, 200)))
@@ -954,7 +954,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     Element scene = stack().width(Dim(w)).height(Dim(h)).clip();
 
-    scene.child(box().absolute().inset(0).fill(Material::linearUnit(
+    scene.child(box().inset(0).fill(Material::linearUnit(
         {0, 0}, {0, 0.66f},
         {{0.0f, C(0x02070A)}, {0.62f, C(0x03181D)}, {1.0f, C(0x073038)}})));
 
@@ -995,10 +995,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       Element slab =
           place(box().fill(tint), bx[i], horizon - bh[i], bw[i], bh[i])
               .opacity(o);
-      slab.child(box().absolute().left(Dim(bw[i] * 0.25f))
+      slab.child(box().left(Dim(bw[i] * 0.25f))
                      .top(Dim(bh[i] * 0.22f)).width(3).height(3)
                      .fill(fade(kGlow, 0.55f)));
-      slab.child(box().absolute().left(Dim(bw[i] * 0.62f))
+      slab.child(box().left(Dim(bw[i] * 0.62f))
                      .top(Dim(bh[i] * 0.48f)).width(3).height(3)
                      .fill(fade(kGlow, 0.38f)));
       scene.child(slab);
@@ -1081,7 +1081,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
           shapes::Edge::Top,
           util::stroke(1.5f, Fill::color(fade(kGlow, 0.85f)),
                        PathFormat::Align::Inner)));
-      fig.child(box().absolute().left(Dim(dw * 0.22f)).top(Dim(dh * 0.30f))
+      fig.child(box().left(Dim(dw * 0.22f)).top(Dim(dh * 0.30f))
                     .width(Dim(dw * 0.56f)).height(3)
                     .fill(fade(kGlow, 0.55f)));
       scene.child(fig);
@@ -1095,7 +1095,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                        {1.0f, C(0x011F21)}}));
     else
       water.fill(waterStreaks);
-    water.child(box().absolute().left(Dim(cx - 190)).top(Dim(-72))
+    water.child(box().left(Dim(cx - 190)).top(Dim(-72))
                     .width(380).height(300)
                     .fill(Material::radialUnit({0.5f, 0.14f}, 1.05f,
                                                {{0.0f, fade(kGlow, 0.75f)},
@@ -1107,7 +1107,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                     .blend(SkBlendMode::kPlus));
     // the specular COLUMN — the vertical smear of a light in water, and
     // the single cue that reads "reflection" from across the room
-    water.child(box().absolute().left(Dim(cx - 40)).top(Dim(0))
+    water.child(box().left(Dim(cx - 40)).top(Dim(0))
                     .width(80).height(Dim(h - horizon))
                     .fill(Material::linearUnit(
                         {0, 0}, {0, 1},
@@ -1139,18 +1139,18 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                 .blend(SkBlendMode::kPlus)
                 .cache(Cache::Texture)
                 .bakeScale(0.5f));
-    s.child(box().absolute().inset(0).fill(Material::radialUnit(
+    s.child(box().inset(0).fill(Material::radialUnit(
         {0.5f, 0.5f}, 1.0f,
         {{0.00f, {0, 0, 0, 0}},
          {0.58f, {0, 0, 0, 0.10f}},
          {1.00f, {0, 0, 0, 0.66f}}})));
-    s.child(box().absolute().inset(0).foreground(Scanlines{}));
-    s.child(box().absolute().inset(0)
+    s.child(box().inset(0).foreground(Scanlines{}));
+    s.child(box().inset(0)
                 .foreground(Brackets{fade(kCyan, 0.7f), 22, 2, 8, 0xF}));
 
     auto corner = [&](const char *a, const char *b, float l, float tp,
                       bool end) {
-      return box().absolute().column().gap(2)
+      return box().column().gap(2)
           .alignItems(end ? Align::End : Align::Start)
           .left(Dim(l)).top(Dim(tp))
           .child(t(a, micro(10, fade(kCyan, 0.8f), 220)))
@@ -1160,7 +1160,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    false));
     s.child(corner("38.2144 N", "121.4944 W", w - 132, 18, true));
     s.child(corner("DEPTH 00.42", "PRESS 1013 HPA", 20, h - 42, false));
-    s.child(box().absolute().left(Dim(w - 214)).top(Dim(h - 32))
+    s.child(box().left(Dim(w - 214)).top(Dim(h - 32))
                 .row().gap(6).alignItems(Align::Center)
                 .child(box().width(120).height(8).foreground(TickRail{
                     fade(kCyan, 0.6f), 6, 3, 8, 1, 4, false, false}))
@@ -1216,7 +1216,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          .stroke(util::stroke(
                              1, Fill::color(fade(C(0x0B3B40), 0.9f)),
                              PathFormat::Align::Inner))
-                         .child(box().absolute().inset(0)
+                         .child(box().inset(0)
                                     .fill(Material::radialUnit(
                                         {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
                                         {{0.0f, fade(kGlow, g)},
@@ -1254,7 +1254,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                         {1.0f, C(0x011114)}}))
             .stroke(util::stroke(1, Fill::color(fade(C(0x0B3B40), 0.9f)),
                                  PathFormat::Align::Inner))
-            .child(box().absolute().inset(0).fill(Material::radialUnit(
+            .child(box().inset(0).fill(Material::radialUnit(
                 {0.5f, 0.72f}, 0.95f,
                 {{0.0f, fade(kGlow, 0.8f)},
                  {0.5f, fade(kTealBar, 0.28f)},
@@ -1305,7 +1305,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(box().grow(1))
                        .child(box().width(150).height(6)
                                   .fill(fade(kPanelSh, 0.7f))
-                                  .child(box().absolute().left(Dim(0))
+                                  .child(box().left(Dim(0))
                                              .top(Dim(0)).width(112).height(6)
                                              .fill(C(0x0E3234))))
                        .child(t("74%", micro(10, C(0x123B3D), 160)))
@@ -1352,7 +1352,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                              .fill(hazard.material())
                              .opacity(0.45f),
                          0, 316 - 46, 150, 46));
-    bodyArea.child(box().absolute().left(Dim(690 - 11 - 116))
+    bodyArea.child(box().left(Dim(690 - 11 - 116))
                        .top(Dim(316 - 11 - 34))
                        .child(cta("LAUNCH", 116, 34, kPanelSh)));
 
@@ -1409,7 +1409,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .justify(Justify::Center).alignItems(Align::Center)
                        .child(t("\xe2\x96\xb4", micro(8, kBody, 0))))
             .child(box().grow(1).fill(fade(kPanelSh, 0.6f))
-                       .child(box().absolute().left(Dim(2)).top(Dim(6))
+                       .child(box().left(Dim(2)).top(Dim(6))
                                   .width(12).height(90)
                                   .fill(Material::linearUnit(
                                       {0, 0}, {1, 0},
@@ -1943,12 +1943,12 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                     .outline(chamfer(7, kTR | kBL))
                     .fill(C(0x110303))
                     .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
-                    .child(box().absolute().left(Dim(12)).top(Dim(12))
+                    .child(box().left(Dim(12)).top(Dim(12))
                                .width(236).height(96)
                                .child(instancing::instances(
                                    dockAtlas, dockPool,
                                    instancing::Mode::Data)))
-                    .child(box().absolute().left(Dim(12)).top(Dim(122))
+                    .child(box().left(Dim(12)).top(Dim(122))
                                .child(t("ARRAY 6\xc3\x97" "14 \xc2\xb7 IDLE",
                                         micro(10, kD6, 220)))));
 
@@ -1995,7 +1995,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                    .borderColor = kD6}))
               .justify(Justify::Center).alignItems(Align::Center)
               .child(radarSweep(i, C(0xB65050), 0.42f))
-              .child(box().absolute().inset(26).corners({16})
+              .child(box().inset(26).corners({16})
                          .fill(fade(kD1, 0.92f))
                          .stroke(util::stroke(1, Fill::color(kD4),
                                               PathFormat::Align::Inner)))
@@ -2007,7 +2007,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element rail(bool right) {
     using namespace tav;
-    return box().absolute().left(Dim(right ? 1916.0f : 0.0f)).top(Dim(0))
+    return box().left(Dim(right ? 1916.0f : 0.0f)).top(Dim(0))
         .width(24).height(Dim(1560))
         .fill(Material::linearUnit({0, 0}, {0, 1},
                                    {{0.00f, C(0x6A1B21)},
@@ -2039,8 +2039,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                    x, y, w, h);
     };
 
-    Element o = stack().absolute().inset(0).zIndex(90);
-    o.child(box().absolute().inset(0).fill(C(0x120303))
+    Element o = stack().inset(0).zIndex(90);
+    o.child(box().inset(0).fill(C(0x120303))
                 .opacity(withKeyframes<float>({{0ms, 1.0f},
                                                {1400ms, 1.0f},
                                                {1560ms, 0.0f}})));
@@ -2069,7 +2069,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                {1450ms, 0.0f}}))
                 .child(slot("bootpct"))
                 .child(box().width(420).height(2).fill(fade(kCyan, 0.18f))
-                           .child(box().absolute().inset(0)
+                           .child(box().inset(0)
                                       .outline(ray(1, 1))
                                       .stroke(util::stroke(
                                           2, Fill::color(kCyan)))
@@ -2080,7 +2080,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                 .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97" "655",
                          micro(11, fade(kCyan, 0.6f), 240))));
     // 4. the boot-complete flash
-    o.child(box().absolute().inset(0).fill(SkColor4f{1, 1, 1, 1})
+    o.child(box().inset(0).fill(SkColor4f{1, 1, 1, 1})
                 .opacity(withKeyframes<float>({{1330ms, 0.0f},
                                                {1390ms, 0.7f},
                                                {1460ms, 0.0f}}))
@@ -2102,7 +2102,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
   Element describe() {
     using namespace tav;
-    Element stage = box().absolute().left(Dim(24)).top(Dim(0)).width(1892)
+    Element stage = box().left(Dim(24)).top(Dim(0)).width(1892)
                         .height(Dim(1530));
     stage.child(statusBar());
     stage.child(place(audioModule(), 0, 48, 596, 174));
@@ -2129,7 +2129,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                     {0.13f, C(0x2E0808)},
                                     {0.40f, C(0x150202)},
                                     {1.00f, kBgBot}}))
-        .child(box().absolute().inset(0).fill(grain).opacity(0.07f)
+        .child(box().inset(0).fill(grain).opacity(0.07f)
                    .blend(SkBlendMode::kOverlay))
         .child(rail(false))
         .child(rail(true))

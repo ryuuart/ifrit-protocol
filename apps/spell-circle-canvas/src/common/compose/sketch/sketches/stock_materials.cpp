@@ -74,8 +74,8 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
             .child(text(util::toU8("STOCK SkSL MATERIALS \xc2\xb7 "
                                    "split-Skia guard"),
                         label(12))
-                       .absolute().left(24).top(20))
-            .child(box().absolute().left(24).top(52).right(24)
+                       .left(24).top(20))
+            .child(box().left(24).top(52).right(24)
                        .row().gap(12)
                        .child(swatch("patterns::grain",
                                      patterns::grain(0.35f, 4, 3.0f)))
@@ -88,7 +88,7 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
                        .child(swatch("Material::linearUnit",
                                      Material::linearUnit({0, 0}, {1, 1},
                                                           ramp))))
-            .child(box().absolute().left(24).top(184).right(24)
+            .child(box().left(24).top(184).right(24)
                        .row().gap(12)
                        .child(swatch("Material::radialUnit",
                                      Material::radialUnit({0.5f, 0.5f}, 1.0f,
@@ -115,7 +115,7 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
                                      sdf::material(sdf::star(6, 2.6f),
                                                    {.fill = {0.95f, 0.80f,
                                                              0.30f, 1}}))))
-            .child(box().absolute().left(24).top(316).right(24)
+            .child(box().left(24).top(316).right(24)
                        .row().gap(12)
                        .child(swatch("blend(grain over ramp)",
                                      Material::blend(
@@ -137,7 +137,7 @@ struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
                                    "compiled \xe2\x80\x94 running the effect "
                                    "is what crosses the image boundary"),
                         label(10))
-                       .absolute().left(24).bottom(16)));
+                       .left(24).bottom(16)));
   }
 };
 

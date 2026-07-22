@@ -104,9 +104,9 @@ struct ZelligeScene final : Scene {
         .fill(Fill::color(zw::kPlaster))
         // Speckled plaster grain over the ground — its own full-bleed
         // layer (the root fill and the pattern can't share one slot).
-        .child(box().absolute().inset(0, 0, 0, 0).fill(grain.material()))
+        .child(box().inset(0, 0, 0, 0).fill(grain.material()))
         .child(
-            box().column().absolute().inset(50, 44, 50, 44).gap(14)
+            box().column().inset(50, 44, 50, 44).gap(14)
                 .child(box().row().alignItems(Align::Baseline).gap(14)
                            .child(text(toU8("ZELLIJE"),
                                        zw::type(34, zw::kInk, 3)))

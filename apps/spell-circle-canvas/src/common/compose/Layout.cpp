@@ -129,7 +129,13 @@ void Composer::Impl::syncLayoutRects(Instance &inst) {
     if (sizeChanged)
       inst.markPaintDirtyUp(); // own content baked the old bounds
     else if (inst.parent)
-      inst.parent->markPaintDirtyUp(); // parent baked the old offset
+      // The parent's RECORDING baked this child's old offset; the parent's
+      // OWN paint did not — it never contained the child at all. §15's
+      // split bake is the one thing that can tell those apart, and it must,
+      // because a moving child is precisely the case it exists for: if this
+      // marked the parent's own paint dirty the bake would be remade every
+      // frame and the feature would silently do nothing.
+      inst.parent->markPaintDirtyUp(/*ownPaint=*/false);
     contentDirty = true;
   }
   for (auto &child : inst.children)

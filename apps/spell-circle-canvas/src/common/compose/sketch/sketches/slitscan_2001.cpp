@@ -493,7 +493,6 @@ Element artOpArt() {
     const float x = (float)i * 12.1f;
     const float hh = 30.0f + 220.0f * std::fabs(std::sin((float)i * 0.2131f));
     g.child(box()
-                .absolute()
                 .left(Dim(x))
                 .top(Dim(kCellH * 0.5f - hh * 0.5f))
                 .width(5)
@@ -503,7 +502,6 @@ Element artOpArt() {
   for (int i = 0; i < 13; ++i) {
     const float cx = 56.0f + (float)i * 114.0f;
     g.child(box()
-                .absolute()
                 .left(Dim(cx - 170.0f))
                 .top(Dim(kCellH * 0.5f - 170.0f))
                 .width(340)
@@ -519,12 +517,11 @@ Element artOpArt() {
  *  logarithmic spirals. */
 Element artArch() {
   Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
-  g.child(box().absolute().inset(0).foreground(
+  g.child(box().inset(0).foreground(
       lines::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
   for (int i = 0; i < 8; ++i) {
     const float x = 20.0f + (float)i * 182.0f;
     g.child(box()
-                .absolute()
                 .left(Dim(x))
                 .top(Dim(30))
                 .width(176)
@@ -533,7 +530,6 @@ Element artArch() {
                 .foreground(stroke(8.0f, Fill::color(kWhite))));
     for (int k = 0; k < 11; ++k)
       g.child(box()
-                  .absolute()
                   .left(Dim(x - 16.0f))
                   .top(Dim(14.0f + (float)k * 44.0f))
                   .width(208)
@@ -547,13 +543,12 @@ Element artArch() {
  *  and it carries the white-stripe defect. */
 Element artCircuit(Pattern &grid, Pattern &spek) {
   Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
-  g.child(box().absolute().inset(0).fill(grid.material()));
-  g.child(box().absolute().inset(0).fill(spek.material()));
+  g.child(box().inset(0).fill(grid.material()));
+  g.child(box().inset(0).fill(spek.material()));
   for (int i = 0; i < 110; ++i) {
     const float x = std::fmod((float)i * 137.31f, kCellW - 34.0f) + 12.0f;
     const float y = std::fmod((float)i * 271.7f, kCellH - 34.0f) + 12.0f;
     g.child(box()
-                .absolute()
                 .left(Dim(x))
                 .top(Dim(y))
                 .width(26)
@@ -1083,7 +1078,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     // THE ACCUMULATION. Two exposures, kPlus, one atlas stamp each.
     auto raw = [this] {
       return box()
-          .absolute()
           .inset(0)
           .child(instancing::instances(atlas, wallA, instancing::Mode::Live,
                                        SkBlendMode::kPlus))
@@ -1132,7 +1126,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         // The shutter bar -- the ONLY thing in the plate driven by
         // addFixed's interpolant, and the caption says why.
         .child(box()
-                   .absolute()
                    .left(Dim(0))
                    .top(Dim(0))
                    .width(Dim(kFilmW))
@@ -1173,7 +1166,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .child(custom([this](SkCanvas &c, const PaintContext &p) {
                  drawRig(c, p);
                })
-                   .absolute()
                    .left(Dim(0))
                    .top(Dim(0))
                    .width(Dim(kElevW))
@@ -1183,7 +1175,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .child(custom([this](SkCanvas &c, const PaintContext &p) {
                  drawArtworkPanel(c, p);
                })
-                   .absolute()
                    .left(Dim(kRigW - kPanelStripW))
                    .top(Dim(0))
                    .width(Dim(kPanelStripW))
@@ -1193,7 +1184,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         // there is nothing but sky. The only place you see a frame BEING
         // MADE rather than made, so it gets the good corner.
         .child(box()
-                   .absolute()
                    .left(Dim(18))
                    .top(Dim(10))
                    .width(264)
@@ -1203,7 +1193,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .stroke(stroke(1.0f, Fill::color(kRule)))
                    .clip()
                    .child(box()
-                              .absolute()
                               .inset(0)
                               .child(instancing::instances(
                                   atlas, monA, instancing::Mode::Live,
@@ -1214,17 +1203,15 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                               .effect(Effect::shader(transferCurve(),
                                                      {{"k", 2.4f}})))
                    .child(t("THIS EXPOSURE", mono(8, al(kCold, 0.85f), 1.4f))
-                              .absolute()
                               .left(Dim(8))
                               .top(Dim(5)))
-                   .child(slot("expo").absolute().left(Dim(8)).bottom(Dim(19)))
+                   .child(slot("expo").left(Dim(8)).bottom(Dim(19)))
                    .child(t("ONE SWEEP / 3.0 s. THE MACHINE TOOK 45–60 s "
                             "[C85]. ×18.",
                             mono(7, al(kTick, 0.95f)))
-                              .absolute()
                               .left(Dim(8))
                               .bottom(Dim(6))))
-        .child(slot("readout").absolute().left(Dim(20)).top(Dim(130)));
+        .child(slot("readout").left(Dim(20)).top(Dim(130)));
   }
 
   // ------------------------------------------------------------- sidebar
@@ -1326,7 +1313,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                 .fill(al(kBlack, 0.6f))
                 .stroke(stroke(1.0f, Fill::color(kRule)))
                 .child(box()
-                           .absolute()
                            .inset(4)
                            .outline(shapes::parametric(
                                [](float s) {
@@ -1341,7 +1327,6 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                 .child(custom([this](SkCanvas &c, const PaintContext &p2) {
                          drawMeasuredPoints(c, p2);
                        })
-                           .absolute()
                            .inset(4)
                            .cache(Cache::None)));
     p.child(slot("fit").height(Dim(21)).shrink(0));

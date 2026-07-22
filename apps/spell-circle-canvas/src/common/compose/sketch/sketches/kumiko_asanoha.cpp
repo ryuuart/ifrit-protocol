@@ -683,7 +683,6 @@ Element stripElement(const Strip &s, TimberBank &bank,
   const float bevelAlpha = heavy ? 0.42f : 0.26f;
 
   Element e = box()
-                  .absolute()
                   .left((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f)
                   .top((s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f)
                   .width(boxW)
@@ -737,7 +736,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         if (panel.strips[i].role == role)
           into.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
     };
-    auto group = box().absolute().inset(0, 0, 0, 0);
+    auto group = box().inset(0, 0, 0, 0);
     add(group, kRoleDiagonal);
     add(group, kRoleFiller);
     add(group, kRoleLock);
@@ -748,7 +747,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   }
 
   Element frame() {
-    auto group = box().absolute().inset(0, 0, 0, 0);
+    auto group = box().inset(0, 0, 0, 0);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
         group.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
@@ -759,7 +758,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   // tenon nub arrives on one beat — the craftsman's final seating tap.
   Element joinery() {
     auto seams = panel.seams;
-    auto group = stack().absolute().inset(0, 0, 0, 0).opacity(&seat);
+    auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
     group.child(custom([seams](SkCanvas &c, const PaintContext &) {
                   SkPaint p;
                   p.setAntiAlias(true);
@@ -786,7 +785,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
                     }
                   }
                 })
-                    .absolute()
                     .inset(0, 0, 0, 0));
     for (const Strip &n : panel.nubs)
       group.child(stripElement(n, bank, nullptr, nullptr));
@@ -796,7 +794,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   Element backlight() {
     const SkRect &open = kRegOuter; // the frame's opening
     return box()
-        .absolute()
         .left(open.left())
         .top(open.top())
         .width(open.width())
@@ -807,7 +804,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // Brief §7: a hot core fading out across the opening. The brief's
         // 520 px outer radius leaves the field's corners black at this
         // canvas; 585 keeps the outermost cells legible.
-        .child(box().absolute().inset(0, 0, 0, 0).fill(Material::radial(
+        .child(box().inset(0, 0, 0, 0).fill(Material::radial(
             {open.width() * 0.5f, open.height() * 0.5f}, 585,
             {{0.00f, rgb(0xFDEDC4, 0.95f)},
              {0.24f, rgb(0xF0DCA6, 0.91f)},
@@ -819,7 +816,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
 
   Element beam(float y, float h, bool top) {
     return box()
-        .absolute()
         .left(0)
         .top(y)
         .width(kW)
@@ -834,7 +830,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
 
   Element post(float x, float w) {
     return box()
-        .absolute()
         .left(x)
         .top(118)
         .width(w)
@@ -857,7 +852,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // fretwork, so the light visibly wraps the pieces it is behind
         // instead of stopping dead at their silhouettes.
         .child(box()
-                   .absolute()
                    .left(kRegOuter.left())
                    .top(kRegOuter.top())
                    .width(kRegOuter.width())
@@ -875,7 +869,6 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal (brief §9 step 1).
         .child(box()
-                   .absolute()
                    .left(mid.left())
                    .top(mid.top())
                    .width(mid.width())
@@ -892,13 +885,12 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .child(text(toU8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
                          "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97""400mm TYPE"),
                     type(12, kCaption, 1.1f))
-                   .absolute()
                    .left(950)
                    .top(916)
                    .width(300)
                    .textAlign(sigil::weave::TextAlignment::kEnd))
         // A faint vertical vignette — the near-side room, in shadow.
-        .child(box().absolute().inset(0, 0, 0, 0).fill(util::radialGradient(
+        .child(box().inset(0, 0, 0, 0).fill(util::radialGradient(
             {700, 500}, 920, {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
             {0.30f, 0.72f, 1.0f})));
   }

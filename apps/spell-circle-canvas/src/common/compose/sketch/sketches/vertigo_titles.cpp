@@ -366,7 +366,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     into.child(box()
                    .key("curve" + tag)
-                   .absolute()
                    .inset(0)
                    .outline(lissajous(c, R))
                    .stroke(brushes::filament(c.core, hex(0xFFE9CF), 0.48f))
@@ -377,7 +376,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // the nib: a short bright plus-blended window at the trailing edge
     into.child(box()
                    .key("nib" + tag)
-                   .absolute()
                    .inset(0)
                    .outline(lissajous(c, R))
                    .stroke(brushes::pulse({1.0f, 0.90f, 0.72f, 0.42f},
@@ -409,7 +407,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // covers. Sudden onset: easeInQuad.
     panel.child(box()
                     .key("stain")
-                    .absolute()
                     .inset(0)
                     .blend(SkBlendMode::kColor)
                     .fill(withFrom(Fill::color(hex(0x3A2A1C)),
@@ -433,7 +430,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                     .row()
                     .gap(3)
                     .alignItems(Align::Baseline)
-                    .absolute()
                     .centerAt(kEye)
                     .key("vertigo")
                     .staggerChildren(30ms);
@@ -471,7 +467,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     panel.child(text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
                      type(faceDisplay, 15, kSolidInk, 2.6f))
                     .key("credit")
-                    .absolute()
                     .centerAt({kEye.x(), kEye.y() + 152.0f})
                     .opacity(withFrom(0.0f, 1.0f, ramp(1550, 300)))
                     .translateY(withFrom(10.0f, 0.0f, ramp(1550, 300))));
@@ -484,7 +479,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-top")
-            .absolute()
             .inset(0)
             .onPath({.path = circlePath(272.0f),
                      .at = 0.25f,
@@ -496,7 +490,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-bottom")
-            .absolute()
             .inset(0)
             // Same clockwise baseline as the top caption, half a turn
             // round, flipped so it reads right way up — which is the
@@ -521,26 +514,23 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 4; ++i)
       panel.child(text(toU8(kSlug[i]), type(faceGothic, 10, kBone, 1.8f))
                       .key(std::string("slug") + kCards[i].tag)
-                      .absolute()
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
     panel.child(text(toU8("T = 12π · N = 2000 · TURNTABLE 18°/s · easeNone"),
                      type(faceGothic, 10, hex(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
-                    .absolute()
                     .left(22)
                     .bottom(20)
                     .opacity(withFrom(0.0f, 1.0f, ramp(1200, 400))));
 
     // film gate: grain, then a soft vignette
     panel.child(box()
-                    .absolute()
                     .inset(0)
                     .fill(filmGrain)
                     .blend(SkBlendMode::kOverlay)
                     .opacity(0.42f));
-    panel.child(box().absolute().inset(0).fill(radialGradient(
+    panel.child(box().inset(0).fill(radialGradient(
         kEye, kPanelW * 0.52f,
         {hex(0x000000, 0.0f), hex(0x000000, 0.10f), hex(0x050302, 0.80f)},
         {0.0f, 0.44f, 1.0f})));
@@ -549,7 +539,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // iris fill along with the keyline.
     panel.child(box()
                     .key("bezel")
-                    .absolute()
                     .inset(0)
                     .corners({10})
                     .fill(Fill::none())
@@ -567,7 +556,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // outline register. Card C's own curve, spinning with the rest.
     p.child(box()
                 .key("spec-bed")
-                .absolute()
                 .left(-46)
                 .top(-64)
                 .width(352)
@@ -604,7 +592,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                     .stroke(stroke(1.0f, Fill::color(kKeyline),
                                    PathFormat::Align::Inner))
                     .child(box()
-                               .absolute()
                                .inset(0)
                                .outline(lissajous(c, 13.0f, 420))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
@@ -719,7 +706,6 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     // ---- the whole sheet under one very faint tooth ---------------
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(paperGrain)
                    .blend(SkBlendMode::kOverlay)

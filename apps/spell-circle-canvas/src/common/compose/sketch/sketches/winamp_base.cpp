@@ -246,7 +246,7 @@ inline Element t(const std::string &s, sigil::weave::TextStyle st) {
 
 /** Absolute placement in NATIVE skin coordinates, local to the window. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  e.absolute()
+  e
       .left(Dim(n(x)))
       .top(Dim(n(y)))
       .width(Dim(n(w)))
@@ -611,7 +611,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element w = box().width(Dim(n(275))).height(Dim(n(116)));
     // The brushed body, on its own leaf so the bake is a texture and the
     // window's live children never drag the grain shader back per frame.
-    w.child(box().absolute().inset(0).fill(steel).cache(Cache::Texture));
+    w.child(box().inset(0).fill(steel).cache(Cache::Texture));
     raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(275, "WINAMP", false));
 
@@ -655,7 +655,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // off-segment grey, is what turns green numerals into a display.
     Element clock = at(box(), 45, 26, 54, 13);
     clock.child(at(lcdCells("88:88", kUnlit), 0, 0, 54, 13));
-    clock.child(box().absolute().inset(0).child(slot("time")));
+    clock.child(box().inset(0).child(slot("time")));
     w.child(clock);
 
     // the scrolling track title (TEXT.BMP, 5x6 cell) in its own sunken box.
@@ -702,9 +702,9 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // ---- the spectrum analyser well (native 24,43,76,16) ---------------
     Element vis = at(box(), 24, 43, 76, 16).fill(C(0x000000));
     sunken(vis, fade(C(0x4A4A70), 0.6f), C(0x08080E));
-    vis.child(box().absolute().inset(0).fill(visDots.material()));
+    vis.child(box().inset(0).fill(visDots.material()));
     // ONE atlas stamp for 19x16 LED segments plus 19 peak-hold dots.
-    vis.child(box().absolute().inset(0).child(
+    vis.child(box().inset(0).child(
         instancing::instances(ledAtlas, ledPool, instancing::Mode::Live,
                               SkBlendMode::kPlus)));
     w.child(vis);
@@ -724,7 +724,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                                               &ch::easeNone)));
 
     // ---- volume / balance / EQ+PL toggles -------------------------------
-    w.child(box().absolute()
+    w.child(box()
                 .left(Dim(n(107)))
                 .top(Dim(n(57)))
                 .width(Dim(n(108)))
@@ -941,7 +941,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
   Element eqWindow() {
     using namespace wa;
     Element w = box().width(Dim(n(275))).height(Dim(n(116)));
-    w.child(box().absolute().inset(0).fill(steel).cache(Cache::Texture));
+    w.child(box().inset(0).fill(steel).cache(Cache::Texture));
     raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
 
@@ -966,8 +966,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // Outputs the faders below ride, so the two widgets can never disagree.
     Element graph = at(box(), 86, 17, 113, 19).fill(graphMat);
     sunken(graph, fade(C(0x4A4A70), 0.6f), C(0x08080E));
-    graph.child(box().absolute().inset(0).fill(graphGrid.material()));
-    graph.child(eqCurve().absolute().inset(0).cache(Cache::None));
+    graph.child(box().inset(0).fill(graphGrid.material()));
+    graph.child(eqCurve().inset(0).cache(Cache::None));
     w.child(graph);
 
     // the eleven faders: preamp at native x21, bands on an 18 px pitch
@@ -1089,7 +1089,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     using namespace wa;
     const float W = 400, H = 377;
     Element w = box().width(Dim(n(W))).height(Dim(n(H)));
-    w.child(box().absolute().inset(0).fill(steel).cache(Cache::Texture));
+    w.child(box().inset(0).fill(steel).cache(Cache::Texture));
     raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
 
@@ -1097,9 +1097,9 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element list = at(box(), 12, 20, W - 32, 319).fill(kPlBg);
     sunken(list, fade(C(0x4A4A70), 0.6f), C(0x06060A));
     // row backgrounds: one atlas stamp, three tint states.
-    list.child(box().absolute().inset(0).child(
+    list.child(box().inset(0).child(
         instancing::instances(rowAtlas, rowPool, instancing::Mode::Live)));
-    list.child(box().absolute().inset(0).clip().child(slot("tracks")));
+    list.child(box().inset(0).clip().child(slot("tracks")));
     w.child(list);
 
     // the scrollbar rail and its two arrow buttons
@@ -1119,7 +1119,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // ---- the bottom control strip (native y 339..377) -------------------
     Element bottom = at(box(), 0, 339, W, 38);
-    bottom.child(box().absolute().inset(0).fill(steel).cache(Cache::Texture));
+    bottom.child(box().inset(0).fill(steel).cache(Cache::Texture));
     bottom.child(at(box(), 0, 0, W, 1).fill(fade(C(0x585880), 0.6f)));
 
     // ADD / REM / SEL / MISC, bottom-anchored 6 native px above the sill.
@@ -1169,7 +1169,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // the preview-visualiser swatch (default checkerboard art)
     Element sw = at(box(), W - 88, 20, 38, 14).fill(C(0x000000));
     sunken(sw, fade(C(0x4A4A70), 0.5f), C(0x08080E));
-    sw.child(box().absolute().inset(0).fill(
+    sw.child(box().inset(0).fill(
         patterns::checker(n(2), C(0x2B2B44), C(0x14141F)).material()));
     bottom.child(sw);
     w.child(bottom);
@@ -1240,14 +1240,12 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // the desktop: flat teal + one baked dither pass
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(deskMat)
                    .cache(Cache::Texture));
 
     // Main — pops in at its final position, scale 0.9 -> 1 on outBack.
     root.child(mainWindow()
-                   .absolute()
                    .left(Dim(60))
                    .top(Dim(60))
                    .transformOrigin(0.5f, 0.5f)
@@ -1258,7 +1256,6 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // Equalizer — docking snap from 60 px above, the same outBack value.
     root.child(eqWindow()
-                   .absolute()
                    .left(Dim(60))
                    .top(Dim(408))
                    .translateY(withFrom(-60.0f, 0.0f,
@@ -1269,7 +1266,6 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // Playlist — same snap, 1.25 s later.
     root.child(playlistWindow()
-                   .absolute()
                    .left(Dim(60))
                    .top(Dim(756))
                    .translateY(withFrom(-60.0f, 0.0f,

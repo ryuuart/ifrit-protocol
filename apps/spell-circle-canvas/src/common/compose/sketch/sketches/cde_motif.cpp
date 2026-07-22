@@ -1022,7 +1022,6 @@ inline Element art(const std::vector<std::string> &rows, float cell,
         for (int k = 0; k < rw; ++k)
           done[(size_t)((y + j) * w + x + k)] = 1;
       Element cellBox = box()
-                            .absolute()
                             .left(Dim((float)x * cell))
                             .top(Dim((float)y * cell))
                             .width(Dim((float)rw * cell))
@@ -1697,7 +1696,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   Element clockIcon(const Set &s) {
     Element face = stack().width(Dim(48)).height(Dim(48));
     face.child(box()
-                   .absolute()
                    .inset(0)
                    .corners({24})
                    .fill(s.pBg())
@@ -1706,7 +1704,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                                               cde::kIconGray[6])),
                                           .align = PathFormat::Align::Inner}));
     face.child(box()
-                   .absolute()
                    .inset(4)
                    .corners({20})
                    .fill(cde::C(cde::kIconGray[0])));
@@ -1718,7 +1715,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
       const float cy = 24.0f - std::cos(a) * r;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.child(box()
-                     .absolute()
                      .left(Dim(cx - sz * 0.5f))
                      .top(Dim(cy - sz * 0.5f))
                      .width(Dim(sz))
@@ -1728,7 +1724,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     // Hour hand, ~60% radius; minute hand, full radius. Both quantised to
     // the minute: 61 levels across [0,1] is a 6-degree step.
     face.child(box()
-                   .absolute()
                    .left(Dim(23))
                    .top(Dim(13))
                    .width(Dim(3))
@@ -1737,7 +1732,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .transformOrigin(0.5f, 1.0f)
                    .rotate(bind(&clockT).quantize(61).scale(30).offset(300)));
     face.child(box()
-                   .absolute()
                    .left(Dim(23))
                    .top(Dim(6))
                    .width(Dim(2))
@@ -1746,7 +1740,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .transformOrigin(0.5f, 1.0f)
                    .rotate(bind(&clockT).quantize(61).scale(360)));
     face.child(box()
-                   .absolute()
                    .left(Dim(22))
                    .top(Dim(22))
                    .width(Dim(4))
@@ -1762,12 +1755,10 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
         .width(Dim(48))
         .height(Dim(48))
         .child(box()
-                   .absolute()
                    .inset(3, 2, 3, 2)
                    .fill(cde::C(cde::kIconColor[1]))
                    .overlay(cde::bevel(2, false, false, s)))
         .child(box()
-                   .absolute()
                    .left(Dim(5))
                    .top(Dim(4))
                    .width(Dim(38))
@@ -1777,7 +1768,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                    .justify(Justify::Center)
                    .child(cde::label("Jul", s.fgV, 11)))
         .child(box()
-                   .absolute()
                    .left(Dim(5))
                    .top(Dim(18))
                    .width(Dim(38))
@@ -1948,30 +1938,28 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
     //    ONE 28 x 52 pixmap that dtwm tiles — not instanced, not
     //    randomised per repeat; the lattice is part of how it looks.
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(backdrops[(size_t)paletteIndex].material())
                    .cache(Cache::Texture));
 
     // 2. The File Manager.
-    root.child(fileManager().absolute().left(Dim(40)).top(Dim(48)).width(
+    root.child(fileManager().left(Dim(40)).top(Dim(48)).width(
         Dim(600)).height(Dim(452)));
 
     // 3. The Style Manager's Color dialog.
-    root.child(colorDialog().absolute().left(Dim(664)).top(Dim(96)).width(
+    root.child(colorDialog().left(Dim(664)).top(Dim(96)).width(
         Dim(452)).height(Dim(356)));
 
     // 4. A posted (torn-off) menu.
-    root.child(postedMenu().absolute().left(Dim(700)).top(Dim(506)));
+    root.child(postedMenu().left(Dim(700)).top(Dim(506)));
 
     // 5. The derivation strip — the only smooth motion on the canvas.
-    root.child(slot("derivation").absolute().left(Dim(40)).top(Dim(536)));
+    root.child(slot("derivation").left(Dim(40)).top(Dim(536)));
 
     // 6. The Help subpanel, wiping up out of the panel. The Help control
     //    sits at x = 912..968, so the subpanel is centred on it and its
     //    bottom edge meets the panel's top.
     root.child(helpSubpanel()
-                   .absolute()
                    .left(Dim(865))
                    .top(Dim(700))
                    .width(Dim(150))
@@ -1979,7 +1967,6 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
     // 6b. Iconified windows on the root, where dtwm parks them.
     root.child(box()
-                   .absolute()
                    .left(Dim(48))
                    .top(Dim(690))
                    .row()
@@ -1990,7 +1977,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
 
     // 7. The Front Panel, bottom-centred. 960 wide => 948 of content,
     //    which is exactly the measured control list.
-    root.child(frontPanel().absolute().left(Dim(96)).top(Dim(806)).width(
+    root.child(frontPanel().left(Dim(96)).top(Dim(806)).width(
         Dim(960)).height(Dim(86)));
 
     (void)ctx;

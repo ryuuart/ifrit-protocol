@@ -22,7 +22,7 @@ struct LoadScene final : Scene {
     for (int i = 0; i < 300; ++i) {
       const float x = (float)(rng() % 860), y = (float)(rng() % 600);
       root.child(box().width(34).height(22).corners({4})
-                     .inset(x, y, 0, 0).absolute()
+                     .inset(x, y, 0, 0)
                      .fill(Fill::color({0.09f, 0.10f, 0.16f, 1})));
     }
     // 24 binding-driven movers over them (only these paint live).
@@ -31,7 +31,7 @@ struct LoadScene final : Scene {
       const float y = 20.0f + 25.0f * (float)i;
       const float phase = (float)i * 0.7f;
       root.child(box().width(46).height(18).corners({4})
-                     .inset(0, y, 0, 0).absolute()
+                     .inset(0, y, 0, 0)
                      .translateX(out.get())
                      .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})));
       movers.push_back(std::move(out));

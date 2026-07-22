@@ -343,7 +343,7 @@ struct UiParticleScene final : Scene {
                         u8"posts (flourish, carved & plain borders), each tier "
                         u8"one instances() stamp over an EnTT SoA registry",
                         styleAt(16, 0xffdde4f2))
-                       .absolute().inset(24, 24, 24, 590).zIndex(1)));
+                       .inset(24, 24, 24, 590).zIndex(1)));
   }
 };
 

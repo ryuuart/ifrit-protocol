@@ -183,7 +183,7 @@ struct KineticCardScene final : Scene {
     return stack()
         .fill(ground)
         .child(
-            box().column().absolute().inset(64, 44, 64, kc::kTickerH)
+            box().column().inset(64, 44, 64, kc::kTickerH)
                 .child(box().row().alignItems(Align::Baseline)
                            .opacity(withFrom(0.0f, 1.0f,
                                              {450ms, &ch::easeOutQuad}))
@@ -213,7 +213,7 @@ struct KineticCardScene final : Scene {
                            .trim(0.0f,
                                  withFrom(0.0f, 1.0f,
                                           {500ms, &ch::easeOutExpo, 360ms}))
-                           .child(box().absolute().inset(0, 0, 0, 0)
+                           .child(box().inset(0, 0, 0, 0)
                                       .outline(lineOutline)
                                       .stroke(cometFmt)
                                       .trim(0.0f, 0.06f, &cometPhase,
@@ -235,7 +235,7 @@ struct KineticCardScene final : Scene {
                            .margin(0, 22, 0, 0))
                 .child(box().grow(1)))
         .child(util::marquee(tickerContent(), &tickX, kc::kTickerGap)
-                   .absolute().inset(0, kc::kH - kc::kTickerH, 0, 0)
+                   .inset(0, kc::kH - kc::kTickerH, 0, 0)
                    .opacity(withFrom(0.0f, 1.0f,
                                      {560ms, &ch::easeOutQuad, 1040ms}))
                    .foreground(shapes::onEdges(shapes::Edge::Top, hairline)));

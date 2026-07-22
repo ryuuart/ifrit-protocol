@@ -381,32 +381,32 @@ struct PersonaMenuScene final : Scene {
     // re-bakes at its own 6 Hz, the framing gradients above are another
     // static texture. A live ancestor recomposites per frame on raster —
     // each plane must therefore be one cheap draw.
-    return box().absolute().inset(0)
-        .child(box().absolute().inset(0)
+    return box().inset(0)
+        .child(box().inset(0)
                    .cache(Cache::Texture) // static under-plane: ground +
                                           // bands + noise + veil, one blit
                    .fill(Material::linear(
                        {0, 0}, {0, nn::kH},
                        {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
-                   .child(box().absolute().inset(0).fill(bands).opacity(0.9f))
-                   .child(box().absolute().inset(0)
+                   .child(box().inset(0).fill(bands).opacity(0.9f))
+                   .child(box().inset(0)
                               .fill(patterns::noise(0.006f, 4))
                               .opacity(0.32f)
                               .blend(SkBlendMode::kSoftLight))
-                   .child(box().absolute().inset(0).fill(
+                   .child(box().inset(0).fill(
                        Material::solid(nn::kTintVeil))))
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
         // The bands are watercolor-soft already, so the reduced bake
         // reads identically while each 6 Hz re-bake evaluates a quarter
         // of the pixels.
-        .child(box().absolute().inset(0)
+        .child(box().inset(0)
                    .cache(Cache::Texture).bakeScale(0.5f)
                    .fill(dualCaustic()))
         // static over-plane: the framing gradients, one blit
-        .child(box().absolute().inset(0)
+        .child(box().inset(0)
                    .cache(Cache::Texture)
-                   .child(box().absolute().inset(0).fill(Material::linear(
+                   .child(box().inset(0).fill(Material::linear(
                        {0, nn::kH * 0.60f}, {0, nn::kH},
                        {{0.0f,
                          {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
@@ -414,7 +414,7 @@ struct PersonaMenuScene final : Scene {
                         {1.0f,
                          {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
                           0.88f}}})))
-                   .child(box().absolute().inset(0).fill(Material::linear(
+                   .child(box().inset(0).fill(Material::linear(
                        {0, 0}, {0, nn::kH * 0.42f},
                        {{0.0f, nn::kTopCyan},
                         {1.0f,
@@ -470,14 +470,14 @@ struct PersonaMenuScene final : Scene {
                       .opacity(withFrom(0.0f, 1.0f,
                                         {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
-    row.child(box().absolute().left(10).top(3).width(wW).height(wH)
+    row.child(box().left(10).top(3).width(wW).height(wH)
                   .outline(nn::sliverWedge()).rotate(8)
                   .fill(Material::solid(nn::kPink)));
     // white wedge -- clips the red echo; idle heartbeat on scale.
     // Echo top carries +5px: the wedge's +8 deg spin about ITS center
     // walks the echo ~5px up; the compensation restores the verified
     // (3,-6).
-    row.child(box().absolute().left(0).top(-6).width(wW).height(wH)
+    row.child(box().left(0).top(-6).width(wW).height(wH)
                   .outline(nn::sliverWedge()).rotate(8).clip(true)
                   .fill(Material::solid(nn::kPaper))
                   .scale(&wedgePulse)
@@ -508,11 +508,11 @@ struct PersonaMenuScene final : Scene {
         // sec.1 calls this additive; at 36px over the navy sea kPlus
         // washes the red rim out entirely, so the scene keeps it plain
         // red.
-        .child(box().absolute().inset(0)
+        .child(box().inset(0)
                    .outline(shapes::polygon(3, 92))
                    .fill(Material::solid(nn::kRedC))
                    .translateX(1).translateY(5))
-        .child(box().absolute().inset(0)
+        .child(box().inset(0)
                    .outline(shapes::polygon(3, 90))
                    .fill(Material::solid(nn::kPaper)));
   }
@@ -585,7 +585,7 @@ struct PersonaMenuScene final : Scene {
                      .width(16))
           .child(box().width(84).height(6).grow(0)
                      .fill(Material::solid({0, 0.05f, 0.18f, 0.55f}))
-                     .child(box().absolute().left(0).top(0)
+                     .child(box().left(0).top(0)
                                 .width(Dim(84 * frac)).height(Dim(6.0f))
                                 .fill(Material::linear(
                                     {0, 0}, {0, 6},

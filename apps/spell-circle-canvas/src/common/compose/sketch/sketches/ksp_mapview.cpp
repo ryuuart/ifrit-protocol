@@ -235,12 +235,12 @@ inline Element t(const char *s, sigil::weave::TextStyle st) {
 }
 
 inline Element place(Element e, float x, float y, float w, float h) {
-  e.absolute().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  e.left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
   return e;
 }
 /** A node centred on a canvas point — the marker/gizmo idiom. */
 inline Element at(Element e, SkPoint c, float w, float h) {
-  e.absolute().width(Dim(w)).height(Dim(h)).centerAt(c);
+  e.width(Dim(w)).height(Dim(h)).centerAt(c);
   return e;
 }
 
@@ -598,9 +598,9 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     using namespace ksp;
     const float W = ctx.size.width(), H = ctx.size.height();
 
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
 
-    g.child(box().absolute().inset(0).fill(Material::radialUnit(
+    g.child(box().inset(0).fill(Material::radialUnit(
         {0.42f, 0.45f}, 1.15f, {{0.0f, kSpace}, {1.0f, kSpaceEdge}})));
 
     // The milky-way band the reference frame is dominated by: three soft
@@ -674,7 +674,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                    .clip(),
                kKerbin, d, d)
                 .child(box()
-                           .absolute()
                            .inset(0)
                            .rotate(&planetSpin)
                            .child(place(box()
@@ -697,7 +696,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                 // limb, multiplied over land AND ocean alike. Without it the
                 // continents float on a flat blue coin.
                 .child(box()
-                           .absolute()
                            .inset(0)
                            // radiusUnit is a fraction of the HALF-DIAGONAL:
                            // 1.28 put the dark end of the ramp outside the
@@ -710,7 +708,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                 {1.0f, C(0x03070B, 0.92f)}})))
                 // and one hot specular sliver where the star hits the ocean
                 .child(box()
-                           .absolute()
                            .inset(0)
                            .fill(Material::radialUnit(
                                {0.30f, 0.24f}, 0.42f,
@@ -738,9 +735,9 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     const float W = ctx.size.width(), H = ctx.size.height();
     const Conic cur = currentOrbit(), tgt = targetOrbit(), esc = escapeArc();
 
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
     auto full = [&](Element e) {
-      e.absolute().inset(0).width(Dim(W)).height(Dim(H));
+      e.inset(0).width(Dim(W)).height(Dim(H));
       return e;
     };
 
@@ -851,7 +848,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     const float aNorm = aPro + sep * 0.5f;
     const float aAnti = aNorm + 180.0f;
 
-    Element g = stack().absolute().inset(0).staggerChildren(55ms);
+    Element g = stack().inset(0).staggerChildren(55ms);
 
     // one shared builder, two lengths, two fill modes
     auto arm = [&](const char *k, float bearing, float len, SkColor4f c,
@@ -867,7 +864,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
       e.centerAt({hub.fX + std::cos(rad2) * (len * 0.5f + 9),
                   hub.fY + std::sin(rad2) * (len * 0.5f + 9)})
           .rotate(bearing)
-          .absolute()
           .key(k)
           .scale(&armPulse)
           .opacity(withFrom(0.0f, 1.0f, {380ms, ease::outBack()}));
@@ -884,7 +880,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                       .fill(Material::solid(solid ? c : fade(c, 0.62f)))
                       .centerAt({hub.fX + std::cos(rad2) * 40,
                                  hub.fY + std::sin(rad2) * 40})
-                      .absolute()
                       .key(k)
                       .scale(&armPulse)
                       .opacity(withFrom(0.0f, 1.0f, {380ms, ease::outBack()}));
@@ -897,7 +892,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
       const SkPoint a{hub.fX + std::cos(r2) * 11, hub.fY + std::sin(r2) * 11};
       const SkPoint b{hub.fX + std::cos(r2) * 31, hub.fY + std::sin(r2) * 31};
       return box()
-          .absolute()
           .inset(0)
           .outline([a, b](SkSize) {
             SkPathBuilder p;
@@ -932,7 +926,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
     // Δv direction stub: the burn vector, drawn from the hub along prograde.
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([hub, pro](SkSize) {
                   SkPathBuilder b;
@@ -1076,7 +1069,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
   Element toolbar() {
     using namespace ksp;
-    Element g = stack().absolute().inset(0).staggerChildren(45ms);
+    Element g = stack().inset(0).staggerChildren(45ms);
     static const char *kGlyphs[6] = {"◉", "◆", "▤", "✱", "▲", "◍"};
     for (int i = 0; i < 6; ++i) {
       const float y = 34.0f + (float)i * 46.0f;
@@ -1103,7 +1096,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
   Element missionClock() {
     using namespace ksp;
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
     g.child(place(box()
                       .corners({4})
                       .alignItems(Align::Center)
@@ -1143,7 +1136,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
   Element navball() {
     using namespace ksp;
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
 
     // Bezel: silver ring, gently lit from the top-left.
     g.child(at(box()
@@ -1231,7 +1224,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     static const char *kHdg[4] = {"N", "E", "S", "W"};
     for (int i = 0; i < 4; ++i)
       ring.child(t(kHdg[i], bold(9.0f, fade(C(0xEAF4F8), 0.85f), 0.6f))
-                     .absolute()
                      .inset(0)
                      .onPath(TextPath{.path = circleOutline(),
                                       .at = 0.75f + (float)i / 4.0f,
@@ -1327,7 +1319,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
   Element staging() {
     using namespace ksp;
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
     const float x = 14;
 
     // The hazard stripe is an Sk2D lattice hatch clipped to the tab, not a
@@ -1337,7 +1329,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     auto stageTab = [&](const char *n, float y) {
       return place(stack(), x, y, 58, 25)
           .child(box()
-                     .absolute()
                      .inset(0)
                      .corners({2})
                      .fill(Material::solid(kStageTab))
@@ -1347,7 +1338,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                         .strokeFill = Fill::color(C(0x7A3703)),
                                         .align = PathFormat::Align::Inner}))
           .child(box()
-                     .absolute()
                      .inset(0)
                      .alignItems(Align::Center)
                      .justify(Justify::Center)
@@ -1364,13 +1354,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                           .strokeFill = Fill::color(C(0x1D2226)),
                                           .align = PathFormat::Align::Inner})
                        .child(box()
-                                  .absolute()
                                   .inset(0)
                                   .alignItems(Align::Center)
                                   .justify(Justify::Center)
                                   .child(t(badge, body(14, C(0xE3E9EC)))))
                        .child(box()
-                                  .absolute()
                                   .right(Dim(1))
                                   .bottom(Dim(0))
                                   .child(t(count, bold(8, C(0xF6D488))))),
@@ -1386,7 +1374,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                        // scaleX + transformOrigin: the drain is a transform,
                        // not a re-laid-out width
                        .child(box()
-                                  .absolute()
                                   .inset(1)
                                   .fill(Material::linearUnit(
                                       {0, 0}, {0, 1},
@@ -1395,7 +1382,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                   .scaleX(fill)
                                   .transformOrigin(0.0f, 0.5f))
                        .child(box()
-                                  .absolute()
                                   .inset(4, 0, 0, 0)
                                   .alignItems(Align::Center)
                                   .child(t("LiquidFuel", body(9, C(0xF0F3F0))))),
@@ -1460,7 +1446,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                           .align = PathFormat::Align::Inner})
                        .clip()
                        .child(box()
-                                  .absolute()
                                   .inset(0)
                                   .outline([](SkSize s) {
                                     SkPathBuilder b;
@@ -1474,7 +1459,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                       .tickSpacing = 6.0f,
                                       .tickLength = 9.0f}))
                        .child(box()
-                                  .absolute()
                                   .width(Dim(9))
                                   .height(Dim(8))
                                   .top(Dim(0))
@@ -1483,7 +1467,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                   .fill(Material::solid(kStageTab))
                                   .translateX(bind(drive).to(-42, 42)))
                        .child(box()
-                                  .absolute()
                                   .left(Dim(4))
                                   .top(Dim(1))
                                   .child(t(label, bold(8, C(0xC7D0D5))))),
@@ -1567,7 +1550,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                          .align = PathFormat::Align::Inner})
                       .clip()
                       .child(box()
-                                 .absolute()
                                  .inset(0)
                                  .outline([](SkSize s) {
                                    SkPathBuilder b;
@@ -1581,12 +1563,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                      .tickSpacing = 5.0f,
                                      .tickLength = 12.0f}))
                       .child(box()
-                                 .absolute()
                                  .left(Dim(6))
                                  .top(Dim(1))
                                  .child(t("ATMOSPHERE", bold(8, C(0xEAF4FA), 1.4f))))
                       .child(box()
-                                 .absolute()
                                  .width(Dim(9))
                                  .height(Dim(8))
                                  .left(Dim(30))
@@ -1598,7 +1578,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
     // vertical-speed dial
     const SkPoint dc{300, 42};
-    Element dial = stack().absolute().inset(0);
+    Element dial = stack().inset(0);
     dial.child(at(box()
                       .outline(circleOutline())
                       .fill(Material::radialUnit({0.4f, 0.32f}, 1.0f,
@@ -1721,7 +1701,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
 
   Element cluster() {
     using namespace ksp;
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
     g.child(place(box()
                       .fill(Material::linearUnit({0, 0}, {0, 1},
                                                  {{0.0f, C(0x0A0C10, 0.30f)},
@@ -1762,7 +1742,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     using namespace ksp;
     const Conic cur = currentOrbit();
     const Conic tgt = targetOrbit();
-    Element g = stack().absolute().inset(0);
+    Element g = stack().inset(0);
     g.child(planet());
     g.child(orbits(ctx));
     g.child(marker("Ap", cur.at(180), kApLabel, true));
@@ -1814,7 +1794,6 @@ struct KspMapView : sigil::compose::sketch::Sketch {
         .child(cluster())
         // corner vignette, last
         .child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
                                               {{0.50f, C(0x000000, 0.0f)},

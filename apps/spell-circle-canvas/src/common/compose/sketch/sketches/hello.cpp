@@ -66,7 +66,6 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
         .child(box()
                    .row()
                    .gap(24)
-                   .absolute()
                    .inset(90, 120, 90, 330)
                    .child(card(u8"edit", {0.86f, 0.30f, 0.40f, 1}))
                    .child(card(u8"save", {0.30f, 0.56f, 0.95f, 1}))
@@ -79,7 +78,6 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
                    .height(120)
                    .corners({20})
                    .clip()
-                   .absolute()
                    .inset(90, 280, 690, 240))
         // A custom leaf riding the bound Output.
         .child(custom([this](SkCanvas &canvas, const PaintContext &paint) {
@@ -99,7 +97,6 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
                  brush.setColor(SK_ColorCYAN);
                  canvas.drawPath(path.detach(), brush);
                })
-                   .absolute()
                    .inset(240, 300, 90, 180)
                    .cache(Cache::None))
         // Re-rendered by update() whenever the score changes —
@@ -107,11 +104,9 @@ struct HelloSketch : sigil::compose::sketch::Sketch {
         .child(
             text(toU8("score " + std::to_string(score)), type(24, 0xffffd9a0))
                 .key("score")
-                .absolute()
                 .inset(650, 120, 90, 480))
         .child(text(u8"ComposeSketch — edit hello.cpp and save",
                     type(17, 0xff9aa4bb))
-                   .absolute()
                    .inset(90, 560, 90, 40));
   }
 

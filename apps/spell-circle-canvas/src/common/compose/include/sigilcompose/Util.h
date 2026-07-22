@@ -56,6 +56,25 @@ inline Element disc(SkPoint centre, float radius) {
       .centerAt(centre);
 }
 
+/** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
+ *  arithmetic that fifteen call sites in the corpus write out, as a VALUE
+ *  you can then inset, union, or hand to `Element::rect()`.
+ *
+ *  Not a replacement for `centerAt()`: that centres a node on its MEASURED
+ *  size after layout, which is the right tool when the node sizes itself.
+ *  Use this when you know the box and want the rect for something else too
+ *  — the panel geometry a caption, a rule and a shadow all read from.
+ *
+ *  There is deliberately no `xywh()` or `ltrb()` wrapper here:
+ *  `SkRect::MakeXYWH` and `SkRect::MakeLTRB` already name those, and
+ *  wrapping a Skia spelling in a shorter Skia spelling is not extraction. */
+inline SkRect centred(SkPoint c, float w, float h) {
+  return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
+}
+inline SkRect centred(SkPoint c, SkSize s) {
+  return centred(c, s.width(), s.height());
+}
+
 /** A solid stroke of the node outline (dash/stamp via PathFormat).
  *  `align` positions it: Center (default) straddles the outline, Inner
  *  keeps it inside the silhouette, Outer outside (the keyline). */

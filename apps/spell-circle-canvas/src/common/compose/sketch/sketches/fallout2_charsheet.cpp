@@ -378,11 +378,11 @@ inline Element t(const std::string &s, weave::TextStyle st) {
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.absolute().left(Dim(n(x))).top(Dim(n(y) - rise));
+  e.left(Dim(n(x))).top(Dim(n(y) - rise));
   return e;
 }
 inline Element at(Element e, float x, float y, float w, float h) {
-  e.absolute().left(Dim(n(x))).top(Dim(n(y))).width(Dim(n(w))).height(Dim(n(h)));
+  e.left(Dim(n(x))).top(Dim(n(y))).width(Dim(n(w))).height(Dim(n(h)));
   return e;
 }
 inline Element atR(Element e, Rect r) { return at(std::move(e), r.x, r.y, r.w, r.h); }
@@ -958,7 +958,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element specialColumn() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     static const char *abbr[7] = {"ST", "PE", "EN", "CH", "IN", "AG", "LK"};
     for (int i = 0; i < 7; ++i) {
       const float y = kStatY[(size_t)i];
@@ -1025,7 +1025,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
         glyph = onesOverride == " " ? "" : onesOverride;
       if (!glyph.empty())
         wheel.child(box()
-                        .absolute()
                         .inset(0)
                         .justify(Justify::Center)
                         .alignItems(Align::Center)
@@ -1058,7 +1057,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element statusBlock() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     char buf[32];
     std::snprintf(buf, sizeof buf, "%d/%d", stats.hitPoints, stats.hitPoints);
     g.child(bodyAt("Hit Points", kGreen, 194, 46));
@@ -1079,7 +1078,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element derivedBlock() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     struct Row {
       const char *label;
       std::string value;
@@ -1118,7 +1117,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element levelBlock() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     g.child(bodyAt("Level: " + std::to_string(kLevel), kGreen, 32, 280));
     g.child(bodyAt("Exp: " + thousands(experienceForLevel(kLevel)), kGreen, 32,
                    291));
@@ -1142,7 +1141,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element folder() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
 
     // The tab strip, blitted at (11, 327). Hit split points x<110 -> PERKS,
     // 110..208 -> KARMA, >208 -> KILLS, so those ARE the tab boundaries.
@@ -1220,7 +1219,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element skillsColumn() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     for (int i = 0; i < 18; ++i) {
       const float y = 27 + kRowPitch11 * (float)i;
       const SkColor4f c = i == selected ? kSelected
@@ -1248,11 +1247,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       btn.foreground(util::stroke(n(0.8f), Fill::color(C(0x8A7448, 0.7f)),
                                   PathFormat::Align::Inner));
       if (k == 0) // the `+` lamp flashes on each spend
-        btn.child(box().absolute().inset(0).fill(Fill::color(kLampOn))
+        btn.child(box().inset(0).fill(Fill::color(kLampOn))
                       .corners(Corners{n(1.5f)})
                       .opacity(&plusFlash));
       btn.child(box()
-                    .absolute()
                     .inset(0)
                     .justify(Justify::Center)
                     .alignItems(Align::Center)
@@ -1303,7 +1301,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     using namespace fo;
     const SkillDef &d = skills()[(size_t)skill];
     const Pose pose = poseFor(skill);
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
 
     // ---- title + formula on a shared bottom edge -------------------------
     // Fallout puts the formula at 268 + lineHeight(102) - lineHeight(101), a
@@ -1356,7 +1354,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     opts.hyphenation.enabled = false;
     opts.lineMetrics.height = n(kRowPitch11); // the forced 11 px pitch, x2
     g.child(text(cardPara, opts)
-                .absolute()
                 .left(Dim(n(348 - 345)))
                 .top(Dim(n(315 - 267) - n(1.5f)))
                 .width(Dim(n(613 - 348)))
@@ -1397,7 +1394,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                             {1.0f, fade(C(0x5A3C10), 0.0f)}})));
     // the scrap's own soiling — kept light: the reference card is bright ochre
     // right into its corners
-    c.child(box().absolute().inset(0).fill(
+    c.child(box().inset(0).fill(
         Material::radialUnit({0.46f, 0.42f}, 1.35f,
                              {{0.0f, fade(C(0x2A1C08), 0.0f)},
                               {0.70f, fade(C(0x2A1C08), 0.04f)},
@@ -1408,7 +1405,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                             {1.0f, fade(C(0x3A2A12), 0.0f)}})));
     c.stroke(util::stroke(n(1.5f), Fill::color(C(0x2A1C08, 0.75f)),
                           PathFormat::Align::Inner));
-    c.child(box().absolute().inset(0).child(slot("card")));
+    c.child(box().inset(0).child(slot("card")));
     return c;
   }
 
@@ -1417,7 +1414,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   Element chrome() {
     using namespace fo;
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
 
     // The outer frame and the dividers between the five panels — raised
     // facets lit from the top-left.
@@ -1468,7 +1465,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                 .foreground(styles::BevelEmboss{n(1.0f), n(1.4f), 300,
                                                 C(0x8A7448, 0.45f),
                                                 C(0x000000, 0.6f)}));
-    g.child(box().absolute().left(Dim(0)).top(Dim(0)).child(slot("points")));
+    g.child(box().left(Dim(0)).top(Dim(0)).child(slot("points")));
 
     // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
     // rects sampled at x 344..355, 457..468, 553..564, y 455..466.
@@ -1485,7 +1482,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       lamp.foreground(util::stroke(n(1.2f), Fill::color(C(0x1A1208)),
                                    PathFormat::Align::Outer));
       if (i == 1) // DONE dims and returns as the `+` is pressed
-        lamp.child(box().absolute().inset(0).corners(Corners{n(6)})
+        lamp.child(box().inset(0).corners(Corners{n(6)})
                        .fill(Fill::color(kLampOff))
                        .opacity(&lampFlash));
       g.child(lamp);
@@ -1503,7 +1500,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
     // ---- the screen -----------------------------------------------------
     Element screen = box()
-                         .absolute()
                          .left(Dim(0))
                          .top(Dim(0))
                          .width(Dim(kScreenW))
@@ -1512,10 +1508,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                          .fill(plateMat);
     // the cast-metal tooth and the rust, as layer elements because
     // Material::blend has no per-layer amount
-    screen.child(box().absolute().inset(0).fill(plateTooth)
+    screen.child(box().inset(0).fill(plateTooth)
                      .blend(SkBlendMode::kOverlay).opacity(0.30f)
                      .cache(Cache::Texture));
-    screen.child(box().absolute().inset(0).fill(rustMat)
+    screen.child(box().inset(0).fill(rustMat)
                      .blend(SkBlendMode::kSoftLight).opacity(0.55f)
                      .cache(Cache::Texture));
 
@@ -1532,10 +1528,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                                   {{0.0f, C(0x54462E)},
                                                    {0.35f, kPlateLit},
                                                    {1.0f, C(0x3A3020)}}));
-      sp.child(box().absolute().inset(0).fill(plateTooth)
+      sp.child(box().inset(0).fill(plateTooth)
                    .blend(SkBlendMode::kOverlay).opacity(0.34f)
                    .cache(Cache::Texture));
-      sp.child(box().absolute().inset(0).fill(rustMat)
+      sp.child(box().inset(0).fill(rustMat)
                    .blend(SkBlendMode::kSoftLight).opacity(0.70f)
                    .cache(Cache::Texture));
       sp.foreground(styles::BevelEmboss{n(1.6f), n(2.0f), 118,
@@ -1564,13 +1560,13 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     screen.child(derivedBlock());
     screen.child(levelBlock());
     screen.child(folder());
-    screen.child(box().absolute().inset(0).child(slot("skills")));
+    screen.child(box().inset(0).child(slot("skills")));
     screen.child(card());
 
     // POST: none. No bloom, no scanlines, no vignette, no CRT — a 1998 VGA
     // screen captured off a framebuffer has none of that and the restraint is
     // the point. At most a 4% grain so the metal does not read as vector-flat.
-    screen.child(box().absolute().inset(0).fill(canvasGrain)
+    screen.child(box().inset(0).fill(canvasGrain)
                      .blend(SkBlendMode::kOverlay).opacity(0.04f)
                      .cache(Cache::Texture));
     root.child(screen);
@@ -1584,7 +1580,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   Element captionBand() {
     using namespace fo;
     Element band = box()
-                       .absolute()
                        .left(Dim(0))
                        .top(Dim(kScreenH))
                        .width(Dim(kScreenW))
@@ -1605,7 +1600,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     auto line = [&](const char *s, float size, SkColor4f c, float y,
                     float track) {
       return text(toU8(s), fo::type(bodyFace(), size, c, track))
-          .absolute()
           .left(Dim(30))
           .top(Dim(y));
     };
@@ -1613,7 +1607,6 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                          "ISLE STUDIOS, 1998 \xc2\xb7 640\xc3\x97""480 8-BIT "
                          "INDEXED, REBUILT AT 2\xc3\x97"),
                     fo::type(bodyBold(), 17.0f, kGold, 1.8f))
-                    .absolute()
                     .left(Dim(30))
                     .top(Dim(14)));
     band.child(line(buf, 14.5f, kGreen, 41, 0.2f));

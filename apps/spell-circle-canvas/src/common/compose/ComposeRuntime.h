@@ -170,6 +170,45 @@ struct Instance {
   // blend would resolve against transparent black instead of the real
   // backdrop, and the pixels would differ. Computed by computeVolatile.
   bool subtreeReadsBackdrop = false;
+  // The same question asked of the node's OWN paint alone, without its
+  // children. The two halves are what §15 turns on: a bake that replaces
+  // only the node's own layer, with live children drawn over the BLIT,
+  // fails when the OWN paint would resolve against transparent black —
+  // and is unaffected by what the children do, because they composite
+  // against the blitted destination exactly as they would have against a
+  // freshly rasterized one. `subtreeReadsBackdrop` (own OR children) is
+  // still the right question for whole-subtree promotion, where the
+  // children ARE inside the bake.
+  bool ownReadsBackdrop = false;
+  // §15's other half: is the node's OWN content volatile, as distinct from
+  // its subtree's? `subtreeVolatile && !ownContentVolatile` is exactly "the
+  // children are what makes this node uncacheable", which is the split
+  // bake's entire premise — a static full-canvas ground plane carrying one
+  // moving disc measured 34.9 ms of self time doing nothing but redrawing
+  // itself so the disc could land on top.
+  bool ownContentVolatile = false;
+  // ---- the split bake (§15) ------------------------------------------------
+  // The node's own paint, baked alone; the children are painted LIVE over
+  // the blit. Deliberately NOT `textureImage`: a node can only ever hold one
+  // of the two (the split needs subtreeVolatile, every other bake needs the
+  // opposite), but sharing the slot would make each path's staleness rules
+  // answer for the other's, and they are different rules.
+  sk_sp<SkImage> ownImage;
+  SkRect ownBakeRect = SkRect::MakeEmpty(); // device rect the bake covers
+  float ownPaintMs = 0;                     // EMA of the own-paint cost
+  uint8_t ownHotFrames = 0;
+  // Consecutive frames on which the own bake had to be REMADE. A bake per
+  // frame costs more than the live draw it replaced, so a node whose own
+  // paint really is invalidated every frame must not hold its promotion on
+  // the strength of a measurement taken while it was still cheap.
+  uint8_t ownRebakes = 0;
+  bool splitBake = false; // sticky, like autoTexture
+  // Staleness for `ownImage`, and the reason it cannot be `paintDirty`:
+  // markPaintDirtyUp() propagates a descendant's patch to every ancestor,
+  // which is correct for a RECORDING (it baked the child's draw calls) and
+  // wrong for a split bake (the children were never in it). Set only on the
+  // node whose own description changed.
+  bool ownPaintDirty = true;
   bool hasPendingLiveFill = false;
   Fill pendingLiveFill;
   sk_sp<SkShader> bakedLiveShader;
@@ -193,8 +232,18 @@ struct Instance {
   ~Instance();
   float resolveFloat(Instance::Slot slot, const PropValue<float> &v) const;
 
-  /** A change here stales every ancestor's recording too. */
-  void markPaintDirtyUp() {
+  /** A change here stales every ancestor's recording too.
+   *
+   *  `ownPaint` says whether THIS node's own paint changed. It is false for
+   *  exactly one caller — a child whose layout POSITION moved, which stales
+   *  the parent's recording (it baked the old offset) and leaves the
+   *  parent's own paint untouched. §15's split bake reads that distinction;
+   *  nothing else does, and passing true is always the safe answer. */
+  void markPaintDirtyUp(bool ownPaint = true) {
+    if (ownPaint) {
+      ownPaintDirty = true;
+      ownImage.reset();
+    }
     for (Instance *i = this; i; i = i->parent) {
       if (i->paintDirty && i != this)
         break; // ancestors already invalidated
@@ -380,10 +429,32 @@ struct Composer::Impl {
                        const TextPath &spec, SkSize size);
   void paintKineticText(detail::Instance &inst, SkCanvas &canvas,
                         const GlyphFx &fx);
+  /** Which half of a node's paint to emit.
+   *
+   *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —
+   *  backgrounds, clip, fill, echoes, overlays, leaf content — ending
+   *  exactly at the children loop. Everything after that loop (the clip
+   *  restore, the FOREGROUNDS, the wipe and effect restores) belongs to the
+   *  children half: foregrounds paint over the children, so they can never
+   *  be in an own-paint bake. That is why this is a phase flag and two
+   *  skips rather than a split function. */
+  enum class Phase : uint8_t {
+    All,          ///< the whole node, unchanged
+    OwnOnly,      ///< the prefix: no children, no foregrounds
+    ChildrenOnly, ///< the children and the foregrounds over them
+  };
   void paintContent(detail::Instance &inst, SkCanvas &canvas, float contentScale,
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
-                    float leafOpacity = 1.0f);
+                    float leafOpacity = 1.0f, Phase phase = Phase::All);
   const SkPath &resolveOutline(detail::Instance &inst, SkSize size) const;
+  /** What the node paints BY ITSELF, in its own local space: its box grown
+   *  by every decoration's declared bleed and any routed path, and NOTHING
+   *  from its children. §15's split bake sizes its layer with this — and
+   *  the independence from the children is the load-bearing part, not an
+   *  optimisation: `recordBounds` unions the children in, so it changes
+   *  every frame a child moves, and a bake rect that changes every frame is
+   *  a bake remade every frame. */
+  SkRect ownPaintBounds(detail::Instance &inst);
   SkRect recordBounds(detail::Instance &inst);
 
   // ---- hit testing / queries (Query.cpp) ----

@@ -542,7 +542,7 @@ inline std::string fmt(const char *f, ...) {
 // A box at absolute card coordinates. The whole composition is pinned — there
 // is no layout in a pattern card — so every panel spells this once.
 inline Element at(float x, float y, float w, float h) {
-  return box().absolute().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
 }
 inline Element label(const std::string &s, const weave::TextStyle &st, float x,
                      float y, float w) {
@@ -1037,7 +1037,6 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     g.child(
         at(x0, bodyY, (float)kDrawN * c, (float)kDrawN * c)
             .child(image(drawdownAsset)
-                       .absolute()
                        .inset(0)
                        .sampling(SkSamplingOptions(SkFilterMode::kNearest)))
             .child(at(0, 0, (float)kDrawN * c, (float)kDrawN * c)

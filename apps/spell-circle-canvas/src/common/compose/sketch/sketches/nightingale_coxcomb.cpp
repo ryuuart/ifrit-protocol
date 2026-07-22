@@ -66,6 +66,9 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Divisions.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Legibility.h>
 
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMgr.h>
@@ -190,44 +193,37 @@ const std::array<LegendLine, 12> kLegendText = {{
 
 constexpr float kDeg = 3.14159265358979f / 180.0f;
 
+// The plate's own coordinate convention, as a value: 0 deg is 12 o'clock and
+// bearings run clockwise, because the 1858 coxcomb starts its year at the
+// top and reads round to the right. `radius` is 1 so px radii can be passed
+// straight to `px()`; every wheel makes its own frame with `about()`.
+constexpr kit::Frame kPlate{.centre = {0, 0},
+                            .radius = 1.0f,
+                            .zero = kit::Zero::North,
+                            .sense = kit::Sense::CW};
+
 /** Bearing (deg clockwise from 12 o'clock) + radius -> canvas point. */
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
-  return {c.x() + radius * std::sin(bearingDeg * kDeg),
-          c.y() - radius * std::cos(bearingDeg * kDeg)};
+  return kPlate.about(c).px(bearingDeg, radius);
 }
 
 /** A square box of radius @p r centred on @p c, in the parent's space —
  *  the frame every shapes::sector / shapes::arc wedge is inscribed in. */
 Element discBox(SkPoint c, float r) {
-  return box().absolute().left(c.x() - r).top(c.y() - r).width(2 * r).height(
-      2 * r);
+  return box().rect(kit::Frame{.centre = c, .radius = r}.box());
 }
 
-/** A straight spoke from the box centre out to radiusFraction. */
+/** A straight spoke from the box centre out to radiusFraction. One tick of
+ *  a one-division ladder: kit::ticks resolves the centre and radius from
+ *  the node's own laid-out box, which is what this hand-rolled version was
+ *  doing with `min(cx, cy)`. The spokes stay one node EACH — each carries
+ *  its own trim reveal off its own delay, and a single-path ladder would
+ *  own that animation and lose it. */
 std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
-  return [radiusFraction, bearing](SkSize s) {
-    SkPathBuilder p;
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float r = std::min(cx, cy) * radiusFraction;
-    p.moveTo(cx, cy);
-    p.lineTo(cx + r * std::sin(bearing * kDeg), cy - r * std::cos(bearing * kDeg));
-    return p.detach();
-  };
-}
-
-/** Thickens a face at the glyph level: a stroke pass under the fill. The
- *  engraved title on the plate is heavier than any installed digital face
- *  at the same cap height. */
-sigil::weave::TextStyle inked(sigil::weave::TextStyle style, float width,
-                              SkColor4f color) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(width);
-  p.setStrokeJoin(SkPaint::kRound_Join);
-  p.setColor4f(color, nullptr);
-  style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
-  return style;
+  return kit::ticks({.divisions = 1,
+                     .from = bearing,
+                     .mark = {0.0f, radiusFraction}},
+                    kPlate);
 }
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
@@ -335,7 +331,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       out.push_back(
           text(std::u8string(1, (char8_t)content[i]), style)
               .key(keyBase + std::to_string(i))
-              .absolute()
               .centerAt(at)
               .rotate(rotate)
               .transformOrigin(0.5f, 0.5f)
@@ -366,7 +361,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
         continue;
       wheelBox.child(
           box()
-              .absolute()
               .inset(0)
               .key(std::string(tag) + "spoke" + std::to_string(i))
               .outline(spoke(len / rMax, (float)i * 30.0f))
@@ -441,10 +435,10 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     auto root = stack().fill(Fill::color(kPaper));
 
     // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
-    root.child(box().absolute().inset(0).fill(paperMat).opacity(0.17f).blend(
+    root.child(box().inset(0).fill(paperMat).opacity(0.17f).blend(
         SkBlendMode::kSoftLight));
-    root.child(box().absolute().inset(0).fill(foxing.material()));
-    root.child(box().absolute().inset(0).fill(radialGradient(
+    root.child(box().inset(0).fill(foxing.material()));
+    root.child(box().inset(0).fill(radialGradient(
         {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
         {hex(0x000000, 0.0f), hex(0x000000, 0.0f), hex(0x6b4a33, 0.085f)},
         {0.0f, 0.70f, 1.0f})));
@@ -463,31 +457,28 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                  canvas.drawString("ENGLAND", 0, 0, f, p);
                  canvas.restore();
                })
-                   .absolute()
                    .inset(0));
 
     // ---- the plate mark: the physical impression of the copper ------
     root.child(box()
-                   .absolute()
                    .inset(26)
                    .fill(Fill::none())
                    .stroke(stroke(1.0f, Fill::color(hex(0x8a7060, 0.20f)))));
     root.child(box()
-                   .absolute()
                    .inset(28)
                    .fill(Fill::none())
                    .stroke(stroke(1.0f, Fill::color(hex(0xffffff, 0.35f)))));
 
     // ---- the spine fold at the sheet's centre -----------------------
-    root.child(box().absolute().left(938).top(0).width(24).height(kH).fill(
+    root.child(box().left(938).top(0).width(24).height(kH).fill(
         linearGradient({0, 0}, {24, 0},
                        {hex(0x3a2a20, 0.0f), hex(0x3a2a20, 0.06f),
                         hex(0xffffff, 0.09f), hex(0x3a2a20, 0.0f)},
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
     // ---- title block -------------------------------------------------
-    const auto title1 = inked(type(faceDisplay, 39, kInk, 0.8f), 2.0f, kInk);
-    const auto title2 = inked(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
+    const auto title1 = kit::emboldened(type(faceDisplay, 39, kInk, 0.8f), 2.0f, kInk);
+    const auto title2 = kit::emboldened(type(faceGrotesque, 27, kInk, 0.4f), 0.9f, kInk);
 
     GlyphFx t1;
     t1.effect = glyphfx::typeOn();
@@ -497,7 +488,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                    .key("title1")
                    .glyphFx(std::move(t1))
                    .echo({0.8f, 0.5f}, hex(0x241c15, 0.8f))
-                   .absolute()
                    .centerAt({968, 38}));
 
     GlyphFx t2;
@@ -508,13 +498,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                    .key("title2")
                    .glyphFx(std::move(t2))
                    .echo({0.6f, 0.4f}, hex(0x241c15, 0.7f))
-                   .absolute()
                    .centerAt({945, 84}));
 
     // the double hairline under the title
     for (int i = 0; i < 2; ++i)
       root.child(box()
-                     .absolute()
                      .left(775)
                      .top(108.0f + (float)i * 4.0f)
                      .width(368)
@@ -532,17 +520,14 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                        float numX, float startSec, const char *key) {
       root.child(text(toU8(num), capNum)
                      .key(std::string(key) + "n")
-                     .absolute()
                      .centerAt({numX, 40})
                      .opacity(withFrom(0.0f, 1.0f, ramp(startSec * 1000, 320))));
       root.child(text(toU8(label), capText)
                      .key(std::string(key) + "t")
-                     .absolute()
                      .centerAt({cx, 78})
                      .opacity(withFrom(0.0f, 1.0f,
                                        ramp(startSec * 1000 + 90, 320))));
       root.child(box()
-                     .absolute()
                      .left(cx - 140)
                      .top(94)
                      .width(280)
@@ -561,7 +546,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(wheel(ctx, kD2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
-    const auto labelStyle = inked(type(faceLabel, 20, kInk, 0.4f), 0.35f, kInk);
+    const auto labelStyle = kit::emboldened(type(faceLabel, 20, kInk, 0.4f), 0.35f, kInk);
     const auto smallLabel = type(faceLabel, 12, kInk, 0.0f);
     const auto campaign = type(faceLabel, 16, kInk, 0.4f);
     std::vector<Element> labels;
@@ -611,7 +596,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     PathFormat dash = stroke(1.1f, Fill::color(kInk));
     dash.dashIntervals = {7.0f, 5.0f};
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .key("leader")
                    .fill(Fill::none())
@@ -639,7 +623,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       root.child(text(toU8(kLegendText[i].text), script)
                      .key("leg" + std::to_string(i))
                      .glyphFx(std::move(pen))
-                     .absolute()
                      .left(171.0f + (float)kLegendText[i].indent * 22.0f)
                      .top(628.0f + (float)i * 30.7f));
     }
@@ -648,7 +631,6 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),
                     type(faceScript, 20, kInkSoft))
                    .key("imprint")
-                   .absolute()
                    .centerAt({1712, 1004})
                    .opacity(withFrom(0.0f, 1.0f,
                                      ramp(tLegend * 1000 + 2500, 600))));

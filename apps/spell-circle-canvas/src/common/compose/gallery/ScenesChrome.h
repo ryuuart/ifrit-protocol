@@ -95,7 +95,6 @@ struct TileScene final : Scene {
           id = 3; // ember
         tiles.child(image(atlas())
                         .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
-                        .absolute()
                         .inset((float)x * kTile, (float)y * kTile, 0, 0)
                         .width(kTile).height(kTile));
       }

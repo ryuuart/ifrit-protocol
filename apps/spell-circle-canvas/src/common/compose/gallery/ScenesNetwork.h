@@ -87,7 +87,7 @@ inline Element station(const char *key, float x, float y, float size = 16) {
 inline Element label(const char *s, float x, float y, SkColor4f c = kAsh,
                      float size = 13, float track = 1.5f) {
   return text(toU8(s), type(size, c, track))
-      .absolute().inset(x, y, 0, 0).zIndex(8);
+      .inset(x, y, 0, 0).zIndex(8);
 }
 
 /** Legend row: colored line name + ash construction note. */
@@ -97,14 +97,14 @@ inline Element vineArt() {
   constexpr SkColor4f kMoss{0.55f, 0.80f, 0.47f, 1};
   constexpr SkColor4f kMossDeep{0.34f, 0.60f, 0.36f, 1};
   auto leaf = [&](float x, float y, float deg, SkColor4f c) {
-    return box().width(13).height(7).absolute()
+    return box().width(13).height(7)
         .inset(x, y, 48.0f - x - 13.0f, 16.0f - y - 7.0f)
         .corners({6.5f, 0, 6.5f, 0})
         .rotate(deg)
         .fill(Fill::color(c));
   };
   return stack().width(48).height(16)
-      .child(box().absolute().inset(0, 6.8f, 0, 6.8f).corners({1.2f})
+      .child(box().inset(0, 6.8f, 0, 6.8f).corners({1.2f})
                  .fill(Fill::color(kMossDeep)))
       .child(leaf(4, 0, -28, kMoss))
       .child(leaf(18, 9, 152, kMossDeep))
@@ -113,7 +113,7 @@ inline Element vineArt() {
 
 inline Element legendRow(const char *name, const char *what, SkColor4f c,
                          float y) {
-  return box().row().absolute().inset(30, y, 0, 0).zIndex(8)
+  return box().row().inset(30, y, 0, 0).zIndex(8)
       .child(text(toU8(name), type(12.5f, c, 1.4f)))
       .child(text(toU8(what), type(12.5f, kAsh, 0.4f)).margin(10, 0, 0, 0));
 }
@@ -295,28 +295,28 @@ struct NightNetworkScene final : Scene {
         .child(rail({{"rv0"}, {"rv1"}, {"rv2"}, {"rv3"}, {"rv4"}},
                     routers::octilinear(20)) // the Thames rule: the river
                                              // rides the routes' own grid
-                   .absolute().inset(0).stroke(river).zIndex(1))
+                   .inset(0).stroke(river).zIndex(1))
         // ---- the bus corridor (bridges the river) ----
         .child(rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
                     routers::polyline(22))
-                   .absolute().inset(0).trim(0.0f, &roadReveal)
+                   .inset(0).trim(0.0f, &roadReveal)
                    .stroke(roadbed).stroke(busLane).stroke(curb).zIndex(2))
         // ---- the carto railway ----
         .child(rail({{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
                     routers::octilinear(14))
-                   .absolute().inset(0).trim(0.0f, &railReveal)
+                   .inset(0).trim(0.0f, &railReveal)
                    .style(lines::railwayCarto(1.6f, nn::kSteel,
                                               {0.95f, 0.94f, 0.90f, 1}))
                    .zIndex(3))
         // ---- the cased metro pair ----
         .child(rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
                     routers::octilinear(0))
-                   .absolute().inset(0).trim(0.0f, &emberReveal)
+                   .inset(0).trim(0.0f, &emberReveal)
                    .stroke(emberBrush).zIndex(4))
         // ---- the one-way line ----
         .child(rail({{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"}, {"cy_e"}},
                     routers::octilinear(8))
-                   .absolute().inset(0).trim(0.0f, &cyanReveal)
+                   .inset(0).trim(0.0f, &cyanReveal)
                    .stroke(current).zIndex(4))
         // ---- the orbital ring with instanced stations ----
         .child(box().width(190).height(190).centerAt({436, 320})
@@ -324,18 +324,18 @@ struct NightNetworkScene final : Scene {
                    .trim(0.0f, &ringReveal).stroke(orbital).zIndex(5))
         // ---- twin service (bottom-right strip) ----
         .child(rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(9))
-                   .absolute().inset(0).stroke(twin).zIndex(2))
+                   .inset(0).stroke(twin).zIndex(2))
         // ---- cableway (top gap) ----
         .child(rail({{"cb_w"}, {"cb_e"}}, routers::polyline(0))
-                   .absolute().inset(0).stroke(cableway).zIndex(3))
+                   .inset(0).stroke(cableway).zIndex(3))
         // ---- millbrook creek (tapers INTO the smokewater) ----
         .child(rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
                     routers::octilinear(10)) // source->mouth: narrow->wide
-                   .absolute().inset(0).stroke(creek).zIndex(1))
+                   .inset(0).stroke(creek).zIndex(1))
         // ---- ARTLINE: the SkVertices art warp (brushes::artAlong) — one
         // leaf-vine cell stretched and BENT along the S-curve; rigid
         // stamps can't follow this curvature continuously ----
-        .child(box().absolute().inset(58, 452, nn::kW - 430, nn::kH - 548)
+        .child(box().inset(58, 452, nn::kW - 430, nn::kH - 548)
                    .outline([](SkSize sz) {
                      SkPathBuilder b;
                      b.moveTo(0, sz.height() * 0.72f);
@@ -357,19 +357,19 @@ struct NightNetworkScene final : Scene {
                        Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
                    .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----
-        .child(box().absolute().inset(49, 554, nn::kW - 232, nn::kH - 581)
+        .child(box().inset(49, 554, nn::kW - 232, nn::kH - 581)
                    .outline(demoPath)
                    .stroke(demoRun(ops::Wave{.amplitude = 4, .wavelength = 28},
                                    nn::kCyan))
                    .zIndex(3))
-        .child(box().absolute().inset(49, 580, nn::kW - 232, nn::kH - 607)
+        .child(box().inset(49, 580, nn::kW - 232, nn::kH - 607)
                    .outline(demoPath)
                    .stroke(demoRun(ops::Wave{.amplitude = 4,
                                              .wavelength = 28,
                                              .zigzag = true},
                                    nn::kAmber))
                    .zIndex(3))
-        .child(box().absolute().inset(49, 606, nn::kW - 232, nn::kH - 633)
+        .child(box().inset(49, 606, nn::kW - 232, nn::kH - 633)
                    .outline(demoPath)
                    .stroke(demoRun(ops::Square{.amplitude = 4,
                                                .wavelength = 28},
@@ -416,7 +416,7 @@ struct NightNetworkScene final : Scene {
         .child(nn::label("the smokewater", 668, 206,
                          {0.45f, 0.62f, 0.78f, 1}))
         // ---- title + legend ----
-        .child(box().column().absolute().inset(28, 27, 0, 0).zIndex(8)
+        .child(box().column().inset(28, 27, 0, 0).zIndex(8)
                    .child(text(toU8("NIGHT NETWORK"),
                                nn::type(30, nn::kBone, 2)))
                    .child(text(toU8("the brush engine \xe2\x80\x94 twelve"
@@ -425,7 +425,7 @@ struct NightNetworkScene final : Scene {
                               .margin(0, 6, 0, 0)))
         // Ten rows reach into the map now — a feathered ink backing keeps
         // the routes from striking through the legend type.
-        .child(box().absolute().inset(18, 92, 0, 0).width(430).height(276)
+        .child(box().inset(18, 92, 0, 0).width(430).height(276)
                    .corners({10})
                    .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
                    .zIndex(7))
