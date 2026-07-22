@@ -100,6 +100,40 @@
 //      carries the figure as an image and no transcription - so the
 //      column is dropped, and this is said on the canvas.
 //
+// MEASURED WHILE BUILDING THIS (all reproducible from the sketch)
+//   A. ONE RELAXATION ITERATION HAS A SLENDERNESS LIMIT. At this study's
+//      gravity a 3-wide braced truss of 24-unit cells, base row pinned,
+//      stands at 5 rows (97.4% of nominal height, 15.8% peak constraint
+//      error) and FOLDS FLAT at 6 (23.5%, 93%). The plants are sized to
+//      that limit. Also: a ONE-dimensional chain of distance constraints
+//      cannot be a plant at all, however many skip-one supports it
+//      carries - a straight chain hanging DOWNWARD satisfies every one of
+//      them, so gravity simply inverts it. "Cloth extended with support
+//      sticks" has to mean a strip of cloth, not a line of it.
+//   B. THE CLOTH'S SAG IS THE ITERATION COUNT. On ONE pin at ONE
+//      iteration (both documented), a 7x7 sheet of 26-unit cells hangs
+//      255 units on a 221-unit diagonal - 15% over - at 61% peak
+//      constraint error; a 5x5 of 32-unit cells hangs 198 on 181, 9%
+//      over, 28% peak. The patch here is sized to the solver.
+//   C. ORDER MATTERS AS MUCH AS COUNT. Listed FROM THE PIN, a chain
+//      converges in a single Gauss-Seidel sweep and 1, 4 and 10
+//      iterations are indistinguishable - the A/B panel measured a
+//      NON-monotone mean error that way. Listed from the free end (the
+//      generic case; the paper's own cloth listing is row-major over a 2D
+//      mesh, which is not dependency-sorted either) the claim holds
+//      cleanly: mean e(1) > mean e(4) > mean e(10) on every frame
+//      sampled.
+//   D. addFixed's REPRODUCIBILITY, and what alphaOut buys. Capturing
+//      --at 3.10 at --fps 60 / 30 / 20 gives BYTE-IDENTICAL PNGs: 185
+//      steps, alpha 1.00. --fps 10 gives 186 steps and alpha 0.00 - the
+//      same instant on the other side of a step boundary - and the drawn
+//      corpse differs by a mean of 1.03/255 per channel; --fps 15 lands
+//      188 steps out and differs by 6.72/255, 6.5x more. --fps 5 needs 12
+//      steps per frame against maxCatchUp = 8, the clamp trips exactly as
+//      documented, and the capture lands at step 128 instead of 186. So
+//      the clamp is not the source of the 10/15 Hz drift: float
+//      accumulation is.
+//
 // RECONSTRUCTED (THE PAPER PUBLISHES NO SIMULATION CONSTANT BUT TWO)
 //   - every rest length, from the re-measured Fig. 9 pose, ANCHORED by
 //     assigning the paper's own restlength = 100 to the thigh
@@ -984,7 +1018,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
           std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       decorations::paintOn(
           c, ctx, segment(at((size_t)s.a), at((size_t)s.b)),
-          stroke(2.5f * scale, Fill::color(errColor(e, fade))));
+          stroke(std::max(4.6f, 2.5f * scale),
+                 Fill::color(errColor(e, fade))));
     }
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
     PathFormat dotted = stroke(1.4f * scale, Fill::color(hex(0xC8402F, 0.75f * fade)));
@@ -1038,7 +1073,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       pos[i] = a + d * 0.5f;
       rot[i] = std::atan2(d.fY, d.fX);
       frame[i] = cellBar;
-      size[i] = {L / 32.0f, 3.2f / 8.0f}; // cell is 32 x 8 logical
+      // cell is 32 x 8 logical, so the x multiplier is L/32 while y is
+      // fixed: ONE cell length serving 24 different stick lengths remaps the
+      // cell's aspect by itself. See the report's §10.3 finding.
+      size[i] = {L / 32.0f, 4.6f / 8.0f};
       const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       tint[i] = errColor(e, f);
     }
@@ -1089,11 +1127,13 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .width(Dim(kStage))
                    .height(Dim(kStage - floorTop))
                    .fill(kSolid)
-                   .child(box()
-                              .absolute()
-                              .inset(0)
-                              .fill(patterns::grain(0.035f, 3, 11.0f, 0.5f))
-                              .blend(SkBlendMode::kSoftLight)))
+                   // decorations::wash — the material-valued decoration,
+                   // which landed WHILE this sketch was being written. The
+                   // first spelling here was a sibling box with .fill(material)
+                   // and .blend(), i.e. a whole extra node for a grain pass.
+                   .overlay(decorations::wash(
+                       patterns::grain(0.035f, 3, 11.0f, 0.5f),
+                       SkBlendMode::kSoftLight, 0.6f)))
         .child(box()
                    .absolute()
                    .left(Dim(0))
