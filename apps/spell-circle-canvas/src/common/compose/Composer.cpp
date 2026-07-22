@@ -158,8 +158,8 @@ void Composer::render(Element root) {
 void Composer::renderSlot(std::string_view name, Element content) {
   Impl &impl = *m_impl;
   const auto start = std::chrono::steady_clock::now();
-  auto it = impl.byKey.find(std::string(name));
-  if (it == impl.byKey.end() || it->second->desc->kind != Kind::Slot)
+  auto it = impl.bySlot.find(std::string(name));
+  if (it == impl.bySlot.end())
     return;
   Instance &slotInst = *it->second;
 

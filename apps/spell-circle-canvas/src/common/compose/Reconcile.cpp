@@ -686,6 +686,7 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
 
 void Composer::Impl::rebuildKeyIndex() {
   byKey.clear();
+  bySlot.clear();
   routedInstances.clear();
   flowInstances.clear();
   routesByAnchor.clear();
@@ -704,6 +705,8 @@ void Composer::Impl::indexKeys(Instance &inst) {
     byKey[shell->key] = &inst;
   else if (!inst.desc->key.empty())
     byKey[inst.desc->key] = &inst;
+  if (inst.desc->kind == Kind::Slot && !inst.desc->key.empty())
+    bySlot[inst.desc->key] = &inst;
   // The edge store (flat derive lists + anchor back-index) and the pass
   // gates ride the same walk. Tree order here IS the derive order.
   const ElementNode &node = *inst.desc;
