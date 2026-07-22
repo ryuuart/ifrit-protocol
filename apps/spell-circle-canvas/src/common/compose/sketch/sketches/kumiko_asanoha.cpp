@@ -69,7 +69,15 @@
 // MOTION is the documented assembly order (frame → register → jigumi verticals
 // → jigumi horizontals → per-cell diagonal → fillers → locking pieces →
 // joint-seating → the far room's lamp), driven off one clock through per-piece
-// delays computed from (role, row, col).
+// delays computed from (role, row, col). The build runs 0 → 3.4 s and holds to
+// 6.4 s; --at 1.9 catches the leaf sweep crossing the field, --at 2.74 the
+// finished-but-unlit panel, --at 4.2 the hero.
+//
+// COUNTS at the shipped pitch: 60 cells × 7 ha = 420 leaf pieces, 11 + 7
+// jigumi members, 36 register pieces, 4 mitred frame members, 36 tenon heads
+// = 514 boards, plus 113 half-lap seam marks derived from the crossing graph.
+// Each board is a real element with its own material, bevel, keyline and pair
+// of bound Outputs; the whole panel draws in ~0.3 ms.
 //
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/kumiko_asanoha.cpp \
@@ -117,7 +125,7 @@ const SkColor4f kHinokiDark = rgb(0x8E6C3B); // notch shadow
 const SkColor4f kKeyaki = rgb(0x76472A);     // zelkova frame
 const SkColor4f kKeyakiLit = rgb(0x9C6B3E);
 const SkColor4f kKeyakiDark = rgb(0x4B2A12);
-const SkColor4f kGlow = rgb(0xF4E3B8);
+const SkColor4f kGlow = rgb(0xF4E3B8);  // the far room's lamp
 const SkColor4f kNight = rgb(0x0D0906);
 const SkColor4f kSeam = rgb(0x4A3620, 0.55f);
 const SkColor4f kCaption = rgb(0xD8C9A8, 0.60f);
@@ -223,7 +231,6 @@ sk_sp<SkRuntimeEffect> timberEffect() {
   return fx;
 }
 
-
 // The milled tooth: LUMINANCE noise (all three channels carrying the same
 // value) so a soft-light pass reads as light on the timber rather than as a
 // hue shift. This is `patterns::grain()` with its fBm loop UNROLLED — the
@@ -235,6 +242,8 @@ sk_sp<SkRuntimeEffect> toothEffect() {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
 uniform float uFreq;
 uniform float uSeed;
+uniform float uAmp;    // contrast about mid-grey — wood, not granite
+uniform float uStretch; // >1 draws the cells out along the piece's length
 float hash21(float2 p) {
   p = fract(p * float2(123.34, 456.21) + uSeed);
   p += dot(p, p + 45.32);
@@ -249,9 +258,11 @@ float vnoise(float2 p) {
              u.y);
 }
 half4 main(float2 pos) {
-  float2 q = pos * uFreq;
+  // Wood fibre runs LENGTHWISE: the cells are drawn out along local x, so
+  // the tooth streaks with the grain instead of pebbling like stone.
+  float2 q = float2(pos.x * uFreq / uStretch, pos.y * uFreq * uStretch);
   float v = 0.5 * vnoise(q) + 0.25 * vnoise(q * 2.0) + 0.125 * vnoise(q * 4.0);
-  v = v / 0.875;
+  v = 0.5 + (v / 0.875 - 0.5) * uAmp;
   return half4(half3(v), 1.0);
 }
 )"));
@@ -262,11 +273,14 @@ half4 main(float2 pos) {
   return fx;
 }
 
-Material toothMaterial(float freq, float seed) {
+Material toothMaterial(float freq, float seed, float amp, float stretch) {
   sk_sp<SkRuntimeEffect> fx = toothEffect();
   if (!fx)
     return Material::solid({0.5f, 0.5f, 0.5f, 1});
-  return Material::sksl(std::move(fx), {{"uFreq", freq}, {"uSeed", seed}});
+  return Material::sksl(std::move(fx), {{"uFreq", freq},
+                                        {"uSeed", seed},
+                                        {"uAmp", amp},
+                                        {"uStretch", stretch}});
 }
 
 struct Timber {
@@ -319,7 +333,7 @@ public:
 
 private:
   // Built ONCE — every call compiles its own runtime effect.
-  Material m_tooth = toothMaterial(0.55f, 4.0f);
+  Material m_tooth = toothMaterial(0.42f, 4.0f, 0.30f, 3.2f);
   std::map<uint64_t, Material> m_bank;
 };
 
@@ -659,7 +673,14 @@ Element stripElement(const Strip &s, TimberBank &bank,
   }
 
   const float angDeg = ang * 57.29578f;
-  const float bevelDepth = std::clamp(s.w * 0.13f, 0.8f, 3.5f);
+  // The timber material already paints the arris. A bevel sized for a 45 px
+  // frame member, applied to an 8 px leaf piece, double-counts it and the
+  // piece stops being a board and becomes a length of rope — so the bevel
+  // scales with the stock and stays a hint on the thin stuff.
+  const bool heavy = s.w > 20.0f;
+  const float bevelDepth = heavy ? s.w * 0.09f : 0.7f;
+  const float bevelSize = heavy ? s.w * 0.14f : 1.0f;
+  const float bevelAlpha = heavy ? 0.42f : 0.26f;
 
   Element e = box()
                   .absolute()
@@ -673,9 +694,9 @@ Element stripElement(const Strip &s, TimberBank &bank,
                   // The arris: light angle counter-rotated into the piece's
                   // own frame so one raking source lights every board.
                   .foreground(styles::BevelEmboss{
-                      bevelDepth, std::max(1.0f, s.w * 0.16f), 120.0f + angDeg,
-                      {1, 0.96f, 0.86f, 0.40f},
-                      {0.14f, 0.09f, 0.03f, 0.40f}})
+                      bevelDepth, bevelSize, 120.0f + angDeg,
+                      {1, 0.96f, 0.86f, bevelAlpha},
+                      {0.14f, 0.09f, 0.03f, bevelAlpha}})
                   // The seam every abutting piece shows against its neighbour.
                   .stroke(util::stroke(0.6f, Fill::color(kSeam),
                                        PathFormat::Align::Inner));
@@ -773,7 +794,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   }
 
   Element backlight() {
-    const SkRect open = kRegOuter.makeOutset(0, 0);
+    const SkRect &open = kRegOuter; // the frame's opening
     return box()
         .absolute()
         .left(open.left())
@@ -783,14 +804,16 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .clip(true)
         .opacity(&glow)
         .background(styles::OuterGlow{rgb(0xF4E3B8, 0.34f), 70, 6})
-        // Brief §7: core inner radius ~80 px, fading out by ~520 px.
+        // Brief §7: a hot core fading out across the opening. The brief's
+        // 520 px outer radius leaves the field's corners black at this
+        // canvas; 585 keeps the outermost cells legible.
         .child(box().absolute().inset(0, 0, 0, 0).fill(Material::radial(
-            {open.width() * 0.5f, open.height() * 0.5f}, 520,
-            {{0.00f, rgb(0xFFF8E6, 0.98f)},
-             {0.22f, rgb(0xF7E7C0, 0.95f)},
-             {0.45f, rgb(0xD9A964, 0.72f)},
-             {0.68f, rgb(0x8E5A2C, 0.36f)},
-             {0.86f, rgb(0x33200F, 0.12f)},
+            {open.width() * 0.5f, open.height() * 0.5f}, 585,
+            {{0.00f, rgb(0xFDEDC4, 0.95f)},
+             {0.24f, rgb(0xF0DCA6, 0.91f)},
+             {0.48f, rgb(0xCE9E5C, 0.68f)},
+             {0.70f, rgb(0x88532A, 0.34f)},
+             {0.87f, rgb(0x2E1C0C, 0.11f)},
              {1.00f, rgb(0x0D0906, 0.00f)}})));
   }
 
@@ -830,6 +853,24 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         .child(backlight())
         .child(lattice())
         .child(joinery())
+        // Backlight bleed (brief §8): the lamp's halo added OVER the
+        // fretwork, so the light visibly wraps the pieces it is behind
+        // instead of stopping dead at their silhouettes.
+        .child(box()
+                   .absolute()
+                   .left(kRegOuter.left())
+                   .top(kRegOuter.top())
+                   .width(kRegOuter.width())
+                   .height(kRegOuter.height())
+                   .clip(true)
+                   .opacity(&glow)
+                   .blend(SkBlendMode::kPlus)
+                   .fill(Material::radial(
+                       {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f},
+                       360,
+                       {{0.00f, rgb(0xFFF2D2, 0.13f)},
+                        {0.45f, rgb(0xE6BC7C, 0.07f)},
+                        {1.00f, rgb(0x000000, 0.00f)}})))
         .child(frame())
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal (brief §9 step 1).

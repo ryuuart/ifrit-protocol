@@ -26,8 +26,8 @@
 //     right as the header rule under the title. One contour, two jobs.
 //   * every node is a four-layer stamp: dark well, cyan corona (a
 //     speckled radial burst), bright type-coloured ring, muted fill.
-//   * traces are CASED double hairlines with occasional 45 deg jogs, not
-//     single strokes and not pure Manhattan.
+//   * traces are CASED double hairlines, not single strokes: two
+//     parallel rails ~4 px apart, ~65% opacity, over a plus-blended halo.
 //   * the legend is a bracket-framed region (corner Ls, never a closed
 //     box) of right-aligned labels + colour dot + chevron pip bar + Pts.
 //   * the ONE warm accent on an all-cyan screen is the brass Power Node
@@ -428,12 +428,12 @@ struct EdgeDef { int a, b; float jog; };
 struct KindArt { SkColor4f fill, ring; const char *label; };
 inline KindArt artOf(Kind k) {
   switch (k) {
-  case DMG: return {rgb(0x7E3833), rgb(0xEFC0B8), "DMG"};
-  case CAP: return {rgb(0x2B5170), rgb(0xB7D9EE), "CAP"};
-  case CHR: return {rgb(0x55692F), rgb(0xDCEBAF), "CHR"};
-  case REL: return {rgb(0x5F4620), rgb(0xE7C68A), "REL"};
+  case DMG: return {rgb(0x6E332F), rgb(0xE9BCB4), "DMG"};
+  case CAP: return {rgb(0x274963), rgb(0xB2D6EC), "CAP"};
+  case CHR: return {rgb(0x4C5E2B), rgb(0xD6E8AA), "CHR"};
+  case REL: return {rgb(0x563F1D), rgb(0xE2C088), "REL"};
   case Blank:
-  default: return {{0.02f, 0.08f, 0.09f, 0.5f}, alpha(kCyan, 0.88f), nullptr};
+  default: return {rgb(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
   }
 }
 
@@ -456,11 +456,11 @@ constexpr NodeDef kBeamNodes[] = {
 constexpr EdgeDef kBeamEdges[] = {
     {4, 5, 0},  {5, 6, 0},  {6, 7, 0},  {7, 8, 0},   // trunk, left to right
     {8, 9, 0},  {9, 10, 0}, {10, 11, 0},
-    {5, 0, 0},  {0, 1, -10}, {8, 2, 0},  {11, 3, 0},  // upper taps
-    {6, 13, 0}, {13, 12, 10}, {13, 18, 0}, {7, 14, 0},// lower taps
-    {14, 19, 0}, {9, 15, 0}, {15, 16, -10}, {10, 16, 0},
+    {5, 0, 0},  {0, 1, 0}, {8, 2, 0},  {11, 3, 0},  // upper taps
+    {6, 13, 0}, {13, 12, 0}, {13, 18, 0}, {7, 14, 0},// lower taps
+    {14, 19, 0}, {9, 15, 0}, {15, 16, 0}, {10, 16, 0},
     {11, 17, 0}, {15, 20, 0},
-    {18, 19, 0}, {19, 20, 10},                        // second lower rank
+    {18, 19, 0}, {19, 20, 0},                        // second lower rank
 };
 
 // -- the two smaller Bench trees: the RIG and the Stasis Module --
@@ -489,6 +489,7 @@ struct Circuit {
   float typedDia, blankDia, labelDy, labelSize, traceAlpha;
   const char *caption;
   bool bigSocket;
+  int entryIndex; // the node the feed socket wraps (the trunk's head)
 
   SkPoint at(int i) const {
     return {x0 + xp * (float)nodes[i].col, y0 + yp * (float)nodes[i].row};
@@ -503,19 +504,19 @@ const Circuit kBeam{"b",   236, 110, 164, 78,
                     (int)(sizeof(kBeamNodes) / sizeof(kBeamNodes[0])),
                     kBeamEdges,
                     (int)(sizeof(kBeamEdges) / sizeof(kBeamEdges[0])),
-                    30, 19, -31, 11.5f, 0.66f, nullptr, true};
+                    28, 21, -30, 11.5f, 0.66f, nullptr, true, 4};
 const Circuit kRig{"r",   210, 76, 470, 46,
                    kMiniNodes,
                    (int)(sizeof(kMiniNodes) / sizeof(kMiniNodes[0])),
                    kMiniEdges,
                    (int)(sizeof(kMiniEdges) / sizeof(kMiniEdges[0])),
-                   19, 12, -22, 9.0f, 0.48f, "R.I.G. — INTEGRITY", false};
+                   19, 12, -22, 9.0f, 0.48f, "R.I.G. — ARMOR PLATE", false, 0};
 const Circuit kStasis{"s", 650, 76, 470, 46,
                       kMini2Nodes,
                       (int)(sizeof(kMini2Nodes) / sizeof(kMini2Nodes[0])),
                       kMini2Edges,
                       (int)(sizeof(kMini2Edges) / sizeof(kMini2Edges[0])),
-                      19, 12, -22, 9.0f, 0.48f, "STASIS MODULE", false};
+                      19, 12, -22, 9.0f, 0.48f, "STASIS MODULE", false, 0};
 
 // ---------------------------------------------------------------------------
 // legend data (fill counts read off the frame: 5/6, then a thinning
@@ -719,17 +720,6 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                               .effect(styles::textGlow(alpha(kCyan, 0.5f),
                                                        5.0f))));
 
-    // the shoulder marks ride the frame's lower tier, left and right of the
-    // raised centre — the only flat band the silhouette leaves free
-    root.child(box().absolute().left(Dim(kPX + 30)).top(Dim(kPY + 30))
-                   .zIndex(7)
-                   .child(text(toU8("NANOCIRCUIT"),
-                               type(9, alpha(kCyan, 0.5f), 0.2f, false))));
-    root.child(box().absolute().right(Dim(kW - kPR + 30))
-                   .top(Dim(kPY + 30)).zIndex(7)
-                   .child(text(toU8("LINK · OK"),
-                               type(9, alpha(kCyan, 0.5f), 0.2f, false))));
-
     // under the rule: the repair caption at left, and at right the RIG's
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
     // the track and the fill are the same generator twice
@@ -738,6 +728,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .child(text(toU8("NANOCIRCUIT REPAIR · TIER III"),
                                type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
     const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
+    // 359.99, not 360: shapes::sector() with a full-turn sweep produces an
+    // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
+    // gauge's own track — the most obvious call there is — silently
+    // disappears at the natural value.
     root.child(box().absolute().left(Dim(gaugeX)).top(Dim(gaugeY))
                    .width(Dim(gaugeD)).height(Dim(gaugeD))
                    .outline(shapes::sector(0, 359.99f, 0.58f))
@@ -849,11 +843,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           .fill = art.fill,
           .borderWidth = typed ? 2.4f : 1.7f,
           .borderColor = art.ring,
-          .glowRadius = typed ? 6.0f : 3.6f,
-          .glowColor = alpha(kCyan, typed ? 0.38f : 0.24f),
+          .glowRadius = typed ? 5.2f : 3.4f,
+          .glowColor = alpha(kCyan, typed ? 0.32f : 0.22f),
           .shadowOffset = {0, 0},
-          .shadowBlur = typed ? 8.0f : 5.0f,
-          .shadowColor = rgb(0x01080A, typed ? 0.95f : 0.8f)};
+          .shadowBlur = typed ? 6.0f : 4.5f,
+          .shadowColor = rgb(0x01080A, 1.0f)};
       Material m = sdf::material(sdf::circle(), st);
       m.uniform("uGlowR", &glow[(size_t)(glowSlot++ % (int)glow.size())]);
 
@@ -892,14 +886,14 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                            {1.0f, alpha(art.ring, 0.0f)}}))
                       .zIndex(5));
       layer.child(text(toU8(art.label),
-                       type(c.labelSize, alpha(kCyan, 0.85f), 0.11f))
+                       type(c.labelSize, alpha(kCyan, 0.78f), 0.11f))
                       .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
                       .opacity(withFrom(0.0f, 1.0f, {320ms}))
                       .zIndex(5));
     }
     root.child(std::move(layer));
 
-    entrySocket(root, c.at(0), c.bigSocket);
+    entrySocket(root, c.at(c.entryIndex), c.bigSocket);
 
     if (!c.caption)
       return;
@@ -1131,7 +1125,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .absolute().left(Dim(kPX + 6)).top(Dim(kPY + 30))
                    .width(Dim(kPW - 12)).height(Dim(34.0f))
                    .translateY(&scanY)
-                   .backdrop(styles::ripple(1.6f, 78.0f, 0.0f))
+                   .backdrop(styles::ripple(1.0f, 130.0f, 0.0f))
                    .fill(Material::linear({0, 0}, {0, 34},
                                           {{0.0f, alpha(kCyan, 0.0f)},
                                            {0.5f, alpha(kCyan, 0.05f)},

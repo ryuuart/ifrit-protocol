@@ -534,6 +534,44 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return fx;
   }
 
+  /** Luminance film grain. patterns::grain() is the library's own answer
+   *  to this and is exactly right in principle (equal channels, so an
+   *  overlay reads as LIGHT rather than hue-shifting the oxblood ramp) —
+   *  but it segfaults the moment its material paints (reported), so this
+   *  is the same idea hand-rolled: one value-noise octave pair, no
+   *  uniform-bounded loop. */
+  static sk_sp<SkRuntimeEffect> grainFx() {
+    static const sk_sp<SkRuntimeEffect> fx = [] {
+      auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+        uniform float uFreq;
+        uniform float uSeed;
+        float hash21(float2 p) {
+          p = fract(p * float2(123.34, 456.21) + uSeed);
+          p += dot(p, p + 45.32);
+          return fract(p.x * p.y);
+        }
+        float vnoise(float2 p) {
+          float2 i = floor(p);
+          float2 f = fract(p);
+          float2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
+                     mix(hash21(i + float2(0, 1)),
+                         hash21(i + float2(1, 1)), u.x), u.y);
+        }
+        half4 main(float2 pos) {
+          float2 q = pos * uFreq;
+          float v = 0.5 * vnoise(q) + 0.3 * vnoise(q * 2.0) +
+                    0.2 * vnoise(q * 4.0);
+          return half4(half3(v), 1.0);
+        }
+      )"));
+      if (!e)
+        SkDebugf("twoadvanced grain: %s\n", err.c_str());
+      return e;
+    }();
+    return fx;
+  }
+
   /** Horizontal streak water, dark teal-black, drifting slowly. */
   static sk_sp<SkRuntimeEffect> waterFx() {
     static const sk_sp<SkRuntimeEffect> fx = [] {
@@ -744,7 +782,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     Element panel =
         singleBevel(box().width(596).height(174).column().padding(9).gap(6),
-                    C(0x33090C));
+                    C(0x3E1013));
     panel.key("audio")
         .foreground(Brackets{kCyan, 18, 3, 4, kTL | kTR})
         .foreground(TickRail{fade(kDust, 0.45f), 7, 3, 6, 1, 4, false, true})
@@ -793,6 +831,71 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         bar.child(box().width(1).height(20).fill(fade(C(0x2A0A0C), 0.9f)));
     }
     return bar;
+  }
+
+  /** The strip under the nav bar. The real index never left 584×150 of
+   *  gradient showing: five chamfered section thumbnails over a dark
+   *  readout ground, each with its own bracket set and index number. */
+  Element quickLaunch() {
+    using namespace tav;
+    static const char *secs[5] = {"PORTFOLIO", "SERVICES", "ACCOLADES",
+                                  "EXPERIMENTAL", "EQUIPMENT"};
+    static const char *nums[5] = {"01", "02", "03", "04", "05"};
+    Element chips = box().row().gap(6).height(64);
+    for (int i = 0; i < 5; ++i) {
+      const float g = 0.28f + 0.16f * (float)i;
+      chips.child(
+          box().grow(1).column().gap(3)
+              .child(box().grow(1)
+                         .outline(chamfer(8, kTL | kBR))
+                         .fill(Material::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, C(0x06232A)}, {1.0f, C(0x01090B)}}))
+                         .stroke(util::stroke(
+                             1, Fill::color(fade(kCyan, 0.35f)),
+                             PathFormat::Align::Inner))
+                         .child(box().absolute().inset(0)
+                                    .fill(Material::radialUnit(
+                                        {0.5f, 0.92f}, 1.0f,
+                                        {{0.0f, fade(kGlow, g)},
+                                         {1.0f, fade(kGlow, 0.0f)}})))
+                         .child(place(box().fill(C(0x010A0C)), 12, 16, 14, 26))
+                         .child(place(box().fill(C(0x02171B)), 30, 8, 20, 34))
+                         .child(place(box().fill(C(0x010A0C)), 54, 20, 16, 22))
+                         .child(place(box().fill(fade(kGlow, 0.5f)), 0, 41,
+                                      200, 1))
+                         .foreground(Brackets{fade(kCyan, 0.6f), 7, 1, 2, 0xF})
+                         .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1})
+                         .child(box().absolute().left(Dim(4)).top(Dim(3))
+                                    .child(t(nums[i],
+                                             micro(9, fade(kCyan, 0.9f), 140)))))
+              .child(t(secs[i], micro(9, i == 0 ? kCyan : kDust, 200))));
+    }
+
+    Element panel = singleBevel(
+        box().width(584).height(144).column().padding(8).gap(6), C(0x3E1013));
+    panel.key("quick")
+        .translateY(withFrom(40.0f, 0.0f, {380ms, &ch::easeOutQuint, 2450ms}))
+        .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad, 2450ms}))
+        .foreground(Brackets{fade(kCyan, 0.55f), 12, 2, 4, kBL | kBR})
+        .child(box().row().alignItems(Align::Center).gap(8).height(16)
+                   .child(t("QUICK", heavy(13, kNear, 40)))
+                   .child(t(" LAUNCH", type(arial(), 12, kHeadDim, 40, 0.95f)))
+                   .child(box().width(1).height(11).fill(fade(kCyan, 0.4f)))
+                   .child(t("SELECT A SECTOR", micro(10, kDust, 260)))
+                   .child(box().grow(1))
+                   .child(tickDots(4))
+                   .child(box().width(60).height(9).foreground(TickRail{
+                       fade(kCyan, 0.5f), 5, 3, 7, 1, 4, false, true})))
+        .child(chips)
+        .child(box().height(16).row().alignItems(Align::Center).gap(8)
+                   .padding(5, 0)
+                   .fill(fade(kChrome, 0.85f))
+                   .child(t("\xe2\x96\xb8 INDEX", micro(9, kCyan, 200)))
+                   .child(box().grow(1).height(1).fill(fade(kDust, 0.3f)))
+                   .child(t("05 SECTORS \xc2\xb7 42 PROJECTS",
+                            micro(9, kDustDim, 200))));
+    return panel;
   }
 
   Element masthead() {
@@ -858,13 +961,14 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         {0, 0}, {0, 0.66f},
         {{0.0f, C(0x02070A)}, {0.62f, C(0x03181D)}, {1.0f, C(0x073038)}})));
 
-    // the portal's wide halo, behind everything
+    // the portal's wide halo, behind everything — LOW alpha; the disc
+    // itself is small and the exponential SDF glow does the reaching.
     scene.child(place(box().fill(Material::radialUnit(
                           {0.5f, 0.5f}, 1.0f,
-                          {{0.00f, fade(kGlow, 0.50f)},
-                           {0.35f, fade(kTealBar, 0.26f)},
+                          {{0.00f, fade(kGlow, 0.34f)},
+                           {0.30f, fade(kTealBar, 0.16f)},
                            {1.00f, fade(kTealBar, 0.0f)}})),
-                      cx - 300, horizon - 420, 600, 600)
+                      cx - 330, horizon - 420, 660, 620)
                     .blend(SkBlendMode::kPlus));
 
     // skyline: flat slabs, opacity + tint ramped by |x−cx| (cheap fog)
@@ -876,9 +980,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                  86,  158, 118, 190, 96,  140};
     for (int i = 0; i < 13; ++i) {
       const float d = std::abs(bx[i] + bw[i] * 0.5f - cx) / (w * 0.5f);
-      const float o = 0.34f + 0.60f * d;
-      const SkColor4f tint = {0.02f + 0.05f * (1 - d), 0.10f + 0.07f * (1 - d),
-                              0.13f + 0.07f * (1 - d), 1.0f};
+      const float o = 0.55f + 0.45f * d;
+      const SkColor4f tint = {0.008f + 0.028f * (1 - d),
+                              0.048f + 0.045f * (1 - d),
+                              0.060f + 0.050f * (1 - d), 1.0f};
       Element slab =
           place(box().fill(tint), bx[i], horizon - bh[i], bw[i], bh[i])
               .opacity(o);
@@ -894,17 +999,21 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                           horizon - bh[i] - 26, 2, 26));
     }
 
-    // THE portal: one SDF circle. Its box must reserve sdf::pad() for the
-    // glow — a 560 box with glowRadius 54 leaves ~105 px of visible disc.
-    sdf::Style ps{.fill = fade(kGlow, 0.92f),
+    // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
+    // glow — sdf::minBoxFor() is the only honest way to size it, since
+    // pad eats into the half-size (a 300 box with glowRadius 54 leaves
+    // almost no disc at all). 132 px of visible disc, reaching far.
+    sdf::Style ps{.fill = fade(kGlow, 0.95f),
                   .borderWidth = 3,
-                  .borderColor = {0.86f, 1.0f, 1.0f, 0.9f},
+                  .borderColor = {0.90f, 1.0f, 1.0f, 0.95f},
                   .glowRadius = 54,
-                  .glowColor = fade(kGlow, 0.85f)};
+                  .glowColor = fade(kGlow, 0.75f)};
+    const float pbox = sdf::minBoxFor(ps, 132);
     Material pm = sdf::material(sdf::circle(), ps);
     if (!still)
       pm.uniform("uGlowR", &portalGlow); // ±8 % sine, period 4 s
-    Element portal = place(box().fill(pm), cx - 280, horizon - 330, 560, 560)
+    Element portal = place(box().fill(pm), cx - pbox * 0.5f,
+                           horizon - 108 - pbox * 0.5f, pbox, pbox)
                          .blend(SkBlendMode::kPlus);
     if (!still)
       // the one deliberately bouncy beat: the power core kicking on
@@ -917,8 +1026,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     // an orbital ring, trim-revealed with the panel
     Element ring = place(box().outline(shapes::arc(-125, 310))
                              .stroke(util::stroke(
-                                 2, Fill::color(fade(kCyanRing, 0.7f)))),
-                         cx - 180, horizon - 288, 360, 360);
+                                 2, Fill::color(fade(kCyanRing, 0.6f)))),
+                         cx - 118, horizon - 226, 236, 236);
     if (!still)
       ring.trim(0.0f,
                 withFrom(0.0f, 1.0f, {700ms, &ch::easeOutQuint, 2600ms}));
@@ -989,7 +1098,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     // Texture bake is paid once, not per frame.
     s.child(heroScene(w, h, true)
                 .effect(Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
-                .opacity(0.42f)
+                .opacity(0.34f)
                 .blend(SkBlendMode::kPlus)
                 .cache(Cache::Texture)
                 .bakeScale(0.5f));
@@ -1025,7 +1134,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   Element mainframe() {
     using namespace tav;
     Element panel = doubleBevel(
-        box().width(1180).height(350).column().padding(3), C(0x2A0A0C), 3);
+        box().width(1180).height(350).column().padding(3), kChrome, 3);
     panel.key("mainframe")
         .translateY(withFrom(70.0f, 0.0f, {520ms, &ch::easeOutQuint, 2400ms}))
         .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 2400ms}))
@@ -1050,6 +1159,15 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             shapes::Edge::Top,
             util::stroke(1, Fill::color(fade(C(0xCFEFEC), 0.7f)),
                          PathFormat::Align::Inner)));
+  }
+
+  /** A label-over-value pair on a teal panel — the tabular voice. */
+  Element specPair(const char *k, const char *v) {
+    using namespace tav;
+    return box().column().gap(2)
+        .child(t(k, micro(9, fade(C(0x123B3D), 0.75f), 260)))
+        .child(box().height(1).fill(fade(kDate, 0.28f)))
+        .child(t(v, type(blackFace(), 11, C(0x0E3234), 40, 0.92f)));
   }
 
   Element featureSystem() {
@@ -1097,10 +1215,22 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                 "delivered in nine weeks on a Maxon pipeline "
                                 "against a live-action plate.",
                                 prose(13, C(0x0B2C2E)))))
+            // the spec readout: dense, tabular, and never actually read
+            .child(box().row().gap(14)
+                       .child(specPair("CLIENT", "BSN / N.O.-XPLODE"))
+                       .child(specPair("RUNTIME", "00:30 \xc2\xb7 NTSC"))
+                       .child(specPair("TOOLS", "C4D R8 / AE 6.5"))
+                       .child(specPair("DELIVERED", "01.24.06")))
             .child(box().row().gap(8).alignItems(Align::Center)
                        .child(t("\xe2\x80\xba VIEW CASE STUDY",
                                 micro(11, C(0x123B3D), 220)))
-                       .child(box().grow(1)));
+                       .child(box().grow(1))
+                       .child(box().width(150).height(6)
+                                  .fill(fade(kPanelSh, 0.7f))
+                                  .child(box().absolute().left(Dim(0))
+                                             .top(Dim(0)).width(112).height(6)
+                                             .fill(C(0x0E3234))))
+                       .child(t("74%", micro(10, C(0x123B3D), 160))));
 
     Element bodyArea =
         monitorBody(690, 316).row().padding(11).gap(11)
@@ -1123,7 +1253,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(cta("LAUNCH", 116, 34, kPanelSh)));
 
     Element panel = doubleBevel(
-        box().width(696).height(350).column().padding(3), C(0x2A0A0C), 3);
+        box().width(696).height(350).column().padding(3), kChrome, 3);
     panel.key("feature")
         .translateX(withFrom(90.0f, 0.0f, {500ms, &ch::easeOutQuint, 2600ms}))
         .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 2600ms}))
@@ -1204,7 +1334,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(cta("ARCHIVES", 116, 34, kPanelSh)));
 
     Element panel = doubleBevel(
-        box().width(696).height(410).column().padding(3), C(0x2A0A0C), 3);
+        box().width(696).height(410).column().padding(3), kChrome, 3);
     panel.key("press")
         .translateY(withFrom(60.0f, 0.0f, {420ms, &ch::easeOutQuint, 3250ms}))
         .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 3250ms}))
@@ -1229,7 +1359,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element row = box().width(1180).height(154).row().gap(10).padding(3);
     for (int i = 0; i < 3; ++i) {
       Element col =
-          singleBevel(box().grow(1).column().padding(9).gap(5), C(0x33090C));
+          singleBevel(box().grow(1).column().padding(9).gap(5), C(0x3E1013));
       col.foreground(TickRail{fade(kDust, 0.35f), 7, 3, 6, 1, 4, false, true})
           .child(box().row().gap(8).alignItems(Align::Center)
                      .child(box().width(32).height(32)
@@ -1322,7 +1452,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        micro(11, fade(kCyan, 0.85f), 120))));
 
     Element panel = singleBevel(
-        box().width(1180).height(236).column().padding(9).gap(7), C(0x33090C));
+        box().width(1180).height(236).column().padding(9).gap(7), C(0x3E1013));
     panel.key("txlog")
         .translateY(withFrom(56.0f, 0.0f, {400ms, &ch::easeOutQuint, 3400ms}))
         .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad, 3400ms}))
@@ -1664,10 +1794,15 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     stage.child(place(legalStrip(), 0, 1190, 1892, 90));
     stage.child(place(footerDock(), 0, 1310, 1892, 220));
 
+    // sitebackground.gif is a 1×1600 strip: the oxblood is only the top
+    // band, and it is nearly black by a third of the way down. A linear
+    // two-stop ramp reads as a flat maroon field and gets the figure/
+    // ground backwards — the PANELS are the light thing on this page.
     return stack()
         .fill(Material::linearUnit({0, 0}, {0, 1},
                                    {{0.00f, kBgTop},
-                                    {0.40f, kBgMid},
+                                    {0.13f, C(0x2E0808)},
+                                    {0.40f, C(0x150202)},
                                     {1.00f, kBgBot}}))
         .child(box().absolute().inset(0).fill(grain).opacity(0.07f)
                    .blend(SkBlendMode::kOverlay))
@@ -1693,7 +1828,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     hatchB.rotate(-45);
     dither = patterns::checker(1.5f, fade(kPanelSh, 0.28f),
                                fade(kPanelHi, 0.15f));
-    grain = patterns::grain(0.9f, 3, 4.0f); // LUMINANCE noise — no hue shift
+    // LUMINANCE grain — patterns::grain() would be the right call here
+    // (see grainFx()); it crashes, so this is the same recipe by hand.
+    grain = Material::sksl(grainFx(), {{"uFreq", 0.9f}, {"uSeed", 4.0f}});
 
     spectrum = Material::sksl(spectrumFx(), {{"uBars", 32.0f}})
                    .uniform("uHot", kGlow)
