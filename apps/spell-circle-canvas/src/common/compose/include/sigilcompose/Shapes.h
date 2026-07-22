@@ -143,6 +143,35 @@ inline OutlineFn circle() {
   };
 }
 
+/** The same circle with a chosen WINDING and start point.
+ *
+ *  Direction is not a detail on a text baseline — it decides which way
+ *  the glyphs face. `onPath` orients to the tangent, so a clockwise ring
+ *  puts glyph-up radially OUTWARD (Nightingale's 1858 plate) and a
+ *  counter-clockwise one puts it INWARD (Chevreul's 1864 limb). Both are
+ *  uniform engraver's conventions and they are opposite in sign, so
+ *  exactly half of all ring inscriptions were writing their own
+ *  `OutlineFn` because of a default nobody chose.
+ *
+ *  @p startIndex picks which of the oval's four extreme points the
+ *  contour begins at, which is what `TextPath::at` measures from. It
+ *  defaults to 1 because that is what Skia's own `addOval(rect, dir)`
+ *  uses — so `circle(kCW)` is byte-for-byte the path `circle()` gives,
+ *  and this overload is a strict superset rather than a near-miss. (I
+ *  defaulted it to 0 first and the two produced different paths, which a
+ *  test caught immediately and would have been a nasty thing to
+ *  discover from a drifting label.)
+ *
+ *  Exact conics either way — this is `addOval`, not a sampled
+ *  polyline. */
+inline OutlineFn circle(SkPathDirection direction, unsigned startIndex = 1) {
+  return [direction, startIndex](SkSize s) {
+    SkPathBuilder b;
+    b.addOval(SkRect::MakeWH(s.width(), s.height()), direction, startIndex);
+    return b.detach();
+  };
+}
+
 /** A ring: the inscribed circle with a concentric hole at @p innerRatio
  *  of the radius. Even-odd, so it fills as an annulus. */
 inline OutlineFn annulus(float innerRatio = 0.6f) {

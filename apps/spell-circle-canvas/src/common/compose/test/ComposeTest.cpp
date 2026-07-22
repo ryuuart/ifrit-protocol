@@ -6256,3 +6256,54 @@ TEST(ComposeFx, WipeOnAZeroMeasuredBoxRevealsRatherThanHides) {
   EXPECT_GT(ink(plain), 5000);
   EXPECT_EQ(ink(wiped), ink(plain)); // a full reveal changes nothing
 }
+
+TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
+  // Direction is not a detail on a text baseline. onPath orients to the
+  // tangent, so a clockwise ring puts glyph-up radially OUTWARD
+  // (Nightingale's 1858 plate) and a counter-clockwise one puts it INWARD
+  // (Chevreul's 1864 limb) — both uniform engraver's conventions,
+  // opposite in sign. Half of all ring inscriptions were hand-rolling an
+  // OutlineFn because of a default nobody chose.
+  //
+  // Asserted as the two properties that matter and that do not depend on
+  // knowing which quadrant Skia's addOval starts in: the directed
+  // overload at kCW is EXACTLY the undirected one (a strict superset, not
+  // a near-miss), and kCCW is observably different. My first three
+  // attempts each asserted a position I had inferred rather than
+  // measured, and each was wrong in a different way.
+  auto render = [](std::function<SkPath(SkSize)> path) {
+    auto host = std::make_unique<Host>(300, 300);
+    host->composer.render(box().child(
+        text(u8"RING INSCRIPTION", whiteStyle(30))
+            .width(240).height(240).absolute().left(30).top(30)
+            .onPath({.path = std::move(path), .at = 0.25f,
+                     .align = TextPath::Align::Center, .offset = 0.0f})));
+    host->frame();
+    return host;
+  };
+  auto differing = [](Host &a, Host &b) {
+    int n = 0;
+    for (int y = 0; y < 300; ++y)
+      for (int x = 0; x < 300; ++x)
+        n += a.pixel(x, y) != b.pixel(x, y);
+    return n;
+  };
+  auto inked = [](Host &h) {
+    int n = 0;
+    for (int y = 0; y < 300; ++y)
+      for (int x = 0; x < 300; ++x)
+        n += h.pixel(x, y) != SK_ColorBLACK;
+    return n;
+  };
+
+  auto cw = render(shapes::circle(SkPathDirection::kCW));
+  auto ccw = render(shapes::circle(SkPathDirection::kCCW));
+  auto plain = render(shapes::circle());
+
+  ASSERT_GT(inked(*cw), 300);
+  ASSERT_GT(inked(*ccw), 300);
+  // The winding is observable — the run faces the other way.
+  EXPECT_GT(differing(*cw, *ccw), 500);
+  // …and the directed overload's default IS the undirected one.
+  EXPECT_EQ(differing(*cw, *plain), 0);
+}
