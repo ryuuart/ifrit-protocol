@@ -25,6 +25,60 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 
 ---
 
+## What the list actually says
+
+Read as a list this is thirty-odd unrelated papercuts. Read together it
+is four arguments, and they are worth more than any single entry.
+
+**1. The library computes the right thing and hands out only the finished
+result.** Bindings resolve a value and drop the arithmetic (§1).
+`brushes::Ribbon` works in (along, across) space to taper and never
+exposes it, so a milled metal band is inexpressible (§8b). `Material`
+compares structurally by recipe and `outline()` does not, so every shaped
+node re-records (§3). `drawSpriteAtlas` was already decomposing to quads
+and only ever needed a branch to read a size lane (§2, now closed). The
+same shape recurs: an internal representation is richer than the public
+one, and the fix is usually to expose what already exists rather than to
+build something.
+
+**2. Instancing promises a flyweight and delivers a sprite stamp.**
+Eight studies, more than any other item. `Pool` covers "many copies of
+one thing"; every real case is "many variations of one recipe" — labelled
+nodes, staggered lattices, particles with lifetimes, rows with text,
+hairlines that must not thicken with their circle. The non-uniform scale
+lane has landed; what remains is a delay/progress lane, a short-string
+lane, a stroke-width lane, and — separately, wearing the same clothes —
+a **positioned leaf set** for generated geometry that wants no layout at
+all. Three studies paid four-figure Yoga node counts for scenes with zero
+layout in them.
+
+**3. Volatility is declared per NODE, and authors think per PROPERTY.**
+`trim` is a node property while a second window wants to be a stroke's
+(§7 — which turned out to already work). `dashPhase` was a constant while
+`trimPhase` was bindable (closed). `Effect` takes constant uniforms while
+`Material` takes bound ones (§11). A `custom()` leaf is all-or-nothing
+volatile. Each of these is the same asymmetry: the caching contract is
+sound, and its granularity is one level coarser than the work.
+
+**4. Four entries were WRONG, and that is the most important line here.**
+`PathFormat` has always had its own trim window; there has always been a
+bound `Fill`; the whole brush vocabulary has always worked on hand-built
+geometry; and `onPath` walked every contour hours before a doc comment
+said otherwise. In each case a capable author concluded "impossible",
+built a workaround, and the workaround got recorded as a gap. An entry
+that reads *impossible* outranks one that reads *awkward*, so a wrong
+entry distorts everything below it — and three of the four were caught
+only when researchers started reading the library's source instead of its
+documentation.
+
+The lesson is not "write better docs". It is that **this library's real
+defect rate is lower than its perceived one**, and the difference is
+discoverability at the call site. Four features existed, were correct, and
+were worth nothing. That is a more actionable finding than any of the
+missing ones.
+
+---
+
 ## Closed during the program
 
 | What | Why it mattered | Where |
