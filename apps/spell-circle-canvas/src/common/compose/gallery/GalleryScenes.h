@@ -20,6 +20,9 @@
 #include "ScenesSkillTree.h"
 #include "ScenesY2k.h"
 #include "ScenesScale.h"
+#include "ScenesPoster.h"
+#include "ScenesZellige.h"
+#include "ScenesBeethoven.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkStream.h>
@@ -71,6 +74,10 @@ inline constexpr SceneInfo kScenes[] = {
     {"y2k chrome", "Showcase", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
     {"passive tree", "Showcase", "\xc2\xa7""5 linework + orbit router"},
     {"daemon console", "Showcase", "console() LineRing feed"},
+    {"motion poster", "Showcase",
+     "EMBER GATE \xe2\x80\x94 the flagship living poster"},
+    {"zellige", "Showcase", "girih Hankin PIC \xe2\x80\x94 regenerating"},
+    {"beethoven", "Showcase", "\xc2\xa7""7 Brockmann arc table, trim reveal"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -103,6 +110,9 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 23: return std::make_unique<Y2kChromeScene>();
   case 24: return std::make_unique<SkillTreeScene>();
   case 25: return std::make_unique<DaemonConsoleScene>();
+  case 26: return std::make_unique<MotionPosterScene>();
+  case 27: return std::make_unique<ZelligeScene>();
+  case 28: return std::make_unique<BeethovenScene>();
   default: return nullptr;
   }
 }

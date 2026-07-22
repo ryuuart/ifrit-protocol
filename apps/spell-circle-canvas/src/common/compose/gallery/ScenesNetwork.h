@@ -375,10 +375,16 @@ struct NightNetworkScene final : Scene {
         .child(box().column().absolute().inset(28, 27, 0, 0).zIndex(8)
                    .child(text(toU8("NIGHT NETWORK"),
                                nn::type(30, nn::kBone, 2)))
-                   .child(text(toU8("the brush engine \xe2\x80\x94 six line"
+                   .child(text(toU8("the brush engine \xe2\x80\x94 ten line"
                                     " constructions"),
                                nn::type(14, nn::kAsh, 1))
                               .margin(0, 6, 0, 0)))
+        // Ten rows reach into the map now — a feathered ink backing keeps
+        // the routes from striking through the legend type.
+        .child(box().absolute().inset(18, 92, 0, 0).width(430).height(232)
+                   .corners({10})
+                   .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
+                   .zIndex(7))
         .child(nn::legendRow("EMBER LINE", "cased pair over rounded corners",
                              nn::kEmber, 102))
         .child(nn::legendRow("STEEL SPUR", "carto railway: dark + white dash",
@@ -391,7 +397,16 @@ struct NightNetworkScene final : Scene {
                              nn::kAmber, 190))
         .child(nn::legendRow("SMOKEWATER",
                              "TfL Thames rule: octilinear band + banks",
-                             {0.45f, 0.62f, 0.78f, 1}, 212));
+                             {0.45f, 0.62f, 0.78f, 1}, 212))
+        .child(nn::legendRow("TWIN SERVICE", "shared running: alternating dashes",
+                             nn::kRose, 234))
+        .child(nn::legendRow("CABLEWAY", "stamped rings on a support cable",
+                             nn::kAsh, 256))
+        .child(nn::legendRow("MILLBROOK", "topo taper: calligraphic ribbon",
+                             {0.36f, 0.66f, 0.86f, 1}, 278))
+        .child(nn::legendRow("PIPELINE TRIO",
+                             "same points: wave / zigzag / square",
+                             nn::kBone, 300));
   }
 };
 

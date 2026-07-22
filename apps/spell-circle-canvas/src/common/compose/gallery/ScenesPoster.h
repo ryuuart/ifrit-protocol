@@ -1,12 +1,8 @@
-// motion_poster.cpp — "EMBER GATE", the Material-era motion poster.
-//
-//   ./build/bin/Release/ComposeSketch \
-//       src/common/compose/sketch/sketches/motion_poster.cpp
-//
-// The flagship thesis: a living typographic poster with ZERO raw custom()
-// lambdas. Before the material layer, a scene like this was ~60% hand-rolled
-// SkCanvas code (see RpgHudScene's bars/sigil/icons); here every visual is a
-// composable, cacheable, animatable VALUE:
+#pragma once
+// EMBER GATE — the flagship living poster, ported from
+// sketch/sketches/motion_poster.cpp: a living typographic poster with ZERO
+// raw custom() lambdas — every visual is a composable, cacheable,
+// animatable VALUE:
 //
 //   ground .......... Material::linear 4-stop ramp (recipe-prunes across
 //                     re-renders — no memo, no re-records)
@@ -21,17 +17,23 @@
 //   rules & chrome .. PathFormat dashes via shapes::onEdges (bottom edge
 //                     only) — decorations compare by value, so they prune
 //   film grain ...... Material::sksl reading uTime, soft-light over the
-//                     whole frame
+//                     poster panel
 //   entrance ........ Choreograph timeline ramps (Hold-staggered drop+fade
 //                     per line, retarget-safe)
-//   grade ........... OCIO output view on the Composer (ACES SDR view from
-//                     the ASWF built-in config, falling back to a gentle
-//                     exponent grade) — one saveLayer, post-cache
+//   grade ........... OCIO exponent view on the Composer (post-cache,
+//                     one saveLayer; the ACES SDR view from the ASWF
+//                     built-in config is the follow-up once the palette is
+//                     re-authored scene-linear)
 //
-// Headless captures (what the morning review PNGs are):
-//   ComposeSketch <this> --frame poster.png --at 2.6
+// Gallery adaptation: the sketch declares an 810x1012 (4:5) portrait
+// canvas; the gallery stage is 900x640 landscape. The poster is authored
+// UNCHANGED in sketch space and paint-scaled (transform-replay — one
+// recording, replayed under the matrix) into a centered 512x640 panel,
+// with dark letterbox side panels and a small caption bottom-left. The
+// grain overlay sits OUTSIDE the scaled subtree, at panel-native
+// resolution, so the noise stays pixel-sized instead of magnifying.
 
-#include <sigilsketch/Sketch.h>
+#include "GalleryCore.h"
 
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Shapes.h>
@@ -44,12 +46,16 @@
 
 #include <cmath>
 
-using namespace sigil::compose;
-using namespace sigil::compose::util;
-namespace ch = choreograph;
-using namespace std::chrono_literals;
+namespace compose_gallery {
 
-namespace {
+namespace ember_poster {
+
+// ---- stage geometry -------------------------------------------------------
+constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
+constexpr float kPanelW = 512, kPanelH = 640;      // the 4:5 poster panel
+constexpr float kPanelX = (kW - kPanelW) * 0.5f;   // letterbox width, 194
+constexpr float kPW = 810, kPH = 1012;             // sketch author space
+constexpr float kScale = kPanelW / kPW;            // paint-scale into panel
 
 // ---- palette (authored flat; the OCIO view grades the composite) ----------
 constexpr SkColor4f kInk{0.043f, 0.031f, 0.075f, 1};
@@ -59,8 +65,10 @@ constexpr SkColor4f kEmber{0.960f, 0.475f, 0.180f, 1};
 constexpr SkColor4f kEmberHot{1.000f, 0.800f, 0.420f, 1};
 constexpr SkColor4f kBone{0.940f, 0.910f, 0.860f, 1};
 constexpr SkColor4f kAsh{0.600f, 0.575f, 0.640f, 1};
+constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1}; // letterbox
 
-sigil::weave::TextStyle type(float size, SkColor4f color, float tracking = 0) {
+inline sigil::weave::TextStyle type(float size, SkColor4f color,
+                                    float tracking = 0) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   s.shaping.letterSpacing = tracking;
@@ -71,7 +79,7 @@ sigil::weave::TextStyle type(float size, SkColor4f color, float tracking = 0) {
 
 // The breathing ring: pure SkSL over the node's box. uPulse is a live bound
 // uniform; uTime/uResolution arrive from PaintContext automatically.
-sk_sp<SkRuntimeEffect> ringEffect() {
+inline sk_sp<SkRuntimeEffect> ringEffect() {
   static const char *kSkSL = R"(
     uniform float uPulse;
     uniform float uTime;
@@ -104,8 +112,8 @@ sk_sp<SkRuntimeEffect> ringEffect() {
   return effect;
 }
 
-// Film grain, soft-lighted over the frame. uTime keeps it alive.
-sk_sp<SkRuntimeEffect> grainEffect() {
+// Film grain, soft-lighted over the poster panel. uTime keeps it alive.
+inline sk_sp<SkRuntimeEffect> grainEffect() {
   static const char *kSkSL = R"(
     uniform float uTime;
     half4 main(float2 p) {
@@ -124,35 +132,38 @@ sk_sp<SkRuntimeEffect> grainEffect() {
   return effect;
 }
 
-} // namespace
+} // namespace ember_poster
 
-struct MotionPoster : sketch::Sketch {
+struct MotionPosterScene final : Scene {
   // Entrance choreography (drop + fade per line, Hold-staggered).
-  ch::Output<float> dropTitle{54}, fadeTitle{0};
-  ch::Output<float> dropSub{40}, fadeSub{0};
-  ch::Output<float> dropInfo{28}, fadeInfo{0};
+  choreograph::Output<float> dropTitle{54}, fadeTitle{0};
+  choreograph::Output<float> dropSub{40}, fadeSub{0};
+  choreograph::Output<float> dropInfo{28}, fadeInfo{0};
   // Living elements.
-  ch::Output<float> pulse{0}, spin{0};
+  choreograph::Output<float> pulse{0}, spin{0};
 
-  void setup(sketch::SketchContext &ctx) override {
-    ctx.canvas(810, 1012); // 4:5 poster
-    ctx.background(kInk);
+  const char *name() const override { return "motion poster"; }
 
-    auto &tl = ctx.ticker.timeline();
-    auto enter = [&](ch::Output<float> &drop, ch::Output<float> &fade,
-                     float from, float delay) {
+  void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+    pulse = 0.0f;
+    spin = 0.0f;
+
+    auto &tl = ticker.timeline();
+    auto enter = [&](choreograph::Output<float> &drop,
+                     choreograph::Output<float> &fade, float from,
+                     float delay) {
       drop = from;
       fade = 0.0f;
-      tl.apply(&drop).then<ch::Hold>(from, delay).then<ch::RampTo>(
-          0.0f, 0.9f, &ch::easeOutQuint);
-      tl.apply(&fade).then<ch::Hold>(0.0f, delay).then<ch::RampTo>(
-          1.0f, 0.7f, &ch::easeOutQuad);
+      tl.apply(&drop).then<choreograph::Hold>(from, delay)
+          .then<choreograph::RampTo>(0.0f, 0.9f, &choreograph::easeOutQuint);
+      tl.apply(&fade).then<choreograph::Hold>(0.0f, delay)
+          .then<choreograph::RampTo>(1.0f, 0.7f, &choreograph::easeOutQuad);
     };
     enter(dropTitle, fadeTitle, 54, 0.15f);
     enter(dropSub, fadeSub, 40, 0.38f);
     enter(dropInfo, fadeInfo, 28, 0.60f);
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
+    ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       pulse = (float)std::sin(t * 1.7);
       spin = (float)(t * 5.5); // slow degrees/sec
@@ -160,36 +171,30 @@ struct MotionPoster : sketch::Sketch {
     });
 
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
-    // The color-managed output stage. Two working grades:
-    //  - default: a gentle exponent contrast grade (display-referred, matches
-    //    how this palette is authored);
-    //  - kUseAces: the real ACES 2.0 SDR view from the ASWF CG built-in
-    //    config. It WORKS (bakes + applies), but ACES expects SCENE-LINEAR
-    //    input — feeding it display-referred colors lifts/washes the frame.
-    //    Flip it on after re-authoring the palette in linear (the honest
-    //    ACES contract; F16 intermediates for >1.0 embers are the follow-up).
-    constexpr bool kUseAces = false;
-    Effect view = kUseAces
-                      ? ocio::display("ocio://cg-config-latest",
-                                      "sRGB - Display",
-                                      "ACES 2.0 - SDR 100 nits (Rec.709)")
-                      : ocio::exponent(1.12f);
-    if (!view.imageFilter())
-      view = ocio::exponent(1.12f); // fail-soft fallback
-    ctx.composer.setView(std::move(view));
+    // Gentle exponent contrast grade (display-referred, matches how this
+    // palette is authored). The sketch's real ACES 2.0 SDR view works but
+    // expects scene-linear input — flip after re-authoring the palette.
+    composer.setView(ocio::exponent(1.12f));
 #endif
 
-    ctx.composer.render(describe());
+    composer.render(describe());
   }
 
-  Element describe() {
-    const float W = 810, H = 1012;
+  /** The poster itself, verbatim in the sketch's 810x1012 author space
+   *  (minus the grain overlay, which lives at panel-native resolution in
+   *  describe()). Everything static here is one cached recording; the
+   *  spinning star and dropping lines are transform-replay. */
+  Element poster() {
+    namespace ep = ember_poster;
+    const float W = ep::kPW, H = ep::kPH;
     const SkPoint focus = {W * 0.5f, H * 0.40f};
 
     // Ground: one 4-stop ramp — a value, cached, recipe-pruned.
-    Material ground = Material::linear(
-        {0, 0}, {0, H},
-        {{0.00f, kInk}, {0.55f, kPlum}, {0.82f, kEmberDeep}, {1.00f, kInk}});
+    Material ground = Material::linear({0, 0}, {0, H},
+                                       {{0.00f, ep::kInk},
+                                        {0.55f, ep::kPlum},
+                                        {0.82f, ep::kEmberDeep},
+                                        {1.00f, ep::kInk}});
 
     // Ember halo: three layers flattened into ONE shader (no saveLayer):
     // radial core over transparent, kPlus sweep highlight, kScreen rim.
@@ -215,12 +220,14 @@ struct MotionPoster : sketch::Sketch {
 
     // The breathing ring: LIVE material — uPulse bound, uTime auto. The
     // material declares the volatility; no Cache::None, no custom().
-    Material ring = Material::sksl(ringEffect()).uniform("uPulse", &pulse);
+    Material ring =
+        Material::sksl(ep::ringEffect()).uniform("uPulse", &pulse);
 
     // The star sigil: geometry from shapes::, paint from a sweep ramp,
     // motion from a bound rotate — transform-replay keeps it one recording.
     Material starFill = Material::sweep(
-        {70, 70}, {{0.0f, kEmberHot}, {0.5f, kEmber}, {1.0f, kEmberHot}});
+        {70, 70},
+        {{0.0f, ep::kEmberHot}, {0.5f, ep::kEmber}, {1.0f, ep::kEmberHot}});
 
     // Dashed hairline rule under the info block: a value decoration on the
     // bottom edge only.
@@ -228,10 +235,6 @@ struct MotionPoster : sketch::Sketch {
     rule.width = 1.2f;
     rule.strokeFill = Fill::color({0.94f, 0.91f, 0.86f, 0.55f});
     rule.dashIntervals = {10, 7};
-
-    // Film grain: sksl reading uTime — declaring the clock makes it live
-    // automatically, no cache annotation needed.
-    Material grain = Material::sksl(grainEffect());
 
     return stack()
         .fill(ground)
@@ -255,12 +258,12 @@ struct MotionPoster : sketch::Sketch {
         .child(
             box().column().absolute().inset(64, 0, 64, 0).zIndex(2)
                 .child(box().grow(1)) // push type into the lower third
-                .child(text(toU8("EMBER GATE"), type(108, kBone, 2))
+                .child(text(toU8("EMBER GATE"), ep::type(108, ep::kBone, 2))
                            .key("title")
                            .translateY(&dropTitle)
                            .opacity(&fadeTitle))
-                .child(text(toU8("the ifrit protocol — movement II"),
-                            type(30, kEmber, 1))
+                .child(text(toU8("the ifrit protocol \xe2\x80\x94 movement II"),
+                            ep::type(30, ep::kEmber, 1))
                            .key("sub")
                            .translateY(&dropSub)
                            .opacity(&fadeSub)
@@ -274,19 +277,48 @@ struct MotionPoster : sketch::Sketch {
                            .margin(0, 14, 0, 88)
                            .translateY(&dropInfo)
                            .opacity(&fadeInfo)
-                           .child(text(toU8("XXI"), type(40, kEmberHot)))
-                           .child(text(toU8("midsummer"), type(21, kAsh, 3)))
+                           .child(text(toU8("XXI"),
+                                       ep::type(40, ep::kEmberHot)))
+                           .child(text(toU8("midsummer"),
+                                       ep::type(21, ep::kAsh, 3)))
                            .child(box().grow(1))
                            .child(text(toU8("the flooded causeway"),
-                                       type(21, kAsh, 1)))
-                           .child(text(toU8("§ vol. 4"), type(21, kEmber)))))
-        // living film grain across everything beneath
-        .child(box().absolute().inset(0).zIndex(3)
-                   .fill(grain)
-                   .blend(SkBlendMode::kSoftLight));
+                                       ep::type(21, ep::kAsh, 1)))
+                           .child(text(toU8("\xc2\xa7 vol. 4"),
+                                       ep::type(21, ep::kEmber)))));
   }
 
-  void update(double, sketch::SketchContext &) override {}
+  Element describe() {
+    namespace ep = ember_poster;
+    return stack()
+        .fill(Fill::color(ep::kVoid))
+        // the 4:5 poster panel, centered; the poster paints in sketch
+        // space and the scale transform replays its pictures — no
+        // re-authoring, no re-records.
+        .child(
+            box().absolute().inset(ep::kPanelX, 0, ep::kPanelX, 0)
+                .fill(Fill::color(ep::kInk))
+                .clip()
+                .child(poster().width(ep::kPW).height(ep::kPH)
+                           .left(0).top(0)
+                           .transformOrigin(0, 0)
+                           .scale(ep::kScale))
+                // living film grain at panel-native resolution (outside the
+                // scaled subtree, so the noise stays pixel-sized)
+                .child(box().absolute().inset(0).zIndex(3)
+                           .fill(Material::sksl(ep::grainEffect()))
+                           .blend(SkBlendMode::kSoftLight)))
+        // caption in the left letterbox panel, fading in with the info line
+        .child(box().column().gap(4).left(24).bottom(28)
+                   .opacity(&fadeInfo)
+                   .child(text(toU8("EMBER GATE"),
+                               ep::type(13, ep::kAsh, 2)))
+                   .child(text(toU8("material-era living poster"),
+                               ep::type(11,
+                                        {ep::kAsh.fR, ep::kAsh.fG,
+                                         ep::kAsh.fB, 0.7f},
+                                        1))));
+  }
 };
 
-SIGIL_SKETCH(MotionPoster)
+} // namespace compose_gallery

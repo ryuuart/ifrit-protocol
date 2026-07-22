@@ -495,6 +495,7 @@ struct FlourishScene final : Scene {
   }
 
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
+    sceneTicker = &ticker;
     hatch = makeHatch();
     engraved = makeEngraved();
     carvedFrame = std::make_shared<sigil::image::ImageAsset>(
@@ -539,8 +540,17 @@ struct FlourishScene final : Scene {
       return;
     nextAccent = elapsed + 4.0;
     accent = !accent;
+    // The sketch's rubric flare: each accent beat re-lights the medallion
+    // bosses, then settles back over 1.1 s (flourish_border.cpp update()).
+    if (sceneTicker) {
+      flare = 1.0f;
+      sceneTicker->timeline().apply(&flare).then<ch::RampTo>(
+          0.55f, 1.1f, &ch::easeOutQuint);
+    }
     composer.render(describe());
   }
+
+  sigil::motion::Ticker *sceneTicker = nullptr;
 };
 
 } // namespace compose_gallery
