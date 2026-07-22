@@ -57,7 +57,11 @@ Element swatch(const char *name, Material material) {
 
 struct StockMaterialsSketch : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
-    ctx.canvas(660, 420);
+    // Three rows of 112 from top 52 end at 428, and the footer sits 16 above
+    // the bottom: 420 clipped the last row and printed the footer through
+    // its labels. Nobody saw it while this only ever ran as a ctest that
+    // checks for a segfault — it became visible the day it joined a gallery.
+    ctx.canvas(660, 476);
     ctx.background({0.05f, 0.05f, 0.07f, 1});
 
     const std::vector<Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
