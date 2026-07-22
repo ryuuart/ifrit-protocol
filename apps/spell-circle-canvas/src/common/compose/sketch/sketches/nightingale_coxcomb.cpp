@@ -634,6 +634,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext &ctx) override {
+    fprintf(stderr,"[nc] setup begin\n");
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
 
@@ -670,15 +671,19 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
            // reads as light on the tint instead of hue-shifting it
            {patterns::grain(0.010f, 3, (float)seed), SkBlendMode::kSoftLight}});
     };
+    fprintf(stderr,"[nc] fonts ok %p %p %p %p\n",(void*)faceDisplay.get(),(void*)faceGrotesque.get(),(void*)faceLabel.get(),(void*)faceScript.get());
     blueMat = band(kBlueWash, kBlueInk, 470, 26, 11, blueGrain);
     roseMat = band(kRoseWash, kRoseInk, 300, 18, 23, roseGrain);
     greyMat = band(kGreyWash, kGreyInk, 560, 34, 37, greyGrain);
 
+    fprintf(stderr,"[nc] band mats ok\n");
     paperMat = patterns::grain(0.011f, 4, 5.0f);
     foxing = patterns::speckle(210, 3, 1.5f, 5.5f, {kFox});
     foxing.seed(91);
 
+    fprintf(stderr,"[nc] paper mats ok\n");
     // The needles and the rim flashes they ring.
+    if (std::getenv("NC_NOTICK") == nullptr)
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       const float s = (float)t;
@@ -705,7 +710,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       return true;
     });
 
+    fprintf(stderr,"[nc] ticker ok\n");
     ctx.composer.render(describe(ctx));
+    fprintf(stderr,"[nc] render ok\n");
   }
 
   void update(double, sketch::SketchContext &) override {}

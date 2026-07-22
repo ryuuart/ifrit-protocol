@@ -83,7 +83,21 @@ SIGIL_SKETCH(MySketch)
   valid); one small leak per reload is the standard trade.
 - After rebuilding the framework itself, restart the host. The ABI
   version in `Sketch.h` guards stale sketch binaries, not framework
-  drift.
+  drift. The host additionally refuses to compile a sketch when any
+  framework header on the include path is NEWER than the host binary
+  ("framework headers are NEWER than this host binary") — rebuild the
+  `ComposeSketch` target and try again. The check is mtime-based, so
+  header-only library changes trip it too; that is deliberate.
+- **`SketchContext` is a per-frame value the host rebuilds**, so
+  capturing it by reference in a `ticker.add()` lambda dangles.
+  Capture `this` and reach for the context through the argument
+  `update()` and `setup()` are handed. `hello.cpp` sidesteps the trap
+  by capturing only `this`, which makes it invisible until a steppable
+  needs `ctx.composer`.
+- Open-licensed demo assets (fonts, so far) come from
+  `cmake --build build --config Release --target fetch_assets`, which
+  writes `build/assets/`. Point the host at them with
+  `--assets build/assets` or read the `SIGIL_ASSET_DIR` define.
 
 ## How it works
 

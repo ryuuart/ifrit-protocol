@@ -375,6 +375,48 @@ inline Material scanField(SkColor4f tint, float period) {
       .quantizeTime(6.0f); // the declared-choppiness rule
 }
 
+/** LUMINANCE grain — the CRT capture's dirt, equal in all three channels
+ *  so an kOverlay pass reads as LIGHT rather than as a hue shift.
+ *
+ *  This is patterns::grain()'s job and patterns::grain() SEGFAULTS on the
+ *  raster path: its fBm loop breaks on a uniform-dependent condition
+ *  (`for (int o=0;o<8;++o) { if (float(o) >= uOctaves) break; ... }`) and
+ *  Skia's raster pipeline does not survive lowering it — the effect
+ *  compiles clean, then kills the process at draw. Bisected by unrolling
+ *  that one loop, which fixes it. Two octaves, straight-line, here. */
+inline Material grainField(float freq, float seed) {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+      uniform float uFreq;
+      uniform float uSeed;
+      float hash21(float2 p) {
+        p = fract(p * float2(123.34, 456.21) + uSeed);
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+      }
+      float vnoise(float2 p) {
+        float2 i = floor(p);
+        float2 f = fract(p);
+        float2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
+                   mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)),
+                       u.x), u.y);
+      }
+      half4 main(float2 pos) {
+        float2 q = pos * uFreq;
+        float v = (0.5 * vnoise(q) + 0.25 * vnoise(q * 2.0)) / 0.75;
+        return half4(half3(v), 1.0);
+      }
+    )"));
+    if (!effect)
+      SkDebugf("ds2 grainField: %s\n", err.c_str());
+    return effect;
+  }();
+  if (!fx)
+    return Material::solid({0.5f, 0.5f, 0.5f, 1});
+  return Material::sksl(fx, {{"uFreq", freq}, {"uSeed", seed}});
+}
+
 // ---------------------------------------------------------------------------
 // circuits
 
@@ -509,7 +551,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   int glowSlot = 0;
   // LUMINANCE noise, not fractal RGB — an overlay of the latter hue-shifts
   // the surface it dirties instead of lighting it
-  Material grain = patterns::grain(0.85f, 2, 7.0f);
+  Material grain = grainField(0.9f, 7.0f);
 
   double nextGlitch = 4.2, glitchEnd = 0;
 
@@ -615,6 +657,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(box()
                    .absolute().left(Dim(kPX)).top(Dim(kPY))
                    .width(Dim(kPW)).height(Dim(kPH))
+                   .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .fill(grain)
                    .opacity(0.07f)
                    .blend(SkBlendMode::kOverlay)

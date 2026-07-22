@@ -75,7 +75,14 @@ performance table in `src/common/scry/README.md`), `compose_test`,
 `compose_web_test` (SigilCompose×SigilScry, needs the Ultralight SDK),
 `compose_bench`, `loader_test` (SigilLoader), and `compose_demo`
 (headless PNG panels of the
-compose stress catalog).
+compose stress catalog). `ComposeGallery` is a macOS .app bundle like
+`WeaveGallery` and `SpellCircle`, so its headless mode runs through
+`build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery
+--headless <outdir> [--gpu] [--scene <name|index>]` — `--scene` takes a
+case-insensitive substring and renders just that one, which is the loop
+for visual work. Open-licensed demo assets (fonts) come from the opt-in
+`fetch_assets` target into `build/assets/`; see
+`cmake/FetchAssets.cmake` for the manifest rules.
 
 The Ultralight SDK is required for SigilScry;
 `SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
