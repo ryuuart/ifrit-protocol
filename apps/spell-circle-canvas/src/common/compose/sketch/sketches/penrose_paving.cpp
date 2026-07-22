@@ -801,7 +801,20 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         7ms, Stagger::From::Center);
 
     for (size_t i = 0; i < tri.size(); ++i) {
-      const Tri &g = tri[i];
+      const Tri &src = tri[i];
+      // Two antialiased half-triangles sharing a rhomb diagonal leave a
+      // hairline seam along it, which makes the whole diagram read as
+      // TRIANGLES instead of rhombs — the one thing it must not say. Push
+      // each half 0.45 px out from its own centroid so the halves overlap.
+      Tri g = src;
+      {
+        const float cx = (src.a.x() + src.b.x() + src.c.x()) / 3.0f;
+        const float cy = (src.a.y() + src.b.y() + src.c.y()) / 3.0f;
+        for (SkPoint *q : {&g.a, &g.b, &g.c}) {
+          const SkVector d = normv({q->x() - cx, q->y() - cy});
+          *q = {q->x() + d.x() * 0.45f, q->y() + d.y() * 0.45f};
+        }
+      }
       SkPoint pts[3] = {g.a, g.b, g.c};
       SkRect bb = SkRect::MakeEmpty();
       bb.setBounds({pts, 3});

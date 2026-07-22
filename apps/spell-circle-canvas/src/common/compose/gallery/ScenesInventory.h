@@ -369,6 +369,8 @@ struct LootGridScene final : Scene {
   // gold counter's tick.
   choreograph::Output<float> dragX{0}, dragY{0};
   choreograph::Output<float> blockedMix{0}, fitsMix{0};
+  // A PHASE in [0,1]. It used to carry pixels, because a bound Output
+  // landed on translateX raw; bind() shapes it at the call site now.
   choreograph::Output<float> shimmer{0};
   choreograph::Output<float> goldFrac{0};
   int gold = 0;
@@ -439,8 +441,7 @@ struct LootGridScene final : Scene {
       dragY = a.y() + (b.y() - a.y()) * ease;
       blockedMix = 1.0f - ease;
       fitsMix = ease;
-      // pixels, not a fraction: translateX moves by the bound value
-      shimmer = -70.0f + 240.0f * (float)std::fmod(t * 0.42, 1.0);
+      shimmer = (float)std::fmod(t * 0.42, 1.0);
       const float g = (float)std::min(1.0, t / 1.6);
       goldFrac = g;
       gold = (int)(214860 * g);
@@ -490,7 +491,7 @@ struct LootGridScene final : Scene {
                        .child(box().width(Dim(w * 0.30f)).height(Dim(h * 1.8f))
                                   .absolute()
                                   .left(-w * 0.4f).top(-h * 0.4f)
-                                  .translateX(&shimmer)
+                                  .translateX(bind(&shimmer).to(-70, 170))
                                   .rotate(18.0f)
                                   .fill(Material::linear(
                                       {0, 0}, {w * 0.35f, 0},
