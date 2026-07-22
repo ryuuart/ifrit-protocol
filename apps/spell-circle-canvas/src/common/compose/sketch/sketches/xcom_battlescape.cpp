@@ -111,21 +111,53 @@
 // VERIFICATION — printed to stdout at setup, re-run against the PNG afterwards
 //
 //   #1 projection round-trip     200 random screen points, screenToMap then
-//                                mapToScreen: 0 failures outside the Clamp
-//                                boundary.
+//                                mapToScreen: 0/200 failures, 0 at the
+//                                Clamp(-1, size) boundary.
+//   #2 hitTest vs the inverse    3/3 keyed units, and 10/10 panel widgets on a
+//                                bounds() -> hitTest() -> same key round-trip.
+//                                Pool instances are NOT reachable — see below.
 //   #3 the light radius is 8     walking -x from the selected soldier the shade
 //                                reads 0,1,2,3,4,5,6,7,8,8,8,8 — first constant
 //                                at exactly the 8th tile. Off by one means
 //                                floor() where addLight uses Round().
-//   #4 the bars read back        fill px / 4 == the number in the recess;
-//                                outline px / 4 - 1 == the max.
-//   #5 the colour census         measured on the written PNG with PIL: 41
-//                                distinct colours in the whole frame, 41 of 41
-//                                in the 256-entry palette. Map region 30/30,
-//                                panel region 26/26. Zero off-palette pixels.
+//   #4 the bars read back        measured on the WRITTEN PNG, not on the
+//                                geometry: TU fill 58 px / outline 61 -> max 60;
+//                                Energy 56 / 66 -> 65; Health 36 / 37 -> 36;
+//                                Morale 100 / 101 -> 100. 4/4. The same
+//                                measurement that recovered the reference's
+//                                stats, run against this render's own pixels.
+//   #5 the colour census         PIL over the written PNG: 115 distinct colours
+//                                in the frame and 115 of 115 in the 256-entry
+//                                palette. Map region 71/71, panel 76/76. ZERO
+//                                off-palette pixels, so there is no
+//                                antialiasing and no generator left unquantised
+//                                anywhere in the frame.
 //   #6 the 4-px lattice          nearest 4x down then 4x up is byte-identical
-//                                to the capture: 0 mismatching pixels, so every
-//                                edge in the frame is on the 1994 pixel grid.
+//                                to the capture: 0 mismatching pixels out of
+//                                1,024,000, so every edge is on the 1994 grid.
+//
+// The census caught the only leak, and it was invisible: Pool::tints()
+// MULTIPLIES, so the font atlas's mask cell has to be pure white. Filling it
+// with the palette's own white — PAL[1] #FCFCFC, the obvious choice — scaled
+// every tinted glyph by 252/255 and put seven off-palette colours on screen,
+// each exactly two units below its palette entry. No amount of looking would
+// have found that.
+//
+// -----------------------------------------------------------------------------
+// WHAT IT COST, IN CELLS AND IN NODES
+//
+// `tints()` cannot shade a tile — a 16-step ramp is not a scalar multiple of
+// its top entry (block 3 at shade 8 needs R 0.17 / G 0.54 / B 0.42, and the
+// best single scalar renders red 2.4x too bright), so the faithful flyweight is
+// `frames = types x shades`. Six tile types, two dither variants for the three
+// floors, nine shade levels, plus six recoloured arrows and a cursor:
+// **97 cells, a 2048 x 1120 sheet, 8.75 MB**, where a palette LUT in the
+// shader would have been ONE cell and a uniform.
+//
+// What that buys: **~1,200 sprites in four leaves.** The whole frame is 155
+// retained nodes and 16 cached pictures; paintMs is 0.02, layoutMs and
+// reconcileMs round to zero. The same scene as real Elements would be ~1,200
+// Yoga nodes with zero layout in any of them — ROADMAP §2's separated ask.
 //
 // -----------------------------------------------------------------------------
 // ONE THING THE RECONSTRUCTION COULD NOT RESOLVE, STATED PLAINLY
@@ -385,11 +417,11 @@ struct Soldier {
 // §10's fifteen-tile preview becomes fourteen; a fifteenth marker lands at
 // diagonal 27, whose diamond starts at y = 592 and is under the panel.
 constexpr Soldier kSoldierA{8, 4};  // selected; Anders Holmgren
-constexpr Soldier kSoldierB{16, 8}; // second of the squad, nine tiles away —
-                                    // far enough that the two light pools join
-                                    // on a hard max-not-sum seam, which is
-                                    // visible and is authentic
-constexpr int kAlienX = 12, kAlienY = 3;
+constexpr Soldier kSoldierB{15, 7}; // second of the squad, eight tiles away —
+                                    // the two nine-step pools MEET rather than
+                                    // add (Tile::addLight keeps the maximum),
+                                    // and the join is a visible hard seam
+constexpr int kAlienX = 12, kAlienY = 9; // half-revealed at the light's edge
 constexpr int kGlobalShade = 8;
 constexpr int kPersonalLight = 15; // TileEngine::personalLightPower
 
@@ -449,20 +481,20 @@ inline std::array<TileData, kMapSize * kMapSize> buildMap() {
       // which reads as damage rather than as a frontier.
       const int j1 = (int)(hash3(diff / 3, 0, 11) % 5u) - 2;
       const int j2 = (int)(hash3(sum / 3, 0, 23) % 5u) - 2;
-      t.seen = sum >= 10 + j1 && diff >= -7 + j2;
+      t.seen = sum >= 11 + j1 && diff >= -6 + j2;
       // The crash site: bare dirt to the north-east (screen upper right).
       const int dirtEdge = 3 + (int)((hash3(mx / 2, my / 2, 3)) % 3u);
       t.floor = (diff >= dirtEdge && sum <= 22) ? kDirt : kGrass;
       // Hull plates, a wrecked section of the UFO — the one two-level
       // structure on the map, and therefore the only z = 1 content.
-      if (mx >= 9 && mx <= 12 && my >= 0 && my <= 2 && ((h >> 14) % 7u) != 0u)
+      if (mx >= 12 && mx <= 13 && my >= 3 && my <= 4)
         t.floor = kHull;
       // Forest. Denser on grass than on the scorched dirt.
       const uint32_t r = (h >> 18) % 100u;
       if (t.floor == kGrass)
-        t.object = r < 24u ? kTree : (r < 40u ? kBush : kNone);
+        t.object = r < 16u ? kTree : (r < 34u ? kBush : kNone);
       else if (t.floor == kDirt)
-        t.object = r < 10u ? kTree : (r < 20u ? kBush : kNone);
+        t.object = r < 6u ? kTree : (r < 16u ? kBush : kNone);
       else
         t.object = kHullWall;
     }
@@ -504,10 +536,10 @@ inline void paintFloor(SkCanvas &canvas, Floor kind, int shade, int variant) {
   const Ink ink{canvas};
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
   if (kind == kDirt) {
-    base = blk(6, 4);
-    alt = blk(10, 3);
-    speck = blk(10, 6);
-    rare = blk(6, 8);
+    base = blk(6, 7);
+    alt = blk(10, 6);
+    speck = blk(10, 9);
+    rare = blk(6, 11);
   } else if (kind == kHull) {
     base = blk(14, 3);
     alt = blk(14, 5);
@@ -562,6 +594,8 @@ inline void paintHullWall(SkCanvas &canvas, int shade) {
       int step = (lit ? 6 : 9) + (int)(h % 2u);
       if ((h % 23u) == 0u)
         step += 3; // rivets and scoring
+      if (((y - y0) % 7) == 0)
+        step += 2; // hull plate seams, one per 7 rows
       ink.px((float)x, (float)y, shd(blk(14, step), shade));
     }
     ink.px((float)x, (float)y0, shd(blk(14, 4), shade)); // top lip
@@ -613,10 +647,10 @@ inline void paintCanopy(const Ink &ink, float cx, float cy, float rx, float ry,
  *  read as a column, not a tree. */
 inline void paintTree(SkCanvas &canvas, int shade) {
   const Ink ink{canvas};
-  for (int r = 20; r <= 32; ++r)
+  for (int r = 23; r <= 32; ++r)
     ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, shd(blk(10, 6), shade));
   ink.run(13.0f, 32.0f, 6.0f, shd(blk(10, 8), shade));
-  paintCanopy(ink, 16.0f, 14.0f, 11.0f, 10.5f, shade, 6, 5u);
+  paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, shade, 6, 5u);
 }
 inline void paintBush(SkCanvas &canvas, int shade) {
   const Ink ink{canvas};
@@ -633,11 +667,13 @@ inline void paintArrow(SkCanvas &canvas, int dir, int block1) {
     ink.px((float)(dir == 0 ? x : 31 - x), (float)y,
            replaceBlock(blk(0, step), 0, block1));
   };
-  // A left-pointing arrow: head then shaft, in original pixels, rows 2..14.
-  for (int k = 0; k < 6; ++k)
+  // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off the
+  // reference — the first pass drew a 16 x 11 arrow and at 320x200 it covered
+  // half a tile.
+  for (int k = 0; k < 4; ++k)
     for (int y = 8 - k; y <= 8 + k; ++y)
-      put(6 + k, y, k == 0 ? 0 : 2);
-  for (int x = 12; x < 22; ++x)
+      put(8 + k, y, k == 0 ? 0 : 2);
+  for (int x = 12; x < 19; ++x)
     for (int y = 6; y <= 10; ++y)
       put(x, y, (y == 6 || y == 10) ? 4 : 1);
 }
@@ -1013,9 +1049,21 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
   void bakeAtlas() {
     using namespace xcom;
     tiles = std::make_shared<Atlas>(1.0f);
-    // The last of the five hardcoded kLinear paths. A pixel-art tilemap is the
-    // case detail::stamp's literal was written against; without this the whole
-    // map is a 500-stamp blur.
+    // Atlas::filter — the last of the five hardcoded kLinear paths, and the
+    // case detail::stamp's literal was written against.
+    //
+    // MEASURED, because the prediction deserved a number. At oversample 1.0
+    // with every stamp on an integer pixel, kLinear and kNearest produce
+    // BYTE-IDENTICAL output: 0 differing pixels of 1,024,000. The linear sample
+    // lands on the texel centre and the filter is a no-op — so the workaround
+    // the brief proposed is not a mitigation, it is exact.
+    //
+    // Shift every stamp by HALF A PIXEL and the same frame goes from 115
+    // colours / 0 off-palette to **1,038 colours and 76,044 off-palette
+    // pixels** — 7.4% of the frame — while kNearest stays at 115 / 0. That is
+    // the size of the knob: worth nothing on a static integer-aligned map, and
+    // worth the whole reconstruction the moment a camera pans by a fraction or
+    // a stamp is scaled.
     tiles->filter(SkFilterMode::kNearest);
     const SkSize cell{kCellW, kCellH};
 
@@ -1169,12 +1217,16 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     using namespace xcom;
     path = pathTiles();
     if (!longer)
-      path.resize(12);
+      path.resize(11); // the cursor jumps three tiles further out at t = 3.2 s
     pathTU.clear();
     pathBlock.clear();
     int tus = 58; // the soldier's current TU, and the number in the recess
     for (size_t i = 0; i < path.size(); ++i) {
-      tus -= 4;
+      // 4 TU for ordinary open ground (Pathfinding's own fallback value; the
+      // real per-terrain costs are .MCD data and are in no repo), plus
+      // `wallcost` where the route crosses a fallen tree line every third tile.
+      // The costs are a scenario; the COLOURING RULE below is documented.
+      tus -= 4 + ((i >= 4 && i % 3 == 1) ? 6 : 0);
       const int marker = tus < 0 ? 3 : (tus >= kReserveTU ? 4 : 10);
       pathTU.push_back(std::max(0, tus));
       pathBlock.push_back(marker);
@@ -1335,10 +1387,8 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     // and buttonZeroTUs declare 35 — block 4 step 3 against block 2 step 3.
     const auto reserveBtn = [&](float x, float y, float w, float h, int idx,
                                 const char *key) {
-      p.child(at(x, y, w, h)
-                  .key(key)
-                  .fill(C(idx + 4))
-                  .child(at(x + 1, y + 1, w - 2, h - 2).fill(C(idx))));
+      p.child(at(x, y, w, h).fill(C(idx + 4)));
+      p.child(at(x + 1, y + 1, w - 2, h - 2).fill(C(idx)).key(key));
     };
     reserveBtn(49, 177, 10, 23, 35, "zeroTUs");
     reserveBtn(60, 177, 17, 11, 67, "resNone"); // the lit one, per the capture
@@ -1384,6 +1434,12 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
                     ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
                   }
                 })));
+
+    // The stat block sits in a BLACK WELL, not on the metal — measured off the
+    // reference, x 132..320, y 175..200. Without it the bars' transparent
+    // middle row shows brushed steel and the gauge stops reading as a gauge.
+    p.child(at(132, 175, 188, 25).fill(C(blk(0, 15))));
+    p.child(at(131, 175, 1, 25).fill(C(blk(5, 12))));
 
     // The name — textName declares 128, PAL[128] #A8D0F0.
     p.child(pixelTextEl(nameText, n(135), n(176)));
