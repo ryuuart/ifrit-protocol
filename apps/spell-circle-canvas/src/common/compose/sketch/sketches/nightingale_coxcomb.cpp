@@ -39,10 +39,23 @@
 //   Also: the two campaign annotations (BULGARIA, CRIMEA) are set
 //   RADIALLY along their spoke, not tangentially like the months.
 //
+// BUILT FROM (the library, not by hand):
+//   shapes::sector()      all 72 petals — one call each, no path building
+//   patterns::speckle()   the litho stipple, per band, over a colour wash
+//   patterns::grain()     plate tone + the ink-density wander inside a band
+//   Material::blend()     wash + stipple + blot + density, one fill value
+//   glyphfx::typeOn()     the pen writing the title and the legend
+//   trim() / scale() / withFrom()  the whole 13.6 s reading order
+//   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH, because
+//                         Compose has no text-on-path (see arcRun below)
+//
 // Run:
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/nightingale_coxcomb.cpp \
 //       --frame /tmp/nightingale_coxcomb.png --at 13.6
+//
+// The 13.6 s mark is the settled plate. Earlier moments show the argument
+// being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
 
 #include <sigilsketch/Sketch.h>
 
@@ -265,7 +278,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   std::array<ch::Output<float>, 24> flash;
 
   // held so their identity (and the speckle bake) survives re-describes
-  Pattern blueGrain, roseGrain, greyGrain, blotch, foxing;
+  Pattern blueGrain, roseGrain, greyGrain, foxing;
   Material blueMat, roseMat, greyMat, paperMat;
 
   sk_sp<SkTypeface> faceDisplay, faceGrotesque, faceLabel, faceScript;
@@ -667,12 +680,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     faceLabel = family("Copperplate", SkFontStyle::Normal());
     faceScript = family("Snell Roundhand", SkFontStyle::Normal());
     if (!faceDisplay)
-      // The plate's title face is an ornamental Victorian INLINE Roman —
-    // dark stems carrying a white hairline. "Academy Engraved LET" is the
-    // only installed face of that genre; it draws lighter than the plate,
-    // so the title carries a glyph-level stroke underlay to thicken the
-    // ink ribbon (Bodoni 72 Bold matches the WEIGHT but loses the genre).
-    faceDisplay = family("Academy Engraved LET", SkFontStyle::Normal());
+      faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
+    if (!faceLabel)
+      faceLabel = family("Helvetica Neue", SkFontStyle::Bold());
+    if (!faceGrotesque)
+      faceGrotesque = faceLabel;
     if (!faceScript)
       faceScript = family("Apple Chancery", SkFontStyle::Normal());
 

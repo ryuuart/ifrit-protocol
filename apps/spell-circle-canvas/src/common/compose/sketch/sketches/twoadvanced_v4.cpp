@@ -35,6 +35,17 @@
 // gloss rim-light, a mirrored blurred reflection under a hard horizon
 // hairline, and a blurred kPlus bloom copy over the whole stack. §10's
 // claim holds — stacking ORDER does the work, not any one layer.
+//
+// Two things the render taught that the brief could not:
+//  · the FOG RAMP runs the other way. Keying slab opacity to |x − cx| so
+//    the EDGE buildings are the most opaque makes the skyline a bar
+//    chart; the near ones have to be the hard silhouettes and the far
+//    ones dissolve. And none of it reads at all without a full-width
+//    kPlus haze band UNDER the skyline — the outer thirds were
+//    black-on-black.
+//  · the reflection is sold by the specular COLUMN, not the blur. A
+//    vertically-smeared bar of glow under the portal reads as water from
+//    across the room; the mirrored blurred disc alone does not.
 
 #include <sigilsketch/Sketch.h>
 
@@ -413,11 +424,11 @@ inline Element singleBevel(Element e, SkColor4f base) {
   e.fill(base);
   e.foreground(shapes::onEdges(
       shapes::Edge::Top | shapes::Edge::Left,
-      util::stroke(3, Fill::color(lift(base, 0.10f)),
+      util::stroke(3, Fill::color(lift(base, 0.15f)),
                    PathFormat::Align::Inner)));
   e.foreground(shapes::onEdges(
       shapes::Edge::Bottom | shapes::Edge::Right,
-      util::stroke(2, Fill::color(dark(base, 0.45f)),
+      util::stroke(2, Fill::color(dark(base, 0.60f)),
                    PathFormat::Align::Inner)));
   return e;
 }
@@ -547,10 +558,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         half4 main(float2 xy) {
           float v = xy.y / max(uResolution.y, 1.0);
           float s = sin(xy.y * 0.85 + sin(xy.x * 0.011 + uTime * 0.45) * 2.4);
-          float band = smoothstep(0.55, 1.0, s) * (0.22 + 0.78 * v);
-          float3 base = mix(float3(0.000, 0.078, 0.082),
-                            float3(0.004, 0.122, 0.129), v);
-          float3 c = base + float3(0.02, 0.15, 0.16) * band;
+          float band = smoothstep(0.62, 1.0, s) * (0.14 + 0.86 * (1.0 - v));
+          float3 base = mix(float3(0.000, 0.042, 0.046),
+                            float3(0.001, 0.014, 0.017), v);
+          float3 c = base + float3(0.02, 0.17, 0.18) * band;
           return half4(half3(c), 1.0);
         }
       )"));
@@ -957,6 +968,17 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                       cx - 330, horizon - 420, 660, 620)
                     .blend(SkBlendMode::kPlus));
 
+    // the horizon haze band, full width, UNDER the skyline: the outer
+    // thirds were black-on-black and the silhouettes never read against
+    // them. One kPlus ramp is the whole fix.
+    scene.child(place(box().fill(Material::linearUnit(
+                          {0, 0}, {0, 1},
+                          {{0.00f, fade(kTealBar, 0.0f)},
+                           {0.62f, fade(kTealBar, 0.10f)},
+                           {1.00f, fade(kTealBar, 0.34f)}})),
+                      0, horizon - 132, w, 132)
+                    .blend(SkBlendMode::kPlus));
+
     // skyline: flat slabs, opacity + tint ramped by |x−cx| (cheap fog)
     static const float bx[13] = {30,  108, 186, 250, 320, 388, 446,
                                  692, 748, 812, 884, 962, 1050};
@@ -966,10 +988,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                  86,  158, 118, 190, 96,  140};
     for (int i = 0; i < 13; ++i) {
       const float d = std::abs(bx[i] + bw[i] * 0.5f - cx) / (w * 0.5f);
-      const float o = 0.55f + 0.45f * d;
-      const SkColor4f tint = {0.008f + 0.028f * (1 - d),
-                              0.048f + 0.045f * (1 - d),
-                              0.060f + 0.050f * (1 - d), 1.0f};
+      const float o = 1.0f - 0.42f * d;
+      const SkColor4f tint = {0.004f + 0.012f * (1 - d),
+                              0.026f + 0.030f * (1 - d),
+                              0.034f + 0.036f * (1 - d), 1.0f};
       Element slab =
           place(box().fill(tint), bx[i], horizon - bh[i], bw[i], bh[i])
               .opacity(o);
@@ -980,10 +1002,27 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                      .top(Dim(bh[i] * 0.48f)).width(3).height(3)
                      .fill(fade(kGlow, 0.38f)));
       scene.child(slab);
+      if (i % 3 == 1)
+        scene.child(place(box().fill(fade(tint, o)),
+                          bx[i] + bw[i] * 0.22f, horizon - bh[i] - 30,
+                          bw[i] * 0.56f, 30));
+      if (i % 4 == 2)
+        scene.child(place(box().fill(fade(tint, o)),
+                          bx[i] - 14, horizon - bh[i] * 0.55f, 14,
+                          bh[i] * 0.55f));
       if (bh[i] > 150)
         scene.child(place(box().fill(fade(tint, o)), bx[i] + bw[i] * 0.5f - 1,
                           horizon - bh[i] - 26, 2, 26));
     }
+
+    // beacons over the far skyline
+    const float bl[5][2] = {{132, 0.30f}, {318, 0.22f}, {826, 0.26f},
+                            {968, 0.18f}, {1084, 0.30f}};
+    for (int i = 0; i < 5; ++i)
+      scene.child(place(box().fill(fade(i % 2 ? kGlow : C(0xFF6A6A),
+                                        bl[i][1] + 0.35f)),
+                        bl[i][0], horizon - 210 - 24 * (float)i, 3, 3)
+                      .blend(SkBlendMode::kPlus));
 
     // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
     // glow — sdf::minBoxFor() is the only honest way to size it, since
@@ -1064,7 +1103,19 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                 {1.0f, fade(kTealBar, 0.0f)}}))
                     .effect(Effect::filter(
                         SkImageFilters::Blur(14, 26, nullptr)))
-                    .opacity(0.45f)
+                    .opacity(0.78f)
+                    .blend(SkBlendMode::kPlus));
+    // the specular COLUMN — the vertical smear of a light in water, and
+    // the single cue that reads "reflection" from across the room
+    water.child(box().absolute().left(Dim(cx - 40)).top(Dim(0))
+                    .width(80).height(Dim(h - horizon))
+                    .fill(Material::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.00f, fade(kGlow, 0.55f)},
+                         {0.35f, fade(kGlow, 0.20f)},
+                         {1.00f, fade(kGlow, 0.0f)}}))
+                    .effect(Effect::filter(
+                        SkImageFilters::Blur(10, 3, nullptr)))
                     .blend(SkBlendMode::kPlus));
     scene.child(water);
 
