@@ -306,6 +306,22 @@ recipe** rather than by shader pointer, and `Brushes.h` solved it with the
 move: a comparable `Outline` value (kind + params) covering the stock
 generators, with the raw lambda as the escape hatch that never prunes.
 
+**§3 IS the cost model, and this roadmap had them as separate items.**
+The Chevreul study measured it. Re-describing every frame: paint 43.5 ms.
+Removing ONE node — a 584×584 `patterns::grain` wash under
+`.cache(Cache::Texture)` whose shape is `.outline(shapes::circle())` —
+takes the same frame to **0.10 ms**. That is 43.4 of 43.5 ms spent
+throwing away one texture bake, every frame, because its outline callable
+cannot compare. The *same material* on a node with no `outline()` (an
+1800×1200 paper grain in the same tree) prunes and keeps its bake.
+
+So the "static SkSL pixels do not cache" finding in the closed table and
+this section are one problem seen twice: a generated material's bake is
+only as durable as the node's ability to prune, and an `outline()` makes
+that impossible. Fixing §3 fixes the cost model for every shaped node at
+once — which makes it, by measured impact, the highest-value open item in
+this document.
+
 Two more shapes of the same problem, both worth naming:
 
 **Geometry that is BOUND cannot be a node shape at all.** `outline()`
@@ -711,6 +727,37 @@ axis are the same axis.
   comparable value, or a key that participates in equality.
 - **`brushes::Ribbon` has no corner joins**, so a 14-corner route shows
   its facets.
+
+## 10j. Winding, boxes, and three traps a colour study walked into
+
+- **`shapes::circle()` has no winding direction, and the winding IS the
+  historical convention.** On a text baseline, path direction decides
+  whether glyph-up points radially IN (Chevreul's limb) or OUT
+  (Nightingale's ring) — one uniform engraver's convention each way, and
+  opposite in sign. `circle()` is `addOval(kCW)` from 12 o'clock, so half
+  of all ring inscriptions need a hand-rolled `OutlineFn`. Wanted:
+  `shapes::circle(SkPathDirection, float startDeg)`, or
+  `Orient::RadialIn/Out`.
+- **`TextPath`'s baseline resolves against the TEXT NODE's own box**, so
+  the obvious `disc(c, R).child(text(...).onPath(...))` collapses every
+  label into a blob at the text's intrinsic size. The working spelling is
+  that the text leaf IS the disc. Undocumented; one sentence pays for
+  itself.
+- **`snapshot()` sizes by the root's CHILDREN, not the root's own dims** —
+  stated only in a comment inside `Instances.h`. A probe of
+  `box().width(32).fill(…).effect(…)` read back a colour implying an
+  exponent of 1.82; the same content wrapped in a shell reads 2.20. For
+  the read-your-own-output-back pattern that verification depends on,
+  that is a silent wrong answer.
+- **`Material::sweep` clamps outside `[startDeg, endDeg]` instead of
+  wrapping**, so `sweep(c, stops, 90, 450)` — the obvious way to start a
+  hue wheel at red — draws a quarter of the ring in the first stop's
+  colour with no diagnostic.
+- **`lines::concentric` cannot place a ring at a stated radius.** Radii
+  are `inner + (reach − inner)·k/rings` with `reach` the bbox
+  HALF-DIAGONAL, so on a `circle()` node the outermost ring always lands
+  at R√2 — outside the shape, clipped away. Same class as §10c's
+  `radialUnit` trap, and a two-circle limb is unspellable.
 
 ## 11. `Effect` has no live uniforms
 
