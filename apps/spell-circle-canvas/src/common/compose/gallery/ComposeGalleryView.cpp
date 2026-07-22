@@ -12,6 +12,7 @@
 #include <QByteArray>
 #include <QMetaObject>
 #include <QSize>
+#include <QVariantMap>
 #include <rhi/qrhi.h>
 
 #include <algorithm>
@@ -128,24 +129,28 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
 #else
         "CPU raster";
 #endif
-    view->m_metrics =
-        QString("%1   compose %2 ms   p99 %3 ms\n"
-                "submit %4 ms   render cadence %5 fps\n"
-                "recon %6   layout %7   volat %8   paint %9 ms\n"
-                "instances %10   pictures %11\ntextures %12   live nodes %13")
-            .arg(QLatin1String(backend))
-            .arg(m_stage->stats.average(), 0, 'f', 2)
-            .arg(m_stage->stats.percentile(0.99), 0, 'f', 2)
-            .arg(m_submitMsAverage, 0, 'f', 2)
-            .arg(m_stage->stats.presentedFps(), 0, 'f', 1)
-            .arg(cs.reconcileMs, 0, 'f', 2)
-            .arg(cs.layoutMs, 0, 'f', 2)
-            .arg(cs.volatileMs, 0, 'f', 2)
-            .arg(cs.paintMs, 0, 'f', 2)
-            .arg(cs.instances)
-            .arg(cs.picturesLive)
-            .arg(cs.texturesLive)
-            .arg(cs.nodesPainted);
+    QVariantMap metrics;
+    metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
+    metrics.insert(QStringLiteral("scene"),
+                   m_stage->scene
+                       ? QString::fromUtf8(m_stage->scene->name())
+                       : QString());
+    // fps: what the window actually presents. headroom: what the frame's
+    // work alone would allow — the number the 60fps floor is judged on.
+    metrics.insert(QStringLiteral("fps"), m_stage->stats.presentedFps());
+    metrics.insert(QStringLiteral("headroomFps"), m_stage->stats.fps());
+    metrics.insert(QStringLiteral("workMs"), m_stage->stats.average());
+    metrics.insert(QStringLiteral("p99Ms"), m_stage->stats.percentile(0.99));
+    metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
+    metrics.insert(QStringLiteral("reconcileMs"), cs.reconcileMs);
+    metrics.insert(QStringLiteral("layoutMs"), cs.layoutMs);
+    metrics.insert(QStringLiteral("volatileMs"), cs.volatileMs);
+    metrics.insert(QStringLiteral("paintMs"), cs.paintMs);
+    metrics.insert(QStringLiteral("instances"), (qulonglong)cs.instances);
+    metrics.insert(QStringLiteral("pictures"), (qulonglong)cs.picturesLive);
+    metrics.insert(QStringLiteral("textures"), (qulonglong)cs.texturesLive);
+    metrics.insert(QStringLiteral("nodes"), (qulonglong)cs.nodesPainted);
+    view->m_metrics = std::move(metrics);
     QMetaObject::invokeMethod(view, &ComposeGalleryView::metricsChanged,
                               Qt::QueuedConnection);
   }

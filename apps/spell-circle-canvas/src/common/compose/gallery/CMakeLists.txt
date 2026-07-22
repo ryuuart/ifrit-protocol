@@ -6,6 +6,19 @@ qt_add_executable(ComposeGallery
   gallery_main.cpp
   GalleryScenes.h
 )
+
+# A real .app, like WeaveGallery and SpellCircle: a bare Mach-O in bin/ gets
+# no bundle identity, so macOS gives it the executable's name in the menu
+# bar and treats activation as a plain process. `--headless` still works
+# through the inner binary (bin/<config>/ComposeGallery.app/Contents/MacOS).
+set_target_properties(ComposeGallery PROPERTIES
+  MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.ComposeGallery"
+  MACOSX_BUNDLE_BUNDLE_NAME "ComposeGallery"
+  MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+  MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+  MACOSX_BUNDLE TRUE
+)
+
 qt_add_qml_module(ComposeGallery
   URI Compose.Gallery
   VERSION 1.0

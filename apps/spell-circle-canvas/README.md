@@ -118,8 +118,8 @@ intentionally stressful and Debug timings are not representative.
 
 ```sh
 cmake --build build --config Release --target ComposeGallery compose_bench
-./build/bin/Release/ComposeGallery
-./build/bin/Release/ComposeGallery --headless /tmp/compose-gallery
+open ./build/bin/Release/ComposeGallery.app
+./build/bin/Release/ComposeGallery.app/Contents/MacOS/ComposeGallery --headless /tmp/compose-gallery
 ctest --test-dir build -C Release -R 'compose(_gallery)?_test'
 ```
 

@@ -1,5 +1,23 @@
 cmake_minimum_required(VERSION 3.16)
 
+# Our third-party interfaces overlap heavily: skia, freetype (via harfbuzz),
+# OpenImageIO and OpenColorIO each flatten libpng/libz/libexpat/Imath into
+# their own link interface, so every executable named several archives twice
+# and ld64 answered with `ignoring duplicate libraries` on each. Under
+# cmake_minimum_required(3.16) both de-duplication policies default to OLD,
+# which is what kept the repeats. ld64 records symbols as it scans and
+# re-visits earlier archives, so one occurrence is enough.
+#
+# These must be set BEFORE project(): CMP0156's NEW behavior is carried by
+# CMAKE_<LANG>_LINK_LIBRARIES_PROCESSING, which the platform modules
+# initialize while enabling the language.
+if(POLICY CMP0156)
+  cmake_policy(SET CMP0156 NEW) # de-duplicate by linker capability
+endif()
+if(POLICY CMP0179)
+  cmake_policy(SET CMP0179 NEW) # ...keeping the first occurrence, everywhere
+endif()
+
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
 set(QT_QML_GENERATE_QMLLS_INI ON) # QMLLS Language Server config
@@ -59,6 +77,24 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
 endif()
 
 enable_testing()
+
+# What the policies above cannot reach: vcpkg's exported configs disagree
+# about how to name the same archive. freetype pulls libpng and zlib through
+# the PNG::PNG / ZLIB::ZLIB imported targets, while unofficial-skia flattens
+# its whole closure into raw find_library() paths inside one
+# $<LINK_ONLY:$<$<CONFIG:DEBUG>:...>> blob. CMake de-duplicates targets
+# against targets and paths against paths, never a target against a path, so
+# libpng/libz/libexpat/libjpeg still reach ld64 twice. The second copy is
+# ignored by the linker, which is correct but noisy — this silences the note
+# without pretending the link line is minimal.
+if(APPLE AND NOT CMAKE_VERSION VERSION_LESS 3.18) # CheckLinkerFlag
+  include(CheckLinkerFlag)
+  check_linker_flag(CXX "-Wl,-no_warn_duplicate_libraries"
+    HAVE_NO_WARN_DUPLICATE_LIBRARIES) # ld64 from Xcode 15 on
+  if(HAVE_NO_WARN_DUPLICATE_LIBRARIES)
+    add_link_options("LINKER:-no_warn_duplicate_libraries")
+  endif()
+endif()
 
 # MacOS Frameworks
 if(APPLE)

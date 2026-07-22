@@ -99,6 +99,14 @@ set_target_properties(SpellCircleMac PROPERTIES
 target_compile_options(SpellCircleMac PRIVATE
   # @main app entry point in a multi-file module.
   "$<$<COMPILE_LANGUAGE:Swift>:-parse-as-library>"
+  # CMAKE_Swift_FLAGS_DEBUG carries -incremental. On an up-to-date tree
+  # swift-driver skips every compile job but still schedules merge-module,
+  # which then looks for a temporary swiftmodule those skipped jobs never
+  # wrote — so the second and every later build dies with
+  # `cannotResolveTempPath(SpellCircleMac-1.swiftmodule)`. Naming the module
+  # gives that job a real file and keeps incremental builds working.
+  "$<$<COMPILE_LANGUAGE:Swift>:-emit-module-path>"
+  "$<$<COMPILE_LANGUAGE:Swift>:${CMAKE_CURRENT_BINARY_DIR}/SpellCircleMac-$<CONFIG>.swiftmodule>"
 )
 
 # swiftc discovers bridge/module.modulemap through this import path, making
