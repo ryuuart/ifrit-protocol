@@ -36,10 +36,30 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `shapes::inset(px, Decoration)` | "The same bevel again, 6 px in" is the whole vocabulary of nested chrome and needed a second element every time | `Shapes.h` |
 | `shapes::arrow`, `util::disc` | Every HUD, gizmo and diagram draws one; every inscribed-in-the-box polar shape wrote the same four lines | `Shapes.h`, `Util.h` |
 | Two `onPath` bugs, found hours after it shipped | `autoFlip` turned each glyph over **in place**, mirroring the run; a centred run at `at = 0` silently ate every glyph before the seam | `Paint.cpp` |
+| A third: `onPath` was never reconciled | `textEqual()` compared everything about a run except its baseline, so a new path or a moving `at` pruned and kept the OLD one. `TextPath`'s defaulted `operator==` was implicitly deleted and compiled quietly | `Reconcile.cpp` |
+| **`bind()` — a binding you can shape** | The most-cited gap in the program: five studies, five directions, all keeping a second Output in pixels beside the [0,1] one | `Compose.h`, `Transitions.cpp` |
 
 ---
 
-## 1. Bindings that cannot be shaped — *five studies*
+## 1. Bindings that cannot be shaped — *five studies* — **CLOSED**
+
+> Shipped as `bind()` in `Compose.h`. The section stays, with its number,
+> because agents in flight are citing these by number and because the
+> five citations are the argument for why it was worth doing.
+>
+> ```cpp
+> .translateX(bind(&phase).to(-70, 170))
+> .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
+> .scaleX(bind(&hp).from(0, maxHp))
+> ```
+>
+> `from()` normalises the source range onto [0,1]; `map()` shapes it with
+> any choreograph easing; the affine chain composes in call order;
+> `clamp()` lands last. `sizeof(PropValue)` is unchanged — the map shares
+> the out-of-line block the transitioned form already allocates, so the
+> 1288 B → 688 B `ElementNode` compaction still holds. It prunes properly
+> (same Output, same affine, same curve), which matters because the map
+> is read live: a pruned node would shape through the old one forever.
 
 A bound `choreograph::Output<float>` lands on the property **raw**. There
 is no scale, no offset, no curve at the binding site.

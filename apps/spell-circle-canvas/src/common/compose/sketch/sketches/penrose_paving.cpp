@@ -129,10 +129,10 @@ const SkColor4f kGreyBase = rgb(0x82858A);  // Kobra grey
 const SkColor4f kGreyLit = rgb(0x969A9E);   // Kobra grey, sun side
 const SkColor4f kGreyVein = rgb(0x3E4042);  // Kobra's tighter speckle
 
-const SkColor4f kSteelBase = rgb(0xD7DADC); // polished stainless, overcast
-const SkColor4f kSteelSpec = rgb(0xF6F8F9); // direct catch-light
-const SkColor4f kSteelEdge = rgb(0x8A8D90); // occlusion at the inlay groove
-const SkColor4f kGroove = rgb(0x4A4D50);    // the milled slot itself
+const SkColor4f kSteelBase = rgb(0xE3E6E8); // polished stainless, overcast
+const SkColor4f kSteelSpec = rgb(0xFCFDFD); // direct catch-light
+const SkColor4f kSteelEdge = rgb(0x9BA0A4); // occlusion at the inlay groove
+const SkColor4f kGroove = rgb(0x4E5257, 0.55f); // the milled slot itself
 
 const SkColor4f kJointBed = rgb(0x2A2C2C); // saw-cut joint / bedding mortar
 const SkColor4f kNight = rgb(0x101112);
@@ -151,7 +151,7 @@ constexpr float kCx = kW * 0.5f, kCy = kH * 0.5f;
 constexpr float kModule = 78.0f; // <<< the rhomb side, px. THE free constant.
 constexpr float kJoint = 1.9f;   // saw-cut joint, total width px
 constexpr float kChamfer = 2.3f; // arris chamfer band, px
-constexpr float kBandW = 8.4f;   // steel inlay band, px (≈0.11·s, per photo)
+constexpr float kBandW = 9.0f;   // steel inlay band, px (≈0.115·s, per photo)
 constexpr float kCorner = 1000.0f; // canvas half-diagonal — the ripple's reach
 constexpr float kDiagW = 328.0f, kDiagH = 224.0f; // the vignette's drawing box
 
@@ -466,11 +466,14 @@ struct Granite {
   float veinContrast; // how hard the dark inclusions bite
 };
 
+// Royal White: larger, sparser black feather-veining. Kobra grey: a finer,
+// denser, more uniform speckle. Two recipes, per the stone suppliers'
+// descriptions — not one texture tinted twice.
 const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein,
-                          0.46f,      0.30f,     0.055f,
-                          0.16f};
-const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 0.90f, 0.22f, 0.075f,
-                         0.13f};
+                          0.56f,      1.05f,     0.052f,
+                          0.42f};
+const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f, 0.88f, 0.070f,
+                         0.32f};
 
 // A bank keyed by (species, seed bucket): ~40 recipes per granite is far more
 // variety than 450 setts at 10 possible orientations can expose, and it keeps
@@ -508,14 +511,18 @@ public:
 
     Material m = Material::blend(
         {{body, SkBlendMode::kSrcOver},
-         // mineral speckle — luminance noise, so soft-light reads as LIGHT
-         // rather than hue (patterns::noise would rainbow the stone).
+         // mineral aggregate — luminance noise, so soft-light reads as LIGHT
+         // rather than hue (patterns::noise would rainbow the stone into
+         // terrazzo). Two octaves at ~2 px cells IS the crystal size at this
+         // scale: a 600 mm sett drawn 78 px wide is 7.7 mm per pixel.
          {patterns::grain(g.speckleFreq, 2, (float)(bucket * 7 + 3),
                           g.speckleAmp, 1.0f),
           SkBlendMode::kSoftLight},
-         // the slow blotch that makes one slab differ from the next; kept
-         // WELL under the speckle, because granite reads as an even
-         // aggregate at three paces and only cloud on close inspection
+         // sub-crystal grit — one octave under a pixel, which is what stops
+         // the aggregate reading as a printed pattern
+         {patterns::grain(2.1f, 1, (float)(bucket * 13 + 5), 0.62f, 1.0f),
+          SkBlendMode::kSoftLight},
+         // the slow blotch that makes one slab differ from the next
          {patterns::grain(g.blotchFreq, 1, (float)(bucket * 31 + 11),
                           g.veinContrast, 1.25f),
           SkBlendMode::kSoftLight}});
@@ -633,7 +640,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
   GraniteBank bank;
   Audit audit;
 
-  std::vector<choreograph::Output<float>> pop, fade, arcT;
+  // ONE progress per sett, in [0,1]; bind() shapes it differently at each
+  // property (see the manager's note — kumiko paid for two vectors here).
+  std::vector<choreograph::Output<float>> grow, arcT;
   choreograph::Output<float> sheen{0};
   double t = 0;
   int generation = -1;
@@ -717,8 +726,15 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                     // inside the silhouette, so neighbouring setts never fuse
                     .stroke(util::stroke(0.8f, Fill::color(rgb(0x3A3B3B, 0.55f)),
                                          PathFormat::Align::Inner))
-                    .opacity(&fade[i])
-                    .scale(&pop[i]);
+                    // one Output, two curves: the fade eases out cubic, the
+                    // seating overshoots — shaped at the property, not in
+                    // the tick loop
+                    .opacity(bind(&grow[i])
+                                 .map(choreograph::easeOutCubic)
+                                 .clamp(0.0f, 1.0f))
+                    .scale(bind(&grow[i])
+                               .map(ease::outBack(1.32f))
+                               .to(0.52f, 1.0f));
 
     for (int k = 0; k < 2; ++k)
       e.child(inlay(t, k, org, i));
@@ -764,7 +780,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .stroke(Brush{}
                     // the milled slot the insert sits in — a hairline of
                     // occlusion either side, not an outline
-                    .leg(PathFormat{.width = kBandW + 1.6f,
+                    .leg(PathFormat{.width = kBandW + 1.1f,
                                     .strokeFill = Fill::color(kGroove)})
                     // the 30 mm polished insert
                     .leg(PathFormat{.width = kBandW, .strokeFill = band}));
@@ -799,8 +815,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                       .width(bb.width())
                       .height(bb.height())
                       .outline([p](SkSize) { return p; })
-                      .fill(Fill::color(g.type == 1 ? rgb(0xBFB9AC)
-                                                    : rgb(0x7C7E80)))
+                      .fill(Fill::color(g.type == 1 ? rgb(0xC3BFB4)
+                                                    : rgb(0x7E8186)))
                       .opacity(withFrom(0.0f, 1.0f,
                                         Transition{240ms, choreograph::easeOutQuad}))
                       .scale(withFrom(0.55f, 1.0f,
@@ -895,12 +911,12 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                    .absolute()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kPlus)
-                   .opacity(0.55f)
+                   .opacity(0.5f)
                    .fill(util::radialGradient(
-                       {520, 330}, 700,
-                       {rgb(0xFFF8E8, 0.16f), rgb(0xFFF3DA, 0.07f),
-                        rgb(0x000000, 0.0f)},
-                       {0.0f, 0.45f, 1.0f})))
+                       {470, 280}, 1100,
+                       {rgb(0xFFF8E8, 0.13f), rgb(0xFFF3DA, 0.075f),
+                        rgb(0xFFF0D0, 0.025f), rgb(0x000000, 0.0f)},
+                       {0.0f, 0.34f, 0.68f, 1.0f})))
         // wet-stone sheen — a broad, low raking band that sweeps once per
         // loop as the arcs finish, so the field reads as a wet surface
         // catching the sky rather than as flat fill
@@ -921,34 +937,45 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .child(box()
                    .absolute()
                    .left(0)
-                   .top(kH - 150)
+                   .top(kH - 190)
                    .width(kW)
-                   .height(150)
+                   .height(190)
                    .fill(util::linearGradient(
-                       {0, kH - 150}, {0, kH},
-                       {rgb(0x000000, 0.0f), rgb(0x08090A, 0.62f),
-                        rgb(0x08090A, 0.86f)},
-                       {0.0f, 0.55f, 1.0f})))
+                       {0, kH - 190}, {0, kH},
+                       {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
+                        rgb(0x08090A, 0.72f)},
+                       {0.0f, 0.5f, 1.0f})))
+        .child(box()
+                   .absolute()
+                   .left(56)
+                   .top(1084)
+                   .width(1010)
+                   .height(96)
+                   .fill(Fill::color(rgb(0x101314, 0.90f)))
+                   .stroke(util::stroke(1.0f, Fill::color(rgb(0x676B6D, 0.45f)),
+                                        PathFormat::Align::Inner))
+                   .background(styles::dropShadow(rgb(0x000000, 0.5f), {0, 5},
+                                                  18)))
         .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
                          "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
                          "STAINLESS INSERTS"),
-                    type(13.0f, rgb(0xD3D7D9), 1.9f))
+                    type(13.0f, rgb(0xDCE0E2), 1.9f))
                    .absolute()
-                   .left(72)
-                   .top(1104)
-                   .opacity(0.92f))
+                   .left(76)
+                   .top(1100)
+                   .opacity(1.0f))
         .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
                          "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                    type(11.5f, kCaption, 1.5f))
+                    type(11.5f, rgb(0xA9AEB1), 1.5f))
                    .absolute()
-                   .left(72)
-                   .top(1130)
-                   .opacity(0.80f))
-        .child(text(toU8(spec), type(10.5f, rgb(0x8A8F92), 1.3f))
+                   .left(76)
+                   .top(1126)
+                   .opacity(1.0f))
+        .child(text(toU8(spec), type(10.5f, rgb(0x8E9598), 1.3f))
                    .absolute()
-                   .left(72)
-                   .top(1156)
-                   .opacity(0.85f));
+                   .left(76)
+                   .top(1152)
+                   .opacity(1.0f));
   }
 
   // -------------------------------------------------------------------------
@@ -1019,12 +1046,10 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       std::fflush(stdout);
     }
 
-    pop = std::vector<choreograph::Output<float>>(tiles.size());
-    fade = std::vector<choreograph::Output<float>>(tiles.size());
+    grow = std::vector<choreograph::Output<float>>(tiles.size());
     arcT = std::vector<choreograph::Output<float>>(tiles.size());
     for (size_t i = 0; i < tiles.size(); ++i) {
-      pop[i] = 1.0f;
-      fade[i] = 0.0f;
+      grow[i] = 0.0f;
       arcT[i] = 0.0f;
     }
     t = 0;
@@ -1035,11 +1060,10 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       const double now = std::fmod(t, kPeriod);
       for (size_t i = 0; i < tiles.size(); ++i) {
         const double u = (double)tiles[i].radius / (double)kCorner;
-        const float a = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
-        fade[i] = easeOutCubic(a);
-        pop[i] = 0.52f + 0.48f * easeOutBack(a);
-        const float b = clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur);
-        arcT[i] = easeOutCubic(b);
+        // the ripple front: a raw linear progress, nothing shaped here
+        grow[i] = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
+        arcT[i] = easeOutCubic(
+            clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
       }
       const float sp = clamp01((now - kSheen0) / kSheenDur);
       sheen = std::sin(sp * 3.14159265f); // one pass, then gone

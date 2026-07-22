@@ -595,10 +595,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
           .cache(Cache::Texture)
           .bakeScale(0.4f);
     };
-    g.child(wisp(7u, -120, -80, 900, 380, kNebula, 0.16f, -12));
-    g.child(wisp(13u, 380, 20, 940, 330, kNebula2, 0.13f, -16));
-    g.child(wisp(21u, 60, 430, 520, 360, kNebula2, 0.09f, 8));
-    g.child(wisp(31u, 700, 380, 560, 420, kNebula, 0.07f, 22));
+    g.child(wisp(7u, -160, -70, 980, 400, kNebula, 0.30f, -12));
+    g.child(wisp(13u, 340, 10, 1000, 350, kNebula2, 0.26f, -16));
+    g.child(wisp(5u, 120, 60, 700, 260, kNebula, 0.16f, -14));
+    g.child(wisp(21u, 40, 420, 560, 380, kNebula2, 0.13f, 8));
+    g.child(wisp(31u, 680, 360, 600, 440, kNebula, 0.11f, 22));
     (void)H;
 
     // ~240 stars as ONE atlas stamp, hashed (not a lattice), twinkling by
@@ -621,10 +622,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                    .outline(circleOutline())
                    // light offset toward the upper-left: the centre of the
                    // ramp is displaced, which is what fakes sphere shading.
-                   .fill(Material::radial({kKerbinR * 0.62f, kKerbinR * 0.52f},
-                                          kKerbinR * 1.45f,
-                                          {{0.0f, lift(kOceanLit, 0.14f)},
-                                           {0.38f, kOceanLit},
+                   .fill(Material::radial({kKerbinR * 0.60f, kKerbinR * 0.50f},
+                                          kKerbinR * 1.35f,
+                                          {{0.0f, lift(kOceanLit, 0.05f)},
+                                           {0.34f, kOceanLit},
+                                           {0.72f, C(0x1B4260)},
                                            {1.0f, kOceanDark}}))
                    .clip(),
                kKerbin, d, d)
@@ -657,17 +659,18 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                            .absolute()
                            .inset(0)
                            .fill(Material::radialUnit(
-                               {0.32f, 0.26f}, 1.30f,
+                               {0.34f, 0.28f}, 1.28f,
                                {{0.0f, C(0xFFFFFF, 0.0f)},
-                                {0.60f, C(0x0A1620, 0.10f)},
-                                {1.0f, C(0x04080C, 0.72f)}})))
+                                {0.42f, C(0x081420, 0.16f)},
+                                {0.78f, C(0x061019, 0.62f)},
+                                {1.0f, C(0x03070B, 0.94f)}})))
                 // and one hot specular sliver where the star hits the ocean
                 .child(box()
                            .absolute()
                            .inset(0)
                            .fill(Material::radialUnit(
-                               {0.30f, 0.24f}, 0.55f,
-                               {{0.0f, C(0xBFE4F5, 0.24f)},
+                               {0.30f, 0.24f}, 0.42f,
+                               {{0.0f, C(0xBFE4F5, 0.13f)},
                                 {1.0f, C(0xBFE4F5, 0.0f)}}))
                            .blend(SkBlendMode::kPlus)));
 
@@ -1169,15 +1172,14 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     // A heading ring of numerals inside the bezel, rotating with the ball —
     // eight onPath runs sharing one rotating container.
     Element ring = at(box().rotate(&ringSpin).transformOrigin(0.5f, 0.5f), kBall,
-                      kBallR * 1.62f, kBallR * 1.62f);
-    static const char *kHdg[8] = {"N", "045", "E", "135",
-                                  "S", "225", "W", "315"};
-    for (int i = 0; i < 8; ++i)
-      ring.child(t(kHdg[i], body(7.5f, fade(C(0xEAF4F8), 0.9f), 0.6f))
+                      kBallR * 1.66f, kBallR * 1.66f);
+    static const char *kHdg[4] = {"N", "E", "S", "W"};
+    for (int i = 0; i < 4; ++i)
+      ring.child(t(kHdg[i], bold(9.0f, fade(C(0xEAF4F8), 0.85f), 0.6f))
                      .absolute()
                      .inset(0)
                      .onPath(TextPath{.path = circleOutline(),
-                                      .at = 0.75f + (float)i / 8.0f,
+                                      .at = 0.75f + (float)i / 4.0f,
                                       .align = TextPath::Align::Center,
                                       .offset = 2.0f,
                                       .autoFlip = true}));
@@ -1279,8 +1281,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                        .corners({2})
                        .fill(Material::solid(kStageTab))
                        // the diagonal hazard stripe, as an Sk2D lattice
-                       // hatch clipped to the tab — not a drawn texture
-                       .foreground(lines::hatch(Fill::color(C(0x101010, 0.5f)),
+                       // hatch clipped to the tab — not a drawn texture.
+                       // background(), not foreground(): a foreground hatch
+                       // paints over the children and greys out the digit.
+                       .background(lines::hatch(Fill::color(C(0x101010, 0.5f)),
                                                 8.0f, 3.4f, -45.0f))
                        .stroke(PathFormat{.width = 1.0f,
                                           .strokeFill = Fill::color(C(0x7A3703)),
@@ -1457,7 +1461,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                  {1.0f, C(0x4E565C)}}),
            SkBlendMode::kSrcOver},
           // worn-metal luminance: the ONE place grain belongs here
-          {patterns::grain(0.35f, 2, 9.0f, 0.5f, 1.0f), SkBlendMode::kSoftLight}}))
+          {patterns::grain(0.9f, 2, 9.0f, 0.3f, 1.0f), SkBlendMode::kSoftLight}}))
         .stroke(PathFormat{.width = 1.2f,
                            .strokeFill = Fill::color(C(0x22282C)),
                            .align = PathFormat::Align::Inner});
@@ -1528,11 +1532,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                  .top(Dim(0))
                                  .outline(shapes::polygon(3, 180))
                                  .fill(Material::solid(C(0xFFFFFF)))
-                                 .translateX(bind(&yawTape).to(0, 140))),
-                  18, 48, 186, 20));
+                                 .translateX(bind(&yawTape).to(0, 190))),
+                  18, 48, 238, 22));
 
     // vertical-speed dial
-    const SkPoint dc{X + 288 - X, 42};
+    const SkPoint dc{300, 42};
     Element dial = stack().absolute().inset(0);
     dial.child(at(box()
                       .outline(circleOutline())
@@ -1542,27 +1546,105 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                                   {1.0f, C(0x9AA2A7)}}))
                       .stroke(PathFormat{.width = 1.4f,
                                          .strokeFill = Fill::color(C(0x33393E))}),
-                  dc, 68, 68));
-    for (int i = 0; i < 12; ++i)
+                  dc, 74, 74));
+    for (int i = 0; i < 13; ++i)
       dial.child(at(box()
-                        .outline(shapes::sector(-1.0f, 2.0f, 0.80f))
+                        .outline(shapes::sector(-1.1f, 2.2f, i % 3 ? 0.82f
+                                                                  : 0.72f))
                         .fill(Material::solid(C(0x3A4046)))
-                        .rotate(-120.0f + (float)i * 21.8f),
-                    dc, 62, 62));
-    dial.child(at(t("VERT", bold(6.5f, C(0x4A5157))), {dc.fX + 12, dc.fY - 6},
-                  26, 9));
-    dial.child(at(t("SPD", bold(6.5f, C(0x4A5157))), {dc.fX + 12, dc.fY + 3},
-                  26, 9));
+                        .rotate(-125.0f + (float)i * 20.8f),
+                    dc, 68, 68));
+    dial.child(at(t("VERT", bold(6.5f, C(0x4A5157), 0.6f)),
+                  {dc.fX + 15, dc.fY - 6}, 26, 9));
+    dial.child(at(t("SPD", bold(6.5f, C(0x4A5157), 0.6f)),
+                  {dc.fX + 15, dc.fY + 3}, 26, 9));
+    dial.child(at(t("100", body(6, C(0x5A6167))), {dc.fX - 5, dc.fY - 26}, 20, 8));
+    dial.child(at(t("-100", body(6, C(0x5A6167))), {dc.fX - 5, dc.fY + 26}, 22, 8));
     dial.child(at(box()
                       .outline(shapes::sector(-2.2f, 4.4f, 0.0f))
                       .fill(Material::solid(kGold))
                       .rotate(bind(&gforce).to(-118, 118)),
-                  dc, 56, 56));
+                  dc, 62, 62));
     dial.child(at(box()
                       .outline(circleOutline())
                       .fill(Material::solid(C(0x33393E))),
                   dc, 7, 7));
     g.child(std::move(dial));
+    return g;
+  }
+
+  /** The crew portrait plate, bottom-right in the flight-view frame. A
+   *  deliberately abstract read of it: helmet sphere, visor sector, name
+   *  bar — the composition, not the character art. */
+  Element crewPlate() {
+    using namespace ksp;
+    const float X = 986, Y = 594, W = 178, H = 186;
+    Element g = place(stack().corners({3}).clip(), X, Y, W, H);
+    g.fill(Material::linearUnit({0, 0}, {0, 1},
+                                {{0.0f, C(0x7F878C)}, {1.0f, C(0x454D53)}}))
+        .stroke(PathFormat{.width = 1.2f,
+                           .strokeFill = Fill::color(C(0x22282C)),
+                           .align = PathFormat::Align::Inner});
+    g.child(place(box()
+                      .fill(Material::radialUnit({0.5f, 0.35f}, 1.1f,
+                                                 {{0.0f, C(0x3E4A52)},
+                                                  {1.0f, C(0x1A2126)}})),
+                  5, 5, W - 10, H - 34));
+    // helmet
+    g.child(place(box()
+                      .outline(circleOutline())
+                      .fill(Material::radialUnit({0.36f, 0.28f}, 1.0f,
+                                                 {{0.0f, C(0xFFFFFF)},
+                                                  {0.5f, C(0xD3D8DB)},
+                                                  {1.0f, C(0x7C858B)}})),
+                  46, 34, 92, 92));
+    g.child(place(box()
+                      .outline(shapes::sector(150, 240, 0.0f))
+                      .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
+                                                 {{0.0f, C(0xC8A56A)},
+                                                  {1.0f, C(0x8A6B38)}})),
+                  56, 44, 72, 72));
+    // eyes + mouth, the whole character budget
+    g.child(place(box().outline(circleOutline()).fill(Material::solid(
+                      C(0xFFFFFF))),
+                  74, 62, 15, 18));
+    g.child(place(box().outline(circleOutline()).fill(Material::solid(
+                      C(0xFFFFFF))),
+                  95, 62, 15, 18));
+    g.child(place(box().outline(circleOutline()).fill(Material::solid(
+                      C(0x141414))),
+                  79, 68, 6, 7));
+    g.child(place(box().outline(circleOutline()).fill(Material::solid(
+                      C(0x141414))),
+                  100, 68, 6, 7));
+    g.child(place(box()
+                      .outline(shapes::sector(20, 140, 0.0f))
+                      .fill(Material::solid(C(0x2E2416))),
+                  80, 86, 24, 14));
+    // visor glare
+    g.child(place(box()
+                      .outline(shapes::blob(3u, 0.18f, 7))
+                      .fill(Material::linearUnit({0, 0}, {1, 1},
+                                                 {{0.0f, C(0xFFFFFF, 0.40f)},
+                                                  {1.0f, C(0xFFFFFF, 0.0f)}}))
+                      .blend(SkBlendMode::kPlus),
+                  58, 44, 44, 40));
+    // suit shoulders
+    g.child(place(box()
+                      .corners({26})
+                      .fill(Material::linearUnit({0, 0}, {0, 1},
+                                                 {{0.0f, C(0xE7E8E4)},
+                                                  {1.0f, C(0x9AA0A2)}})),
+                  40, 124, 104, 40));
+    g.child(place(box()
+                      .corners({2})
+                      .alignItems(Align::Center)
+                      .justify(Justify::Center)
+                      .fill(Material::linearUnit({0, 0}, {0, 1},
+                                                 {{0.0f, C(0x9AA2A7)},
+                                                  {1.0f, C(0x666E74)}}))
+                      .child(t("Bill Kerman", body(11, C(0x14181A)))),
+                  5, H - 26, W - 10, 21));
     return g;
   }
 
@@ -1657,14 +1739,15 @@ struct KspMapView : sigil::compose::sketch::Sketch {
         .child(toolbar())
         .child(missionClock())
         .child(altimeter())
+        .child(crewPlate())
         .child(cluster())
         // corner vignette, last
         .child(box()
                    .absolute()
                    .inset(0)
                    .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                              {{0.55f, C(0x000000, 0.0f)},
-                                               {1.0f, C(0x000000, 0.20f)}})));
+                                              {{0.50f, C(0x000000, 0.0f)},
+                                               {1.0f, C(0x000000, 0.30f)}})));
   }
 
   // -------------------------------------------------------------------
