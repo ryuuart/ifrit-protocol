@@ -417,7 +417,10 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
         // orientation (a clock face's 6 is upside down for exactly that
         // reason), so the only orientation onPath was missing is the one
         // where the type radiates.
-        if (spec.orient == TextPath::Orient::Radial) {
+        if (spec.orient == TextPath::Orient::Upright) {
+          dirX = 1.0f;
+          dirY = 0.0f;
+        } else if (spec.orient == TextPath::Orient::Radial) {
           const float ox = pos.x() - centroid.x(), oy = pos.y() - centroid.y();
           const float omag = std::hypot(ox, oy);
           if (omag > 1e-6f) {

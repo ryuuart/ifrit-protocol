@@ -588,9 +588,16 @@ struct TextPath {
    *  Element, which is exactly the per-glyph cost onPath exists to
    *  abolish, resurfacing for the other half of the problem.
    *
-   *  The centre it radiates from is the resolved baseline's bounding-box
-   *  centre, which is the true centre for every dial-shaped path. */
-  enum class Orient { Tangent, Radial } orient = Orient::Tangent;
+   *  `Upright` leaves every glyph level regardless of where it sits —
+   *  the convention a calendar ring or a modern gauge uses, and the one
+   *  case neither of the others can reach.
+   *
+   *  The centre `Radial` radiates from is the resolved baseline's
+   *  BOUNDING-BOX centre. That is the true centre for a full ring and
+   *  silently wrong for an arc that does not span one — a quarter-arc's
+   *  bbox centre is not its circle's centre — so give a partial arc a
+   *  full-circle baseline and place the run on it with `at`. */
+  enum class Orient { Tangent, Radial, Upright } orient = Orient::Tangent;
   // No operator==: `path` is a std::function, so a defaulted one is
   // implicitly DELETED and compiles quietly while comparing nothing. The
   // reconciler treats a run with a baseline as never-prunable instead

@@ -61,6 +61,16 @@ struct PathFormat {
    *  them ended square and mitred at the joints because this paint was
    *  built and never asked. Distinct from `lines::Line`'s join item,
    *  which is about the OFFSET CONTOUR rather than the stroke paint. */
+  /** A Material for the stroke, superseding `strokeFill` when set.
+   *
+   *  `fill()` takes a Material — unit-square authoring, structural
+   *  comparison, live uniforms — and a stroke took only the kernel
+   *  `Fill`, which is node-local pixels compared by shader pointer. On an
+   *  object whose surfaces are mostly STROKES (every bar, ring and
+   *  engraved circle of an astrolabe) that meant writing the same brass
+   *  twice, once per return type, with the world→node conversion done by
+   *  hand in both. */
+  std::optional<Material> strokeMaterial;
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
   float dashPhase = 0.0f;
@@ -115,9 +125,11 @@ struct PathFormat {
            : align == Align::Outer ? width
                                    : width * 0.5f;
   }
-  /** A bound trim phase repaints per frame (declared volatility). */
+  /** A bound trim phase, a bound dash phase, or a live stroke material
+   *  repaints per frame (declared volatility). */
   bool animated() const {
-    return trimPhase != nullptr || dashPhaseBinding != nullptr;
+    return trimPhase != nullptr || dashPhaseBinding != nullptr ||
+           (strokeMaterial && strokeMaterial->isLive());
   }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
@@ -133,10 +145,12 @@ struct PathFormat {
     p.setStrokeWidth(aligned ? width * 2 : width);
     p.setStrokeCap(cap);
     p.setStrokeJoin(join);
-    if (strokeFill.kind == Fill::Kind::Color)
-      p.setColor4f(strokeFill.colorValue, nullptr);
-    else if (strokeFill.kind == Fill::Kind::Shader)
-      p.setShader(strokeFill.shaderValue);
+    const Fill stroke =
+        strokeMaterial ? strokeMaterial->resolve(ctx) : strokeFill;
+    if (stroke.kind == Fill::Kind::Color)
+      p.setColor4f(stroke.colorValue, nullptr);
+    else if (stroke.kind == Fill::Kind::Shader)
+      p.setShader(stroke.shaderValue);
 
     sk_sp<SkPathEffect> chosen = effect;
     if (!chosen && stampAdvance > 0 && !stampPath.isEmpty())

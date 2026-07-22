@@ -5942,3 +5942,71 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   EXPECT_GT(green, 200); // the outline survives the fill override…
   EXPECT_GT(ramp, 100);  // …and the ramp still fills the bodies
 }
+
+TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
+  // An annulus, a sector, a plate — anything whose outline is not a box
+  // cannot be tested against its bounds without counting the parts
+  // outside it as gaps. The astrolabe study's zodiac ring needed exactly
+  // this, and got 62 phantom gaps first try from chord error against a
+  // true circle.
+  auto rect = [](float l, float t, float r, float b) {
+    SkPathBuilder p;
+    p.addRect(SkRect::MakeLTRB(l, t, r, b));
+    return p.detach();
+  };
+  // A DISC covered by two half-squares that also spill outside it. The
+  // rect overload would call the spill "doubled" nowhere and the corners
+  // "uncovered"; the region overload only asks about the disc.
+  SkPathBuilder discBuilder;
+  discBuilder.addCircle(50, 50, 40);
+  const SkPath disc = discBuilder.detach();
+  const std::vector<SkPath> halves = {rect(0, 0, 50, 100), rect(50, 0, 100, 100)};
+
+  const auto onRect = debug::coverage(halves, SkRect::MakeWH(100, 100), 64);
+  EXPECT_TRUE(onRect.exact()); // the square really is covered exactly
+  const auto onDisc = debug::coverage(halves, disc, 64);
+  EXPECT_TRUE(onDisc.exact());
+  EXPECT_LT(onDisc.samples, onRect.samples); // it tested fewer points…
+  EXPECT_GT(onDisc.samples, 1000);           // …but a real number of them
+
+  // components(): "is this one piece of metal?" — the question a rete, a
+  // knot and a decorated tiling all actually ask, which the degree list
+  // alone cannot answer.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(20, 0, 30, 0)};
+  EXPECT_EQ(debug::endpointDegrees(chain).components(), 1u);
+
+  const std::vector<SkPath> split = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(40, 0, 50, 0)};
+  EXPECT_EQ(debug::endpointDegrees(split).components(), 2u);
+}
+
+TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
+  // fill() takes a Material — unit-square authoring, structural
+  // comparison, live uniforms — and a stroke took only the kernel Fill,
+  // which is node-local pixels compared by shader pointer. On an object
+  // whose surfaces are mostly STROKES, that meant writing the same brass
+  // twice, once per return type.
+  PathFormat f = util::stroke(30, Fill::color({1, 1, 1, 1}));
+  f.strokeMaterial = Material::linearUnit({0, 0}, {1, 0},
+                                          {{0.0f, {1, 0, 0, 1}},
+                                           {1.0f, {0, 0, 1, 1}}});
+  Host host(200, 200);
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20)
+                                       .fill(Fill::none())
+                                       .foreground(f)));
+  host.frame();
+  // The ramp runs across the node, so the left edge of the stroke is red
+  // and the right edge blue — a Fill could only have been one colour.
+  EXPECT_GT(SkColorGetR(host.pixel(20, 100)), 150);
+  EXPECT_LT(SkColorGetB(host.pixel(20, 100)), 110);
+  EXPECT_GT(SkColorGetB(host.pixel(180, 100)), 150);
+  EXPECT_LT(SkColorGetR(host.pixel(180, 100)), 110);
+}
