@@ -52,6 +52,7 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
 | `dashPhaseBinding` on `PathFormat` and `lines::Line` | `trimPhase` took a bound Output and declared `animated()`; `dashPhase` was a plain float, so marching ants — the commonest animated-line idiom in map UI — meant re-describing every frame | `Decorations.h`, `Lines.h` |
+| `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
 | `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
 | `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
 | `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
@@ -136,6 +137,16 @@ plate's 9,580 settling sand grains:
 
 - **`tints()` is the only per-instance opacity lane**, so fading a subset
   means rewriting RGBA every frame when only alpha moves.
+- **The non-uniform-scale half now has a measured price: 69 lines.** The
+  Genesis study hand-built an 8-vertex flat-cored strip per particle plus
+  the uint16 chunking `drawSpriteAtlas` already does internally, and with
+  it went every decoration slot on the node and all picture caching. Its
+  bench panel is the gap as a PICTURE — the same 700 particles through
+  `instances()`+kSrcOver, `instances()`+kPlus and hand-built quads, where
+  the instanced cells hold one baked aspect forever and keep slow
+  particles as full-length streaks that the quad path correctly collapses
+  to dots. Wanted: a `sizes()` `SkSize` lane, with the stamp falling back
+  to the `drawVertices` quads it already builds when the lane is present.
 - **One pool cannot be split across several clipped parents.** That study
   used a single canvas-wide leaf to keep one draw call, and therefore had
   NO per-figure clip — keeping sand inside twelve rims became hand-tuned
