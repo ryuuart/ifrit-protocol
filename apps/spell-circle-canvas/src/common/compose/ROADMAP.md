@@ -50,6 +50,8 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | A fourth `onPath` bug: only the first contour | A trajectory clipped to the frame is several contours; its label vanished with no diagnostic | `Paint.cpp` |
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
+| `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
+| Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
 
 ---
 
@@ -174,6 +176,16 @@ recipe** rather than by shader pointer, and `Brushes.h` solved it with the
 `GeometryOp` value / `PathOp` lambda split. Shapes want the identical
 move: a comparable `Outline` value (kind + params) covering the stock
 generators, with the raw lambda as the escape hatch that never prunes.
+
+Two more shapes of the same problem, both worth naming:
+
+**Geometry that is BOUND cannot be a node shape at all.** `outline()`
+resolves at LAYOUT, so a form that changes per frame — Winamp's EQ
+response curve, a function of ten live Outputs — has to become
+`custom()`. The cost is not only pruning: it also forfeits `trim()`,
+which was the natural spelling for "the curve draws itself over 300 ms",
+and that had to be hand-rolled as a clipRect over a progress Output. A
+`PropValue`-aware outline, or `trim` on a `PathFormat` (§7), covers it.
 
 The Vertigo study says which generators are missing, and it is a whole
 family. `Shapes.h` builds closed **shapes** from parameters; nothing
@@ -381,6 +393,14 @@ the right thing internally and hands out only the finished result.
   has to become a separate full-canvas multiply layer. Wanted:
   `Material::worldSpace()`, resolving the local matrix against the
   composer root instead of the node, so one material serves both.
+- **A `Fill` cannot be DERIVED from a bound float at the binding site.**
+  `fill(bind(&level).map(ramp))` — "this widget's colour IS its value" —
+  has no spelling. Ranked honestly: `fill(&out)` with a `ch::Output<Fill>`
+  DOES work live, so this is a convenience over a path that exists, not a
+  missing capability. One study concluded otherwise and left the binding
+  path entirely, which is why it is written down at all. Wanted:
+  `PropValue<Fill>` from `(const Output<float>*, function<Fill(float)>)`,
+  or a `Material::steps(colors, Bound)` value.
 - **No paint slot between the fill and the content.** `foreground()`
   paints ABOVE children, so a hazard stripe greys out its own digit;
   `background()` hides under the fill. Every textured button with a label
