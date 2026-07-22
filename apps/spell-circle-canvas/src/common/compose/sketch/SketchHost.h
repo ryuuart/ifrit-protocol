@@ -75,6 +75,19 @@ public:
   double presentedFps() const;
   void markPresented();
 
+  /** The last frame(), split at the seam the perf question always asks
+   *  about: `updateMs` is everything the SKETCH did (clock tick, ticker
+   *  steppables, Sketch::update — which is where describe() and
+   *  Composer::render() live), `drawMs` is Composer::draw() (layout +
+   *  volatile walk + the paint traversal). Composer::stats() breaks
+   *  drawMs down further. Zero until the first frame lands. */
+  struct FrameTiming {
+    double totalMs = 0;
+    double updateMs = 0;
+    double drawMs = 0;
+  };
+  const FrameTiming &lastFrameTiming() const { return m_lastTiming; }
+
   /** Renders the CURRENT state (clock untouched) into a PNG at
    *  `scale`× the sketch's canvas size. The capture path for both the
    *  windowed save command and headless asset generation. */
@@ -147,6 +160,7 @@ private:
   std::chrono::steady_clock::time_point m_lastPresent{};
   std::vector<double> m_workMs;      // rolling frame-body cost window
   std::vector<double> m_presentMs;   // rolling present-interval window
+  FrameTiming m_lastTiming;          // update/draw split of the last frame
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
   CaptureBackend m_captureBackend;
