@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `Atlas::filter()`, two-axis `patterns::gridLines` | Instancing's biggest use is tilemaps — pixel grids — and a lattice whose pitch differs per axis is not exotic (an X-COM panel's is 5 × 2) | `Instances.h`, `Patterns.h` |
+| `addFixed` exact across draw rates, and a clamp signal | The step count came from an accumulator, which slips one comparison over a long pre-roll; and a frame that DROPPED time makes anything measured on it meaningless | `sigilmotion/Ticker.*` |
 | Unit ramps take ANY number of stops | Six, fixed, with the tail clamped — which a 24-run sett and a 72-step sweep both ran out of, from opposite directions | `Material.h` |
 | `PathFormat::strokeMaterial` | `fill()` took a Material and a stroke took only the kernel `Fill`, so an object made of strokes wrote the same material twice, once per return type | `Decorations.h` |
 | `debug::coverage(…, SkPath region)`, `VertexDegrees::components()` | An annulus cannot be tested against its bounds; and "is this one piece of metal?" needed hand-rolled union-find | `Debug.h` |
@@ -640,8 +642,10 @@ pixel art, tilemaps and simulation buffers stop being silently blurred.
 mostly used FOR pixel art (a window chrome, a dialog border, a button
 from a tile sheet) and a woven or dithered tile is the same case.
 
-Still hardcoded to `kLinear`: `Instances.h`, `Brushes.h` and `Web.h`.
-Wanted: a `sampling` field on `Atlas` and on the brush stamp. `Material::image()` always took one, which is exactly why this
+`Atlas::filter()` has followed — instancing's biggest real use is
+tilemaps and sprite sheets, which are pixel grids. **All five blessed
+image paths now have a knob except two:** `Brushes.h`'s stamp and
+`Web.h`'s frame, neither of which has yet had a study ask. `Material::image()` always took one, which is exactly why this
 was hard to find — the fix was discoverable only by diffing two
 signatures.
 

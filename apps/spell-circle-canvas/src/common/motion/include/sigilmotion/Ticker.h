@@ -54,6 +54,15 @@ public:
    * declared choppiness for shaders — `Material::quantizeTime(hz)` — and
    * nothing at all for logic.
    *
+   * The step count comes from TOTAL ELAPSED TIME rather than from a
+   * running accumulator: `want = floor(total * hz)`, run `want - ran`.
+   * An accumulator compared against a step slips one comparison over a
+   * long pre-roll, which made the same capture land on either side of a
+   * step boundary depending on the draw rate — a study measured
+   * byte-identical output at 60/30/20 fps and a one-step slip at 15 and
+   * 10, and correctly diagnosed it as float accumulation rather than the
+   * clamp. From total time it is exact at any draw rate.
+   *
    * @p maxCatchUp bounds how many steps one frame may run. Without it, a
    * hitch longer than the step makes the next frame run the backlog,
    * which takes longer, which grows the backlog — the spiral. Dropping
@@ -71,8 +80,18 @@ public:
    * hiding the only scalar missing. Bindable like any Output, so
    * `bind(alphaOut)` reaches a property directly.
    */
+  /** What one frame's fixed stepping did. When `clamped` is true the
+   *  simulation DROPPED time, so anything measured on that frame — a
+   *  constraint residual, a convergence rate — is meaningless and must
+   *  not be reported. A study had to infer that from a step count. */
+  struct FixedStatus {
+    int stepsRun = 0;
+    bool clamped = false;
+  };
+
   void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8,
-                choreograph::Output<float> *alphaOut = nullptr);
+                choreograph::Output<float> *alphaOut = nullptr,
+                FixedStatus *statusOut = nullptr);
 
   /** Steps the timeline and steppables by `deltaSeconds`; returns
    *  active(). Zero deltas (paused clock) still report activity. */

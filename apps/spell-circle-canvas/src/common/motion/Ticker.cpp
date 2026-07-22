@@ -1,3 +1,4 @@
+#include <cmath>
 #include "sigilmotion/Ticker.h"
 
 namespace sigil::motion {
@@ -13,31 +14,45 @@ void Ticker::add(std::function<bool(double)> steppable) {
 }
 
 void Ticker::addFixed(double hz, std::function<bool()> fn, int maxCatchUp,
-                      choreograph::Output<float> *alphaOut) {
-  const double step = hz > 0.0 ? 1.0 / hz : 0.0;
-  if (step <= 0.0 || !fn)
+                      choreograph::Output<float> *alphaOut,
+                      FixedStatus *statusOut) {
+  if (hz <= 0.0 || !fn)
     return;
-  add([step, maxCatchUp, alphaOut, fn = std::move(fn),
-       accumulator = 0.0](double dt) mutable {
-    accumulator += dt;
-    // A frame may run at most maxCatchUp steps. Beyond that the backlog
-    // is DISCARDED rather than carried: carrying it makes the next frame
-    // longer, which grows the backlog, which is the spiral of death. The
-    // sim running slow for one frame is the correct failure.
-    int budget = maxCatchUp;
+  add([hz, maxCatchUp, alphaOut, statusOut, fn = std::move(fn), total = 0.0,
+       ran = 0.0](double dt) mutable {
+    total += dt;
+    // From TOTAL elapsed time, not a running accumulator: an accumulator
+    // compared against a step slips one comparison over a long pre-roll,
+    // so the same capture landed on either side of a step boundary
+    // depending on the draw rate.
+    // The epsilon absorbs accumulated float error — summing 1/144 a
+    // hundred and forty-four times lands a hair under 1.0, and without it
+    // the last step of a whole second goes missing.
+    const double want = std::floor(total * hz + 1e-9);
+    double due = want - ran;
+    bool clamped = false;
+    if (due > (double)maxCatchUp) {
+      // Beyond the budget the backlog is DISCARDED rather than carried:
+      // carrying it makes the next frame longer, which grows the backlog,
+      // which is the spiral of death. Running slow for one frame is the
+      // correct failure.
+      due = (double)maxCatchUp;
+      clamped = true;
+    }
     bool alive = true;
-    while (accumulator >= step && budget-- > 0) {
-      accumulator -= step;
+    int steps = 0;
+    for (; steps < (int)due; ++steps) {
       alive = fn();
       if (!alive)
-        return false;
+        break;
     }
-    if (accumulator >= step)
-      accumulator = 0.0;
-    // The leftover fraction of a step: the render interpolant, so a fixed
-    // sim drawn at an unrelated rate does not judder.
+    ran = want; // discards anything the clamp skipped
     if (alphaOut)
-      *alphaOut = (float)(accumulator / step);
+      *alphaOut = (float)(total * hz - want);
+    if (statusOut) {
+      statusOut->stepsRun = steps;
+      statusOut->clamped = clamped;
+    }
     return alive;
   });
 }
