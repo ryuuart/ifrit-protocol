@@ -493,6 +493,8 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           }
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
           grain.rotTo = rng.range(0, 2 * SK_FloatPI);
+          grain.frame = rng.next() < 0.55f ? 0 : 2;
+          grain.scale = rng.range(0.62f, 1.06f);
         } else if (f.kind == Kind::Petals) {
           // the valleys BETWEEN the star's arms, density biased outward
           // the way the engraved fan is
@@ -507,7 +509,9 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           grain.to = {c.fX - kR + p.fX, c.fY - kR + p.fY};
           // the fan: every stroke points radially out of the centre
           grain.rotTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
-                        rng.range(-0.16f, 0.16f);
+                        rng.range(-0.09f, 0.09f);
+          grain.frame = 1;
+          grain.scale = rng.range(0.46f, 0.80f);
         } else {
           float pick = rng.next() * totalLen;
           size_t ci = 0;
@@ -518,15 +522,16 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           SkPoint pos{0, 0};
           SkVector tan{1, 0};
           curves[ci]->getPosTan(std::min(pick, curveLen[ci]), &pos, &tan);
-          const float off = (rng.next() + rng.next() - 1.0f) * 3.1f;
+          const float off = (rng.next() + rng.next() - 1.0f) * 1.9f;
           grain.to = {c.fX - kR + pos.fX - tan.fY * off,
                       c.fY - kR + pos.fY + tan.fX * off};
-          grain.rotTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.12f, 0.12f);
+          grain.rotTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
+          grain.frame = rng.next() < 0.7f ? 1 : 2;
+          grain.scale = rng.range(0.45f, 0.78f);
         }
 
         grain.t0 = bowAt + rng.range(0.0f, 0.24f);
         grain.dur = (0.80f + rng.range(0.0f, 0.42f)) * speed;
-        grain.scale = rng.range(0.62f, 1.06f);
         grain.alpha = rng.range(0.62f, 1.0f);
         grain.phase = rng.range(0, 6.28f);
         grains.push_back(grain);
@@ -535,9 +540,8 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     pool->resize(grains.size());
     auto frames = pool->frames();
-    Rng fr(4242);
     for (size_t i = 0; i < grains.size(); ++i)
-      frames[i] = fr.next() < 0.42f ? 1 : (fr.next() < 0.5f ? 2 : 0);
+      frames[i] = grains[i].frame;
   }
 
   // ------------------------------------------------------------------
