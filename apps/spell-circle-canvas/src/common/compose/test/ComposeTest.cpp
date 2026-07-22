@@ -6047,3 +6047,49 @@ TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
   EXPECT_EQ(m.points.size(), 3u);       // the chain's three endpoints
   EXPECT_EQ(m.outside(2, 2).size(), 2u); // its two loose ends
 }
+
+TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
+  // It used to be a fixed six with the tail clamped, which two studies
+  // ran out of from opposite directions — a 24-run tartan sett and a
+  // 72-step chromatic sweep — and both fell back to hand-written pattern
+  // programs. The count is now baked into the source with one effect
+  // cached per count, the rule Patterns.h already follows for grain's
+  // octaves.
+  auto sweep = [](int n) {
+    std::vector<Stop> stops;
+    for (int i = 0; i < n; ++i) {
+      const float t = (float)i / (float)(n - 1);
+      // A sawtooth the six-stop version could not have represented:
+      // alternating black and white at every step.
+      const float v = (i % 2) ? 1.0f : 0.0f;
+      stops.push_back({t, {v, v, v, 1}});
+    }
+    Host host(256, 32);
+    host.composer.render(box().child(
+        box().absolute().inset(0).fill(
+            Material::linearUnit({0, 0}, {1, 0}, stops))));
+    host.frame();
+    // Count the light/dark transitions across the middle scanline.
+    int flips = 0;
+    bool light = SkColorGetR(host.pixel(0, 16)) > 128;
+    for (int x = 1; x < 256; ++x) {
+      const bool now = SkColorGetR(host.pixel(x, 16)) > 128;
+      flips += now != light;
+      light = now;
+    }
+    return flips;
+  };
+
+  // Six stops = five alternations. Twenty-four and seventy-two scale with
+  // the count, which is exactly what the fixed version could not do.
+  EXPECT_NEAR(sweep(6), 5, 1);
+  EXPECT_NEAR(sweep(24), 23, 2);
+  EXPECT_NEAR(sweep(72), 71, 4);
+
+  // Degenerate counts still behave.
+  Host one(64, 64);
+  one.composer.render(box().child(box().absolute().inset(0).fill(
+      Material::linearUnit({0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
+  one.frame();
+  EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
+}

@@ -110,6 +110,7 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| Unit ramps take ANY number of stops | Six, fixed, with the tail clamped — which a 24-run sett and a 72-step sweep both ran out of, from opposite directions | `Material.h` |
 | `PathFormat::strokeMaterial` | `fill()` took a Material and a stroke took only the kernel `Fill`, so an object made of strokes wrote the same material twice, once per return type | `Decorations.h` |
 | `debug::coverage(…, SkPath region)`, `VertexDegrees::components()` | An annulus cannot be tested against its bounds; and "is this one piece of metal?" needed hand-rolled union-find | `Debug.h` |
 | `TextPath::Orient::Upright` | Neither Tangent nor Radial can leave a glyph level, which is what a calendar ring and a modern gauge use | `Compose.h` |
@@ -599,14 +600,13 @@ instrument — and it lands on something nothing else could have found.
   bytes with the same behaviour. Wanted, minimally: a declared input
   space on the Composer so a mismatch is a question the library can ask,
   rather than one nobody knows to.
-- **Gradients cap at six stops** — *two studies*, from opposite
-  directions. `Material::linearUnit`/`radialUnit` compile to one SkSL
-  pass with six chained mixes, which is a 24-run tartan sett or a 72-step
-  chromatic sweep short. Both fell back to hand-written
-  `PatternProgram`s. Wanted: a stop COUNT that scales the way
-  `patterns::grain` scales its octaves — bake the count into the source
-  and cache one effect per count, which is the rule that file already
-  follows.
+- ~~**Gradients cap at six stops**~~ — *two studies* — **CLOSED**. The
+  count is baked into the source with one effect cached per count, which
+  is the rule `Patterns.h` already followed for grain's octaves and for
+  the same two reasons (a uniform-guarded loop faults across the
+  split-Skia boundary; `main()` must stay monolithic). A 24-run tartan
+  sett and a 72-step chromatic sweep had both fallen back to hand-written
+  `PatternProgram`s for want of stops.
 - **`TextPath` has no `operator==`**, deliberately (its baseline is a
   `std::function`), so a node carrying one never prunes — 72 radial
   labels re-record on every `render()`. The comparable-`Outline` fix in
