@@ -520,37 +520,22 @@ inline float widthOf(const PixFont &f, const std::string &s,
 }
 
 // ---------------------------------------------------------------------------
-// THE RISK GAUGE'S DECORATION. lines::Hatch::spacing is a plain float, not a
-// PropValue, so a RISK-driven density cannot be bound — driving it would force
-// a render() every frame purely to change one number. This is the whole
-// workaround, and it is also exactly the shape of the missing API: a value
-// decoration with an Output field and animated() returning true, which is the
-// declared-volatility contract every other decoration already follows. It
-// composes lines::Hatch rather than reimplementing it.
-
-struct RiskHatch {
-  Fill strokeFill = Fill::color({1, 1, 1, 1});
-  float loose = 7.0f, tight = 1.6f;   ///< spacing at RISK 0 and RISK 100
-  float width = 1.1f;
-  float angleDeg = 45.0f;
-  const ch::Output<float> *risk = nullptr;
-  float riskMax = 100.0f;
-
-  bool operator==(const RiskHatch &) const = default;
-  bool animated() const { return risk != nullptr; }
-  float bleed() const { return 0.0f; }
-
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    const float v =
-        risk ? std::clamp(risk->value() / riskMax, 0.0f, 1.0f) : 0.0f;
-    lines::Hatch h;
-    h.strokeFill = strokeFill;
-    h.spacing = loose + (tight - loose) * v;
-    h.width = width;
-    h.angleDeg = angleDeg;
-    h.paint(c, ctx);
-  }
-};
+// THE RISK GAUGE'S DECORATION USED TO LIVE HERE, AND NO LONGER HAS TO.
+//
+// This file shipped a 24-line `RiskHatch` value decoration that composed
+// `lines::Hatch`, held an `Output<float>*`, mapped RISK to a pitch at paint
+// time and returned `animated() == true`. The reason was real when it was
+// written: `Hatch::spacing` was a plain float with no binding seam, so a
+// RISK-driven density would have forced a `render()` every frame purely to
+// change one number.
+//
+// THAT GAP IS CLOSED. `Hatch::spacingBinding` and `Hatch::angleBinding`
+// (Lines.h:1185-1186) take exactly the raw `Output<float>*` the workaround
+// held, with `animated()` at :1188 and both in `operator==` at :1196 — which
+// is the same shape the workaround argued for, so it is gone and the gauge
+// binds the stock decoration. The one thing the field cannot do is MAP, so
+// the RISK-to-pitch curve moved into the ticker as its own Output; that is
+// where the study's other three shapings of the same value already live.
 
 // ---------------------------------------------------------------------------
 // THE ARITHMETIC. Every number below is the decompiled function, integer
@@ -683,7 +668,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   using Cam = vs::Cam;
 
   // ---- bound values --------------------------------------------------------
-  ch::Output<float> risk{58.0f};      // decays; drives THREE consumers
+  ch::Output<float> risk{58.0f};      // decays; drives FOUR consumers
+  ch::Output<float> riskPitch{8.0f};  // ...one of which is the hatch's pitch
   ch::Output<float> chainSweep{0.0f}; // the timing ring, 0 -> 1
   ch::Output<float> select{1.0f};     // selection pulse
   ch::Output<float> damagePop{0.0f};  // the damage-number pop
@@ -1443,10 +1429,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         .outline(shapes::chamfered(11.0f, shapes::Corner::All));
     // 8.0 px at RISK 0 down to 2.4 px at RISK 100 — the floor is deliberately
     // not 1.6, because a hatch that closes to solid stops being a hatch and
-    // the reader loses the one cue the whole widget is built on.
-    track.foreground(vs::RiskHatch{
-        .strokeFill = Fill::color(vs::kAmber), .loose = 8.0f, .tight = 2.4f,
-        .width = 1.3f, .angleDeg = 45.0f, .risk = &risk});
+    // the reader loses the one cue the whole widget is built on. The curve is
+    // computed into `riskPitch` by the ticker; this binds the stock field.
+    track.foreground(lines::Hatch{.strokeFill = Fill::color(vs::kAmber),
+                                  .width = 1.3f,
+                                  .angleDeg = 45.0f,
+                                  .spacingBinding = &riskPitch});
     track.stroke(lines::dottedCore(1.6f, 1.0f,
                                    Fill::color(vs::mul(vs::kBone, 1, 0.55f)),
                                    4.0f, 6.0f));
@@ -1967,6 +1955,11 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
       // drawn. One Output, three consumers (hatch density, needle, legend).
       const double beat = std::fmod(clock, 6.0);
       risk = (float)std::clamp(24.0 + 62.0 * std::exp(-beat * 0.55), 0.0, 100.0);
+      // the gauge hatch's PITCH, not its value: 8.0 px at RISK 0 closing to
+      // 2.4 at RISK 100. Hatch::spacingBinding reads a pitch straight, so the
+      // mapping lives here rather than inside a bespoke decoration.
+      riskPitch = 8.0f + (2.4f - 8.0f) *
+                             std::clamp(risk.value() / 100.0f, 0.0f, 1.0f);
       // The chain prompt's 400 ms sweep, once per beat.
       chainSweep = (float)std::clamp(beat / 0.4, 0.0, 1.0);
       select = (float)(0.5 + 0.5 * std::sin(clock * 3.4));

@@ -91,13 +91,18 @@
 // numbers are in the console: 64 px = 28.4 mm of Minard's paper.
 //
 // THREE LIBRARY DEFECTS THIS SKETCH FOUND, one of them silent and new:
-//   * `slot(name)` stores `name` as the node's KEY, and `renderSlot()`
-//     resolves it through the ONE byKey index every keyed element shares.
-//     Give the slot's content a root `.key(name)` and the content shadows
-//     the slot; every later renderSlot() finds a Box, fails the
-//     `kind == Kind::Slot` test, and RETURNS SILENTLY. The slot freezes at
-//     whatever it was first given, with no warning. (Composer.cpp ~160,
-//     Compose.cpp ~437.)
+//   * FIXED SINCE, and the fix is worth knowing because the bug was
+//     invisible. `slot(name)` used to store `name` as the node's KEY and
+//     `renderSlot()` resolved it through the ONE byKey index every keyed
+//     element shares — so giving a slot's content a root `.key(name)` let
+//     the content shadow the slot, and every later renderSlot() found a
+//     Box, failed the `kind == Kind::Slot` test and RETURNED SILENTLY. The
+//     slot froze at whatever it was first given, with no warning. Slots now
+//     have an index of their own: `bySlot` (ComposeRuntime.h:276), populated
+//     only for `Kind::Slot` (Reconcile.cpp:708) and the only thing
+//     `renderSlot()` looks in (Composer.cpp:161). A content key can no
+//     longer shadow a slot name. This study still keeps its names distinct,
+//     which is good practice and is no longer load-bearing.
 //   * `Element::outline()` is memoised on (descriptor, size), so geometry
 //     cannot be a bound value the way a transform or an opacity can. The
 //     12.6% morph therefore costs a re-describe.

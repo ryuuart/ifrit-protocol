@@ -620,14 +620,9 @@ using StampModFn =
     std::function<StampMod(const PathSample &, size_t index, size_t count)>;
 
 namespace detail {
-/** A resolved tangent break: WHERE the vertex is, and the two leg tangents
- *  the search converged on. Carrying the legs is what makes the corner
- *  tile's bisector exact — re-probing the path at a fixed ±2 px cannot
- *  know whether either leg is that long. */
-struct CornerHit {
-  float d = 0;
-  SkVector in{0, 0}, out{0, 0};
-};
+/** THE corner hit type lives in Lines.h now — there was one per scanner,
+ *  and they described the same thing. */
+using CornerHit = sigil::compose::lines::detail::CornerHit;
 
 inline void drawStamp(SkCanvas &c, const SkPicture &pic,
                       const PathSample &sample, bool align, float rotateDeg,
@@ -877,60 +872,16 @@ struct PatternBrush {
       // a 6 px step under 0.03 px, which is below the rasterizer's own
       // resolution, and the bisector is then exact by construction rather
       // than by a 2 px probe that assumes both legs are longer than 2 px.
+      // ONE corner scanner (lines::detail::findCorners). This used to be a
+      // second copy of the same bisecting search, with its own 35 degree
+      // default and no diagnostic — so the same shape got different corners
+      // depending on which decoration asked, and the n-gon warning added
+      // for borders never reached a pattern brush.
       std::vector<detail::CornerHit> corners;
-      if (cache->corner) {
-        const float step = std::clamp(tileLen * 0.25f, 1.0f, 6.0f);
-        SkVector prev{0, 0};
-        bool havePrev = false;
-        const float cosThresh =
-            std::cos(cornerAngleDeg * 0.017453293f);
-        SkVector tanAtStart{0, 0};
-        for (float d = 0; d <= len; d += step) {
-          SkPoint pos;
-          SkVector tan;
-          if (!contour->getPosTan(std::min(d, len), &pos, &tan))
-            continue;
-          if (!havePrev)
-            tanAtStart = tan;
-          if (havePrev) {
-            const float dot = prev.x() * tan.x() + prev.y() * tan.y();
-            if (dot < cosThresh) {
-              // The break lies in (d-step, d]. Bisect for where the
-              // tangent stops matching the incoming leg.
-              float lo = std::max(0.0f, d - step), hi = std::min(d, len);
-              SkVector inTan = prev, outTan = tan;
-              for (int it = 0; it < 8; ++it) {
-                const float mid = (lo + hi) * 0.5f;
-                SkVector mt;
-                if (!contour->getPosTan(mid, nullptr, &mt))
-                  break;
-                if (inTan.x() * mt.x() + inTan.y() * mt.y() < cosThresh) {
-                  hi = mid;
-                  outTan = mt;
-                } else {
-                  lo = mid;
-                  inTan = mt;
-                }
-              }
-              if (corners.empty() || hi - corners.back().d > tileLen * 0.5f)
-                corners.push_back({hi, inTan, outTan});
-            }
-          }
-          prev = tan;
-          havePrev = true;
-        }
-        // The SEAM of a closed contour is a corner too when the exit and
-        // entry tangents break (a rectangle's start point) — the forward
-        // scan never compares across the wrap. Its legs are known
-        // outright, so it needs no bisection.
-        if (closed && havePrev) {
-          const float dot =
-              prev.x() * tanAtStart.x() + prev.y() * tanAtStart.y();
-          if (dot < cosThresh &&
-              (corners.empty() || corners.front().d > tileLen * 0.5f))
-            corners.insert(corners.begin(), {0.0f, prev, tanAtStart});
-        }
-      }
+      if (cache->corner)
+        corners = sigil::compose::lines::detail::findCorners(
+            *contour, cornerAngleDeg, tileLen * 0.5f,
+            std::clamp(tileLen * 0.25f, 1.0f, 6.0f));
 
       // Open-contour caps reserve their slots at the ends.
       float head = 0, tail = 0;

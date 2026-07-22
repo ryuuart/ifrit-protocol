@@ -19,6 +19,40 @@ and closed sections stay in place marked **CLOSED** rather than being
 deleted and everything below renumbered. What each closed section keeps is
 its citation count, which is the argument for why it was worth doing.
 
+## READ THE SOURCE BEFORE BUILDING ON ANY ENTRY, INCLUDING A POPULAR ONE
+
+**Nine entries across two runs described a wall that was not there.** Run 1
+filed four things the library already did. Run 2 filed five more, and they
+are kept below marked **NEVER REAL** with the evidence rather than deleted,
+because the record of why a gap was filed and why it was not real is worth
+more than a clean list.
+
+The pattern is not carelessness. **An entry is written at the moment of
+hitting a wall** — when the author knows the symptom exactly and is
+guessing at the cause. The symptom is nearly always real; the mechanism is
+a hypothesis, and it is written down in the same confident voice as the
+measurement beside it.
+
+Three properties make a wrong entry more dangerous than no entry:
+
+- **Citation count does not validate a mechanism.** NR-4 was promoted out
+  of a footnote on *two independent citations* — a film UI and an anime
+  UI, consecutive briefs, agreeing on the remedy. Both authors hit a real
+  wall; both were wrong about which one. One of them found a workaround
+  and wrote it up as a half-refutation without noticing that the simple
+  spelling worked all along. Agreement between authors is evidence about
+  the SYMPTOM and none at all about the CAUSE.
+- **A wrong mechanism sends the fix to the wrong place.** NR-4 would have
+  bought `Material::worldSpace()`; what is actually missing is one
+  injected uniform. The entry did not merely overstate the gap, it
+  described a different one.
+- **Wrong entries propagate into study headers**, where they are read as
+  house knowledge. Five such claims are live in shipped sketches.
+
+So: reproduce the wall before building the fix, and prefer a probe that
+reads pixels back to an argument that sounds right. Every NEVER REAL below
+was settled in minutes by a twenty-line sketch.
+
 Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 `STRESS_TESTS.md` (the acceptance catalog and the measured numbers),
 `REVIEW.md` (the earlier first-principles pass this extends).
