@@ -56,6 +56,13 @@ struct PathFormat {
 
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
+  /** Stroke cap and join on the paint itself. The card illustration of
+   *  the Fallout 2 study is ~30 open contours of line art; every one of
+   *  them ended square and mitred at the joints because this paint was
+   *  built and never asked. Distinct from `lines::Line`'s join item,
+   *  which is about the OFFSET CONTOUR rather than the stroke paint. */
+  SkPaint::Cap cap = SkPaint::kButt_Cap;
+  SkPaint::Join join = SkPaint::kMiter_Join;
   float dashPhase = 0.0f;
   /** Bind the dash phase to a wrapping Output and the dashes MARCH —
    *  the commonest animated-line idiom in map and diagram UI (a selected
@@ -124,6 +131,8 @@ struct PathFormat {
     // visible half lands entirely on the kept side (the standard trick).
     const bool aligned = align != Align::Center;
     p.setStrokeWidth(aligned ? width * 2 : width);
+    p.setStrokeCap(cap);
+    p.setStrokeJoin(join);
     if (strokeFill.kind == Fill::Kind::Color)
       p.setColor4f(strokeFill.colorValue, nullptr);
     else if (strokeFill.kind == Fill::Kind::Shader)

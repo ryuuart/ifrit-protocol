@@ -7,6 +7,11 @@
 
 #include "ComposeRuntime.h"
 
+#include <sigilweave/FontContext.h>
+
+#include <include/core/SkFont.h>
+#include <include/core/SkFontMetrics.h>
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
@@ -72,6 +77,26 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
       recorder.beginRecording(SkRect::MakeWH(rect.width(), rect.height()));
   impl.paint(*impl.root, *canvas);
   return recorder.finishRecordingAsPicture();
+}
+
+TextMetrics metrics(const sigil::weave::TextStyle &style,
+                    sigil::weave::FontContext &fonts) {
+  SkFont font(style.shaping.typeface ? style.shaping.typeface
+                                     : fonts.defaultTypeface(),
+              style.shaping.fontSize);
+  SkFontMetrics fm;
+  font.getMetrics(&fm);
+  TextMetrics out;
+  out.ascent = -fm.fAscent;  // Skia reports ascent negative (above baseline)
+  out.descent = fm.fDescent;
+  out.leading = fm.fLeading > 0 ? fm.fLeading : 0.0f;
+  // Some faces report zero for these; fall back to the conventional
+  // fractions of the ascent rather than handing back a zero that reads as
+  // a measurement.
+  out.capHeight = fm.fCapHeight > 0 ? fm.fCapHeight : out.ascent * 0.72f;
+  out.xHeight = fm.fXHeight > 0 ? fm.fXHeight : out.ascent * 0.52f;
+  out.lineHeight = out.ascent + out.descent + out.leading;
+  return out;
 }
 
 SkSize measure(Element root, sigil::weave::FontContext &fonts,

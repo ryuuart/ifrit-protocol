@@ -1239,6 +1239,35 @@ sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
  *  content-fit chrome (marquees, tooltips, badges): measure the content,
  *  then describe the real tree with the answer. Same sampling rules as
  *  snapshot() — bindings at current values, no transitions. */
+/** A face's vertical metrics at a given size, without laying anything out.
+ *
+ *  The most-used missing primitive in the study program, and the reason
+ *  is a mismatch nobody documents: a compose text node's top is the LINE
+ *  BOX top, while almost every artefact worth reconstructing positions
+ *  type by its CAP TOP. Aligning a rebuild to a reference therefore needs
+ *  the slack between the two, and `measure()` returns only an `SkSize` —
+ *  so the Fallout 2 sheet inferred it as an empirical
+ *  `0.20 × measure("H").height()` across ~134 runs and three faces, which
+ *  happened to work and was a guess.
+ *
+ *  `capHeight` and `xHeight` are what a face reports; both fall back to a
+ *  fraction of the ascent when it reports zero, which some faces do.
+ *  Values are positive distances in px, `ascent` above the baseline. */
+struct TextMetrics {
+  float ascent = 0;     ///< baseline to the top of the em box (positive)
+  float descent = 0;    ///< baseline to the bottom (positive)
+  float leading = 0;    ///< the face's recommended extra line gap
+  float capHeight = 0;  ///< baseline to the top of a flat capital
+  float xHeight = 0;    ///< baseline to the top of a lowercase x
+  float lineHeight = 0; ///< ascent + descent + leading
+  /** How far the line box's top sits above the cap top — the number that
+   *  turns "place this at the reference's y" into a coordinate. */
+  float capSlack() const { return ascent - capHeight; }
+};
+
+TextMetrics metrics(const sigil::weave::TextStyle &style,
+                    sigil::weave::FontContext &fonts);
+
 SkSize measure(Element root, sigil::weave::FontContext &fonts,
                SkSize maxSize = SkSize::MakeEmpty());
 
