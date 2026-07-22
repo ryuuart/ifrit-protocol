@@ -1024,6 +1024,21 @@ your code runs.
 
 ## Materials — the polymorphic paint value
 
+### The cost model, stated plainly
+
+A static SkSL material's **shader** caches. Its **pixels do not**, and
+automatic picture caching cannot help — a picture records the draw call,
+not the result, so a full-canvas `patterns::grain` re-runs its shader on
+every replay.
+
+That is not a small effect. One such node cost **480 ms of a 624 ms
+frame** in the tartan study; `.cache(Cache::Texture)` on two grain layers
+took the frame **624 ms → 28 ms, 22×**.
+
+So: a large node filled with a generated material wants `Cache::Texture`
+explicitly, whenever its content is static. The rule of thumb is area —
+a swatch does not care, a full-canvas wash does.
+
 `Material` (`<sigilcompose/Material.h>`) supersedes the kernel's
 three-case `Fill` as the *authoring* value for `fill()` — and for
 `textFill()`, glyph paint mapped to text-metric space; `Fill` stays
