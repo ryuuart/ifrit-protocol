@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `Pool::texWindows()` — per-instance UV window | The per-sprite tex rect existed all the way down; the only narrowing was that a Pool could name a cell INDEX and never a RECT | `Instances.h` |
+| `shapes::circle(direction, startIndex)` | The winding IS the engraver's convention — glyph-up points radially IN on one plate and OUT on another, and half of all ring inscriptions hand-rolled an OutlineFn over a default nobody chose | `Shapes.h` |
 | `Ribbon::widthMax` | `bleed()` cannot look inside a `widthFn`, so a 166 px flow band declared 10 px of reach and was silently clipped | `Brushes.h` |
 | `Atlas::filter()`, two-axis `patterns::gridLines` | Instancing's biggest use is tilemaps — pixel grids — and a lattice whose pitch differs per axis is not exotic (an X-COM panel's is 5 × 2) | `Instances.h`, `Patterns.h` |
 | `addFixed` exact across draw rates, and a clamp signal | The step count came from an accumulator, which slips one comparison over a long pre-roll; and a frame that DROPPED time makes anything measured on it meaningless | `sigilmotion/Ticker.*` |
@@ -644,13 +646,24 @@ instrument — and it lands on something nothing else could have found.
   labels re-record on every `render()`. The comparable-`Outline` fix in
   §3 covers this too if it carries a key.
 
-## 10f. `Material::sksl()` has no child shader and no array uniform
+## 10f. `Material::sksl()` has no child shader — but a LUT is NOT unreachable
 
-`Material.cpp` already builds an `SkRuntimeShaderBuilder` internally, and
-nothing public reaches its **child** slot or hands it an array. So a
-palette LUT — the defining primitive of the entire 8-bit era, and the
-natural expression of any indexed-colour reconstruction — is unreachable,
-and so is any effect that wants to sample another material.
+**Corrected before anyone built on it.** This entry said "a palette LUT
+is unreachable", which is too strong, and a researcher caught it by
+reading `Effect`'s doc: *the layer arrives as the child shader named
+`content`*, and `Element::effect()` / `backdrop()` take it. So a LUT, a
+transfer curve or a posterising quantiser over **already-painted
+content** works today. Verified with a probe that posterises a smooth
+ramp into four bands per channel.
+
+What is genuinely missing is a **two-source Material** — an index texture
+sampled against a palette texture — because `Material::sksl()` has no
+child slot even though `Material.cpp` already builds an
+`SkRuntimeShaderBuilder` internally. That is a smaller and more precise
+ask than the one this entry started as.
+
+*(Seventh claim in this program that would have been recorded as
+impossible and was not.)*
 
 Related and smaller, from the same study: X-COM's shading is
 `(src & 0xF0) | min(15, (src & 0x0F) + shade)` — index arithmetic with no

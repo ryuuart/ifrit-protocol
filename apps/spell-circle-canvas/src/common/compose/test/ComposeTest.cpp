@@ -6307,3 +6307,47 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   // …and the directed overload's default IS the undirected one.
   EXPECT_EQ(differing(*cw, *plain), 0);
 }
+
+TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
+  // The per-sprite texture rect existed all the way down —
+  // drawSpriteAtlas reads tex[i] per sprite — and the only narrowing was
+  // that a Pool could name a cell INDEX and never a RECT. So a strip of
+  // artwork crawling behind a slit, or a sprite scrolling within its own
+  // cell, was out of reach for want of a lane, not a draw path.
+  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  atlas->filter(SkFilterMode::kNearest);
+  // One cell, four vertical quarters: red, green, blue, white.
+  atlas->cell(box().width(16).height(64).column()
+                  .child(box().width(16).height(16).fill(Fill::color({1,0,0,1})))
+                  .child(box().width(16).height(16).fill(Fill::color({0,1,0,1})))
+                  .child(box().width(16).height(16).fill(Fill::color({0,0,1,1})))
+                  .child(box().width(16).height(16).fill(Fill::color({1,1,1,1}))),
+              {16, 64});
+
+  auto quarterAt = [&](float top) {
+    auto pool = std::make_shared<instancing::Pool>();
+    pool->add({100, 100});
+    pool->texWindows()[0] = SkRect::MakeXYWH(0.0f, top, 1.0f, 0.25f);
+    pool->sizes()[0] = {1.0f, 0.25f}; // draw the window at its own aspect
+    pool->touch();
+    Host host(200, 200);
+    host.composer.render(box().absolute().inset(0).child(
+        instancing::instances(atlas, pool, instancing::Mode::Data)));
+    host.frame();
+    return host.pixel(100, 100);
+  };
+
+  // Sliding the window down the cell selects each band in turn — one
+  // pool, one cell, four different sprites.
+  const SkColor a = quarterAt(0.00f), b = quarterAt(0.25f);
+  const SkColor c = quarterAt(0.50f), d = quarterAt(0.75f);
+  EXPECT_GT(SkColorGetR(a), 180); EXPECT_LT(SkColorGetG(a), 80);
+  EXPECT_GT(SkColorGetG(b), 180); EXPECT_LT(SkColorGetR(b), 80);
+  EXPECT_GT(SkColorGetB(c), 180); EXPECT_LT(SkColorGetR(c), 80);
+  EXPECT_GT(SkColorGetR(d), 180); EXPECT_GT(SkColorGetB(d), 180);
+
+  // The lane is opt-in: a pool that never asks keeps the whole cell.
+  auto plain = std::make_shared<instancing::Pool>();
+  plain->add({100, 100});
+  EXPECT_FALSE(plain->hasTexWindows());
+}
