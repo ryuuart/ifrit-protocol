@@ -26,6 +26,7 @@ add_library(SigilCompose STATIC
   include/sigilcompose/Material.h
   include/sigilcompose/Pattern.h
   include/sigilcompose/Patterns.h
+  include/sigilcompose/Debug.h
   include/sigilcompose/Sdf.h
   include/sigilcompose/Decorations.h
   include/sigilcompose/Layouts.h

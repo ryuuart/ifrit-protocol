@@ -1284,6 +1284,7 @@ TEST(ComposeTrim, BoundTrimRevealsWithoutRender) {
   EXPECT_GT(host.composer.stats().nodesPainted, 0u); // paints live
 }
 
+#include <sigilcompose/Debug.h>
 #include <sigilcompose/Sdf.h>
 
 TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
@@ -4929,4 +4930,67 @@ TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
   EXPECT_GT(lit(host, 20, 60), 200);   // ink on the first contour…
   EXPECT_GT(lit(host, 140, 180), 200); // …and on the second, which used
                                        // to be silently unreachable
+}
+
+TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
+  // The Penrose study's sharpest finding, made into library code: a
+  // subdivision that OVERLAPS in one place and GAPS in another passes
+  // both cheap checks. Area conservation passes because the two errors
+  // cancel exactly; containment passes because every piece really is
+  // inside the parent. Only point sampling sees it.
+  const SkRect region = SkRect::MakeWH(100, 100);
+
+  // An honest split of the square into two halves.
+  auto rect = [](float l, float t, float r, float b) {
+    SkPathBuilder p;
+    p.addRect(SkRect::MakeLTRB(l, t, r, b));
+    return p.detach();
+  };
+  const std::vector<SkPath> exact = {rect(0, 0, 50, 100), rect(50, 0, 100, 100)};
+  const auto good = debug::coverage(exact, region, 64);
+  EXPECT_TRUE(good.exact());
+  EXPECT_EQ(good.uncovered, 0);
+  EXPECT_EQ(good.doubled, 0);
+
+  // The same two halves, one shifted 10 px right: a 10-wide gap on the
+  // left, a 10-wide overlap in the middle. Equal areas, so the total is
+  // unchanged and both pieces are still inside the square.
+  const std::vector<SkPath> broken = {rect(10, 0, 60, 100),
+                                      rect(50, 0, 100, 100)};
+  float area = 0;
+  for (const SkPath &p : broken)
+    area += p.getBounds().width() * p.getBounds().height();
+  EXPECT_FLOAT_EQ(area, 100 * 100); // area conservation: PASSES
+  for (const SkPath &p : broken)
+    EXPECT_TRUE(region.contains(p.getBounds())); // containment: PASSES
+
+  const auto bad = debug::coverage(broken, region, 64);
+  EXPECT_FALSE(bad.exact()); // …and coverage does not
+  EXPECT_NEAR(bad.uncoveredFraction(), 0.10f, 0.02f);
+  EXPECT_NEAR(bad.doubledFraction(), 0.10f, 0.02f);
+  ASSERT_FALSE(bad.uncoveredAt.empty());
+  EXPECT_LT(bad.uncoveredAt.front().x(), 10.0f); // the witness is the gap
+}
+
+TEST(ComposeDebug, EndpointDegreesFindTheDanglingArc) {
+  // The chaining test for a decorated tiling: on the Oxford Penrose
+  // paving every interior arc endpoint must have degree 2, or the
+  // stainless bands do not link up into rings.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  // Three segments chained head-to-tail: two interior joints (degree 2),
+  // two loose ends (degree 1).
+  const std::vector<SkPath> chain = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                                     seg(20, 0, 30, 0)};
+  const auto degrees = debug::endpointDegrees(chain);
+  EXPECT_EQ(degrees.points.size(), 4u);
+  EXPECT_EQ(degrees.outside(2, 2).size(), 2u); // the two loose ends
+
+  // Move one segment off its joint: now four loose ends, not two.
+  const std::vector<SkPath> broken = {seg(0, 0, 10, 0), seg(11, 0, 20, 0),
+                                      seg(20, 0, 30, 0)};
+  EXPECT_EQ(debug::endpointDegrees(broken).outside(2, 2).size(), 4u);
 }
