@@ -204,12 +204,27 @@ struct MotionPosterScene final : Scene {
                            {0.45f, {0.42f, 0.12f, 0.08f, 0.35f}},
                            {1.00f, {0, 0, 0, 0}}}),
          SkBlendMode::kSrcOver},
+        // The sweep highlight, EXPRESSED IN THE 0..360 FRAME.
+        //
+        // It used to be (-104, 256) with the gold at t=0.18. A sweep's
+        // parameter comes from atan2, whose branch is the +x ray, so with a
+        // start angle of -104 the reachable range is t in [104/360, 1] =
+        // [0.289, 1]: the whole gold stop at 0.18 fell BELOW it and clamped.
+        // The result was not a missing highlight but a HARD HORIZONTAL STEP
+        // — alpha 0 on one side of the +x ray, 0.118 gold on the other,
+        // measured (28,12,28) -> (37,18,29) on one scanline, running the
+        // full width of the poster through the halo's centre.
+        //
+        // Same angular profile, no branch: transparent at 256 deg, up to
+        // 0.30 at 320.8, down to 0 at 25.6. That band straddles 0 deg, so
+        // t=0 and t=1 both carry its mid-value and the wrap is continuous.
         {Material::sweep(focus,
-                         {{0.00f, {0, 0, 0, 0}},
-                          {0.18f, {1.0f, 0.80f, 0.42f, 0.30f}},
-                          {0.36f, {0, 0, 0, 0}},
-                          {1.00f, {0, 0, 0, 0}}},
-                         -104, 256),
+                         {{0.0000f, {1.0f, 0.80f, 0.42f, 0.1185f}},
+                          {0.0711f, {0, 0, 0, 0}},
+                          {0.7111f, {0, 0, 0, 0}},
+                          {0.8911f, {1.0f, 0.80f, 0.42f, 0.30f}},
+                          {1.0000f, {1.0f, 0.80f, 0.42f, 0.1185f}}},
+                         0, 360),
          SkBlendMode::kPlus},
         {Material::radial(focus, 340,
                           {{0.86f, {0, 0, 0, 0}},

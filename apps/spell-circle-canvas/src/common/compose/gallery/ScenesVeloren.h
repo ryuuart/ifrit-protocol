@@ -306,7 +306,14 @@ struct WorldHudScene final : Scene {
       poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
       compass = (float)std::fmod(t * 8.0, 360.0);
       xp = (float)std::fmod(t * 0.11, 1.0);
-      enemyHp = std::max(0.0f, 0.85f - (float)std::fmod(t * 0.16, 1.0));
+      // The boss bar drains over the 6.25 s cycle. It used to be
+      // max(0, 0.85 - fmod(...)), which reaches zero at fmod = 0.85 and then
+      // sits at EXACTLY EMPTY for the remaining 0.94 s — 15% of every cycle,
+      // and the gallery's (now deterministic) capture frame lands inside it,
+      // so the scene's canonical still showed a boss nameplate over a black
+      // slab with no fill at all. Scaled to drain 0.85 -> 0.08 instead: the
+      // same sawtooth, the same read, but the bar is never empty.
+      enemyHp = 0.85f - 0.77f * (float)std::fmod(t * 0.16, 1.0);
       for (size_t i = 0; i < cooldown.size(); ++i) {
         const double period = 2.4 + 0.9 * (double)i;
         // the dark cover keeps its top edge and its bottom edge rises

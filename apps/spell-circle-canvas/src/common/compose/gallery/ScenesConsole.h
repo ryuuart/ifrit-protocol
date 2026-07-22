@@ -126,7 +126,11 @@ struct DaemonConsoleScene final : Scene {
     s.palette = {dc::mono(14, dc::kGreenDim), dc::mono(14, dc::kAmber),
                  dc::mono(14, dc::kAlert)};
     s.gap = 3;
-    s.visibleLines = 24; // 22 in the 960x600 sketch; 640 tall fits more
+    // 22 in the 960x600 sketch. At 24 the feed left four lines of empty
+    // panel under the cursor and scrolled anyway, which reads as a feed
+    // that has lost its own history. 25 is what the well fits at 17px
+    // pitch once the padding clears the chrome.
+    s.visibleLines = 25;
     s.cursorColor = dc::kGreen;
     s.cursorWidth = 9;
     s.cursorHeight = 15;
@@ -189,11 +193,14 @@ struct DaemonConsoleScene final : Scene {
                                {{0.0f, {0.03f, 0.065f, 0.042f, 1}},
                                 {1.0f, dc::kInk}}))
         .child(
-            // The SDF style reserves ~24px of pad inside the box (glow
-            // room), so the panel's content padding matches it -- children
-            // sit inside the DRAWN chrome, not the layout box.
+            // The SDF style reserves pad inside the box for the glow, and
+            // the DRAWN border lands 30px in, not the ~24 this comment used
+            // to claim: at padding(34, 30) the rule ran straight through the
+            // cap-height of DAEMON WATCH and clipped the uplink's last
+            // glyph on the corner arc. The content padding has to CLEAR the
+            // drawn chrome, not meet it.
             box().column().inset(44, 40, 44, 40).fill(chrome)
-                .clip().padding(34, 30)
+                .clip().padding(46, 44)
                 .child(box().row().gap(10).margin(0, 0, 0, 10)
                            .child(text(toU8("DAEMON WATCH"),
                                        dc::mono(16, dc::kGreen)))

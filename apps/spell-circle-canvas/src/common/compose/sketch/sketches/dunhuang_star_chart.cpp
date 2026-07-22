@@ -2180,7 +2180,10 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const Win wins[2] = {{(kOriginL - kBreakL) / kPxMm, (kOriginL + 90) / kPxMm},
                          {(kOriginR - kW - 90) / kPxMm, (kOriginR - kBreakR) / kPxMm}};
     for (const Win &wn : wins) {
-      const float a = atlasRight - wn.s1 * mm, b = atlasRight - wn.s0 * mm;
+      // the plate's canvas reaches ~227 mm past the atlas's own left end, so
+      // window 0 runs off the strip; clamp it to the scroll it annotates
+      const float a = std::max(0.0f, atlasRight - wn.s1 * mm);
+      const float b = std::min(lw, atlasRight - wn.s0 * mm);
       g.child(box().absolute().left(a).top(-4).width(Dim(b - a)).height(Dim(lh + 8))
                   .fill(Fill::color(hex(0x2f6d86, 0.30f)))
                   .foreground(decorations::brackets(1.4f, Fill::color(kTrace), 9.0f,
@@ -2250,16 +2253,19 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .stroke(PathFormat{.width = 0.7f,
                                    .strokeFill = Fill::color(hex(0x8a7458, 0.45f)),
                                    .dashIntervals = {3, 4}}));
-    struct Ref { float ra, dec; const char *name; };
-    const Ref refs[3] = {{37.9529f, 89.2641f, "alp UMi"},
-                         {222.6764f, 74.1555f, "bet UMi"},
-                         {211.0973f, 64.3758f, "alp Dra"}};
+    // alp UMi is 0.74° from the J2000 pole, so its dot lands ON the centre
+    // marker and the default up-right label lands ON "J2000 pole". The two
+    // captions flank the coincident pair on one line instead.
+    struct Ref { float ra, dec; const char *name; float lx, ly; };
+    const Ref refs[3] = {{37.9529f, 89.2641f, "alp UMi", 6.0f, 6.0f},
+                         {222.6764f, 74.1555f, "bet UMi", 5.0f, -5.0f},
+                         {211.0973f, 64.3758f, "alp Dra", -8.0f, -13.0f}};
     for (const Ref &r : refs) {
       const SkPoint q = plot(r.ra, r.dec);
       g.child(box().absolute().left(q.fX - 3).top(q.fY - 3).width(Dim(6)).height(Dim(6))
                   .outline(shapes::circle()).fill(Fill::color(kCinnabar)));
       g.child(text(toU8(r.name), type(faceMono, 7.4f, hex(0x9a8a68)))
-                  .absolute().left(q.fX + 5).top(q.fY - 5).width(Dim(60)));
+                  .absolute().left(q.fX + r.lx).top(q.fY + r.ly).width(Dim(60)));
     }
     {
       float ra, dec;
@@ -2274,7 +2280,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .stroke(PathFormat{.width = 0.9f,
                                    .strokeFill = Fill::color(hex(0xe0cfa6, 0.8f))}));
     g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hex(0x6d6249)))
-                .absolute().left(cx + 6).top(cy - 4).width(Dim(70)));
+                .absolute().left(cx - 52).top(cy + 6).width(Dim(70)));
     return g;
   }
 
@@ -2544,10 +2550,19 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                       "W=Wu Xian shi"),
                  type(faceMono, 8.6f, hex(0x9a8a68)))
                 .absolute().left(0).top(16).width(Dim(880)));
-    const float y0 = 34.0f, rowH = 15.2f;
-    const char *hdr = "  #  ASTERISM        \xe4\xb8\xad\xe6\x96\x87  COL  SXC  MAP  CZ  CONF  DEFECT";
-    g.child(text(toU8(hdr), type(faceMono, 8.6f, hex(0x6d6249)))
-                .absolute().left(0).top(y0 - 12).width(Dim(880)));
+    // the subtitle above runs top 16..24 at 8.6 px; the column header needs
+    // its own line, not the same one
+    const float y0 = 40.0f, rowH = 15.2f;
+    // one hand-spaced monospace string cannot land on these columns: the rows
+    // are absolutely placed, the numeric block is a THIRD size, and the CJK
+    // pair in the middle is double-advance. Each head sits on its own column.
+    struct Head { float x; const char *s; };
+    const Head heads[9] = {{11, "#"},        {30, "ASTERISM"}, {160, "\xe4\xb8\xad\xe6\x96\x87"},
+                           {228, "COL"},     {253, "SXC"},     {281, "MAP"},
+                           {312, "CZ"},      {362, "CONF"},    {400, "DEFECT"}};
+    for (const Head &h : heads)
+      g.child(text(toU8(h.s), type(faceMono, 8.6f, hex(0x6d6249)))
+                  .absolute().left(h.x).top(y0 - 13).width(Dim(120)));
     for (int i = 0; i < 20; ++i) {
       const M5Row &r = kMap5[(size_t)i];
       const float y = y0 + (float)i * rowH;
