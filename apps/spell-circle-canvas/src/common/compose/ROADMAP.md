@@ -184,6 +184,7 @@ missing ones.
 | `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
 | §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
 | **`withKeyframes` repainted through its own hold segments** (§17) | Volatility asked whether a motion was CONNECTED and never whether the value MOVED, so a keyframe hold, a settled easing, or any waypoint pair with equal values repainted every frame while provably constant — 29 ms of a 38 ms frame in one study. The recording made with those numbers is still exact while they hold | `Paint.cpp`, `ComposeRuntime.h` |
+| `Ticker::elapsed()` | Steppables could not read the clock they were being driven by, so every study that wanted a phase kept a private accumulator beside the ticker. Three lines. The extraction study then proposed `phase()`/`breath()` helpers over that pattern and WITHDREW them: a helper wrapping an unreachable clock just becomes copy thirty-seven — the getter is the fix, the sugar is not | `sigilmotion/Ticker.*` |
 | Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
 | **`Cache::Texture` baked a quarter turn at QUARTER resolution** | `getScaleX/getScaleY` are the matrix DIAGONAL, and Skia snaps cos(90°) to exactly zero — so a ±90° node reported scale 0, clamped to the 0.25 floor and linear-upscaled 4×. Measured mean \|Δ\| over ink: 30–32/255 at ±90°, 14.5 at 45°, 2.4 at 180°. Singular values (`maxScaleOf`) instead | `ComposeRuntime.h`, `Paint.cpp`, `Composer.cpp` |
 | **Promotion could not SEE a leaf** | A bare box never records a picture (one `drawRect` beats a nested recording) and the promoter only ever measured the replay path — so the corpus's largest cost centre, a full-canvas box carrying one shader, was structurally invisible to it: 663 of 697 ms in `chladni_tab1`, 476 of 568 in `twoadvanced_v4`, 818 of 1115 in `chaucer_astrolabe`, every one of them `live paint` | `Paint.cpp` |
@@ -1054,13 +1055,15 @@ child's motion, not one still.
 
 ## 16. Stamped-brush bakes are cached in the VALUE, so rebuilding the value re-bakes everything
 
-`PatternBrush` and `ScatterBrush` hold their `snapshot()` of the tile art
+`PatternBrush`, `ScatterBrush` **and `ArtBrush`** hold their `snapshot()` of the tile art
 in a `shared_ptr<Cache>` that is a member of the brush. Copying the brush
 shares the cache; CONSTRUCTING one gets an empty cache. So a brush built
 inside a per-frame describe re-bakes every tile every frame, and each bake
 is a full reconcile + layout + record pass through `snapshot()` — one
 study measured **eighteen of those per frame** from a brush constructed
-inside the function passed to `renderSlot()`.
+inside the function passed to `renderSlot()`. `ArtBrush` was missing from
+this entry's first draft and has the most expensive bake of the three —
+it bakes at 2x and builds a triangle-strip ribbon per contour.
 
 Documented in the header now, which stops it being silent but does not
 stop it being a trap. The real fix is a bake cache that does not live in

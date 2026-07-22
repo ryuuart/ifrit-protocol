@@ -5439,6 +5439,68 @@ struct Blob {
 };
 } // namespace
 
+// ---------------------------------------------------------------------------
+// API.md's call surface, compiled.
+//
+// A documented signature that does not compile is worse than no
+// documentation: it is a confident wrong answer, and the reader trusts it
+// over the header. Writing API.md's borders/corners and brush sections
+// turned up exactly that — `brushes::restyle` was written there with its
+// arguments in the wrong order, and nothing but compiling it would have
+// caught that, because the prose around it was correct.
+//
+// So every call spelled in those sections is spelled here too. This test
+// asserts nothing at runtime; its value is entirely that it must build.
+TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
+  Fill ink = Fill::color({1, 1, 1, 1});
+
+  auto border = decorations::border(1.4f, ink, 0.0f);
+  auto brackets = decorations::brackets(2.0f, ink, 18.0f, 0.0f, 12.0f);
+  auto gapped = decorations::gappedRule(1.4f, ink, 14.0f, 0.0f, 12.0f);
+  auto weighted = decorations::weightedCorners(1.0f, 3.4f, ink, 18.0f, 0.0f,
+                                               12.0f);
+  auto doubled = decorations::doubleBorder(border, border);
+
+  auto symmetric = lines::rails(3, 1.6f, ink, 5.0f);
+  auto explicitSet =
+      lines::rails({{.offset = -3, .width = 1.6f, .fill = ink},
+                    {.offset = 0,
+                     .width = 0.6f,
+                     .fill = ink,
+                     .dash = {0.01f, 9.4f},
+                     .cap = SkPaint::kRound_Cap}});
+
+  auto ngon = shapes::polygon(20, -90.0f);
+  auto chamfer = shapes::chamfered(22.0f, shapes::Corner::All);
+  auto notch = shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal);
+  auto edges = shapes::onEdges(shapes::Edge::Top, util::stroke(2.0f, ink));
+
+  auto glow = brushes::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
+  auto trace = brushes::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
+  auto cord = brushes::rope(1, 1.0f);
+  // OP FIRST, decoration second — the order API.md originally got wrong.
+  auto restyled = brushes::restyle(ops::sketchy(8.0f, 2.0f, 7),
+                                   util::stroke(1.0f, ink), 8.0f);
+
+  lines::Hatch hatch;
+  choreograph::Output<float> pitch{6.0f}, angle{0.0f};
+  hatch.spacingBinding = &pitch;
+  hatch.angleBinding = &angle;
+  EXPECT_TRUE(hatch.animated()); // a binding IS the volatility declaration
+
+  ops::Wave wave{.amplitude = 3.5f, .wavelength = 22};
+  ops::Rounded rounded{};
+  ops::Sketchy sketchy{};
+  ops::Square square{};
+  ops::Offset offset{};
+
+  (void)brackets; (void)gapped; (void)weighted; (void)doubled;
+  (void)symmetric; (void)explicitSet;
+  (void)ngon; (void)chamfer; (void)notch; (void)edges;
+  (void)glow; (void)trace; (void)cord; (void)restyled;
+  (void)wave; (void)rounded; (void)sketchy; (void)square; (void)offset;
+}
+
 TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
   // Two defects in one placement, both found by a study that needed a real
   // 48 px elbow against 24 px sides.
@@ -7850,4 +7912,427 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
   // Out of bounds is transparent rather than undefined.
   EXPECT_EQ(r.at(-1, 0).fA, 0.0f);
   EXPECT_EQ(r.at(0, 999).fA, 0.0f);
+}
+
+// ---------------------------------------------------------------------------
+// The extraction layer: placement, the prelude, the console plate, and the
+// proving primitive. See EXTRACT.md for the counts these answer.
+
+#include <sigilcompose/Console.h>
+#include <sigilcompose/Debug.h>
+#include <sigilcompose/Studio.h>
+#include <sigilcompose/Util.h>
+
+TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
+  // THE load-bearing test for Element::rect(). 287 sketch + 29 gallery sites
+  // spell .absolute().left().top().width().height(), and nine studies wrote
+  // the three-line helper themselves under four names. The whole safety
+  // argument is that rect() describes the SAME node — so a re-describe that
+  // swaps one spelling for the other must prune to zero patches, and the
+  // pixels must not move.
+  Host host(200, 200);
+  const SkRect r = SkRect::MakeXYWH(40, 60, 50, 30);
+
+  auto longhand = [&] {
+    return box().child(box()
+                           .key("plate")
+                           .absolute()
+                           .left(Dim(40))
+                           .top(Dim(60))
+                           .width(Dim(50))
+                           .height(Dim(30))
+                           .fill(red()));
+  };
+  auto terse = [&] {
+    return box().child(box().key("plate").rect(r).fill(red()));
+  };
+
+  host.composer.render(longhand());
+  host.frame();
+  const auto boundsLonghand = host.composer.bounds("plate");
+  ASSERT_TRUE(boundsLonghand.has_value());
+  EXPECT_EQ(*boundsLonghand, r);
+  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);   // inside
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK); // above the top edge
+  EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK); // right of the right edge
+
+  // Re-describe with rect(). Equal props => the reconciler prunes it.
+  host.composer.render(terse());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "rect() described a node the reconciler considered DIFFERENT from "
+         "the longhand — it is not writing the same LayoutProps fields";
+  EXPECT_EQ(host.composer.bounds("plate"), boundsLonghand);
+  EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);
+
+  // And back the other way, so neither direction is the privileged one.
+  host.composer.render(longhand());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+
+  // NEGATIVE CONTROL — without this the two assertions above pass on a
+  // composer that never patches anything, which is exactly the vacuous
+  // shape this program keeps finding. A different rect MUST patch.
+  host.composer.render(
+      box().child(box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30))
+                      .fill(red())));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
+      << "the patch counter is not live, so the zeroes above prove nothing";
+  EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);
+  EXPECT_EQ(host.composer.bounds("plate")->fLeft, 41.0f);
+}
+
+TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
+  // The 187-site half of the longhand that carries no box: .left().top()
+  // on a node that measures itself from its content.
+  Host host(300, 200);
+  auto longhand = [] {
+    return box().child(
+        text(u8"Wm", styleAt(20)).key("cap").absolute().left(Dim(30)).top(
+            Dim(40)));
+  };
+  auto terse = [] {
+    return box().child(text(u8"Wm", styleAt(20)).key("cap").at({30, 40}));
+  };
+
+  host.composer.render(longhand());
+  host.frame();
+  const auto measured = host.composer.bounds("cap");
+  ASSERT_TRUE(measured.has_value());
+  EXPECT_FLOAT_EQ(measured->fLeft, 30.0f);
+  EXPECT_FLOAT_EQ(measured->fTop, 40.0f);
+  // Sized by its content, not by the caller: this is what rect() cannot do
+  // and is why at() exists separately (ScenesPersona.h:438-447 is the
+  // gallery case that rect() cannot serve at all).
+  EXPECT_GT(measured->width(), 1.0f);
+
+  host.composer.render(terse());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "at() is not left().top()";
+  EXPECT_EQ(host.composer.bounds("cap"), measured);
+
+  // Negative control, as above.
+  host.composer.render(
+      box().child(text(u8"Wm", styleAt(20)).key("cap").at({31, 40})));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
+  // The corpus-wide subtraction rests on one claim: every edge setter sets
+  // layout.absolute itself (Compose.cpp:95-129), so `.absolute()` before or
+  // after one writes a bool that is already written. 1,316 calls across both
+  // populations depend on this being exactly true — and on its NOT being
+  // true for a node that pins no edge, which is the shape a blind sweep
+  // would silently un-absolute.
+  Host host(200, 200);
+
+  auto withRedundant = [] {
+    return box().child(
+        box().key("p").absolute().left(Dim(30)).top(Dim(30)).width(20).height(
+            20).fill(red()));
+  };
+  auto without = [] {
+    return box().child(
+        box().key("p").left(Dim(30)).top(Dim(30)).width(20).height(20).fill(
+            red()));
+  };
+  host.composer.render(withRedundant());
+  host.frame();
+  const auto pinned = host.composer.bounds("p");
+  ASSERT_TRUE(pinned.has_value());
+  EXPECT_EQ(*pinned, SkRect::MakeXYWH(30, 30, 20, 20));
+
+  host.composer.render(without());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "dropping a redundant .absolute() changed the description";
+  EXPECT_EQ(host.composer.bounds("p"), pinned);
+  EXPECT_EQ(host.pixel(35, 35), SK_ColorRED);
+
+  // The 48-call shape the sweep must NOT touch: absolute with a size and no
+  // pinned edge. Here .absolute() is the only thing taking it out of flow,
+  // so removing it moves the node behind its sibling.
+  Host flow(200, 200);
+  flow.composer.render(box().row()
+                           .child(box().width(60).height(20).fill(green()))
+                           .child(box().key("q").absolute().width(20).height(20)
+                                      .fill(red())));
+  flow.frame();
+  ASSERT_TRUE(flow.composer.bounds("q").has_value());
+  EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 0.0f);
+
+  flow.composer.render(box().row()
+                           .child(box().width(60).height(20).fill(green()))
+                           .child(box().key("q").width(20).height(20)
+                                      .fill(red())));
+  flow.frame();
+  EXPECT_FLOAT_EQ(flow.composer.bounds("q")->fLeft, 60.0f)
+      << "if this is still 0 then .absolute() alone is ALSO redundant and "
+         "the sweep's predicate is over-cautious; if it is 60 the predicate "
+         "is exactly right";
+}
+
+TEST(ComposeStudio, TheColourOpsAreTheBodiesTheCorpusWroteTwentyFourTimes) {
+  // hex() is defined 24 times across 64 files under three names with
+  // byte-identical bodies and no shared brief between the groups.
+  constexpr SkColor4f rubric = studio::hex(0x8C2F22);
+  static_assert(studio::hex(0xFFFFFF).fR == 1.0f, "must stay constexpr — the "
+                                                  "palettes are constexpr");
+  EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
+  EXPECT_FLOAT_EQ(studio::hex(0x000000, 0.25f).fA, 0.25f);
+
+  // alpha() and mul() are two names on purpose: 45 gallery sites override
+  // alpha and 16 scale channels, and they are different operations.
+  const SkColor4f faded = studio::alpha(rubric, 0.4f);
+  EXPECT_FLOAT_EQ(faded.fR, rubric.fR);
+  EXPECT_FLOAT_EQ(faded.fA, 0.4f);
+
+  const SkColor4f lit = studio::mul(rubric, 1.5f);
+  EXPECT_FLOAT_EQ(lit.fR, rubric.fR * 1.5f);
+  EXPECT_FLOAT_EQ(lit.fA, rubric.fA) << "a < 0 must KEEP the source alpha";
+  EXPECT_FLOAT_EQ(studio::mul(rubric, 0.5f, 0.2f).fA, 0.2f);
+  // Deliberately unclamped: SkColor4f is float and >1 is meaningful.
+  EXPECT_GT(studio::mul(SkColor4f{0.9f, 0.9f, 0.9f, 1}, 2.0f).fR, 1.0f);
+
+  const SkColor4f half =
+      studio::mix({0, 0, 0, 0}, {1.0f, 0.5f, 0.25f, 1.0f}, 0.5f);
+  EXPECT_FLOAT_EQ(half.fR, 0.5f);
+  EXPECT_FLOAT_EQ(half.fG, 0.25f);
+  EXPECT_FLOAT_EQ(half.fA, 0.5f) << "mix() interpolates alpha too";
+
+  // phase() wraps and never NaNs on a zero period.
+  EXPECT_FLOAT_EQ(studio::phase(0.0, 4.0), 0.0f);
+  EXPECT_FLOAT_EQ(studio::phase(3.0, 4.0), 0.75f);
+  EXPECT_FLOAT_EQ(studio::phase(9.0, 4.0), 0.25f);
+  EXPECT_FLOAT_EQ(studio::phase(1.0, 0.0), 0.0f);
+
+  EXPECT_EQ(studio::fmt("%s %d %.2f", "n", 7, 1.5), "n 7 1.50");
+  // Sizes the result rather than truncating into a fixed stack buffer, which
+  // all seven hand-rolled versions did.
+  EXPECT_EQ(studio::fmt("%s", std::string(2000, 'x').c_str()).size(), 2000u);
+}
+
+TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
+  // GalleryCore.h:35 already ships styleAt(size, SkColor) and sixteen
+  // gallery scene headers wrote their own type() anyway — because they
+  // needed a face, or tracking, or condensation, or a wght variation
+  // (ScenesInventory.h:99), or slnt instead (ScenesSkillTree.h:122). This
+  // test asserts exactly the fields a positional two-argument helper could
+  // not reach; if it ever shrinks to size+colour, the extraction has failed
+  // the same way its predecessor did.
+  const sigil::weave::TextStyle s = studio::type({.size = 18.0f,
+                                                  .color = {0.2f, 0.4f, 0.6f, 1},
+                                                  .track = 1.25f,
+                                                  .condense = 0.94f,
+                                                  .weight = 650.0f,
+                                                  .slant = -10.0f,
+                                                  .aliased = true});
+  EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
+  EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
+  EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);
+  EXPECT_TRUE(s.shaping.aliased);
+  ASSERT_EQ(s.shaping.variations.size(), 2u);
+  EXPECT_EQ(std::string(s.shaping.variations[0].tag, 4), "wght");
+  EXPECT_FLOAT_EQ(s.shaping.variations[0].value, 650.0f);
+  EXPECT_EQ(std::string(s.shaping.variations[1].tag, 4), "slnt");
+  const SkColor4f c = s.paint.foreground.getColor4f();
+  EXPECT_FLOAT_EQ(c.fB, 0.6f);
+
+  // Defaults leave design space alone — an unvaried style must not carry a
+  // wght entry, or every default style occupies its own varied-face memo.
+  EXPECT_TRUE(studio::type({.size = 12}).shaping.variations.empty());
+
+  // It equals a hand-built style, so a study migrating to it prunes.
+  sigil::weave::TextStyle byHand;
+  byHand.shaping.fontSize = 18.0f;
+  byHand.shaping.letterSpacing = 1.25f;
+  byHand.shaping.scaleX = 0.94f;
+  byHand.shaping.aliased = true;
+  byHand.paint.foreground.setColor4f({0.2f, 0.4f, 0.6f, 1}, nullptr);
+  byHand.paint.foreground.setAntiAlias(true);
+  byHand.variation("wght", 650.0f);
+  byHand.variation("slnt", -10.0f);
+  EXPECT_TRUE(s == byHand)
+      << "studio::type() is not the six-statement core the corpus wrote";
+
+  // And it actually lays out — a TextStyle that measures to nothing would
+  // satisfy every field assertion above.
+  const SkSize measured = measure(text(u8"Wm", studio::type({.size = 40})),
+                                  fonts());
+  EXPECT_GT(measured.width(), 10.0f);
+  EXPECT_GT(measured.height(), 10.0f);
+}
+
+TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
+  // Seven independent hand-builds differing only in count, axis and colour.
+  // The plate does NOT place itself — it takes the rect, which is the
+  // Layouts.h rule.
+  Host host(240, 120);
+  console::LineRing a, b;
+  a.append(u8"alpha", 0);
+  b.append(u8"beta", 0);
+
+  console::Style style;
+  style.text = studio::type({.size = 9, .color = {1, 1, 1, 1}});
+  style.palette = {studio::type({.size = 9, .color = {1, 1, 1, 1}})};
+  style.gap = 1.0f;
+
+  auto plate = [&] {
+    return box().child(console::panel({.rings = {&a, &b},
+                                       .style = style,
+                                       .paddingX = 10,
+                                       .paddingY = 6,
+                                       .gap = 8,
+                                       .fill = Fill::color({0, 0, 0.5f, 1}),
+                                       .border = green(),
+                                       .divider = red()})
+                           .key("plate")
+                           .rect(SkRect::MakeXYWH(20, 20, 200, 80)));
+  };
+  host.composer.render(plate());
+  host.frame();
+
+  ASSERT_TRUE(host.composer.bounds("plate").has_value());
+  EXPECT_EQ(*host.composer.bounds("plate"), SkRect::MakeXYWH(20, 20, 200, 80));
+  // The ground, inside the keyline.
+  EXPECT_EQ(SkColorGetB(host.pixel(120, 25)), 128);
+  // The inner keyline sits ON the edge, not outside it.
+  EXPECT_GT(SkColorGetG(host.pixel(120, 20)), 180);
+  EXPECT_EQ(host.pixel(120, 19), SK_ColorBLACK);
+  // The divider: one red column at the horizontal midpoint of the interior.
+  int redColumns = 0;
+  for (int x = 21; x < 219; ++x)
+    if (SkColorGetR(host.pixel(x, 60)) > 180 &&
+        SkColorGetG(host.pixel(x, 60)) < 80)
+      ++redColumns;
+  EXPECT_EQ(redColumns, 1) << "a row panel of two rings has exactly one "
+                              "divider between them";
+
+  // Re-describing an unchanged plate prunes: the panel is composition over
+  // the kernel and adds no volatility of its own.
+  host.composer.render(plate());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+
+  // A column panel puts the divider on the other axis, and the same call
+  // site says so with one field.
+  Host col(240, 120);
+  col.composer.render(box().child(
+      console::panel({.rings = {&a, &b},
+                      .style = style,
+                      .column = true,
+                      .paddingX = 10,
+                      .paddingY = 6,
+                      .gap = 8,
+                      .fill = Fill::color({0, 0, 0.5f, 1}),
+                      .divider = red()})
+          .rect(SkRect::MakeXYWH(20, 20, 200, 80))));
+  col.frame();
+  int redRows = 0;
+  for (int y = 21; y < 99; ++y)
+    if (SkColorGetR(col.pixel(120, y)) > 180 && SkColorGetG(col.pixel(120, y)) < 80)
+      ++redRows;
+  EXPECT_EQ(redRows, 1);
+
+  // monoStyle builds one TextStyle per palette colour off one face and size
+  // — the block six studies wrote five times over. The palette entries mean
+  // nothing to it, deliberately: the six plates do not agree on their order.
+  const console::Style mono =
+      console::monoStyle(nullptr, 10.5f, {1, 1, 1, 1},
+                         {{0.5f, 0.5f, 0.5f, 1}, {0, 1, 0, 1}, {1, 0, 0, 1}});
+  EXPECT_FLOAT_EQ(mono.text.shaping.fontSize, 10.5f);
+  ASSERT_EQ(mono.palette.size(), 3u);
+  EXPECT_FLOAT_EQ(mono.palette[1].shaping.fontSize, 10.5f);
+  EXPECT_FLOAT_EQ(mono.palette[2].paint.foreground.getColor4f().fR, 1.0f);
+  EXPECT_FLOAT_EQ(mono.palette[2].paint.foreground.getColor4f().fG, 0.0f);
+}
+
+TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
+  // Both proving plates in the corpus prove themselves on screen and neither
+  // can be falsified by its own output: 53 fmt() calls producing strings
+  // whose truth is not connected to the assertion. The fix is that the
+  // printed verdict is DERIVED from the two values it prints —
+  // minard_1869.cpp:2580 invented exactly this as a lambda.
+  const debug::Check ok = debug::check("northern column", 422000 - 22000,
+                                       400000);
+  EXPECT_TRUE(ok.pass);
+  EXPECT_NE(ok.line().find("400000"), std::string::npos);
+  EXPECT_NE(ok.line().find("PASS"), std::string::npos);
+  EXPECT_EQ(ok.line().find("FAIL"), std::string::npos);
+
+  const debug::Check bad = debug::check("Berezina", 20000 + 30000, 49000);
+  EXPECT_FALSE(bad.pass);
+  EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
+      << "a failing check must print what it wanted, or the plate says "
+         "nothing an author can act on: " << bad.line();
+
+  // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
+  // checks silently losing their units to a console column that clipped.
+  const std::string wide =
+      debug::check(std::string(80, 'L'), 1, 1).line(44);
+  EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
+
+  // Floats need a tolerance the STUDY chooses; there is no default.
+  EXPECT_TRUE(debug::check("R", 257.972, 257.9715, 0.001).pass);
+  EXPECT_FALSE(debug::check("R", 257.972, 257.9, 0.001).pass);
+  EXPECT_NE(debug::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
+            std::string::npos);
+
+  EXPECT_TRUE(debug::check("winding", std::string_view("kCW"),
+                           std::string_view("kCW")).pass);
+  EXPECT_FALSE(debug::check("closed", false).pass);
+  EXPECT_TRUE(debug::check("closed", true).pass);
+
+  const debug::Check checks[] = {ok, bad, debug::check("x", true)};
+  EXPECT_EQ(debug::failures(checks), 1);
+  EXPECT_EQ(debug::failures(std::span<const debug::Check>{checks, 1}), 0);
+
+  // report() lands the line in the ring under the palette index the VERDICT
+  // chose — that link is the whole primitive.
+  console::LineRing ring;
+  debug::report(ring, ok, 1, 2);
+  debug::report(ring, bad, 1, 2);
+  ASSERT_EQ(ring.lines().size(), 2u);
+  EXPECT_EQ(ring.lines()[0].paletteIndex, 1u);
+  EXPECT_EQ(ring.lines()[1].paletteIndex, 2u);
+  EXPECT_NE(ring.lines()[1].text.find(u8"FAIL"), std::u8string::npos);
+
+  // And it renders: a plate whose checks never reach the screen is the
+  // situation this replaces.
+  Host host(200, 60);
+  console::Style style;
+  style.text = studio::type({.size = 9, .color = {1, 1, 1, 1}});
+  style.palette = {studio::type({.size = 9, .color = {0, 1, 0, 1}}),
+                   studio::type({.size = 9, .color = {1, 0, 0, 1}})};
+  host.composer.render(box().fill(Fill::color({0, 0, 0, 1}))
+                           .child(console::console(ring, style).at({4, 4})));
+  host.frame();
+  int inked = 0;
+  for (int y = 0; y < 40; ++y)
+    for (int x = 0; x < 200; ++x)
+      if (host.pixel(x, y) != SK_ColorBLACK)
+        ++inked;
+  EXPECT_GT(inked, 50) << "the reported checks drew nothing";
+}
+
+TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
+  const SkRect r = util::centred({100, 50}, 40, 20);
+  EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
+  EXPECT_EQ(util::centred({100, 50}, SkSize{40, 20}), r);
+
+  // The point of it being a VALUE: rect() takes it, and so does everything
+  // else that wants the same geometry.
+  Host host(200, 200);
+  host.composer.render(box().child(box().key("d").rect(r).fill(red())));
+  host.frame();
+  ASSERT_TRUE(host.composer.bounds("d").has_value());
+  EXPECT_EQ(*host.composer.bounds("d"), r);
+  EXPECT_EQ(host.pixel(100, 50), SK_ColorRED);
 }

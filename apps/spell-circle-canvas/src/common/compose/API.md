@@ -631,7 +631,10 @@ TextPath{ .path, .at, .align, .offset, .autoFlip, .orient }
 // ---- shapes ----
 shapes::circle()  shapes::annulus(innerRatio)  shapes::sector(a, sweep, inner)
 shapes::inset(px, Decoration)  shapes::arrow(shaft, head)
+shapes::polygon(sides, rotateDeg)            // regular n-gon, inscribed
 shapes::star(points, innerRatio, waist)      // waist bows the arms concave
+shapes::chamfered(size, Corner)  shapes::notched(size, depth, Corner)
+shapes::onEdges(Edge mask, Decoration)       // per-edge treatment (EdgeSlice)
 shapes::parametric(fn, t0, t1, samples, close)   // fn: t -> UNIT (x, y)
 shapes::lissajous(a, b, deltaDeg, turns)     shapes::rose(k, turns)
 shapes::harmonograph(a, b, delta, damping, precession, turns)
@@ -1368,6 +1371,53 @@ rail is measured in one parameterisation. A consequence worth knowing:
 thin stroke has very low peak coverage and can read as absent against a
 bright ground. If dots are faint, widen the rail or lengthen the "on"
 interval — the offset is not the problem.
+
+### The rest of the brush surface, and its three traps
+
+```cpp
+brushes::filament(glow, core, scale)   // Ori's 4-layer additive glow
+brushes::circuit(color, tier)          // FUI trace tiers 0/1/2
+brushes::rope(state, zoom)             // Path of Exile's 3-state rope
+brushes::ScatterBrush{.art, .spacing, .jitter*, .mod}   // Illustrator scatter
+brushes::PatternBrush{.side, .corner, .start, .end,
+                      .advance, .cornerLength, .cornerAlign}
+brushes::artAlong(art, height, stationPx)   // ArtBrush: warps, not stamps
+brushes::Ribbon{.widthStart, .widthEnd, .nibAngleDeg, .widthFn, .widthMax}
+brushes::restyle(op, inner, extraBleed) // OP FIRST, then the decoration
+ops::Wave / Rounded / Sketchy / Square / Offset            // geometry ops
+```
+
+**1. A stamped brush caches its baked art in the VALUE.** `PatternBrush`,
+`ScatterBrush` and `ArtBrush` each hold their `snapshot()` in a
+`shared_ptr` member. Copy the brush and the copy shares it; **construct**
+one and it gets an empty cache — so a brush built inside a per-frame
+describe re-bakes every tile every frame, and each bake is a full
+reconcile + layout + record pass. One study measured eighteen per frame.
+Build the brush once and keep it, or keep the art Elements
+pointer-stable and copy. `ArtBrush` is the most expensive of the three.
+
+**2. `Ribbon::widthFn` — key it to `distance`, not to `fraction`, if the
+host can `trim()`.** A decoration under a trim is handed the REVEALED
+contour, so `fraction` is a fraction of what has been drawn *so far* and
+a width law keyed to it slides as the reveal grows. The two are identical
+in a still frame and diverge only in motion. And set `widthMax` whenever
+you set `widthFn`: `bleed()` cannot look inside a `std::function`, so an
+undeclared 166 px band declares 10 px of reach and is silently clipped.
+
+**3. `ops::sketchy` is ONE pass of `SkDiscretePathEffect`.** It jitters
+vertices; it does not bow the segments between them, so it is not the
+Rough.js construction on its own — Rough.js draws TWO passes, full and
+half deviation at different seeds. Compose two `restyle()`s (or two
+`Sketchy` legs) to match; no single call reproduces it. Note `restyle`
+takes the OP FIRST and the decoration second, and its op is an
+incomparable callable — memo the host node or keep it pointer-stable, or
+it never prunes.
+
+**Geometry ops are VALUES** (`ops::Wave{...}` etc., designated-init
+structs with `apply(SkPath)` and an optional `bleed()`), type-erased by
+`GeometryOp` exactly as `Decoration` type-erases paint schemes, because
+Skia seals `SkPathEffect` subclassing. A raw `ops::PathOp` lambda still
+converts — and never prunes.
 
 **Live pitch and angle.** `lines::Hatch` takes `spacingBinding` and
 `angleBinding` (raw `const Output<float>*`, the same convention as
