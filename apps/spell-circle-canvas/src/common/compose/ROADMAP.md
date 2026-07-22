@@ -641,6 +641,51 @@ multiplication anywhere in the renderer, and overflow snapping to
 absolute black rather than to the ramp's darkest entry. That is
 expressible as SkSL over a LUT and not otherwise.
 
+## 10g. No way to propagate a THEME down a tree — *new, and structural*
+
+Sixteen studies drew one picture each. The first one that draws a
+**system** — CDE 1.0, where the entire desktop's appearance is the output
+of a published function over eight background colours — needs this in its
+first hour, and there is nothing: no context, no environment, no
+provide/inherit.
+
+Components are free functions over plain data, so passing a `const Theme&`
+is idiomatic and cheap *for your own components*. What has no answer is
+the library's own: a `console::`, a `styles::` bundle, a decoration
+nested four levels down. Each has to be handed its colours explicitly by
+whoever composes it, so a theme change is a mechanical edit at every call
+site rather than one value changing.
+
+Worth noting that CDE's own answer to the identical problem was the X
+resource database, and Motif's `XmGetColors` derives foreground, top
+shadow, bottom shadow and select from ONE background at runtime — so the
+artefact this program picked to expose the gap is itself a study in
+solving it.
+
+Wanted: an inherited value on the element tree — SwiftUI's `Environment`,
+React's context — resolved during reconcile so a subtree reads it without
+being handed it. This is a kernel change and deserves a designed pass,
+not a bolt-on.
+
+## 10h. Bound colours on decorations: PARTIALLY closed, and worth stating
+
+Filed as "`Decorations.h`, `Lines.h` and `Brushes.h` contain zero
+`PropValue`s, so no stock decoration's colour can be bound". Half true,
+and the wrong half matters: **`PathFormat::strokeMaterial` takes a
+`Material`, which can be LIVE** — a bound uniform, resolved per paint,
+with `animated()` already declaring the volatility. Verified with a probe
+sketch driving a stroke's colour from an `Output` with no re-describe.
+A Motif bevel is 100% `PathFormat`, so the artefact that raised this is
+covered.
+
+Still true for `Slice`, `ContourWalk`, `lines::Line` and the `brushes::`
+family, none of which has a Material lane. That is the entry, and it is a
+smaller one than it was filed as.
+
+*(This is the sixth claim in this program that would have been recorded
+as impossible and was not, because it got checked first. The habit is now
+worth more than any single feature it has produced.)*
+
 ## 11. `Effect` has no live uniforms
 
 `Material` solved this with `uniform(name, &output)` and a volatility
