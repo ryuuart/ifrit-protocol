@@ -901,8 +901,16 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       const SkPoint p = at::starAt(c, si);
       const auto &s = c.stars[(size_t)(si - 1)];
       const std::string t = std::to_string(s.first) + "," + std::to_string(s.second);
-      g2.child(label(t, at::gx(o.fX) + p.fX + 9.0f, at::gy(o.fY) + p.fY - 15.0f,
-                     10.0f, at::mul(at::rgb(c.color), 1.1f, 0.62f), 0.6f, true));
+      // SCRIMMED, like every other annotation that has to sit on the field.
+      // These went out plain and the plate's own rule caught up with them: a
+      // coordinate is pinned +9,-15 from its star, which is exactly where an
+      // edge leaving up-and-right goes, so DISCIDIA's "3,6" and "23,27" each
+      // had a 12 px link through their x-height. scrimLabel() is this file's
+      // answer to that and was already carrying "pivot 40,40" and
+      // "centre 47.5"; the coordinates just never got it.
+      g2.child(scrimLabel(t, at::gx(o.fX) + p.fX + 9.0f,
+                          at::gy(o.fY) + p.fY - 16.0f, 10.0f,
+                          at::mul(at::rgb(c.color), 1.25f, 0.86f), 0.6f));
     }
     return g2;
   }
@@ -1195,10 +1203,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                     .width = 1.1f,
                     .fill = Fill::color(at::mul(at::kInk, 1.0f, 0.40f)),
                     .dashIntervals = {5.0f, 7.0f}}));
-    m.child(label("95\xC3\x97" "95 UNHOVERED  \xC2\xB7  hover \xC3\x97" "1.1 "
-                  "grows DOWN and RIGHT",
-                  at::gx(o.fX) + 4.0f, at::gy(o.fY) - 16.0f, 9.5f,
-                  at::mul(at::kInk, 1.0f, 0.52f), 0.9f, true));
+    m.child(scrimLabel("95\xC3\x97" "95 UNHOVERED  \xC2\xB7  hover \xC3\x97" "1.1 "
+                       "grows DOWN and RIGHT",
+                       at::gx(o.fX) + 4.0f, at::gy(o.fY) - 18.0f, 9.5f,
+                       at::mul(at::kInk, 1.0f, 0.72f), 0.9f));
     m.child(box()
                 .absolute()
                 .width(26.0f)
