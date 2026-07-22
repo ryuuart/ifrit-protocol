@@ -62,8 +62,10 @@ class Material;
 namespace detail {
 /** The unit-square ramp both linearUnit() and radialUnit() compile to: one
  *  SkSL pass that divides by uResolution, so the gradient's coordinates are
- *  fractions of the node's laid-out box rather than pixels. Six stops,
- *  chained mixes — each only takes effect past its own start. */
+ *  fractions of the node's laid-out box rather than pixels. ANY number of
+ *  stops: the count is baked into the source and one effect is cached per
+ *  count (the rule Patterns.h uses for grain's octaves), chained mixes,
+ *  each only taking effect past its own start. */
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
                          bool radial);
 } // namespace detail
@@ -129,7 +131,7 @@ public:
    *  onto the text metrics; this is the same trick for a box fill.
    *
    *  Rides the GEOMETRY tier (uResolution): resolved when the node records,
-   *  cached between layouts — no per-frame cost. Up to six stops. */
+   *  cached between layouts — no per-frame cost. Any number of stops. */
   static Material linearUnit(SkPoint from01, SkPoint to01,
                              std::vector<Stop> stops) {
     return detail::unitRamp(from01, to01, std::move(stops), false);

@@ -708,7 +708,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // end. `trim()` cannot express it (it walks the perimeter) and
   // scaleX/scaleY squash rather than reveal.
   bool wiped = false;
-  if (node.fxData && node.fxData->hasWipe) {
+  // A container of absolutely-positioned children measures ZERO, and a
+  // half-plane built from an empty box is empty — so `.wipe(90, 1.0)`, a
+  // FULL reveal, hid an entire subtree. A reveal at 1 must never hide
+  // anything, and an empty box has nothing to reveal along.
+  if (node.fxData && node.fxData->hasWipe && !bounds.isEmpty()) {
     const float t = std::clamp(
         inst.resolveFloat(Instance::kWipe, node.fxData->wipeFraction), 0.0f,
         1.0f);

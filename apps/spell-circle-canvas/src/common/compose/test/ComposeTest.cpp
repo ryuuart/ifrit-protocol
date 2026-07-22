@@ -6221,3 +6221,38 @@ TEST(ComposeBrushes, ARibbonWithAWidthFnMustDeclareItsReach) {
   b.widthMax = 166.0f;
   EXPECT_FALSE(a == b);
 }
+
+TEST(ComposeFx, WipeOnAZeroMeasuredBoxRevealsRatherThanHides) {
+  // A container of absolutely-positioned children measures zero, and a
+  // half-plane built from an empty box is empty — so `.wipe(90, 1.0)`, a
+  // FULL reveal, hid the whole subtree. A reveal at 1 must never hide
+  // anything.
+  auto tree = [](bool withWipe) {
+    Element outer = box().absolute().left(0).top(0); // no dims: measures 0
+    outer.child(box()
+                    .absolute()
+                    .left(40)
+                    .top(40)
+                    .width(80)
+                    .height(80)
+                    .fill(Fill::color({1, 0, 0, 1})));
+    if (withWipe)
+      outer.wipe(90.0f, 1.0f);
+    return box().child(std::move(outer));
+  };
+  auto ink = [](Host &host) {
+    int n = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        n += SkColorGetR(host.pixel(x, y)) > 180;
+    return n;
+  };
+
+  Host plain(200, 200), wiped(200, 200);
+  plain.composer.render(tree(false));
+  plain.frame();
+  wiped.composer.render(tree(true));
+  wiped.frame();
+  EXPECT_GT(ink(plain), 5000);
+  EXPECT_EQ(ink(wiped), ink(plain)); // a full reveal changes nothing
+}

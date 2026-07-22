@@ -1080,7 +1080,7 @@ square instead: `{0,0}` is the box's top-left and `{1,1}` its
 bottom-right, whatever the box turns out to be, and `radialUnit`'s
 radius is a fraction of the half-diagonal so `{0.5,0.5}` r=1 reaches
 the corners of any box. Same trick `textFill()` uses to map a
-material onto text metrics. Six stops; geometry tier.
+material onto text metrics. Any number of stops; geometry tier.
 
 Three volatility tiers, decided by what the recipe reads:
 
