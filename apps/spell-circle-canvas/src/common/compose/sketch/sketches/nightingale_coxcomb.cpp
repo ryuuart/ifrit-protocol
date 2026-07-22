@@ -62,6 +62,8 @@
 #include <include/core/SkTypeface.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <array>
 #include <cmath>
 #include <string>
@@ -402,7 +404,10 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
 
   // ------------------------------------------------------------------
   Element describe(sketch::SketchContext &ctx) {
+    const int stage = std::getenv("NC_STAGE") ? atoi(std::getenv("NC_STAGE")) : 99;
+    fprintf(stderr, "[nc] describe stage=%d\n", stage);
     auto root = stack().fill(Fill::color(kPaper));
+    if (stage < 1) return root;
 
     // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
     root.child(box().absolute().inset(0).fill(paperMat).opacity(0.22f).blend(
@@ -413,6 +418,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
         {hex(0x000000, 0.0f), hex(0x000000, 0.0f), hex(0x6b4a33, 0.13f)},
         {0.0f, 0.62f, 1.0f})));
 
+    if (stage < 2) return root;
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
     root.child(custom([this](SkCanvas &canvas, const PaintContext &) {
                  if (!faceDisplay)
@@ -430,6 +436,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                    .absolute()
                    .inset(0));
 
+    if (stage < 3) return root;
     // ---- the plate mark: the physical impression of the copper ------
     root.child(box()
                    .absolute()
@@ -449,6 +456,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                         hex(0xffffff, 0.16f), hex(0x3a2a20, 0.0f)},
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
+    if (stage < 4) return root;
     // ---- title block -------------------------------------------------
     const auto title1 = type(faceDisplay, 47, kInk, 1.0f);
     const auto title2 = type(faceGrotesque, 34, kInk, 1.5f);
@@ -487,6 +495,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                                      ramp(tTitle2 * 1000 + 220 + (float)i * 60,
                                           420, ch::easeOutQuint))));
 
+    if (stage < 5) return root;
     // ---- the two diagram captions -----------------------------------
     const auto capNum = type(faceGrotesque, 26, kInk);
     const auto capText = type(faceGrotesque, 24, kInk, 0.6f);
@@ -518,10 +527,12 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     caption("1.", "APRIL 1854 to MARCH 1855.", 1313, 1487, tCap1, "cap1");
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
 
+    if (stage < 6) return root;
     // ---- the wheels --------------------------------------------------
     root.child(wheel(ctx, kD1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"));
     root.child(wheel(ctx, kD2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
 
+    if (stage < 7) return root;
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = type(faceLabel, 20, kInk, 0.4f);
     const auto smallLabel = type(faceLabel, 17, kInk, 0.4f);
@@ -565,6 +576,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     for (Element &e : labels)
       root.child(std::move(e));
 
+    if (stage < 8) return root;
     // ---- the dashed leader between the two wheels -------------------
     PathFormat dash = stroke(1.1f, Fill::color(kInk));
     dash.dashIntervals = {7.0f, 5.0f};
@@ -585,6 +597,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                                         ramp(tLeader * 1000, 620,
                                              ch::easeOutQuad))));
 
+    if (stage < 9) return root;
     // ---- the engraved-hand legend -----------------------------------
     const auto script = type(faceScript, 27, kInk);
     for (size_t i = 0; i < kLegendText.size(); ++i) {
@@ -611,6 +624,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                    .opacity(withFrom(0.0f, 1.0f,
                                      ramp(tLegend * 1000 + 2500, 600))));
 
+    if (stage < 10) return root;
     // ---- the index needles ------------------------------------------
     root.child(needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"));
     root.child(needle(kC2, kR2, &needle2Deg, &needle2A, "needle2"));

@@ -322,7 +322,32 @@ paint, i.e. pixels.
 | y2k chrome | 5.5 ms | **6.3 ms** (GPU-heavy blur stack) |
 
 Worst GPU scene = y2k chrome at 159 fps headroom; 24 of 26 scenes are
-under 2 ms. The CPU-raster p99 spikes were quantized live materials
+under 2 ms.
+
+**Re-measured 2026-07-22 after the reference-grounded rebuild** (22
+scenes; the generic "rpg hud" retired for a Veloren-grounded "world
+hud", four studies added — loot grid, gerstner grid, cosmati, and the
+passive tree rebuilt on Path of Exile's real tree export). The floor
+still holds: every scene is above 150 fps on Graphite, 18 of 22 under
+2.2 ms, and the retained phases still round to 0.00–0.01 ms.
+
+| scene | Graphite GPU | CPU raster |
+|---|---|---|
+| y2k chrome | 6.64 ms (151 fps) | 5.9 ms |
+| loot grid | 6.08 ms (165 fps) | 20.9 ms |
+| passive tree | 4.52 ms (221 fps) | 20.4 ms |
+| world hud | 3.87 ms (259 fps) | 37.6 ms |
+| zellige | 2.20 ms | 6.7 ms |
+| flourish | 2.09 ms | 15.0 ms |
+| cosmati | 1.77 ms | 8.3 ms |
+| gerstner grid | 1.68 ms | 17.4 ms |
+| everything else | < 1.2 ms | — |
+
+The four newest scenes invert the usual ratio — they are cheap on GPU
+and expensive on raster — because they lean on SDF materials,
+instances() and generated patterns, all of which are per-pixel shader
+work the software backend evaluates in the interpreter. That is the
+same conclusion as before, arrived at from the other direction. The CPU-raster p99 spikes were quantized live materials
 hitting their re-resolve frame (one full-screen software SkSL eval);
 on GPU they vanish. Conclusion pinned: full-screen live materials are
 GPU-tier content — the CPU-raster path re-rasterizes them per pixel
