@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `bind().window(lo, hi)` | `from()` normalises and the curve runs after it, so a multi-beat binding fed easings values outside their domain — and none of `ease::` is total | `Compose.h` |
+| The material cost model, documented | A static SkSL material's shader caches and its PIXELS do not; one full-canvas grain node was 480 ms of a 624 ms frame, and a texture bake took that frame to 28 ms | `API.md` |
 | `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
 | `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
 | `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
@@ -546,11 +548,31 @@ signatures.
 - **`Material` has no `bleed()`.** `DecorationScheme` can declare one so
   the recording cull grows; a Material cannot, so anything painting
   outside its box needs arithmetic the caller does.
-- **`Pattern` cannot pan.** `rotate()`/`scale()` only remap the shader
-  matrix at describe time, so a conveyor needs the pattern written twice —
-  once baked, once as hand-written SkSL with a bound uniform. Wanted:
-  `Pattern::offset(PropValue<SkPoint>)` under the paint-only volatility
-  contract bound transforms already have.
+- **`Pattern` cannot pan** — *two studies*, and the second one located the
+  fix a level below where this entry had it. `Pattern::bake` builds
+  `SkMatrix::RotateDeg(rotate).preScale(scale)` and hands it to
+  `Material::image`, **whose `localMatrix` already takes a translation**:
+  Pattern exposes two thirds of a matrix its own backend takes whole. So
+  `Pattern::offset(SkPoint)` is plumbing that exists, and
+  `Pattern::offset(PropValue<SkPoint>)` is the animated version, under the
+  paint-only volatility contract bound transforms already have. A twill
+  survives today only because its phase is mod 4; any weave whose modulus
+  is not a small integer is inexpressible.
+- **`patterns::stripes` is single-colour and un-phased.** A coloured
+  sequence of runs — what a tartan, an awning, a ribbon or a chart axis
+  actually wants — is a hand-written `PatternProgram` every time, and
+  `Material::linearUnit` cannot substitute (six stops against a 24-run
+  sett). Wanted: `patterns::sequence(span<pair<float, SkColor4f>>, phase)`.
+- **No Fill/Material-valued decoration for `foreground()`.** `overlay()`
+  paints under the children, so a wash that must sit ABOVE them needs
+  `foreground()` — whose primitives are PathFormat, Slice, ContourWalk and
+  a raw PaintProgram, none of which floods the outline with a material
+  through a blend mode. The PaintProgram form works and never prunes.
+  Wanted: `decorations::wash(Material, SkBlendMode, amount)` as a
+  comparable value.
+- **`HyphenationOptions` has no hyphenation in it.** `enabled` and
+  `penalty` read like a hyphenator; the engine breaks solely at U+00AD
+  discretionaries the author typed. A legitimate contract, badly named.
 - **`console::console()` admits no entrance choreography.** It builds its
   line Elements internally, so `staggerChildren()` on the returned panel
   is a no-op and "the console types out on mount" is inexpressible.
