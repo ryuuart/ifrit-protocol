@@ -615,8 +615,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(box()
                    .absolute().left(Dim(kPX)).top(Dim(kPY))
                    .width(Dim(kPW)).height(Dim(kPH))
-                   .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-                   .fill(Material::solid({0,0,0,0}))
+                   .fill(grain)
                    .opacity(0.07f)
                    .blend(SkBlendMode::kOverlay)
                    .zIndex(2));

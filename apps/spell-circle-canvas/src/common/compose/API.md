@@ -704,6 +704,31 @@ Arbitrary direct mutation of retained nodes is rejected on principle:
 it's the one door that, once open, makes every cache unsound and every
 frame a full repaint "just in case".
 
+### Shapes and patterns worth knowing about
+
+`<sigilcompose/Shapes.h>` generators return an `OutlineFn`, so any
+element can BE the shape — fill, clip, every outline-following
+decoration and `hitTest()` all trace it. Two easy ones to miss:
+
+- `shapes::sector(startDeg, sweepDeg, innerRatio = 0)` — a CLOSED,
+  fillable circular sector; `innerRatio > 0` gives the annular
+  segment. `shapes::arc()` beside it is deliberately OPEN and has no
+  fillable area, so it is the wrong tool for a pie wedge, a
+  polar-area petal, a cooldown sweep, a radial-menu slice or a gauge
+  fill. Skia's angle convention: 0° = +x, sweeping clockwise.
+
+`<sigilcompose/Patterns.h>` has two noise fields and they are not
+interchangeable:
+
+- `patterns::noise(freq, octaves, seed, turbulence)` wraps Skia's
+  Perlin shader, whose three channels are INDEPENDENT fields. That is
+  what you want as a displacement source, and it is wrong for grain:
+  composited over a coloured surface with `kOverlay` it hue-shifts
+  rather than shades.
+- `patterns::grain(freq, octaves, seed)` is the LUMINANCE one — equal
+  channels, so a blend mode reads as light. Paper tooth, film grain,
+  stone veining, worn metal, dither: this one.
+
 ### Decorations — frames, 9-slice, patterned and procedural borders
 
 `.fill()/.stroke()/.corners()/.shadow()` cover documents; game-style
@@ -909,12 +934,24 @@ layers via `SkShaders::Blend`, never stacked saveLayer:
 ```cpp
 Material::solid(color);
 Material::linear(a, b, stops);  Material::radial(...);  Material::sweep(...);
+Material::linearUnit({0,0}, {0,1}, stops);   // the UNIT SQUARE, not pixels
+Material::radialUnit({0.5f,0.5f}, 1.0f, stops);
 Material::image(img, tileX, tileY, localMatrix);  // sprites: sub-rect matrix
 Material::sksl(effect, {{"uSpeed", 2.f}});        // SkSL runtime effect
 Material::blend({{base, kSrcOver}, {sheen, kScreen}});  // ONE flattened shader
 material.uniform("uGlow", &output);  // bind a ch::Output → material is LIVE
 material.quantizeTime(6.0f);         // step the injected uTime at 6 Hz
 ```
+
+`linear()/radial()/sweep()` are in node-local PIXELS, which is right
+when you wrote the box's size down and impossible when the layout
+decides it — a tooltip as tall as its copy, a panel that grows with
+its content. The `Unit` pair authors the same ramp in the node's unit
+square instead: `{0,0}` is the box's top-left and `{1,1}` its
+bottom-right, whatever the box turns out to be, and `radialUnit`'s
+radius is a fraction of the half-diagonal so `{0.5,0.5}` r=1 reaches
+the corners of any box. Same trick `textFill()` uses to map a
+material onto text metrics. Six stops; geometry tier.
 
 Three volatility tiers, decided by what the recipe reads:
 

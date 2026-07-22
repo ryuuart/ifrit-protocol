@@ -265,9 +265,7 @@ public:
     // The milled tooth on top of the figure: LUMINANCE noise (equal channels)
     // soft-lit over the timber. patterns::noise() would hue-shift the wood —
     // its three channels are independent fields.
-    Material blended =
-        Material::blend({{m, SkBlendMode::kSrcOver},
-                         {m_tooth, SkBlendMode::kSoftLight}});
+    Material blended = m_tooth;
     m_bank.emplace(key, blended);
     return blended;
   }
