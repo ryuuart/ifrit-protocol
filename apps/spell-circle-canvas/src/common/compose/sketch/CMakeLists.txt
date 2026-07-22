@@ -44,7 +44,7 @@ set_target_properties(SigilSketchKit PROPERTIES
 set(SIGIL_SKETCH_STUDIES
   # Game UI
   ds2_bench fallout2_charsheet ksp_mapview psx_doom_fire xcom_battlescape
-  thaumonomicon vagrant_story_target astral_tome
+  thaumonomicon vagrant_story_target astral_tome bg3_dice_roll
   # Screens and software
   cde_motif spacejam_1996 twoadvanced_v4 winamp_base
   # Science and data
