@@ -44,7 +44,7 @@ Every layer has a bottom you can reach.
 ```cpp
 // The kernel Fill is two constructors — a color, or anything Skia can
 // shade. Gradient conveniences are userland-shaped and live in
-// <sigilcompose/util.h> (they are one-line wrappers over
+// <sigilcompose/Util.h> (they are one-line wrappers over
 // Fill::shader(SkShaders::LinearGradient(...))).
 struct Fill {
   static Fill color(SkColor4f c);
@@ -206,7 +206,7 @@ Element &skewX(PropValue<float>); Element &skewY(PropValue<float>);
 Element &transformOrigin(float fx, float fy);   // fractions of own box
 Element &transformOriginPx(SkPoint);            // px pivot for overlay zooms
 Element &zIndex(int);
-// gradient/stroke()/shadow() CONSTRUCTORS live in <sigilcompose/util.h>
+// gradient/stroke()/shadow() CONSTRUCTORS live in <sigilcompose/Util.h>
 // — pure sugar over PathFormat/Fill::shader, deliberately outside the
 // kernel (see "Kernel, util, extensions").
 
@@ -418,8 +418,13 @@ property of a subtree, not a heuristic guess. So:
   heavy effects. The default path is: write nothing, get the caches.
 - **Animation costs exactly its subtree.** A bound headline demotes its
   own node, not its parent's static frame — volatility partitions the
-  tree; static siblings stay cached while neighbors animate. And it
-  **Size the node to the thing that animates.** A bound opacity or blend
+  tree, so static siblings stay cached while neighbours animate. And it
+  partitions by KIND: paint-only volatility (bound/transitioning
+  transforms and opacity) keeps the node's own content picture and
+  replays it under the live transform; content volatility (fill lerps,
+  animated decorations, live materials, `Cache::None`, animated image
+  frames) paints live.
+- **Size the node to the thing that animates.** A bound opacity or blend
   allocates a `saveLayer` the size of the NODE, not the size of what is
   painted in it — so ten Outputs hung on twenty full-canvas groups cost
   eighteen megapixels of layer per frame to twinkle content covering 2%
@@ -427,12 +432,6 @@ property of a subtree, not a heuristic guess. So:
   own primitive's tight box, same Outputs, same pixels. This is the same
   shape of trap as "a picture is not a pixel cache" — a true statement
   that reads as free, and is free only per pixel of the node's box.
-
-  partitions by KIND: paint-only volatility (bound/transitioning
-  transforms and opacity) keeps the node's own content picture and
-  replays it under the live transform; content volatility (fill lerps,
-  animated decorations, live materials, `Cache::None`, animated image
-  frames) paints live.
 - **`bakeScale(0.1–1)` is almost always the wrong lever, and this doc
   used to recommend it for the one case it is worst at.** It rasterizes
   the bake below device scale and blits it back up. So it makes the
@@ -529,6 +528,63 @@ space at an integer-snapped rect and blitted with the matrix reset and
 no resampling. An integer device translation cannot alter
 rasterisation, so the blit is a literal copy.
 
+> **The upright rule is about the ARITHMETIC, not about resampling, and
+> the difference matters because the obvious relaxation is wrong.** It
+> looks as though a device bake must be exact at any angle: it
+> concatenates the full matrix into the layer and blits at an integer
+> offset, so nothing resamples. Measured on a shader-filled 220 px box,
+> promoted against the identical unpromoted render:
+>
+> | | differing pixels |
+> |---|---|
+> | `rotate(0)`, inside the canvas | 0 |
+> | `rotate(0)`, bounds overflow the canvas | 0 |
+> | `rotate(30)`, inside the canvas | 2, Δ1 |
+> | `rotate(45)`, inside the canvas | 5, Δ1 |
+> | `rotate(45)`, bounds overflow the canvas | **1157, Δ up to 40** |
+>
+> A shader's local coordinates come back through the INVERSE of the CTM,
+> and the layer's CTM differs from the canvas's by an integer device
+> translation. Inverting a rotation maps that integer through irrational
+> entries and the cancellation is only approximate; an axis-aligned
+> matrix maps it through ±1 and 0 and cancels exactly. Separately, a bake
+> rect larger than the device clip gives Skia a different clip to
+> rasterize antialiased edges against, which is worth tens of levels.
+>
+> A *constant* rotation is therefore refused just as an animated one is —
+> which is expensive (one study lost 24.5 ms of a 29.9 ms frame to a
+> scroll band tilted a constant −0.42°, because a scroll does not lie
+> square). The remedy is `.cache(Cache::Texture)`: 1 LSB is not
+> agreement, and an author who types it has accepted the trade. Two calls
+> took that study from 29.92 to 5.81 ms with no visible change.
+
+**A node's OWN paint can be baked apart from its volatile children.**
+Volatility is declared per NODE, so a static full-canvas ground plane
+carrying one moving child shares the child's verdict and loses — the
+whole plane re-rasterizes every frame in order to redraw the child on
+top of it. When the node's own paint is provably static and only its
+children move, the composer bakes the own layer and paints the children
+live over the blit. It reports as `CacheState::SplitOwn` /
+`Promotion::SplitBaked`, and `--bench` prints
+`[OWN PAINT baked, live children over the blit]`.
+
+Nothing is required of you; it is measured on the node's OWN cost, so a
+cheap plane is not baked merely for carrying an expensive child. Two
+things are worth knowing:
+
+- **A child with a non-srcOver blend or a backdrop filter is fine here**,
+  unlike whole-subtree promotion where it is fatal. The blit lands
+  *before* the children, so the child resolves against exactly the
+  destination it would have found anyway.
+- **A layer effect on the node is the one disqualifier** among the
+  wrappers — a filter applies to the union of own paint and children.
+  `clip()` and `wipe()` are fine: both halves take the identical clip.
+
+The authoring workaround is still worth knowing for the cases this
+cannot take (a rotated node, an effect): **lift the moving child out
+into a sibling** so the expensive plane is a static leaf and promotes on
+its own. It costs you the containment relationship that made you nest it.
+
 **The refusal you will hit is the paper-grain idiom.** A leaf at
 `opacity(0.13).blend(kSoftLight)` over the whole canvas is the most
 expensive node in three studies and cannot be promoted: compositing a
@@ -540,11 +596,36 @@ rounding, and the library has not.
 
 **Why a node was or was not baked is reported.** `NodeCost::promotion`
 carries `Cheap` / `Warming` / `Promoted` / `AskedFor` / `OptedOut` /
-`Volatile` / `Composited` / `Transformed` / `Filtered` / `TooBig`, and
-`ComposeSketch --bench` prints it under every expensive node.
-`Composer::promotionReason()` turns it into a phrase. Every refusal is
-individually correct and individually invisible, which is precisely how
-sixteen studies shipped over the gate.
+`Volatile` / `Composited` / `Transformed` / `Filtered` / `ReadsBackdrop`
+/ `TooBig` / `SplitBaked`, and `ComposeSketch --bench` prints it under
+every expensive node. `Composer::promotionReason()` turns it into a
+phrase. Every refusal is individually correct and individually
+invisible, which is precisely how sixteen studies shipped over the gate.
+
+**And it reports ALL of them, not just the first.** `promotion` is a
+first-match verdict, so a node that is both volatile and clipped used to
+report only `Volatile` — and an author who lifted the moving child out
+then met a second refusal nobody had mentioned, and a third behind that.
+`genesis_fire`'s ground plane has exactly three at once.
+`NodeCost::refusals` is a bitmask and `NodeCost::refused(Promotion)`
+reads it:
+
+```cpp
+for (const auto &row : composer.profile()) {
+  if (row.cacheState != Composer::CacheState::Live) continue;
+  printf("%s: %s\n", row.label.c_str(),
+         Composer::promotionReason(row.promotion));       // the first
+  for (auto also : {Composer::Promotion::Volatile,        // …and the rest
+                    Composer::Promotion::Filtered,
+                    Composer::Promotion::ReadsBackdrop})
+    if (also != row.promotion && row.refused(also))
+      printf("      …and: %s\n", Composer::promotionReason(also));
+}
+```
+
+`promotion` stays the primary outcome and is DERIVED from the mask by
+first-match, so the two cannot disagree. A node with nothing wrong with
+it reports `refusals == 0`.
 
 > **Writing a cache test?** A static node under a *cacheable* parent is
 > painted exactly once, into the parent's recording, and never visited
@@ -557,11 +638,11 @@ sixteen studies shipped over the gate.
 
 Three layers keep the library lean and the call sites short:
 
-- **Kernel** (`<sigilcompose/compose.h>`): elements/components/
+- **Kernel** (`<sigilcompose/Compose.h>`): elements/components/
   Composer, flex + `stack()`, stacking paint, `Fill::color/shader`,
   text/image/custom leaves, `key`/`memo`, `PropValue` + `Transition`,
   automatic caching. Complete mental model, smallest possible surface.
-- **Util** (`<sigilcompose/util.h>`, depends only on the kernel —
+- **Util** (`<sigilcompose/Util.h>`, depends only on the kernel —
   deliberately *demoted* sugar that users could write themselves):
   gradient Fill constructors, `stroke()`/`shadow()` decoration
   helpers, and `Stage` — the three-line host bundle for the common
@@ -580,8 +661,11 @@ Three layers keep the library lean and the call sites short:
   `Effect`/backdrop, `flowAround`/`connector`, slots — plus the
   organic kit: `<sigilcompose/Shapes.h>` (polygon/star/squircle/blob
   outline generators, `rounded()`, per-edge `edges()`/`onEdges()`),
-  `<sigilcompose/Layouts.h>` (`Radial`, `AlongPath`, `Scatter`
-  layout schemes), `<sigilcompose/Routers.h>`
+  `<sigilcompose/Layouts.h>` (**seven** layout schemes: `Radial`,
+  `AlongPath`, `ModularGrid`, `Diagonal`, `StickerSlot`,
+  `BaselineGrid` — the only consumer of `LayoutInput::childBaselines`,
+  and the reason that channel exists — and `Scatter`),
+  `<sigilcompose/Routers.h>`
   (`straight`/`orthogonal`/`arc` connector routers;
   `polyline`/`octilinear`/`orbit` rail routers), and
   `<sigilcompose/Web.h>` (the SigilScry `web()` leaf; header-only, only
@@ -624,9 +708,17 @@ compose::metrics(style, fonts)  -> {ascent, descent, capHeight, xHeight,
 
 // ---- text on a path ----
 TextPath{ .path, .at, .align, .offset, .autoFlip, .orient }
-// .orient = Tangent (running lettering) | Radial (type radiating like a
-// spoke — a dial, a compass rose, an astrolabe limb). EVERY contour of
-// the path is walked, in order, as one arc-length coordinate.
+// .orient = Tangent  (running lettering — glyphs follow the curve)
+//         | Radial   (type radiating like a spoke: a dial, a compass
+//                     rose, an astrolabe limb)
+//         | Upright  (glyphs stay LEVEL wherever they land — a calendar
+//                     ring, a modern gauge; neither of the other two can
+//                     express it)
+// EVERY contour of the path is walked, in order, as one arc-length
+// coordinate. TextPath has NO operator== — `path` is a std::function, so
+// a defaulted one would be implicitly deleted and compile quietly while
+// comparing nothing; a run with a baseline is treated as never-prunable
+// instead.
 
 // ---- shapes ----
 shapes::circle()  shapes::annulus(innerRatio)  shapes::sector(a, sweep, inner)
@@ -961,9 +1053,18 @@ interchangeable:
   what you want as a displacement source, and it is wrong for grain:
   composited over a coloured surface with `kOverlay` it hue-shifts
   rather than shades.
-- `patterns::grain(freq, octaves, seed)` is the LUMINANCE one — equal
-  channels, so a blend mode reads as light. Paper tooth, film grain,
-  stone veining, worn metal, dither: this one.
+- `patterns::grain(freq, octaves, seed, contrast, stretch)` is the
+  LUMINANCE one — equal channels, so a blend mode reads as light. Paper
+  tooth, film grain, stone veining, worn metal, dither: this one.
+
+  It has **five** parameters, not three, and the last two carry the
+  interesting behaviour. `contrast` steepens the ramp around mid-grey
+  (a tooth becomes a speckle). `stretch` is the anisotropy — it
+  MULTIPLIES the y frequency, so brushed metal and rain streaks are one
+  number, and **a large value aliases**: past roughly 8 the y period
+  approaches the pixel and the field turns into a moiré that looks like
+  a bug in the blend rather than in the noise. Drop `frequency` as you
+  raise `stretch`.
 
 ### Decorations — frames, 9-slice, patterned and procedural borders
 
@@ -1015,11 +1116,25 @@ stops here:
 Fill::shader(sk_sp<SkShader>);   // incl. SkRuntimeEffect-built shaders
 
 // 2. PathFormat — format any stroke. A stroke is the outline path put
-//    through a chain of path transforms (Skia path effects: dash
-//    intervals, 1D path stamping, discretization, corner rounding,
-//    your own SkPathEffect) and painted with a Fill. "Dashed border"
-//    is a two-number PathFormat, not a type.
-PathFormat{.effects = {...}, .paint = Fill::..., .width = 3};
+//    through ONE path transform (dash intervals, 1D path stamping, or
+//    any SkPathEffect of your own) and painted with a Fill or a
+//    Material. "Dashed border" is a two-number PathFormat, not a type.
+//
+//    NOTE the field names. They are `strokeFill` and `effect`, not
+//    `paint` and `effects` — and `effect` is SINGULAR because the type
+//    holds one SkPathEffect, not a chain. Compose your own chain with
+//    SkPathEffect::MakeCompose and hand it over whole.
+PathFormat{.width = 3.0f, .strokeFill = Fill::color(kInk)};
+PathFormat{.width = 1.0f, .strokeFill = ink, .dashIntervals = {4, 3}};
+PathFormat{.width = 2.0f, .strokeFill = ink,
+           .cap = SkPaint::kRound_Cap,      // default is kButt_Cap
+           .join = SkPaint::kRound_Join};   // default is kMiter_Join
+PathFormat{.width = 2.0f, .strokeMaterial = brass};  // supersedes strokeFill
+PathFormat{.width = 1.0f, .strokeFill = ink,
+           .stampPath = leaf, .stampAdvance = 12.0f}; // vines, chains
+PathFormat{.width = 1.0f, .strokeFill = ink,
+           .effect = SkDiscretePathEffect::Make(6, 2)}; // overrides both
+// `util::stroke(width, fill, align)` is the short spelling of the first.
 
 // 3. Slice — map an image/asset onto a box through a lattice
 //    (N-patch, per-cell stretch/repeat; nine-slice is the 3x3 case).
@@ -1032,7 +1147,19 @@ Slice{.asset = frame, .xDivs = {...}, .yDivs = {...}};
 //    arc length (SkContourMeasure) and run a draw program at each
 //    sample. Stamped vines, per-step images, "a different canvas as we
 //    walk" — all the same primitive with a different body.
-struct PathSample { SkPoint pos; SkVector tangent; float distance, fraction; };
+// The field is `position`, not `pos` — and `fraction` is PER CONTOUR,
+// which matters the moment an outline has more than one (a ring with a
+// hole, an edge set, a clipped trajectory). `distance` is the only
+// coordinate that runs monotonically across the whole walk. It is the
+// same trap `Ribbon::widthFn` documents: a law keyed to `fraction`
+// under a `trim()` is handed the REVEALED contour and slides as the
+// reveal grows — identical in a still, divergent only in motion.
+struct PathSample {
+  SkPoint position;
+  SkVector tangent;
+  float distance = 0.0f;   // px along the whole walk
+  float fraction = 0.0f;   // 0..1 WITHIN ITS OWN CONTOUR
+};
 ContourWalk{.spacing = 18,
             .draw = [](SkCanvas &c, const PathSample &s, const PaintContext &in) {
               /* anything — images, nested composed elements, SkSL */
@@ -1153,7 +1280,7 @@ text(verse, ink).flowAround("dropcap", 14).flowAround("fne", 8);
 // are values/fns (stock ones in <sigilcompose/Routers.h>), not an
 // enum — write your own.
 connector("node-a", "node-b", routers::orthogonal())
-    .stroke(PathFormat{.paint = Fill::shader(flowFieldSkSL), .width = 4});
+    .stroke(PathFormat{.width = 4, .strokeFill = Fill::shader(flowFieldSkSL)});
 
 // The component that IS a line: a path threaded through an ordered run
 // of anchors (normalized points on keyed nodes' bounds — a transit

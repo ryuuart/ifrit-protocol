@@ -192,6 +192,9 @@ missing ones.
 | **The profile says WHY a node was not baked** | Every refusal is individually correct and individually invisible; `live paint 663 ms` with nothing beside it is how sixteen studies shipped over the gate. `NodeCost::promotion` + `--bench` printing it | `Compose.h`, `Composer.cpp`, `sketch_main.cpp` |
 | Two `PatternBrush` corner defects | The scan straddles the vertex, so the break is first seen one step late and the midpoint guess landed the art up to step/2 past the bend (3 px at advance 24, measured); and the bisector was re-probed at d±2 from a point already past the vertex, so both probes hit the same leg and every corner faced the OUTGOING tangent — except a closed contour's seam, making three corners of a rect agree and the fourth 45° off. Bisect the bracket, carry the leg tangents out with it, plus `cornerAlign` | `Brushes.h` |
 | `LayeredBrush` declared no `bleed()` | An additive stack paints wide of the path by construction — `filament()` is 31 px — and the node's recording culls at its own bounds, so every stock brush's halo was clipped | `Brushes.h` |
+| **§15 — a node's own paint, cached apart from its volatile children** | Volatility is declared per NODE, so a static full-canvas ground plane carrying one moving disc shared the disc's verdict and lost: 35.19 and 15.13 ms of SELF time on two 888×666 nodes of `genesis_fire`, both reporting "its content changes every frame" about a child. Controlled A/B on one binary — **p50 74.16 → 23.60 ms, 3.15×** — with 35 of 35 studies pixel-identical | `Paint.cpp`, `ComposeRuntime.h`, `Compose.h` |
+| **A refusal names EVERY reason, not the first** | `promotion` is a first-match verdict, so a node that is both volatile and clipped reported only `Volatile` — and an author who fixed the volatility met a second refusal nobody had mentioned. `genesis_fire`'s plane has three at once. `NodeCost::refusals` carries them all; `why` is DERIVED from the mask so the two cannot disagree | `Compose.h`, `Paint.cpp`, `sketch_main.cpp` |
+| **A device bake at an ANGLE is not pixel-exact — measured, after the opposite was argued** | The relaxation looked obviously right: a device bake concatenates the full matrix and blits at an integer offset, so it "cannot resample at any angle". Measured on a shader-filled box: 0 differing pixels at 0°, **5 at 45° and 2 at 30° (Δ1)**, and **1157 (Δ up to 40) once the bounds overflow the canvas**. A shader's local coordinates come back through an INVERSE, and only an axis-aligned matrix cancels an integer device offset exactly. The gate stays square; the refusal now names `Cache::Texture` as the author's own remedy instead of describing the geometry | `Paint.cpp`, `Composer.cpp` |
 
 ---
 
@@ -956,7 +959,86 @@ signatures.
 
 ---
 
-## 15. A node's OWN paint cannot be cached apart from its volatile children — *new, measured, and the next promotion item*
+## 15. A node's OWN paint cannot be cached apart from its volatile children — **CLOSED**
+
+> Shipped as the SPLIT BAKE in `Paint.cpp`. The section stays with its
+> number and its original text below, because three things it predicted
+> were wrong and the corrections are the useful part.
+>
+> **The mechanism.** `paintContent` gained a `Phase` parameter (`All` /
+> `OwnOnly` / `ChildrenOnly`) and two skips. A candidate paints in two
+> phases from its first eligible frame — which is also how the own half
+> gets TIMED by itself, so the promotion is decided on the node's own cost
+> rather than on a total that a child dominates. `Instance` grew
+> `ownImage`, `ownBakeRect`, `ownPaintMs`, `ownHotFrames`, `ownRebakes`
+> and `ownPaintDirty`.
+>
+> **Measured, on one binary with the feature forced off and on, so that
+> nothing but the split differs:**
+>
+> | | split off | split on |
+> |---|---|---|
+> | `genesis_fire` p50 | 74.16 ms | **23.60 ms** (3.15×) |
+> | `genesis_fire` p99 | 79.04 ms | 28.59 ms |
+> | the 888×666 plane, self | 35.19 ms | **0.28 ms**, `SplitOwn` |
+> | the second 888×666 node | 15.13 ms | out of the top six |
+> | `fallout2_charsheet` p50 | 119.31 ms | 89.90 ms (1.33×) |
+> | `twoadvanced_v4` p50 | 569.94 ms | 483.16 ms (1.18×) |
+> | `hello` p50 | 1.33 ms | 0.65 ms |
+>
+> **35 of 35 studies render pixel-identical.** The single apparent
+> exception is `genesis_fire`, 56 pixels in a 10×8 cluster, which is the
+> study's own `BUILD %.2f ms` readout printing 1.29 against 1.32 — its
+> instrument, not its picture. No study regressed.
+>
+> ### Three corrections to what this section said
+>
+> **1. `clipContent` and `wipe()` must NOT be excluded.** The text below
+> says to exclude them alongside layer effects because all three "wrap
+> both halves". Only the layer effect has to be: a filter applies to the
+> UNION of own paint and children, and filtering the own half alone is a
+> different picture. A clip is opened and closed INSIDE each phase — the
+> phase flag skips only the CONTENT — so both halves get the identical
+> clip in identical device geometry. That is not a nicety: this section's
+> own citation node, `regolith()`, carries `.clip(true)` because it clips
+> its disc to a limb outline, **which is exactly why the disc is a child
+> rather than a sibling.** Excluding clips would have shipped a feature
+> that refuses the one example it was written for, and every other test
+> would still have passed.
+>
+> **2. Foregrounds paint AFTER the children** and therefore belong to the
+> children half. The text below implies the own paint is everything except
+> the children. It is not — it is a contiguous PREFIX ending at the
+> children loop.
+>
+> **3. The bake must be sized by `ownPaintBounds`, not `recordBounds`.**
+> `recordBounds` unions the children in, so it moves every frame a child
+> moves — and a bake rect that moves every frame is a bake remade every
+> frame, on precisely the scenes this exists for. `ownPaintBounds` is the
+> node's box, its decoration bleed and its routed path, and nothing from
+> below it.
+>
+> ### Two traps that cost real time
+>
+> **`ownPaintDirty` cannot be `paintDirty`.** `markPaintDirtyUp()`
+> propagates a descendant's patch to every ancestor, which is right for a
+> RECORDING (it baked the child's draw calls) and wrong here: the children
+> were never in this bake, and the whole point is that they change.
+> `Layout.cpp`'s "a child's position moved" case now passes
+> `ownPaint = false` for the same reason. If that inverts, the feature
+> silently does nothing and still passes every pixel test.
+>
+> **The split needs `upright` exactly as promotion does.** It is the same
+> construction — an integer device offset concatenated onto the node's
+> matrix — so it carries the same ~1 LSB divergence under rotation. It
+> shipped without it, in the same hour that fact was established three
+> lines above, and a POSITIVE CONTROL is what caught it. That is the
+> commonest failure in this program: a fix that lands on one path and not
+> its sibling, each reading correctly alone.
+
+---
+
+## 15 (original text). A node's OWN paint cannot be cached apart from its volatile children — *new, measured, and the next promotion item*
 
 Found by the per-node profiler after leaf promotion landed, and it is the
 same shape as that finding: a cost centre the cache model cannot see,
@@ -1177,6 +1259,83 @@ FUNCTION OF POSITION rather than a constant, resolved by the library into
 something with the right cost model — for the blur case, a 2–3 level
 pyramid blended by the parameter, which is O(1) in the sigma range
 instead of O(sigma²) per pixel.
+
+## 20. A bound property that has FINISHED is live volatility forever
+
+Filed by `dunhuang_star_chart`. Every `window()` on a master clock stays
+live after its value has been pinned at 1.0 for ten seconds; the node is
+`subtreeVolatile` for the rest of the run, and the only cure available
+was a hand-rolled `settled` flag plus a full `render()`, which costs a
+22 ms frame to save a smaller one.
+
+**Check this against `Instance::scalarMemo` before building anything**,
+and the answer is that it is NOT the same mechanism, though it is the
+same family. §17 memoises the animated CONTENT SCALARS — trim, wipe,
+glyph progress — by comparing the numbers a recording was baked with
+against the numbers this frame resolves to. It is a per-slot compare over
+five floats with a fixed schema. A bound property is a `choreograph::Output`
+whose value can be anything the author maps it to, read through
+`resolveFloat` at paint time, and there is no equivalent of "the numbers
+the recording was baked with" for the general case.
+
+Two candidate shapes, and the second is better:
+
+- `bind(&out).window(a, b).settleAt(b)` — past `b` the property becomes a
+  constant and the node re-caches. Explicit, and a new knob for something
+  the library could work out.
+- **Extend the measured-stability rule that temporal promotion already
+  uses for live materials.** `liveStableRate` is an EMA of "did this
+  resolve to what was already baked" and promotion is gated on it. The
+  same question asked of a bound property's VALUE gets a settled reveal
+  re-cached with no new API and no author knowledge — and, exactly as
+  with the material, it also handles the case the knob cannot: a binding
+  that is *nominally* live and happens to be holding still.
+
+Note this shares a slogan with §15 and §17 — "provably not changing,
+believed to be changing" — and the family has now three times shared a
+slogan and not a mechanism. Read the source before merging any two of
+them.
+
+## 21. `console::Style::visibleLines` gives no height
+
+Filed by `dunhuang_star_chart`: fitting three `LineRing`s in one panel
+meant hand-tuning panel height against font size × line count.
+`compose::measure()` answering for a console element would close it.
+`Console.h` is the extraction layer's file; coordinate before touching.
+
+## 22. Two names for one identity, and it contaminates the guard
+
+Five instances in one program of a change landing on one path and not its
+sibling — four corner scanners, `Promotion::Filtered`'s four causes,
+the GPU `showStats`, a sweep tool whose model of the API predated
+`rect()`/`at()` becoming edge setters, and §15's split bake missing the
+`upright` gate its own neighbour had.
+
+The gallery adds the sharpest one, and a corollary. A scene has a
+SELECTING name and a `Scene::name()`, and the capture guard written
+specifically to catch that — `[ -f "$OUT/$s/gallery_$s.png" ]` — was
+itself written assuming there is one spelling. It reported three misses
+on captures that had succeeded.
+
+> **A two-name identity contaminates the code written to defend against
+> it.** The guard is written by the same person holding the same wrong
+> model, so it fails in the same direction and returns a confident answer.
+
+The cheap general fix is to write the PNG under the REGISTRY name, or to
+expose the mapping so that nothing downstream has to guess.
+
+## 23. `SkRect::join` early-outs on an empty rect, and a single point IS an empty rect
+
+Not a compose gap, and it cost `dunhuang_star_chart` a full render.
+Accumulating a bounding box point by point —
+`bounds.join(SkRect::MakeXYWH(x, y, 0, 0))` — leaves the rect inverted
+and every node inside it silently draws nothing. `SkRect::join` returns
+early when the ARGUMENT is empty, and a zero-extent rect is empty by that
+test even though the point is real.
+
+Use `MakeXYWH(x, y, 1, 1)`, or seed the accumulator with the first point
+and `joinPossiblyEmptyRect`. Documented in `sketch/README.md` beside the
+bounds discussion.
 
 ## Host and tooling
 

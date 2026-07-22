@@ -189,52 +189,23 @@ struct Diagonal {
 };
 
 /** One sticker-scatter slot (see stickerScatter()). */
-struct StickerSlot {
-  float dx = 0, dy = 0;  ///< offset from the stack's top-left anchor
-  float rotateDeg = 0;
-  int z = 0;
-};
-
-/** The ATLUS sticker-scatter generator (REFERENCES.md §1, recreation-
- *  verified): per-item rotations of decaying magnitude with the LAST item
- *  flipped positive, x-jitter, overlapping pitch, shuffled z — "scattered
- *  stickers converging to straight" as seeded data instead of hand-tuned
- *  tuples. Placement stays yours (LayoutScheme can't set rotations):
+/* `StickerSlot` / `stickerScatter` lived here and are DELETED.
  *
- *    auto slots = layouts::stickerScatter(5, seed);
- *    for (i, item) : item.left(x + slots[i].dx).top(y + slots[i].dy)
- *                        .rotate(slots[i].rotateDeg).zIndex(slots[i].z);
+ * They are the corpus's worked example of the wrong abstraction, and the
+ * record is worth more than the code was. The generator encoded one
+ * reference plate's scatter — decaying rotations with the last item
+ * flipped positive, x-jitter, overlapping pitch, shuffled z — as six
+ * parameters. It had ZERO users. The one scene that wants a sticker
+ * ladder refused it in writing and kept its hand-authored
+ * {-25,-15,-20,-15,...,+8}, because the value of that ladder is that
+ * somebody CHOSE it; a generator that produces ladders "in that family"
+ * produces the one thing the design is not. Its own doc comment conceded
+ * as much, and shipped anyway.
  *
- *  Same seed, same scatter — fully cacheable. The verified deltea ladder
- *  {−25,−15,−20,−15,…,+8} remains the hand-authored reference; this
- *  generates ladders in that family. */
-inline std::vector<StickerSlot>
-stickerScatter(int count, uint32_t seed = 3, float pitch = 60.0f,
-               float rotMax = 25.0f, float xJitter = 70.0f,
-               float overlap = 0.35f) {
-  std::vector<StickerSlot> ladder((size_t)std::max(count, 0));
-  const int n = (int)ladder.size();
-  if (n == 0)
-    return ladder;
-  float y = 0;
-  for (int i = 0; i < n; ++i) {
-    const float t = n > 1 ? (float)i / (float)(n - 1) : 0.0f;
-    const float noise01 =
-        0.5f + 0.5f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i));
-    const float mag = rotMax * (0.45f + 0.55f * noise01) * (1.0f - 0.45f * t);
-    ladder[(size_t)i].rotateDeg = (i == n - 1) ? +mag * 0.5f : -mag;
-    ladder[(size_t)i].dx =
-        -xJitter *
-        (0.5f + 0.5f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i + 1)));
-    ladder[(size_t)i].dy =
-        y + 6.0f * shapes::detail::hashNoise(seed, (uint32_t)(3 * i + 2));
-    y += pitch * (1.0f - overlap);
-    // Shuffled paint order, deterministic per seed.
-    ladder[(size_t)i].z =
-        1 + (int)((noise01 * 977.0f) + (float)i * 7.0f) % (n * 3);
-  }
-  return ladder;
-}
+ * The general rule it earns: a scheme belongs here when the placement is
+ * a FUNCTION the author would otherwise write out (a radial ring, a
+ * modular grid, a baseline rhythm), and does not when the placement IS
+ * the design decision. See ROADMAP.md and EXTRACT.md. */
 
 struct BaselineGrid {
   /** The editorial baseline rhythm (Müller-Brockmann): children stack
