@@ -6481,3 +6481,35 @@ TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
   // And a slot's name still answers bounds(), so the two indexes coexist.
   EXPECT_TRUE(host.composer.bounds("readout").has_value());
 }
+
+TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
+  // Three studies hand-rolled the same forty lines to check a claim
+  // against the pixels rather than the description that produced them.
+  // The F16 default is the non-obvious half: a slit-scan study measuring
+  // an intensity falloff had its outer streak at 1/120 of the apex,
+  // which N32 quantises to two levels — an 8-bit read-back gives a
+  // confident wrong exponent rather than an obviously broken one.
+  const auto r = debug::rasterize(box().absolute().inset(0).fill(
+                                      Fill::color({1.0f, 0.25f, 0.0f, 1})),
+                                  fonts(), {32, 32});
+  ASSERT_TRUE(r.valid());
+  EXPECT_EQ(r.width(), 32);
+  const SkColor4f c = r.at(16, 16);
+  EXPECT_NEAR(c.fR, 1.0f, 0.02f);
+  EXPECT_NEAR(c.fG, 0.25f, 0.02f);
+  EXPECT_NEAR(c.fB, 0.0f, 0.02f);
+
+  // The point of F16: a ratio far below 8-bit resolution survives.
+  // 1/500 of full scale is 0.51 of a 255-step — it quantises to 0 or 1
+  // in N32 and is measurable in float.
+  const float faint = 1.0f / 500.0f;
+  const auto dim = debug::rasterize(
+      box().absolute().inset(0).fill(Fill::color({faint, faint, faint, 1})),
+      fonts(), {8, 8});
+  ASSERT_TRUE(dim.valid());
+  EXPECT_NEAR(dim.at(4, 4).fR, faint, faint * 0.25f);
+
+  // Out of bounds is transparent rather than undefined.
+  EXPECT_EQ(r.at(-1, 0).fA, 0.0f);
+  EXPECT_EQ(r.at(0, 999).fA, 0.0f);
+}

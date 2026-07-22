@@ -41,10 +41,13 @@ Run any of them:
 | `kumiko_asanoha` | A hinoki asanoha ranma — Japanese lattice joinery | 514 mitred boards; per-piece assembly staggering |
 | `nightingale_coxcomb` | Nightingale's 1858 "Diagram of the Causes of Mortality in the Army in the East" | Polar-area wedges from the real mortality table; ring labels on curved baselines |
 | `penrose_paving` | Penrose's 2012 decorated P3 paving, Andrew Wiles Building, Oxford | 549 setts from de Bruijn's pentagrid, zero authored geometry, self-verifying to φ |
+| `slitscan_2001` | Trumbull's slit-scan machine (1966–68) and the Star Gate | A frame that is a TIME INTEGRAL — 1624 stamps summing per wall, with the 1/ρ exponent measured off an F16 read-back rather than assumed |
 | `spacejam_1996` | spacejam.com, Warner Bros. Online, still live and unmodified | A DOCUMENT, not a panel — HTML auto table layout as a `LayoutScheme` matching Chrome to 0.11 px, and a 216-colour dither in `setView` |
 | `psx_doom_fire` | The DOOM PlayStation title flame (1995) | A stateful cellular automaton at a fixed 27 Hz under a variable frame rate |
+| `minard_1869` | Minard's own BnF presentation copy of the 1869 sheet | The plate audited against its own printed legend, then the sketch audited by the same instrument |
 | `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths; the whole skeuomorphic vocabulary |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
+| `hitman_verlet` | Jakobsen's *Advanced Character Physics* (GDC 2001) | Motion with STATE and CONTACT — and the sign error in four of the paper's five stick listings |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
 
