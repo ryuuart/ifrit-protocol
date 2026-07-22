@@ -1647,6 +1647,56 @@ that landed correctly in one place and silently altered its siblings —
 and the first where **both halves were individually correct**. That is
 what makes it the hardest one to catch: there is no wrong line to find.
 
+## 28. A documented limit is a CLAIM, and claims in this codebase have a poor record
+
+`Console.h` stated that a `thunder_fulu`-style column plate needed a
+third sizing mode, because `ringExtent = 0` gives each ring `grow(1)`
+where the hand-built plate lets them take content height. Measured:
+**zero differing pixels at four phases, twelve lines shorter.** The
+mechanism is `shrink`, defaulting to 1 — a console plate sizes
+`visibleLines` to fill its panel, so the rings always OVERFLOW the
+interior, and shrink distributes the deficit to exactly the sizes grow(1)
+distributes the surplus to. They converge for every plate in the corpus.
+
+Its author's framing is the entry:
+
+> Not a change that landed on one path and not its sibling, but **a limit
+> asserted from reasoning and never tested** — which is worse in one
+> specific way: **it reads as a finding, so nobody re-runs it.**
+
+That is the distinguishing feature and it is worth separating from the
+sibling-path family. A sibling-path defect is latent and someone
+eventually trips over it. A false documented limit is *actively load
+bearing*: it is cited, planned around, and used to justify writing the
+workaround again. It compounds.
+
+The record it belongs to, which is now long enough to be a rule:
+
+- Four run-1 roadmap entries described capabilities the library already
+  had.
+- Four more in run 2 described things that were not what they said.
+- `Material::worldSpace` was cited independently by two studies, and
+  measurement refuted it.
+- A study refuted its own brief by finding `brushes::Ribbon::widthFn`
+  does what the brief called impossible.
+- §7 was wrong: `PathFormat` always had its own trim window, and two
+  studies rebuilt one.
+- `slot()` "lays out W × 0" (§10d) — refuted.
+- `stack()` "measures 0 × 0 always" (§10d) — twice wrong.
+- The device bake "is exact at any angle" (§25/§26 era) — argued by me,
+  accepted by the manager, refuted at 5 pixels and then at 1157.
+- And this one, which had shipped in a header as guidance.
+
+> **A documented limit is a claim. Before building on one — especially a
+> popular one, especially your own — spend the thirty seconds it costs to
+> try the thing it says is impossible.**
+
+This is why the top of this file says READ THE SOURCE BEFORE BUILDING ON
+ANY ENTRY. The instruction is not scepticism about the authors; every one
+of these was written by someone who had just been in the code. It is that
+a limit is the one kind of claim nobody re-tests, because re-testing it
+means attempting something you have been told will not work.
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers

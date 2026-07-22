@@ -387,7 +387,8 @@ int main(int argc, char *argv[]) {
   // execution. A study that draws its own bake time into its own plate
   // differs from ITSELF between two runs, so every pixel sweep reports it
   // as changed by a patch that changed nothing.
-  bool deterministic = false;
+  // Tri-state: unset means "decide from the mode" below.
+  std::optional<bool> deterministic;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--assets" && i + 1 < argc)
@@ -406,6 +407,8 @@ int main(int argc, char *argv[]) {
       capture.bench = true;
     else if (arg == "--deterministic")
       deterministic = true;
+    else if (arg == "--no-deterministic")
+      deterministic = false;
     else if (arg == "--bench-frames" && i + 1 < argc)
       capture.benchFrames = std::max(1, std::stoi(argv[++i]));
     else if (sketchPath.empty())
@@ -417,14 +420,25 @@ int main(int argc, char *argv[]) {
                  "         [--frame <out.png>] [--at <sec>] [--scale <n>]\n"
                  "         [--frames <count>] [--fps <n>]\n"
                  "         [--bench] [--bench-frames <n>]\n"
-                 "         [--deterministic]   pin self-measured numbers,\n"
-                 "                             so captures can be diffed\n"
+                 "         [--deterministic | --no-deterministic]\n"
+                 "             pin numbers a sketch measured about its own\n"
+                 "             execution, so captures are diffable. ON by\n"
+                 "             default whenever --frame is capturing.\n"
                  "starter: src/common/compose/sketch/sketches/hello.cpp\n");
     return 2;
   }
 
   sigil::compose::sketch::SketchHost::Options options;
-  options.deterministic = deterministic;
+  // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A --frame capture exists to
+  // be looked at or DIFFED, and a study that draws its own bake time into
+  // its own plate differs from itself between two runs — so every corpus
+  // sweep reports it as changed by a patch that changed nothing. Making
+  // the flag opt-in meant remembering it, and the whole point of the
+  // finding is that nobody remembers (three sweeps were run without it).
+  // The live host keeps its real numbers, which is where you actually
+  // want to watch them; --no-deterministic restores them in a capture.
+  options.deterministic =
+      deterministic.value_or(!capture.out.empty() && !capture.bench);
   options.sketchPath = std::filesystem::absolute(sketchPath);
   options.assetsDir = assetsDir;
   options.flagsFile = executableDir(argv[0]) / "sketch_flags.rsp";

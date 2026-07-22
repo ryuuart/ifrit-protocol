@@ -867,6 +867,13 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                            .height(15)
                            .outline(shapes::polygon(4, 45.0f))
                            .foreground(util::stroke(1.3f, red()));
+        // Bisector, and NOT merely because it is the default. This
+        // specimen's caption says "lozenge", and a lozenge is only a
+        // lozenge on the bisector: a rectangle's outgoing legs are axis
+        // aligned, so under Outgoing the same polygon(4, 45) comes back
+        // as four upright SQUARES and the label stops being true of the
+        // picture beside it. Measured both ways before writing this.
+        tiled.cornerAlign = brushes::PatternBrush::CornerAlign::Bisector;
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
         add("PatternBrush{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
@@ -1027,6 +1034,15 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .height(13)
                         .outline(shapes::polygon(4, 45.0f))
                         .foreground(util::stroke(1.3f, red()));
+      // Bisector, and it is load-bearing for what this specimen is FOR.
+      // The point here is PLACEMENT — that a tile lands exactly on the
+      // vertex — and bisector alignment gives eight identically oriented
+      // lozenges, so a tile that sits wrong breaks an obvious rhythm.
+      // Under Outgoing they alternate square/diamond, because a chamfer's
+      // legs alternate axis-aligned and 45 degrees, and that alternation
+      // is a confound: you cannot tell a misplaced tile from a merely
+      // differently-rotated one. Measured both ways.
+      octo.cornerAlign = brushes::PatternBrush::CornerAlign::Bisector;
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;
       octo.reach = 18.0f;

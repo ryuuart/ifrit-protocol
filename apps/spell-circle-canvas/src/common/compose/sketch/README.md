@@ -161,6 +161,15 @@ SIGIL_SKETCH(MySketch)
   useful. Build with `SkPathBuilder` and `SkPathBuilder::addPath`, then
   `detach()`. The same applies to most in-place `SkPath` mutation:
   paths are values here, builders are the mutable half.
+- **A `--frame` capture is DETERMINISTIC by default.** Anything a sketch
+  measured about its own execution — a build time, a bake cost, a live
+  node count — is pinned, because a study that draws its own measurements
+  into its own plate differs from ITSELF between two runs, and every
+  pixel sweep then reports it as changed by a patch that changed nothing.
+  Route such values through `ctx.measured(value)` and they are handled;
+  read `ctx.deterministic` when a whole panel should go. Pass
+  `--no-deterministic` to get the live numbers back in a capture. The
+  interactive host is never pinned — that is where you want to watch them.
 - **`SkRect::join` early-outs on an empty rect, and a single POINT is an
   empty rect.** Accumulating a bounding box point by point —
   `bounds.join(SkRect::MakeXYWH(x, y, 0, 0))` — leaves the rect inverted,
