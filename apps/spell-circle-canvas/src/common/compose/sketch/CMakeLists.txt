@@ -44,14 +44,14 @@ set_target_properties(SigilSketchKit PROPERTIES
 set(SIGIL_SKETCH_STUDIES
   # Game UI
   ds2_bench fallout2_charsheet ksp_mapview psx_doom_fire xcom_battlescape
-  thaumonomicon
+  thaumonomicon vagrant_story_target
   # Screens and software
   cde_motif spacejam_1996 twoadvanced_v4 winamp_base
   # Science and data
   chaucer_astrolabe chevreul_circle chladni_tab1 minard_1869
   nightingale_coxcomb
   # Pattern and tradition
-  black_watch kumiko_asanoha penrose_paving
+  black_watch kumiko_asanoha penrose_paving sigillum_aemeth
   # Motion and film
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense
