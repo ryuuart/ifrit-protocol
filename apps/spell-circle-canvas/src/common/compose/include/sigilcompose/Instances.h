@@ -74,6 +74,8 @@ public:
     m_scales.push_back(scale);
     m_tints.push_back(tint);
     m_frames.push_back(frame);
+    if (!m_sizes.empty())
+      m_sizes.push_back({1.0f, 1.0f});
     ++m_revision;
     return m_positions.size() - 1;
   }
@@ -83,6 +85,7 @@ public:
     m_scales.clear();
     m_tints.clear();
     m_frames.clear();
+    m_sizes.clear();
     ++m_revision;
   }
   void resize(size_t n) {
@@ -91,6 +94,8 @@ public:
     m_scales.resize(n, 1.0f);
     m_tints.resize(n, {1, 1, 1, 1});
     m_frames.resize(n, 0);
+    if (!m_sizes.empty())
+      m_sizes.resize(n, {1.0f, 1.0f});
     ++m_revision;
   }
   size_t size() const { return m_positions.size(); }
@@ -102,12 +107,30 @@ public:
   std::span<float> scales() { return m_scales; }
   std::span<SkColor4f> tints() { return m_tints; }
   std::span<int> frames() { return m_frames; }
+  /** Per-instance NON-UNIFORM scale, as an (x, y) multiplier on top of
+   *  `scales()`. Opt-in: the lane does not exist until you ask for it, so
+   *  a pool that never needs it costs nothing and keeps the pure-RSXform
+   *  draw path.
+   *
+   *  `SkRSXform` carries (scos, ssin) and one scale by construction, so
+   *  this is the one instance attribute the atlas draw could not express.
+   *  Reeves' 1982 `streaked spherical` particle — a quad 0.5·|v| long by
+   *  `size` wide, swinging ~2.4:1 at ejection to under 1:1 at apogee — is
+   *  the canonical case, and every study that met it hand-built the
+   *  vertex buffer `drawSpriteAtlas` already builds internally. */
+  std::span<SkSize> sizes() {
+    if (m_sizes.size() != m_positions.size())
+      m_sizes.resize(m_positions.size(), {1.0f, 1.0f});
+    return m_sizes;
+  }
+  bool hasSizes() const { return m_sizes.size() == m_positions.size(); }
 
   std::span<const SkPoint> positions() const { return m_positions; }
   std::span<const float> rotations() const { return m_rotations; }
   std::span<const float> scales() const { return m_scales; }
   std::span<const SkColor4f> tints() const { return m_tints; }
   std::span<const int> frames() const { return m_frames; }
+  std::span<const SkSize> sizes() const { return m_sizes; }
 
   /** Data changed → the next describe carries a new revision, so the
    *  reconciler repaints the leaf exactly once. */
@@ -120,6 +143,7 @@ private:
   std::vector<float> m_scales;
   std::vector<SkColor4f> m_tints;
   std::vector<int> m_frames;
+  std::vector<SkSize> m_sizes; // empty unless sizes() was asked for
   uint64_t m_revision = 0;
 };
 
@@ -247,9 +271,11 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   static thread_local std::vector<SkRSXform> xforms;
   static thread_local std::vector<SkRect> tex;
   static thread_local std::vector<SkColor> colors;
+  static thread_local std::vector<SkSize> sizes;
   xforms.clear();
   tex.clear();
   colors.clear();
+  sizes.clear();
   xforms.reserve(pool.size());
   tex.reserve(pool.size());
   colors.reserve(pool.size());
@@ -260,6 +286,10 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   const auto scales = pool.scales();
   const auto tints = pool.tints();
   const auto frames = pool.frames();
+  const auto poolSizes = pool.sizes(); // empty unless the lane exists
+  const bool nonUniform = poolSizes.size() == positions.size();
+  if (nonUniform)
+    sizes.reserve(pool.size());
   const int frameCount = atlas.frameCount();
   for (size_t i = 0; i < positions.size(); ++i) {
     const int frame = std::clamp(frames[i], 0, frameCount - 1);
@@ -267,9 +297,14 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
     if (cellTex.isEmpty())
       continue;
     const float scale = scales[i] * inv;
+    const SkSize sizeMul =
+        nonUniform ? poolSizes[i] : SkSize{1.0f, 1.0f};
     if (cull) {
-      const float reach =
-          0.5f * SkPoint{cellTex.width(), cellTex.height()}.length() * scale;
+      const float widest =
+          std::max(std::abs(sizeMul.width()), std::abs(sizeMul.height()));
+      const float reach = 0.5f *
+                          SkPoint{cellTex.width(), cellTex.height()}.length() *
+                          scale * std::max(widest, 1.0f);
       const SkPoint p = positions[i];
       if (p.fX + reach < clip.left() || p.fX - reach > clip.right() ||
           p.fY + reach < clip.top() || p.fY - reach > clip.bottom())
@@ -279,6 +314,8 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
         scale, rotations[i], positions[i].fX, positions[i].fY,
         cellTex.width() * 0.5f, cellTex.height() * 0.5f));
     tex.push_back(cellTex);
+    if (nonUniform)
+      sizes.push_back(sizeMul);
     const SkColor tint = tints[i].toSkColor();
     tinted |= tint != SK_ColorWHITE;
     colors.push_back(tint);
@@ -292,7 +329,8 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
                           xforms.data(), tex.data(),
                           tinted ? colors.data() : nullptr, xforms.size(),
-                          SkSamplingOptions(SkFilterMode::kLinear), blend);
+                          SkSamplingOptions(SkFilterMode::kLinear), blend,
+                          nonUniform ? sizes.data() : nullptr);
 }
 
 struct DataProps {

@@ -27,6 +27,7 @@
 #include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/Recorder.h>
 
+#include <cmath>
 #include <algorithm>
 #include <cstdint>
 #include <vector>
@@ -137,12 +138,20 @@ inline void drawLattice(SkCanvas &canvas, Promoted &cache, sk_sp<SkImage> img,
  *  null for the untinted path. @p blend is how each sprite hits the
  *  DESTINATION — kPlus is the whole colour model of an additive particle
  *  system, and routing it through the element's saveLayer instead would
- *  composite the flattened field once rather than accumulating overlaps. */
+ *  composite the flattened field once rather than accumulating overlaps.
+ *
+ *  @p sizes, when non-null, is a per-sprite (x, y) scale MULTIPLIER on
+ *  top of the xform's uniform scale — the lane SkRSXform cannot carry.
+ *  Reeves' 1982 `streaked spherical` particle is a quad 0.5·|v| long by
+ *  `size` wide whose aspect swings ~2.4:1 to under 1:1 across its life,
+ *  and every study that needed it hand-built the vertex buffer this
+ *  function already builds internally. */
 inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
                             sk_sp<SkImage> sheet, const SkRSXform *xforms,
                             const SkRect *tex, const SkColor *colors,
                             size_t count, const SkSamplingOptions &sampling,
-                            SkBlendMode blend = SkBlendMode::kSrcOver) {
+                            SkBlendMode blend = SkBlendMode::kSrcOver,
+                            const SkSize *sizes = nullptr) {
   if (!sheet || count == 0)
     return;
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
@@ -154,13 +163,15 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
   for (size_t start = 0; count - start > kMaxSprites; start += kMaxSprites)
     drawSpriteAtlas(canvas, cache, sheet, xforms + start, tex + start,
                     colors ? colors + start : nullptr, kMaxSprites, sampling,
-                    blend);
+                    blend, sizes ? sizes + start : nullptr);
   const size_t tail = (count - 1) % kMaxSprites + 1;
   const size_t offset = count - tail;
   xforms += offset;
   tex += offset;
   if (colors)
     colors += offset;
+  if (sizes)
+    sizes += offset;
   count = tail;
   // Two triangles per sprite, indexed; positions from RSXform::toQuad.
   static thread_local std::vector<SkPoint> positions;
@@ -178,7 +189,31 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
     vertexColors.reserve(count * 4);
   for (size_t i = 0; i < count; ++i) {
     SkPoint quad[4];
-    xforms[i].toQuad(tex[i].width(), tex[i].height(), quad);
+    if (sizes) {
+      // NON-UNIFORM per-sprite scale. SkRSXform cannot express it — it
+      // carries (scos, ssin) and one scale by construction — so the quad
+      // is built directly here. Everything downstream is identical, which
+      // is the point: the decomposed path already emits quads, so the
+      // only thing that was ever missing is this branch.
+      const float cos0 = xforms[i].fSCos, sin0 = xforms[i].fSSin;
+      const float scale = std::sqrt(cos0 * cos0 + sin0 * sin0);
+      const float c = scale > 1e-6f ? cos0 / scale : 1.0f;
+      const float s0 = scale > 1e-6f ? sin0 / scale : 0.0f;
+      const float hw = tex[i].width() * 0.5f * scale * sizes[i].width();
+      const float hh = tex[i].height() * 0.5f * scale * sizes[i].height();
+      // toQuad anchors at the cell centre, so recover it from the xform's
+      // translation the same way RSXform does.
+      const float ax = tex[i].width() * 0.5f, ay = tex[i].height() * 0.5f;
+      const float cx = xforms[i].fTx + cos0 * ax - sin0 * ay;
+      const float cy = xforms[i].fTy + sin0 * ax + cos0 * ay;
+      const SkPoint local[4] = {
+          {-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}};
+      for (int k = 0; k < 4; ++k)
+        quad[k] = {cx + local[k].fX * c - local[k].fY * s0,
+                   cy + local[k].fX * s0 + local[k].fY * c};
+    } else {
+      xforms[i].toQuad(tex[i].width(), tex[i].height(), quad);
+    }
     const uint16_t base = (uint16_t)positions.size();
     for (int k = 0; k < 4; ++k)
       positions.push_back(quad[k]);

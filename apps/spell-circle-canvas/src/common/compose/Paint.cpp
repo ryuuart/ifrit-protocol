@@ -256,7 +256,7 @@ const SkPath &Composer::Impl::resolveOutline(Instance &inst, SkSize size) const 
  *  ligatures), then place every glyph by arc length and rotate it to the
  *  tangent, through the same batched RSXform draw kinetic text uses.
  *
- *  Only the first contour is walked. Glyphs past the end of the path are
+ *  Every contour is walked in order. Glyphs past the end of the path are
  *  dropped rather than piled on the last point — running off the end of a
  *  ring should look like running off the end of a ring. */
 void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
@@ -365,6 +365,11 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
     flipRun = upsideDown > upright;
   }
 
+  // The centroid the Radial orientation faces away from: the bounds of
+  // the resolved baseline, which for every dial-shaped path is its centre.
+  const SkRect baselineBounds = baseline.getBounds();
+  const SkPoint centroid{baselineBounds.centerX(), baselineBounds.centerY()};
+
   static thread_local sigil::weave::GlyphRSXformBatches batches;
   batches.clear();
   sigil::weave::forEachPlacedGlyph(
@@ -394,7 +399,28 @@ void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
         }
         // Perpendicular offset, positive to the LEFT of travel (outward on
         // a clockwise circle). The path replaces the glyph's own baseline.
+        // Measured along TRAVEL even under Radial orientation, so `offset`
+        // keeps meaning "how far off the baseline the type rides"
+        // regardless of which way the glyph ends up facing.
         pos.offset(dirY * spec.offset, -dirX * spec.offset);
+        // Radial: the glyph's BASELINE runs along the radius, so the run
+        // reads outward from the centre like a spoke. That is how an
+        // astrolabe limb, a compass rose and a radial axis label their
+        // divisions — you turn the instrument to read them.
+        //
+        // Note this is genuinely a different thing from what Tangent
+        // already does. On a circle, "up points outward" IS the tangent
+        // orientation (a clock face's 6 is upside down for exactly that
+        // reason), so the only orientation onPath was missing is the one
+        // where the type radiates.
+        if (spec.orient == TextPath::Orient::Radial) {
+          const float ox = pos.x() - centroid.x(), oy = pos.y() - centroid.y();
+          const float omag = std::hypot(ox, oy);
+          if (omag > 1e-6f) {
+            dirX = ox / omag;
+            dirY = oy / omag;
+          }
+        }
         // Quantized for the same reason kinetic text quantizes: a
         // continuous per-glyph angle mints a fresh glyph mask per letter
         // in Skia's cache. 64 steps is 5.6 degrees, which on a ring whose

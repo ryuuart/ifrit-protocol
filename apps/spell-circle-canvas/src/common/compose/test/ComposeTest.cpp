@@ -5419,3 +5419,131 @@ TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
   // makes this a convenience rather than a behaviour change.
   EXPECT_LT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)), 8);
 }
+
+TEST(ComposeInstances, ThePerInstanceSizeLaneCarriesNonUniformScale) {
+  // The most-cited gap in the program's hard half: SkRSXform carries
+  // (scos, ssin) and ONE scale by construction, so Reeves' 1982
+  // `streaked spherical` particle — a quad 0.5·|v| long by `size` wide,
+  // aspect swinging ~2.4:1 to under 1:1 across its life — could not be
+  // instanced at all. One study hand-built the vertex buffer in 69 lines
+  // and lost every decoration slot and all picture caching with it.
+  //
+  // The lane is opt-in: a pool that never asks for it keeps the pure
+  // RSXform path and costs nothing.
+  auto build = [](bool stretch) {
+    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    atlas->cell(box().width(20).height(20).fill(Fill::color({1, 0, 0, 1})),
+                {20, 20});
+    auto pool = std::make_shared<instancing::Pool>();
+    pool->add({100, 100});
+    if (stretch) {
+      pool->sizes()[0] = {4.0f, 0.25f}; // 80 x 5 — a streak
+      pool->touch();
+    }
+    return box().absolute().inset(0).child(
+        instancing::instances(atlas, pool, instancing::Mode::Data));
+  };
+  auto redSpan = [](Host &host, bool horizontal) {
+    int n = 0;
+    for (int i = 0; i < 200; ++i) {
+      const SkColor c =
+          horizontal ? host.pixel(i, 100) : host.pixel(100, i);
+      n += SkColorGetR(c) > 180;
+    }
+    return n;
+  };
+
+  Host square(200, 200);
+  square.composer.render(build(false));
+  square.frame();
+  EXPECT_NEAR(redSpan(square, true), 20, 2);
+  EXPECT_NEAR(redSpan(square, false), 20, 2);
+
+  Host streak(200, 200);
+  streak.composer.render(build(true));
+  streak.frame();
+  EXPECT_NEAR(redSpan(streak, true), 80, 3);  // four times as wide…
+  EXPECT_NEAR(redSpan(streak, false), 5, 2);  // …and a quarter as tall
+}
+
+TEST(ComposeInstances, ANonUniformInstanceStillRotatesAboutItsCentre) {
+  // The quad is built by hand on this path, so the anchor has to come out
+  // where RSXform would have put it — a 90-degree turn must swap the
+  // extents in place, not orbit the sprite away from its position.
+  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  atlas->cell(box().width(20).height(20).fill(Fill::color({1, 0, 0, 1})),
+              {20, 20});
+  auto pool = std::make_shared<instancing::Pool>();
+  pool->add({100, 100}, 0, (float)M_PI_2);
+  pool->sizes()[0] = {4.0f, 0.25f};
+  pool->touch();
+
+  Host host(200, 200);
+  host.composer.render(box().absolute().inset(0).child(
+      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.frame();
+  int across = 0, down = 0;
+  for (int i = 0; i < 200; ++i) {
+    across += SkColorGetR(host.pixel(i, 100)) > 180;
+    down += SkColorGetR(host.pixel(100, i)) > 180;
+  }
+  EXPECT_NEAR(across, 5, 2);  // rotated: the extents swapped…
+  EXPECT_NEAR(down, 80, 3);
+  EXPECT_TRUE(SkColorGetR(host.pixel(100, 100)) > 180); // …in place
+}
+
+TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
+  // onPath rotates glyphs to the TANGENT, which is running lettering — a
+  // motto, a ring inscription. An astrolabe limb, a compass rose and a
+  // radial axis want the other one: type RADIATING like a spoke, read by
+  // turning the instrument. Without it each numeral costs one rotated
+  // Element, which is precisely the per-glyph cost onPath exists to
+  // abolish.
+  //
+  // (Tangent already gives "up points outward" on a circle — that is why
+  // a clock face's 6 comes out upside down — so radiating is genuinely
+  // the only orientation that was missing, not a restatement.)
+  // Built with parametric() rather than circle() so the test knows
+  // exactly where fraction 0.25 is: t runs from 3 o'clock, and with y
+  // down a quarter turn lands at the BOTTOM.
+  auto ring = [](TextPath::Orient orient) {
+    auto circle = shapes::parametric(
+        [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
+        2.0f * SK_FloatPI, 360, true);
+    // ONE tall glyph: a run spread along the arc keeps a wide footprint
+    // whichever way its glyphs face, so a multi-glyph run cannot see the
+    // per-glyph rotation at all.
+    return box().child(text(u8"I", whiteStyle(64))
+                           .width(240).height(240).absolute().left(0).top(0)
+                           .onPath({.path = circle,
+                                    .at = 0.25f, // the bottom of the ring
+                                    .align = TextPath::Align::Center,
+                                    .offset = -50.0f,
+                                    .orient = orient}));
+  };
+  auto footprint = [](Host &host) {
+    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+    for (int y = 0; y < 240; ++y)
+      for (int x = 0; x < 240; ++x)
+        if (host.pixel(x, y) != SK_ColorBLACK) {
+          minX = std::min(minX, x); maxX = std::max(maxX, x);
+          minY = std::min(minY, y); maxY = std::max(maxY, y);
+        }
+    return SkISize{maxX - minX, maxY - minY};
+  };
+
+  Host tangent(240, 240), radial(240, 240);
+  tangent.composer.render(ring(TextPath::Orient::Tangent));
+  tangent.frame();
+  radial.composer.render(ring(TextPath::Orient::Radial));
+  radial.frame();
+
+  const SkISize t = footprint(tangent), r = footprint(radial);
+  ASSERT_GT(t.width(), 0);
+  ASSERT_GT(r.width(), 0);
+  // At the bottom of the ring the tangent is horizontal, so the glyph
+  // stands (upside down, but standing): tall. Radial turns its baseline
+  // down the radius, laying it on its side: wide.
+  EXPECT_GT(t.height(), t.width());
+  EXPECT_GT(r.width(), r.height());
+}

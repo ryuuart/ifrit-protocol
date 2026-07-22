@@ -535,7 +535,9 @@ struct Stagger {
  *  faces, seals, compass roses, mottoes and map lettering all want this. */
 struct TextPath {
   /** The baseline, resolved against the node's laid-out box — any
-   *  `shapes::` generator, or your own. Only the FIRST contour is used. */
+   *  `shapes::` generator, or your own. EVERY contour is walked, in
+   *  order, as one arc-length coordinate — a trajectory clipped to the
+   *  frame is several contours and used to lose its label silently. */
   std::function<SkPath(SkSize)> path;
   /** Where the run sits along the path, as a fraction of its length.
    *  With Align::Center this is the run's midpoint. */
@@ -555,6 +557,23 @@ struct TextPath {
    *  genuinely upside down. Modern signage flips; historical plates do
    *  not. */
   bool autoFlip = false;
+  /** Which way a glyph faces.
+   *
+   *  `Tangent` is running lettering: the baseline lies ALONG the path,
+   *  which is what a ring inscription or a motto wants. Note this already
+   *  gives you "up points outward" on a circle — that is why a clock
+   *  face's 6 comes out upside down, and why `autoFlip` exists.
+   *
+   *  `Radial` runs the baseline along the RADIUS instead, so the type
+   *  radiates like a spoke — which is how an astrolabe limb, a compass
+   *  rose and a radial axis label their divisions: you turn the
+   *  instrument to read them. Without it each numeral costs one rotated
+   *  Element, which is exactly the per-glyph cost onPath exists to
+   *  abolish, resurfacing for the other half of the problem.
+   *
+   *  The centre it radiates from is the resolved baseline's bounding-box
+   *  centre, which is the true centre for every dial-shaped path. */
+  enum class Orient { Tangent, Radial } orient = Orient::Tangent;
   // No operator==: `path` is a std::function, so a defaulted one is
   // implicitly DELETED and compiles quietly while comparing nothing. The
   // reconciler treats a run with a baseline as never-prunable instead
