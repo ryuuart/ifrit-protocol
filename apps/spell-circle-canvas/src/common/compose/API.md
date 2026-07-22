@@ -473,8 +473,73 @@ Three layers keep the library lean and the call sites short:
   `LayerStyles.h`/`Pattern.h`/`Patterns.h` (the brush/line/chrome
   vocabulary, "The Brush engine" below), `Kinetic.h` (glyph-effect
   presets), `Console.h` (the streaming log), `Instances.h`
-  ("Instancing" below), and `GpuImage.h` ("Drawing images portably"
-  below).
+  ("Instancing" below), `GpuImage.h` ("Drawing images portably"
+  below), and `Debug.h` (assertions for GENERATED geometry — see below).
+
+## What the study program added
+
+Everything in this section came out of rebuilding real artefacts and
+finding the library could not say something. `ROADMAP.md` carries the
+full list with its citation counts; this is the surface.
+
+```cpp
+// ---- bindings you can shape ----
+bind(&out).from(lo,hi).map(ease).quantize(n).scale(s).offset(o)
+          .to(lo,hi).invert().clamp(lo,hi)   // any float property
+fill(&fillOutput)                            // ch::Output<Fill>, live
+
+// ---- paint order ----
+Element &overlay(Decoration);   // over the fill, UNDER content and children
+Element &sampling(SkSamplingOptions);        // image leaves; kNearest
+
+// ---- text on a path ----
+TextPath{ .path, .at, .align, .offset, .autoFlip, .orient }
+// .orient = Tangent (running lettering) | Radial (type radiating like a
+// spoke — a dial, a compass rose, an astrolabe limb). EVERY contour of
+// the path is walked, in order, as one arc-length coordinate.
+
+// ---- shapes ----
+shapes::circle()  shapes::annulus(innerRatio)  shapes::sector(a, sweep, inner)
+shapes::inset(px, Decoration)  shapes::arrow(shaft, head)
+shapes::star(points, innerRatio, waist)      // waist bows the arms concave
+shapes::parametric(fn, t0, t1, samples, close)   // fn: t -> UNIT (x, y)
+shapes::lissajous(a, b, deltaDeg, turns)     shapes::rose(k, turns)
+shapes::harmonograph(a, b, delta, damping, precession, turns)
+shapes::spiral(turns, logarithmic, growth)   shapes::trochoid(R, r, d, inside)
+util::disc(centre, radius)                   // the ELEMENT form
+
+// ---- lines and decorations ----
+lines::radialHatch(fill, spokes, width, centre)   // a fan out of a point
+lines::concentric(fill, rings, width, centre)     // …and its ring twin
+PathFormat::dashPhaseBinding                      // marching dashes, bound
+PathFormat::trimStart/trimEnd/trimOffset/trimPhase // its OWN trim window,
+                                                   // composing with the node's
+decorations::paintOn(canvas, ctx, path, decoration) // the brush vocabulary
+                                                    // on geometry you built
+
+// ---- materials ----
+Material::glowUnit(centre01, radius01, stops)  // radius = INSCRIBED circle
+Material::linearUnit / radialUnit              // radialUnit = HALF-DIAGONAL
+ease::outBack(s) / inBack / inOutBack / outElastic / inElastic / outBounce
+
+// ---- instancing ----
+instancing::instances(atlas, pool, mode, blend)   // blend is PER SPRITE
+pool.sizes()[i] = {sx, sy};                       // non-uniform, opt-in
+
+// ---- motion ----
+ticker.addFixed(hz, fn, maxCatchUp, &alphaOut);   // fixed step; alphaOut is
+                                                  // the render interpolant
+
+// ---- verifying generated geometry ----
+debug::coverage(pieces, region, grid)  -> {uncovered, doubled, witnesses}
+debug::endpointDegrees(pieces, tol)    -> degree per merged endpoint
+```
+
+Four of these exist because a study reported the opposite of the truth
+and worked around it — `PathFormat`'s trim window, the bound `Fill`,
+`decorations::paintOn`, and `onPath`'s multi-contour walk were all
+already there and undiscoverable. When something seems impossible here,
+read the header before believing it.
 
 ## Worked example 1 — static poster, headless (weave_demo style)
 
