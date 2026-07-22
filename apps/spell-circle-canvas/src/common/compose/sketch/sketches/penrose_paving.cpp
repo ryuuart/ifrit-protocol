@@ -55,20 +55,33 @@
 //   on its 5-fold point); 0.1 is Γ=1/2, the anti-Penrose tiling — its illegal
 //   vertex stars show up immediately in the arc chains.
 //
-//   THE ARCS: each rhomb carries two arcs of radius s/2 centred on its two
-//   ACUTE vertices, each running from the midpoint of one incident edge to the
-//   midpoint of the other. Since every edge has length s, an arc endpoint at
-//   distance s/2 from either end of an edge lands on that edge's exact
-//   midpoint — so the chain is C0-continuous across every shared edge in the
-//   field regardless of which prototiles meet there, and C1 too, because an
-//   arc centred on an endpoint of the edge crosses that edge perpendicularly
-//   from BOTH sides. That is a proof, not an assertion, and the sketch checks
-//   it numerically at startup (see verify(), printed to stdout).
+//   THE ARCS are not free either, and not "at the acute corners" — that was
+//   the first guess here and it is wrong. Every edge of the whole tiling runs
+//   tail → tail + ζ_j for a fixed j, a globally consistent orientation the
+//   dualization hands you. Mark each edge at a·s from its TAIL and both marks
+//   around corner z sit at a·s while both around z+ζ_r+ζ_s sit at (1−a)·s;
+//   the other two corners see one of each and admit no circular arc at all.
+//   So the two arcs live on the ζ_r+ζ_s DIAGONAL — the acute pair on a fat
+//   rhomb, the OBTUSE pair on a thin one — and they are de Bruijn's two
+//   arrow classes. a = 1/2 is forced too: an arc at a thin rhomb's 144°
+//   corner must clear the far edge at s·sin36° = 0.588s, so a ∈ [0.412,
+//   0.588], and 1/2 is the only value making the two classes congruent.
+//   The chain is then C0 across every shared edge whatever meets there (both
+//   endpoints are the edge's exact midpoint) and C1 as well (an arc centred
+//   on an endpoint of the edge crosses that edge perpendicularly, from both
+//   sides). Proof, not assertion — verify() checks all of it numerically at
+//   startup and prints the result; getting the corner pair wrong changes the
+//   loop topology from the photograph's interlocking rings to a field of
+//   isolated little circles, which is exactly what happened here first.
 //
 //   The deflation vignette runs the OTHER construction — Robinson-triangle
 //   substitution, acute → 1 acute + 1 obtuse, obtuse → 1 acute + 2 obtuse,
 //   ×1/φ — i.e. rhomb-level Fat → 2 Fat + 1 Thin, Thin → 1 Fat + 1 Thin, so
-//   1 → 3 → 8 → 21 rhombs. Area conservation is checked per generation.
+//   1 → 3 → 8 → 21 rhombs, audited three ways per generation: area
+//   conservation, every child inside a parent, and a point-sampled coverage
+//   test (0 uncovered, 0 double-covered) — the first two both pass on a
+//   subdivision that overlaps here and gaps there, so only the third is
+//   actually a proof of tiling.
 //
 // IT IS STONE, NOT A DIAGRAM: every sett is a slab with a real saw-cut joint,
 // a chamfered arris shaded against one world-fixed sun, a seeded granite
@@ -80,6 +93,9 @@
 //   ./build/bin/Release/ComposeSketch \
 //       src/common/compose/sketch/sketches/penrose_paving.cpp \
 //       --frame /tmp/penrose_paving.png --at 4.6
+//
+// --at 0.75 catches the crystal front mid-growth over the exact 5-fold
+// centre, 1.45 the inlay chaining on, 4.6 the finished plaza.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -832,7 +848,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         const float cy = (src.a.y() + src.b.y() + src.c.y()) / 3.0f;
         for (SkPoint *q : {&g.a, &g.b, &g.c}) {
           const SkVector d = normv({q->x() - cx, q->y() - cy});
-          *q = {q->x() + d.x() * 0.45f, q->y() + d.y() * 0.45f};
+          *q = {q->x() + d.x() * 0.8f, q->y() + d.y() * 0.8f};
         }
       }
       SkPoint pts[3] = {g.a, g.b, g.c};
@@ -853,13 +869,16 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                       .width(bb.width())
                       .height(bb.height())
                       .outline([p](SkSize) { return p; })
-                      .fill(Fill::color(rgb(0xFF0000 >> ((i%6)*3) | (0x2288FF * (uint32_t)(i%3)))))
+                      .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7)
+                                                    : rgb(0x76797E)))
                       // NO per-piece scale: scaling each half about its own
                       // centre pulls a subdivision apart, and a deflation
                       // diagram that shows gaps is saying the opposite of
                       // what it is for. The patch as a whole takes the
                       // entrance instead (see the group below).
-                      .opacity(1.0f));
+                      .opacity(withFrom(
+                          0.0f, 1.0f,
+                          Transition{260ms, choreograph::easeOutQuad})));
     }
 
     // The rhomb outlines: every triangle's a→b→c run WITHOUT the closing edge,
@@ -1141,13 +1160,6 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         std::printf("[penrose] deflation coverage @gen3: %d samples in the seed,"
                     " %d uncovered, %d double-covered\n",
                     inside, uncovered, doubled);
-      }
-      for (size_t i = 0; i < gens[1].size(); ++i) {
-        const Tri &t = gens[1][i];
-        std::printf("[penrose]   gen1[%zu] type=%d  a=(%.1f,%.1f) b=(%.1f,%.1f)"
-                    " c=(%.1f,%.1f) area=%.1f\n",
-                    i, t.type, t.a.x(), t.a.y(), t.b.x(), t.b.y(), t.c.x(),
-                    t.c.y(), triArea(t));
       }
       std::printf("[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
                   "area failures=%d  children outside their parent=%d\n",
