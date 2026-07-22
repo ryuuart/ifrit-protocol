@@ -491,6 +491,17 @@ fill(&fillOutput)                            // ch::Output<Fill>, live
 // ---- paint order ----
 Element &overlay(Decoration);   // over the fill, UNDER content and children
 Element &sampling(SkSamplingOptions);        // image leaves; kNearest
+Slice::filter, Pattern::sampling             // the same knob on those two
+
+// ---- reveals ----
+Element &wipe(float angleDeg, PropValue<float> fraction);
+// A directional reveal at ANY angle, covering the node's decorations too.
+// trim() walks the PERIMETER (a wedge round the outline, not a growing
+// surface) and scaleX/scaleY SQUASH — a striped fill shows it instantly.
+decorations::wash(Material, SkBlendMode, amount)   // material-valued
+                                                   // decoration; comparable
+compose::metrics(style, fonts)  -> {ascent, descent, capHeight, xHeight,
+                                    lineHeight, capSlack()}
 
 // ---- text on a path ----
 TextPath{ .path, .at, .align, .offset, .autoFlip, .orient }
