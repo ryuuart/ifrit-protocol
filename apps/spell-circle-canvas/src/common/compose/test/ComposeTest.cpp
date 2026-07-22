@@ -5308,3 +5308,47 @@ TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
     outsideInk += under.pixel(x, 20) == SK_ColorBLACK;
   EXPECT_GT(outsideInk, 5);
 }
+
+TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
+  // Every simulation-shaped study reinvented the accumulator and its
+  // spiral-of-death clamp — a cellular automaton at 27 Hz behind the DOOM
+  // PlayStation titles, particles at 24. The library had declared
+  // choppiness for shaders (Material::quantizeTime) and nothing for logic.
+  auto stepsOverOneSecond = [](double fps) {
+    sigil::motion::Ticker ticker;
+    int steps = 0;
+    ticker.addFixed(27.0, [&] { ++steps; return true; });
+    const double dt = 1.0 / fps;
+    for (int i = 0; i < (int)std::lround(fps); ++i)
+      ticker.tick(dt);
+    return steps;
+  };
+  EXPECT_EQ(stepsOverOneSecond(60.0), 27);
+  EXPECT_EQ(stepsOverOneSecond(144.0), 27);
+  // Below the sim rate it still lands on 27 — several steps per frame.
+  EXPECT_EQ(stepsOverOneSecond(24.0), 27);
+
+  // The clamp: one enormous hitch must not run an unbounded backlog.
+  {
+    sigil::motion::Ticker ticker;
+    int steps = 0;
+    ticker.addFixed(60.0, [&] { ++steps; return true; }, /*maxCatchUp=*/4);
+    ticker.tick(10.0); // ten seconds in one frame = 600 steps of backlog
+    EXPECT_EQ(steps, 4);
+    // …and the backlog is DISCARDED, not carried into the next frame.
+    steps = 0;
+    ticker.tick(1.0 / 60.0);
+    EXPECT_EQ(steps, 1);
+  }
+
+  // Returning false drops it, like add().
+  {
+    sigil::motion::Ticker ticker;
+    int steps = 0;
+    ticker.addFixed(60.0, [&] { return ++steps < 3; });
+    ticker.tick(1.0);
+    const int after = steps;
+    ticker.tick(1.0);
+    EXPECT_EQ(steps, after);
+  }
+}

@@ -51,6 +51,7 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
+| `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
 | `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
 | `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
 | `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
@@ -434,14 +435,17 @@ contract. `Effect::shader(fx, uniforms)` takes constants only, so
 animating a ripple phase or a bloom threshold requires a full re-describe
 per frame.
 
-## 12. `Ticker` has no fixed-timestep helper
+## 12. `Ticker` has no fixed-timestep helper — **CLOSED**
 
-`add()` yields variable `dt` only, so every simulation-shaped sketch
-reinvents the accumulator **and** its spiral-of-death clamp. Conspicuous
-because `Material::quantizeTime(hz)` already exists: the library has
-declared choppiness for shaders and nothing for logic.
+`ticker.addFixed(hz, fn, maxCatchUp = 8)` calls `fn()` zero or more times
+per frame so it advances at exactly `hz`, whatever the host draws at.
 
-Natural API: `ticker.addFixed(hz, fn)`.
+Two studies had reinvented it — a cellular automaton at 27 Hz behind the
+DOOM PlayStation titles, particles at 24 — and both had to reinvent the
+spiral-of-death clamp with it. The clamp's contract is now stated rather
+than rediscovered: beyond `maxCatchUp` steps the backlog is **discarded**,
+not carried, because carrying it makes the next frame longer, which grows
+the backlog. The sim running slow for one frame is the correct failure.
 
 ## 13. Sampling, and the pixel-art path — **element leaf CLOSED**
 

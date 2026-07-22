@@ -1055,7 +1055,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .left(24)
         .bottom(24)
         .width(268)
-        .height(158)
+        .height(142)
         .column()
         .gap(3)
         .padding(11)
@@ -1207,7 +1207,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element censusPanel() {
-    return panel(180, 2)
+    return panel(192, 2)
         .gap(4)
         .child(panelHead("PARTICLE CENSUS \xe2\x80\x94 REEVES 1983 \xc2\xa7" "3"))
         .child(box()
@@ -1359,10 +1359,9 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   }
 
   Element productionPanel() {
-    return panel(100, 5)
+    return panel(96, 5)
         .gap(1)
         .child(panelHead("PRODUCTION \xe2\x80\x94 SMITH 1982"))
-        .child(box().height(3).shrink(0))
         .child(prodLine("67-SECOND SHOT \xc2\xb7 250,000 PX/FRAME \xc2\xb7 "
                         "500-LINE VIDEO MONITOR",
                         kBone))
@@ -1441,7 +1440,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                               .column()
                               .width(kSideW)
                               .shrink(0)
-                              .gap(10)
+                              .gap(8)
                               .staggerChildren(90ms)
                               .child(generationPanel())
                               .child(censusPanel())

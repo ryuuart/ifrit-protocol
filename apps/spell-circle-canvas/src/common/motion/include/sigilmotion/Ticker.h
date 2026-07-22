@@ -40,6 +40,28 @@ public:
    */
   void add(std::function<bool(double)> steppable);
 
+  /**
+   * Registers a FIXED-TIMESTEP steppable: `fn()` is called zero or more
+   * times per frame so that it advances at exactly @p hz, whatever the
+   * host is drawing at. Returns whether it still needs frames, like
+   * add().
+   *
+   *     ticker.addFixed(27.0, [this] { stepFire(); return true; });
+   *
+   * Every simulation-shaped study reinvented this and its
+   * spiral-of-death clamp: a cellular automaton at 27 Hz behind the DOOM
+   * PlayStation titles, particles at 24. The library had already
+   * declared choppiness for shaders — `Material::quantizeTime(hz)` — and
+   * nothing at all for logic.
+   *
+   * @p maxCatchUp bounds how many steps one frame may run. Without it, a
+   * hitch longer than the step makes the next frame run the backlog,
+   * which takes longer, which grows the backlog — the spiral. Dropping
+   * simulated time is the correct failure: the sim runs slow for one
+   * frame instead of locking the process.
+   */
+  void addFixed(double hz, std::function<bool()> fn, int maxCatchUp = 8);
+
   /** Steps the timeline and steppables by `deltaSeconds`; returns
    *  active(). Zero deltas (paused clock) still report activity. */
   bool tick(double deltaSeconds);
