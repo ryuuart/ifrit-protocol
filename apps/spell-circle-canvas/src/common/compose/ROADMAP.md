@@ -14,6 +14,11 @@ and **writes down what the natural API would have been**. Entries are
 ordered by how many independent studies asked for the same thing, because
 that is the only signal here worth trusting.
 
+Numbers are STABLE, not compacted: agents in flight cite items by number,
+and closed sections stay in place marked **CLOSED** rather than being
+deleted and everything below renumbered. What each closed section keeps is
+its citation count, which is the argument for why it was worth doing.
+
 Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 `STRESS_TESTS.md` (the acceptance catalog and the measured numbers),
 `REVIEW.md` (the earlier first-principles pass this extends).
@@ -44,6 +49,7 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | Per-sprite blend on `instances()` | Nothing in the chain to `drawSpriteAtlas` carried a blend mode, and `Element::blend()` flattens the field into a layer — so an additive particle system could not accumulate at all | `Instances.h`, `GpuImage.h` |
 | A fourth `onPath` bug: only the first contour | A trajectory clipped to the frame is several contours; its label vanished with no diagnostic | `Paint.cpp` |
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
+| `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 
 ---
 
@@ -105,7 +111,17 @@ rotation, uniform scale, tint and frame. So:
 - a playlist's rows are the textbook instancing case and carry text (Winamp);
 - a manoeuvre gizmo with two different arm lengths is out of reach even
   with six pre-coloured cells, because `Atlas::cell()` bakes ONE logical
-  size and `Pool` carries ONE uniform scale (KSP).
+  size and `Pool` carries ONE uniform scale (KSP);
+- 549 rhombs, each needing its own outline and its own trim window, fall
+  outside RSXform entirely — so the Penrose paving pays 1647 Yoga nodes
+  for a scene with **zero layout in it**, every child `.absolute()` with a
+  computed rect.
+
+That last one is a different ask and worth separating: not "richer
+instances" but **a positioned leaf set** — N children with caller-supplied
+rects and no flex participation, skipping the Yoga pass. Generated
+geometry (tilings, lattices, node graphs, particle fields drawn as real
+elements) never wants layout, and today there is no way to say so.
 
 Two refinements arrived independently and both point away from "more Pool
 columns":
@@ -230,6 +246,29 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
 `cornerRadius` (45° cut corners are the game-UI convention;
 `SkCornerPathEffect` only rounds).
 
+## 8b. No way to shape a stroke ACROSS its width
+
+Named by the Penrose study as the single highest-value cue it could not
+get cleanly. The Oxford paving's inlay is a **milled band**: a groove
+shadow down one side, a specular ridge down the other — a cross-section,
+not a colour. `PathFormat` and `Brush` give only concentric legs of
+decreasing width, and `Fill` is evaluated in **node-local** space rather
+than stroke-local, so there is no way to say "dark at the edges, bright
+just off centre" for a stroke that curves.
+
+The study only got a real cross-section because its strokes happen to be
+circular arcs: a radial gradient centred on each arc's centre of curvature
+is constant *along* the band and varies *across* it. On any other path
+that trick evaporates.
+
+Natural API: `lines::Profile` / `PathFormat::crossFill` — a Fill sampled
+in `(t along arc length, u across half-width)`. That space is not new;
+`brushes::Ribbon` already computes it internally to taper. It just isn't
+exposed as a paint space.
+
+This is the same shape of request as gap 3 and gap 5: the library computes
+the right thing internally and hands out only the finished result.
+
 ## 9. Text: the missing spellings
 
 - **Per-glyph animation and per-glyph *style* are mutually exclusive** —
@@ -311,6 +350,12 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
 - **No offset-focus radial.** `SkShaders::TwoPointConicalGradient` is the
   natural sphere-shading primitive; displacing the centre works but
   couples falloff to offset.
+- **`Material` is node-local, with no world-space option.** 549 per-tile
+  granite grains seeded off tile identity is correct for stone, but
+  anything that must be continuous ACROSS tiles — the plaza's weathering —
+  has to become a separate full-canvas multiply layer. Wanted:
+  `Material::worldSpace()`, resolving the local matrix against the
+  composer root instead of the node, so one material serves both.
 - **No paint slot between the fill and the content.** `foreground()`
   paints ABOVE children, so a hazard stripe greys out its own digit;
   `background()` hides under the fill. Every textured button with a label
