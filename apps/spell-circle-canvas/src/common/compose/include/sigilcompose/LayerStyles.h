@@ -23,6 +23,7 @@
 #include "sigilcompose/Util.h" // drop shadow lives there already
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRRect.h>
@@ -31,6 +32,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 
+#include <array>
 #include <cmath>
 
 namespace sigil::compose::styles {
@@ -487,6 +489,71 @@ inline Material silverChromeText() {
                            {0.52f, detail::rgb(0xE9ECEF)},
                            {0.8f, detail::rgb(0xC6CDD3)},
                            {1.0f, detail::rgb(0x9BA3AC)}});
+}
+
+// ---------------------------------------------------------------------------
+// Gloss contour — the PS Satin / "Gloss Contour" curve (§3 anatomy)
+
+/** The shape's blurred coverage remapped through a 256-entry CONTOUR
+ *  table, tinted, clipped inside the shape — the moving light band in gel
+ *  and chrome that a plain gradient can't fake (it follows the SHAPE's
+ *  distance field, not a screen axis). Same math as SkTableMaskFilter
+ *  (the seams-audit entry), built as blur→alpha-table on one image-filter
+ *  chain so it composes with the node's other chrome in a single paint. */
+struct GlossContour {
+  SkColor4f color = {1, 1, 1, 0.85f};
+  float sigma = 6.0f;
+  SkVector offset = {0, -3};
+  std::array<uint8_t, 256> table{};
+
+  bool operator==(const GlossContour &o) const {
+    return color == o.color && sigma == o.sigma && offset == o.offset &&
+           table == o.table;
+  }
+  float bleed() const { return sigma * 3.0f; }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor4f(color, nullptr);
+    p.setImageFilter(SkImageFilters::ColorFilter(
+        SkColorFilters::TableARGB(table.data(), nullptr, nullptr, nullptr),
+        SkImageFilters::Blur(sigma, sigma, nullptr)));
+    c.save();
+    c.clipPath(ctx.outline, true); // satin lives INSIDE the shape
+    c.translate(offset.fX, offset.fY);
+    c.drawPath(ctx.outline, p);
+    c.restore();
+  }
+};
+
+/** A ring contour: the table peaks where blurred coverage crosses
+ *  `center` (0 = rim, 1 = deep interior), `width` wide — the classic PS
+ *  "Ring" gloss. */
+inline std::array<uint8_t, 256> glossRing(float center = 0.55f,
+                                          float width = 0.35f) {
+  std::array<uint8_t, 256> t{};
+  for (int i = 0; i < 256; ++i) {
+    const float a = (float)i / 255.0f;
+    const float d = std::abs(a - center) / std::max(0.05f, width * 0.5f);
+    const float peak = std::max(0.0f, 1.0f - d);
+    t[(size_t)i] = (uint8_t)std::lround(255.0f * peak * peak *
+                                        (3.0f - 2.0f * peak)); // smoothstep
+  }
+  return t;
+}
+
+/** The drop-in gloss band. Attach as a foreground: it reads the node's
+ *  outline and paints over the fill. */
+inline GlossContour gloss(SkColor4f color = {1, 1, 1, 0.85f},
+                          float sigma = 6.0f, SkVector offset = {0, -3},
+                          float ringCenter = 0.55f, float ringWidth = 0.35f) {
+  GlossContour g;
+  g.color = color;
+  g.sigma = sigma;
+  g.offset = offset;
+  g.table = glossRing(ringCenter, ringWidth);
+  return g;
 }
 
 } // namespace sigil::compose::styles

@@ -4173,3 +4173,75 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
   host.frame();
   EXPECT_TRUE(host.composer.routesAt("a").empty());
 }
+
+// ---------------------------------------------------------------------------
+// The brush-arc tail: art warp (SkVertices), hatch (Sk2D), gloss (table)
+
+#include <sigilcompose/Brushes.h>
+#include <sigilcompose/Lines.h>
+#include <sigilcompose/LayerStyles.h>
+
+TEST(ComposeBrushTail, ArtBrushWarpsArtAlongTheOutline) {
+  Host host;
+  // A straight horizontal outline through the node's middle: the warped
+  // ribbon must be a horizontal band of the art's height around it.
+  auto lineOutline = [](SkSize s) {
+    SkPathBuilder b;
+    b.moveTo(0, s.height() / 2);
+    b.lineTo(s.width(), s.height() / 2);
+    return b.detach();
+  };
+  brushes::ArtBrush brush = brushes::artAlong(
+      box().width(40).height(20).fill(Fill::color({1, 1, 1, 1})), 20);
+  host.composer.render(
+      box().child(box().absolute().inset(20, 60, 20, 60)
+                      .outline(lineOutline)
+                      .foreground(brush)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorWHITE); // on the ribbon
+  EXPECT_EQ(host.pixel(100, 130), SK_ColorBLACK); // 30px off: outside height
+}
+
+TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
+  Host host;
+  host.composer.render(box().child(
+      box().absolute().inset(50, 50, 50, 50)
+          .background(lines::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
+  host.frame();
+  // Count lit pixels in the hatched interior: strictly between "empty"
+  // and "solid fill" — the lattice is present but sparse.
+  int lit = 0;
+  const int total = 100 * 100;
+  for (int y = 50; y < 150; y += 2)
+    for (int x = 50; x < 150; x += 2)
+      if (host.pixel(x, y) != SK_ColorBLACK)
+        ++lit;
+  const float coverage = (float)lit / (float)(total / 4);
+  EXPECT_GT(coverage, 0.05f);
+  EXPECT_LT(coverage, 0.75f);
+  // Nothing escapes the clip.
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK);
+}
+
+TEST(ComposeBrushTail, GlossContourBandsInsideTheShape) {
+  Host plain, glossed;
+  auto shape = [] {
+    return box().absolute().inset(50, 50, 50, 50).corners({24})
+        .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
+  };
+  plain.composer.render(box().child(shape()));
+  plain.frame();
+  glossed.composer.render(box().child(
+      shape().foreground(styles::gloss({1, 1, 1, 1}, 8, {0, -4}))));
+  glossed.frame();
+  // The band brightens SOME interior pixels but not the deep center
+  // (table peaks at mid-coverage, so the middle of the shape stays fill).
+  int changed = 0;
+  for (int y = 52; y < 148; y += 2)
+    for (int x = 52; x < 148; x += 2)
+      if (plain.pixel(x, y) != glossed.pixel(x, y))
+        ++changed;
+  EXPECT_GT(changed, 40);           // a real band appeared
+  EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100)); // center: fill
+  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));     // outside: clip
+}

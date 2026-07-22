@@ -31,6 +31,9 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSurface.h>
+#include <include/core/SkVertices.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/effects/SkDiscretePathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
@@ -984,6 +987,118 @@ inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
   r.nibContrast = contrast;
   r.fill = std::move(fill);
   return r;
+}
+
+/** The ART brush proper (Illustrator's third brush kind, the one the
+ *  stamp/tile brushes can't fake): ONE art cell stretched and continuously
+ *  BENT along each contour via SkVertices. The art bakes once to a texture
+ *  (2x oversampled, like the instancing atlas); each contour is walked
+ *  into a triangle-strip ribbon (position ± normal·h per station) whose
+ *  texture coordinates sweep the art from end to end — curvature warps the
+ *  art smoothly, where a stamp run breaks into rigid segments. One
+ *  drawVertices per contour. `stationPx` is warp fidelity: one strip
+ *  station per N arc-px (6 px follows tight metro curves; loosen for
+ *  long gentle paths). */
+struct ArtBrush {
+  Element art;
+  float height = 0;        ///< ribbon height (0 → the art's intrinsic)
+  float stationPx = 6.0f;  ///< arc-length between strip stations
+  float reach = 32.0f;     ///< cull reserve: half height + art overhang
+
+  bool animated() const { return false; }
+  float bleed() const { return reach; }
+  bool operator==(const ArtBrush &o) const {
+    return art.node() == o.art.node() && height == o.height &&
+           stationPx == o.stationPx && reach == o.reach;
+  }
+
+  struct Cache {
+    sk_sp<SkImage> image; // the 2x bake
+    SkSize artSize{0, 0}; // logical art size
+    const void *bakedFor = nullptr;
+  };
+  std::shared_ptr<Cache> cache = std::make_shared<Cache>();
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (!ctx.fonts)
+      return;
+    if (!cache->image || cache->bakedFor != art.node().get()) {
+      cache->bakedFor = art.node().get();
+      cache->image = nullptr;
+      // shell box: snapshot/measure ignore the ROOT's own dims
+      const SkSize sz = measure(box().child(art), *ctx.fonts);
+      if (sz.isEmpty())
+        return;
+      sk_sp<SkPicture> pic = snapshot(box().child(art), *ctx.fonts);
+      sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+          std::max(1, (int)std::ceil(sz.width() * 2.0f)),
+          std::max(1, (int)std::ceil(sz.height() * 2.0f))));
+      if (!pic || !surface)
+        return;
+      surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+      surface->getCanvas()->scale(2.0f, 2.0f);
+      surface->getCanvas()->drawPicture(pic);
+      cache->image = surface->makeImageSnapshot();
+      cache->artSize = sz;
+    }
+    if (!cache->image)
+      return;
+
+    const float texW = (float)cache->image->width();
+    const float texH = (float)cache->image->height();
+    const float half =
+        0.5f * (height > 0 ? height : cache->artSize.height());
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setShader(cache->image->makeShader(
+        SkTileMode::kClamp, SkTileMode::kClamp,
+        SkSamplingOptions(SkFilterMode::kLinear)));
+
+    SkContourMeasureIter iter(ctx.outline, false);
+    std::vector<SkPoint> positions, texs;
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float length = contour->length();
+      if (length < 1.0f)
+        continue;
+      const int stations =
+          std::max(2, (int)std::ceil(length / std::max(1.0f, stationPx)));
+      positions.clear();
+      texs.clear();
+      positions.reserve((size_t)(stations + 1) * 2);
+      texs.reserve((size_t)(stations + 1) * 2);
+      for (int i = 0; i <= stations; ++i) {
+        const float f = (float)i / (float)stations;
+        SkPoint pos;
+        SkVector tan;
+        if (!contour->getPosTan(length * f, &pos, &tan))
+          continue;
+        const SkVector normal{-tan.fY, tan.fX};
+        positions.push_back(pos + normal * half);
+        positions.push_back(pos - normal * half);
+        texs.push_back({texW * f, 0.0f});
+        texs.push_back({texW * f, texH});
+      }
+      if (positions.size() < 4)
+        continue;
+      c.drawVertices(SkVertices::MakeCopy(
+                         SkVertices::kTriangleStrip_VertexMode,
+                         (int)positions.size(), positions.data(), texs.data(),
+                         nullptr),
+                     SkBlendMode::kModulate, p);
+    }
+  }
+};
+
+/** Art warped along the path: the drawVertices ribbon. `height` 0 keeps
+ *  the art's intrinsic height. */
+inline ArtBrush artAlong(Element art, float height = 0,
+                         float stationPx = 6.0f) {
+  ArtBrush b;
+  b.art = std::move(art);
+  b.height = height;
+  b.stationPx = stationPx;
+  b.reach = std::max(32.0f, height);
+  return b;
 }
 
 } // namespace brushes

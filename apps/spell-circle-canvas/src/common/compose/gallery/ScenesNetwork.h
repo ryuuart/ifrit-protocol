@@ -1,6 +1,6 @@
 #pragma once
 // The brush-engine showcase (REFERENCES.md section 9), ported from
-// sketch/sketches/transit.cpp: one metro map, ten line constructions,
+// sketch/sketches/transit.cpp: one metro map, twelve constructions,
 // every route a different brush:
 //
 //   EMBER LINE ...... Brush{ ops::Rounded } + lines::cased leg -- the classic
@@ -91,6 +91,26 @@ inline Element label(const char *s, float x, float y, SkColor4f c = kAsh,
 }
 
 /** Legend row: colored line name + ash construction note. */
+/** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
+ *  living vine once the art warp bends it (logical 48x16). */
+inline Element vineArt() {
+  constexpr SkColor4f kMoss{0.55f, 0.80f, 0.47f, 1};
+  constexpr SkColor4f kMossDeep{0.34f, 0.60f, 0.36f, 1};
+  auto leaf = [&](float x, float y, float deg, SkColor4f c) {
+    return box().width(13).height(7).absolute()
+        .inset(x, y, 48.0f - x - 13.0f, 16.0f - y - 7.0f)
+        .corners({6.5f, 0, 6.5f, 0})
+        .rotate(deg)
+        .fill(Fill::color(c));
+  };
+  return stack().width(48).height(16)
+      .child(box().absolute().inset(0, 6.8f, 0, 6.8f).corners({1.2f})
+                 .fill(Fill::color(kMossDeep)))
+      .child(leaf(4, 0, -28, kMoss))
+      .child(leaf(18, 9, 152, kMossDeep))
+      .child(leaf(31, 0, -24, kMoss));
+}
+
 inline Element legendRow(const char *name, const char *what, SkColor4f c,
                          float y) {
   return box().row().absolute().inset(30, y, 0, 0).zIndex(8)
@@ -312,6 +332,30 @@ struct NightNetworkScene final : Scene {
         .child(rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
                     routers::octilinear(10)) // source->mouth: narrow->wide
                    .absolute().inset(0).stroke(creek).zIndex(1))
+        // ---- ARTLINE: the SkVertices art warp (brushes::artAlong) — one
+        // leaf-vine cell stretched and BENT along the S-curve; rigid
+        // stamps can't follow this curvature continuously ----
+        .child(box().absolute().inset(58, 452, nn::kW - 430, nn::kH - 548)
+                   .outline([](SkSize sz) {
+                     SkPathBuilder b;
+                     b.moveTo(0, sz.height() * 0.72f);
+                     b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
+                               sz.width() * 0.40f, sz.height() * 1.30f,
+                               sz.width() * 0.64f, sz.height() * 0.42f);
+                     b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
+                               sz.width() * 0.90f, sz.height() * 0.75f,
+                               sz.width() * 1.0f, sz.height() * 0.35f);
+                     return b.detach();
+                   })
+                   .foreground(brushes::artAlong(nn::vineArt(), 14, 5))
+                   .zIndex(3))
+        // ---- the saltmarsh: Sk2D lattice hatch on a blob field ----
+        .child(box().width(120).height(74).centerAt({760, 524})
+                   .outline(shapes::blob(7, 0.16f))
+                   .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
+                   .background(lines::hatch(
+                       Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
+                   .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----
         .child(box().absolute().inset(49, 554, nn::kW - 232, nn::kH - 581)
                    .outline(demoPath)
@@ -375,13 +419,13 @@ struct NightNetworkScene final : Scene {
         .child(box().column().absolute().inset(28, 27, 0, 0).zIndex(8)
                    .child(text(toU8("NIGHT NETWORK"),
                                nn::type(30, nn::kBone, 2)))
-                   .child(text(toU8("the brush engine \xe2\x80\x94 ten line"
+                   .child(text(toU8("the brush engine \xe2\x80\x94 twelve"
                                     " constructions"),
                                nn::type(14, nn::kAsh, 1))
                               .margin(0, 6, 0, 0)))
         // Ten rows reach into the map now — a feathered ink backing keeps
         // the routes from striking through the legend type.
-        .child(box().absolute().inset(18, 92, 0, 0).width(430).height(232)
+        .child(box().absolute().inset(18, 92, 0, 0).width(430).height(276)
                    .corners({10})
                    .fill(Fill::color({0.043f, 0.051f, 0.11f, 0.82f}))
                    .zIndex(7))
@@ -406,7 +450,11 @@ struct NightNetworkScene final : Scene {
                              {0.36f, 0.66f, 0.86f, 1}, 278))
         .child(nn::legendRow("PIPELINE TRIO",
                              "same points: wave / zigzag / square",
-                             nn::kBone, 300));
+                             nn::kBone, 300))
+        .child(nn::legendRow("ARTLINE", "SkVertices art warp: one bent vine",
+                             {0.55f, 0.80f, 0.47f, 1}, 322))
+        .child(nn::legendRow("SALTMARSH", "Sk2D lattice hatch on a blob",
+                             {0.36f, 0.72f, 0.62f, 1}, 344));
   }
 };
 

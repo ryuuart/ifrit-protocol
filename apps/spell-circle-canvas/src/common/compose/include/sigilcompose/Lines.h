@@ -31,6 +31,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/pathops/SkPathOps.h>
+#include <include/effects/Sk2DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 
 #include <algorithm>
@@ -590,6 +591,64 @@ inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
   l.waveAmplitude = amplitude;
   l.waveLength = wavelength;
   return l;
+}
+
+/** Sk2D lattice hatching (SkLine2DPathEffect — the engraving/blueprint
+ *  fill from the seams audit): parallel rules at `spacing` px and
+ *  `angleDeg`, `width` px each, filling the node's OUTLINE (clipped to it,
+ *  so concave shapes hatch exactly). `cross` adds the perpendicular pass.
+ *  A value decoration: compares, prunes, caches like PathFormat. */
+struct Hatch {
+  Fill strokeFill = Fill::color({1, 1, 1, 1});
+  float spacing = 6.0f;
+  float width = 1.2f;
+  float angleDeg = 45.0f;
+  bool cross = false;
+
+  bool operator==(const Hatch &o) const {
+    return strokeFill == o.strokeFill && spacing == o.spacing &&
+           width == o.width && angleDeg == o.angleDeg && cross == o.cross;
+  }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (spacing <= 0.5f)
+      return;
+    SkPaint p;
+    p.setAntiAlias(true);
+    if (strokeFill.kind == Fill::Kind::Color)
+      p.setColor4f(strokeFill.colorValue, nullptr);
+    else if (strokeFill.kind == Fill::Kind::Shader)
+      p.setShader(strokeFill.shaderValue);
+    c.save();
+    c.clipPath(ctx.outline, true);
+    auto pass = [&](float deg) {
+      SkMatrix lattice = SkMatrix::Scale(spacing, spacing);
+      lattice.postRotate(deg);
+      p.setPathEffect(SkLine2DPathEffect::Make(width, lattice));
+      c.drawPath(ctx.outline, p);
+    };
+    pass(angleDeg);
+    if (cross)
+      pass(angleDeg + 90.0f);
+    c.restore();
+  }
+};
+
+inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                   float angleDeg = 45.0f) {
+  Hatch h;
+  h.strokeFill = std::move(fill);
+  h.spacing = spacing;
+  h.width = width;
+  h.angleDeg = angleDeg;
+  return h;
+}
+
+inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                        float angleDeg = 45.0f) {
+  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
+  h.cross = true;
+  return h;
 }
 
 } // namespace sigil::compose::lines

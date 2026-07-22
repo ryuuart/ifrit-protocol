@@ -91,6 +91,11 @@ inline Element gelPill(std::string_view label, SkColor4f tint,
 inline Element gelOrb(float d = kOrbD) {
   return box().width(d).height(d).corners({d / 2})
       .style(styles::aquaGel(C(0x1E8FFF))).clip()
+      // The PS Gloss Contour proper (styles::gloss — blurred coverage
+      // through a ring table): a shape-following light band the preset's
+      // axis-aligned lens can't produce on a sphere.
+      .foreground(styles::gloss({0.85f, 0.95f, 1.0f, 0.5f}, d * 0.09f,
+                                {0, -d * 0.06f}, 0.48f, 0.30f))
       // light-from-below, which the preset's inner lift undersells on a
       // sphere: a screen-blended bottom rim glow (child rides under the
       // preset's over-layer gloss, so the lens stays on top).

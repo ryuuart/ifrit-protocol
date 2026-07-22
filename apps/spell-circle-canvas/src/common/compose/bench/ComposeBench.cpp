@@ -441,6 +441,51 @@ static void BM_Draw_Instances10k_DataCached(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_Instances10k_DataCached);
 
+// ---- brush-arc tail: art warp + hatch, the per-frame paint price -------
+
+#include <sigilcompose/Brushes.h>
+#include <sigilcompose/Lines.h>
+
+/** SkVertices art warp along a ~1500 px S-curve at 6 px stations
+ *  (~500 strip verts), repainted per frame (Cache::None) — the honest
+ *  worst case; a settled artline caches like any decoration. */
+static void BM_Draw_ArtWarp_Live(benchmark::State &state) {
+  Host host(900, 640);
+  brushes::ArtBrush vine = brushes::artAlong(
+      box().width(48).height(16).corners({8})
+          .fill(Fill::color({0.5f, 0.8f, 0.5f, 1})),
+      14, 6);
+  host.composer.render(box().child(
+      box().absolute().inset(20, 20, 20, 20)
+          .outline([](SkSize s) {
+            SkPathBuilder b;
+            b.moveTo(0, s.height() / 2);
+            b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
+                      s.width(), s.height() / 2);
+            return b.detach();
+          })
+          .foreground(vine)
+          .cache(Cache::None)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_ArtWarp_Live);
+
+/** Sk2D lattice hatch filling a 400x400 blob per frame. */
+static void BM_Draw_Hatch_Live(benchmark::State &state) {
+  Host host(900, 640);
+  host.composer.render(box().child(
+      box().width(400).height(400).centerAt({450, 320})
+          .outline(shapes::blob(5, 0.2f))
+          .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
+          .cache(Cache::None)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_Hatch_Live);
+
 /** The design claim: instanced masses are a GPU play. Same 10k pool,
  *  Live mode, Graphite target, per-frame submit. */
 static void BM_Draw_Instances10k_Live_Graphite(benchmark::State &state) {

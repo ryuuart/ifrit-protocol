@@ -373,3 +373,26 @@ deterministic and diffable). A `static_assert(sizeof(ElementNode) <=
 1400)` guards regrowth — new rare/kind-specific state goes in a block.
 Next size target if ever needed: PaintProps is 856 B of the base (8 fat
 PropValue variants) — slimming PropValue is a public-API change, parked.
+
+**Brush-arc tail (2026-07-21):** the last three seams-audit items landed.
+`brushes::ArtBrush`/`artAlong()` — Illustrator's Art Brush proper: one art
+cell baked once (2x), each contour walked into a triangle-strip ribbon,
+one `drawVertices` warps the art CONTINUOUSLY around curvature (rigid
+stamp runs can't) — 0.22 ms/frame live on CPU raster for a ~1500 px
+S-curve at 6 px stations, and it caches when settled. `lines::hatch()/
+crosshatch()` — Sk2D lattice fill clipped to the outline (0.98 ms live
+for a 400 px blob). `styles::gloss()/GlossContour` — the PS Satin/Gloss
+Contour curve: blurred coverage through a 256-entry ring table, clipped
+inside the shape (blur→TableARGB on one image-filter chain; same math as
+SkTableMaskFilter, composable). Night network shows the first two
+(ARTLINE vine + SALTMARSH hatch — twelve constructions now); the y2k gel
+orb wears the gloss. 3 pixel tests.
+
+**ui_particles on instances() (2026-07-21):** the scene's hand-rolled
+atlas surfaces + RSXform arrays + drawAtlas leaf replaced by
+`instancing::Atlas` cells (element trees registered directly) + two
+Pools synced from the EnTT sim each frame + two `instances(...,
+Mode::Live)` leaves. Same look, counts, and seeds; 8.05 ms CPU raster /
+**0.54 ms GPU**. Port friction folded back into the layer: all-white
+tints now skip the colors lane (kSrcOver), and the stamp reuses
+thread-local scratch instead of allocating three vectors per frame.
