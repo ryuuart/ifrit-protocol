@@ -555,10 +555,12 @@ the backlog. The sim running slow for one frame is the correct failure.
 `Element::sampling(SkSamplingOptions)` now reaches the `image()` leaf, so
 pixel art, tilemaps and simulation buffers stop being silently blurred.
 
-Still hardcoded to `kLinear`, and still worth fixing when someone needs
-them: `Decorations.h` (Slice), `Pattern.h`, `Instances.h`, `Brushes.h`
-and `Web.h`. Wanted: a `sampling` field on `Slice` / `PatternBrush` /
-`Atlas`. `Material::image()` always took one, which is exactly why this
+`Slice::filter` and `Pattern::sampling` have followed it — nine-slice is
+mostly used FOR pixel art (a window chrome, a dialog border, a button
+from a tile sheet) and a woven or dithered tile is the same case.
+
+Still hardcoded to `kLinear`: `Instances.h`, `Brushes.h` and `Web.h`.
+Wanted: a `sampling` field on `Atlas` and on the brush stamp. `Material::image()` always took one, which is exactly why this
 was hard to find — the fix was discoverable only by diffing two
 signatures.
 

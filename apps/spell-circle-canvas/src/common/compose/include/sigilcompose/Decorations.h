@@ -203,11 +203,18 @@ struct Slice {
    *  invisible-nine-slice finding). Excluded from equality. */
   std::shared_ptr<gpuimg::Promoted> gpuCache =
       std::make_shared<gpuimg::Promoted>();
+  /** How the slices sample. Linear is right for a soft frame and wrong
+   *  for pixel art, which is most of what nine-slice is FOR — a window
+   *  chrome, a dialog border, a button from a tile sheet. Every blessed
+   *  image path hardcoded linear until `Element::sampling()` landed on
+   *  the image leaf; this is the same fix on the decoration. */
+  SkFilterMode filter = SkFilterMode::kLinear;
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
    *  frame prunes without memo. The promotion cache is identity-free. */
   bool operator==(const Slice &o) const {
-    return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs;
+    return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs &&
+           filter == o.filter;
   }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
@@ -218,7 +225,7 @@ struct Slice {
       return;
     const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
     gpuimg::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
-                        SkFilterMode::kLinear);
+                        filter);
   }
 };
 
