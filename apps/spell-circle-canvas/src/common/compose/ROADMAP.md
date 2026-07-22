@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `compose::metrics(style, fonts)` | A text node's top is the LINE BOX top and artefacts position type by the CAP TOP; ~134 runs were placed off an empirical guess at the slack | `Compose.h`, `Composer.cpp` |
+| `PathFormat::cap` / `join` | ~30 open contours of line art all ended square and mitred because the paint was built and never asked | `Decorations.h` |
 | `decorations::wash(Material, blend, amount)` | The decoration primitives were strokes, slices, contour walks and raw programs — none filled a shape with a Material, so a wash above the children was an incomparable lambda that never pruned | `Decorations.h` |
 | `Pattern::offset` / `Pattern::sampling` | Pattern exposed two thirds of a matrix its own backend takes whole; and its tile was locked to linear sampling | `Pattern.h` |
 | `bind().window(lo, hi)` | `from()` normalises and the curve runs after it, so a multi-beat binding fed easings values outside their domain — and none of `ease::` is total | `Compose.h` |
@@ -447,6 +449,27 @@ the right thing internally and hands out only the finished result.
 - **No way to shape a run without building an Element.** `measure()` is
   per-Element, so hand-placing 230 glyphs costs 230 layouts. Wanted:
   `FontContext::measureRun(u8string, TextStyle) -> vector<float>`.
+- **No tab leader — now the headline text gap, and priced.**
+  `TabStopOptions` is `{positions, interval}` and nothing else, so a
+  dot-leadered two-column row is two absolutely positioned leaves plus a
+  sized box for the rule: **48 rows → 95 nodes and 18 setup-time
+  `measure()` calls**, against 48 text leaves and zero measures for
+  `TabStopOptions{positions, interval, leader, align}`. Worse than the
+  count, the rule is registered to a BOX rather than to the run's
+  baseline, so any face change silently drifts it.
+- **`flowAround` splits the line; sometimes you need it to SHORTEN the
+  measure.** `ExclusionFlow` yields an interval on each side, which is
+  correct DTP behaviour — and wrong for reproducing a 1998 screen, whose
+  "silhouette float" turned out to be a scan for one global-minimum inked
+  column, i.e. an implicit rectangle. Wanted: `Exclusion::Outline` AND a
+  side/measure-clip mode. "Narrow the measure" and "split the line" are
+  different operations and only the second is spelled.
+- **No bitmap-font path at all**, which is a large slice of game-UI
+  history. Everything typographic in a period reconstruction becomes
+  compensation: a body size derived from a measured advance, a face set
+  BOLD because a 20 px outline regular cannot reach a 10 px bitmap's stem
+  weight, condense factors fitted to ink boxes. `Element::sampling` does
+  not help — the missing thing is a FACE, not a filter.
 - **No binding path for text CONTENT.** `PropValue` covers floats, colors
   and fills but not `u8string`, so a counter or a timer must re-describe.
   `slot()`/`renderSlot()` is the right answer and is genuinely cheap —
