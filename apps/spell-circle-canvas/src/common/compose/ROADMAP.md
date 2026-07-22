@@ -150,6 +150,12 @@ missing ones.
 | `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
 | §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
 | Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
+| **`Cache::Texture` baked a quarter turn at QUARTER resolution** | `getScaleX/getScaleY` are the matrix DIAGONAL, and Skia snaps cos(90°) to exactly zero — so a ±90° node reported scale 0, clamped to the 0.25 floor and linear-upscaled 4×. Measured mean \|Δ\| over ink: 30–32/255 at ±90°, 14.5 at 45°, 2.4 at 180°. Singular values (`maxScaleOf`) instead | `ComposeRuntime.h`, `Paint.cpp`, `Composer.cpp` |
+| **Promotion could not SEE a leaf** | A bare box never records a picture (one `drawRect` beats a nested recording) and the promoter only ever measured the replay path — so the corpus's largest cost centre, a full-canvas box carrying one shader, was structurally invisible to it: 663 of 697 ms in `chladni_tab1`, 476 of 568 in `twoadvanced_v4`, 818 of 1115 in `chaucer_astrolabe`, every one of them `live paint` | `Paint.cpp` |
+| **Temporal promotion: "stable since last bake", not "static"** | An animated full-canvas material could not be cached at all, though `quantizeTime(10)` already means five frames in six resolve to the SAME shader and therefore the same pixels. Gated on a MEASURED stability rate, so a continuous Output never promotes and a quantized material driven past its step rate demotes itself | `Paint.cpp`, `ComposeRuntime.h` |
+| **The profile says WHY a node was not baked** | Every refusal is individually correct and individually invisible; `live paint 663 ms` with nothing beside it is how sixteen studies shipped over the gate. `NodeCost::promotion` + `--bench` printing it | `Compose.h`, `Composer.cpp`, `sketch_main.cpp` |
+| Two `PatternBrush` corner defects | The scan straddles the vertex, so the break is first seen one step late and the midpoint guess landed the art up to step/2 past the bend (3 px at advance 24, measured); and the bisector was re-probed at d±2 from a point already past the vertex, so both probes hit the same leg and every corner faced the OUTGOING tangent — except a closed contour's seam, making three corners of a rect agree and the fourth 45° off. Bisect the bracket, carry the leg tangents out with it, plus `cornerAlign` | `Brushes.h` |
+| `LayeredBrush` declared no `bleed()` | An additive stack paints wide of the path by construction — `filament()` is 31 px — and the node's recording culls at its own bounds, so every stock brush's halo was clipped | `Brushes.h` |
 
 ---
 
@@ -601,12 +607,28 @@ the right thing internally and hands out only the finished result.
 - **No offset-focus radial.** `SkShaders::TwoPointConicalGradient` is the
   natural sphere-shading primitive; displacing the centre works but
   couples falloff to offset.
-- **`Material` is node-local, with no world-space option.** 549 per-tile
-  granite grains seeded off tile identity is correct for stone, but
-  anything that must be continuous ACROSS tiles — the plaza's weathering —
-  has to become a separate full-canvas multiply layer. Wanted:
-  `Material::worldSpace()`, resolving the local matrix against the
-  composer root instead of the node, so one material serves both.
+- **`Material` is node-local, with no world-space option** — *narrowed by
+  a half-citation against it.* 549 per-tile granite grains seeded off tile
+  identity is correct for stone, but anything that must be continuous
+  ACROSS tiles — the plaza's weathering — has to become a separate
+  full-canvas multiply layer. Wanted: `Material::worldSpace()`, resolving
+  the local matrix against the composer root instead of the node.
+
+  **Refuted for one artefact, and the reasoning narrows the item.**
+  `eva_magi_defense` needed one continuous field across sixteen ribbons
+  and got it without any new API: make the funnel ONE canvas-sized node
+  whose `outline()` is the union of every ribbon. Node space then IS
+  canvas space, so a single `Material::linear` serves all sixteen in one
+  draw. That works because the field is axis-aligned and the geometry
+  absolutely placed — which is most of the cases that reach for world
+  space, and it is faster than the feature would have been.
+
+  So the item survives only for what escapes that: a field that is NOT
+  axis-aligned (the union outline still works, but the ramp has to be
+  authored in the rotated frame), and geometry that is LAID OUT rather
+  than placed (you cannot take the union of rects you do not know). Try
+  the union-outline workaround first; cite this section only if your case
+  is one of those two.
 - **A `Fill` cannot be DERIVED from a bound float at the binding site.**
   `fill(bind(&level).map(ramp))` — "this widget's colour IS its value" —
   has no spelling. Ranked honestly: `fill(&out)` with a `ch::Output<Fill>`
@@ -897,6 +919,97 @@ signatures.
   section (pair with `.shrink(0)` when you mean it) would pay for itself.
 
 ---
+
+## 15. A node's OWN paint cannot be cached apart from its volatile children — *new, measured, and the next promotion item*
+
+Found by the per-node profiler after leaf promotion landed, and it is the
+same shape as that finding: a cost centre the cache model cannot see,
+for a structural reason rather than an authoring mistake.
+
+Volatility is per NODE. A node whose own fill is an expensive static
+material, and one of whose children moves, is `subtreeVolatile` — so
+nothing about it is cached, and the full-canvas shader is re-rasterized
+every frame in order to redraw a small moving child on top of it.
+
+`genesis_fire` is the citation: two 888×666 nodes at **34.9 ms and
+14.9 ms of self time**, both reporting `not baked: its content changes
+every frame`, and in both cases the volatility is a child. `regolith()`
+is a generated ground plane — a three-layer `Material::blend` of a
+radial ramp, grain and speckle — carrying one 264 px disc that rides a
+bound Output. The plane is static. The disc is not. They share a
+cacheability verdict, and the plane loses.
+
+The profiler already separates them: `selfMs` excludes children, which
+is how the number above was measured at all. What does not exist is a
+way to act on it. The node's own paint (fill + background/overlay
+decorations) is a layer with its own volatility, distinct from the
+children painted over it.
+
+Wanted, roughly in order of how much they change:
+
+- **Split the cache at the node's own paint.** Bake the self-layer when
+  it is stable, paint volatile children live over the blit. Pixel
+  identity holds by the same argument promotion already makes, as long
+  as the children composite srcOver onto it — which is the common case
+  and is checkable (`subtreeReadsBackdrop` already computes the
+  awkward half).
+- The authoring workaround, which is what the corpus does and should be
+  documented until the above exists: **lift the moving child out into a
+  sibling** so the expensive plane is a static leaf and promotes on its
+  own. Cheap, and it costs the author the clip/containment relationship
+  that made them nest it in the first place — `regolith()` clips its
+  disc to a limb outline, which is exactly why it is a child.
+
+Note the ordering trap this exposed in the refusal reasons: `Volatile`
+is reported before `Filtered`, so an author who fixes the volatility
+here then meets a second refusal (`clip(true)`) behind it. That is
+honest but it costs an iteration; a reason that could name *all* the
+conditions rather than the first would be better.
+
+## 16. Stamped-brush bakes are cached in the VALUE, so rebuilding the value re-bakes everything
+
+`PatternBrush` and `ScatterBrush` hold their `snapshot()` of the tile art
+in a `shared_ptr<Cache>` that is a member of the brush. Copying the brush
+shares the cache; CONSTRUCTING one gets an empty cache. So a brush built
+inside a per-frame describe re-bakes every tile every frame, and each bake
+is a full reconcile + layout + record pass through `snapshot()` — one
+study measured **eighteen of those per frame** from a brush constructed
+inside the function passed to `renderSlot()`.
+
+Documented in the header now, which stops it being silent but does not
+stop it being a trap. The real fix is a bake cache that does not live in
+the value. The obvious spelling — a process-wide map keyed on the art
+Element's node pointer, which is already the cache key — is unsafe as
+written, because a freed Element's address can be reused and the next
+brush would silently inherit the wrong art. It needs either a weak handle
+to the node or a generation counter. Worth doing: this is the only place
+in the library where re-describing costs raster work rather than a diff.
+
+## 17. `withKeyframes` is live volatility even where its value is constant
+
+Reported with a number: **29 ms of a 38 ms frame**, seven text-on-path
+runs whose keyframe paths were between waypoints and therefore not
+changing at all.
+
+Volatility asks "is a motion connected", not "did the value change". A
+keyframe path with a hold segment, an easing that has settled, or any
+waypoint pair with equal values is *provably* constant for that stretch,
+and the node repaints every frame anyway.
+
+This is the same shape as the two findings that preceded it — a thing
+that is provably not changing which the machine believes is changing —
+and the mechanism to fix it already exists in two places. `Material`'s
+resolve memo compares the byte-identical digest of its varying inputs and
+returns the same shader; temporal promotion turns that into "stable since
+the last bake". The scalar case wants exactly that: record the animated
+values a node's recording was baked with, and treat the recording as
+valid while they still match. That generalises `liveMatOnly`/`liveStable`
+from materials to every animated scalar the content reads (trim, glyph
+progress, wipe fraction, `onPath` `at`).
+
+Not the transform slots — those are paint-only volatility and already
+replay the content picture under the live matrix. This is about the ones
+that rebuild painted geometry.
 
 ## Host and tooling
 

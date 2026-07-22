@@ -434,6 +434,77 @@ property of a subtree, not a heuristic guess. So:
   not replay onto the next canvas. Tree, layout, and animations
   survive.
 
+### A picture is not a pixel cache
+
+This is the most expensive misunderstanding in this codebase, so it
+gets its own heading. An `SkPicture` records the **draw calls**.
+Replaying it re-runs every SkSL shader over every pixel, every frame,
+forever. `picturesRecorded == 0` reads like "fully cached" and tells
+you *nothing* about cost. Only a **bake** keeps pixels.
+
+Sixteen of the twenty-five run-1 studies missed 60 FPS on exactly this,
+and `kumiko_asanoha` is the argument in one line: **0 pictures
+recorded, 5 nodes painted, 182 ms**. The picture cache was not failing.
+It was succeeding, and not helping.
+
+### Automatic texture promotion
+
+The composer measures what each node's paint actually costs and, once a
+node has been expensive for several consecutive frames, bakes that
+subtree once into a raster image and blits it thereafter. On by
+default; `Composer::setAutoTexturePromotion(false)` globally,
+`.cache(Cache::Picture)` per node ("record, and never promote").
+
+Three kinds of node are eligible:
+
+1. A cached subtree whose picture replay is expensive.
+2. **A leaf that never records a picture at all.** Bare boxes are
+   excluded from picture recording on purpose — one `drawRect` beats a
+   nested recording — and for a while the promoter watched only the
+   replay path, so a full-canvas box carrying one grain shader was
+   structurally invisible to it. That node is this corpus's single
+   largest cost centre: 663 ms of a 697 ms frame in `chladni_tab1`.
+3. **A node whose only volatility is a live material that has not
+   actually moved since the bake.** `Material::quantizeTime(10)` steps
+   the injected `uTime` ten times a second, so at 60 FPS five frames in
+   six resolve to the *same shader* — and identical inputs mean
+   identical pixels, so the previous bake is still exact. Stability is
+   **measured**, not read off `quantizeTime`: a material bound to a
+   continuous Output resolves anew every frame, never reaches the rate,
+   and stays live; a bound Output that happens to be holding still is
+   just as cacheable and gets the same treatment.
+
+**It may not change a pixel**, and that is structural rather than
+hoped for: promotion is refused unless the node maps to device space
+upright, unmirrored and unskewed, and the bake is then taken in device
+space at an integer-snapped rect and blitted with the matrix reset and
+no resampling. An integer device translation cannot alter
+rasterisation, so the blit is a literal copy.
+
+**The refusal you will hit is the paper-grain idiom.** A leaf at
+`opacity(0.13).blend(kSoftLight)` over the whole canvas is the most
+expensive node in three studies and cannot be promoted: compositing a
+bake applies the alpha to an already-rounded 8-bit colour where the
+direct draw applies it to the shader's float output. The two agree to
+within 1 LSB, which is not agreement. Ask for that one yourself with
+`.cache(Cache::Texture)` — an author who types it has accepted the
+rounding, and the library has not.
+
+**Why a node was or was not baked is reported.** `NodeCost::promotion`
+carries `Cheap` / `Warming` / `Promoted` / `AskedFor` / `OptedOut` /
+`Volatile` / `Composited` / `Transformed` / `Filtered` / `TooBig`, and
+`ComposeSketch --bench` prints it under every expensive node.
+`Composer::promotionReason()` turns it into a phrase. Every refusal is
+individually correct and individually invisible, which is precisely how
+sixteen studies shipped over the gate.
+
+> **Writing a cache test?** A static node under a *cacheable* parent is
+> painted exactly once, into the parent's recording, and never visited
+> again — so it never appears in the profile and assertions about it
+> pass vacuously. Put `.cache(Cache::None)` on the wrapper. (This is
+> also the real shape of the corpus: these leaves sit under a `stack()`
+> with animated siblings, which is why their cost is paid every frame.)
+
 ## Kernel, util, extensions — where things live
 
 Three layers keep the library lean and the call sites short:
@@ -855,8 +926,17 @@ dressed" pluggable. Ours plugs straight into Skia, which already owns
 the hard cases.
 
 **Layer model.** A node paints: background decorations (declaration
-order) → content + children (stacking rules) → foreground decorations.
+order) → **the node's own fill** → `overlay()` decorations → content +
+children (stacking rules) → foreground decorations.
 `.fill()`/`.stroke()` become sugar for the built-ins below.
+
+> **`background()` is UNDER the fill, not under the content.** This is
+> correct — it is what "background" means in every box model — and it
+> is also the single easiest way to lose work here: an opaque `fill()`
+> hides every `background()` on the same node completely and silently.
+> Three decorations vanished this way in one study before anyone
+> noticed. If you want a decoration over the fill but under the
+> children, that is `overlay()`; over everything, `foreground()`.
 
 ```cpp
 template <typename D>
@@ -955,6 +1035,17 @@ already a stacking context), and pairs naturally with
 `Cache::Texture` — a filtered subtree renders + filters once and stays
 a cached snapshot until it dirties, so expensive post-processing on
 static content is paid once, not per frame.
+
+> **The bloom recipe above is a performance trap on anything that
+> moves.** Bright-pass → blur → `kPlus` measured **62 ms at 2 MP** on
+> the raster host, and `bakeScale` does not help, because the
+> `saveLayer` is allocated at full size regardless of what you
+> rasterize into it. It is affordable only on content static enough to
+> bake once. For a rim glow that animates, do not reach for a
+> full-frame effect at all: use `brushes::LayeredBrush` (an additive
+> stroke stack — that *is* what a glow is) or an `SkMaskFilter` blur on
+> the shape itself. Both cost the shape's own area instead of the
+> frame's.
 
 ### Tiling and tile-map content
 
@@ -1099,7 +1190,18 @@ Three volatility tiers, decided by what the recipe reads:
   uTime (`floor(t·hz)/hz`) — declared choppiness as a MATERIAL
   property, not per-consumer ticker plumbing (the P3R sea rule: its
   caustics run at 6 Hz); quantized/held materials repaint at their own
-  rate, not the frame rate — between steps the cached picture replays.
+  rate, not the frame rate — between steps the cached picture replays,
+  and an expensive one is promoted to a pixel bake that is reused
+  until the material actually ticks (see "Automatic texture
+  promotion"). That is the whole payoff of declaring the choppiness:
+  `quantizeTime(10)` on a 60 Hz draw pays the shader ten times a
+  second instead of sixty.
+
+**Do not hand-roll a gradient in SkSL.** `Material::linear/radial/
+sweep` lower to Skia's SIMD gradient blitter; an equivalent `mix()`
+chain in a runtime effect measured **~7× slower on the same ramp — 15
+ms against 2 ms**. Reach for `sksl()` when the recipe is not a ramp,
+not to spell a ramp differently.
 
 A `blend()` inherits the highest tier among its layers (the flatten
 defers to resolve time when needed). Full-screen live materials are
@@ -1140,6 +1242,27 @@ element.stroke(Brush{}
 - **The whole Brush compares** when its parts do — a styled connector
   prunes and caches as one value; animated legs declare volatility
   through; bleeds aggregate (pipeline reach + leg reach).
+
+**Corners are their own problem, and `PatternBrush` now handles them
+properly.** A corner tile reserves `cornerLength` of arc on each
+adjacent run (so side tiles butt against the elbow instead of sliding
+underneath it — set it whenever the corner art is bigger than the side
+art), it lands on the **vertex** rather than up to half a detection
+step past it, and it faces the **bisector** of the two legs by
+default, so one piece of art serves all four corners of a rectangle.
+`cornerAlign = Outgoing` is the other useful answer — a directional
+marker turning a corner should keep pointing the way it is going.
+`cornerAngleDeg` is a per-sample tangent break, so a gently *rounded*
+corner deliberately takes no corner tile: there is no break there to
+find.
+
+**Every brush declares its reach.** A `LayeredBrush`'s additive stack
+paints wide of the path by construction — `filament()` is a 14 px
+envelope under an 8 px blur, i.e. 31 px — and a node's recording culls
+at its own bounds, so a brush that declared nothing had its halo
+clipped off. `bleed()` is `max(width/2 + 3σ)` over the layers. If you
+write your own decoration scheme and it paints outside the outline,
+declare `float bleed() const` or it will be cut.
 
 `Element::stroke(brush)` attaches it; rails/connectors hand the routed
 path to the same pipeline, so a transit line, a directed edge, and a

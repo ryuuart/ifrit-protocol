@@ -1022,14 +1022,37 @@ struct Hatch {
   float width = 1.2f;
   float angleDeg = 45.0f;
   bool cross = false;
+  /** Live pitch and live angle: a raw `Output<float>*`, the same
+   *  convention `PathFormat::dashPhaseBinding`, `PathFormat::trimPhase`,
+   *  `Line::dashPhaseBinding` and `Rails::dashPhaseBinding` already use.
+   *
+   *  NOT a `PropValue` — a decoration paints with only a `PaintContext`
+   *  and has no instance to resolve a transition against. Hatch was the
+   *  odd one out in a vocabulary that otherwise animates, so a moiré, a
+   *  tightening engraving or a rotating shade pass had to leave the
+   *  decoration and be rebuilt per frame. Binding declares `animated()`,
+   *  which is the volatility contract. */
+  const choreograph::Output<float> *spacingBinding = nullptr;
+  const choreograph::Output<float> *angleBinding = nullptr;
+
+  bool animated() const {
+    return spacingBinding != nullptr || angleBinding != nullptr;
+  }
+  float pitch() const {
+    return spacingBinding ? spacingBinding->value() : spacing;
+  }
+  float angle() const { return angleBinding ? angleBinding->value() : angleDeg; }
 
   bool operator==(const Hatch &o) const {
     return strokeFill == o.strokeFill && spacing == o.spacing &&
-           width == o.width && angleDeg == o.angleDeg && cross == o.cross;
+           width == o.width && angleDeg == o.angleDeg && cross == o.cross &&
+           spacingBinding == o.spacingBinding && angleBinding == o.angleBinding;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (spacing <= 0.5f)
+    const float pitchPx = pitch();
+    const float baseDeg = angle();
+    if (pitchPx <= 0.5f)
       return;
     SkPaint p;
     p.setAntiAlias(true);
@@ -1040,14 +1063,14 @@ struct Hatch {
     c.save();
     c.clipPath(ctx.outline, true);
     auto pass = [&](float deg) {
-      SkMatrix lattice = SkMatrix::Scale(spacing, spacing);
+      SkMatrix lattice = SkMatrix::Scale(pitchPx, pitchPx);
       lattice.postRotate(deg);
       p.setPathEffect(SkLine2DPathEffect::Make(width, lattice));
       c.drawPath(ctx.outline, p);
     };
-    pass(angleDeg);
+    pass(baseDeg);
     if (cross)
-      pass(angleDeg + 90.0f);
+      pass(baseDeg + 90.0f);
     c.restore();
   }
 };

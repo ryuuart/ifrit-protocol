@@ -136,14 +136,21 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // freeze the motion), hence the return value.
   bool ownPaint = false;
   ownPaint |= boundOrRunning(Instance::kOpacity, node.paint.opacity);
-  ownPaint |= boundOrRunning(Instance::kTx, node.paint.translateX);
-  ownPaint |= boundOrRunning(Instance::kTy, node.paint.translateY);
-  ownPaint |= boundOrRunning(Instance::kRotate, node.paint.rotate);
-  ownPaint |= boundOrRunning(Instance::kScale, node.paint.scale);
-  ownPaint |= boundOrRunning(Instance::kSkewX, node.paint.skewX);
-  ownPaint |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
-  ownPaint |= boundOrRunning(Instance::kScaleX, node.paint.scaleX);
-  ownPaint |= boundOrRunning(Instance::kScaleY, node.paint.scaleY);
+  // The GEOMETRIC half, kept separately: a texture bake taken in device
+  // space is pinned to one device rect, so it may only be taken when the
+  // node is not moving. Opacity is deliberately not part of this — it does
+  // not move the rect.
+  bool moving = false;
+  moving |= boundOrRunning(Instance::kTx, node.paint.translateX);
+  moving |= boundOrRunning(Instance::kTy, node.paint.translateY);
+  moving |= boundOrRunning(Instance::kRotate, node.paint.rotate);
+  moving |= boundOrRunning(Instance::kScale, node.paint.scale);
+  moving |= boundOrRunning(Instance::kSkewX, node.paint.skewX);
+  moving |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
+  moving |= boundOrRunning(Instance::kScaleX, node.paint.scaleX);
+  moving |= boundOrRunning(Instance::kScaleY, node.paint.scaleY);
+  inst.transformLive = moving;
+  ownPaint |= moving;
 
   // Content volatility: what actually invalidates the node's own recording
   // (bound/lerping fills, per-frame programs, animated decorations and image
@@ -186,8 +193,19 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent = true; // VariationDrive repaints per frame (no reshape)
 
   bool childrenVolatile = false;
-  for (auto &child : inst.children)
+  bool childReadsBackdrop = false;
+  for (auto &child : inst.children) {
     childrenVolatile |= computeVolatile(*child);
+    childReadsBackdrop |= child->subtreeReadsBackdrop;
+  }
+  // Does anything here composite against what is ALREADY on the canvas? If
+  // so the subtree can never be baked into a transparent layer and blitted
+  // back — a kMultiply child would resolve against transparent black. This
+  // is the trap automatic promotion has to avoid, and it is invisible in a
+  // still frame of the common case, so it is computed rather than assumed.
+  inst.subtreeReadsBackdrop =
+      childReadsBackdrop || backdropEffectOf(node) != nullptr ||
+      node.paint.blendMode != SkBlendMode::kSrcOver;
 
   // subtreeVolatile gates the node's own caches: blocked by content volatility
   // here or ANY volatility below (children paint inside the recording,
@@ -1013,6 +1031,24 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
 namespace {
 
+/** Promotion thresholds. A node must cost more than this to replay, for
+ *  this many consecutive frames, before the library re-bakes it. 1 ms is
+ *  ~6% of a 60 FPS frame — well above noise, far below the point where a
+ *  sketch is in trouble; 8 frames keeps a one-off stall from promoting
+ *  anything. */
+constexpr double kPromoteMs = 1.0;
+constexpr uint8_t kPromoteFrames = 8;
+
+/** Temporal promotion. A node whose only volatility is a live material may
+ *  hold a bake while the material is provably holding still, and re-bakes
+ *  when it ticks — which is only a win if it ticks slower than the frame
+ *  rate. A bake costs about what the replay it replaces costs, so the
+ *  break-even stability is ~0.5; promote at 0.5, keep until 0.3, and a
+ *  material bound to a continuous Output (rate 0) never gets close.
+ *  quantizeTime(10) at 60 FPS settles near 0.83. */
+constexpr float kStablePromote = 0.5f;
+constexpr float kStableKeep = 0.3f;
+
 /** A readable, ACTIONABLE identity for a profile row: the author's own
  *  key() when there is one (that is what they will search for), else the
  *  node kind and its painted size, which is usually enough to find it. */
@@ -1050,8 +1086,7 @@ struct ProfileScope {
     row = impl->profileRows.size();
     impl->profileRows.push_back(
         Composer::NodeCost{profileLabel(inst, rect), 0, 0, impl->profDepth,
-                           inst.picture != nullptr ||
-                               inst.textureImage != nullptr});
+                           Composer::CacheState::Live});
     savedChildren = impl->profChildMs;
     impl->profChildMs = 0;
     ++impl->profDepth;
@@ -1188,6 +1223,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
                  inst.pendingLiveFill.shaderValue == inst.bakedLiveShader;
+    // The temporal-stability estimate. Material::resolve() memoizes on the
+    // byte-identical digest of every varying input, so a stable shader
+    // POINTER is a proof that the quantized inputs have not ticked — and
+    // therefore that the pixels of the last bake are still the pixels this
+    // frame wants. EMA, so one tick does not cost the promotion.
+    inst.liveStableRate =
+        inst.liveStableRate * 0.75f + (liveStable ? 0.25f : 0.0f);
   }
 
   // Automatic caching at topmost provably-static subtrees: pictures by
@@ -1220,16 +1262,257 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                rect.width(), rect.height(), ms);
   };
 
+  // ---- automatic texture promotion -----------------------------------
+  // Eligibility is deliberately narrow. Everything here is a condition
+  // under which a device-aligned bake is provably the same pixels as the
+  // replay; anything else keeps replaying. See Composer::setAutoTexturePromotion.
+  const SkMatrix &totalM = canvas.getTotalMatrix();
+  // Upright, unmirrored, unrotated and unskewed. A ±90° turn IS axis
+  // aligned in the loose sense and is deliberately excluded here: the
+  // scale then lives in the skew terms, and every bake path that mistook
+  // the diagonal for the scale resampled it (see maxScaleOf). Reading
+  // BOTH the skews and the signs of the diagonal is what keeps quarter
+  // turns, flips and 180° rotations out.
+  const bool upright = totalM.getSkewX() == 0 && totalM.getSkewY() == 0 &&
+                       totalM.getScaleX() > 0 && totalM.getScaleY() > 0 &&
+                       !totalM.hasPerspective();
+  // The temporal rule: a node whose ONLY volatility is a live material is
+  // promotable while that material is provably holding still, and re-bakes
+  // when it ticks. Sticky, with hysteresis, so a material sitting near the
+  // threshold does not promote and demote on alternate frames.
+  const bool temporallyStable =
+      inst.liveMatOnly &&
+      inst.liveStableRate >= (inst.autoTexture ? kStableKeep : kStablePromote);
+  const bool contentStable = !inst.subtreeVolatile || temporallyStable;
+
+  // Every refusal below is a condition under which a bake would produce
+  // DIFFERENT PIXELS, or would not pay for itself. Naming them is not
+  // decoration: a node reading `live paint · 663 ms` with no reason beside
+  // it is exactly how sixteen studies shipped over the 60 FPS gate.
+  using Prom = Composer::Promotion;
+  Prom why = Prom::Cheap;
+  if (!autoPromote || node.cacheMode != Cache::Auto)
+    why = Prom::OptedOut;
+  else if (!contentStable)
+    why = Prom::Volatile;
+  else if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
+    why = Prom::Composited;
+  else if (!upright)
+    why = Prom::Transformed;
+  else if (backdropEffectOf(node) || layerEffectOf(node) || node.clipContent ||
+           inst.subtreeReadsBackdrop)
+    why = Prom::Filtered;
+  else if (rect.width() < 0.5f || rect.height() < 0.5f)
+    why = Prom::TooBig; // degenerate, not large — same "cannot bake" bucket
+
+  const bool promotable = why == Prom::Cheap && !liveOnly;
+  if (!promotable)
+    inst.autoTexture = false;
+  const auto note = [&](Prom p) {
+    if (profileScope.row != SIZE_MAX)
+      profileRows[profileScope.row].promotion = p;
+  };
+  note(why);
+
+  /** What this node cost to paint the way it painted — a picture replay for
+   *  a cached subtree, the live draw for a leaf — folded into the rolling
+   *  estimate, and the promotion decision taken from it. */
+  const auto accrue = [&](double cost) {
+    // EMA so one scheduling hiccup neither promotes nor un-promotes.
+    inst.replayMs = inst.replayMs * 0.6f + (float)cost * 0.4f;
+    if (promotable && inst.replayMs > kPromoteMs) {
+      if (inst.hotFrames < 255)
+        ++inst.hotFrames;
+      if (inst.hotFrames >= kPromoteFrames) {
+        inst.autoTexture = true;
+        inst.paintDirty = true; // force the first bake
+      } else {
+        note(Prom::Warming);
+      }
+    } else if (inst.hotFrames > 0) {
+      --inst.hotFrames;
+    }
+  };
+
+  if (promotable && inst.autoTexture) {
+    // Bake in DEVICE space, snapped OUT to whole device pixels, then blit
+    // with the matrix reset. An integer device translation cannot change
+    // rasterisation, so this is a literal copy of the replay's pixels.
+    const SkRect local = recordBounds(inst);
+    SkRect deviceF = totalM.mapRect(local);
+    const SkIRect device = SkIRect::MakeLTRB(
+        (int)std::floor(deviceF.left()), (int)std::floor(deviceF.top()),
+        (int)std::ceil(deviceF.right()), (int)std::ceil(deviceF.bottom()));
+    const int64_t area = (int64_t)device.width() * device.height();
+    const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
+    // The bake this frame would ADD to what the previous frame already held.
+    // A node keeping a bake it already has is never refused for budget —
+    // dropping it would only make the next frame re-bake it.
+    // max(), not a sum: promotedBytesLast is the previous frame's FULL
+    // total and promotedBytes is this frame so far, and the two overlap.
+    const bool affordable =
+        inst.textureImage ||
+        std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
+    if (device.width() > 0 && device.height() > 0 &&
+        area <= 16 * 1024 * 1024 && affordable) {
+      // Re-bake when the recording is stale, when the device rect moved or
+      // resized (which is how a transform-SCALE change arrives here), or —
+      // the temporal case — when the live material has actually ticked and
+      // the baked shader is no longer the one this frame resolves to.
+      if (!inst.textureImage || inst.paintDirty ||
+          (inst.liveMatOnly && !liveStable) ||
+          inst.textureBakeRect != SkRect::Make(device)) {
+        sk_sp<SkSurface> layer = canvas.makeSurface(
+            SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (!layer)
+          layer = SkSurfaces::Raster(
+              SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (layer) {
+          SkCanvas *lc = layer->getCanvas();
+          lc->translate(-(float)device.left(), -(float)device.top());
+          lc->concat(totalM); // identical device geometry, offset by ints
+          paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
+          inst.textureImage = layer->makeImageSnapshot();
+          inst.textureDeviceSpace = true;
+          inst.textureBakeRect = SkRect::Make(device);
+          inst.bakedLiveShader =
+              inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue
+                                      : nullptr;
+          inst.paintDirty = false;
+          stats.picturesRecorded++;
+        }
+      }
+      if (inst.textureImage) {
+        promotedBytes += bytes;
+        if (profileScope.row != SIZE_MAX)
+          profileRows[profileScope.row].cacheState =
+              Composer::CacheState::Promoted;
+        note(Prom::Promoted);
+        canvas.save();
+        canvas.resetMatrix();
+        canvas.drawImage(inst.textureImage, (float)device.left(),
+                         (float)device.top(), SkSamplingOptions());
+        canvas.restore();
+        if (needsLayer)
+          canvas.restore();
+        canvas.restore();
+        return;
+      }
+    }
+    inst.autoTexture = false; // could not bake — fall through to the picture
+    note(Prom::TooBig);
+  }
+
   if (!liveOnly && (!inst.subtreeVolatile || inst.liveMatOnly) &&
       node.cacheMode == Cache::Texture && !backdropEffectOf(node)) {
+    // ---- the exact bake -------------------------------------------------
+    // A bake held in LOCAL space and blitted through the node's transform
+    // is resampled by whatever that transform is: at a quarter turn the
+    // texel grid lands half a texel off the device grid and every sample
+    // interpolates two texels. Measured on rotated type — mean |Δ| 13.5
+    // against 1.4 upright, and 21% less gradient across the axis whose
+    // device edge falls on a half pixel. Correct scale was necessary and
+    // not sufficient.
+    //
+    // Baking in DEVICE space, snapped OUT to whole device pixels and
+    // blitted with the matrix reset, has nothing left to resample: the
+    // texel grid IS the device grid, at any angle. Two conditions gate it,
+    // and both are about not throwing away what the local bake is FOR:
+    //
+    //  - bakeScale must be 1. Its whole purpose is to rasterize BELOW
+    //    device resolution and let the blit stretch it back.
+    //  - we must not be inside a picture recording, because a device rect
+    //    is not matrix-independent and a picture can replay elsewhere.
+    //    This condition is also what makes the next one SOUND: every node
+    //    that reaches the device path is painted every frame, so it has
+    //    the history the next condition reads. A node painted once, into
+    //    an ancestor's recording, is excluded before we get there.
+    //  - the node must be HOLDING STILL, by both available measures, which
+    //    are not the same measure:
+    //      * `transformLive` — its own transform is declared as animating.
+    //        A spinning ornament must keep the local bake and ride it,
+    //        even on a frame where it happens to land on the same rect.
+    //      * the device rect it lands on has not moved since last frame.
+    //        A node with no animated property of its own still moves under
+    //        a resizing window, a pinch zoom, a pan, or an uncached
+    //        ancestor's live transform — none of which any per-node
+    //        DECLARATION can see, and all of which would re-bake a
+    //        device-pinned texture every frame.
+    //    While either says "moving", the quantized local bake is correct
+    //    and cheap: one bake per coarse scale step, reused across the rest.
+    const SkRect localBounds = recordBounds(inst);
+    bool deviceRectStable = false;
+    SkIRect deviceR = SkIRect::MakeEmpty();
+    if (recordingDepth == 0) {
+      const SkRect deviceF = totalM.mapRect(localBounds);
+      deviceR = SkIRect::MakeLTRB(
+          (int)std::floor(deviceF.left()), (int)std::floor(deviceF.top()),
+          (int)std::ceil(deviceF.right()), (int)std::ceil(deviceF.bottom()));
+      deviceRectStable = !inst.deviceRectSeen || deviceR == inst.lastDeviceRect;
+      inst.lastDeviceRect = deviceR;
+      inst.deviceRectSeen = true;
+    }
+    const int64_t deviceArea = (int64_t)deviceR.width() * deviceR.height();
+    if (!inst.transformLive && deviceRectStable && recordingDepth == 0 &&
+        node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
+        deviceR.width() > 0 && deviceR.height() > 0 &&
+        deviceArea <= 16 * 1024 * 1024) {
+      const SkRect bakeRect = SkRect::Make(deviceR);
+      if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
+          (inst.liveMatOnly && !liveStable) ||
+          inst.textureBakeRect != bakeRect) {
+        sk_sp<SkSurface> layer = canvas.makeSurface(
+            SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
+        if (!layer)
+          layer = SkSurfaces::Raster(
+              SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
+        if (layer) {
+          SkCanvas *lc = layer->getCanvas();
+          lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
+          lc->concat(totalM); // identical device geometry, offset by ints
+          paintContent(inst, *lc, hostScale); // no leaf blend: bakes isolate
+          inst.textureImage = layer->makeImageSnapshot();
+          inst.textureDeviceSpace = true;
+          inst.textureBakeRect = bakeRect;
+          inst.textureScale = maxScaleOf(totalM);
+          inst.bakedLiveShader =
+              inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue
+                                      : nullptr;
+          inst.paintDirty = false;
+          stats.picturesRecorded++;
+        }
+      }
+      if (inst.textureImage && inst.textureDeviceSpace) {
+        if (profileScope.row != SIZE_MAX) {
+          profileRows[profileScope.row].cacheState =
+              Composer::CacheState::Texture;
+          profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+        }
+        // Identity CTM is global canvas space even inside a saveLayer (the
+        // layer device carries its own origin), so an opacity/blend bake
+        // still composites through the layer above.
+        canvas.save();
+        canvas.resetMatrix();
+        profDraw("blit", [&] {
+          canvas.drawImage(inst.textureImage, (float)deviceR.left(),
+                           (float)deviceR.top(), SkSamplingOptions());
+        });
+        canvas.restore();
+        if (needsLayer)
+          canvas.restore();
+        canvas.restore();
+        return;
+      }
+    }
     // Rasterize at the canvas's current scale so zoomed hosts stay crisp — but
     // quantized UP to a coarse step, so a continuously changing scale (window
     // resize, pinch zoom) reuses one bake per step instead of re-rasterizing
     // every frame. Between steps the draw minifies slightly, which stays sharp.
     SkMatrix total = canvas.getTotalMatrix();
-    const float raw = std::clamp(
-        std::max(std::abs(total.getScaleX()), std::abs(total.getScaleY())),
-        0.25f, 4.0f);
+    // maxScaleOf, NOT the matrix diagonal: a ±90° node's diagonal is (0, 0)
+    // and clamped to the 0.25 floor, which baked quarter-resolution type and
+    // upscaled it 4× (see ComposeRuntime.h for the measured error).
+    const float raw = std::clamp(maxScaleOf(total), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                            1.5f, 2.0f, 3.0f, 4.0f};
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];
@@ -1241,9 +1524,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // Bake the full PAINT bounds, not just the box — decoration bleed and
     // overflowing children truncate otherwise (same rule as the picture
     // cull).
-    const SkRect bake = recordBounds(inst);
+    const SkRect bake = localBounds;
     if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
-        (inst.liveMatOnly && !liveStable) || inst.textureBakeRect != bake) {
+        inst.textureDeviceSpace || (inst.liveMatOnly && !liveStable) ||
+        inst.textureBakeRect != bake) {
       const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
       const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
       sk_sp<SkSurface> layer =
@@ -1255,14 +1539,27 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       paintContent(inst, *layer->getCanvas(), scale); // no leaf blend:
       inst.textureImage = layer->makeImageSnapshot(); // bakes isolate
       inst.textureScale = scale;
+      inst.textureDeviceSpace = false;
       inst.textureBakeRect = bake;
       inst.bakedLiveShader =
           inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
+    if (profileScope.row != SIZE_MAX) {
+      profileRows[profileScope.row].cacheState = Composer::CacheState::Texture;
+      profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+    }
+    // Blit through the rect the bake ACTUALLY covers, not `bake`: pw/ph were
+    // rounded UP, so stretching an image of ceil(w·s) texels across w local
+    // units resamples the whole node by up to one texel's worth of scale.
+    // The overshoot is transparent padding, so nothing new becomes visible.
+    const SkRect dst = SkRect::MakeXYWH(
+        bake.left(), bake.top(),
+        (float)inst.textureImage->width() / inst.textureScale,
+        (float)inst.textureImage->height() / inst.textureScale);
     profDraw("blit", [&] {
-      canvas.drawImageRect(inst.textureImage, bake,
+      canvas.drawImageRect(inst.textureImage, dst,
                            SkSamplingOptions(SkFilterMode::kLinear));
     });
   } else if (!liveOnly && (!inst.subtreeVolatile || inst.liveMatOnly) &&
@@ -1294,7 +1591,14 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       const SkRect cull = recordBounds(inst);
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(cull);
+      // A picture can be replayed under a DIFFERENT matrix than it was
+      // recorded at (an ancestor with a live transform keeps its picture
+      // and replays it under the motion). Anything inside must therefore
+      // be matrix-independent — which a device-space bake, snapped to one
+      // particular device rect, is not.
+      ++recordingDepth;
       paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
+      --recordingDepth;
       inst.picture = recorder.finishRecordingAsPicture();
       inst.bakedLeafOpacity = leafOpacity; // a settled transition re-bakes
       inst.bakedLeafBlend = leafBlend;     // (the recording froze them in)
@@ -1303,12 +1607,40 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       inst.paintDirty = false;
       stats.picturesRecorded++;
     }
+    if (profileScope.row != SIZE_MAX)
+      profileRows[profileScope.row].cacheState = Composer::CacheState::Picture;
+    // The measurement that drives promotion. Two clock reads per candidate
+    // node per frame; the thing being measured is a full rasterisation, so
+    // the overhead is not close to material.
+    const auto replayStart = std::chrono::steady_clock::now();
     profDraw("replay", [&] { canvas.drawPicture(inst.picture); });
+    accrue(std::chrono::duration<double, std::milli>(
+               std::chrono::steady_clock::now() - replayStart)
+               .count());
   } else {
     stats.nodesPainted++;
-    profDraw("live", [&] {
-      paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
-    });
+    // A LEAF never records a picture (one drawRect beats a nested
+    // recording) and so was never measured — which made the single most
+    // expensive object in this corpus, a full-canvas box carrying one
+    // grain shader, structurally invisible to the promoter. Measure the
+    // live draw too, but ONLY for a node that could actually be promoted:
+    // that keeps the clock reads off the thousands of ineligible nodes.
+    // Measured cost of the pair: 51 ns. The densest study in the corpus
+    // paints 1664 nodes, so the ceiling is 85 us/frame — against the
+    // 663 ms leaf this exists to find.
+    if (!promotable) {
+      profDraw("live", [&] {
+        paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
+      });
+    } else {
+      const auto liveStart = std::chrono::steady_clock::now();
+      profDraw("live", [&] {
+        paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
+      });
+      accrue(std::chrono::duration<double, std::milli>(
+                 std::chrono::steady_clock::now() - liveStart)
+                 .count());
+    }
     inst.paintDirty = false;
   }
 

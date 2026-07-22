@@ -239,11 +239,33 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   }
   if (!hotNodes.empty()) {
     std::printf("  most expensive nodes (self ms, excluding children):\n");
-    for (const auto &row : hotNodes)
-      std::printf("    %8.2f ms  %-44s %s\n", row.selfMs, row.label.c_str(),
-                  row.cached ? "[cached — replaying a picture still re-runs "
-                               "its shaders]"
-                             : "");
+    for (const auto &row : hotNodes) {
+      const char *state = "live";
+      switch (row.cacheState) {
+      case sigil::compose::Composer::CacheState::Live:
+        state = "live paint";
+        break;
+      case sigil::compose::Composer::CacheState::Picture:
+        state = "[PICTURE — a replay still re-runs every shader, every pixel]";
+        break;
+      case sigil::compose::Composer::CacheState::Texture:
+        state = "[texture — you asked for it]";
+        break;
+      case sigil::compose::Composer::CacheState::Promoted:
+        state = "[TEXTURE, promoted by the library — not by you]";
+        break;
+      }
+      std::printf("    %8.2f ms  %-40s %s\n", row.selfMs, row.label.c_str(),
+                  state);
+      // WHY it is not a bake. "live paint, 663 ms" with nothing beside it
+      // is how sixteen studies shipped over the gate: every refusal is
+      // individually correct and individually invisible.
+      if (row.cacheState != sigil::compose::Composer::CacheState::Promoted &&
+          row.cacheState != sigil::compose::Composer::CacheState::Texture &&
+          row.selfMs >= 1.0)
+        std::printf("              not baked: %s\n",
+                    sigil::compose::Composer::promotionReason(row.promotion));
+    }
   }
   if (pass) {
     std::printf("  PASS — p99 %.2f ms is inside the %.1f ms budget "
@@ -270,13 +292,14 @@ int runBench(sigil::compose::sketch::SketchHost &host,
           "  ##  Per-pixel cost, not tree cost. Note that\n"
           "  ##  'pictures recorded 0' above does NOT mean cached: a\n"
           "  ##  picture records the DRAW CALLS, so replaying it re-runs\n"
-          "  ##  every shader over every pixel again. Only\n"
-          "  ##  .cache(Cache::Texture) keeps the PIXELS.\n"
-          "  ##  First move: put .cache(Cache::Texture) on every STATIC\n"
-          "  ##  node carrying a full-area SkSL Material (patterns::,\n"
-          "  ##  sdf::, Material::sksl). %zu nodes painted, %zu textures\n"
-          "  ##  live -- if that texture count is 0, nothing is cached\n"
-          "  ##  as pixels at all.\n",
+          "  ##  every shader over every pixel again. Only a BAKE keeps\n"
+          "  ##  the PIXELS.\n"
+          "  ##  First move: read the 'not baked' line under each node\n"
+          "  ##  above. The library bakes what it can prove is safe; the\n"
+          "  ##  common refusal is opacity/blend on a full-area material\n"
+          "  ##  (the paper-grain idiom), and that one is yours to ask\n"
+          "  ##  for with .cache(Cache::Texture). %zu nodes painted,\n"
+          "  ##  %zu textures live.\n",
           host.composer() ? host.composer()->stats().nodesPainted : 0u,
           host.composer() ? host.composer()->stats().texturesLive : 0u);
     } else {

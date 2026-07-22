@@ -66,6 +66,20 @@ struct LayeredBrush {
 
   bool operator==(const LayeredBrush &) const = default;
 
+  /** Extra paint reach past the outline, so a cached recording's cull does
+   *  not truncate the halo. Declaring nothing meant zero, and the whole
+   *  point of an additive stack is that it paints WIDE of the path:
+   *  filament() is a 14 px envelope under an 8 px blur, i.e. 31 px of
+   *  reach that a node culling at its own bounds simply lost. Per layer,
+   *  not per extreme — a wide hard core and a narrow soft halo do not
+   *  compound. 3σ covers >99% of a Gaussian. */
+  float bleed() const {
+    float reach = 0;
+    for (const StrokeLayer &layer : layers)
+      reach = std::max(reach, layer.width * 0.5f + layer.blurSigma * 3.0f);
+    return reach;
+  }
+
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     for (const StrokeLayer &layer : layers) {
       SkPaint p;
@@ -606,6 +620,15 @@ using StampModFn =
     std::function<StampMod(const PathSample &, size_t index, size_t count)>;
 
 namespace detail {
+/** A resolved tangent break: WHERE the vertex is, and the two leg tangents
+ *  the search converged on. Carrying the legs is what makes the corner
+ *  tile's bisector exact — re-probing the path at a fixed ±2 px cannot
+ *  know whether either leg is that long. */
+struct CornerHit {
+  float d = 0;
+  SkVector in{0, 0}, out{0, 0};
+};
+
 inline void drawStamp(SkCanvas &c, const SkPicture &pic,
                       const PathSample &sample, bool align, float rotateDeg,
                       float scaleX, float scaleY, const StampMod &m) {
@@ -738,6 +761,19 @@ struct PatternBrush {
    *  will shift side-tile phase very slightly; that is the corner finally
    *  taking up its own room. */
   float cornerLength = 0.0f;
+  /** Which way a corner tile faces.
+   *
+   *  `Bisector` (the default, and what an ornamental elbow wants) points
+   *  the tile along the angle bisector of the two legs, so the same art
+   *  serves all four corners of a rectangle. `Outgoing` points it along
+   *  the departing leg, which is what a directional marker — an arrow
+   *  turning a corner, a flow tick — actually wants.
+   *
+   *  Until the tangent-break search learned to bisect its own bracket,
+   *  every corner silently got `Outgoing` and there was no way to ask for
+   *  anything else. */
+  enum class CornerAlign { Bisector, Outgoing };
+  CornerAlign cornerAlign = CornerAlign::Bisector;
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
   StampModFn mod;              ///< side tiles only
@@ -752,11 +788,26 @@ struct PatternBrush {
     return side.node() == o.side.node() && node(start) == node(o.start) &&
            node(end) == node(o.end) && node(corner) == node(o.corner) &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
-           cornerLength == o.cornerLength &&
+           cornerLength == o.cornerLength && cornerAlign == o.cornerAlign &&
            stretchToFit == o.stretchToFit && reach == o.reach && !mod &&
            !o.mod && animatedMod == o.animatedMod;
   }
 
+  /** The baked tile art. Keyed on the art Element's node POINTER, which is
+   *  what makes the next paragraph a trap.
+   *
+   *  THE CACHE LIVES IN THE BRUSH VALUE. Copy the brush and the copy shares
+   *  this cache (shared_ptr); CONSTRUCT a new brush and it gets an empty
+   *  one. So a PatternBrush built inside a per-frame describe — inside the
+   *  function passed to renderSlot(), say — re-bakes every tile it has,
+   *  every frame, and each bake is a full reconcile + layout + record pass
+   *  through snapshot(). One study measured eighteen of those per frame.
+   *
+   *  Build the brush ONCE and keep it (a member, a static, anything that
+   *  outlives the frame), or keep the art Elements pointer-stable and copy
+   *  the brush rather than rebuilding it. The same rule the rest of the
+   *  library states as "keep the callable pointer-stable to prune" — here
+   *  it costs raster work, not just a diff. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
     const void *bakedSide = nullptr;
@@ -810,7 +861,23 @@ struct PatternBrush {
 
       // Corners: where successive tangents break by more than the
       // threshold (sampled at a fine step, deduped within a tile).
-      std::vector<float> corners;
+      //
+      // The scan STRADDLES the vertex — it compares the tangent at d-step
+      // with the tangent at d, so the break is first seen one step AFTER
+      // the bend. Taking the midpoint of that bracket put the corner art
+      // up to half a step off the actual vertex (measured: a bend at
+      // (96, 240) drew its corner box centred on (98.5, 239.5)), and it
+      // also broke the bisector: probing d±2 from a point already past
+      // the vertex lands on the SAME leg twice, so every corner rotated
+      // to the outgoing tangent. On a rectangle three corners came out
+      // one way and the fourth — the seam, whose probes wrap — 45° off.
+      //
+      // So bisect the bracket instead of guessing inside it, and keep the
+      // two leg tangents the bisection converged on. Eight halvings take
+      // a 6 px step under 0.03 px, which is below the rasterizer's own
+      // resolution, and the bisector is then exact by construction rather
+      // than by a 2 px probe that assumes both legs are longer than 2 px.
+      std::vector<detail::CornerHit> corners;
       if (cache->corner) {
         const float step = std::clamp(tileLen * 0.25f, 1.0f, 6.0f);
         SkVector prev{0, 0};
@@ -827,22 +894,41 @@ struct PatternBrush {
             tanAtStart = tan;
           if (havePrev) {
             const float dot = prev.x() * tan.x() + prev.y() * tan.y();
-            if (dot < cosThresh &&
-                (corners.empty() || d - corners.back() > tileLen * 0.5f))
-              corners.push_back(d - step * 0.5f);
+            if (dot < cosThresh) {
+              // The break lies in (d-step, d]. Bisect for where the
+              // tangent stops matching the incoming leg.
+              float lo = std::max(0.0f, d - step), hi = std::min(d, len);
+              SkVector inTan = prev, outTan = tan;
+              for (int it = 0; it < 8; ++it) {
+                const float mid = (lo + hi) * 0.5f;
+                SkVector mt;
+                if (!contour->getPosTan(mid, nullptr, &mt))
+                  break;
+                if (inTan.x() * mt.x() + inTan.y() * mt.y() < cosThresh) {
+                  hi = mid;
+                  outTan = mt;
+                } else {
+                  lo = mid;
+                  inTan = mt;
+                }
+              }
+              if (corners.empty() || hi - corners.back().d > tileLen * 0.5f)
+                corners.push_back({hi, inTan, outTan});
+            }
           }
           prev = tan;
           havePrev = true;
         }
         // The SEAM of a closed contour is a corner too when the exit and
         // entry tangents break (a rectangle's start point) — the forward
-        // scan never compares across the wrap.
+        // scan never compares across the wrap. Its legs are known
+        // outright, so it needs no bisection.
         if (closed && havePrev) {
           const float dot =
               prev.x() * tanAtStart.x() + prev.y() * tanAtStart.y();
           if (dot < cosThresh &&
-              (corners.empty() || corners.front() > tileLen * 0.5f))
-            corners.insert(corners.begin(), 0.0f);
+              (corners.empty() || corners.front().d > tileLen * 0.5f))
+            corners.insert(corners.begin(), {0.0f, prev, tanAtStart});
         }
       }
 
@@ -863,10 +949,10 @@ struct PatternBrush {
               : 0.0f;
       const float halfCorner = cornerRoom * 0.5f;
       std::vector<float> bounds{head};
-      for (float d : corners)
-        if (d > head && d < len - tail) {
-          bounds.push_back(d - halfCorner); // run ends before the corner
-          bounds.push_back(d + halfCorner); // next run starts after it
+      for (const detail::CornerHit &hit : corners)
+        if (hit.d > head && hit.d < len - tail) {
+          bounds.push_back(hit.d - halfCorner); // run ends before the corner
+          bounds.push_back(hit.d + halfCorner); // next run starts after it
         }
       bounds.push_back(len - tail);
 
@@ -891,24 +977,19 @@ struct PatternBrush {
         }
       }
 
-      // Corner tiles sit on the bisector of the break.
+      // Corner tiles sit on the bisector of the break — the two leg
+      // tangents came out of the detection, so no re-probing is needed.
       if (cache->corner)
-        for (float d : corners) {
+        for (const detail::CornerHit &hit : corners) {
           SkPoint pos;
-          SkVector before, after;
-          if (!contour->getPosTan(d, &pos, nullptr))
+          if (!contour->getPosTan(hit.d, &pos, nullptr))
             continue;
-          auto sampleDistance = [closed, len](float at) {
-            if (!closed || len <= 0.0f)
-              return std::clamp(at, 0.0f, len);
-            at = std::fmod(at, len);
-            return at < 0.0f ? at + len : at;
-          };
-          if (!contour->getPosTan(sampleDistance(d - 2.0f), nullptr, &before) ||
-              !contour->getPosTan(sampleDistance(d + 2.0f), nullptr, &after))
-            continue;
-          const SkVector bis{before.x() + after.x(), before.y() + after.y()};
-          caps.push_back({{pos, bis, d, len > 0 ? d / len : 0},
+          SkVector dir{hit.in.x() + hit.out.x(), hit.in.y() + hit.out.y()};
+          // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
+          // silent zero rotation. Fall back to the outgoing leg.
+          if (dir.length() < 1e-3f || cornerAlign == CornerAlign::Outgoing)
+            dir = hit.out;
+          caps.push_back({{pos, dir, hit.d, len > 0 ? hit.d / len : 0},
                           cache->corner.get()});
         }
       if (!closed && cache->start) {

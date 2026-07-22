@@ -1473,18 +1473,114 @@ public:
    *
    *  Off by default: the timing calls are cheap but not free, and a
    *  profiler that is always on is a profiler nobody trusts. */
+  /** How a node produced its pixels this frame. The distinction between
+   *  Picture and Texture is the one the corpus got wrong, so the profiler
+   *  names it rather than saying "cached". */
+  enum class CacheState : uint8_t {
+    Live,     ///< painted from scratch
+    Picture,  ///< replayed a recording — RE-RUNS every shader, every pixel
+    Texture,  ///< blitted a raster bake — the author asked for it
+    Promoted, ///< blitted a raster bake the LIBRARY decided to make
+  };
+  /** WHY a node is, or is not, a pixel bake.
+   *
+   *  A node that reads `live paint` and costs 600 ms is the corpus's whole
+   *  problem, and "the library declined" is not an answer an author can act
+   *  on: the refusals are individually correct and individually invisible.
+   *  So every profiled node carries the reason, and `--bench` prints it.
+   *  Each Refused* value names a condition that would make a bake produce
+   *  DIFFERENT PIXELS, which is the one thing promotion may never do. */
+  enum class Promotion : uint8_t {
+    Cheap,      ///< under the cost threshold — promoting it would not pay
+    Warming,    ///< expensive, counting the consecutive frames before a bake
+    Promoted,   ///< baked by the library
+    AskedFor,   ///< Cache::Texture — the author's own bake, not a decision
+    OptedOut,   ///< Cache::Picture / Cache::None, or promotion switched off
+    Volatile,   ///< its content genuinely changes every frame
+    Composited, ///< opacity < 1 or a non-srcOver blend: a bake would round twice
+    Transformed,///< rotated, skewed or mirrored — a bake would resample
+    Filtered,   ///< layer/backdrop effect, clip, or a backdrop-reading subtree
+    TooBig,     ///< beyond the per-bake area cap or the composer's bake budget
+  };
   struct NodeCost {
     std::string label;   ///< key() if set, else kind + size — actionable
     double selfMs = 0;   ///< this node's own paint, EXCLUDING children
     double totalMs = 0;  ///< including children
     int depth = 0;
-    bool cached = false; ///< replayed a picture/texture instead of painting
+    CacheState cacheState = CacheState::Live;
+    Promotion promotion = Promotion::Cheap;
+    bool cached() const { return cacheState != CacheState::Live; }
   };
+  /** One short phrase for a Promotion, for printing next to a cost. */
+  static const char *promotionReason(Promotion p);
   void setProfiling(bool on);
   bool profiling() const;
   /** Rows from the last draw(), sorted by `selfMs` descending. Empty when
    *  profiling is off. */
   const std::vector<NodeCost> &profile() const;
+
+  /** AUTOMATIC TEXTURE PROMOTION (on by default).
+   *
+   *  A `Cache::Auto` subtree that is provably static already caches as an
+   *  SkPicture — and a picture records the DRAW CALLS, so replaying it
+   *  re-runs every shader over every pixel forever. Nine studies in the
+   *  sketch corpus were authored believing that was a cache; every one of
+   *  them reported `picturesRecorded == 0` while missing 60 FPS by an
+   *  order of magnitude.
+   *
+   *  So the composer now watches how long each static node's paint
+   *  actually costs, and once a node has been expensive for several
+   *  consecutive frames it re-bakes that subtree ONCE into a raster image
+   *  and blits it thereafter.
+   *
+   *  THREE KINDS OF NODE ARE ELIGIBLE:
+   *
+   *  1. A cached subtree whose picture replay is expensive.
+   *  2. A LEAF that never records a picture at all. Bare boxes are excluded
+   *     from picture recording on purpose (one drawRect beats a nested
+   *     recording), and the promoter used to watch only the replay path —
+   *     so a full-canvas box carrying one grain shader was structurally
+   *     invisible to it. That node is the corpus's single most expensive
+   *     object: 663 ms of a 697 ms frame in chladni_tab1, 108 ms in
+   *     penrose_paving, 34 ms in genesis_fire. Leaves are measured now.
+   *  3. A node whose only volatility is a LIVE MATERIAL that has not
+   *     actually moved since the bake — `Material::quantizeTime(10)` steps
+   *     its uniforms ten times a second, so at 60 FPS five frames in six
+   *     resolve to the SAME shader and the previous bake is still exact.
+   *     A material bound to a continuous Output resolves to a new shader
+   *     every frame, never reaches the stability rate, and stays live: the
+   *     library measures that rather than assuming it.
+   *
+   *  Re-baking is not free, so a node only holds its promotion while it is
+   *  actually stable — a bake per frame would cost more than the replay it
+   *  replaced.
+   *
+   *  IT MUST NOT CHANGE A PIXEL, and that is enforced structurally rather
+   *  than hoped for: promotion is refused unless the node maps to device
+   *  space with no rotation, mirroring or skew, and the bake is then taken
+   *  in DEVICE space at an integer-snapped rect and blitted back with the
+   *  matrix reset and no resampling. An integer device-space translation
+   *  cannot alter rasterisation, so the blit is a literal copy of the
+   *  pixels the live paint would have produced. Anything outside that
+   *  envelope keeps painting as it did.
+   *
+   *  The refusals that look most like missed wins are the honest ones. A
+   *  leaf at `opacity(0.13).blend(kSoftLight)` — the paper-grain idiom,
+   *  and the most expensive node in three studies — cannot be promoted,
+   *  because compositing a bake applies the alpha to an already-rounded
+   *  8-bit colour and the direct draw applies it to the shader's float
+   *  output; the two agree to within 1 LSB, which is not agreement. Ask
+   *  for that one yourself with `.cache(Cache::Texture)`: an author who
+   *  types it has accepted the rounding, and the library has not.
+   *
+   *  Why a given node was or was not promoted is reported per node as
+   *  NodeCost::promotion, and `ComposeSketch --bench` prints it.
+   *
+   *  Opting out: globally here, or per node with `.cache(Cache::Picture)`,
+   *  which means "record, and never promote". `Cache::Texture` is the
+   *  opposite opt-in and is unaffected. */
+  void setAutoTexturePromotion(bool on);
+  bool autoTexturePromotion() const;
 
   /** @private */
   struct Impl;
