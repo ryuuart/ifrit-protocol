@@ -94,7 +94,7 @@ constexpr float kPanelW = kFireW * kBlit;  // 960
 constexpr float kPanelH = kFireH * kBlit;  // 504
 constexpr int kSwatch = 24;                // 37*24 + 36*2 = 960 exactly
 constexpr int kInspectCells = 34, kInspectRows = 17, kInspectZoom = 8;
-constexpr int kCropX = 143, kCropY = 111;  // the crop the inspector watches
+constexpr int kCropX = 143, kCropY = 100;  // the crop the inspector watches
 
 // §7 — the one timing constant from the source: CJS_TICKER_FPS = 27.
 constexpr double kSimHz = 27.0;
@@ -155,8 +155,14 @@ float easeOutBack(float t) {
   return 1.0f + (s + 1.0f) * u * u * u + s * u * u;
 }
 
-std::string pad(const std::string &s, size_t n) {
-  return s.size() >= n ? s : s + std::string(n - s.size(), ' ');
+/** A tiny dark chip behind an annotation, so placard type stays legible
+ *  over white-hot cells. */
+Element chip(Element content, float alpha = 0.72f) {
+  Element c = box().row().padding(7, 3).fill(SkColor4f{0, 0, 0, alpha});
+  if (alpha > 0.0f)
+    c.stroke(stroke(1.0f, Fill::color(hex(0x3A3A42, 0.8f)),
+                    PathFormat::Align::Inner));
+  return c.child(std::move(content));
 }
 
 } // namespace
@@ -169,6 +175,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   std::array<uint32_t, 37> lut{};   // heat → premultiplied RGBA8888 word
   SkBitmap bitmap;                  // 320×168, rewritten once per sim tick
   sk_sp<SkImage> frame;             // what custom() blits every render frame
+  std::array<float, kFireH> rowMean{}; // mean heat per row — the decay curve
   uint32_t rng = 0x9E3779B9u;       // xorshift32 state, reseeded in setup()
 
   // --- clocks ---
@@ -240,9 +247,16 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     uint32_t *px = (uint32_t *)bitmap.getPixels();
     if (!px)
       return;
-    const size_t n = (size_t)kFireW * kFireH;
-    for (size_t i = 0; i < n; ++i)
-      px[i] = lut[heat[i]];
+    for (int y = 0; y < kFireH; ++y) {
+      uint32_t sum = 0;
+      const size_t base = (size_t)y * kFireW;
+      for (int x = 0; x < kFireW; ++x) {
+        const uint8_t v = heat[base + (size_t)x];
+        px[base + (size_t)x] = lut[v];
+        sum += v;
+      }
+      rowMean[(size_t)y] = (float)sum / (float)kFireW;
+    }
     frame = bitmap.asImage(); // mutable bitmap → copy; safe to keep drawing
   }
 
@@ -260,6 +274,33 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
           SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
           SkSamplingOptions(SkFilterMode::kNearest), nullptr,
           SkCanvas::kStrict_SrcRectConstraint);
+    };
+  }
+
+  /** The decay curve: mean heat per buffer row, seed row (y=167) at the left
+   *  falling to the cold ceiling (y=0) at the right — one column per row,
+   *  tinted by the LUT entry that mean lands on, so the chart and the flame
+   *  speak the same 37 colors. Accumulated in rasterize() on the SIM clock;
+   *  this program only draws rects. */
+  PaintProgram profileProgram() {
+    return [this](SkCanvas &canvas, const PaintContext &ctx) {
+      const float w = ctx.size.width(), h = ctx.size.height();
+      const float step = w / (float)kFireH;
+      SkPaint bar;
+      bar.setAntiAlias(false);
+      for (int i = 0; i < kFireH; ++i) {
+        const float m = rowMean[(size_t)(kFireH - 1 - i)]; // bottom → top
+        const int idx = std::clamp((int)std::lround(m), 0, 36);
+        const float bh = std::max(1.0f, (m / 36.0f) * h);
+        bar.setColor4f(idx == 0 ? hex(0x24242A) : hex(kPalette[idx]), nullptr);
+        canvas.drawRect(
+            SkRect::MakeXYWH((float)i * step, h - bh, step + 0.6f, bh), bar);
+      }
+      // the mean-heat ceiling the flame never crosses
+      SkPaint rule;
+      rule.setColor4f(hex(0x3A3A42, 0.9f), nullptr);
+      rule.setStrokeWidth(1);
+      canvas.drawLine(0, h - 0.5f, w, h - 0.5f, rule);
     };
   }
 
@@ -316,6 +357,16 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .glyphFx(std::move(fx));
   }
 
+  /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so
+   *  the letterforms hold their edge where a flame tongue crosses them. */
+  sigil::weave::TextStyle doomType() {
+    sigil::weave::TextStyle s =
+        type(heavyFace(), 186, hex(0xC23A1C), 34.0f);
+    s.paint.addUnderlay(sigil::weave::PaintLayer::outline(
+        hex(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
+    return s;
+  }
+
   Element citation() {
     return text(toU8("id Software / Williams \xe2\x80\x94 PlayStation port "
                      "title screen \xc2\xb7 algorithm reverse-engineered "
@@ -367,13 +418,17 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(box().absolute().inset(0).fill(kPanelInk))
         // §8, the reveal trick: the word is never drawn "on top". It sits
         // BEHIND the flame, and the rasterizer's alpha-0 for heat 0 lets the
-        // cold core show it through, breathing as the simulation runs.
-        .child(text(toU8("DOOM"), type(heavyFace(), 150, hex(0x8E1B10), 26.0f))
+        // cold core show it through, breathing as the simulation runs. Its
+        // cap band deliberately straddles the flame's ragged front (≈ row 60
+        // of 168), so the tongues eat into it from below.
+        .child(text(toU8("DOOM"), doomType())
                    .absolute()
                    .left(0)
-                   .top(214)
+                   .top(66)
                    .width(kPanelW)
                    .textAlign(sigil::weave::TextAlignment::kCenter)
+                   .opacity(withFrom(0.0f, 1.0f,
+                                     {.duration = 600ms, .delay = 380ms}))
                    .zIndex(1))
         // the automaton
         .child(custom(fireProgram())
@@ -392,12 +447,14 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .height(kBlit)
                    .fill(hex(0xFFFFFF, 0.9f))
                    .zIndex(3))
-        .child(text(toU8("SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
-                         "WRITTEN ONCE"),
-                    mono(10, hex(0xEFEFC7, 0.85f), 1.0f))
+        .child(chip(text(toU8("SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
+                             "WRITTEN ONCE, NEVER RE-RANDOMISED"),
+                         mono(10, hex(0xEFEFC7), 1.0f)))
                    .absolute()
-                   .left(12)
+                   .left(10)
                    .bottom(12)
+                   .opacity(withFrom(0.0f, 1.0f,
+                                     {.duration = 300ms, .delay = 1000ms}))
                    .zIndex(4))
         // where the sidebar's inspector is looking
         .child(box()
@@ -411,11 +468,12 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .opacity(withFrom(0.0f, 0.85f,
                                      {.duration = 300ms, .delay = 900ms}))
                    .zIndex(5))
-        .child(text(toU8("INSPECT"), mono(9, kAmber, 1.4f))
+        .child(chip(text(toU8("INSPECT \xe2\x86\x92"), mono(9, kAmber, 1.4f)),
+                    0.8f)
                    .absolute()
                    .left((float)(kCropX * kBlit))
-                   .top((float)(kCropY * kBlit) - 13.0f)
-                   .opacity(withFrom(0.0f, 0.85f,
+                   .top((float)(kCropY * kBlit) - 17.0f)
+                   .opacity(withFrom(0.0f, 1.0f,
                                      {.duration = 300ms, .delay = 900ms}))
                    .zIndex(5))
         // the bezel, trim()-revealed on mount
@@ -439,10 +497,22 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         // caches, and describe() is never called at 27 Hz.
         .child(box()
                    .absolute()
-                   .right(12)
-                   .top(10)
+                   .right(14)
+                   .top(26)
                    .zIndex(6)
-                   .child(slot("readout")));
+                   .child(slot("readout")))
+        // the panel's own placard line
+        .child(chip(text(toU8("BUFFER 320 \xc3\x97 168 CELLS  \xc2\xb7  "
+                              "BLIT \xc3\x97" "3 NEAREST  \xc2\xb7  "
+                              "PANEL 960 \xc3\x97 504 PX"),
+                         mono(10, kSteel, 1.0f)),
+                    0.0f)
+                   .absolute()
+                   .left(22)
+                   .top(24)
+                   .opacity(withFrom(0.0f, 1.0f,
+                                     {.duration = 300ms, .delay = 820ms}))
+                   .zIndex(6));
   }
 
   Element paletteStrip() {
@@ -524,6 +594,29 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(box().height(1).fill(kKeyline))
         .child(console::console(ring, consoleStyle()))
         .child(box().grow(1))
+        .child(box().height(1).fill(kKeyline))
+        // The decay curve: what the buffer looks like as DATA.
+        .child(box()
+                   .column()
+                   .gap(5)
+                   .child(box()
+                              .row()
+                              .child(text(toU8("MEAN HEAT / ROW"),
+                                          mono(11, kBone, 1.6f)))
+                              .child(box().grow(1))
+                              .child(text(toU8("0 \xe2\x80\x93 36"),
+                                          mono(10, kSteel, 1.0f))))
+                   .child(custom(profileProgram())
+                              .height(52)
+                              .cache(Cache::None)
+                              .opacity(withFrom(0.0f, 1.0f,
+                                                {.duration = 400ms,
+                                                 .delay = 1150ms})))
+                   .child(box()
+                              .row()
+                              .child(text(toU8("y=167 SEED"), mono(9, kSteel)))
+                              .child(box().grow(1))
+                              .child(text(toU8("y=0 TOP"), mono(9, kSteel)))))
         .child(box().height(1).fill(kKeyline))
         .child(slot("stats"));
   }
@@ -623,7 +716,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     return box()
         .column()
         .gap(4)
-        .child(statRow("SIM STEP", pad(std::to_string(simSteps), 0), kBone))
+        .child(statRow("SIM STEP", std::to_string(simSteps), kBone))
         .child(statRow("SIM RATE", rate, kAmber))
         .child(statRow("DRAW RATE", draw, kBone))
         .child(statRow("DRAW / SIM", ratio, kSteel))
@@ -668,7 +761,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     // the accumulator is bespoke sketch code. Everything the automaton does
     // — step, rasterize, strobe — happens on THIS clock, at 27 Hz, whatever
     // the render rate is.
-    ctx.ticker.add([this, &ctx](double dt) {
+    // NOTE: SketchContext is a per-call VALUE the host rebuilds every frame —
+    // capturing it by reference would dangle. Capture the Composer, which is
+    // host-owned and stable across the sketch's life.
+    Composer &composer = ctx.composer;
+    ctx.ticker.add([this, &composer](double dt) {
       elapsed += dt;
       ++drawFrames;
       if (dt > 0.0)
@@ -687,8 +784,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         rasterize();
         // Slots only: the readout and the stat block follow the SIM clock;
         // describe() is not called, and no other cache is touched.
-        ctx.composer.renderSlot("readout", readout());
-        ctx.composer.renderSlot("stats", stats());
+        composer.renderSlot("readout", readout());
+        composer.renderSlot("stats", stats());
       }
 
       // §7 energy strobe: exp decay (τ ≈ 20 ms), reset to 1 on every tick.
@@ -716,7 +813,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         ring.append(toU8(kBoot[bootLine]), indented);
         ++bootLine;
         nextBoot += 0.11; // §7: staggerChildren(110ms) as data
-        ctx.composer.render(describe(ctx));
+        composer.render(describe());
         if (bootLine == kBootCount)
           bootDone = true;
       }
@@ -727,7 +824,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
       return true;
     });
 
-    ctx.composer.render(describe(ctx));
+    ctx.composer.render(describe());
     ctx.composer.renderSlot("readout", readout());
     ctx.composer.renderSlot("stats", stats());
   }

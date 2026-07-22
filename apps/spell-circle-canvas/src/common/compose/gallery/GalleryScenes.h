@@ -16,6 +16,7 @@
 #include "ScenesOrnament.h"
 #include "ScenesAero.h"
 #include "ScenesConsole.h"
+#include "ScenesCosmati.h"
 #include "ScenesKinetic.h"
 #include "ScenesNetwork.h"
 #include "ScenesPersona.h"
@@ -78,6 +79,8 @@ inline constexpr SceneInfo kScenes[] = {
      "D2 hoard \xe2\x80\x94 generated materials, instances()"},
     {"gerstner grid", "Showcase",
      "Capital 1962 \xe2\x80\x94 the mobile grid, run"},
+    {"cosmati", "Tiling",
+     "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone"},
 };
 inline constexpr int kGallerySceneCount =
     (int)(sizeof(kScenes) / sizeof(kScenes[0]));
@@ -133,6 +136,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 18: return std::make_unique<BeethovenScene>();
   case 19: return std::make_unique<LootGridScene>();
   case 20: return std::make_unique<GerstnerGridScene>();
+  case 21: return std::make_unique<CosmatiScene>();
   default: return nullptr;
   }
 }
