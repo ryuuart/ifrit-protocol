@@ -117,6 +117,43 @@
 // y + lineHeight/2. TabStopOptions carries `positions` and `interval` and NO
 // LEADER, so that is hand-built from two measure() calls per row. See the
 // report; this is now the programme's most concrete text-side ask.
+//
+// -----------------------------------------------------------------------------
+// SIX THINGS THE RENDER TAUGHT THAT THE MEASUREMENTS COULD NOT
+//
+//  * FLOWING AROUND THE FIGURE'S OWN BOX IS WRONG, and the reason is a good
+//    one. `flowAround` produces a line interval on EACH side of the exclusion,
+//    which is correct DTP behaviour and is what a float means — so the first
+//    render put the word "and" in the 20 px gutter to the RIGHT of the Vault
+//    figure. Fallout has no such concept: its wrap is one number, so its
+//    exclusion is implicitly everything from the first inked column to the
+//    right margin. Sizing the KEYED node to that rectangle (and drawing the
+//    figure as an unkeyed sibling inside it) reproduces the 1998 rule exactly.
+//  * THE S.P.E.C.I.A.L. COLUMN IS NOT A BLACK WELL. It looks like one at 640x480
+//    and it is not: sampled at (45,60) the reference reads #483828, a LIT metal
+//    facet with the odometers and plaques recessed INTO it. Building it as a
+//    well made a fifth of the screen read as a hole. Sampling beats looking.
+//  * THE ENGRAVED GOLD WAS 60% TOO SMALL on the first four passes, because the
+//    brief's sizes are honest guesses and the ink is measurable: "ST-" is 36x21
+//    original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20. Those are
+//    advance/cap ratios of 0.40-0.47, narrower than any stock face, so the
+//    substitute is sized from the CAP and then condensed onto the ADVANCE.
+//    After that every gold run lands within 1-5 px of the original's ink box.
+//  * AN OUTLINE FACE AT A BITMAP FACE'S SIZE READS FAR TOO LIGHT. font 101 is
+//    a 10 px bitmap: its stems are a whole pixel at 640 wide, which is a heavy
+//    colour no 20 px outline regular can match. The body runs BOLD — and
+//    because the substitute is monospaced, bold has identical advances, so
+//    every column stays exactly where the game put it. This is free only
+//    because the face is monospaced; it would have cost the whole grid
+//    otherwise.
+//  * THE CARD IS BRIGHT. Sampling it on a 44x32 grid gives #9C7434..#BC9054
+//    almost everywhere. The first pass vignetted it into tooled leather at a
+//    mean of (46,34,15) against the original's (141,107,50) — "aged parchment"
+//    is a reflex, and the reference is a sun-bleached scrap.
+//  * A LINE-ART FIGURE HAS TO BE A SILHOUETTE. Built as limbs-plus-torso it
+//    reads as a wireframe skeleton; built as ONE closed contour walking neck ->
+//    shoulder -> arm -> armpit -> hip -> leg -> foot -> crotch and mirrored, it
+//    reads as a body. Same number of points, entirely different drawing.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -326,10 +363,14 @@ inline float &titleRise() {
   static float v = 5.0f;
   return v;
 }
-inline float &engravedRise() {
-  static float v = 3.0f;
+/** The engraved face's line-top -> cap-top slack as a FRACTION of its font
+ *  size, so one probe serves the five sizes the plaques, tabs, headings,
+ *  buttons and S.P.E.C.I.A.L. caps are set in. */
+inline float &engravedRiseFrac() {
+  static float v = 0.20f;
   return v;
 }
+inline float engravedRise(float size) { return engravedRiseFrac() * size; }
 
 inline Element t(const std::string &s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
@@ -769,11 +810,15 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   weave::TextStyle body(SkColor4f c) const {
     return fo::type(fo::bodyBold(), fo::bodySize(), c);
   }
-  weave::TextStyle heading(SkColor4f c) const {
-    return fo::type(fo::bodyBold(), fo::n(14.0f), c, fo::n(0.6f));
-  }
-  weave::TextStyle plaqueType(float size, SkColor4f c) const {
-    return fo::type(fo::engraved(), size, c, fo::n(0.9f));
+  /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
+   *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
+   *  Those cap-to-advance ratios (0.40-0.47) are narrower than any stock face,
+   *  so the substitute is condensed to land on them — the same discipline the
+   *  body advance and the card title use. */
+  weave::TextStyle plaqueType(float size, SkColor4f c,
+                              float condense = 0.95f,
+                              float track = 0.5f) const {
+    return fo::type(fo::engraved(), size, c, fo::n(track), condense);
   }
   /** font 102: cap height 17 original px, advance ~6.8 — a heavily condensed
    *  heavy grotesque (measured off the reference: "Strength" is 55 px wide
@@ -892,9 +937,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
   /** Engraved gold lettering: the bright face over a 1 px shadow stamp. The
    *  library has no glyph-level stroke (ROADMAP §9), so the doubling is
    *  echo() — one misprint stamp UNDER the run, which is exactly the effect. */
-  Element engravedText(const std::string &s, float size, SkColor4f c) {
-    return fo::t(s, plaqueType(size, c))
-        .echo({fo::n(0.7f), fo::n(0.7f)}, fo::kGoldDim);
+  Element engravedText(const std::string &s, float size, SkColor4f c,
+                       float condense = 0.95f, float track = 0.5f) {
+    return fo::t(s, plaqueType(size, c, condense, track))
+        .echo({fo::n(1.0f), fo::n(1.0f)}, fo::kGoldDim);
   }
 
   Element centred(fo::Rect r, Element child) {
@@ -917,10 +963,10 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
       // The two-letter gold abbreviation and its dash: measured ink 20..55,
       // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
-      g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(15.5f),
-                               kGold)
+      g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
+                               kGold, 0.84f, 0.2f)
                       .opacity(0.94f),
-                  kAbbrX, y + 1.0f, engravedRise() * 1.42f));
+                  kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
 
       // The two-digit odometer: BIG_NUM_WIDTH 14 x BIG_NUM_HEIGHT 24, white
       // digits on counter wheels with a seam across the digit. That seam is
@@ -931,8 +977,11 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       // The value descriptor on its dark plaque with the gold bevel along the
       // bottom-left. stat.msg 301-310, indexed by the VALUE.
       Element plaque = at(box(), kPlaqueX, y + 4, kPlaqueW, 17)
-                           .fill(wellMat)
+                           .fill(Fill::color(kWell))
                            .corners(Corners{n(1.5f)});
+      plaque.background(styles::dropShadow(C(0x000000, 0.6f), {0, n(1)}, n(2)));
+      plaque.foreground(styles::InnerShadow{C(0x000000, 0.75f), {0, n(1.2f)},
+                                            n(2.0f)});
       plaque.stroke(util::stroke(n(1), Fill::color(C(0x14100A)),
                                  PathFormat::Align::Inner));
       g.child(plaque);
@@ -977,9 +1026,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                         .inset(0)
                         .justify(Justify::Center)
                         .alignItems(Align::Center)
-                        .child(t(glyph, fo::type(digitFace(), n(15.0f), kDigit,
-                                                 0, 0.92f))
-                                   .translateY(n(0.6f))));
+                        .child(t(glyph, fo::type(digitFace(), n(20.0f), kDigit,
+                                                 0, 0.98f))
+                                   .translateY(n(0.7f))));
       // The seam ACROSS the digit — the counter-wheel tell, and the reason
       // these things blank for 123 ms instead of cross-fading. It has to paint
       // over the glyph, so it is a foreground, not a background: the exact
@@ -1097,8 +1146,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
       if (!sel)
         tab.overlay(styles::colorOverlay(C(0x000000, 0.30f)));
       tab.justify(Justify::Center).alignItems(Align::Center);
-      tab.child(engravedText(tabs[(size_t)i], n(11.0f),
-                             sel ? kGold : C(0x6E5A20))
+      tab.child(engravedText(tabs[(size_t)i], n(23.0f),
+                             sel ? kGold : C(0x6E5A20), 0.84f, 0.3f)
                     .translateY(sel ? n(-1.0f) : n(0.0f)));
       g.child(tab);
     }
@@ -1389,19 +1438,19 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 3; ++i) {
       Element p = raised(plaques[i], 3.0f);
       p.justify(Justify::Center).alignItems(Align::Center);
-      p.child(engravedText(plaqueText[i], n(11.5f), kGold));
+      p.child(engravedText(plaqueText[i], n(26.0f), kGold, 0.84f, 0.6f));
       g.child(p);
     }
 
     // The SKILLS heading (font 103, #907824) at (380, 5), and SKILL POINTS at
     // (400, 233) with its own two-digit odometer at (522, 228).
-    g.child(ink(engravedText("SKILLS", n(13.0f), kGold), 380, 5,
-                engravedRise() * 1.18f));
+    g.child(ink(engravedText("SKILLS", n(24.0f), kGold, 0.78f, 0.5f), 380, 4,
+                engravedRise(n(24.0f))));
     // The SKILL POINTS bar: a raised strip carrying the label and the counter,
     // between the skills well and the card.
     g.child(raised({336, 226, 292, 30}, 3.0f));
-    g.child(ink(engravedText("SKILL POINTS", n(13.0f), kGold), 400, 233,
-                engravedRise() * 1.18f));
+    g.child(ink(engravedText("SKILL POINTS", n(24.0f), kGold, 0.78f, 0.5f),
+                400, 232, engravedRise(n(24.0f))));
     g.child(at(box(), 520, 226, 34, 28)
                 .fill(Fill::color(C(0x120E08)))
                 .corners(Corners{n(2)})
@@ -1429,8 +1478,8 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                        .fill(Fill::color(kLampOff))
                        .opacity(&lampFlash));
       g.child(lamp);
-      g.child(ink(engravedText(btn[i], n(11.0f), kGold), textX[i], 454,
-                  engravedRise()));
+      g.child(ink(engravedText(btn[i], n(22.0f), kGold, 0.80f, 0.3f), textX[i],
+                  454, engravedRise(n(22.0f))));
     }
     return g;
   }
@@ -1474,6 +1523,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                                    {1.0f, C(0x3A3020)}}));
       sp.child(box().absolute().inset(0).fill(plateTooth)
                    .blend(SkBlendMode::kOverlay).opacity(0.34f)
+                   .cache(Cache::Texture));
+      sp.child(box().absolute().inset(0).fill(rustMat)
+                   .blend(SkBlendMode::kSoftLight).opacity(0.70f)
                    .cache(Cache::Texture));
       sp.foreground(styles::BevelEmboss{n(1.6f), n(2.0f), 118,
                                         C(0xB09868, 0.55f),
@@ -1626,9 +1678,9 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
         titleCondense() = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
       titleRise() =
           std::max(0.0f, ctx.measure(t("H", titleStyle())).height() * 0.20f);
-      engravedRise() = std::max(
-          0.0f, ctx.measure(t("H", plaqueType(n(11.0f), kGold))).height() *
-                    0.20f);
+      const float eh = ctx.measure(t("H", plaqueType(100.0f, kGold))).height();
+      if (eh > 1.0f)
+        engravedRiseFrac() = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
     }
 
     // the leader-row advances: two measures per row, nine rows.
