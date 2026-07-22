@@ -239,6 +239,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind != b.kind || a.key != b.key)
     return false;
   // Incomparable callables → conservative inequality.
+  if (a.hitTestable != b.hitTestable)
+    return false;
   if (a.shapeFn || b.shapeFn || (bool)a.customData || (bool)b.customData)
     return false;
   if (!deriveEqual(a.deriveData, b.deriveData))

@@ -121,6 +121,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `Element::hitTestable(false)` | A keyed full-bleed layout shell with no fill swallowed every hit in the frame, silently and totally, with no opt-out | `Compose.h`, `Query.cpp` |
+| `bounds()` absent rather than NaN | Layout runs inside `draw()`, so a query in the same `update()` as the `render()` before it returned width = NaN for every key | `Composer.cpp` |
 | `ShapingStyle::aliased` | Skia takes glyph edging from the FONT, never the paint, so `setAntiAlias(false)` was silently ignored and a 1-bit era reconstruction had to leave SigilWeave entirely | `sigilweave/Style.h`, `Shaper.cpp` |
 | `Pool::texWindows()` — per-instance UV window | The per-sprite tex rect existed all the way down; the only narrowing was that a Pool could name a cell INDEX and never a RECT | `Instances.h` |
 | `shapes::circle(direction, startIndex)` | The winding IS the engraver's convention — glyph-up points radially IN on one plate and OUT on another, and half of all ring inscriptions hand-rolled an OutlineFn over a default nobody chose | `Shapes.h` |
@@ -256,7 +258,14 @@ plate's 9,580 settling sand grains:
 - **`hitTest` cannot see a pool instance.** `instances()` is one
   `custom()` leaf, so picking a stamped cell means writing your own
   inverse projection beside the one that placed it. Wanted:
-  `instancing::pick(pool, atlas, point)`.
+  `instancing::pick(pool, atlas, point)`. Confirmed at a second call site
+  by the X-COM study, which was free to work around it only because the
+  reference publishes its own inverse.
+- **`tints()` MULTIPLIES, which is a trap for exact-palette work.** A
+  mask cell filled with a palette's own white (#FCFCFC) scaled every
+  tinted glyph by 252/255 and put seven off-palette colours on screen,
+  each exactly two units low — invisible to the eye and caught only by a
+  colour census. Another argument for atlas variants over more lanes.
 - ~~**The non-uniform-scale half**~~ — **CLOSED**: `Pool::sizes()` is an
   opt-in `SkSize` lane, and the fix was smaller than the gap looked
   because `drawSpriteAtlas` was already decomposing to quads for backend

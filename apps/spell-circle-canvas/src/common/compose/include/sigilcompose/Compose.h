@@ -964,6 +964,18 @@ public:
    *  out its own label. This is the layer that 100% of bevelled chrome
    *  actually wants. (Its doc comment was orphaned once already, by an
    *  insertion above it — hence the belt and braces.) */
+  /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
+   *
+   *  `hitTest` returns any keyed node whose box contains the point,
+   *  whether or not it paints anything. That is correct and it means a
+   *  keyed full-bleed layout SHELL with no fill swallows every hit in
+   *  the frame: a study's four stat-bar groups were transparent
+   *  containers carrying their bars' keys, and every point on screen
+   *  came back as the last of them. The failure is silent and total.
+   *
+   *  Children are still tested — this excludes the node's own box, not
+   *  its subtree. */
+  Element &hitTestable(bool enabled);
   Element &overlay(Decoration d);
   /** A decoration painted BENEATH the fill (the CSS box-shadow
    *  ordering) — shadows, ground textures, anything the surface sits on

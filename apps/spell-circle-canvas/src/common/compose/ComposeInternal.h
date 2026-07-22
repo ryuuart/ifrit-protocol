@@ -194,6 +194,11 @@ struct ElementNode {
   Corners corners;
   std::function<SkPath(SkSize)> shapeFn; // custom outline; overrides corners
   bool clipContent = false;
+  // Element::hitTestable(false): the node and its own box are skipped by
+  // hitTest, though its CHILDREN are still tested. A keyed full-bleed
+  // layout shell with no fill otherwise swallows every hit in the frame,
+  // silently and totally.
+  bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f; // Texture-bake resolution multiplier (see Element)
   std::optional<Transition> nodeTransition;

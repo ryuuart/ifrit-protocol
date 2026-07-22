@@ -6386,3 +6386,62 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
   EXPECT_GT(soft.second, 300);
   EXPECT_LT(hard.second, soft.second / 8);
 }
+
+TEST(ComposeQuery, AKeyedShellCanOptOutOfHitTesting) {
+  // hitTest returns any keyed node whose box contains the point, whether
+  // or not it paints. That is correct, and it means a keyed full-bleed
+  // layout SHELL with no fill swallows every hit in the frame: a study's
+  // four stat-bar groups were transparent containers carrying their
+  // bars' keys, and every point on screen came back as the last of them.
+  // Silent and total.
+  auto tree = [](bool shellTestable) {
+    Element shell = box().key("shell").absolute().inset(0);
+    shell.hitTestable(shellTestable);
+    shell.child(box()
+                    .key("bar")
+                    .absolute()
+                    .left(20)
+                    .top(20)
+                    .width(40)
+                    .height(40)
+                    .fill(red()));
+    return box().child(std::move(shell));
+  };
+
+  Host greedy(200, 200);
+  greedy.composer.render(tree(true));
+  greedy.frame();
+  EXPECT_EQ(greedy.composer.hitTest({150, 150}), "shell");
+  EXPECT_EQ(greedy.composer.hitTest({40, 40}), "bar");
+
+  Host polite(200, 200);
+  polite.composer.render(tree(false));
+  polite.frame();
+  // The shell no longer answers for empty space…
+  EXPECT_FALSE(polite.composer.hitTest({150, 150}).has_value());
+  // …and its CHILDREN are still tested, which is the whole distinction.
+  EXPECT_EQ(polite.composer.hitTest({40, 40}), "bar");
+}
+
+TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
+  // Layout runs inside draw(), so a query issued in the same update() as
+  // the render() before it reads an unlaid tree — and used to hand back
+  // left=0, top=0, width=NaN for EVERY key. A study lost an iteration
+  // and a debug harness localising that.
+  Host host(200, 200);
+  host.composer.render(box().child(
+      box().key("cell").absolute().left(10).top(10).width(50).height(50)));
+  // No frame() yet: nothing has been laid out.
+  const auto before = host.composer.bounds("cell");
+  if (before)
+    EXPECT_TRUE(before->isFinite()); // if it answers, the answer is real
+
+  host.frame();
+  const auto after = host.composer.bounds("cell");
+  ASSERT_TRUE(after.has_value());
+  EXPECT_TRUE(after->isFinite());
+  EXPECT_FLOAT_EQ(after->width(), 50.0f);
+
+  // A key that was never in the tree is still absent, not NaN.
+  EXPECT_FALSE(host.composer.bounds("nope").has_value());
+}
