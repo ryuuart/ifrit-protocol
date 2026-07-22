@@ -157,6 +157,17 @@ private:
  *  the next stamp re-bakes (Pattern's regeneration discipline). */
 class Atlas {
 public:
+  /** How stamps sample the baked sheet. Linear is right for soft sprites
+   *  and wrong for a pixel grid — a tilemap, a bitmap font sheet, an
+   *  8-bit era reconstruction — which is a large share of what
+   *  instancing is actually used for. The last of the five hardcoded
+   *  `kLinear` paths (ROADMAP §13). */
+  Atlas &filter(SkFilterMode mode) {
+    m_filter = mode;
+    return *this;
+  }
+  SkFilterMode filter() const { return m_filter; }
+
   explicit Atlas(float oversample = 2.0f)
       : m_oversample(std::max(0.5f, oversample)) {}
 
@@ -232,6 +243,7 @@ public:
   }
 
 private:
+  SkFilterMode m_filter = SkFilterMode::kLinear;
   struct Cell {
     Element tree;
     SkSize size;
@@ -329,7 +341,7 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
                           xforms.data(), tex.data(),
                           tinted ? colors.data() : nullptr, xforms.size(),
-                          SkSamplingOptions(SkFilterMode::kLinear), blend,
+                          SkSamplingOptions(atlas.filter()), blend,
                           nonUniform ? sizes.data() : nullptr);
 }
 

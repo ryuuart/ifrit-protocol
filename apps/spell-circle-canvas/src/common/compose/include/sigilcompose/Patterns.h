@@ -75,15 +75,22 @@ inline Pattern checker(float cell, SkColor4f a, SkColor4f b) {
 }
 
 /** Grid lines (graph/blueprint paper). */
-inline Pattern gridLines(float spacing, float width, SkColor4f color) {
-  const float s = std::max(spacing, 1.0f);
-  return Pattern::tile({s, s}, [width, color](SkCanvas &c, SkSize sz,
-                                              uint32_t) {
+inline Pattern gridLines(float spacingX, float spacingY, float width,
+                         SkColor4f color) {
+  const float sx = std::max(spacingX, 1.0f);
+  const float sy = std::max(spacingY, 1.0f);
+  return Pattern::tile({sx, sy}, [width, color](SkCanvas &c, SkSize sz,
+                                                uint32_t) {
     SkPaint p;
     p.setColor4f(color, nullptr);
     c.drawRect(SkRect::MakeWH(sz.width(), width), p);
     c.drawRect(SkRect::MakeWH(width, sz.height()), p);
   });
+}
+/** Square pitch — the common case. A lattice whose x and y pitch differ
+ *  is not exotic: an X-COM control panel's is 5 × 2. */
+inline Pattern gridLines(float spacing, float width, SkColor4f color) {
+  return gridLines(spacing, spacing, width, color);
 }
 
 /** Seeded speckle (paper grain, star fields): `count` marks per tile with

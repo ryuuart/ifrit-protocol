@@ -5328,17 +5328,51 @@ TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
   // Below the sim rate it still lands on 27 — several steps per frame.
   EXPECT_EQ(stepsOverOneSecond(24.0), 27);
 
-  // The clamp: one enormous hitch must not run an unbounded backlog.
+  // The clamp: one enormous hitch must not run an unbounded backlog —
+  // and it must SAY it clamped, because a frame that dropped simulated
+  // time makes anything measured on it meaningless.
   {
     sigil::motion::Ticker ticker;
     int steps = 0;
-    ticker.addFixed(60.0, [&] { ++steps; return true; }, /*maxCatchUp=*/4);
+    sigil::motion::Ticker::FixedStatus status;
+    ticker.addFixed(60.0, [&] { ++steps; return true; }, /*maxCatchUp=*/4,
+                    nullptr, &status);
     ticker.tick(10.0); // ten seconds in one frame = 600 steps of backlog
     EXPECT_EQ(steps, 4);
+    EXPECT_EQ(status.stepsRun, 4);
+    EXPECT_TRUE(status.clamped);
     // …and the backlog is DISCARDED, not carried into the next frame.
     steps = 0;
     ticker.tick(1.0 / 60.0);
     EXPECT_EQ(steps, 1);
+    EXPECT_FALSE(status.clamped);
+  }
+
+  // Reproducibility: the step count comes from TOTAL elapsed time, so the
+  // same instant lands on the same step whatever the draw rate. An
+  // accumulator compared against a step slips one comparison over a long
+  // pre-roll — a study measured byte-identical output at 60/30/20 fps and
+  // a one-step slip at 15 and 10, and correctly blamed float
+  // accumulation rather than the clamp.
+  {
+    // Each rate advances to the SAME total time — otherwise the counts
+    // differ for the honest reason that the clocks differ.
+    auto stepsAt = [](double fps, double untilSeconds) {
+      sigil::motion::Ticker ticker;
+      int steps = 0;
+      ticker.addFixed(60.0, [&] { ++steps; return true; }, 64);
+      const int frames = (int)std::lround(untilSeconds * fps);
+      const double dt = untilSeconds / (double)frames;
+      for (int i = 0; i < frames; ++i)
+        ticker.tick(dt);
+      return steps;
+    };
+    const int reference = stepsAt(60.0, 3.1);
+    EXPECT_EQ(stepsAt(30.0, 3.1), reference);
+    EXPECT_EQ(stepsAt(20.0, 3.1), reference);
+    EXPECT_EQ(stepsAt(15.0, 3.1), reference);
+    EXPECT_EQ(stepsAt(10.0, 3.1), reference);
+    EXPECT_EQ(stepsAt(120.0, 3.1), reference);
   }
 
   // Returning false drops it, like add().
@@ -6092,4 +6126,62 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
       Material::linearUnit({0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
+}
+
+TEST(ComposeInstances, TheAtlasChoosesItsOwnFilter) {
+  // The last of the five hardcoded-kLinear paths. Instancing's biggest
+  // real use is tilemaps and sprite sheets — pixel grids — where linear
+  // filtering is exactly wrong.
+  auto blend = [](SkFilterMode mode) {
+    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    atlas->filter(mode);
+    // A cell that is half red, half green: magnified, linear invents a
+    // blend band across the seam and nearest does not.
+    atlas->cell(box().width(16).height(16).row()
+                    .child(box().width(8).height(16)
+                               .fill(Fill::color({1, 0, 0, 1})))
+                    .child(box().width(8).height(16)
+                               .fill(Fill::color({0, 1, 0, 1}))),
+                {16, 16});
+    auto pool = std::make_shared<instancing::Pool>();
+    pool->add({100, 100}, 0, 0.0f, 8.0f); // 8x magnification
+    Host host(200, 200);
+    host.composer.render(box().absolute().inset(0).child(
+        instancing::instances(atlas, pool, instancing::Mode::Data)));
+    host.frame();
+    int mixed = 0;
+    for (int x = 85; x < 115; ++x) {
+      const SkColor c = host.pixel(x, 100);
+      const bool pureRed = SkColorGetR(c) > 200 && SkColorGetG(c) < 40;
+      const bool pureGreen = SkColorGetG(c) > 200 && SkColorGetR(c) < 40;
+      mixed += !pureRed && !pureGreen;
+    }
+    return mixed;
+  };
+  EXPECT_GT(blend(SkFilterMode::kLinear), 2);
+  EXPECT_LE(blend(SkFilterMode::kNearest), 1);
+}
+
+TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
+  // A lattice whose x and y pitch differ is not exotic — an X-COM control
+  // panel's is 5 x 2 — and gridLines took one `spacing`.
+  Host host(120, 120);
+  host.composer.render(box().child(box().absolute().inset(0).fill(
+      patterns::gridLines(20.0f, 8.0f, 2.0f, {1, 1, 1, 1}).material())));
+  host.frame();
+  auto rules = [&](bool vertical) {
+    int runs = 0;
+    bool on = false;
+    for (int i = 0; i < 120; ++i) {
+      // Sample mid-cell on the other axis: a column that lands ON a
+      // vertical rule is lit for its whole length and counts one run.
+      const SkColor c = vertical ? host.pixel(i, 63) : host.pixel(70, i);
+      const bool lit = SkColorGetR(c) > 128;
+      runs += lit && !on;
+      on = lit;
+    }
+    return runs;
+  };
+  EXPECT_NEAR(rules(/*vertical=*/true), 6, 1);   // 120 / 20
+  EXPECT_NEAR(rules(/*vertical=*/false), 15, 2); // 120 / 8
 }
