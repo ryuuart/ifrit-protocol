@@ -131,12 +131,17 @@ void ComposeGalleryRenderer::synchronize(QQuickRhiItem *item) {
     view->m_metrics =
         QString("%1   compose %2 ms   p99 %3 ms\n"
                 "submit %4 ms   render cadence %5 fps\n"
-                "instances %6   pictures %7\ntextures %8   live nodes %9")
+                "recon %6   layout %7   volat %8   paint %9 ms\n"
+                "instances %10   pictures %11\ntextures %12   live nodes %13")
             .arg(QLatin1String(backend))
             .arg(m_stage->stats.average(), 0, 'f', 2)
             .arg(m_stage->stats.percentile(0.99), 0, 'f', 2)
             .arg(m_submitMsAverage, 0, 'f', 2)
             .arg(m_stage->stats.presentedFps(), 0, 'f', 1)
+            .arg(cs.reconcileMs, 0, 'f', 2)
+            .arg(cs.layoutMs, 0, 'f', 2)
+            .arg(cs.volatileMs, 0, 'f', 2)
+            .arg(cs.paintMs, 0, 'f', 2)
             .arg(cs.instances)
             .arg(cs.picturesLive)
             .arg(cs.texturesLive)

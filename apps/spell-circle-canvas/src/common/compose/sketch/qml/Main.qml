@@ -24,7 +24,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: StandardKey.Save
-        onActivated: window.showCapture(view.capture())
+        onActivated: view.capture()
     }
 
     ColumnLayout {
@@ -35,6 +35,9 @@ ApplicationWindow {
             id: view
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // Captures run on the render thread; the saved path (or ""
+            // on failure) arrives asynchronously.
+            onCaptureReady: path => window.showCapture(path)
         }
 
         // Compile-error overlay: the last good sketch keeps running
@@ -100,7 +103,7 @@ ApplicationWindow {
                 }
                 Button {
                     text: "capture"
-                    onClicked: window.showCapture(view.capture())
+                    onClicked: view.capture()
                 }
                 Label {
                     id: captureLabel

@@ -285,9 +285,12 @@ bool SketchHost::capture(const std::filesystem::path &out,
   if (!m_composer)
     return false;
   const SkSize size = m_canvasSpec.size;
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(
       std::max(1, (int)(size.width() * scale)),
-      std::max(1, (int)(size.height() * scale))));
+      std::max(1, (int)(size.height() * scale)));
+  sk_sp<SkSurface> surface = m_captureBackend.makeSurface
+                                 ? m_captureBackend.makeSurface(info)
+                                 : SkSurfaces::Raster(info);
   if (!surface)
     return false;
   SkCanvas &canvas = *surface->getCanvas();
@@ -296,7 +299,12 @@ bool SketchHost::capture(const std::filesystem::path &out,
   m_composer->draw(canvas);
   SkBitmap bitmap;
   bitmap.allocPixels(surface->imageInfo());
-  surface->readPixels(bitmap.pixmap(), 0, 0);
+  if (m_captureBackend.readback) {
+    if (!m_captureBackend.readback(*surface, bitmap.pixmap()))
+      return false;
+  } else {
+    surface->readPixels(bitmap.pixmap(), 0, 0);
+  }
   std::error_code ec;
   std::filesystem::create_directories(out.parent_path(), ec);
   SkFILEWStream stream(out.string().c_str());

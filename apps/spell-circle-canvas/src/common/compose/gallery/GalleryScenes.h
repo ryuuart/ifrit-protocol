@@ -25,6 +25,15 @@
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
 
+#ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
+#include "GalleryGpu.h"
+#include "SkiaGraphiteContext.h"
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
+#include <include/gpu/graphite/Surface.h>
+#endif
+
 #include <filesystem>
 
 namespace compose_gallery {
@@ -98,25 +107,86 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   }
 }
 
-inline int runHeadless(const std::string &outDir) {
+inline int runHeadless(const std::string &outDir, bool gpu = false) {
+#ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
+  std::unique_ptr<SkiaGraphiteContext> graphite;
+  if (gpu) {
+    graphite = makeHeadlessGraphite();
+    if (!graphite) {
+      std::fprintf(stderr, "Graphite context creation failed; no GPU sweep\n");
+      return 1;
+    }
+    std::printf("backend: Graphite GPU (work ms = CPU + synced GPU)\n");
+  }
+#else
+  if (gpu) {
+    std::fprintf(stderr, "this build has no headless GPU backend\n");
+    return 1;
+  }
+#endif
   std::filesystem::create_directories(outDir);
-  std::printf("%-14s %12s %10s %14s\n", "scene", "work ms", "p99 ms",
-              "headroom fps");
+  std::printf("%-14s %8s %8s %9s %6s %6s %6s %6s\n", "scene", "work ms",
+              "p99 ms", "fps", "recon", "layout", "volat", "paint");
   for (int i = 0; i < kGallerySceneCount; ++i) {
     GalleryStage stage;
     stage.activate(makeScene(i));
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        (int)kSceneSize.width(), (int)kSceneSize.height()));
-    for (int f = 0; f < 120; ++f) {
+    SkDebugf("=== scene %s\n", stage.scene->name());
+    const SkImageInfo info = SkImageInfo::MakeN32Premul(
+        (int)kSceneSize.width(), (int)kSceneSize.height());
+    sk_sp<SkSurface> surface;
+#ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
+    if (gpu) {
+      surface = SkSurfaces::RenderTarget(graphite->recorder(), info);
+      // Serialize each frame to completion so a frame's cost cannot hide in
+      // queue depth: snap the recording, submit, wait. Real hosts pipeline —
+      // this is the honest worst-case bound the 60fps floor is judged on.
+      stage.flushHook = [&graphite] {
+        if (auto recording = graphite->recorder()->snap()) {
+          skgpu::graphite::InsertRecordingInfo insert;
+          insert.fRecording = recording.get();
+          graphite->context()->insertRecording(insert);
+        }
+        graphite->context()->submit(skgpu::graphite::SyncToCpu::kYes);
+      };
+    }
+#endif
+    if (!surface)
+      surface = SkSurfaces::Raster(info);
+    // Warm past the entrance choreography (mount transitions settle
+    // within ~2s across the catalog) so the table reports STEADY STATE —
+    // the number a running gallery feels. Entrances are one-shots; their
+    // cost is real but belongs to a different budget than the loop. On GPU
+    // the warmup also absorbs pipeline compilation.
+    for (int f = 0; f < 240; ++f) {
       surface->getCanvas()->clear(SK_ColorBLACK);
       stage.frame(*surface->getCanvas(), 1.0 / 60.0);
     }
-    std::printf("%-14s %12.2f %10.2f %14.0f\n", stage.scene->name(),
-                stage.stats.average(), stage.stats.percentile(0.99),
-                stage.stats.fps());
+    stage.stats = {};
+    double reconcileMs = 0, layoutMs = 0, volatileMs = 0, paintMs = 0;
+    for (int f = 0; f < 120; ++f) {
+      surface->getCanvas()->clear(SK_ColorBLACK);
+      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+      const Composer::Stats &cs = stage.composer->stats();
+      reconcileMs += cs.reconcileMs;
+      layoutMs += cs.layoutMs;
+      volatileMs += cs.volatileMs;
+      paintMs += cs.paintMs;
+    }
+    std::printf(
+        "%-14s %8.2f %8.2f %9.0f %6.2f %6.2f %6.2f %6.2f   rec %zu painted %zu\n",
+        stage.scene->name(), stage.stats.average(),
+        stage.stats.percentile(0.99), stage.stats.fps(), reconcileMs / 120,
+        layoutMs / 120, volatileMs / 120, paintMs / 120,
+        stage.composer->stats().picturesRecorded,
+        stage.composer->stats().nodesPainted);
     // Capture the PNG at 2x: the stats above ran at 1x, but the saved
     // frame re-renders through a scaled canvas so review images are
-    // sharp (Cache::Texture re-bakes at the capture scale).
+    // sharp (Cache::Texture re-bakes at the capture scale). GPU sweeps
+    // skip captures: the stage's caches hold Graphite-backed images that
+    // must not be replayed onto a raster canvas, and the raster sweep
+    // already writes identical imagery.
+    if (gpu)
+      continue;
     constexpr float kCapture = 2.0f;
     sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)(kSceneSize.width() * kCapture),
@@ -133,8 +203,9 @@ inline int runHeadless(const std::string &outDir) {
     if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
       return 1;
   }
-  std::printf("wrote %d gallery scenes to %s\n", kGallerySceneCount,
-              outDir.c_str());
+  if (!gpu)
+    std::printf("wrote %d gallery scenes to %s\n", kGallerySceneCount,
+                outDir.c_str());
   return 0;
 }
 

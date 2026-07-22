@@ -10,12 +10,19 @@
 
 #include <sigilmotion/FrameClock.h>
 
+#include <include/core/SkRefCnt.h>
+
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <future>
 #include <memory>
 #include <string>
 #include <vector>
+
+class SkImageInfo;
+class SkPixmap;
+class SkSurface;
 
 namespace sigil::weave {
 class FontContext;
@@ -73,6 +80,20 @@ public:
    *  windowed save command and headless asset generation. */
   bool capture(const std::filesystem::path &out, float scale = 1.0f);
 
+  /** GPU hosts must route capture through their own backend: once live
+   *  frames render on Graphite, the composer's caches hold GPU-backed
+   *  images that cannot replay onto a raster canvas. makeSurface builds
+   *  the capture target, readback fetches its pixels after the draw
+   *  (both called on whichever thread calls capture()). Unset = the
+   *  default CPU raster path. */
+  struct CaptureBackend {
+    std::function<sk_sp<SkSurface>(const SkImageInfo &)> makeSurface;
+    std::function<bool(SkSurface &, const SkPixmap &)> readback;
+  };
+  void setCaptureBackend(CaptureBackend backend) {
+    m_captureBackend = std::move(backend);
+  }
+
   /** One-line state for a status bar. */
   const std::string &status() const { return m_status; }
   /** Full compiler/loader output of the most recent failure; empty
@@ -127,6 +148,7 @@ private:
   std::vector<double> m_presentMs;   // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
+  CaptureBackend m_captureBackend;
 };
 
 } // namespace sigil::compose::sketch

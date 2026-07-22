@@ -27,6 +27,15 @@ if(TARGET SpellCircleSkiaQt)
   target_compile_definitions(ComposeGallery PRIVATE SIGILCOMPOSE_GALLERY_GPU)
 endif()
 
+# `--headless --gpu`: sweep the scene table on a Graphite Metal surface with
+# a process-owned device/queue (no QRhi exists headless).
+if(APPLE AND TARGET SpellCircleSkia)
+  target_sources(ComposeGallery PRIVATE GalleryGpu.h GalleryGpuMetal.mm)
+  target_link_libraries(ComposeGallery PRIVATE SpellCircleSkia)
+  target_compile_definitions(ComposeGallery PRIVATE
+    SIGILCOMPOSE_GALLERY_HEADLESS_GPU)
+endif()
+
 add_executable(compose_gallery_test
   test/GalleryTest.cpp
 )

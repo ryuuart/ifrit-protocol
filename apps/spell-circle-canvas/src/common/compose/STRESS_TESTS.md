@@ -300,3 +300,53 @@ measurement. Phases refer to DESIGN.md's plan.
   interaction that goldens can't capture.
 - **compose_bench** (P5): google-benchmark target for the *bench*
   items, alongside weave_bench/scry_bench.
+
+## The GPU re-measure (2026-07-21) — the 60 fps floor holds everywhere
+
+`ComposeGallery --headless --gpu` sweeps all 26 scenes on a Graphite
+Metal surface with each frame serialized to completion
+(`SyncToCpu::kYes`), so "work ms" is the honest worst-case CPU+GPU
+cost — a pipelined host does better. Phase columns (recon/layout/
+volat/paint) come from `Composer::Stats`; on every scene, slow or
+fast, the retained machinery rounds to 0.00–0.01 ms — frame cost is
+paint, i.e. pixels.
+
+| scene (the former CPU offenders) | CPU raster | Graphite GPU |
+|---|---|---|
+| daemon console | 53.7 ms (19 fps) | **0.69 ms** (1458 fps) |
+| flourish | 14.9 ms | **1.9 ms** |
+| persona menu | 9.2 ms (p99 61.9) | **0.44 ms** (p99 0.61) |
+| aero desktop | 9.7 ms (p99 54.4) | **0.86 ms** |
+| passive tree | 9.4 ms | **2.6 ms** |
+| ui particles | 7.6 ms | **0.43 ms** |
+| y2k chrome | 5.5 ms | **6.3 ms** (GPU-heavy blur stack) |
+
+Worst GPU scene = y2k chrome at 159 fps headroom; 24 of 26 scenes are
+under 2 ms. The CPU-raster p99 spikes were quantized live materials
+hitting their re-resolve frame (one full-screen software SkSL eval);
+on GPU they vanish. Conclusion pinned: full-screen live materials are
+GPU-tier content — the CPU-raster path re-rasterizes them per pixel
+per frame in software, and no tree/layout/kernel change alters that.
+
+**Two Graphite findings (both fixed at the shared seams):**
+
+1. **Graphite performs no implicit raster-image uploads.** Any draw
+   sampling a non-Graphite SkImage consults the Recorder's client
+   `ImageProvider` — absent one, the draw is silently DROPPED
+   (`KeyHelpers.cpp` "Couldn't convert SkImage…"). Every generated
+   atlas/nine-slice/tile draw was being dropped on GPU.
+   `SkiaGraphiteContext::makeRecorderOptions()` now installs a caching
+   provider (promote on first use, keyed by uniqueID+mipmapped) at
+   every recorder-creation site, all backends.
+2. **`kRGBA_F32` textures are not linearly filterable on Apple GPUs**,
+   so an F32 OCIO LUT cannot be promoted and the whole graded
+   composite drops. LUTs now bake to F16 (ample for display LUTs in
+   [0,1], filterable everywhere).
+
+Hosts: ComposeGallery's interactive view already rendered through
+Graphite (QQuickRhiItem + shared context, Metal); ComposeSketch now
+does the same (the CPU-raster QQuickPaintedItem host is gone — it was
+where "the framework is slow" impressions came from). Both fall back
+to raster-and-upload off Metal, and `Composer::purgeCaches()` handles
+backend switches (GPU-minted cache images must not replay onto the
+next canvas).

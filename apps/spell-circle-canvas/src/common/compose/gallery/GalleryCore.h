@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -146,6 +147,10 @@ struct GalleryStage {
   }
 
   double pendingOverlayMs = 0.0; // charged to the next frame's sample
+  // Invoked INSIDE the timed frame window, after the scene draw. The GPU
+  // headless sweep sets this to snap+submit(SyncToCpu) so "work ms" is the
+  // honest serialized CPU+GPU cost of a frame, not just command recording.
+  std::function<void()> flushHook;
   std::chrono::steady_clock::time_point lastPresent{};
   double fixedNowSeconds = 0.0;
   bool fixedClockInitialized = false;
@@ -180,6 +185,8 @@ struct GalleryStage {
     ticker->tick(dt);
     scene->update(clock.elapsed(), *composer);
     composer->draw(canvas);
+    if (flushHook)
+      flushHook();
     const double ms = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - start)
                           .count();
@@ -224,10 +231,14 @@ struct GalleryStage {
                   "instances %zu   pictures %zu   textures %zu   live %zu",
                   cs.instances, cs.picturesLive, cs.texturesLive,
                   cs.nodesPainted);
+    char line3[160];
+    std::snprintf(line3, sizeof(line3),
+                  "rec %.2f   layout %.2f   volatile %.2f   paint %.2f ms",
+                  cs.reconcileMs, cs.layoutMs, cs.volatileMs, cs.paintMs);
     overlay.render(box().child(
         box()
             .row()
-            .inset(12, kSceneSize.height() - 64, 12, 12)
+            .inset(12, kSceneSize.height() - 80, 12, 12)
             .absolute()
             .corners({8})
             .padding(10, 6)
@@ -236,7 +247,8 @@ struct GalleryStage {
                        .column()
                        .gap(2)
                        .child(text(toU8(line), styleAt(15, 0xff7ee8ff)))
-                       .child(text(toU8(line2), styleAt(13, 0xff9aa4bb))))));
+                       .child(text(toU8(line2), styleAt(13, 0xff9aa4bb)))
+                       .child(text(toU8(line3), styleAt(13, 0xff9aa4bb))))));
     overlay.draw(canvas);
     pendingOverlayMs = std::chrono::duration<double, std::milli>(
                            std::chrono::steady_clock::now() - overlayStart)
