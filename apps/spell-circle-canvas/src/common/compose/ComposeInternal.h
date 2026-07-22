@@ -94,6 +94,10 @@ private:
 // (layout/paint/corners/decorations/children) stay inline.
 
 struct TextData {
+  // Element::textStroke(): a stroke pass on the GLYPHS, under the fill.
+  bool hasTextStroke = false;
+  float textStrokeWidth = 0.0f;
+  Fill textStrokeFill;
   std::u8string utf8;
   sigil::weave::TextStyle style;
   // Full-control overload: identity (the pointer) is the change signal.

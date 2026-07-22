@@ -134,6 +134,10 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style))
     return false;
+  if (ta.hasTextStroke != tb.hasTextStroke ||
+      (ta.hasTextStroke && (ta.textStrokeWidth != tb.textStrokeWidth ||
+                            !(ta.textStrokeFill == tb.textStrokeFill))))
+    return false;
   // layoutOptions aren't comparable in full, but alignment is the one knob
   // the simple text() path exposes (textAlign) — compare it so an alignment
   // change actually patches.

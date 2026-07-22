@@ -5885,3 +5885,60 @@ TEST(ComposeFx, WipeIsBindableAndPaintOnly) {
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
 }
+
+TEST(ComposeText, TextStrokeDressesTheGlyphsNotTheBox) {
+  // Element::stroke() dresses the node's BOX outline, which is a
+  // different thing, so thickening a face meant dropping to
+  // PaintStyle::addUnderlay with a hand-built stroke paint. Three studies
+  // did it; one spelled "1 px outline plus offset shadow" as 117 full
+  // re-draws of a paragraph through echo().
+  auto count = [](Host &host, bool wantGreen) {
+    int n = 0;
+    for (int y = 0; y < 160; ++y)
+      for (int x = 0; x < 320; ++x) {
+        const SkColor c = host.pixel(x, y);
+        n += wantGreen ? (SkColorGetG(c) > 180 && SkColorGetR(c) < 90)
+                       : (SkColorGetR(c) > 180 && SkColorGetG(c) < 90);
+      }
+    return n;
+  };
+
+  Host plain(320, 160), outlined(320, 160);
+  auto style = whiteStyle(96);
+  style.paint.foreground.setColor4f({1, 0, 0, 1}, nullptr);
+  plain.composer.render(box().padding(20).child(text(u8"HH", style)));
+  plain.frame();
+  outlined.composer.render(box().padding(20).child(
+      text(u8"HH", style).textStroke(8.0f, Fill::color({0, 1, 0, 1}))));
+  outlined.frame();
+
+  // The letterform bodies still paint in the fill colour…
+  EXPECT_GT(count(outlined, /*green=*/false), 100);
+  // …with a green ring around them that was not there before.
+  EXPECT_EQ(count(plain, /*green=*/true), 0);
+  EXPECT_GT(count(outlined, /*green=*/true), 200);
+  // The node's own box is untouched — this is glyph-level, not stroke().
+  EXPECT_EQ(outlined.pixel(2, 2), SK_ColorBLACK);
+}
+
+TEST(ComposeText, TextStrokeComposesWithTextFill) {
+  // The stroke is a pass BENEATH whatever fills the letterforms, so the
+  // two spell "engraved chrome type" together rather than fighting.
+  Host host(320, 160);
+  host.composer.render(box().padding(20).child(
+      text(u8"HH", whiteStyle(96))
+          .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
+          .textFill(Material::linearUnit({0, 0}, {0, 1},
+                                         {{0.0f, {1, 0, 0, 1}},
+                                          {1.0f, {0, 0, 1, 1}}}))));
+  host.frame();
+  int green = 0, ramp = 0;
+  for (int y = 0; y < 160; ++y)
+    for (int x = 0; x < 320; ++x) {
+      const SkColor c = host.pixel(x, y);
+      green += SkColorGetG(c) > 180 && SkColorGetR(c) < 90 && SkColorGetB(c) < 90;
+      ramp += (SkColorGetR(c) > 150 || SkColorGetB(c) > 150) && SkColorGetG(c) < 90;
+    }
+  EXPECT_GT(green, 200); // the outline survives the fill override…
+  EXPECT_GT(ramp, 100);  // …and the ramp still fills the bodies
+}

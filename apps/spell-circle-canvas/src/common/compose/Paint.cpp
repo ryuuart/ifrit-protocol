@@ -858,7 +858,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       } else if (onPath) {
         paintTextOnPath(inst, canvas, *onPath,
                         {bounds.width(), bounds.height()});
-      } else if (const Material *metricMat = metricFillOf(node)) {
+      } else if (const Material *metricMat = metricFillOf(node);
+                 metricMat ||
+                 (node.textData && node.textData->hasTextStroke)) {
         // Chrome type: the material's unit square mapped to the text's
         // metric band — x across the widest line, y from the first line's
         // cap top (real cap height when the face reports one) to the last
@@ -875,6 +877,32 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                 : inst.paragraph->spans().front().style.paint;
         metric.foreground.setShader(nullptr);
         bool havePaint = false;
+        // textStroke(): a stroke pass on the glyphs, UNDER the fill. It
+        // joins the style's own underlays rather than replacing them, so
+        // an engraved face keeps its cast shadow.
+        if (node.textData && node.textData->hasTextStroke) {
+          sigil::weave::PaintLayer outline;
+          outline.paint.setAntiAlias(true);
+          outline.paint.setStyle(SkPaint::kStroke_Style);
+          outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
+          outline.paint.setStrokeJoin(SkPaint::kRound_Join);
+          const Fill &sf = node.textData->textStrokeFill;
+          if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
+            outline.paint.setShader(sf.shaderValue);
+          else
+            outline.paint.setColor4f(sf.kind == Fill::Kind::Color
+                                         ? sf.colorValue
+                                         : SkColor4f{0, 0, 0, 1},
+                                     nullptr);
+          metric.addUnderlay(outline);
+          havePaint = true;
+        }
+        if (!metricMat) {
+          inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                      havePaint ? &metric : nullptr,
+                                      liveDriveImpl(inst, node, fonts));
+          break;
+        }
         // Geometry-dependent materials resolve against a UNIT box here,
         // not the node's. The local matrix below already maps the
         // shader's [0,1]² onto the metric band, so uResolution baked from

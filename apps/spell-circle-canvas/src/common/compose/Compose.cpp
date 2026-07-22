@@ -254,6 +254,14 @@ Element &Element::scale(PropValue<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
+Element &Element::textStroke(float width, Fill fill) {
+  auto &t = m_node->textData.ensure();
+  t.hasTextStroke = width > 0.0f;
+  t.textStrokeWidth = width;
+  t.textStrokeFill = std::move(fill);
+  return *this;
+}
+
 Element &Element::onPath(TextPath spec) {
   m_node->textData.ensure().onPath = std::move(spec);
   return *this;
