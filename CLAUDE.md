@@ -26,10 +26,14 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            choreograph timelines, event-driven redraw
                            contract), compose/ (SigilCompose —
                            data-driven drawable components over
-                           Yoga+SigilWeave+Choreograph: phase-1 kernel
-                           implemented — see DESIGN.md / API.md /
-                           STRESS_TESTS.md for architecture, surface,
-                           and measured numbers)
+                           Yoga+SigilWeave+Choreograph: implemented
+                           through the completeness round — kernel,
+                           decorations w/ element stamps, derive
+                           phase, effects, queries incl. hitTest and
+                           snapshot(), organic extension headers
+                           Shapes/Layouts/Routers/Web — see DESIGN.md
+                           / API.md / STRESS_TESTS.md for
+                           architecture, surface, measured numbers)
   src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
                            shaders, test/, bench/, examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
@@ -68,6 +72,7 @@ README). The primary executables are `SpellCircle`,
 (CPU/lockstep), `scry_gpu_demo` (Metal + Graphite), and `scry_bench`
 (SigilScry path costs; plain = CPU engine, `--gpu` = GPU engine — see the
 performance table in `src/common/scry/README.md`), `compose_test`,
+`compose_web_test` (SigilCompose×SigilScry, needs the Ultralight SDK),
 `compose_bench`, `loader_test` (SigilLoader), and `compose_demo`
 (headless PNG panels of the
 compose stress catalog).
