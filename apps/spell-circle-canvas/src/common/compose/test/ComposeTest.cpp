@@ -2921,6 +2921,42 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   EXPECT_LT(botR, botB / 4);
 }
 
+TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
+  // Placing curved lettering by hand costs one Element and one layout PER
+  // GLYPH — the Nightingale study spent ~230 of each on its ring labels.
+  // onPath shapes the run ONCE and places every glyph by arc length.
+  //
+  // A run on the TOP half of a circle must paint above the centre and
+  // leave the bottom half empty; the same run at at=0.5 must do the
+  // opposite. That is the whole contract, and a straight-line layout
+  // cannot satisfy either.
+  auto ring = [](float at) {
+    return text(u8"HHHHHHHHHH", whiteStyle(22))
+        .width(240).height(240).absolute().left(0).top(0)
+        .onPath({.path = shapes::arc(180.0f, 359.9f), .at = at,
+                 .align = TextPath::Align::Center});
+  };
+  auto lit = [](Host &host, int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = 0; x < 240; ++x)
+        count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+
+  Host top(240, 240);
+  top.composer.render(box().child(ring(0.25f)));
+  top.frame();
+  EXPECT_GT(lit(top, 0, 110), 200);   // ink on the top arc
+  EXPECT_LT(lit(top, 140, 240), 40);  // and almost none below
+
+  Host bottom(240, 240);
+  bottom.composer.render(box().child(ring(0.75f)));
+  bottom.frame();
+  EXPECT_GT(lit(bottom, 140, 240), 200);
+  EXPECT_LT(lit(bottom, 0, 110), 40);
+}
+
 TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
   // textFill supersedes the FOREGROUND, not the passes around it. The
   // chrome-type override used to be a blank PaintStyle, which silently

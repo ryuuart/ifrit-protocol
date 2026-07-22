@@ -242,6 +242,10 @@ Element &Element::scale(PropValue<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
+Element &Element::onPath(TextPath spec) {
+  m_node->textData.ensure().onPath = std::move(spec);
+  return *this;
+}
 Element &Element::scaleX(PropValue<float> v) {
   m_node->paint.scaleX = std::move(v);
   return *this;

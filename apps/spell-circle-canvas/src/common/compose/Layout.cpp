@@ -38,6 +38,13 @@ float detail::baselineOfTextNode(YGNodeConstRef node, float, float) {
 }
 
 void Composer::Impl::layoutText(Instance &inst, float constraint) {
+  // onPath: the PATH is the measure, not the box. Laying the run out to
+  // the node's width would wrap it, and every line after the first would
+  // then be placed along the path from the start again — the glyphs pile
+  // up on each other. The box still sizes the path; it does not bound the
+  // run.
+  if (inst.desc && inst.desc->textData && inst.desc->textData->onPath)
+    constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
       inst.measuredRev == inst.contentRev)
     return; // layout is already valid for this content and width

@@ -246,6 +246,8 @@ struct Composer::Impl {
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f; // device px per layout px at draw() entry
   void paint(detail::Instance &inst, SkCanvas &canvas);
+  void paintTextOnPath(detail::Instance &inst, SkCanvas &canvas,
+                       const TextPath &spec, SkSize size);
   void paintKineticText(detail::Instance &inst, SkCanvas &canvas,
                         const GlyphFx &fx);
   void paintContent(detail::Instance &inst, SkCanvas &canvas, float contentScale,

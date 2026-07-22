@@ -110,6 +110,9 @@ struct TextData {
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
   std::optional<Material> metricFill;
+  // onPath(): the run's baseline IS a path. Resolved at paint against the
+  // node's box, walked with SkContourMeasure, one RSXform per glyph.
+  std::optional<TextPath> onPath;
 };
 
 struct ImageData {

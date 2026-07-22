@@ -95,7 +95,8 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
  *  noise whose three channels are independent — overlaid on a coloured
  *  surface it hue-shifts rather than shades, and turned every quarry here
  *  into rainbow terrazzo, which is the one thing a Cosmati floor is not. */
-inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24) {
+inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24,
+                      int octaves = 3) {
   const float a = angleDeg * 3.14159265f / 180.0f;
   const float dx = std::cos(a) * 52.0f, dy = std::sin(a) * 52.0f;
   auto mix = [](SkColor4f c, float k, float alpha) {
@@ -106,7 +107,7 @@ inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24) {
       {{Material::linear({0, 0}, {dx, dy},
                          {{0.0f, hi}, {0.52f, lo}, {1.0f, hi}}),
         SkBlendMode::kSrc},
-       {patterns::grain(0.055f, 4, 7.0f), SkBlendMode::kOverlay},
+       {patterns::grain(0.055f, octaves, 7.0f), SkBlendMode::kOverlay},
        {patterns::speckle(34, 16, 0.5f, 1.9f,
                           {mix(hi, 1.45f, 0.26f), mix(lo, 0.55f, 0.28f)})
             .material(),
@@ -226,7 +227,11 @@ struct CosmatiScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     const std::chrono::milliseconds delay{140 + 90 * seed};
+    // Baked for the same reason the bed is: the entrance transforms are
+    // paint-only, so they still animate over a texture that was
+    // rasterized once.
     Element el = stack().width(Dim(r * 2)).height(Dim(r * 2)).centerAt(at)
+                     .cache(Cache::Texture)
                      .opacity(withFrom(0.0f, 1.0f, {380ms, &ch::easeOutQuad,
                                                     delay}))
                      .scale(withFrom(0.86f, 1.0f, {520ms, &ch::easeOutQuint,
@@ -267,6 +272,7 @@ struct CosmatiScene final : Scene {
     const std::chrono::milliseconds delay{420 + 70 * seed};
     Element band = stack().width(Dim(w)).height(Dim(h))
                        .centerAt({x, y}).rotate(degrees)
+                       .cache(Cache::Texture)
                        .opacity(withFrom(0.0f, 1.0f,
                                          {360ms, &ch::easeOutQuad, delay}));
     band.child(box().absolute().inset(0)
@@ -304,8 +310,14 @@ struct CosmatiScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     const std::chrono::milliseconds delay{600 + 80 * seed};
+    // The bed is the largest stone surface on the plate and every square
+    // pixel of it is an SkSL evaluation — three fBm octaves under three
+    // gradients. Static once it has entered, so bake it: on GPU the
+    // difference is noise, on the CPU raster backend it is the difference
+    // between 12 fps and 100.
     Element q = stack().width(Dim(side)).height(Dim(side))
                     .absolute().left(x).top(y)
+                    .cache(Cache::Texture)
                     .opacity(withFrom(0.0f, 1.0f,
                                       {420ms, &ch::easeOutQuad, delay}));
     q.child(box().absolute().inset(0).fill(Material::solid(cs::kMortar)));
@@ -342,7 +354,11 @@ struct CosmatiScene final : Scene {
 
     // the Purbeck frame carrying the inscription band
     floorPlate.child(box().absolute().inset(0)
-                         .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6))
+                         // one octave: this fill covers the whole plate
+                         // even though only its border shows, and on the
+                         // raster backend every pixel of it is an SkSL
+                         // evaluation
+                         .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 1))
                          .foreground(util::stroke(
                              2.0f, Fill::color(cs::kMarble),
                              PathFormat::Align::Inner))
@@ -392,6 +408,36 @@ struct CosmatiScene final : Scene {
                                i + 1));
     }
     floorPlate.child(roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0));
+
+    // The circular inscription these pavements carry round their centre
+    // roundel. Real Cosmati work sets it in the ring itself; this is one
+    // shaped run on a circular baseline — onPath, not 40 hand-placed
+    // glyphs — and it does NOT auto-flip, because the letter-cutters
+    // didn't: glyph-up points outward the whole way round.
+    floorPlate.child(text(toU8("\xc2\xb7 SPHERICVM \xc2\xb7 ARCHETYPVM "
+                              "\xc2\xb7 MVNDVM \xc2\xb7 PRIMVM \xc2\xb7 "
+                              "TRIPLEX \xc2\xb7"),
+                          [] {
+                            namespace cs = cosmati;
+                            auto t = cs::type(9, cs::kGiallo, 2.0f, 600);
+                            // a cut letter on a busy floor needs its own
+                            // shadow to read at all
+                            sigil::weave::PaintLayer cut;
+                            cut.paint.setAntiAlias(true);
+                            cut.paint.setStyle(SkPaint::kStroke_Style);
+                            cut.paint.setStrokeWidth(2.6f);
+                            cut.paint.setStrokeJoin(SkPaint::kRound_Join);
+                            cut.paint.setColor4f({0, 0, 0, 0.82f}, nullptr);
+                            (void)cut;
+                            return t;
+                          }())
+                         .width(Dim(big * 1.50f)).height(Dim(big * 1.50f))
+                         .centerAt({c, c})
+                         .onPath({.path = shapes::arc(-90.0f, 359.9f),
+                                  .at = 0.0f,
+                                  .align = TextPath::Align::Start,
+                                  .offset = 0.0f})
+                         .zIndex(6));
 
     // the raking light: a soft band crossing the polished floor
     floorPlate.child(box().absolute().left(-260).top(-40)

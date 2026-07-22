@@ -67,6 +67,15 @@
 //   * Amplitudes are the brief's R table scaled by 0.88. The rotated
 //     composition reaches R·√2 from centre, not R — the raw table plus
 //     filament()'s glow overflows a 596px-tall panel.
+//   * T = 12π, not the brief's 6π. Three pendulum periods draws a clean
+//     wireframe rosette — a plotted function. Six, under the damping
+//     envelope, is where it turns into ink.
+//   * The credit line is set in CLARENDON, not the gothic. Typotheque
+//     says the body credits are "solid black capitals of the SAME
+//     typeface" as the titles, so News Gothic's stand-in is confined to
+//     the study's own chrome.
+//   * The ring legends on the limbus, the per-card corner slugs, and the
+//     concentric pupil/limbus rings are study chrome, not the film.
 //
 // ---------------------------------------------------------------------
 // THE ALGORITHM (the rig, translated)
@@ -86,6 +95,26 @@
 // Sampled once into an open SkPath and handed to Element::outline();
 // revealed by Element::trim(0, &growth) at a CONSTANT rate (easeNone —
 // a motor does not ease); spun forever by one shared rotate(&spin).
+//
+// ---------------------------------------------------------------------
+// WHERE THE LIBRARY MADE THIS AWKWARD (the honest list)
+// ---------------------------------------------------------------------
+//  1. No shapes::parametric()/lissajous(). Shapes.h generates closed
+//     SHAPES; nothing evaluates a caller's t → (x, y). The curve is a
+//     hand-rolled SkPathBuilder loop inside outline().
+//  2. No derived Outputs. `penTip` must be a second, independently-owned
+//     Output the ticker re-copies from `growth − 0.018` every tick; so
+//     must `penA`. Four cards × two shadow cells = eight scalars kept in
+//     sync by hand.
+//  3. ONE trim window per NODE. trim() is an Element property and
+//     decorations receive the already-trimmed outline, so the pen-tip
+//     highlight is not a second stroke() — it is a duplicate node that
+//     rebuilds and re-measures the same 2000-segment path.
+//  4. Kinetic text is solid-fill only. paintKineticText() reduces every
+//     glyph to (font, colour, RSXform) and drops the style's SkPaint, so
+//     hollow display caps and glyphFx are mutually exclusive. "VERTIGO"
+//     rebuilds pop() one tier up: seven letter nodes under
+//     staggerChildren(30ms). Element::onPath() has the same limitation.
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -154,7 +183,7 @@ constexpr float kSideW = 476.0f;
 
 // ---------------------------------------------------------------------------
 // the four spiral cards. a/b/delta/k/R are this study's invention (see
-// the header); damp is too. `T = 6π` for all four.
+// the header); damp is too. `T = 12π` for all four.
 
 struct Card {
   const char *tag;
@@ -256,6 +285,25 @@ Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
   return t;
 }
 
+/** A circle of radius @p r centred on the node's box, starting at
+ *  @p startDeg and running clockwise — the baseline for onPath() ring
+ *  captions (fraction 0.25 is 12 o'clock when startDeg is 180). */
+std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
+  return [r, startDeg](SkSize s) {
+    SkPathBuilder p;
+    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+    for (int i = 0; i <= 360; ++i) {
+      const float a = (startDeg + (float)i) * kDeg;
+      const SkPoint q{cx + r * std::cos(a), cy + r * std::sin(a)};
+      if (i == 0)
+        p.moveTo(q);
+      else
+        p.lineTo(q);
+    }
+    return p.detach();
+  };
+}
+
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, SkColor4f color, float width) {
@@ -276,6 +324,7 @@ Element plate(float height) {
       .corners({8})
       .padding(16)
       .column()
+      .clip(true)
       .fill(Fill::color(kPlate))
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
 }
@@ -312,7 +361,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                    .absolute()
                    .inset(0)
                    .outline(lissajous(c, R))
-                   .stroke(brushes::filament(c.core, hex(0xF7F2E6), 0.55f))
+                   .stroke(brushes::filament(c.core, hex(0xFFE9CF), 0.48f))
                    .trim(0.0f, &growth[i])
                    .rotate(&spin)
                    .opacity(&cardA[i]));
@@ -344,8 +393,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")
                     .opacity(withFrom(0.0f, 1.0f, ramp(300, 420))));
-    panel.child(ring(146.0f, hex(0x2A1D10, 0.55f), 1.4f).key("iris-mid"));
-    panel.child(ring(259.0f, hex(0x120C07, 0.75f), 6.0f).key("limbus"));
+    panel.child(ring(146.0f, hex(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
+    panel.child(ring(262.0f, hex(0x120C07, 0.24f), 10.0f).key("limbus"));
 
     // "the screen is suddenly stained red" — kColor keeps the iris's
     // luminance and swaps its hue/saturation, so it TINTS rather than
@@ -374,32 +423,104 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // curve glyphfx::pop() applies internally.
     auto word = box()
                     .row()
-                    .gap(5)
+                    .gap(3)
                     .alignItems(Align::Baseline)
                     .absolute()
                     .centerAt(kEye)
                     .key("vertigo")
                     .staggerChildren(30ms);
     {
-      const auto face = hollow(faceDisplay, 92, kBone, 2.0f);
+      auto face = hollow(faceDisplay, 76, kBone, 2.2f);
+      // Legibility underlay over the busiest cards. NOT dropShadow() —
+      // that is a FILLED blurred copy and would plug the counters, which
+      // is the one thing the outline register exists to keep open. A
+      // blurred STROKE hugs the letterform and leaves the spiral visible
+      // straight through it.
+      {
+        SkPaint halo;
+        halo.setAntiAlias(true);
+        halo.setStyle(SkPaint::kStroke_Style);
+        halo.setStrokeWidth(7.0f);
+        halo.setColor(0xA6000000);
+        face.paint.underlays.push_back(
+            sigil::weave::PaintLayer::blurred(halo, 3.5f));
+      }
       const char *letters[] = {"V", "E", "R", "T", "I", "G", "O"};
-      const ch::EaseFn back = [](float t) { return ch::easeOutBack(t); };
       for (int i = 0; i < 7; ++i)
-        word.child(text(toU8(letters[i]), face)
-                       .key(std::string("v") + letters[i])
-                       .scale(withFrom(0.30f, 1.0f, ramp(780, 480, back)))
-                       .opacity(withFrom(0.0f, 1.0f, ramp(780, 220))));
+        word.child(
+            text(toU8(letters[i]), face)
+                .key(std::string("v") + letters[i])
+                .scale(withFrom(0.30f, 1.0f, ramp(780, 480, ease::outBack())))
+                .opacity(withFrom(0.0f, 1.0f, ramp(780, 220))));
     }
     panel.child(std::move(word));
 
-    // the other register: solid capitals, deliberately unadorned
+    // the other register — "solid black capitals of the SAME typeface"
+    // (Typotheque), so Clarendon again, not the gothic. Deliberately
+    // unadorned next to VERTIGO's hollow display caps, and deliberately
+    // laid over the busiest part of the card: that is where the film puts
+    // its body credits too.
     panel.child(text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
-                     type(faceGothicBold, 15, kSolidInk, 2.0f, 0.95f))
+                     type(faceDisplay, 17, kSolidInk, 2.6f))
                     .key("credit")
                     .absolute()
-                    .centerAt({kEye.x(), kEye.y() + 118.0f})
+                    .centerAt({kEye.x(), kEye.y() + 152.0f})
                     .opacity(withFrom(0.0f, 1.0f, ramp(1550, 300)))
                     .translateY(withFrom(10.0f, 0.0f, ramp(1550, 300))));
+
+    // the instrument-dial legend, set on the limbus itself with the
+    // brand-new Element::onPath() — one text leaf where hand-placing
+    // curved lettering would have been one leaf and one measure() per
+    // glyph.
+    panel.child(
+        text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
+             type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+            .key("ring-top")
+            .absolute()
+            .inset(0)
+            .onPath({.path = circlePath(272.0f),
+                     .at = 0.25f,
+                     .align = TextPath::Align::Center,
+                     .offset = 3.0f,
+                     .autoFlip = false})
+            .opacity(withFrom(0.0f, 1.0f, ramp(1000, 500))));
+    panel.child(
+        text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
+             type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+            .key("ring-bottom")
+            .absolute()
+            .inset(0)
+            .onPath({.path = circlePath(272.0f),
+                     .at = 0.75f,
+                     .align = TextPath::Align::Center,
+                     .offset = -14.0f,
+                     .autoFlip = true})
+            .opacity(withFrom(0.0f, 1.0f, ramp(1120, 500))));
+
+    // the card slug: four of them stacked in the same corner, each riding
+    // its own card's opacity — so the caption cross-dissolves with the
+    // curve it describes, on the same 240 ms optical-printer window.
+    static constexpr const char *kSlug[] = {
+        "CARD A · a:b 3:2 · δ 90° · k 0.15 · R 176 px",
+        "CARD B · a:b 5:4 · δ 0° · k 0.10 · R 172 px",
+        "CARD C · a:b 2:1 · δ 45° · k 0.22 · R 180 px",
+        "CARD D · a:b 5:3 · δ 60° · k 0.12 · R 167 px",
+    };
+    for (int i = 0; i < 4; ++i)
+      panel.child(text(toU8(kSlug[i]), type(faceGothic, 10, kBone, 1.8f))
+                      .key(std::string("slug") + kCards[i].tag)
+                      .absolute()
+                      .left(22)
+                      .top(20)
+                      .opacity(&cardA[i]));
+    panel.child(text(toU8("T = 12π · N = 2000 SAMPLES · TURNTABLE 18°/s · "
+                          "PEN AT CONSTANT RATE (easeNone)"),
+                     type(faceGothic, 10, hex(0xEDE6D8, 0.55f), 1.8f))
+                    .key("slug-rig")
+                    .absolute()
+                    .right(22)
+                    .bottom(20)
+                    .opacity(withFrom(0.0f, 1.0f, ramp(1200, 400))));
 
     // film gate: grain, then a soft vignette
     panel.child(box()
@@ -409,9 +530,9 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                     .blend(SkBlendMode::kOverlay)
                     .opacity(0.42f));
     panel.child(box().absolute().inset(0).fill(radialGradient(
-        kEye, kPanelW * 0.56f,
-        {hex(0x000000, 0.0f), hex(0x000000, 0.0f), hex(0x000000, 0.55f)},
-        {0.0f, 0.52f, 1.0f})));
+        kEye, kPanelW * 0.52f,
+        {hex(0x000000, 0.0f), hex(0x000000, 0.10f), hex(0x050302, 0.80f)},
+        {0.0f, 0.44f, 1.0f})));
 
     // the bezel is its OWN node: trim() on the panel would reveal the
     // iris fill along with the keyline.
@@ -431,13 +552,22 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
   // ------------------------------------------------------------------
   Element typeSpecimen() {
     auto p = plate(140).gap(6);
+    // something to see THROUGH the counters — the whole point of the
+    // outline register. Card C's own curve, spinning with the rest.
+    p.child(box()
+                .key("spec-bed")
+                .absolute()
+                .inset(0)
+                .outline(lissajous(kCards[2], 34.0f, 700))
+                .stroke(stroke(0.9f, Fill::color(hex(0x2E5C9E, 0.75f))))
+                .rotate(&spin));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
     p.child(text(toU8("SAUL BASS · JOHN WHITNEY"),
-                 type(faceGothicBold, 13, kBone, 2.0f, 0.95f))
+                 type(faceDisplay, 14, kBone, 2.0f))
                 .key("spec-solid"));
-    p.child(text(toU8("OUTLINE DISPLAY / SOLID BODY — THE TWO REGISTERS "
-                      "TYPOTHEQUE DESCRIBES."),
+    p.child(text(toU8("OUTLINE DISPLAY OVER THE IMAGE / SOLID BODY BELOW IT "
+                      "— BOTH CLARENDON."),
                  type(faceGothic, 10, kSteel, 0.6f))
                 .key("spec-cap"));
     return p;
@@ -610,8 +740,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // an angular sweep of fibre striations laid over it in soft light.
     std::vector<Stop> fibres;
     for (int i = 0; i <= 96; ++i) {
-      const float v = (i % 2 == 0) ? 0.456f : 0.544f;
-      const float j = 0.03f * shapes::detail::hashNoise(17u, (uint32_t)i);
+      const float v = (i % 2 == 0) ? 0.482f : 0.518f;
+      const float j = 0.012f * shapes::detail::hashNoise(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
     irisMat = Material::blend(
@@ -620,8 +750,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                             {0.11f, hex(0x17110B)},
                             {0.17f, hex(0x8A6A44)},  // bright inner iris
                             {0.40f, hex(0x6E5230)},
-                            {0.72f, hex(0x4A3722)},
-                            {1.00f, hex(0x241A11)}}),
+                            {0.72f, hex(0x6A5030)},
+                            {1.00f, hex(0x36271A)}}),
           SkBlendMode::kSrc},
          {Material::sweep(kEye, fibres, 0.0f, 360.0f),
           SkBlendMode::kSoftLight}});

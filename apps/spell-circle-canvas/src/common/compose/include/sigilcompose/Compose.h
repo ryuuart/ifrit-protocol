@@ -357,6 +357,43 @@ struct Stagger {
  *  wrapping phase). While progress moves the node paints live; settled
  *  kinetic text caches like any static leaf. All glyphs render through
  *  batched RSXform draws — one draw per (font, color), never per glyph. */
+/** Text whose BASELINE is a path (`Element::onPath`).
+ *
+ *  The run is shaped once — real kerning, real ligatures, real advances —
+ *  and then every glyph is placed by arc length along the resolved path
+ *  and rotated to its tangent, through the same batched RSXform draw
+ *  kinetic text uses (one draw per font+colour, never one per glyph).
+ *
+ *  Written because placing curved lettering by hand costs one Element and
+ *  one layout PER GLYPH: the Nightingale coxcomb study spent ~230 leaves,
+ *  ~230 measure() calls and sixty lines of arc-length trigonometry on its
+ *  ring labels, and got no kerning for the trouble. Ring labels, dial
+ *  faces, seals, compass roses, mottoes and map lettering all want this. */
+struct TextPath {
+  /** The baseline, resolved against the node's laid-out box — any
+   *  `shapes::` generator, or your own. Only the FIRST contour is used. */
+  std::function<SkPath(SkSize)> path;
+  /** Where the run sits along the path, as a fraction of its length.
+   *  With Align::Center this is the run's midpoint. */
+  float at = 0.0f;
+  enum class Align { Start, Center, End };
+  Align align = Align::Start;
+  /** Perpendicular offset in px, positive to the LEFT of travel — which on
+   *  a clockwise circle is outward. The path is the baseline, so this is
+   *  how far off it the type rides. */
+  float offset = 0.0f;
+  /** Flip glyphs that would come out upside down, so lettering on the
+   *  lower half of a ring reads right way up.
+   *
+   *  Default OFF, and that is a considered default: engravers used one
+   *  convention — glyph-up points radially outward everywhere — so on
+   *  Nightingale's 1858 plate DECEMBER, JANUARY and FEBRUARY are all
+   *  genuinely upside down. Modern signage flips; historical plates do
+   *  not. */
+  bool autoFlip = false;
+  bool operator==(const TextPath &) const = default;
+};
+
 struct GlyphFx {
   GlyphEffectFn effect;
   Stagger stagger;
@@ -790,6 +827,16 @@ public:
    *  a live material re-resolves per frame (animated chrome); glyphFx
    *  wins when both are set (kinetic text draws its own buckets). */
   Element &textFill(Material m);
+
+  /** Text leaves only: lay the run out along a PATH instead of a line.
+   *  See TextPath. Single-line runs; the node's own box still sizes the
+   *  path, so give it the box the curve should be inscribed in
+   *  (`util::disc`-style: width(2r).height(2r).centerAt(centre)).
+   *
+   *  Interacts with the rest of the text surface the way you would hope:
+   *  the style's underlays, overlays and decorations all still draw, and
+   *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
+  Element &onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----
   Element &key(std::string_view k);

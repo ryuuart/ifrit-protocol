@@ -246,6 +246,83 @@ const SkPath &Composer::Impl::resolveOutline(Instance &inst, SkSize size) const 
 // Kinetic typography: master progress → stagger remap → per-glyph mods →
 // batched RSXform draws (one per font/color bucket — never per glyph).
 
+/** Text whose baseline is a path: shape ONCE (real kerning, real
+ *  ligatures), then place every glyph by arc length and rotate it to the
+ *  tangent, through the same batched RSXform draw kinetic text uses.
+ *
+ *  Only the first contour is walked. Glyphs past the end of the path are
+ *  dropped rather than piled on the last point — running off the end of a
+ *  ring should look like running off the end of a ring. */
+void Composer::Impl::paintTextOnPath(Instance &inst, SkCanvas &canvas,
+                                     const TextPath &spec, SkSize size) {
+  if (!spec.path)
+    return;
+  const SkPath baseline = spec.path(size);
+  SkContourMeasureIter iter(baseline, false);
+  sk_sp<SkContourMeasure> contour = iter.next();
+  if (!contour || contour->length() <= 0)
+    return;
+  const float length = contour->length();
+
+  // The run's own width, from the shaped advances — this is what Align
+  // measures against, and it is why the run has to be shaped first.
+  float runWidth = 0;
+  sigil::weave::forEachPlacedGlyph(
+      inst.textLayout, *inst.paragraph,
+      [&](const sigil::weave::ShapedWord *, SkGlyphID, float advance, SkColor,
+          SkPoint rest) {
+        runWidth = std::max(runWidth, rest.x() + advance);
+      });
+
+  float start = spec.at * length;
+  if (spec.align == TextPath::Align::Center)
+    start -= runWidth * 0.5f;
+  else if (spec.align == TextPath::Align::End)
+    start -= runWidth;
+
+  static thread_local sigil::weave::GlyphRSXformBatches batches;
+  batches.clear();
+  sigil::weave::forEachPlacedGlyph(
+      inst.textLayout, *inst.paragraph,
+      [&](const sigil::weave::ShapedWord *font, SkGlyphID glyph, float advance,
+          SkColor color, SkPoint rest) {
+        // The glyph rides its own CENTRE along the path, so a wide glyph
+        // on a tight curve leans about its middle rather than its left
+        // sidebearing.
+        const float d = start + rest.x() + advance * 0.5f;
+        if (d < 0 || d > length)
+          return;
+        SkPoint pos;
+        SkVector tangent;
+        if (!contour->getPosTan(d, &pos, &tangent))
+          return;
+        const float mag = std::hypot(tangent.x(), tangent.y());
+        if (mag <= 1e-6f)
+          return;
+        // Quantized for the same reason kinetic text quantizes: a
+        // continuous per-glyph angle mints a fresh glyph mask per letter
+        // in Skia's cache. 64 steps is 5.6 degrees, which on a ring whose
+        // own letters sit ~7 degrees apart is under a pixel of lean at
+        // label sizes.
+        float cosv = 1.0f, sinv = 0.0f;
+        sigil::weave::quantizeAngle(
+            std::atan2(tangent.y() / mag, tangent.x() / mag), cosv, sinv);
+        // Perpendicular offset, positive to the LEFT of travel (outward on
+        // a clockwise circle). rest.y() carries the glyph's own baseline
+        // offset within the line, which the path replaces.
+        pos.offset(sinv * spec.offset, -cosv * spec.offset);
+        if (spec.autoFlip && cosv < 0) {
+          // Upside down on this stretch: turn the glyph over and step it
+          // back across its own advance so the run still reads forward.
+          cosv = -cosv;
+          sinv = -sinv;
+          pos.offset(sinv * spec.offset * 2.0f, -cosv * spec.offset * 2.0f);
+        }
+        batches.addGlyph(font, color, glyph, advance * 0.5f, pos, cosv, sinv);
+      });
+  batches.draw(&canvas);
+}
+
 void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
                                       const GlyphFx &fx) {
   const float master = std::clamp(
@@ -599,8 +676,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       // end/justify) additionally must be laid out at its FINAL width —
       // lines place within the flow width, so a measure-time constraint
       // that differs from the resolved box would push them off target.
+      const bool onPathRun = node.textData && node.textData->onPath;
       if (inst.measuredRev != inst.contentRev ||
-          (node.textData && node.textData->layoutOptions.alignment !=
+          (!onPathRun && node.textData &&
+           node.textData->layoutOptions.alignment !=
                sigil::weave::TextAlignment::kStart &&
            inst.measuredForWidth != bounds.width()))
         layoutText(inst, bounds.width());
@@ -617,8 +696,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           canvas.restore();
         }
       }
+      const TextPath *onPath =
+          onPathRun ? &*node.textData->onPath : nullptr;
       if (glyphs && glyphs->effect) {
         paintKineticText(inst, canvas, *glyphs);
+      } else if (onPath) {
+        paintTextOnPath(inst, canvas, *onPath,
+                        {bounds.width(), bounds.height()});
       } else if (const Material *metricMat = metricFillOf(node)) {
         // Chrome type: the material's unit square mapped to the text's
         // metric band — x across the widest line, y from the first line's
