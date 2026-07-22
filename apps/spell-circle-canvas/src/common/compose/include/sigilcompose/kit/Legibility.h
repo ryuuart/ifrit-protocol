@@ -59,6 +59,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
 
+#include <initializer_list>
 #include <string_view>
 
 namespace sigil::compose::kit {
@@ -197,6 +198,39 @@ inline void drawHaloed(SkCanvas &canvas, std::string_view s, SkPoint at,
   p.setAntiAlias(true);
   p.setColor4f(ink, nullptr);
   drawHaloed(canvas, s, at, font, p, halo);
+}
+
+/** One line of a haloed block. */
+struct Line {
+  std::string_view text;
+  /** SkFont baseline origin. */
+  SkPoint at{0, 0};
+};
+
+/** A BLOCK of haloed lines: every halo first, then every ink.
+ *
+ *  Not a convenience. Calling the single-line form in a loop draws
+ *  line 2's knockout **after** line 1's ink and eats it — measured, and it
+ *  moved 21 px when `slitscan_2001`'s two-line note was migrated line by
+ *  line (7.5 px type on a 10 px lead, so the second line's halo reaches
+ *  the first line's descenders). Any halo wider than the leading minus
+ *  the descent has this problem, which for a drafting note is most of
+ *  them. Pass the block. */
+inline void drawHaloed(SkCanvas &canvas, std::initializer_list<Line> lines,
+                       const SkFont &font, const SkPaint &ink,
+                       const Halo &halo = {}) {
+  SkPaint h;
+  h.setAntiAlias(true);
+  h.setColor4f(halo.colour, nullptr);
+  h.setStyle(SkPaint::kStroke_Style);
+  h.setStrokeWidth(halo.width);
+  h.setStrokeJoin(halo.join);
+  for (const Line &l : lines)
+    canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
+                          l.at.fX, l.at.fY, font, h);
+  for (const Line &l : lines)
+    canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
+                          l.at.fX, l.at.fY, font, ink);
 }
 
 } // namespace sigil::compose::kit

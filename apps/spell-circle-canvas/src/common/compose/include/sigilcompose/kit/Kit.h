@@ -15,8 +15,7 @@
  *
  * The bar that IS enforced here: **three or more real hand-rolls in the
  * corpus, cited file:line, before anything is built.** Every header names
- * its evidence in its first thirty lines. Two candidates failed it and are
- * not here; see the extraction report.
+ * its evidence in its first thirty lines.
  *
  * | header | component | evidence |
  * |---|---|---|

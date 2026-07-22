@@ -182,6 +182,8 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/PixelType.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -211,7 +213,12 @@ namespace xcom {
 // SCALE. One constant. Original 320x200 px -> canvas px; nothing else scales.
 
 constexpr float PX = 4.0f;
-constexpr float n(float v) { return v * PX; }
+// The unit map as a value. Scale-only here, but the same type carries an
+// origin (astral_tome) and a snap (vagrant_story_target, which holds two at
+// once) — and it stays constexpr, which every hand-rolled unit map in the
+// corpus needed and which is why kit::Grid rounds without std::round.
+constexpr kit::Grid kGrid{.scale = PX};
+constexpr float n(float v) { return kGrid.s(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
 constexpr float kPanelY = n(144), kPanelH = n(56); // 200 - iconsHeight
 
@@ -763,49 +770,32 @@ struct PixelText {
 
 inline PixelText pixelText(const std::u8string &s, weave::TextStyle style,
                            weave::FontContext &fonts, int litIdx, int dimIdx) {
+  // The measure -> raster -> read-back -> crop-to-ink core is
+  // kit::coverage(); this study's own part is the TWO-LEVEL quantisation
+  // into palette indices, which is why the kit hands back coverage rather
+  // than a finished 1-bit mask. Three studies wrote that core by hand and
+  // this one is the third.
+  //
+  // The kit also fixes something this version had wrong and could not see:
+  // the +2 pad was applied to the RIGHT and BOTTOM only, so a glyph with a
+  // negative left side-bearing clipped at x = 0 with no pad value able to
+  // reach it. kit::coverage insets the run on every side and grows the pad
+  // until no ink touches an edge.
   style.paint.foreground.setColor(SK_ColorWHITE);
-  Element tree = box().child(text(s, style));
-  const SkSize sz = measure(box().child(text(s, style)), fonts);
-  const int w = std::max(1, (int)std::ceil(sz.width()) + 2);
-  const int h = std::max(1, (int)std::ceil(sz.height()) + 2);
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  if (!surface)
+  const kit::Coverage cov = kit::coverage(s, fonts, style);
+  if (!cov.valid() || cov.ink.isEmpty())
     return {};
-  surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  if (sk_sp<SkPicture> pic = snapshot(std::move(tree), fonts))
-    surface->getCanvas()->drawPicture(pic);
-
-  SkBitmap read;
-  read.allocPixels(
-      SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
-  if (!surface->readPixels(read.pixmap(), 0, 0))
-    return {};
-
-  int x0 = w, y0 = h, x1 = -1, y1 = -1;
-  std::vector<uint8_t> level((size_t)w * (size_t)h, 0);
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const float a = (float)(SkColorGetA(read.getColor(x, y))) / 255.0f;
-      const uint8_t lv = a >= 0.55f ? 2 : (a >= 0.22f ? 1 : 0);
-      level[(size_t)y * (size_t)w + (size_t)x] = lv;
-      if (lv) {
-        x0 = std::min(x0, x);
-        y0 = std::min(y0, y);
-        x1 = std::max(x1, x);
-        y1 = std::max(y1, y);
-      }
-    }
-  if (x1 < 0)
-    return {};
-  const int cw = x1 - x0 + 1, chh = y1 - y0 + 1;
+  const int cw = cov.ink.width(), chh = cov.ink.height();
   SkBitmap out;
   out.allocPixels(SkImageInfo::Make(cw, chh, kRGBA_8888_SkColorType,
                                     kUnpremul_SkAlphaType));
   out.eraseColor(SK_ColorTRANSPARENT);
   for (int y = 0; y < chh; ++y)
     for (int x = 0; x < cw; ++x) {
-      const uint8_t lv = level[(size_t)(y + y0) * (size_t)w + (size_t)(x + x0)];
+      // Two levels, not one: the way an 8-bit artist hand-antialiased a
+      // face, and the reason a 1-bit threshold() would not serve here.
+      const float a = cov.alphaAt(cov.ink.fLeft + x, cov.ink.fTop + y);
+      const uint8_t lv = a >= 0.55f ? 2 : (a >= 0.22f ? 1 : 0);
       if (!lv)
         continue;
       const uint32_t v = kPal[(unsigned)(lv == 2 ? litIdx : dimIdx) & 255u];

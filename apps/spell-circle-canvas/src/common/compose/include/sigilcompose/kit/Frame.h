@@ -14,8 +14,8 @@
  * component is simply not `#include`d by the next study and costs nothing.
  *
  * The bar here is therefore: **three or more real hand-rolls in the
- * corpus, cited.** Not "would be nice". Two candidates were dropped for
- * failing it; see `kit/README` in the extraction report.
+ * corpus, cited.** Not "would be nice". Candidates that failed it are named
+ * in `kit/Kit.h`, with the reason.
  *
  * ## Frame — five hand-rolls, all five lines, two conventions
  *
@@ -283,16 +283,29 @@ struct Grid {
 
   bool operator==(const Grid &) const = default;
 
-  float snapped(float v) const {
-    return snap > 0 ? std::round(v / snap) * snap : v;
+  /** Rounds half away from zero, like `std::round`, but CONSTEXPR — which
+   *  `std::round` is not before C++23. That matters: every unit map in the
+   *  corpus is `constexpr float g(float)` and feeds `constexpr` canvas
+   *  constants (`xcom_battlescape.cpp:216`: `kCanvasW = n(320)`). A helper
+   *  that cannot be used at compile time is not a replacement for one that
+   *  can. */
+  constexpr float snapped(float v) const {
+    if (!(snap > 0))
+      return v;
+    const float q = v / snap;
+    return snap * (float)(long long)(q + (q < 0 ? -0.5f : 0.5f));
   }
   /** A LENGTH in artefact units → px. */
-  float s(float units) const { return snapped(units * scale); }
+  constexpr float s(float units) const { return snapped(units * scale); }
   /** An X position. */
-  float x(float units) const { return snapped(origin.fX + units * scale); }
+  constexpr float x(float units) const {
+    return snapped(origin.fX + units * scale);
+  }
   /** A Y position. */
-  float y(float units) const { return snapped(origin.fY + units * scale); }
-  SkPoint at(SkPoint units) const { return {x(units.fX), y(units.fY)}; }
+  constexpr float y(float units) const {
+    return snapped(origin.fY + units * scale);
+  }
+  constexpr SkPoint at(SkPoint units) const { return {x(units.fX), y(units.fY)}; }
   SkRect rect(float ux, float uy, float uw, float uh) const {
     return SkRect::MakeXYWH(x(ux), y(uy), s(uw), s(uh));
   }
