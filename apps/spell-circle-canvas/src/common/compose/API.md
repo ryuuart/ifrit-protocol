@@ -424,10 +424,49 @@ property of a subtree, not a heuristic guess. So:
   replays it under the live transform; content volatility (fill lerps,
   animated decorations, live materials, `Cache::None`, animated image
   frames) paints live.
-- **Texture bakes have a resolution dial**: `bakeScale(0.1–1)`
-  rasterizes the bake below device scale and blits it back up — for
-  planes whose content is soft anyway (blurred glass, watercolor
-  walls); sharp text and hairlines do not belong under a reduced bake.
+- **`bakeScale(0.1–1)` is almost always the wrong lever, and this doc
+  used to recommend it for the one case it is worst at.** It rasterizes
+  the bake below device scale and blits it back up. So it makes the
+  BAKE cheaper and every BLIT more expensive — the blit becomes an
+  upscaling resample, and it pays that forever. It is a win only when a
+  node re-bakes often and blits rarely, which is the opposite of what a
+  static `Cache::Texture` node does: bake once, blit every frame. One
+  study removed it from six nodes and went **mean 11.07 → 4.31 ms**.
+
+  Reach for it only when something forces frequent re-bakes (a live
+  material stepping at its own rate, a resizing node) *and* the content
+  is soft enough to survive the resample. Sharp text and hairlines never
+  belong under a reduced bake.
+- **A `Cache::Texture` bake is taken in one of two spaces**, and the
+  composer picks. A node **holding still** is baked in DEVICE space,
+  snapped out to whole device pixels and blitted with the matrix reset —
+  a literal copy of the pixels the uncached draw would produce, at any
+  angle. A node **moving** keeps a LOCAL-space bake, taken at a coarse
+  quantized scale step and blitted through its transform: one bake
+  reused across a whole pinch-zoom or a whole spin, at the cost of
+  resampling. Changing between the two costs one re-bake.
+
+  "Holding still" is two independent measures and it is worth knowing
+  they are not the same one: the node's own transform must not be
+  *declared* animating, **and** the device rect it lands on must not have
+  moved. A node that declares nothing still moves under a resizing
+  window, a pinch zoom, a pan, or an uncached ancestor's live transform.
+
+  A device-space bake is never taken while recording into a picture: a
+  picture can be replayed under a different matrix than it was recorded
+  at, and a bake pinned to one device rect is not matrix-independent. So
+  a `Cache::Texture` node whose parent is a cacheable static subtree gets
+  the local bake, frozen into the parent's recording.
+
+  > **A bake ISOLATES, so a decoration's blend mode does not reach the
+  > canvas.** The bake is taken into a transparent layer with plain
+  > srcOver — that is what makes it a group — and the finished image is
+  > then composited by the node. So a Texture-cached node whose
+  > *decoration* paints `kPlus` (an additive glow, a bloom stroke) must
+  > also carry `.blend(kPlus)` on the node itself, or the blit lands
+  > srcOver and the glow paints flatly over the ground instead of adding
+  > to it. Uncached, the same decoration composites directly and looks
+  > right — which is why this shows up as "it broke when I cached it".
 - **`purgeCaches()` is the host's one hook**: on GPU device loss or a
   backend switch, drop every per-node cache (pictures, texture bakes,
   held live-material shaders) — images minted by a dead context must

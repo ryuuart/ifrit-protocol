@@ -1011,6 +1011,62 @@ Not the transform slots — those are paint-only volatility and already
 replay the content picture under the live matrix. This is about the ones
 that rebuild painted geometry.
 
+## 18. A `Cache::Texture` node with a blend allocates a saveLayer to composite ONE blit
+
+Measured by a study: **3.45 → 0.24 ms** on one node, by removing the need
+for `kPlus` rather than by any library change.
+
+`leafDirectBlend` — the carve-out that routes a leaf's blend and opacity
+straight onto its own paint instead of a device-clip-sized `saveLayer` —
+explicitly excludes `cacheMode == Cache::Texture`. **That exclusion is
+load-bearing as written**, and not an oversight: the bake is taken with
+plain srcOver into a transparent layer ("bakes isolate"), so if
+`leafDirectBlend` were true the node's blend would never be applied to
+anything at all and would be silently dropped. `needsLayer` is currently
+the only thing applying it.
+
+But the layer is the wrong mechanism for this case. A texture-cached node
+composites exactly ONE draw — its blit. Compositing one source image with
+alpha `a` and blend `B` through a saveLayer is the same operation as
+drawing that image with a paint carrying `a` and `B`, minus a full-canvas
+intermediate buffer and one extra rounding of every pixel. The direct
+route is both cheaper and slightly *more* accurate.
+
+The fix is therefore not "relax `leafDirectBlend`" but "hoist the
+decision": determine before the layer whether this node will actually
+take the texture branch, and if so skip `needsLayer` and pass the node's
+opacity and blend into the blit's paint instead. The predicate must be
+exact — a node that fails the texture branch and falls through to the
+picture or live path with `needsLayer` already suppressed would lose its
+blend entirely, which is the failure the current exclusion prevents.
+
+Not attempted yet because the predicate has to be exact and the function
+it lives in has had three defects this run that each looked like one.
+
+## 19. Materials and effects have no spatially-varying parameter channel
+
+**Two independent citations, from a film UI and an anime UI**, for the
+same shape of gap — which is what promotes it out of a note under §10c.
+
+- `Material` is node-local with no world-space option (§10c): a field
+  that must be continuous ACROSS separately-laid-out nodes has to become
+  one canvas-sized node whose `outline()` is the union of its parts. That
+  workaround is real and often better than the feature (see §10c), but it
+  requires the geometry to be absolutely placed and axis-aligned.
+- `Effect` has a single scalar parameter for the whole node. A blur whose
+  sigma varies with node-local position — a depth-of-field falloff, a
+  tube's curvature, a lens edge — has no spelling. The workaround route
+  IS reachable (the node's own layer arrives at a runtime effect as the
+  child shader `"content"`), but SkSL has no cheap dynamic loop bound, so
+  the kernel must be sized for the worst sigma anywhere in the node and
+  that cost is paid at every pixel.
+
+Wanted, and the two citations agree on the shape: a parameter that is a
+FUNCTION OF POSITION rather than a constant, resolved by the library into
+something with the right cost model — for the blur case, a 2–3 level
+pyramid blended by the parameter, which is O(1) in the sigma range
+instead of O(sigma²) per pixel.
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers
