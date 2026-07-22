@@ -952,7 +952,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   Element inked(std::u8string s, const weave::TextStyle &st, SkPoint ink,
                 float slack) {
     return box()
-        .absolute()
         .left(ink.fX)
         .top(ink.fY - slack)
         .child(text(std::move(s), st));
@@ -981,7 +980,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                              .uniform("uFront", fr);
 
     Element node = box()
-                       .absolute()
                        .left(p.box.left())
                        .top(p.box.top())
                        .width(sz.width())
@@ -999,7 +997,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       // at a different clearance, which is the thing lines::Line's symmetric
       // `parallels` cannot say at all.
       node.child(box()
-                     .absolute()
                      .inset(0)
                      .fill(Fill::none())
                      .outline([circuit](SkSize) { return circuit; })
@@ -1016,7 +1013,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                     .join = SkPaint::kMiter_Join}},
                          .offsetStep = 6.0f}));
       node.child(box()
-                     .absolute()
                      .inset(0)
                      .fill(Fill::none())
                      .outline([pads](SkSize) { return pads; })
@@ -1025,7 +1021,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                         .join = SkPaint::kMiter_Join}));
     }
     if (!red && seeded[(size_t)i])
-      node.child(box().absolute().inset(0).fill(infection));
+      node.child(box().inset(0).fill(infection));
     return node;
   }
 
@@ -1034,7 +1030,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
    *  and there is no lean because the plate is level). */
   Element greenBand(float x0, float x1, float y) {
     return box()
-        .absolute()
         .left(x0)
         .top(y - 9.0f)
         .width(x1 - x0)
@@ -1045,12 +1040,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   }
 
   Element plateFurniture() {
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     // The plate's own dim diagonal furniture, still diagonal AFTER
     // rectification — so it is drawn that way and not a residue of the camera.
     for (int k = 0; k < 3; ++k)
       g.child(box()
-                  .absolute()
                   .left(140.0f)
                   .top(898.0f + (float)k * 26.0f)
                   .width(600.0f)
@@ -1060,7 +1054,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .fill(Material::solid(magi::kBgRule)));
     for (int k = 0; k < 2; ++k)
       g.child(box()
-                  .absolute()
                   .left(520.0f)
                   .top(126.0f + (float)k * 34.0f)
                   .width(580.0f)
@@ -1070,7 +1063,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .fill(Material::solid(magi::kBgRule)));
     for (int k = 0; k < 2; ++k)
       g.child(box()
-                  .absolute()
                   .left(100.0f + (float)k * 22.0f)
                   .top(250.0f)
                   .width(4.0f)
@@ -1085,7 +1077,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   }
 
   Element plateType() {
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     float sCode = 0, sFile = 0, sMagi = 0, sK1 = 0, sK2 = 0;
     // CODE : 263 — ink x 148..400, cap 40.
     g.child(inked(u8"CODE : 263",
@@ -1109,7 +1101,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     const auto k1h = fitEmSpan(u8"提訴", 266.0f, magi::kKanjiHot);
     g.child(inked(u8"提訴", k1, {152, 234}, sK1));
     g.child(box()
-                .absolute()
                 .left(152)
                 .top(234.0f - sK1)
                 .opacity(&kanjiHot)
@@ -1136,7 +1127,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     float sl = 0;
     const auto st = fitEmSpan(u8"審議中", 156.0f, magi::kGoldPeak, &sl);
     return box()
-        .absolute()
         .left(868)
         .top(424)
         .width(174)
@@ -1146,7 +1136,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .style(decorations::doubleBorder(
             decorations::border(5.0f, Fill::color(magi::kGold), 0.0f),
             decorations::border(2.0f, Fill::color(magi::kGoldHot), 10.0f)))
-        .child(text(u8"審議中", st).absolute().left(22).top(20.0f - sl + 14.0f));
+        .child(text(u8"審議中", st).left(22).top(20.0f - sl + 14.0f));
   }
 
   /** The verdict card — 否決 x4, then 可決, then the struck-through 否決 of
@@ -1164,7 +1154,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // the margin actually leaves, between the countdown and the first rail.
     Element card =
         box()
-            .absolute()
             .left(1130)
             .top(430)
             .width(220)
@@ -1173,12 +1162,10 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
             .fill(Material::solid(magi::hex(0x0A0102)))
             .foreground(decorations::border(4.0f, Fill::color(ink), 3.0f))
             .child(text(carried ? u8"可決" : u8"否決", st)
-                       .absolute()
                        .left(28)
                        .top(24.0f - sl + 16.0f));
     if (verdictStep == 5)
       card.child(box()
-                     .absolute()
                      .left(18)
                      .top(58)
                      .width(184)
@@ -1196,7 +1183,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     char buf[8];
     std::snprintf(buf, sizeof buf, "%d", countdown);
     return box()
-        .absolute()
         .left(1096)
         .top(96)
         .child(text(toU8(buf),
@@ -1223,7 +1209,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                 SkColor4f fill, const char *l1, const char *l2,
                 float textSize) {
     Element h = box()
-                    .absolute()
                     .left(p.fX - across * 0.5f)
                     .top(p.fY - across * 0.5f)
                     .width(across)
@@ -1238,13 +1223,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     if (l1)
       h.child(text(toU8(l1),
                    magi::type(magi::latinPlain(), textSize, magi::kPRailHi))
-                  .absolute()
                   .left(across * 0.30f)
                   .top(across * 0.34f));
     if (l2)
       h.child(text(toU8(l2),
                    magi::type(magi::latinPlain(), textSize, magi::kPRailDim))
-                  .absolute()
                   .left(across * 0.30f)
                   .top(across * 0.34f + textSize * 1.15f));
     return h;
@@ -1283,13 +1266,12 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   }
 
   Element portraitStatic() {
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     const float S = kPScale;
 
     // two faint boundary conics — shapes::parametric, real curves
     for (float r : {780.0f * S, 860.0f * S})
       g.child(box()
-                  .absolute()
                   .left(kPCX - r)
                   .top(kPCY - r * 0.985f)
                   .width(r * 2)
@@ -1322,7 +1304,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath dend = db.detach();
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Fill::none())
                   .outline([dend](SkSize) { return dend; })
@@ -1333,7 +1314,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                       .widthEnd = 1.0f,
                       .step = 6.0f}));
       g.child(box()
-                  .absolute()
                   .left(kPCX + p.fX - d * 0.5f)
                   .top(kPCY + p.fY - d * 0.5f)
                   .width(d)
@@ -1374,7 +1354,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath arcp = ab.detach();
       Element run = box()
-                        .absolute()
                         .inset(0)
                         .fill(Fill::none())
                         .outline([arcp](SkSize) { return arcp; });
@@ -1396,7 +1375,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath arcp = ab.detach();
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Fill::none())
                   .outline([arcp](SkSize) { return arcp; })
@@ -1435,7 +1413,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath fan = fb.detach();
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Fill::none())
                   .outline([fan](SkSize) { return fan; })
@@ -1456,7 +1433,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       }
       const SkPath comb = cb.detach();
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Fill::none())
                   .outline([comb](SkSize) { return comb; })
@@ -1469,7 +1445,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       rb.lineTo(kPCX + r1.fX, kPCY + r1.fY);
       const SkPath ladder = rb.detach();
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Fill::none())
                   .outline([ladder](SkSize) { return ladder; })
@@ -1505,7 +1480,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   static constexpr float kRotorR = 260.0f;
   Element portraitRotor() {
     Element g = box()
-                    .absolute()
                     .left(kPCX - kRotorR)
                     .top(kPCY - kRotorR)
                     .width(kRotorR * 2)
@@ -1520,7 +1494,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         const float lh = (mag ? 21.0f : 16.0f) * S;
         const SkPoint p = polar(r, a);
         g.child(box()
-                    .absolute()
                     .left(kRotorR + p.fX - lw * 0.5f)
                     .top(kRotorR + p.fY - lh * 0.5f)
                     .width(lw)
@@ -1562,20 +1535,18 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // and taken back out — a third line closes to 15 px of run 3, the same
     // leading the label uses internally, and the two captions read as one.
     static const float kDy[8] = {-33, 11, 58, 122, 166, 224, 301, 349};
-    Element g = box().absolute().inset(0);
+    Element g = box().inset(0);
     const auto hi = magi::type(magi::latinPlain(), 11.5f, magi::kPRailHi);
     const auto dim = magi::type(magi::latinPlain(), 11.5f, magi::kPRailDim);
     for (int i = 0; i < 8; ++i) {
       const float y = kPCY + kDy[i];
       g.child(box()
-                  .absolute()
                   .left(1078.0f)
                   .top(y)
                   .width(74.0f)
                   .height(1.1f)
                   .fill(Material::solid(magi::kPRail)));
       g.child(box()
-                  .absolute()
                   .left(1160.0f)
                   .top(y - 7.0f)
                   .maxWidth(272.0f)
@@ -1586,7 +1557,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .child(text(toU8(kRuns[i][1]), dim)));
     }
     g.child(box()
-                .absolute()
                 .left(20.0f)
                 .top(18.0f)
                 .column()
@@ -1621,7 +1591,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     const SkPath stencilArc = arcb.detach();
 
     Element g = box()
-                    .absolute()
                     .left(148)
                     .top(872)
                     .width(Wd)
@@ -1644,7 +1613,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     }
     Element tissue =
         box()
-            .absolute()
             .left(Wd * 0.30f)
             .top(Ht * 0.26f)
             .width(Wd * 0.44f)
@@ -1668,7 +1636,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // ones already chosen above.
     tissue.child(
         box()
-            .absolute()
             .inset(0)
             .outline([](SkSize s) {
               const float w = s.width(), h = s.height();
@@ -1693,14 +1660,12 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                 .waveLength = 10.0f}));
     g.child(std::move(tissue));
     g.child(box()
-                .absolute()
                 .left(Wd * 0.31f)
                 .top(Ht * 0.63f)
                 .child(text(u8"MAGI", magi::type(magi::latin(), 28.0f,
                                                  magi::hex(0x8C2A1E), 0.86f))));
     for (int k = 0; k < 2; ++k)
       g.child(box()
-                  .absolute()
                   .left(Wd * 0.24f)
                   .top(Ht * (k ? 0.72f : 0.24f))
                   .width(Wd * 0.58f)
@@ -1709,13 +1674,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .transformOrigin(0.0f, 0.5f)
                   .fill(Material::solid(magi::hex(0x090509))));
     g.child(box()
-                .absolute()
                 .inset(0)
                 .fill(Fill::none())
                 .child(text(u8"CASPER",
                             magi::type(magi::latin(), 32.0f,
                                        magi::hex(0x0B060B), 0.88f, 3.0f))
-                           .absolute()
                            .inset(0)
                            .onPath(TextPath{
                                .path = [stencilArc](SkSize) { return stencilArc; },
@@ -1732,24 +1695,22 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
    *  numeral is how a 4 ms frame becomes a 19 ms one — the panels carry live
    *  materials, and a re-describe puts their bakes at risk. */
   Element hud() {
-    return box().absolute().inset(0).child(verdictCard()).child(
+    return box().inset(0).child(verdictCard()).child(
         countdownNumeral());
   }
 
   Element describe() {
-    Element root = box().absolute().inset(0);
+    Element root = box().inset(0);
 
     // --- the portrait, behind everything, bleeding off all four edges ------
     root.child(portraitStatic().cache(Cache::Texture).key("portrait"));
     root.child(box()
-                   .absolute()
                    .left(kPCX - kRotorR)
                    .top(kPCY - kRotorR)
                    .width(kRotorR * 2)
                    .height(kRotorR * 2)
                    .rotate(&spinRotor)
                    .child(portraitRotor()
-                              .absolute()
                               .left(0)
                               .top(0)
                               .cache(Cache::Texture)
@@ -1788,7 +1749,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 3; ++i)
       root.child(rail({{kRails[i].a, kRails[i].na}, {kRails[i].b, kRails[i].nb}},
                       routers::polyline(0.0f))
-                     .absolute()
                      .inset(0)
                      .stroke(lines::Rails{
                          .rails = {{.offset = 0.0f,
@@ -1808,7 +1768,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
 
     // --- the tube ----------------------------------------------------------
     root.child(box()
-                   .absolute()
                    .left(0)
                    .top(-8)
                    .width(magi::kW)
@@ -1818,7 +1777,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                    .cache(Cache::Texture)
                    .key("crt"));
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Fill::color({0, 0, 0, 1}))
                    .opacity(&flicker)
@@ -1826,7 +1784,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
 
     if (!auditOk)
       root.child(box()
-                     .absolute()
                      .left(0)
                      .top(420)
                      .width(magi::kW)
@@ -1834,7 +1791,6 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                      .fill(Fill::color({1, 0, 1, 0.94f}))
                      .child(text(u8"CHAMFER RULE VIOLATED",
                                  magi::type(magi::latin(), 56.0f, {0, 0, 0, 1}))
-                                .absolute()
                                 .left(30)
                                 .top(20)));
     return root;
