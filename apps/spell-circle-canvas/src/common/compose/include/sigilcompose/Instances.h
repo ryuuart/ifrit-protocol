@@ -231,12 +231,18 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   const bool cull = pool.size() >= kCullThreshold;
   const SkRect clip = cull ? canvas.getLocalClipBounds() : SkRect::MakeEmpty();
 
-  std::vector<SkRSXform> xforms;
-  std::vector<SkRect> tex;
-  std::vector<SkColor> colors;
+  // Scratch reuse: Live pools stamp every frame — three fresh vectors per
+  // frame is measurable at scale (the ui_particles port's friction report).
+  static thread_local std::vector<SkRSXform> xforms;
+  static thread_local std::vector<SkRect> tex;
+  static thread_local std::vector<SkColor> colors;
+  xforms.clear();
+  tex.clear();
+  colors.clear();
   xforms.reserve(pool.size());
   tex.reserve(pool.size());
   colors.reserve(pool.size());
+  bool tinted = false;
 
   const auto positions = pool.positions();
   const auto rotations = pool.rotations();
@@ -262,13 +268,19 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
         scale, rotations[i], positions[i].fX, positions[i].fY,
         cellTex.width() * 0.5f, cellTex.height() * 0.5f));
     tex.push_back(cellTex);
-    colors.push_back(tints[i].toSkColor());
+    const SkColor tint = tints[i].toSkColor();
+    tinted |= tint != SK_ColorWHITE;
+    colors.push_back(tint);
   }
   if (xforms.empty())
     return;
+  // All-white tints modulate to identity — skip the colors lane entirely
+  // (the untinted path is the common one for UI sprites).
   canvas.drawAtlas(atlas.image().get(), SkSpan(xforms.data(), xforms.size()),
                    SkSpan(tex.data(), tex.size()),
-                   SkSpan(colors.data(), colors.size()), SkBlendMode::kModulate,
+                   tinted ? SkSpan<const SkColor>(colors.data(), colors.size())
+                          : SkSpan<const SkColor>(),
+                   tinted ? SkBlendMode::kModulate : SkBlendMode::kSrcOver,
                    SkSamplingOptions(SkFilterMode::kLinear), nullptr, nullptr);
 }
 

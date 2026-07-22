@@ -68,7 +68,7 @@ inline constexpr SceneInfo kScenes[] = {
     {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Showcase", "the whole surface, at once"},
     {"kinetic card", "Showcase", "\xc2\xa7""8 kinetic grammar (study port)"},
-    {"night network", "Showcase", "the brush engine, ten constructions"},
+    {"night network", "Showcase", "the brush engine, twelve constructions"},
     {"persona menu", "Showcase", "\xc2\xa7""1 verified P3R grammar"},
     {"aero desktop", "Showcase", "\xc2\xa7""6 glass + colorization"},
     {"y2k chrome", "Showcase", "\xc2\xa7""2/\xc2\xa7""3 presets A/B"},
