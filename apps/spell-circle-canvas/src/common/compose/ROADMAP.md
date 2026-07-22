@@ -97,7 +97,7 @@ Natural API: `PropValue(const Output<float>*, std::function<float(float)>)`,
 or a `.map()`/`.scale()`/`.offset()` chain on the binding. The paint path
 already reads through a pointer; this is one call site.
 
-## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *six studies*, and now the most-cited item in the program
+## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *eight studies*, and by a distance the most-cited item in the program
 
 `Instances.h` names inventory cells and node-graph nodes as its cases.
 Both are usually **labelled**, and a `Pool` carries only position,
@@ -122,6 +122,17 @@ instances" but **a positioned leaf set** — N children with caller-supplied
 rects and no flex participation, skipping the Yoga pass. Generated
 geometry (tilings, lattices, node graphs, particle fields drawn as real
 elements) never wants layout, and today there is no way to say so.
+
+Two more details that the lane list does not cover, both from the Chladni
+plate's 9,580 settling sand grains:
+
+- **`tints()` is the only per-instance opacity lane**, so fading a subset
+  means rewriting RGBA every frame when only alpha moves.
+- **One pool cannot be split across several clipped parents.** That study
+  used a single canvas-wide leaf to keep one draw call, and therefore had
+  NO per-figure clip — keeping sand inside twelve rims became hand-tuned
+  radius arithmetic instead of `clip(true)`. A `clipPath` on the
+  instancing leaf, or per-instance layer lanes, closes that half.
 
 Two refinements arrived independently and both point away from "more Pool
 columns":
@@ -286,6 +297,20 @@ the right thing internally and hands out only the finished result.
   hollow face wants a blurred-stroke underlay under a stroked foreground.
   One pass per layer is the right answer, so the entry point wants the
   whole `PaintStyle`, not one `SkPaint`.
+- **`onPath`'s `autoFlip` cannot upright a run that WRAPS past the
+  crossover**, and by construction it never will: it is a decision about
+  the RUN, because flipping glyphs one at a time turns them over in place
+  and reverses reading order ("TECHNICOLOR" came out "ROLOCINHCET"). A
+  long centred run on a full circle spans both halves, the majority reads
+  upright, and it correctly does nothing — which looks like a dead flag
+  and was reported as one.
+
+  The missing feature is the engraver's own convention: a full-circle
+  inscription is cut as TWO runs, top and bottom set separately with the
+  bottom reversed. Wanted: split the run at the crossover automatically,
+  or a `TextPath::Wrap::TwoRuns` mode. (The decision now samples across
+  the whole run rather than reading one midpoint tangent, which is more
+  robust but does not change this.)
 - **No hollow-type preset.** Outline display type — a stroked face with
   the counters left open, the single most common title-card treatment
   there is — has no spelling at all. It is `PaintStyle` surgery: switch
