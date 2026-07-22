@@ -1092,6 +1092,19 @@ public:
    *  Interacts with the rest of the text surface the way you would hope:
    *  the style's underlays, overlays and decorations all still draw, and
    *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
+  /** Strokes the GLYPHS, under the fill — engraved display type, an
+   *  outlined label, a caption that has to survive over an image.
+   *
+   *  `Element::stroke()` dresses the node's BOX outline, which is a
+   *  different thing entirely, so thickening a face meant dropping to
+   *  `sigil::weave::PaintStyle::addUnderlay` with a hand-built stroke
+   *  paint. Three studies did it; one spelled "1 px outline plus offset
+   *  shadow" as 117 full re-draws of a paragraph through `echo()`.
+   *
+   *  Composes with `textFill()` — the stroke is a pass beneath whatever
+   *  fills the letterforms — and with the style's own underlays and
+   *  overlays, which it joins rather than replaces. */
+  Element &textStroke(float width, Fill fill);
   Element &onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----

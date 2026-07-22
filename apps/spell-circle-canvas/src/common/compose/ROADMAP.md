@@ -110,6 +110,7 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| **`Element::textStroke(width, Fill)`** | Three studies dropped to hand-built `PaintStyle` underlays; one spelled a 1 px outline as 117 re-draws of a paragraph | `Compose.h`, `Paint.cpp` |
 | **`Element::wipe(angleDeg, fraction)`** | Three studies. `trim()` walks the perimeter and `scaleX` squashes; the last workaround left the retained tree entirely and forfeited decorations, hit-testing and pruning on twelve nodes | `Compose.h`, `Paint.cpp` |
 | `textFill` + the `Unit` ramps | The metric band already maps the shader to a unit square, then `linearUnit`'s SkSL divided by the NODE size on top: t ≈ 0.003, every glyph flat on the first stop, silently — and `Material.h` advertised the two as the same trick | `Paint.cpp` |
 | `Slice::filter` | Nine-slice is mostly used FOR pixel art, and was locked to linear | `Decorations.h` |
@@ -449,11 +450,14 @@ the right thing internally and hands out only the finished result.
   the foreground paint to `kStroke_Style`, then hand-build a blurred
   stroke underlay for the shadow, because `decorations::dropShadow`
   operates on the node and **fills the letterforms' interiors**.
-- **No glyph-level stroke.** `Element::stroke()` dresses the node's *box*.
-  Thickening engraved display type means dropping to
-  `PaintStyle::addUnderlay` with a hand-built stroke paint.
-  Wanted: `Element::textStroke(width, Fill)` — the sibling of the item
-  above (that one *hollows* a face, this one *thickens* one).
+- ~~**No glyph-level stroke.**~~ **CLOSED** — `Element::textStroke(width,
+  Fill)` adds a stroke pass on the glyphs, under the fill, joining the
+  style's own underlays rather than replacing them. Three studies had
+  dropped to `PaintStyle::addUnderlay` by hand; one spelled "1 px outline
+  plus offset shadow" as 117 full re-draws of a paragraph through
+  `echo()`. It composes with `textFill()`, so engraved chrome type is now
+  two calls. (The hollow-type case above is its sibling and still open:
+  that one *hollows* a face, this one *thickens* one.)
 - **No way to shape a run without building an Element.** `measure()` is
   per-Element, so hand-placing 230 glyphs costs 230 layouts. Wanted:
   `FontContext::measureRun(u8string, TextStyle) -> vector<float>`.

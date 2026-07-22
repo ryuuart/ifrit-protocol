@@ -707,25 +707,38 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       b.iterations = 1; // documented — "exactly the right amount of bending"
       b.worldCollide = true;
       b.radius = 3.0f;
-      constexpr int R = 7;
-      constexpr float sp = 17.0f, w = 9.0f;
-      const float lean = (p % 2 == 0) ? 1.8f : -2.4f;
-      auto id = [](int r, int c) { return r * 2 + c; };
+      // A patch of cloth three wide and four tall, fully braced, base row
+      // pinned. Slenderness is the whole design question here: a 2-wide,
+      // 7-tall strip is a wet noodle at ONE iteration and folds flat under
+      // this study's gravity within a second — which is a fact about
+      // aspect ratio and iteration count, not about the paper.
+      constexpr int R = 4, C = 3;
+      constexpr float sp = 15.0f, w = 15.0f;
+      const float lean = (p % 2 == 0) ? 2.2f : -2.8f;
+      auto id = [](int r, int c) { return r * C + c; };
       for (int r = 0; r < R; ++r)
-        for (int c = 0; c < 2; ++c)
+        for (int c = 0; c < C; ++c)
           b.x.push_back({roots[p] + lean * (float)r + (float)c * w,
                          (float)r * sp});
       b.xo = b.x;
       b.invm.assign(b.x.size(), 1.0f);
-      b.invm[0] = b.invm[1] = 0.0f; // the base row is the root
-      for (int r = 0; r < R; ++r) {
-        addStick(b, id(r, 0), id(r, 1));
-        if (r + 1 < R) {
-          addStick(b, id(r, 0), id(r + 1, 0));
-          addStick(b, id(r, 1), id(r + 1, 1));
-          addStick(b, id(r, 0), id(r + 1, 1)); // the support stick
+      for (int c = 0; c < C; ++c)
+        b.invm[(size_t)id(0, c)] = 0.0f; // the base row is the root
+      for (int r = 0; r < R; ++r)
+        for (int c = 0; c < C; ++c) {
+          if (c + 1 < C)
+            addStick(b, id(r, c), id(r, c + 1));
+          if (r + 1 < R) {
+            addStick(b, id(r, c), id(r + 1, c));
+            // the documented support sticks, "between strategically chosen
+            // couples of vertices sharing a neighbor" — both diagonals, so
+            // every cell is a braced truss and the plant stands up
+            if (c + 1 < C)
+              addStick(b, id(r, c), id(r + 1, c + 1));
+            if (c > 0)
+              addStick(b, id(r, c), id(r + 1, c - 1));
+          }
         }
-      }
     }
   }
 
@@ -1014,7 +1027,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       pos[i] = a + d * 0.5f;
       rot[i] = std::atan2(d.fY, d.fX);
       frame[i] = cellBar;
-      size[i] = {L / 32.0f, 2.2f / 8.0f}; // cell is 32 x 8 logical
+      size[i] = {L / 32.0f, 3.2f / 8.0f}; // cell is 32 x 8 logical
       const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       tint[i] = errColor(e, f);
     }
@@ -1122,12 +1135,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
              stem.width = 2.0f;
              stem.fill = Fill::color(hex(0x8A8F9C, 0.70f));
              SkPathBuilder stems;
-             for (const Body &p : plants) {
-               for (size_t i = 0; i + 1 < p.x.size(); ++i) {
-                 stems.moveTo(drawn(p, i));
-                 stems.lineTo(drawn(p, i + 1));
+             for (const Body &p : plants)
+               for (const Stick &st : p.sticks) {
+                 stems.moveTo(drawn(p, (size_t)st.a));
+                 stems.lineTo(drawn(p, (size_t)st.b));
                }
-             }
              decorations::paintOn(c, ctx, stems.detach(), stem);
 
              paintRig(c, ctx, 1.0f, {0, 0}, f, true);
@@ -1967,7 +1979,12 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     // the sizes() lane (see the report) — a satisfied constraint holds the
     // stretch within ~1%, but the cell must not assume that.
     barAtlas = std::make_shared<instancing::Atlas>(2.0f);
-    cellBar = barAtlas->cell(box().fill(kBone), {32, 8});
+    // A PILL, not a bar: a capped cylinder is what a stick's collision
+    // proxy is, and it is the case the roadmap predicts sizes() cannot
+    // hold — one cell length serving 24 different stick lengths remaps the
+    // cell's aspect by 0.19x-0.63x in x against a fixed 0.40x in y, so the
+    // round ends come out as ellipses of that aspect. See the report.
+    cellBar = barAtlas->cell(box().corners({4}).fill(kBone), {32, 8});
     barPool = std::make_shared<instancing::Pool>();
     (void)barPool->sizes(); // materialise the lane
 
