@@ -840,9 +840,19 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                 : inst.paragraph->spans().front().style.paint;
         metric.foreground.setShader(nullptr);
         bool havePaint = false;
+        // Geometry-dependent materials resolve against a UNIT box here,
+        // not the node's. The local matrix below already maps the
+        // shader's [0,1]² onto the metric band, so uResolution baked from
+        // the node's layout size would divide a second time: a
+        // `linearUnit` ramp came out at t ≈ 0.003 and every glyph painted
+        // the first stop, flat and silently. Material.h advertises
+        // textFill and the Unit ramps as the same trick, and this is what
+        // makes that true.
+        PaintContext metricCtx = paintCtx;
+        metricCtx.size = {1.0f, 1.0f};
         const Fill f =
             (metricMat->isLive() || metricMat->geometryDependent())
-                ? metricMat->resolve(paintCtx)
+                ? metricMat->resolve(metricCtx)
                 : metricMat->toFill();
         if (f.kind == Fill::Kind::Shader && f.shaderValue &&
             !inst.lines.empty()) {

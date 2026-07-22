@@ -5771,3 +5771,37 @@ TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
   EXPECT_TRUE(corner(SkPaint::kMiter_Join));
   EXPECT_FALSE(corner(SkPaint::kRound_Join));
 }
+
+TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
+  // Material.h advertises textFill and the Unit ramps as the same trick,
+  // and it was the opposite: the metric band already maps the shader's
+  // [0,1]² onto the text, then linearUnit's SkSL divided by uResolution
+  // — the NODE's size — a second time. t came out around 0.003, every
+  // glyph painted the first stop, flat, and nothing said so. A logotype
+  // came back solid steel blue.
+  Host host(320, 160);
+  host.composer.render(box().padding(20).child(
+      text(u8"HH", whiteStyle(96))
+          .textFill(Material::linearUnit({0, 0}, {0, 1},
+                                         {{0.0f, {1, 0, 0, 1}},
+                                          {1.0f, {0, 0, 1, 1}}}))));
+  host.frame();
+
+  // Walk the glyph band and collect the reddest and bluest inked pixels.
+  int bestRedY = -1, bestBlueY = -1;
+  int bestRed = 0, bestBlue = 0;
+  for (int y = 0; y < 160; ++y)
+    for (int x = 0; x < 320; ++x) {
+      const SkColor c = host.pixel(x, y);
+      if (c == SK_ColorBLACK)
+        continue;
+      if ((int)SkColorGetR(c) > bestRed) { bestRed = SkColorGetR(c); bestRedY = y; }
+      if ((int)SkColorGetB(c) > bestBlue) { bestBlue = SkColorGetB(c); bestBlueY = y; }
+    }
+  ASSERT_GE(bestRedY, 0);
+  ASSERT_GE(bestBlueY, 0);
+  EXPECT_GT(bestRed, 180);
+  EXPECT_GT(bestBlue, 180);
+  // The ramp runs top to bottom across the CAP BAND, so red is above blue.
+  EXPECT_LT(bestRedY, bestBlueY - 20);
+}

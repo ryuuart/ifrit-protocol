@@ -716,20 +716,23 @@ Two levels, honoring "layout is just code":
    ```cpp
    template <typename L>
    concept LayoutScheme = requires(const L &l, const LayoutInput &in) {
-     { l.measure(in) } -> std::convertible_to<SkSize>;
-     { l.place(in) }   -> std::ranges::range;   // of SkRect, one per child
+     { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
    };
    // LayoutInput: constraints + each child's measured size (text leaves
    // already measure via SigilWeave).
 
    struct Grid {                       // ~20 lines of user code
      int columns; float gap;
-     SkSize measure(const LayoutInput &) const;
      std::vector<SkRect> place(const LayoutInput &) const;
    };
    Element layout(LayoutScheme auto scheme);       // container factory
    ...
    layout(Grid{.columns = 3, .gap = 12}).children(cells);
+   // NOTE: `place()` is the whole concept. This block used to advertise an
+   // optional `measure(in) -> SkSize` and the header never required or
+   // called one, so a scheme cannot size its own container — the spacejam
+   // study computes its table's height and then hardcodes `.height(870)`
+   // beside it. Recorded in ROADMAP.md; the doc no longer promises it.
    ```
 
 ### Querying — allowed, but only on the resolved side
