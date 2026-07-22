@@ -36,6 +36,12 @@ pixel-for-pixel — what asset generation wants). In the windowed host,
 **Cmd+S** or the capture button writes the current frame to
 `<sketch dir>/captures/<name>-NNN.png`.
 
+`--fps` sets the PRE-ROLL step, not just the capture rate. A sketch using
+`ticker.addFixed(hz, …)` has a catch-up clamp, so pre-rolling at a rate far
+below its own — `--at 8.4 --fps 1` — discards simulated time and lands
+somewhere earlier than you asked for. Keep `--fps` near the rate you would
+actually draw at; the clamp is behaving correctly.
+
 Asset sketches are the intended workflow for tilemaps, flourishes, and
 nine-slice frames: declare the exact canvas (`ctx.canvas(96, 96)`, a
 transparent `ctx.background`), draw, export headless, load through
