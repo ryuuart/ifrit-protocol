@@ -865,6 +865,21 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
     // the beaten edge, and the corners rounded BY HAMMERING. PatternBrush
     // corner tiles: a facet, not a fillet.
+    //
+    // `cornerAlign` is spelled out below and the value is the DEFAULT, which
+    // is the point. It defaults to Bisector only since f706f5d (12:03);
+    // before that every corner behaved as Outgoing, and a study written
+    // before that hour has art in the other frame and no way to say so — one
+    // did, and its corners silently turned 45 degrees. This plate was
+    // written at 12:36 against the new header, so the facets were drawn and
+    // approved on the bisector, and on a bisector is where they belong: a
+    // hammer lands on the CORNER, and the flat it leaves straddles both legs
+    // instead of lying along one of them. Audited by rendering the same
+    // frame with Outgoing forced — the six facets rotate 13 to 35 degrees
+    // (half the chamfer's own turn, perturbed by ops::sketchy) and nothing
+    // snaps into or out of alignment, because a stubby lozenge at elongation
+    // 1.4 has no strong axis to align. So the value stands, and now it is
+    // stated rather than inherited.
     g.child(box()
                 .inset(0)
                 .outline([](SkSize s) {
@@ -886,6 +901,8 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                 .advance = 26.0f,
                                 .cornerAngleDeg = 30.0f,
                                 .cornerLength = 34.0f,
+                                .cornerAlign = brushes::PatternBrush::
+                                    CornerAlign::Bisector,
                                 .reach = 22.0f}))
                 .cache(Cache::Texture)
                 .key("ironedge"));
