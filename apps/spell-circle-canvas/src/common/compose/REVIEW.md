@@ -757,7 +757,18 @@ Sequenced so each phase is independently valuable and de-risks the next:
   draws, presets in `<sigilcompose/Kinetic.h>`), `layouts::BaselineGrid` +
   `ModularGrid` (`af9ad91`, `84df6d0`). TextStyle grew fluent
   `variation()/weight()/opticalSize()` (order-stable in-place replace).
-  Still open: `instances()` + SoA + `drawAtlas` flyweight, `VariationDrive`
+  `instances()` LANDED (`<sigilcompose/Instances.h>`, ns
+  `sigil::compose::instancing` — the factory can't share the namespace
+  name): Atlas (element-tree cells, Pattern's forced-dims bake rule,
+  shelf-packed, oversampled) + Pool (user-owned SoA; EnTT stays on the
+  user side) + one `drawAtlas` stamp; Mode::Data prunes on
+  (ptrs, revision) via memo — a memo SHELL drops chained layout props, so
+  the leaf fills its parent by construction and the wrapper is the
+  placement API; Mode::Live is the Cache::None particle path.
+  `place::grid/ring/repeat` (skottie Repeater law: exponential scale).
+  Measured: 10k instances 36.8 ms CPU raster / **0.18 ms Graphite**
+  (18 ns/sprite, ~200×; gated clip-cull past 2048).
+  Still open: `VariationDrive`
   (per-font axis probing — wght is NOT paint-safe, GRAD is the
   advance-invariant weight).
 - **P4 — Modes docs + gallery rewrite.** §11 scenes + §13 onboarding.

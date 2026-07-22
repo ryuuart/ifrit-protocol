@@ -385,6 +385,90 @@ static void BM_Draw_100Rows_Cached_Graphite(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_100Rows_Cached_Graphite);
 
+// ---- instances(): the flyweight repeat layer at scale --------------------
+
+#include <sigilcompose/Instances.h>
+
+namespace {
+
+std::pair<std::shared_ptr<sigil::compose::instancing::Atlas>,
+          std::shared_ptr<sigil::compose::instancing::Pool>>
+makeInstanceScene(size_t count) {
+  using namespace sigil::compose::instancing;
+  auto atlas = std::make_shared<Atlas>();
+  for (int i = 0; i < 4; ++i)
+    atlas->cell(box()
+                    .corners({6})
+                    .fill(Fill::color({0.2f + 0.2f * (float)i, 0.5f, 0.8f, 1})),
+                {24, 24});
+  auto pool = std::make_shared<Pool>();
+  uint32_t rng = 12345;
+  auto next = [&rng] {
+    rng = rng * 1664525u + 1013904223u;
+    return (float)(rng >> 8) / (float)(1u << 24);
+  };
+  for (size_t i = 0; i < count; ++i)
+    pool->add({next() * 800.0f, next() * 2400.0f}, (int)(i % 4),
+              next() * 6.28f, 0.5f + next());
+  return {atlas, pool};
+}
+
+} // namespace
+
+/** 10k pool, Live mode: full per-frame stamp cost (array build + one
+ *  drawAtlas) on CPU raster. */
+static void BM_Draw_Instances10k_Live(benchmark::State &state) {
+  using namespace sigil::compose::instancing;
+  Host host;
+  auto [atlas, pool] = makeInstanceScene(10000);
+  host.composer.render(
+      box().child(instances(atlas, pool, Mode::Live)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_Instances10k_Live);
+
+/** Same pool, Data mode, untouched: the cached-picture replay price. */
+static void BM_Draw_Instances10k_DataCached(benchmark::State &state) {
+  using namespace sigil::compose::instancing;
+  Host host;
+  auto [atlas, pool] = makeInstanceScene(10000);
+  host.composer.render(box().child(instances(atlas, pool)));
+  host.composer.draw(*host.surface->getCanvas());
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+BENCHMARK(BM_Draw_Instances10k_DataCached);
+
+/** The design claim: instanced masses are a GPU play. Same 10k pool,
+ *  Live mode, Graphite target, per-frame submit. */
+static void BM_Draw_Instances10k_Live_Graphite(benchmark::State &state) {
+  using namespace sigil::compose::instancing;
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host;
+  auto [atlas, pool] = makeInstanceScene(10000);
+  host.composer.render(
+      box().child(instances(atlas, pool, Mode::Live)));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite(*graphiteContext);
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite(*graphiteContext);
+  }
+}
+BENCHMARK(BM_Draw_Instances10k_Live_Graphite);
+
 static void BM_Draw_Bloom_PictureReplay_Graphite(benchmark::State &state) {
   SkiaGraphiteContext *graphiteContext = graphite();
   if (!graphiteContext) {

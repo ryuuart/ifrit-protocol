@@ -18,6 +18,17 @@
  * For a display/view transform, author in the config's scene-linear role and
  * the view maps linear → display. Off by default; costs one saveLayer while
  * set.
+ *
+ * POSITIONING (2026-07-21): OCIO here is BAKE/EXPORT TOOLING, not a runtime
+ * system. The runtime carries only the baked LUT texture — one sample per
+ * pixel in the final composite, the same technique game engines ship for
+ * grading (measured ~free on Graphite; see STRESS_TESTS.md). OCIO-proper
+ * (config parsing, processors, tetrahedral CPU eval) belongs at bake time
+ * and at CAPTURE/EXPORT time, where single frames can afford full-fidelity
+ * transforms. Scene-linear/ACES authoring workflows (linear palettes, F16
+ * intermediates for >1.0 values) are rendering-pipeline territory and are
+ * deliberately NOT pursued for the realtime path. LUTs bake to F16: F32
+ * textures are not linearly filterable on Apple GPUs.
  */
 
 #include "sigilcompose/Compose.h"

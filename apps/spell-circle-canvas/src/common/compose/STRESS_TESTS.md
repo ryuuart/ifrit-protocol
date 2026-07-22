@@ -350,3 +350,10 @@ where "the framework is slow" impressions came from). Both fall back
 to raster-and-upload off Metal, and `Composer::purgeCaches()` handles
 backend switches (GPU-minted cache images must not replay onto the
 next canvas).
+
+**instances() (2026-07-21, `<sigilcompose/Instances.h>`):** the flyweight
+repeat layer — Atlas of element-tree cells + user-owned SoA Pool + one
+`drawAtlas`. 10k instances: 36.8 ms CPU raster (3.7 µs/sprite — raster
+replay re-rasterizes, Data≈Live there) vs **0.18 ms Graphite Live**
+(18 ns/sprite, ~200×) — masses are a GPU play, as designed. Data mode
+prunes on (atlas, pool, revision); Live is the Cache::None particle path.
