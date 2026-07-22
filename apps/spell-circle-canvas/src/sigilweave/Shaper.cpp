@@ -9,11 +9,15 @@
 namespace sigil::weave {
 
 SkFont makeFont(const sk_sp<SkTypeface> &typeface, float fontSize,
-                float scaleX) {
+                float scaleX, bool aliased) {
   SkFont font(typeface, fontSize);
   if (scaleX != 1.0f)
     font.setScaleX(scaleX);
-  font.setEdging(SkFont::Edging::kAntiAlias);
+  // Skia takes glyph edging from the FONT, never the paint, so this is
+  // the only place a caller can ask for hard edges — an X11 core font, a
+  // console face, any 1-bit era reconstruction.
+  font.setEdging(aliased ? SkFont::Edging::kAlias
+                         : SkFont::Edging::kAntiAlias);
   // Subpixel positioning only where it's visible (small text). At large
   // sizes it multiplies every glyph into per-phase atlas entries, and
   // animated layouts then re-rasterize thousands of big masks every frame
@@ -36,6 +40,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   std::memcpy(&view.fontSizeBits, &style.fontSize, sizeof(float));
   std::memcpy(&view.letterSpacingBits, &style.letterSpacing, sizeof(float));
   std::memcpy(&view.scaleXBits, &style.scaleX, sizeof(float));
+  view.aliased = style.aliased;
   view.script = script;
   view.rightToLeft = rightToLeft;
   view.vertical = vertical;
@@ -55,6 +60,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   key.fontSizeBits = view.fontSizeBits;
   key.letterSpacingBits = view.letterSpacingBits;
   key.scaleXBits = view.scaleXBits;
+  key.aliased = view.aliased;
   key.script = script;
   key.rightToLeft = rightToLeft;
   key.vertical = vertical;
@@ -67,6 +73,7 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
   shapedWord->typeface = typeface;
   shapedWord->fontSize = style.fontSize;
   shapedWord->scaleX = style.scaleX;
+  shapedWord->aliased = style.aliased;
   shapedWord->vertical = vertical;
 
   if (!typeface || text.empty()) {
@@ -174,7 +181,8 @@ ShapedWordRef shapeWord(FontContext &fontContext, const ShapingStyle &style,
 const sk_sp<SkTextBlob> &wordBlob(const ShapedWord &word) {
   if (!word.blobCache && !word.glyphs.empty()) {
     SkTextBlobBuilder builder;
-    const SkFont font = makeFont(word.typeface, word.fontSize, word.scaleX);
+    const SkFont font =
+        makeFont(word.typeface, word.fontSize, word.scaleX, word.aliased);
     const auto &blobRun =
         builder.allocRunPos(font, static_cast<int>(word.glyphs.size()));
     std::memcpy(blobRun.glyphs, word.glyphs.data(),

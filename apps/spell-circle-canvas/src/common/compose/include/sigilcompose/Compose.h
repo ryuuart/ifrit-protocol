@@ -954,7 +954,21 @@ public:
    *  never relayouts, and it covers the node's decorations too, because a
    *  reveal reveals. */
   Element &wipe(float angleDeg, PropValue<float> fraction);
+  /** A decoration painted OVER the fill and UNDER the content and
+   *  children — the slot between the two.
+   *
+   *  `background()` hides beneath the FILL, which the header below does
+   *  not say and which sends a first attempt at bevelled chrome back as
+   *  flat slabs: 31 bevels all drawing, underneath their own surfaces.
+   *  `foreground()` paints above the children, so a textured button greys
+   *  out its own label. This is the layer that 100% of bevelled chrome
+   *  actually wants. (Its doc comment was orphaned once already, by an
+   *  insertion above it — hence the belt and braces.) */
   Element &overlay(Decoration d);
+  /** A decoration painted BENEATH the fill (the CSS box-shadow
+   *  ordering) — shadows, ground textures, anything the surface sits on
+   *  top of. If you want it over the surface but under the children, that
+   *  is `overlay()` above. */
   Element &background(Decoration d);
   Element &foreground(Decoration d);
   /** fill's peer (the Photoshop/Illustrator mental model): dress the

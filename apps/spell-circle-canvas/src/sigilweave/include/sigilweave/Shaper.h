@@ -39,6 +39,7 @@ struct ShapedWord {
   float fontSize = 0;         ///< px size every metric below is scaled to
   float scaleX = 1.0f;        ///< horizontal condensation baked into
                               ///< positions/advances (draw fonts must match)
+  bool aliased = false;       ///< hard-edged rasterisation (ShapingStyle)
 
   std::vector<uint16_t> glyphs;   ///< glyph IDs in `typeface`
   std::vector<SkPoint> positions; ///< pen-relative glyph origins
@@ -81,6 +82,7 @@ shapeWord(FontContext &fontContext, const ShapingStyle &style,
  * metrics — rendering must match shaping or positions drift.
  */
 [[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface> &typeface,
-                              float fontSize, float scaleX = 1.0f);
+                              float fontSize, float scaleX = 1.0f,
+                              bool aliased = false);
 
 } // namespace sigil::weave
