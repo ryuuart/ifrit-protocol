@@ -210,9 +210,15 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // back — a kMultiply child would resolve against transparent black. This
   // is the trap automatic promotion has to avoid, and it is invisible in a
   // still frame of the common case, so it is computed rather than assumed.
-  inst.subtreeReadsBackdrop =
-      childReadsBackdrop || backdropEffectOf(node) != nullptr ||
-      node.paint.blendMode != SkBlendMode::kSrcOver;
+  // Split into halves, because the two cache strategies ask different
+  // questions of it. Whole-subtree promotion bakes the children too, so it
+  // must ask about the whole subtree. A split bake (§15) replaces only the
+  // node's OWN layer and draws children over the blit, so it must ask only
+  // about the node's own paint — the children composite against the blit
+  // exactly as they would against freshly rasterized pixels.
+  inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
+                          node.paint.blendMode != SkBlendMode::kSrcOver;
+  inst.subtreeReadsBackdrop = inst.ownReadsBackdrop || childReadsBackdrop;
 
   // subtreeVolatile gates the node's own caches: blocked by content volatility
   // here or ANY volatility below (children paint inside the recording,
@@ -1366,9 +1372,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     why = Prom::Composited;
   else if (!upright)
     why = Prom::Transformed;
-  else if (backdropEffectOf(node) || layerEffectOf(node) || node.clipContent ||
-           inst.subtreeReadsBackdrop)
+  else if (layerEffectOf(node) || node.clipContent)
     why = Prom::Filtered;
+  else if (inst.subtreeReadsBackdrop) // incl. this node's own backdrop()
+    why = Prom::ReadsBackdrop;
   else if (rect.width() < 0.5f || rect.height() < 0.5f)
     why = Prom::TooBig; // degenerate, not large — same "cannot bake" bucket
 
