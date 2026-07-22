@@ -355,13 +355,19 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
     m_sketch->update(m_clock.elapsed(), ctx);
   }
   applyCanvasSpec(); // ctx.canvas() mid-run = p5's resizeCanvas
+  const auto drawStart = std::chrono::steady_clock::now();
   {
     PhaseMark mark(Phase::Draw);
     m_composer->draw(canvas);
   }
-  const double ms = std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - start)
-                        .count();
+  const auto end = std::chrono::steady_clock::now();
+  const double ms =
+      std::chrono::duration<double, std::milli>(end - start).count();
+  m_lastTiming.totalMs = ms;
+  m_lastTiming.updateMs =
+      std::chrono::duration<double, std::milli>(drawStart - start).count();
+  m_lastTiming.drawMs =
+      std::chrono::duration<double, std::milli>(end - drawStart).count();
   if (m_workMs.size() >= 120)
     m_workMs.erase(m_workMs.begin());
   m_workMs.push_back(ms);

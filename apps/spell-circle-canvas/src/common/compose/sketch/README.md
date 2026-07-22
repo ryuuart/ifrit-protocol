@@ -47,6 +47,51 @@ nine-slice frames: declare the exact canvas (`ctx.canvas(96, 96)`, a
 transparent `ctx.background`), draw, export headless, load through
 SigilLoader in the demos. `sketches/frame_asset.cpp` is the template.
 
+## Measuring: `--bench` and the 60 FPS gate
+
+```sh
+ComposeSketch <sketch.cpp> --bench [--at <seconds>] [--bench-frames <n>]
+                                   [--fps <n>] [--scale <n>]
+```
+
+```
+BENCH penrose_paving 1400x900 frames=120 p50=7.31ms p99=11.02ms mean=7.61ms \
+      max=14.90ms fps50=136.8 VERDICT=PASS
+  phases (mean ms): update 0.42 [reconcile 0.31] · draw 7.19 [layout 0.04 · paint 7.10]
+  last frame: 214 nodes painted, 0 pictures recorded, 96 pictures live, …
+  PASS — p99 11.02 ms is inside the 16.6 ms budget (60 FPS gate)
+```
+
+The gate is **p99 < 16.6 ms**, i.e. a sustained 60 FPS at the sketch's own
+declared canvas size. `--bench` always exits 0; the verdict is the output,
+not the exit code, so it can sit in a pipeline.
+
+What it does, and why it is not `--frame`'s "work ms": the capture path
+steps the clock on an **8×8 scratch surface**, where every draw is clipped
+away — so its number measures describe + reconcile with the pixels
+missing, and a sketch whose whole cost is one full-canvas `patterns::grain`
+reads as free. `--bench` allocates the real canvas (the surface
+`capture()` would make), warms it to `--at` so SkSL programs, `Cache::
+Texture` bakes, brush `snapshot()`s and glyph atlases are hot, then times
+`--bench-frames` (default 120) genuine frames: clear → tick → ticker →
+`Sketch::update` (your `describe()` + `render()`) → `Composer::draw` →
+readback.
+
+The phase line answers "what dominates" first:
+
+- **`update` / `reconcile` high** → you are rebuilding the tree every
+  frame. Describe once in `setup()` and bind `choreograph::Output`s, or
+  `memo()` the subtrees whose props did not change.
+- **`paint` high** → per-pixel cost. `debug::coverage` finds the node; a
+  static SkSL Material's *shader* caches but its *pixels do not* (a
+  picture records the draw call, not the result), so
+  `.cache(Cache::Texture)` on a full-canvas material is the usual
+  hundred-millisecond win.
+- **`pictures recorded` non-zero every frame** → something incomparable
+  (a raw `custom()` program, a `StampModFn`, an `ops::PathOp`) is
+  defeating the cache. `memo()` the host node or keep the callable
+  pointer-stable.
+
 ## Writing a sketch
 
 ```cpp
