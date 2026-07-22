@@ -99,6 +99,34 @@ public:
     m_rotate = degrees;
     return *this;
   }
+  /** Pan the repeat, in the node's own pixels — mapping only, no rebake.
+   *
+   *  This is plumbing that already existed: `bake()` hands its matrix to
+   *  `Material::image`, whose `localMatrix` has always taken a
+   *  translation, so `Pattern` was exposing two thirds of a matrix its
+   *  own backend takes whole. Phase is the defining property of a
+   *  surprising number of repeats — a twill advances one thread per pick,
+   *  a conveyor belt moves, a barber pole turns — and two studies wrote
+   *  the pattern twice for want of it.
+   *
+   *  Still describe-time: animating a pan means re-describing, or a bound
+   *  uniform in hand-written SkSL. `offset(PropValue<SkPoint>)` under the
+   *  paint-only volatility contract is the version that closes it fully
+   *  (ROADMAP.md §14). */
+  Pattern &offset(SkPoint px) {
+    m_offset = px;
+    return *this;
+  }
+  /** How the baked tile samples. Defaults to linear, which is right for
+   *  organic tiles and wrong for anything on a pixel grid — a woven
+   *  cloth, a dither, a bitmap-font sheet. `Material::image()` has always
+   *  taken this; `Pattern` did not, which is the same signature-diff
+   *  discoverability trap `Element::sampling()` closed on the image
+   *  leaf. */
+  Pattern &sampling(SkSamplingOptions options) {
+    m_sampling = options;
+    return *this;
+  }
   uint32_t currentSeed() const { return m_state ? m_state->seed : 0; }
 
   /** Bake-once + wrap as a repeating Material (program tiles). */
@@ -147,13 +175,16 @@ private:
     }
     SkMatrix local = SkMatrix::RotateDeg(m_rotate);
     local.preScale(m_scale, m_scale);
+    local.postTranslate(m_offset.fX, m_offset.fY);
     return Material::image(st.baked, SkTileMode::kRepeat, SkTileMode::kRepeat,
-                           local, SkSamplingOptions(SkFilterMode::kLinear));
+                           local, m_sampling);
   }
 
   std::shared_ptr<State> m_state;
   float m_scale = 1.0f;
   float m_rotate = 0.0f;
+  SkPoint m_offset = {0, 0};
+  SkSamplingOptions m_sampling{SkFilterMode::kLinear};
 };
 
 } // namespace sigil::compose
