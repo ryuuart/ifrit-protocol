@@ -1649,7 +1649,15 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       !inst.children.empty() && !inst.ownReadsBackdrop &&
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
       leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
-      recordingDepth == 0 && !inst.transformLive && !totalM.hasPerspective();
+      recordingDepth == 0 && !inst.transformLive &&
+      // `upright` for the same measured reason promotion needs it, and it
+      // is the SAME construction: an integer device offset concatenated
+      // onto the node's matrix. Under rotation a shader's local coordinates
+      // come back through an inverse that cannot cancel that offset
+      // exactly, and the antialiased edges land ~1 LSB apart. Leaving this
+      // out was the split quietly holding itself to a weaker standard than
+      // the promoter beside it.
+      upright;
   if (!splitCandidate)
     inst.splitBake = false;
   if (splitCandidate) {

@@ -5089,6 +5089,291 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   EXPECT_NEAR(SkColorGetR(c), 102, 12); // 0.4 · 255 on black
 }
 
+// ---------------------------------------------------------------------------
+// §15 — the SPLIT bake. Volatility is declared per NODE, so a static ground
+// plane carrying one moving child shares the child's verdict and loses: the
+// plane is re-rasterized every frame in order to redraw the child on top of
+// it (34.12 ms and 14.29 ms of self time on two 888x666 nodes of
+// genesis_fire, both reporting "its content changes every frame" about a
+// child). The split bakes the node's OWN paint and draws the live children
+// over the blit.
+
+namespace {
+/** THE §15 FIXTURE, and every part of it is load-bearing.
+ *
+ *  The own paint deliberately OVERLAPS ITSELF — a background stroke under a
+ *  runtime shader under an overlay stroke, plus a foreground stroke — so
+ *  that compositing genuinely happens INSIDE the baked layer. That is the
+ *  one real risk in the pixel argument: srcOver is associative in exact
+ *  arithmetic, and a layer quantizes its intermediate to 8 bits where a
+ *  direct draw quantizes a different intermediate. A fixture whose own
+ *  paint is a single draw could not have found a discrepancy if there were
+ *  one.
+ *
+ *  The foreground matters for a second reason: foregrounds paint AFTER the
+ *  children, so a bake that swallowed them would draw them UNDER the child
+ *  and this test would see it.
+ *
+ *  The child rides a bound Output, which is what makes the node volatile
+ *  and is the shape the corpus actually has (§15's citation is a disc bound
+ *  to a loop). `clipped` and `childBlend` are the two conditions the spec
+ *  got wrong and the ones promotion refuses. */
+choreograph::Output<float> gSplitSweep{0.0f};
+
+/** ONE effect for the whole process, and this is not tidiness.
+ *
+ *  `heavyEffect()` mints a fresh SkRuntimeEffect on every call, and a fresh
+ *  effect makes the material RECIPE compare unequal — so a fixture that
+ *  re-describes each frame dirties the node's own paint each frame and no
+ *  bake of any kind can hold. Every other cache test in this file calls
+ *  `render()` once and then `frame()`, so none of them ever met this. The
+ *  split has to re-describe, because the whole point is that the child
+ *  moves. The corpus does not hit it because real materials are built from
+ *  comparable values; a raw SkSL pointer is the one thing that is not. */
+sk_sp<SkRuntimeEffect> sharedHeavyEffect() {
+  static sk_sp<SkRuntimeEffect> effect = heavyEffect(false);
+  return effect;
+}
+
+Element splitPlane(bool clipped, SkBlendMode childBlend) {
+  Element plane = box()
+                      .key("plane")
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .width(200)
+                      .height(200)
+                      .background(util::stroke(6.0f, Fill::color({0.2f, 0.4f,
+                                                                  0.9f, 0.6f})))
+                      .fill(Material::sksl(sharedHeavyEffect()))
+                      .overlay(util::stroke(3.0f, Fill::color({1.0f, 0.9f,
+                                                               0.2f, 0.45f})))
+                      .foreground(util::stroke(1.5f,
+                                               Fill::color({1, 1, 1, 0.5f})));
+  if (clipped)
+    plane.clip(true);
+  plane.child(box()
+                  .absolute()
+                  .left(10)
+                  .top(80)
+                  .width(50)
+                  .height(50)
+                  .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
+                  .blend(childBlend)
+                  .translateX(bind(&gSplitSweep).scale(130.0f)));
+  return profiledUnder(std::move(plane));
+}
+
+/** The worst frame-to-frame divergence over the child's WHOLE traverse.
+ *
+ *  Not one still: a split that is exact where the child happens to sit and
+ *  wrong where it crosses the bake's own overlay would pass a single
+ *  capture. The sweep is what makes the claim about the mechanism rather
+ *  than about one position. */
+size_t worstSplitDivergence(bool clipped, SkBlendMode childBlend) {
+  Host on(200, 200), off(200, 200);
+  off.composer.setAutoTexturePromotion(false);
+  size_t worst = 0;
+  for (int i = 0; i < 32; ++i) {
+    gSplitSweep = (float)i / 32.0f;
+    on.composer.render(splitPlane(clipped, childBlend));
+    off.composer.render(splitPlane(clipped, childBlend));
+    on.frame();
+    off.frame();
+    if (!identicalPixels(off, on, 200, 200)) {
+      SkBitmap a, b;
+      a.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+      b.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+      off.surface->readPixels(a.pixmap(), 0, 0);
+      on.surface->readPixels(b.pixmap(), 0, 0);
+      size_t differing = 0;
+      for (int y = 0; y < 200; ++y)
+        for (int x = 0; x < 200; ++x)
+          differing += a.getColor(x, y) != b.getColor(x, y);
+      worst = std::max(worst, differing);
+    }
+  }
+  return worst;
+}
+} // namespace
+
+TEST(ComposeCache, SplitsAnExpensiveOwnPaintFromItsMovingChild) {
+  Host host(200, 200);
+  host.composer.setProfiling(true);
+  for (int i = 0; i < 24; ++i) {
+    gSplitSweep = (float)i / 24.0f;
+    host.composer.render(splitPlane(false, SkBlendMode::kSrcOver));
+    host.frame();
+  }
+  const Composer::NodeCost *row = requireRow(host.composer, "plane");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::SplitOwn)
+      << "a static own paint costing " << row->selfMs
+      << " ms per frame was re-rasterized to redraw a moving child over it";
+  EXPECT_EQ(row->promotion, Composer::Promotion::SplitBaked);
+  // And the node really is refused by the ordinary promoter, or "split" is
+  // true for the wrong reason: a node the promoter would have baked whole
+  // proves nothing about splitting.
+  EXPECT_TRUE(row->refused(Composer::Promotion::Volatile))
+      << "this node is not volatile, so nothing above tested the split";
+}
+
+TEST(ComposeCache, SplitBakeIsPixelIdenticalAcrossTheChildsMotion) {
+  // THE constraint, and the argument it replaces. Promotion's claim is "an
+  // integer device translation cannot change rasterisation". The split's is
+  // strictly stronger, because the bake replaces only PART of what the node
+  // paints and the children are drawn over the blit afterwards:
+  //
+  //   painting the own layer into a transparent device-aligned surface,
+  //   blitting it, then painting the children over the result must produce
+  //   the same pixels as painting own-then-children directly.
+  //
+  // srcOver is associative, so that holds in exact arithmetic. What is NOT
+  // free is the 8-bit rounding of the intermediate, and this fixture's own
+  // paint overlaps itself specifically so that the intermediate exists.
+  EXPECT_EQ(worstSplitDivergence(false, SkBlendMode::kSrcOver), 0u)
+      << "splitting the own paint from the children changed pixels";
+}
+
+TEST(ComposeCache, ABlendingChildIsFineUnderTheSplitAndFatalUnderPromotion) {
+  // The one place the split is SAFER than whole-subtree promotion, and it
+  // is worth an assertion rather than an argument because it inverts a rule
+  // three other tests in this file enforce.
+  //
+  // Under promotion a non-srcOver child is fatal: it sits INSIDE the bake
+  // and resolves against transparent black. Under the split the blit lands
+  // BEFORE the children, so the child resolves against exactly the
+  // destination bytes it would have found anyway. Same for a child with a
+  // backdrop filter.
+  for (SkBlendMode mode : {SkBlendMode::kMultiply, SkBlendMode::kScreen,
+                           SkBlendMode::kPlus}) {
+    EXPECT_EQ(worstSplitDivergence(false, mode), 0u)
+        << "a " << (int)mode << "-blended child diverged under the split";
+  }
+}
+
+TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
+  // §15's spec said to exclude clipContent alongside layer effects, because
+  // all three "wrap both halves". Only the layer effect has to be: a filter
+  // applies to the UNION of own paint and children, and filtering the own
+  // half alone is a different picture. A clip is opened and closed INSIDE
+  // each phase — the phase flag skips only the content — so both halves get
+  // the identical clip in identical device geometry.
+  //
+  // That is not a nicety. §15's own citation node, genesis_fire's
+  // regolith(), carries .clip(true) because it clips its disc to a limb
+  // outline — which is exactly WHY the disc is a child rather than a
+  // sibling. Excluding clips would have shipped a feature that refuses the
+  // one example it was written for, and every other test here would still
+  // have passed.
+  Host host(200, 200);
+  host.composer.setProfiling(true);
+  for (int i = 0; i < 24; ++i) {
+    gSplitSweep = (float)i / 24.0f;
+    host.composer.render(splitPlane(true, SkBlendMode::kSrcOver));
+    host.frame();
+  }
+  const Composer::NodeCost *row = requireRow(host.composer, "plane");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::SplitOwn)
+      << "a clipped node was refused the split, which is the shape the "
+         "citation study actually has";
+  EXPECT_EQ(worstSplitDivergence(true, SkBlendMode::kMultiply), 0u)
+      << "the clip was not reproduced identically in both phases";
+}
+
+TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
+  // THE POSITIVE CONTROL. "It was split" proves nothing on its own: a node
+  // split for some unrelated reason passes exactly as well as one split for
+  // the reason under test. So render the SAME scene with the child's
+  // binding replaced by the constant it would have held — the only
+  // difference — and require that the node is promoted WHOLE instead.
+  //
+  // Together the two halves say: this node's own paint is bakeable, and the
+  // only thing deciding between a whole bake and a split one is whether the
+  // child moves. A change that split everything fails this; one that split
+  // nothing fails its sibling.
+  const auto still = [] {
+    return profiledUnder(
+        box()
+            .key("plane")
+            .absolute()
+            .left(0)
+            .top(0)
+            .width(200)
+            .height(200)
+            .background(util::stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f,
+                                                        0.6f})))
+            .fill(Material::sksl(sharedHeavyEffect()))
+            .overlay(util::stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f,
+                                                     0.45f})))
+            .foreground(util::stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
+            .child(box()
+                       .absolute()
+                       .left(10)
+                       .top(80)
+                       .width(50)
+                       .height(50)
+                       .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
+                       .translateX(65.0f)));
+  };
+  Host host(200, 200);
+  host.composer.setProfiling(true);
+  host.composer.render(still());
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = requireRow(host.composer, "plane");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
+      << "the same node with a STILL child was not promoted whole either, "
+         "so the split tests above prove nothing about the child's motion";
+  EXPECT_FALSE(row->refused(Composer::Promotion::Volatile));
+}
+
+TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
+  // `promotion` is a first-match verdict, so a node that is both volatile
+  // and clipped reported only Volatile — and an author who fixed the
+  // volatility then met a second refusal nobody had mentioned. §15 grew
+  // that population rather than shrinking it, so the mask carries all of
+  // them at once. `promotion` stays the primary outcome, which is why every
+  // assertion in this file that reads it still means what it meant.
+  // The combination is §15's own example: `Volatile` is reported first, so
+  // an author who lifts the moving child out then meets `clip(true)` behind
+  // it, and a rotation behind that. (Composited is deliberately NOT in this
+  // set — opacity only reaches the refusal through the childless leaf fast
+  // path, which a clipped node with children can never take. Two refusals
+  // that cannot co-occur would have made this test unfalsifiable.)
+  Host host(220, 220);
+  host.composer.setProfiling(true);
+  host.composer.render(profiledUnder(
+      expensivePanel().key("many").clip(true).rotate(30.0f).child(
+          box().absolute().left(4).top(4).width(20).height(20).fill(red())
+              .translateX(bind(&gSplitSweep).scale(40.0f)))));
+  for (int i = 0; i < 24; ++i) {
+    gSplitSweep = (float)i / 24.0f;
+    host.frame();
+  }
+  const Composer::NodeCost *row = requireRow(host.composer, "many");
+  ASSERT_NE(row, nullptr);
+  EXPECT_TRUE(row->refused(Composer::Promotion::Volatile));
+  EXPECT_TRUE(row->refused(Composer::Promotion::Transformed));
+  EXPECT_TRUE(row->refused(Composer::Promotion::Filtered));
+  // …and the primary verdict is still exactly the first of them in the
+  // documented order, which is the property that keeps the two from ever
+  // disagreeing: `why` is DERIVED from the mask, not computed beside it.
+  EXPECT_EQ(row->promotion, Composer::Promotion::Volatile);
+  // A node with nothing wrong with it must report an EMPTY mask, or
+  // "refused(X) is true" above is true of everything and tests nothing.
+  Host clean(220, 220);
+  clean.composer.setProfiling(true);
+  clean.composer.render(profiledUnder(expensivePanel().key("clean")));
+  for (int i = 0; i < 24; ++i)
+    clean.frame();
+  const Composer::NodeCost *ok = requireRow(clean.composer, "clean");
+  ASSERT_NE(ok, nullptr);
+  EXPECT_EQ(ok->refusals, 0u);
+}
+
 TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
   // #34: backdrop() clipped the node's own decorations to its shape.
   Host host;

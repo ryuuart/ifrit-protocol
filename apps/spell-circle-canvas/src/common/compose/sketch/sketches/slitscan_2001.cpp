@@ -199,6 +199,7 @@
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Legibility.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1687,19 +1688,18 @@ void SlitScan2001::drawRig(SkCanvas &c, const PaintContext &ctx) {
     // below is the leader pair, the worm-gear rail and the scale note. A
     // 2 px knockout in the panel colour is what a drafting plate does when
     // a note has to cross the drawing.
-    SkPaint halo;
-    halo.setAntiAlias(true);
-    halo.setColor4f(kPanelBg);
-    halo.setStyle(SkPaint::kStroke_Style);
-    halo.setStrokeWidth(2.2f);
-    halo.setStrokeJoin(SkPaint::kRound_Join);
+    // kit::drawHaloed is exactly this: a knockout pass in the ground
+    // colour, then the ink. Immediate mode, because this caption lives
+    // inside a paint program and cannot reach weave::PaintStyle::addUnderlay
+    // — which is the reason the kit ships a canvas spelling at all.
+    const kit::Halo halo{.colour = kPanelBg, .width = 2.2f};
     const char *r1 = "1½ in = 4.5 px [T68] — AND [C85]’s TRACK";
     const char *r2 = "STOPS 12 in SHORT: THE RED DASHES.";
-    c.drawString(r1, 304, trackY - 26, f75, halo);
-    c.drawString(r2, 304, trackY - 16, f75, halo);
     tp.setColor4f(kRed);
-    c.drawString(r1, 304, trackY - 26, f75, tp);
-    c.drawString(r2, 304, trackY - 16, f75, tp);
+    // The BLOCK form: every halo, then every ink. Line by line, the second
+    // knockout eats the first line's descenders — 21 px of it, measured.
+    kit::drawHaloed(c, {{r1, {304, trackY - 26}}, {r2, {304, trackY - 16}}},
+                    f75, tp, halo);
   }
 
   // The machine's own clock, which is the reason this study is called

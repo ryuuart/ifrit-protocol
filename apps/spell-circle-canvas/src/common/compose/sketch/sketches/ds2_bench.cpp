@@ -63,6 +63,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/Studio.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
@@ -245,19 +246,21 @@ inline std::function<SkPath(SkSize)> cornerBrackets(float arm) {
 /** The node corona: short ragged radial ticks — the cheap analogue of the
  *  screenshot's speckled burst around every typed node. */
 inline std::function<SkPath(SkSize)> burst(int count, float inner) {
-  return [count, inner](SkSize s) {
-    SkPathBuilder b;
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float r = s.width() * 0.5f;
-    for (int i = 0; i < count; ++i) {
-      const float a = 6.2831853f * (float)i / (float)count + 0.13f;
-      const float c = std::cos(a), sn = std::sin(a);
-      const float k = (i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f);
-      b.moveTo(cx + c * r * inner, cy + sn * r * inner);
-      b.lineTo(cx + c * r * k, cy + sn * r * k);
-    }
-    return b.detach();
-  };
+  // A division ladder with THREE length classes, which is why kit::Ticks
+  // carries a `classify` escape hatch at all: no long/short pair says
+  // 1.0 / 0.86 / 0.93. The 0.13 rad kick is the frame's own origin.
+  return kit::ticks({.divisions = count,
+                     .mark = {inner, 1.0f},
+                     .classify =
+                         [](int i, kit::Span sp) {
+                           sp.outer = (i % 3 == 0)   ? 1.00f
+                                      : (i % 3 == 1) ? 0.86f
+                                                     : 0.93f;
+                           return sp;
+                         }},
+                    {.zero = kit::Zero::East,
+                     .sense = kit::Sense::CW,
+                     .originDeg = 0.13f * 180.0f / 3.14159265f});
 }
 
 /** One legend pip: a chevron cell (point right, notch left). */

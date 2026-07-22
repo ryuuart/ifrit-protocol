@@ -271,18 +271,23 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // budget only applies to a sweep.
     const double warmBudgetMs = only >= 0 ? 1e9 : 4000;
     const double sampleBudgetMs = only >= 0 ? 1e9 : 2500;
+    // The caps are named because the capture frame is DERIVED from them
+    // below; if either moves, the capture moves with it rather than
+    // silently drifting.
     constexpr int kProbeFrames = 8, kMinSampleFrames = 24;
+    constexpr int kMaxWarmFrames = 240 - kProbeFrames;
+    constexpr int kMaxSampleFrames = 120;
     for (int f = 0; f < kProbeFrames; ++f) {
       surface->getCanvas()->clear(clearColor);
       stage.frame(*surface->getCanvas(), 1.0 / 60.0);
     }
     const double probeMs = std::max(0.01, stage.stats.average());
     const int warmFrames = std::max(
-        0, std::min(240 - kProbeFrames, (int)(warmBudgetMs / probeMs)));
+        0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
     const int sampleFrames =
         std::max(kMinSampleFrames,
-                 std::min(120, (int)(sampleBudgetMs / probeMs)));
-    const bool shortened = warmFrames < 240 - kProbeFrames;
+                 std::min(kMaxSampleFrames, (int)(sampleBudgetMs / probeMs)));
+    const bool shortened = warmFrames < kMaxWarmFrames;
     anyShortened = anyShortened || shortened;
     for (int f = 0; f < warmFrames; ++f) {
       surface->getCanvas()->clear(clearColor);
@@ -299,6 +304,35 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       volatileMs += cs.volatileMs;
       paintMs += cs.paintMs;
     }
+    // ---- capture determinism -------------------------------------------
+    // Everything above is a TIME budget, so `warmFrames` and `sampleFrames`
+    // both depend on how fast this machine happened to be. That is fine for
+    // a timing table and fatal for a PNG: it means the frame we capture is
+    // whatever frame the budget happened to reach, so the same binary on the
+    // same sources renders a different image every run.
+    //
+    // It was not a theory. Two consecutive sweeps of this harness differed
+    // on 15 of 45 scenes — `daemon console` by 71% of the frame, `vertigo
+    // titles` by 40%, `motion poster` by 46% — which means no gallery scene
+    // has ever been verifiable frame to frame, and every "it still looks
+    // right" check on one of those was reading noise.
+    //
+    // So the capture always lands at the SAME scene time. kCaptureFrame is
+    // the maximum the budgeted path can already reach (probe + warm +
+    // sample) — DERIVED from those two caps rather than restated, so that
+    // raising either moves the capture with it instead of letting the
+    // top-up silently stop reaching. A fast scene tops up by zero; a slow one
+    // pays the difference and is worth it, because an image nobody can
+    // reproduce cannot be reviewed. The timing table above is untouched —
+    // it keeps its budget and its `*` mark.
+    constexpr int kCaptureFrame =
+        kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
+    const int stepped = kProbeFrames + warmFrames + sampleFrames;
+    for (int f = stepped; f < kCaptureFrame; ++f) {
+      surface->getCanvas()->clear(clearColor);
+      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+    }
+
     char canvasLabel[24];
     std::snprintf(canvasLabel, sizeof(canvasLabel), "%dx%d",
                   (int)sceneSize.width(), (int)sceneSize.height());
@@ -324,6 +358,12 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
         std::max(1.0f, std::min(2.0f, 2400.0f / sceneSize.width()));
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
     if (gpu) {
+      // Same rule as the raster path below, and it has to be said twice
+      // because this branch has its own frame() and its own encode and
+      // `continue`s before reaching it. Measured: without this, the same
+      // scene differs run-to-run by ~1400 px, every one of them inside the
+      // overlay band, on every scene tested.
+      stage.showStats = false;
       // GPU captures read back through the async path (a Graphite surface
       // cannot readPixels synchronously) — these are what the interactive
       // QQuickRhiItem gallery actually shows, so visual QA runs HERE, not
@@ -384,7 +424,10 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // Clean captures: the FPS overlay bakes live wall-clock digits into the
     // pixels, which makes every capture differ run-to-run — with it off the
     // scene content is deterministic (fixed dt, seeded rngs) and captures
-    // diff meaningfully across builds.
+    // diff meaningfully across builds. The GPU branch above sets this too;
+    // for a long time it did not, and `continue`d past this line eight lines
+    // earlier — so this comment was a correct and complete diagnosis of a
+    // bug that was live on the sibling path the whole time it sat here.
     stage.showStats = false;
     sk_sp<SkSurface> shot = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)(sceneSize.width() * captureScale),
