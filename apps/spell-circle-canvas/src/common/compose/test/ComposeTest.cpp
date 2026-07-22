@@ -4806,3 +4806,96 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
   EXPECT_EQ(blank.easing().target<float (*)(float)>() != nullptr,
             spelled.easing().target<float (*)(float)>() != nullptr);
 }
+
+TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
+  // Shapes.h generated closed shapes from parameters; a curve DEFINED by
+  // a parameter had no generator, so every study that needed one wrote
+  // the same SkPathBuilder loop inside its own outline lambda.
+  const SkSize box{200, 100}; // deliberately non-square: unit → half-extents
+
+  // A 1:1 Lissajous with a quarter-turn phase IS the inscribed ellipse.
+  const SkPath ellipse = shapes::lissajous(1, 1, 90.0f)(box);
+  const SkRect bounds = ellipse.getBounds();
+  EXPECT_NEAR(bounds.width(), 200.0f, 1.5f);
+  EXPECT_NEAR(bounds.height(), 100.0f, 1.5f);
+  EXPECT_NEAR(bounds.centerX(), 100.0f, 0.5f);
+  EXPECT_NEAR(bounds.centerY(), 50.0f, 0.5f);
+
+  // Damping shrinks the figure AS IT DRAWS — the whole visual difference
+  // between a harmonograph and a Lissajous, and why a real pen-and-
+  // pendulum figure spirals inward instead of retracing one rosette. Both
+  // ends sit AT the centre (sin 0 = 0), so the honest measurement is the
+  // reach of each half.
+  const SkPath damped = shapes::harmonograph(3, 2, 0, 0.25f, 0, 6.0f)(box);
+  const SkPoint centre = SkPoint{100, 50};
+  const int pts = damped.countPoints();
+  ASSERT_GT(pts, 100);
+  auto reach = [&](int from, int to) {
+    float most = 0;
+    for (int i = from; i < to; ++i)
+      most = std::max(most, SkPoint::Distance(damped.getPoint(i), centre));
+    return most;
+  };
+  EXPECT_GT(reach(0, pts / 2), reach(pts / 2, pts) * 1.5f);
+
+  // A rose with odd k has k petals, each reaching the rim. It is NOT
+  // centred on the box — r = cos(5θ) puts tips at θ = 0, 2π/5, … so the
+  // bounds sit off to one side, and asserting otherwise would be
+  // asserting a bug into existence.
+  const SkPath five = shapes::rose(5)(box);
+  EXPECT_GT(five.countPoints(), 100);
+  int tips = 0;
+  for (int i = 0; i < five.countPoints(); ++i)
+    if (SkPoint::Distance(five.getPoint(i), centre) > 49.0f)
+      ++tips;
+  EXPECT_GT(tips, 5);
+
+  // Spirals start at the centre and end at the rim.
+  const SkPath coil = shapes::spiral(3)(box);
+  EXPECT_NEAR(SkPoint::Distance(coil.getPoint(0), centre), 0.0f, 1.0f);
+  EXPECT_GT(SkPoint::Distance(coil.getPoint(coil.countPoints() - 1), centre),
+            40.0f);
+
+  // Everything stays inside the box it was inscribed in.
+  for (const SkPath *p : {&ellipse, &damped, &five, &coil}) {
+    const SkRect r = p->getBounds();
+    EXPECT_GE(r.left(), -1.0f);
+    EXPECT_GE(r.top(), -1.0f);
+    EXPECT_LE(r.right(), 201.0f);
+    EXPECT_LE(r.bottom(), 101.0f);
+  }
+}
+
+TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
+  // Nothing in the chain from instances() to drawSpriteAtlas carried a
+  // blend mode, so every pool composited kSrcOver. Element::blend() looks
+  // like the fix and is not: it flattens the field into a layer and
+  // composites it ONCE, so overlapping sprites never accumulate — which
+  // is the entire colour model of an additive particle system (Reeves'
+  // 1982 wall of fire has no palette, only an overlap count).
+  auto build = [](SkBlendMode blend) {
+    auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+    atlas->cell(box().width(40).height(40).fill(
+                    Fill::color({0.25f, 0.25f, 0.25f, 1})),
+                {40, 40});
+    auto pool = std::make_shared<instancing::Pool>();
+    for (int i = 0; i < 3; ++i) // three sprites stacked on one spot
+      pool->add({100, 100});
+    return box().absolute().inset(0).child(
+        instancing::instances(atlas, pool, instancing::Mode::Data, blend));
+  };
+
+  Host over(200, 200);
+  over.composer.render(build(SkBlendMode::kSrcOver));
+  over.frame();
+  const int overR = SkColorGetR(over.pixel(100, 100));
+
+  Host plus(200, 200);
+  plus.composer.render(build(SkBlendMode::kPlus));
+  plus.frame();
+  const int plusR = SkColorGetR(plus.pixel(100, 100));
+
+  EXPECT_GT(overR, 40);            // one opaque sprite's worth
+  EXPECT_LT(overR, 90);            // …and three of them are no brighter
+  EXPECT_GT(plusR, overR + 60);    // additive stacks all three
+}

@@ -253,6 +253,138 @@ inline OutlineFn parallelogram(float skewDeg) {
 // ---------------------------------------------------------------------------
 // Wrappers
 
+// ---------------------------------------------------------------------------
+// Parametric curves
+//
+// Everything above generates a closed SHAPE from parameters. A curve
+// DEFINED by a parameter — Lissajous, harmonograph, rose, epitrochoid,
+// spirograph, orbit trace, phase portrait — had no generator at all, so
+// every study that needed one wrote the same SkPathBuilder loop inside
+// its own outline() lambda: the Vertigo titles, the Nightingale rings,
+// and (predictably) every diagram sketch since.
+//
+// These evaluate in a UNIT frame centred on the box — x and y in [-1, 1]
+// — and are then scaled onto the node's half-extents, so a curve keeps
+// its proportions when the box changes and `amplitude` means the same
+// thing everywhere.
+//
+// They are still incomparable callables, so a node carrying one still
+// re-records on every render() (ROADMAP.md §3). Naming the families is
+// the half that could land tonight; making them comparable VALUES is the
+// half that changes Element::outline()'s signature.
+
+/** Samples @p f over t ∈ [t0, t1] into a polyline. @p f returns UNIT
+ *  coordinates (±1 spans the box); @p samples is the segment count, and
+ *  @p close joins the last point back to the first.
+ *
+ *      .outline(shapes::parametric([](float t) {
+ *        return SkPoint{std::cos(3 * t), std::sin(2 * t)};
+ *      }, 0, 2 * SK_FloatPI, 720))
+ */
+inline OutlineFn parametric(std::function<SkPoint(float)> f, float t0,
+                            float t1, int samples = 512, bool close = false) {
+  return [f = std::move(f), t0, t1, samples, close](SkSize s) {
+    const int n = std::max(samples, 2);
+    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+    SkPathBuilder b;
+    for (int i = 0; i <= n; ++i) {
+      const float t = t0 + (t1 - t0) * ((float)i / (float)n);
+      const SkPoint u = f(t);
+      const SkPoint p{cx + cx * u.fX, cy + cy * u.fY};
+      if (i == 0)
+        b.moveTo(p);
+      else
+        b.lineTo(p);
+    }
+    if (close)
+      b.close();
+    return b.detach();
+  };
+}
+
+/** Lissajous figure: x = sin(a·t + δ), y = sin(b·t). The ratio a:b picks
+ *  the family (1:1 an ellipse, 3:2 the classic pretzel, 5:4 a tight
+ *  weave) and δ its phase — the same two numbers a physical harmonograph
+ *  is set to. `turns` is how many 2π the parameter runs for; the curve
+ *  closes when a:b is rational and `turns` covers the period. */
+inline OutlineFn lissajous(float a, float b, float deltaDeg = 0.0f,
+                           float turns = 1.0f, int samples = 720) {
+  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  return parametric(
+      [a, b, delta](float t) {
+        return SkPoint{std::sin(a * t + delta), std::sin(b * t)};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples);
+}
+
+/** A harmonograph: a Lissajous whose amplitudes DECAY, which is what
+ *  makes a real pen-and-pendulum figure spiral inward instead of
+ *  retracing one closed rosette. @p damping is the exponential rate per
+ *  unit t; @p precession spins the whole figure as it draws (the rotating
+ *  turntable under John Whitney's pendulum). */
+inline OutlineFn harmonograph(float a, float b, float deltaDeg = 0.0f,
+                              float damping = 0.05f, float precession = 0.0f,
+                              float turns = 6.0f, int samples = 2000) {
+  const float delta = deltaDeg * SK_FloatPI / 180.0f;
+  return parametric(
+      [a, b, delta, damping, precession](float t) {
+        const float env = std::exp(-damping * t);
+        const float x = env * std::sin(a * t + delta);
+        const float y = env * std::sin(b * t);
+        if (precession == 0.0f)
+          return SkPoint{x, y};
+        const float th = precession * t;
+        const float c = std::cos(th), sn = std::sin(th);
+        return SkPoint{x * c - y * sn, x * sn + y * c};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples);
+}
+
+/** Rose (rhodonea) r = cos(k·θ). Integer @p k gives k petals when k is
+ *  odd and 2k when even; rational k gives the multi-lobed forms. */
+inline OutlineFn rose(float k, float turns = 1.0f, int samples = 720) {
+  return parametric(
+      [k](float th) {
+        const float r = std::cos(k * th);
+        return SkPoint{r * std::cos(th), r * std::sin(th)};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples);
+}
+
+/** Spiral from the centre outward. @p logarithmic switches Archimedean
+ *  (even spacing — a clock spring, a record groove) for logarithmic
+ *  (constant angle — a nautilus, a galaxy arm). */
+inline OutlineFn spiral(float turns = 3.0f, bool logarithmic = false,
+                        float growth = 0.25f, int samples = 720) {
+  const float total = turns * 2.0f * SK_FloatPI;
+  return parametric(
+      [logarithmic, growth, total](float th) {
+        const float r = logarithmic
+                            ? std::exp(growth * th) / std::exp(growth * total)
+                            : th / total;
+        return SkPoint{r * std::cos(th), r * std::sin(th)};
+      },
+      0.0f, total, samples);
+}
+
+/** Epitrochoid / hypotrochoid — the spirograph pair. A circle of radius
+ *  @p r rolls around one of radius @p R (outside for an epitrochoid,
+ *  inside when @p inside), with the pen @p d from its centre. Everything
+ *  is normalised so the figure fills the box. */
+inline OutlineFn trochoid(float R, float r, float d, bool inside = false,
+                          float turns = 1.0f, int samples = 1440) {
+  const float sign = inside ? -1.0f : 1.0f;
+  const float sum = R + sign * r;
+  const float extent = std::max(std::abs(sum) + std::abs(d), 1e-3f);
+  return parametric(
+      [R, r, d, sign, sum, extent](float t) {
+        const float k = sum / std::max(r, 1e-3f);
+        return SkPoint{(sum * std::cos(t) - sign * d * std::cos(k * t)) / extent,
+                       (sum * std::sin(t) - d * std::sin(k * t)) / extent};
+      },
+      0.0f, turns * 2.0f * SK_FloatPI, samples);
+}
+
 /** Wraps any outline generator so every sharp corner rounds with a
  *  consistent radius — corners() for arbitrary silhouettes:
  *  `.outline(rounded(star(5), 8))`. */

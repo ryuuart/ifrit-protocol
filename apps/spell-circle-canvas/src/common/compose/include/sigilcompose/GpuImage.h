@@ -134,11 +134,15 @@ inline void drawLattice(SkCanvas &canvas, Promoted &cache, sk_sp<SkImage> img,
 }
 
 /** drawAtlas on every backend (see the file comment). @p colors may be
- *  null for the untinted path. */
+ *  null for the untinted path. @p blend is how each sprite hits the
+ *  DESTINATION — kPlus is the whole colour model of an additive particle
+ *  system, and routing it through the element's saveLayer instead would
+ *  composite the flattened field once rather than accumulating overlaps. */
 inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
                             sk_sp<SkImage> sheet, const SkRSXform *xforms,
                             const SkRect *tex, const SkColor *colors,
-                            size_t count, const SkSamplingOptions &sampling) {
+                            size_t count, const SkSamplingOptions &sampling,
+                            SkBlendMode blend = SkBlendMode::kSrcOver) {
   if (!sheet || count == 0)
     return;
   // ALWAYS decomposed (see drawLattice): raster's native drawAtlas lowers
@@ -149,7 +153,8 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
   constexpr size_t kMaxSprites = 16000;
   for (size_t start = 0; count - start > kMaxSprites; start += kMaxSprites)
     drawSpriteAtlas(canvas, cache, sheet, xforms + start, tex + start,
-                    colors ? colors + start : nullptr, kMaxSprites, sampling);
+                    colors ? colors + start : nullptr, kMaxSprites, sampling,
+                    blend);
   const size_t tail = (count - 1) % kMaxSprites + 1;
   const size_t offset = count - tail;
   xforms += offset;
@@ -194,8 +199,11 @@ inline void drawSpriteAtlas(SkCanvas &canvas, Promoted &cache,
       positions.data(), texs.data(), colors ? vertexColors.data() : nullptr,
       (int)indices.size(), indices.data());
   SkPaint p;
+  p.setBlendMode(blend);
   p.setShader(
       sheet->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling));
+  // kModulate is the VERTEX-COLOR × shader blend (the tint lane); the
+  // paint's blend mode is what reaches the destination.
   canvas.drawVertices(vertices, SkBlendMode::kModulate, p);
 }
 
