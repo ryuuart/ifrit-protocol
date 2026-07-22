@@ -19,6 +19,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/Material.h" // Wash — the material-valued decoration
 #include "sigilcompose/GpuImage.h"
 
 #include <sigilimage/ImageAsset.h>
@@ -315,7 +316,65 @@ struct ContourWalk {
  *  pruning — and a researcher caught it by reading the source rather than
  *  the list. It was a discoverability gap wearing a capability gap's
  *  clothes, which is the fourth of those this program has found. */
+/** Floods the node's OUTLINE with a Material through a blend mode — the
+ *  material-valued decoration the primitive set was missing.
+ *
+ *  `Element::overlay()` puts a layer over the fill and under the
+ *  children; `foreground()` puts one over everything. But `foreground()`
+ *  takes a `Decoration`, and the primitives are `PathFormat` (strokes),
+ *  `Slice`, `ContourWalk` and a raw `PaintProgram` — none of which fills
+ *  a shape with a Material. So "a grain pass over this whole panel,
+ *  above its children" had to be a raw PaintProgram, which is an
+ *  incomparable `std::function` and therefore never prunes.
+ *
+ *  `Wash` is a comparable VALUE (Material compares structurally by
+ *  recipe), so a static wash prunes like any other decoration, and it
+ *  declares itself animated when the material is live.
+ *
+ *      .foreground(decorations::wash(patterns::grain(0.3f, 2, 7.0f),
+ *                                    SkBlendMode::kSoftLight, 0.35f))
+ */
+struct Wash {
+  Material material;
+  SkBlendMode blend = SkBlendMode::kSrcOver;
+  /** Strength, 0..1 — applied as alpha on the pass. The `amount` a
+   *  `Material::blend` layer still does not have (ROADMAP.md §5), here
+   *  at least for the decoration form. */
+  float amount = 1.0f;
+
+  bool operator==(const Wash &o) const {
+    return material == o.material && blend == o.blend && amount == o.amount;
+  }
+  bool animated() const { return material.isLive(); }
+
+  void paint(SkCanvas &canvas, const PaintContext &ctx) const {
+    const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
+    if (a <= 0.0f)
+      return;
+    const Fill fill = material.resolve(ctx);
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setBlendMode(blend);
+    if (fill.kind == Fill::Kind::Color) {
+      SkColor4f c = fill.colorValue;
+      c.fA *= a;
+      p.setColor4f(c, nullptr);
+    } else if (fill.kind == Fill::Kind::Shader) {
+      p.setShader(fill.shaderValue);
+      p.setAlphaf(a);
+    } else {
+      return;
+    }
+    canvas.drawPath(ctx.outline, p);
+  }
+};
+
 namespace decorations {
+inline Wash wash(Material material, SkBlendMode blend = SkBlendMode::kSrcOver,
+                 float amount = 1.0f) {
+  return Wash{std::move(material), blend, amount};
+}
+
 inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,
                     const Decoration &decoration) {
   PaintContext local = ctx;
