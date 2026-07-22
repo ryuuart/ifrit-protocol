@@ -110,6 +110,8 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `textFill` + the `Unit` ramps | The metric band already maps the shader to a unit square, then `linearUnit`'s SkSL divided by the NODE size on top: t ≈ 0.003, every glyph flat on the first stop, silently — and `Material.h` advertised the two as the same trick | `Paint.cpp` |
+| `Slice::filter` | Nine-slice is mostly used FOR pixel art, and was locked to linear | `Decorations.h` |
 | `compose::metrics(style, fonts)` | A text node's top is the LINE BOX top and artefacts position type by the CAP TOP; ~134 runs were placed off an empirical guess at the slack | `Compose.h`, `Composer.cpp` |
 | `PathFormat::cap` / `join` | ~30 open contours of line art all ended square and mitred because the paint was built and never asked | `Decorations.h` |
 | `decorations::wash(Material, blend, amount)` | The decoration primitives were strokes, slices, contour walks and raw programs — none filled a shape with a Material, so a wash above the children was an incomparable lambda that never pruned | `Decorations.h` |
@@ -530,6 +532,26 @@ the right thing internally and hands out only the finished result.
   luminance** rather than modulating what is beneath; the first nebula
   came back a white cloud at 15% alpha. The header warns about `noise` vs
   `grain` channels; it should also say grain wants an OPAQUE surface.
+
+## 10d. Custom layout: a data channel, and a container that can size itself
+
+First use of `LayoutScheme` anywhere in the repo — an HTML auto-table
+layout reproducing Chrome's column widths to 0.11 px — turned up two
+things at once.
+
+- **`LayoutInput` has no per-child data channel.** A table scheme's
+  span/align table ends up a member vector parallel to the `child()`
+  calls, matched only by index, with nothing checking it: the study
+  mis-placed a whole row once by inserting a cell in the wrong position.
+  Wanted: `Element::layoutData(...)` surfacing as `LayoutInput::childData`.
+- **A scheme cannot size its own container.** The concept requires only
+  `place()`, so the container's height is authored beside the algorithm
+  that computes it — `.height(870)` next to a `resolvedHeight()` that
+  knows the answer. **API.md advertised an optional
+  `measure(in) -> SkSize` and the header neither required nor called
+  one**; the doc has been corrected rather than the promise quietly kept.
+  Wanted: an optional `measure()` consulted by the container's Yoga
+  measure func.
 
 ## 11. `Effect` has no live uniforms
 
