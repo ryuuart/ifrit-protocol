@@ -208,7 +208,10 @@ inline OutlineFn sector(float startDeg, float sweepDeg,
                         float innerRatio = 0.0f) {
   return [startDeg, sweepDeg, innerRatio](SkSize s) {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float sweep = std::clamp(sweepDeg, -360.0f, 360.0f);
+    // arcTo swallows a full turn, so sector(start, 360, inner) — the most
+    // obvious call there is, a gauge's annular TRACK — silently drew
+    // nothing. Clamp inside the primitive rather than at every call site.
+    const float sweep = std::clamp(sweepDeg, -359.99f, 359.99f);
     const float inner = std::clamp(innerRatio, 0.0f, 0.999f);
     const SkRect outerBox = SkRect::MakeWH(s.width(), s.height());
     SkPathBuilder b;

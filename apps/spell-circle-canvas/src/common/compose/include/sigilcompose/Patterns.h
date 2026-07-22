@@ -18,6 +18,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 
 #include <algorithm>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -204,51 +205,93 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
  *  veining, dither, worn metal — wants THIS one, where all three channels
  *  carry the same value and a blend mode reads as light.
  *
- *  `frequency` is features-per-px on the same scale as `noise()`. */
-inline Material grain(float frequency, int octaves = 4, float seed = 1.0f) {
-  static constexpr char kSrc[] = R"(
-uniform float uFreq;
-uniform float uOctaves;
-uniform float uSeed;
+ *  `frequency` is features-per-px on the same scale as `noise()`.
+ *  `contrast` scales the field about 0.5 — wood tooth lives around
+ *  0.25–0.35, and at 1.0 a soft-light pass turns timber into polished
+ *  granite. `stretch` is anisotropy: the cells are divided by it in x and
+ *  multiplied in y, so > 1 runs the fibre lengthwise (wood, brushed
+ *  metal) and 1.0 is isotropic (dust, paper, stone).
+ *
+ *  TWO IMPLEMENTATION RULES, and both are load-bearing. A sketch dylib
+ *  carries its OWN copy of Skia — vcpkg builds Skia hidden-visibility, so
+ *  sketch dylibs link libskia.a directly rather than resolving it from the
+ *  host (sketch/README.md). `SkRuntimeEffect::MakeForShader` therefore
+ *  builds the SkSL AST inside the SKETCH's Skia image while
+ *  `getRPProgram` and the SkSL inliner run inside the HOST's, and virtual
+ *  dispatch across that boundary faults on pointer authentication. So
+ *  every stock SkSL material in this library must:
+ *
+ *    1. keep `main()` MONOLITHIC — no user-defined SkSL functions, so the
+ *       inliner never runs;
+ *    2. avoid a UNIFORM-GUARDED `break` — bake the loop count into the
+ *       source string and cache one effect per count instead.
+ *
+ *  This function shipped violating both and segfaulted every sketch that
+ *  painted it, with `MakeForShader` returning a valid effect and an empty
+ *  error string, so there was nothing to catch. Four agents hit it inside
+ *  an hour. `halftoneRamp()` above was always monolithic, which is exactly
+ *  why it survived. `sketches/stock_materials.cpp` paints one of each
+ *  stock material from a sketch dylib and is wired up as a ctest so the
+ *  rule is enforced by the build rather than by memory. */
+inline Material grain(float frequency, int octaves = 4, float seed = 1.0f,
+                      float contrast = 1.0f, float stretch = 1.0f) {
+  const int n = std::clamp(octaves, 1, 8);
+  // One effect per octave count: the count is a compile-time constant in
+  // the source, never a uniform the loop breaks against.
+  static std::array<sk_sp<SkRuntimeEffect>, 9> cache{};
+  if (!cache[(size_t)n]) {
+    std::string src = R"(
+uniform float2 uFreq;     // frequency, with the anisotropy folded in
+uniform float  uSeed;
+uniform float  uContrast;
 
-float hash21(float2 p) {
-  p = fract(p * float2(123.34, 456.21) + uSeed);
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-float vnoise(float2 p) {
-  float2 i = floor(p);
-  float2 f = fract(p);
-  float2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
-             mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), u.x),
-             u.y);
-}
 half4 main(float2 pos) {
   float2 q = pos * uFreq;
-  float amp = 0.5;
   float sum = 0.0;
   float total = 0.0;
-  for (int o = 0; o < 8; ++o) {
-    if (float(o) >= uOctaves) { break; }
-    sum += amp * vnoise(q);
-    total += amp;
+)";
+    float amp = 0.5f;
+    for (int o = 0; o < n; ++o) {
+      const std::string a = std::to_string(amp);
+      src += R"(
+  {
+    float2 c = floor(q);
+    float2 f = fract(q);
+    float2 w = f * f * (3.0 - 2.0 * f);
+    float2 k0 = fract((c + float2(0.0, 0.0)) * float2(123.34, 456.21) + uSeed);
+    k0 += dot(k0, k0 + 45.32);
+    float2 k1 = fract((c + float2(1.0, 0.0)) * float2(123.34, 456.21) + uSeed);
+    k1 += dot(k1, k1 + 45.32);
+    float2 k2 = fract((c + float2(0.0, 1.0)) * float2(123.34, 456.21) + uSeed);
+    k2 += dot(k2, k2 + 45.32);
+    float2 k3 = fract((c + float2(1.0, 1.0)) * float2(123.34, 456.21) + uSeed);
+    k3 += dot(k3, k3 + 45.32);
+    float n = mix(mix(fract(k0.x * k0.y), fract(k1.x * k1.y), w.x),
+                  mix(fract(k2.x * k2.y), fract(k3.x * k3.y), w.x), w.y);
+    sum += )" + a + R"( * n;
+    total += )" + a + R"(;
     q *= 2.0;
-    amp *= 0.5;
   }
+)";
+      amp *= 0.5f;
+    }
+    src += R"(
   float v = total > 0.0 ? sum / total : 0.5;
+  v = clamp(0.5 + (v - 0.5) * uContrast, 0.0, 1.0);
   return half4(half3(v), 1.0);
 }
 )";
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-  if (!effect) {
-    SkDebugf("patterns::grain: %s\n", error.c_str());
-    return Material::solid({0.5f, 0.5f, 0.5f, 1});
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
+    if (!effect)
+      SkDebugf("patterns::grain: %s\n", error.c_str());
+    cache[(size_t)n] = std::move(effect);
   }
-  return Material::sksl(std::move(effect),
-                        {{"uFreq", frequency},
-                         {"uOctaves", (float)std::clamp(octaves, 1, 8)},
-                         {"uSeed", seed}});
+  if (!cache[(size_t)n])
+    return Material::solid({0.5f, 0.5f, 0.5f, 1});
+  const float k = stretch > 0.01f ? stretch : 1.0f;
+  return Material::sksl(cache[(size_t)n], {{"uSeed", seed},
+                                           {"uContrast", contrast}})
+      .uniform("uFreq", std::array<float, 2>{frequency / k, frequency * k});
 }
 
 // ---------------------------------------------------------------------------

@@ -93,3 +93,16 @@ add_test(NAME compose_sketch_smoke
   COMMAND ComposeSketch
     ${CMAKE_CURRENT_LIST_DIR}/sketches/hello.cpp
     --frame ${CMAKE_BINARY_DIR}/compose_sketch_smoke.png)
+
+# The split-Skia guard. A sketch dylib links libskia.a directly (vcpkg
+# builds Skia hidden-visibility, so its symbols cannot be re-exported from
+# the host), which means SkRuntimeEffect::MakeForShader builds the SkSL AST
+# in the SKETCH's Skia image while getRPProgram and the inliner run in the
+# HOST's — virtual dispatch across that boundary faults on PAC. Stock SkSL
+# materials must therefore keep main() monolithic and must not break a loop
+# against a uniform. This sketch PAINTS one of each of them, so a shader
+# that violates the rule segfaults here instead of in someone's sketch.
+add_test(NAME compose_sketch_stock
+  COMMAND ComposeSketch
+    ${CMAKE_CURRENT_LIST_DIR}/sketches/stock_materials.cpp
+    --frame ${CMAKE_BINARY_DIR}/compose_sketch_stock.png)
