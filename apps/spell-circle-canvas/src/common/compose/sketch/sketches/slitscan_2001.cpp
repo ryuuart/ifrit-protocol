@@ -690,6 +690,11 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
   int rtCols = 0;
   int sheetW = 0, sheetH = 0;
   double bakeMs = 0, measMs = 0, rtMs = 0;
+  // --deterministic: pin numbers this study measured about its own
+  // execution. Unpinned, the plate differs from ITSELF run to run
+  // (16 px), and every pixel sweep blames the patch in flight rather
+  // than the instrument. ROADMAP.md Â§26.
+  bool deterministic_ = false;
 
   struct Shot {
     const char *name;
@@ -1439,7 +1444,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .child(t(fmt("ω = %0.4f", omega), mono(9, al(kCold, 0.9f)))))
         .child(t(fmt("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                      "texWindows()",
-                     sheetW, sheetH, bakeMs),
+                     sheetW, sheetH, deterministic_ ? 0.0 : bakeMs),
                  mono(6.8f, kTick)));
   }
   Element expoEl() {
@@ -1869,6 +1874,7 @@ void SlitScan2001::drawMeasuredPoints(SkCanvas &c, const PaintContext &ctx) {
 // ===========================================================================
 
 void SlitScan2001::setup(sketch::SketchContext &ctx) {
+  deterministic_ = ctx.deterministic;
   using namespace slit;
   ctx.canvas(kCanvasW, kCanvasH);
   ctx.background(kInk);

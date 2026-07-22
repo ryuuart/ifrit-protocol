@@ -1485,14 +1485,23 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   "\xc2\xb7 %zu drawVertices \xc2\xb7 BUILD %.2f ms / SIM "
                   "FRAME",
                   liveCount / 1000, liveCount % 1000, vertCount / 1000,
-                  vertCount % 1000, fieldChunks.size(), buildUs / 1000.0);
+                  vertCount % 1000, fieldChunks.size(),
+                  // A number this study measured about its own execution.
+                  // Pinned under --deterministic so the plate is diffable:
+                  // unpinned it differs from ITSELF run to run (34 px), and
+                  // every pixel sweep then blames whatever patch is in
+                  // flight. See ROADMAP.md §26.
+                  deterministic_ ? 0.0 : buildUs / 1000.0);
     return t(buf, mono(8.5f, hex(0xFFB672, 0.85f), 0.5f))
         .textAlign(sigil::weave::TextAlignment::kEnd);
   }
 
   // =========================================================================
 
+  bool deterministic_ = false; // --deterministic: pin self-measurements
+
   void setup(sketch::SketchContext &ctx) override {
+    deterministic_ = ctx.deterministic;
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
 

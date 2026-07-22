@@ -37,6 +37,10 @@ public:
     std::filesystem::path assetsDir;  // default: <sketch dir>/assets
     std::filesystem::path flagsFile;  // sketch_flags.rsp next to the exe
     std::string compiler = "clang++";
+    /** --deterministic: pin anything a sketch measured about its own
+     *  execution, so a capture can be diffed. Surfaced to sketches as
+     *  SketchContext::deterministic / ctx.measured(). */
+    bool deterministic = false;
   };
 
   SketchHost(Options options, sigil::weave::FontContext &fonts);

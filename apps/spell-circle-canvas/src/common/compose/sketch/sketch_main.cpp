@@ -383,6 +383,11 @@ int main(int argc, char *argv[]) {
   std::filesystem::path sketchPath;
   std::filesystem::path assetsDir;
   CaptureOptions capture;
+  // --deterministic: pin anything a sketch measured about its own
+  // execution. A study that draws its own bake time into its own plate
+  // differs from ITSELF between two runs, so every pixel sweep reports it
+  // as changed by a patch that changed nothing.
+  bool deterministic = false;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--assets" && i + 1 < argc)
@@ -399,6 +404,8 @@ int main(int argc, char *argv[]) {
       capture.fps = std::stod(argv[++i]);
     else if (arg == "--bench")
       capture.bench = true;
+    else if (arg == "--deterministic")
+      deterministic = true;
     else if (arg == "--bench-frames" && i + 1 < argc)
       capture.benchFrames = std::max(1, std::stoi(argv[++i]));
     else if (sketchPath.empty())
@@ -410,11 +417,14 @@ int main(int argc, char *argv[]) {
                  "         [--frame <out.png>] [--at <sec>] [--scale <n>]\n"
                  "         [--frames <count>] [--fps <n>]\n"
                  "         [--bench] [--bench-frames <n>]\n"
+                 "         [--deterministic]   pin self-measured numbers,\n"
+                 "                             so captures can be diffed\n"
                  "starter: src/common/compose/sketch/sketches/hello.cpp\n");
     return 2;
   }
 
   sigil::compose::sketch::SketchHost::Options options;
+  options.deterministic = deterministic;
   options.sketchPath = std::filesystem::absolute(sketchPath);
   options.assetsDir = assetsDir;
   options.flagsFile = executableDir(argv[0]) / "sketch_flags.rsp";

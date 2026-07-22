@@ -291,8 +291,10 @@ void SketchHost::poll() {
 }
 
 SketchContext SketchHost::makeContext() {
-  return SketchContext{*m_composer,      *m_ticker,     m_assets,
-                       m_canvasSpec.size, &m_canvasSpec, &m_fonts};
+  SketchContext ctx{*m_composer,      *m_ticker,     m_assets,
+                    m_canvasSpec.size, &m_canvasSpec, &m_fonts};
+  ctx.deterministic = m_options.deterministic;
+  return ctx;
 }
 
 void SketchHost::applyCanvasSpec() {
