@@ -76,6 +76,8 @@ public:
     m_frames.push_back(frame);
     if (!m_sizes.empty())
       m_sizes.push_back({1.0f, 1.0f});
+    if (!m_texWindows.empty())
+      m_texWindows.push_back(SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
     return m_positions.size() - 1;
   }
@@ -86,6 +88,7 @@ public:
     m_tints.clear();
     m_frames.clear();
     m_sizes.clear();
+    m_texWindows.clear();
     ++m_revision;
   }
   void resize(size_t n) {
@@ -96,6 +99,8 @@ public:
     m_frames.resize(n, 0);
     if (!m_sizes.empty())
       m_sizes.resize(n, {1.0f, 1.0f});
+    if (!m_texWindows.empty())
+      m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
     ++m_revision;
   }
   size_t size() const { return m_positions.size(); }
@@ -118,6 +123,24 @@ public:
    *  `size` wide, swinging ~2.4:1 at ejection to under 1:1 at apogee — is
    *  the canonical case, and every study that met it hand-built the
    *  vertex buffer `drawSpriteAtlas` already builds internally. */
+  /** Per-instance UV WINDOW inside the named cell, as fractions of that
+   *  cell ({0,0,1,1} is the whole thing). Opt-in like `sizes()`.
+   *
+   *  The per-sprite texture rect existed all the way down —
+   *  `drawSpriteAtlas` reads `tex[i]` per sprite — and the only narrowing
+   *  was that a `Pool` could name a cell INDEX and never a RECT. So a
+   *  strip of artwork crawling behind a slit, a sprite scrolling within
+   *  its cell, or several variants baked side by side in one cell were
+   *  all out of reach for want of a lane, not for want of a draw path. */
+  std::span<SkRect> texWindows() {
+    if (m_texWindows.size() != m_positions.size())
+      m_texWindows.resize(m_positions.size(), SkRect::MakeWH(1.0f, 1.0f));
+    return m_texWindows;
+  }
+  bool hasTexWindows() const {
+    return m_texWindows.size() == m_positions.size();
+  }
+
   std::span<SkSize> sizes() {
     if (m_sizes.size() != m_positions.size())
       m_sizes.resize(m_positions.size(), {1.0f, 1.0f});
@@ -131,6 +154,7 @@ public:
   std::span<const SkColor4f> tints() const { return m_tints; }
   std::span<const int> frames() const { return m_frames; }
   std::span<const SkSize> sizes() const { return m_sizes; }
+  std::span<const SkRect> texWindows() const { return m_texWindows; }
 
   /** Data changed → the next describe carries a new revision, so the
    *  reconciler repaints the leaf exactly once. */
@@ -144,6 +168,7 @@ private:
   std::vector<SkColor4f> m_tints;
   std::vector<int> m_frames;
   std::vector<SkSize> m_sizes; // empty unless sizes() was asked for
+  std::vector<SkRect> m_texWindows; // empty unless texWindows() was asked for
   uint64_t m_revision = 0;
 };
 
@@ -299,15 +324,26 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   const auto tints = pool.tints();
   const auto frames = pool.frames();
   const auto poolSizes = pool.sizes(); // empty unless the lane exists
+  const auto poolWindows = pool.texWindows();
+  const bool windowed = poolWindows.size() == positions.size();
   const bool nonUniform = poolSizes.size() == positions.size();
   if (nonUniform)
     sizes.reserve(pool.size());
   const int frameCount = atlas.frameCount();
   for (size_t i = 0; i < positions.size(); ++i) {
     const int frame = std::clamp(frames[i], 0, frameCount - 1);
-    const SkRect cellTex = atlas.frameTex(frame);
+    SkRect cellTex = atlas.frameTex(frame);
     if (cellTex.isEmpty())
       continue;
+    if (windowed) {
+      const SkRect &w = poolWindows[i];
+      cellTex = SkRect::MakeXYWH(cellTex.left() + w.left() * cellTex.width(),
+                                 cellTex.top() + w.top() * cellTex.height(),
+                                 w.width() * cellTex.width(),
+                                 w.height() * cellTex.height());
+      if (cellTex.isEmpty())
+        continue;
+    }
     const float scale = scales[i] * inv;
     const SkSize sizeMul =
         nonUniform ? poolSizes[i] : SkSize{1.0f, 1.0f};
