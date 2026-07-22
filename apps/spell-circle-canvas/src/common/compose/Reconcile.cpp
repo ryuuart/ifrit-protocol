@@ -73,7 +73,7 @@ bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
 
 bool transitionEqual(const Transition &a, const Transition &b) {
   return a.duration == b.duration && a.delay == b.delay &&
-         easeEqual(a.ease, b.ease);
+         easeEqual(a.easing(), b.easing());
 }
 
 /** Shaped bindings prune like anything else: same Output, same affine,

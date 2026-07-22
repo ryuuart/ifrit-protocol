@@ -11,6 +11,7 @@
 # compilation has no hand-maintained flag list.
 add_library(SigilSketchKit STATIC
   SketchHost.cpp
+  SketchCrash.cpp
   SketchHost.h
   Assets.cpp
   SketchAnchor.cpp

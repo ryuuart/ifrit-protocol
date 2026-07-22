@@ -1,5 +1,7 @@
 #include "SketchHost.h"
 
+#include "SketchCrash.h"
+
 #include <sigilmotion/Ticker.h>
 
 #include <include/core/SkBitmap.h>
@@ -215,7 +217,10 @@ void SketchHost::adopt(const std::filesystem::path &library) {
   m_composer->setClock(&m_clock);
   m_sketch.reset(create());
   SketchContext ctx = makeContext();
-  m_sketch->setup(ctx);
+  {
+    PhaseMark mark(Phase::Setup);
+    m_sketch->setup(ctx);
+  }
   applyCanvasSpec();
   m_errorLog.clear();
   const double seconds =
@@ -262,7 +267,10 @@ void SketchHost::poll() {
     m_lastAssetPoll = m_clock.elapsed();
     if (m_assets.poll()) {
       SketchContext ctx = makeContext();
-      m_sketch->setup(ctx);
+      {
+        PhaseMark mark(Phase::Setup);
+        m_sketch->setup(ctx);
+      }
       applyCanvasSpec();
     }
   }
@@ -326,10 +334,17 @@ bool SketchHost::frame(SkCanvas &canvas, double fixedDt) {
     dt = m_clock.tick();
   }
   m_ticker->tick(dt);
+  noteFrame(++m_frameIndex, m_clock.elapsed());
   SketchContext ctx = makeContext();
-  m_sketch->update(m_clock.elapsed(), ctx);
+  {
+    PhaseMark mark(Phase::Update);
+    m_sketch->update(m_clock.elapsed(), ctx);
+  }
   applyCanvasSpec(); // ctx.canvas() mid-run = p5's resizeCanvas
-  m_composer->draw(canvas);
+  {
+    PhaseMark mark(Phase::Draw);
+    m_composer->draw(canvas);
+  }
   const double ms = std::chrono::duration<double, std::milli>(
                         std::chrono::steady_clock::now() - start)
                         .count();

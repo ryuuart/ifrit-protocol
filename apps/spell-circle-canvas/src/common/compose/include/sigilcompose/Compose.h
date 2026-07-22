@@ -75,6 +75,17 @@ struct Transition {
   std::chrono::milliseconds duration{250};
   choreograph::EaseFn ease = &choreograph::easeOutQuad;
   std::chrono::milliseconds delay{0};
+
+  /** `{360ms, {}, 220ms}` is the obvious way to write "the default curve,
+   *  but I need to name the delay" — and because Transition is an
+   *  aggregate, that `{}` initialises `ease` to an EMPTY std::function,
+   *  which compiles fine and throws `bad_function_call` on the first
+   *  frame. (It took down a gallery scene that way.) Every read of the
+   *  curve goes through here, so `{}` means what the author meant. */
+  const choreograph::EaseFn &easing() const {
+    static const choreograph::EaseFn kDefault = &choreograph::easeOutQuad;
+    return ease ? ease : kDefault;
+  }
 };
 
 /** The house curves, as EaseFn VALUES.

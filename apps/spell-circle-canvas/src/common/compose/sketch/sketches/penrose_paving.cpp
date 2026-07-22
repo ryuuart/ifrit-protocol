@@ -129,12 +129,12 @@ const SkColor4f kGreyBase = rgb(0x82858A);  // Kobra grey
 const SkColor4f kGreyLit = rgb(0x969A9E);   // Kobra grey, sun side
 const SkColor4f kGreyVein = rgb(0x3E4042);  // Kobra's tighter speckle
 
-const SkColor4f kSteelBase = rgb(0xE3E6E8); // polished stainless, overcast
-const SkColor4f kSteelSpec = rgb(0xFCFDFD); // direct catch-light
-const SkColor4f kSteelEdge = rgb(0x9BA0A4); // occlusion at the inlay groove
-const SkColor4f kGroove = rgb(0x4E5257, 0.55f); // the milled slot itself
+const SkColor4f kSteelBase = rgb(0xEEF1F2); // polished stainless, overcast
+const SkColor4f kSteelSpec = rgb(0xFEFEFE); // direct catch-light
+const SkColor4f kSteelEdge = rgb(0xC9CED1); // the insert's chamfered lip
+const SkColor4f kGroove = rgb(0x5A5F63, 0.38f); // occlusion in the milled slot
 
-const SkColor4f kJointBed = rgb(0x2A2C2C); // saw-cut joint / bedding mortar
+const SkColor4f kJointBed = rgb(0x33363A); // saw-cut joint / bedding mortar
 const SkColor4f kNight = rgb(0x101112);
 const SkColor4f kCaption = rgb(0x9CA0A2);
 
@@ -149,9 +149,9 @@ const SkColor4f kCaption = rgb(0x9CA0A2);
 constexpr float kW = 1600, kH = 1200;
 constexpr float kCx = kW * 0.5f, kCy = kH * 0.5f;
 constexpr float kModule = 78.0f; // <<< the rhomb side, px. THE free constant.
-constexpr float kJoint = 1.9f;   // saw-cut joint, total width px
+constexpr float kJoint = 1.5f;   // saw-cut joint, total width px
 constexpr float kChamfer = 2.3f; // arris chamfer band, px
-constexpr float kBandW = 9.0f;   // steel inlay band, px (≈0.115·s, per photo)
+constexpr float kBandW = 9.8f;   // steel inlay band, px (≈0.125·s, per photo)
 constexpr float kCorner = 1000.0f; // canvas half-diagonal — the ripple's reach
 constexpr float kDiagW = 328.0f, kDiagH = 224.0f; // the vignette's drawing box
 
@@ -203,10 +203,10 @@ constexpr double kOffset = 0.2;
 struct Tile {
   int r = 0, s = 0, kr = 0, ks = 0;
   bool fat = true;
-  SkPoint v[4]{};     // world px; v[0] = z, the canonical low corner
-  SkPoint centre{};   // world px
-  float radius = 0;   // px from the pentagrid origin
-  int acute[2]{0, 2}; // indices into v[] of the two acute corners
+  SkPoint v[4]{};   // world px; v[0] = z, the canonical low corner
+  SkPoint centre{}; // world px
+  float radius = 0; // px from the pentagrid origin
+  int arcAt[2]{0, 2}; // v[] indices carrying the two matching-rule arcs
   uint32_t seed = 0;
 };
 
@@ -278,15 +278,20 @@ std::vector<Tile> buildField(float module, float padPx) {
                       kCy + (float)(sy * 0.25 * module)};
           t.radius = std::hypot(t.centre.x() - kCx, t.centre.y() - kCy);
 
-          // The interior angle at v[0] is the angle between ζ_r and ζ_s =
-          // 72°·d. d=1 → v[0], v[2] are the ACUTE pair; d=2 → v[1], v[3] are.
-          if (fat) {
-            t.acute[0] = 0;
-            t.acute[1] = 2;
-          } else {
-            t.acute[0] = 1;
-            t.acute[1] = 3;
-          }
+          // The arcs always sit on the ζ_r+ζ_s DIAGONAL — v[0] (= z, the
+          // canonical low corner) and v[2] — never on "the acute pair". That
+          // is forced, not chosen: in the dualization every edge of the whole
+          // tiling runs tail → tail + ζ_j for a fixed j, so marking each edge
+          // at a·s from its tail puts BOTH marks around v[0] at a·s and both
+          // around v[2] at (1−a)·s, while the other two corners see one of
+          // each and admit no circular arc at all. The two arc classes are
+          // exactly de Bruijn's single/double arrow. (a = 1/2 here is also
+          // forced: an arc at the thin rhomb's 144° corner must clear the
+          // far edge at s·sin36° = 0.588s, so a ∈ [0.412, 0.588], and 1/2 is
+          // the only value that makes the two classes congruent — which is
+          // what makes the chain C1 as well as C0.)
+          t.arcAt[0] = 0;
+          t.arcAt[1] = 2;
           t.seed = hash4(r, s, kr, ks);
 
           SkRect bb = SkRect::MakeEmpty();
@@ -304,7 +309,7 @@ std::vector<Tile> buildField(float module, float padPx) {
 // The arc decoration, built in the tile's OWN edge frame (brief §10)
 
 struct ArcSpec {
-  SkPoint centre{}; // the acute vertex — the arc's centre of curvature
+  SkPoint centre{}; // the arc-carrying vertex (v[0] or v[2])
   float startDeg = 0, sweepDeg = 0;
   SkPoint end0{}, end1{}; // the two edge midpoints it lands on
 };
@@ -318,7 +323,7 @@ inline float wrap180(float d) {
 }
 
 ArcSpec arcAt(const Tile &t, int k, float module) {
-  const int ai = t.acute[k];
+  const int ai = t.arcAt[k];
   const SkPoint A = t.v[ai];
   const SkPoint N1 = t.v[(ai + 1) % 4];
   const SkPoint N2 = t.v[(ai + 3) % 4];
@@ -724,7 +729,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                     .foreground(Decoration(PaintProgram(chamfer)))
                     // the saw cut: a hairline of the joint's own colour just
                     // inside the silhouette, so neighbouring setts never fuse
-                    .stroke(util::stroke(0.8f, Fill::color(rgb(0x3A3B3B, 0.55f)),
+                    .stroke(util::stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
                                          PathFormat::Align::Inner))
                     // one Output, two curves: the fade eases out cubic, the
                     // seating overshoots — shaped at the property, not in
@@ -780,7 +785,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .stroke(Brush{}
                     // the milled slot the insert sits in — a hairline of
                     // occlusion either side, not an outline
-                    .leg(PathFormat{.width = kBandW + 1.1f,
+                    .leg(PathFormat{.width = kBandW + 0.9f,
                                     .strokeFill = Fill::color(kGroove)})
                     // the 30 mm polished insert
                     .leg(PathFormat{.width = kBandW, .strokeFill = band}));
@@ -815,8 +820,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                       .width(bb.width())
                       .height(bb.height())
                       .outline([p](SkSize) { return p; })
-                      .fill(Fill::color(g.type == 1 ? rgb(0xC3BFB4)
-                                                    : rgb(0x7E8186)))
+                      .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7)
+                                                    : rgb(0x76797E)))
                       .opacity(withFrom(0.0f, 1.0f,
                                         Transition{240ms, choreograph::easeOutQuad}))
                       .scale(withFrom(0.55f, 1.0f,
@@ -855,7 +860,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .top(r.top())
         .width(r.width())
         .height(r.height())
-        .fill(Fill::color(rgb(0x0E0F10, 0.90f)))
+        .fill(Fill::color(rgb(0x121517, 0.84f)))
         .stroke(util::stroke(1.0f, Fill::color(rgb(0x5E6163, 0.55f)),
                              PathFormat::Align::Inner))
         .background(styles::dropShadow(rgb(0x000000, 0.55f), {0, 6}, 22))
@@ -894,6 +899,20 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .child(box().absolute().inset(0, 0, 0, 0).fill(
             patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f))
         .child(field)
+        // Weathering at PLAZA scale — 250 px cells, i.e. a couple of metres
+        // of traffic staining that crosses joints because dirt does not know
+        // where the setts are. Baked: it never changes, and one grain octave
+        // over 1.9 Mpx is the most expensive thing in the frame.
+        .child(box()
+                   .absolute()
+                   .inset(0, 0, 0, 0)
+                   .blend(SkBlendMode::kMultiply)
+                   .opacity(0.42f)
+                   .cache(Cache::Texture)
+                   .fill(Material::blend(
+                       {{Material::solid(rgb(0xFFFFFF)), SkBlendMode::kSrcOver},
+                        {patterns::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f),
+                         SkBlendMode::kSoftLight}})))
         // ---- daylight. One multiply pass carries both the sun's falloff
         // across the plaza and the corner vignette; a plaza is not evenly lit
         // and an evenly lit tiling is exactly what reads as a diagram.
@@ -903,8 +922,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                    .blend(SkBlendMode::kMultiply)
                    .fill(util::radialGradient(
                        {470, 280}, 1280,
-                       {rgb(0xFFFFFD), rgb(0xEDEDEA), rgb(0xB6B8BB),
-                        rgb(0x76797E), rgb(0x44474C)},
+                       {rgb(0xFAFAF8), rgb(0xE6E6E4), rgb(0xB2B4B8),
+                        rgb(0x74777C), rgb(0x42454A)},
                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
         // the sun pool itself, added back
         .child(box()

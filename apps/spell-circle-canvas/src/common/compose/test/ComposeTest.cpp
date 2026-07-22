@@ -4779,3 +4779,30 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   EXPECT_GT(lit(140, 240), 200); // it moved…
   EXPECT_LT(lit(0, 110), 40);    // …and did not stay put
 }
+
+TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
+  // Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious way
+  // to write "default curve, but I need to name the delay" — initialises
+  // `ease` to an EMPTY std::function. It compiled, then threw
+  // bad_function_call on the first frame and took down a whole scene.
+  Host host(200, 200);
+  host.composer.render(box().child(box()
+                                       .width(40)
+                                       .height(40)
+                                       .absolute()
+                                       .left(0)
+                                       .top(80)
+                                       .fill(red())
+                                       .translateX(withFrom(
+                                           0.0f, 120.0f,
+                                           {200ms, {}, 0ms}))));
+  host.frame();                    // would throw here
+  host.frame(0.4);                 // land the entrance
+  EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
+
+  // and it still prunes against an explicitly-defaulted curve
+  Transition blank{200ms, {}, 0ms};
+  Transition spelled{200ms, &choreograph::easeOutQuad, 0ms};
+  EXPECT_EQ(blank.easing().target<float (*)(float)>() != nullptr,
+            spelled.easing().target<float (*)(float)>() != nullptr);
+}

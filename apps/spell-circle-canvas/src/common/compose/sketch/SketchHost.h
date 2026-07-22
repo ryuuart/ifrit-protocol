@@ -140,6 +140,7 @@ private:
   std::filesystem::file_time_type m_compiledMtime{};
   bool m_everCompiled = false;
   int m_generation = 0;
+  int m_frameIndex = -1; // for the crash reporter's phase line
   double m_lastAssetPoll = 0.0;
   double m_syntheticNow = 0.0; // fixed-dt timeline for headless runs
   std::chrono::steady_clock::time_point m_compileStart{};

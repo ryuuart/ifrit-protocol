@@ -11,6 +11,7 @@
 // smoke test for the whole reload pipeline).
 
 #include "ComposeSketchView.h"
+#include "SketchCrash.h"
 #include "SketchHost.h"
 
 #include <sigilweave/FontContext.h>
@@ -98,9 +99,13 @@ int runHeadless(sigil::compose::sketch::SketchHost &host,
     const std::string path =
         options.frames > 1 ? numberedPath(options.out, index + 1)
                            : options.out;
-    if (!host.capture(path, options.scale)) {
-      std::fprintf(stderr, "failed to write %s\n", path.c_str());
-      return 1;
+    {
+      sigil::compose::sketch::PhaseMark mark(
+          sigil::compose::sketch::Phase::Capture);
+      if (!host.capture(path, options.scale)) {
+        std::fprintf(stderr, "failed to write %s\n", path.c_str());
+        return 1;
+      }
     }
     if (index + 1 < options.frames)
       host.frame(*scratch->getCanvas(), dt); // advance between frames
@@ -155,6 +160,9 @@ int main(int argc, char *argv[]) {
                  options.flagsFile.string().c_str());
     return 2;
   }
+  // Before the guest can ever run: a fault inside it used to be exit 139
+  // and total silence.
+  sigil::compose::sketch::installCrashReporter(options.sketchPath);
   sigil::compose::sketch::SketchHost host(std::move(options), fonts());
 
   if (!capture.out.empty())

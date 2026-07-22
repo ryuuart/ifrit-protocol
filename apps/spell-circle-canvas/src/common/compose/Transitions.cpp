@@ -90,7 +90,7 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
   motion.then<choreograph::RampTo>(
       next.target,
       std::chrono::duration<float>(next.transition->duration).count(),
-      next.transition->ease);
+      next.transition->easing());
   return true;
 }
 
@@ -132,7 +132,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
                               tr->waypoints[i - 1].first)
                               .count();
         motion.then<choreograph::RampTo>(tr->waypoints[i].second,
-                                         std::max(seg, 0.0f), tr->spec.ease);
+                                         std::max(seg, 0.0f), tr->spec.easing());
       }
       return;
     }
@@ -152,7 +152,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       motion.then<choreograph::Hold>(*tr->from, delay);
     motion.then<choreograph::RampTo>(
         tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
-        tr->spec.ease);
+        tr->spec.easing());
   };
   entrance(Instance::kOpacity, node.paint.opacity);
   entrance(Instance::kTx, node.paint.translateX);
@@ -192,7 +192,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
         motion.then<choreograph::Hold>(0.0f, delay);
       motion.then<choreograph::RampTo>(
           1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
-          tr->spec.ease);
+          tr->spec.easing());
     }
   }
 }
@@ -300,7 +300,7 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
       motion.then<choreograph::RampTo>(
           1.0f,
           std::chrono::duration<float>(nextFill.transition->duration).count(),
-          nextFill.transition->ease);
+          nextFill.transition->easing());
     }
   }
 }

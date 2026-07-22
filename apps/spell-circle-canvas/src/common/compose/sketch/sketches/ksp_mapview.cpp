@@ -96,8 +96,8 @@ inline SkColor4f lift(SkColor4f c, float k) {
 
 constexpr SkColor4f kSpace = C(0x090A0C);   // sampled
 constexpr SkColor4f kSpaceEdge = C(0x06070A);
-constexpr SkColor4f kNebula = C(0x3A3D52);
-constexpr SkColor4f kNebula2 = C(0x2A3550);
+constexpr SkColor4f kNebula = C(0x6E7288);
+constexpr SkColor4f kNebula2 = C(0x525F82);
 
 constexpr SkColor4f kOceanLit = C(0x2B5C82);  // sampled mid-tone
 constexpr SkColor4f kOceanDark = C(0x12283A);
@@ -595,11 +595,27 @@ struct KspMapView : sigil::compose::sketch::Sketch {
           .cache(Cache::Texture)
           .bakeScale(0.4f);
     };
-    g.child(wisp(7u, -160, -70, 980, 400, kNebula, 0.30f, -12));
-    g.child(wisp(13u, 340, 10, 1000, 350, kNebula2, 0.26f, -16));
-    g.child(wisp(5u, 120, 60, 700, 260, kNebula, 0.16f, -14));
-    g.child(wisp(21u, 40, 420, 560, 380, kNebula2, 0.13f, 8));
-    g.child(wisp(31u, 680, 360, 600, 440, kNebula, 0.11f, 22));
+    // Two broad grounds at almost nothing, then a MOTTLE of small blobs
+    // along the band. One big soft radial reads as fog; the reference's
+    // milky way is mottled, and mottle is what overlapping small ones make.
+    g.child(wisp(7u, -160, -70, 980, 400, kNebula, 0.16f, -12));
+    g.child(wisp(13u, 340, 10, 1000, 350, kNebula2, 0.14f, -16));
+    uint32_t ws = 0x2545F491u;
+    auto wr = [&ws] {
+      ws ^= ws << 13; ws ^= ws >> 17; ws ^= ws << 5;
+      return (float)(ws & 0xffffff) / (float)0xffffff;
+    };
+    for (int i = 0; i < 16; ++i) {
+      const float u = (float)i / 15.0f;
+      const float bx = -140.0f + u * 1360.0f + (wr() - 0.5f) * 190.0f;
+      const float by = 40.0f + u * 190.0f + (wr() - 0.5f) * 230.0f;
+      const float bw = 150.0f + wr() * 260.0f;
+      g.child(wisp(41u + (uint32_t)i * 7u, bx, by, bw, bw * (0.5f + wr() * 0.4f),
+                   (i % 3 == 0) ? kNebula2 : kNebula, 0.11f + wr() * 0.11f,
+                   -30.0f + wr() * 60.0f));
+    }
+    g.child(wisp(21u, 40, 430, 560, 380, kNebula2, 0.07f, 8));
+    g.child(wisp(31u, 680, 380, 600, 440, kNebula, 0.06f, 22));
     (void)H;
 
     // ~240 stars as ONE atlas stamp, hashed (not a lattice), twinkling by
@@ -644,13 +660,11 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                         126, 148, 122, 100))
                            .child(place(box()
                                             .outline(shapes::blob(19u, 0.34f, 7))
-                                            .fill(Material::solid(
-                                                fade(kLandMoss, 0.9f))),
+                                            .fill(Material::solid(C(0x53803A))),
                                         56, 172, 96, 78))
                            .child(place(box()
                                             .outline(shapes::blob(29u, 0.28f, 8))
-                                            .fill(Material::solid(
-                                                fade(kLandTan, 0.75f))),
+                                            .fill(Material::solid(C(0x8E7C4E))),
                                         30, 178, 62, 56)))
                 // The terminator: a dark ramp anchored past the lower-right
                 // limb, multiplied over land AND ocean alike. Without it the
@@ -658,12 +672,15 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                 .child(box()
                            .absolute()
                            .inset(0)
+                           // radiusUnit is a fraction of the HALF-DIAGONAL:
+                           // 1.28 put the dark end of the ramp outside the
+                           // disc entirely and the terminator vanished.
                            .fill(Material::radialUnit(
-                               {0.34f, 0.28f}, 1.28f,
+                               {0.34f, 0.28f}, 1.02f,
                                {{0.0f, C(0xFFFFFF, 0.0f)},
-                                {0.42f, C(0x081420, 0.16f)},
-                                {0.78f, C(0x061019, 0.62f)},
-                                {1.0f, C(0x03070B, 0.94f)}})))
+                                {0.38f, C(0x081420, 0.06f)},
+                                {0.70f, C(0x061019, 0.42f)},
+                                {1.0f, C(0x03070B, 0.92f)}})))
                 // and one hot specular sliver where the star hits the ocean
                 .child(box()
                            .absolute()
@@ -1273,24 +1290,28 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     Element g = stack().absolute().inset(0);
     const float x = 14;
 
+    // The hazard stripe is an Sk2D lattice hatch clipped to the tab, not a
+    // drawn texture. It has to be a foreground (a background hatch paints
+    // UNDER the node's own fill and disappears), so the digit rides a
+    // SIBLING drawn after the striped plate rather than a child of it.
     auto stageTab = [&](const char *n, float y) {
-      return place(box()
-                       .row()
-                       .alignItems(Align::Center)
-                       .justify(Justify::Center)
-                       .corners({2})
-                       .fill(Material::solid(kStageTab))
-                       // the diagonal hazard stripe, as an Sk2D lattice
-                       // hatch clipped to the tab — not a drawn texture.
-                       // background(), not foreground(): a foreground hatch
-                       // paints over the children and greys out the digit.
-                       .background(lines::hatch(Fill::color(C(0x101010, 0.5f)),
-                                                8.0f, 3.4f, -45.0f))
-                       .stroke(PathFormat{.width = 1.0f,
-                                          .strokeFill = Fill::color(C(0x7A3703)),
-                                          .align = PathFormat::Align::Inner})
-                       .child(t(n, bold(13, C(0xFFFFFF)))),
-                   x, y, 58, 25);
+      return place(stack(), x, y, 58, 25)
+          .child(box()
+                     .absolute()
+                     .inset(0)
+                     .corners({2})
+                     .fill(Material::solid(kStageTab))
+                     .foreground(lines::hatch(Fill::color(C(0x101010, 0.45f)),
+                                              8.0f, 3.4f, -45.0f))
+                     .stroke(PathFormat{.width = 1.0f,
+                                        .strokeFill = Fill::color(C(0x7A3703)),
+                                        .align = PathFormat::Align::Inner}))
+          .child(box()
+                     .absolute()
+                     .inset(0)
+                     .alignItems(Align::Center)
+                     .justify(Justify::Center)
+                     .child(t(n, bold(13, C(0xFFFFFF)))));
     };
     auto partIcon = [&](float py, const char *badge, const char *count) {
       return place(stack()
@@ -1598,37 +1619,47 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                                   {0.5f, C(0xD3D8DB)},
                                                   {1.0f, C(0x7C858B)}})),
                   46, 34, 92, 92));
+    // face under the glass: green, because that is the one thing about a
+    // kerbal nobody gets wrong
     g.child(place(box()
-                      .outline(shapes::sector(150, 240, 0.0f))
-                      .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                                 {{0.0f, C(0xC8A56A)},
-                                                  {1.0f, C(0x8A6B38)}})),
-                  56, 44, 72, 72));
-    // eyes + mouth, the whole character budget
+                      .outline(circleOutline())
+                      .fill(Material::radialUnit({0.4f, 0.32f}, 1.0f,
+                                                 {{0.0f, C(0x9FC45C)},
+                                                  {1.0f, C(0x5F8330)}})),
+                  60, 48, 64, 64));
     g.child(place(box().outline(circleOutline()).fill(Material::solid(
-                      C(0xFFFFFF))),
-                  74, 62, 15, 18));
+                      C(0xF4F4F0))),
+                  74, 62, 14, 17));
     g.child(place(box().outline(circleOutline()).fill(Material::solid(
-                      C(0xFFFFFF))),
-                  95, 62, 15, 18));
+                      C(0xF4F4F0))),
+                  96, 62, 14, 17));
     g.child(place(box().outline(circleOutline()).fill(Material::solid(
                       C(0x141414))),
-                  79, 68, 6, 7));
+                  78, 68, 6, 7));
     g.child(place(box().outline(circleOutline()).fill(Material::solid(
                       C(0x141414))),
                   100, 68, 6, 7));
     g.child(place(box()
                       .outline(shapes::sector(20, 140, 0.0f))
-                      .fill(Material::solid(C(0x2E2416))),
-                  80, 86, 24, 14));
-    // visor glare
+                      .fill(Material::solid(C(0x2E3A18))),
+                  80, 84, 24, 14));
+    // the glass itself, over the face
+    g.child(place(box()
+                      .outline(shapes::sector(150, 240, 0.0f))
+                      .fill(Material::linearUnit({0, 0}, {1, 1},
+                                                 {{0.0f, C(0xBFE0D8, 0.34f)},
+                                                  {0.55f, C(0x6E9A94, 0.10f)},
+                                                  {1.0f, C(0x2E4A46, 0.26f)}}))
+                      .stroke(PathFormat{.width = 1.4f,
+                                         .strokeFill = Fill::color(C(0xE8ECEA))}),
+                  54, 42, 76, 76));
     g.child(place(box()
                       .outline(shapes::blob(3u, 0.18f, 7))
                       .fill(Material::linearUnit({0, 0}, {1, 1},
-                                                 {{0.0f, C(0xFFFFFF, 0.40f)},
+                                                 {{0.0f, C(0xFFFFFF, 0.42f)},
                                                   {1.0f, C(0xFFFFFF, 0.0f)}}))
                       .blend(SkBlendMode::kPlus),
-                  58, 44, 44, 40));
+                  58, 44, 40, 34));
     // suit shoulders
     g.child(place(box()
                       .corners({26})
@@ -1771,7 +1802,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
       s ^= s << 13; s ^= s >> 17; s ^= s << 5;
       return (float)(s & 0xffffff) / (float)0xffffff;
     };
-    for (int i = 0; i < 240; ++i) {
+    for (int i = 0; i < 360; ++i) {
       const float px = rnd() * 1200.0f, py = rnd() * 800.0f;
       const float sc = 0.18f + rnd() * rnd() * 0.75f;
       const float a = 0.25f + rnd() * 0.7f;
