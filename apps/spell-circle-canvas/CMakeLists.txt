@@ -76,6 +76,10 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   endif()
 endif()
 
+# Opt-in network fetch of open-licensed demo assets into the build tree
+# (`--target fetch_assets`); nothing here runs during a normal build.
+include(FetchAssets)
+
 enable_testing()
 
 # What the policies above cannot reach: vcpkg's exported configs disagree

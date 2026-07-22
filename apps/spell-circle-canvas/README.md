@@ -123,6 +123,29 @@ open ./build/bin/Release/ComposeGallery.app
 ctest --test-dir build -C Release -R 'compose(_gallery)?_test'
 ```
 
+## Demo assets
+
+The studies in the gallery and in `sketch/sketches/` are grounded in real
+references, and a reference typeset in whatever face the host OS happens
+to ship is only half-grounded. An opt-in target fetches the open-licensed
+faces those studies want:
+
+```sh
+cmake --build build --config Release --target fetch_assets
+```
+
+Everything lands in `build/assets/` (gitignored) and the path reaches code
+as the `SIGIL_ASSET_DIR` compile definition; the sketch host also takes
+`--assets <dir>` directly. Nothing here runs during a normal build and
+configuring the project never touches the network.
+
+The manifest lives in [`cmake/FetchAssets.cmake`](cmake/FetchAssets.cmake).
+Anything added to it must carry an open licence with its licence file
+fetched alongside, be pinned to an immutable commit rather than a branch,
+and declare an `EXPECTED_HASH` so a changed byte is a hard failure. The
+studies reproduce geometry and palettes, which are facts about a design;
+they do not ship its art.
+
 ## Build & test
 
 See the root [`CLAUDE.md`](../../CLAUDE.md#build-and-test) for the full

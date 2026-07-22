@@ -16,6 +16,11 @@ add_library(SigilSketchKit STATIC
   SketchAnchor.cpp
 )
 target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+# PUBLIC so sketches see it too: `--target fetch_assets` writes the
+# open-licensed demo faces here (cmake/FetchAssets.cmake), and the sketch
+# host also accepts `--assets <dir>` to point at it directly.
+target_compile_definitions(SigilSketchKit PUBLIC
+  SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
 target_link_libraries(SigilSketchKit PUBLIC
   SigilCompose SigilLoader SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES

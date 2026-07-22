@@ -106,12 +106,17 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) {
           (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
 }
 
-const SkColor4f kHinoki = rgb(0xE9D3A0);     // fresh-planed cypress
-const SkColor4f kHinokiLit = rgb(0xF5E6C4);  // raking-light arris
-const SkColor4f kHinokiDark = rgb(0xB8965F); // notch shadow
-const SkColor4f kKeyaki = rgb(0x7A4A28);     // zelkova frame
+// The brief's hinoki #E9D3A0 is the colour of the stock in daylight. This
+// panel is BACKLIT: the wood faces away from the lamp, so the body sits a
+// couple of stops under it and only the arris reaches the daylight value —
+// otherwise cream wood and cream light have no separation and the fretwork
+// stops silhouetting, which is the whole point of a ranma.
+const SkColor4f kHinoki = rgb(0xD6BC89);     // planed cypress, room-side
+const SkColor4f kHinokiLit = rgb(0xF5E6C4);  // #E9D3A0's daylight arris
+const SkColor4f kHinokiDark = rgb(0x8E6C3B); // notch shadow
+const SkColor4f kKeyaki = rgb(0x76472A);     // zelkova frame
 const SkColor4f kKeyakiLit = rgb(0x9C6B3E);
-const SkColor4f kKeyakiDark = rgb(0x5C3419);
+const SkColor4f kKeyakiDark = rgb(0x4B2A12);
 const SkColor4f kGlow = rgb(0xF4E3B8);
 const SkColor4f kNight = rgb(0x0D0906);
 const SkColor4f kSeam = rgb(0x4A3620, 0.55f);
@@ -204,10 +209,10 @@ sk_sp<SkRuntimeEffect> timberEffect() {
         float fig = smoothstep(0.48, 0.96, g);
         // A slow lengthwise tone drift so no two pieces read identical.
         float drift = sin(xy.x * 0.011 + s * 5.0) * 0.5 + 0.5;
-        float4 c = mix(uBase, uLight, lit * 0.95);
+        float4 c = mix(uBase, uLight, lit * 0.92);
         c = mix(c, uDark, shade * 0.85);
         c = mix(c, uDark, fig * uFigure);
-        c = mix(c, uLight, drift * 0.12);
+        c = mix(c, uLight, drift * 0.07);
         return half4(half3(c.rgb), 1.0);
       }
     )"));
@@ -257,11 +262,19 @@ public:
                      .uniform("uBase", t.base)
                      .uniform("uLight", t.light)
                      .uniform("uDark", t.dark);
-    m_bank.emplace(key, m);
-    return m;
+    // The milled tooth on top of the figure: LUMINANCE noise (equal channels)
+    // soft-lit over the timber. patterns::noise() would hue-shift the wood —
+    // its three channels are independent fields.
+    Material blended =
+        Material::blend({{m, SkBlendMode::kSrcOver},
+                         {m_tooth, SkBlendMode::kSoftLight}});
+    m_bank.emplace(key, blended);
+    return blended;
   }
 
 private:
+  // Built ONCE (each patterns::grain() call compiles its own effect).
+  Material m_tooth = patterns::grain(0.62f, 3, 4.0f);
   std::map<uint64_t, Material> m_bank;
 };
 
@@ -615,11 +628,11 @@ Element stripElement(const Strip &s, TimberBank &bank,
                   // The arris: light angle counter-rotated into the piece's
                   // own frame so one raking source lights every board.
                   .foreground(styles::BevelEmboss{
-                      bevelDepth, std::max(1.0f, s.w * 0.18f), 120.0f + angDeg,
-                      {1, 0.96f, 0.86f, 0.55f},
-                      {0.16f, 0.10f, 0.04f, 0.50f}})
+                      bevelDepth, std::max(1.0f, s.w * 0.16f), 120.0f + angDeg,
+                      {1, 0.96f, 0.86f, 0.40f},
+                      {0.14f, 0.09f, 0.03f, 0.40f}})
                   // The seam every abutting piece shows against its neighbour.
-                  .stroke(util::stroke(0.8f, Fill::color(kSeam),
+                  .stroke(util::stroke(0.6f, Fill::color(kSeam),
                                        PathFormat::Align::Inner));
   if (fade)
     e.opacity(fade);
@@ -728,11 +741,11 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         // Brief §7: core inner radius ~80 px, fading out by ~520 px.
         .child(box().absolute().inset(0, 0, 0, 0).fill(Material::radial(
             {open.width() * 0.5f, open.height() * 0.5f}, 520,
-            {{0.00f, rgb(0xFFFBF0, 1.00f)},
-             {0.15f, rgb(0xF7EBCB, 0.99f)},
-             {0.38f, rgb(0xE2B979, 0.80f)},
-             {0.62f, rgb(0x9A6432, 0.42f)},
-             {0.85f, rgb(0x3A2210, 0.14f)},
+            {{0.00f, rgb(0xFFF8E6, 0.98f)},
+             {0.22f, rgb(0xF7E7C0, 0.95f)},
+             {0.45f, rgb(0xD9A964, 0.72f)},
+             {0.68f, rgb(0x8E5A2C, 0.36f)},
+             {0.86f, rgb(0x33200F, 0.12f)},
              {1.00f, rgb(0x0D0906, 0.00f)}})));
   }
 

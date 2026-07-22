@@ -28,6 +28,13 @@ qt_add_qml_module(ComposeGallery
 set_source_files_properties(qml/Main.qml
   PROPERTIES QT_RESOURCE_ALIAS Main.qml)
 target_include_directories(ComposeGallery PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+
+# Where `--target fetch_assets` puts the open-licensed faces a study may
+# want to name (see cmake/FetchAssets.cmake). The directory need not
+# exist: a scene that reaches for a font it did not fetch falls back to
+# the system font manager, the way every scene does today.
+target_compile_definitions(ComposeGallery PRIVATE
+  SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
 target_link_libraries(ComposeGallery PRIVATE
   SigilCompose SigilWeavePorts Qt6::Gui Qt6::GuiPrivate Qt6::Quick
   Qt6::QuickControls2 EnTT::EnTT)
