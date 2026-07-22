@@ -217,6 +217,7 @@ struct BoundFloat {
   const choreograph::Output<float> *source = nullptr;
   float inScale = 1.0f, inOffset = 0.0f; // from(): pre-curve normalisation
   choreograph::EaseFn curve;             // map()
+  bool clampInput = false;               // window(): clamp before the curve
   int steps = 0;                         // quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;     // the affine chain
   bool clamped = false;
@@ -224,6 +225,8 @@ struct BoundFloat {
 
   float apply(float v) const {
     v = v * inScale + inOffset;
+    if (clampInput)
+      v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
     if (curve)
       v = curve(v);
     if (steps > 1)
@@ -249,6 +252,20 @@ public:
     const float span = hi - lo;
     m_b.inScale = span != 0.0f ? 1.0f / span : 0.0f;
     m_b.inOffset = span != 0.0f ? -lo / span : 0.0f;
+    return *this;
+  }
+  /** `from()` that also CLAMPS the normalised value to [0,1].
+   *
+   *  A window is the whole point of `from(lo, hi)` on a multi-beat
+   *  timeline, and the curve runs after it — so with plain `from()` an
+   *  Output outside the window feeds the easing a value outside its
+   *  domain, and none of `ease::` is total. `.map(ease::outBack())` on a
+   *  five-beat sequence is a trap for exactly that reason. `window()` is
+   *  `from()` for the case where you meant "this beat and nothing else",
+   *  which is nearly always. */
+  Bound &window(float lo, float hi) {
+    from(lo, hi);
+    m_b.clampInput = true;
     return *this;
   }
   /** Shape the (normalised) value — any choreograph easing, including the

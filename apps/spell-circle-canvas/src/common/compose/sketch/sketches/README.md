@@ -28,6 +28,7 @@ Run any of them:
 
 | Sketch | Subject | What it puts under load |
 |---|---|---|
+| `black_watch` | The Government sett, from Douglas's 1949 *Scotch Tartan Setts* | A tartan as CLOTH — 24 integers and a mod-4 rule, 63,504 emergent cells, ten invariants computed and printed |
 | `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp, at 0.23 ms |
 | `ds2_bench` | *Dead Space 2*'s Bench — the Nanocircuit Repair upgrade circuit (2011) | Routers, rails and connectors; a diegetic holographic panel |
 | `genesis_fire` | The Genesis Demo wall of fire (Lucasfilm, 1982) — the first particle system | Reeves' published attribute list against `instances()`; additive `kPlus` where the colour IS overlap count |
@@ -58,9 +59,13 @@ here:
 - **A study that hits a wall must write down the API it wanted**, not just
   that it was blocked. "No way to X, and the natural spelling is Y" is
   actionable; "X was hard" is not.
-- **Check the claim before ranking it.** Two entries turned out to be
-  wrong — `PathFormat` has always carried its own trim window, and there
-  has always been a bound `Fill` — and in both cases a study concluded
-  "impossible", worked around it, and the workaround got recorded as a
-  gap. An entry that reads "impossible" outranks one that reads "awkward",
-  so a wrong entry distorts everything below it.
+- **Check the claim before ranking it.** FOUR entries turned out to be
+  wrong — `PathFormat` has always carried its own trim window, there has
+  always been a bound `Fill`, the whole brush vocabulary has always worked
+  on hand-built geometry via `decorations::paintOn`, and `onPath` walked
+  every contour hours before a doc comment said otherwise. In each case a
+  capable author concluded "impossible", worked around it, and the
+  workaround got recorded as a gap. An entry that reads "impossible"
+  outranks one that reads "awkward", so a wrong entry distorts everything
+  below it. Three of the four were caught only once researchers started
+  reading the library's SOURCE rather than its documentation.

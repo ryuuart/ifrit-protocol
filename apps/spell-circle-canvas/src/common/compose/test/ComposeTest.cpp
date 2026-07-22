@@ -5611,3 +5611,27 @@ TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
   EXPECT_GT(lit(150, 190), 30);
   EXPECT_EQ(lit(15, 130), 0);
 }
+
+TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
+  // from(lo,hi) normalises and the curve runs after it, so on a
+  // multi-beat timeline an Output outside the window feeds the easing a
+  // value outside its domain — and none of ease:: is total. Every curve
+  // in the tartan study had to clamp its own input first.
+  auto plain = bind(nullptr).from(0.4f, 0.6f);
+  auto windowed = bind(nullptr).window(0.4f, 0.6f);
+
+  // Inside the window they agree exactly.
+  EXPECT_FLOAT_EQ(plain.value().apply(0.5f), windowed.value().apply(0.5f));
+  // Outside it, from() keeps running past the ends…
+  EXPECT_LT(plain.value().apply(0.0f), -1.0f);
+  EXPECT_GT(plain.value().apply(1.0f), 2.0f);
+  // …and window() holds at the ends, which is what "this beat" means.
+  EXPECT_FLOAT_EQ(windowed.value().apply(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(windowed.value().apply(1.0f), 1.0f);
+
+  // And the clamp lands BEFORE the curve: an overshoot easing evaluated
+  // at 1 returns exactly 1, rather than being run far past its domain.
+  const float overshoot =
+      bind(nullptr).window(0.4f, 0.6f).map(ease::outBack()).value().apply(5.0f);
+  EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
+}
