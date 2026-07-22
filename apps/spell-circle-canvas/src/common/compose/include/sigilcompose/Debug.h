@@ -160,6 +160,13 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkPath &region,
 struct VertexDegrees {
   std::vector<SkPoint> points;
   std::vector<int> degree;
+  /** How many CLOSED contours were seen. A closed contour has no
+   *  endpoints, so it contributes none — and saying so matters: a ring of
+   *  72 closed sectors used to come back as 72 points of degree 1, which
+   *  is neither right nor wrong, just meaningless. If this is nonzero and
+   *  `points` is empty, the input is all closed and this test does not
+   *  apply to it. */
+  size_t closedContours = 0;
   /** Which merged point each piece's endpoints landed on, two per
    *  contour in order — the adjacency `components()` needs. */
   std::vector<std::pair<size_t, size_t>> edges;
@@ -241,7 +248,20 @@ inline VertexDegrees endpointDegrees(std::span<const SkPath> pieces,
       case SkPath::kQuad_Verb:
       case SkPath::kConic_Verb: last = pts[2]; break;
       case SkPath::kCubic_Verb: last = pts[3]; break;
-      case SkPath::kClose_Verb: open = false; break;
+      case SkPath::kClose_Verb:
+        // A closed contour has NO endpoints. Retract the point noted at
+        // its moveTo rather than leaving a phantom degree-1 vertex.
+        if (open && haveStart) {
+          if (--out.degree[contourStart] == 0 &&
+              contourStart + 1 == out.points.size()) {
+            out.points.pop_back();
+            out.degree.pop_back();
+          }
+          ++out.closedContours;
+        }
+        open = false;
+        haveStart = false;
+        break;
       default: break;
       }
     }

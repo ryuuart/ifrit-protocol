@@ -6010,3 +6010,40 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   EXPECT_GT(SkColorGetB(host.pixel(180, 100)), 150);
   EXPECT_LT(SkColorGetR(host.pixel(180, 100)), 110);
 }
+
+TEST(ComposeDebug, ClosedContoursHaveNoEndpointsAndSaySo) {
+  // A ring of closed sectors used to come back as N points of degree 1 —
+  // neither right nor wrong, just meaningless, and silently so. A closed
+  // contour has no endpoints; the count of them is now reported instead.
+  auto sector = [](float a0, float a1) {
+    SkPathBuilder p;
+    p.moveTo(0, 0)
+        .lineTo(std::cos(a0) * 50, std::sin(a0) * 50)
+        .lineTo(std::cos(a1) * 50, std::sin(a1) * 50)
+        .close();
+    return p.detach();
+  };
+  std::vector<SkPath> ring;
+  for (int i = 0; i < 12; ++i)
+    ring.push_back(sector((float)i * SK_FloatPI / 6.0f,
+                          (float)(i + 1) * SK_FloatPI / 6.0f));
+
+  const auto d = debug::endpointDegrees(ring);
+  EXPECT_EQ(d.closedContours, 12u);
+  EXPECT_TRUE(d.points.empty()); // …and no phantom degree-1 vertices
+  EXPECT_TRUE(d.outside(2, 2).empty());
+
+  // Open contours still work exactly as before, and mixing the two keeps
+  // the open ones' endpoints while counting the closed ones.
+  auto seg = [](float x0, float y0, float x1, float y1) {
+    SkPathBuilder p;
+    p.moveTo(x0, y0).lineTo(x1, y1);
+    return p.detach();
+  };
+  std::vector<SkPath> mixed = {seg(0, 0, 10, 0), seg(10, 0, 20, 0),
+                               sector(0.0f, 0.5f)};
+  const auto m = debug::endpointDegrees(mixed);
+  EXPECT_EQ(m.closedContours, 1u);
+  EXPECT_EQ(m.points.size(), 3u);       // the chain's three endpoints
+  EXPECT_EQ(m.outside(2, 2).size(), 2u); // its two loose ends
+}
