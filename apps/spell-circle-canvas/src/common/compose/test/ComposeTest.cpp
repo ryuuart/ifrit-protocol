@@ -4899,3 +4899,34 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   EXPECT_LT(overR, 90);            // …and three of them are no brighter
   EXPECT_GT(plusR, overR + 60);    // additive stacks all three
 }
+
+TEST(ComposeText, OnPathWalksEveryContourNotJustTheFirst) {
+  // A trajectory clipped to the frame produces SEVERAL contours, and
+  // onPath used to take iter.next() once — so the KSP study's hyperbola
+  // lost its label entirely, with no diagnostic. The baseline is now one
+  // arc-length coordinate over the whole chain.
+  auto twoSegments = [](SkSize s) {
+    SkPathBuilder b;
+    b.moveTo(10, 40).lineTo(190, 40);   // contour 1: across the top
+    b.moveTo(10, 160).lineTo(190, 160); // contour 2: across the bottom
+    return b.detach();
+  };
+  auto lit = [](Host &host, int y0, int y1) {
+    int count = 0;
+    for (int y = y0; y < y1; ++y)
+      for (int x = 0; x < 200; ++x)
+        count += host.pixel(x, y) != SK_ColorBLACK;
+    return count;
+  };
+
+  // A run long enough to overflow contour 1 must continue onto contour 2.
+  Host host(200, 200);
+  host.composer.render(box().child(
+      text(u8"HHHHHHHHHHHHHHHHHHHHHHHH", whiteStyle(20))
+          .width(200).height(200).absolute().left(0).top(0)
+          .onPath({.path = twoSegments, .at = 0.0f})));
+  host.frame();
+  EXPECT_GT(lit(host, 20, 60), 200);   // ink on the first contour…
+  EXPECT_GT(lit(host, 140, 180), 200); // …and on the second, which used
+                                       // to be silently unreachable
+}
