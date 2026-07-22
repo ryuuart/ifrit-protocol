@@ -850,6 +850,38 @@ public:
    *  on markers). Resolved after measurement, so intrinsic-size nodes
    *  center correctly; implies absolute(). */
   Element &centerAt(SkPoint p);
+  /** Place an absolute node on a parent-space RECT — the peer of
+   *  centerAt(), for when you already know the box.
+   *
+   *  Exactly `left(r.fLeft).top(r.fTop).width(r.width()).height(r.height())`
+   *  — it calls those four setters, so it writes the same four LayoutProps
+   *  fields, prunes identically, and cannot drift from the longhand. Right
+   *  and bottom stay unpinned.
+   *
+   *  **This is a primitive for MEASURED reconstruction, not a general
+   *  ergonomics fix**, and the two populations disagree about it sharply.
+   *  A study that rebuilds an artefact measures coordinates off a
+   *  reference plate, so its positions arrive as numbers: `.left(` beats
+   *  `.inset(` almost 2:1 there (626 : 328) and nine studies independently
+   *  wrote this helper under four names. The gallery is flex-native and
+   *  the ratio inverts (84 : 222); on its two most house-style scenes this
+   *  saves 4% and 0% respectively. If your position is a *relationship* —
+   *  "inside its parent", "next to that one", "as wide as the column" —
+   *  flex and inset() are the right tools and this is the wrong one.
+   *
+   *      g.child(box().rect(panelBox).fill(…));
+   *      g.child(text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop}));
+   *
+   *  Does not cover right()/bottom() pinning, percentage insets, or
+   *  autoDim() sides — those are different intents and keep the longhand.
+   *  `util::centred()` (Util.h) builds the rect for the centre-and-size
+   *  case. */
+  Element &rect(const SkRect &r);
+  /** Pin an absolute node's top-left to a parent-space POINT, leaving the
+   *  node to size itself from its content — `left(p.fX).top(p.fY)`, the
+   *  187-site half of the placement longhand that carries no box.
+   *  Same qualification as rect() above. */
+  Element &at(SkPoint topLeft);
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
@@ -1438,7 +1470,15 @@ public:
     size_t patchedNodes = 0;    ///< instances whose props changed
     size_t picturesLive = 0;    ///< auto-cached subtree pictures held
     size_t texturesLive = 0;    ///< Cache::Texture images held
-    size_t picturesRecorded = 0;///< recordings performed last draw()
+    /** CACHE WRITES last draw() — every recording AND every pixel bake.
+     *
+     *  The name is narrower than the number and has misled a reader: a
+     *  `Cache::Texture` bake and a promoted bake both count here too, so
+     *  this is "how much cache work did that frame do", which is what
+     *  every caller actually wants to know. `texturesBaked` breaks out
+     *  the pixel-bake subset. */
+    size_t picturesRecorded = 0;
+    size_t texturesBaked = 0;   ///< of those, bakes rather than recordings
     size_t nodesPainted = 0;    ///< instances painted live last draw()
     // Per-phase wall time, so a slow frame localizes at a glance. The paint
     // number is where per-pixel cost lives (live materials, re-records);

@@ -193,6 +193,7 @@ void Composer::draw(SkCanvas &canvas) {
     return;
 
   impl.stats.picturesRecorded = 0;
+  impl.stats.texturesBaked = 0;
   impl.stats.nodesPainted = 0;
   impl.promotedBytesLast = impl.promotedBytes;
   impl.promotedBytes = 0;
