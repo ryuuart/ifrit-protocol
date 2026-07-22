@@ -965,7 +965,58 @@ Note the ordering trap this exposed in the refusal reasons: `Volatile`
 is reported before `Filtered`, so an author who fixes the volatility
 here then meets a second refusal (`clip(true)`) behind it. That is
 honest but it costs an iteration; a reason that could name *all* the
-conditions rather than the first would be better.
+conditions rather than the first would be better. **That change belongs
+in this batch**, because splitting the self-layer creates more nodes
+with several simultaneous reasons, not fewer. The shape: keep
+`NodeCost::promotion` as the primary outcome and add a `uint16_t`
+refusal mask beside it, so the existing values and every test that
+asserts on them keep working.
+
+### The pixel-identity argument, stated before the implementation
+
+Promotion's argument does not carry over, so it has to be made again
+from the start. Promotion bakes a WHOLE subtree and blits it in place of
+everything it contains; the claim is "an integer device-space
+translation cannot change rasterisation". Here the bake replaces only
+PART of what the node paints, and live children are drawn over the blit
+afterwards — so the claim needed is different and strictly stronger:
+
+> Painting the self-layer into a transparent device-aligned surface,
+> blitting it, and then painting the children over the result must
+> produce the same pixels as painting self-then-children directly onto
+> the canvas.
+
+That holds exactly when **every child composites srcOver onto the
+node's own paint**, and fails otherwise:
+
+- A child with a non-srcOver blend resolves against what is beneath it.
+  After a blit that is the same destination, so this one is actually
+  FINE — the blit lands before the children, unlike promotion, where the
+  children were inside the bake. This is the one place the split is
+  *safer* than promotion.
+- A child with a **backdrop filter** samples the destination, which is
+  now a blitted copy rather than freshly rasterised pixels. Identical in
+  value, so also fine.
+- The real failure is the **self-layer itself** reading the backdrop —
+  a non-srcOver blend or backdrop filter on the NODE, where the bake
+  would resolve against transparent black. `subtreeReadsBackdrop`
+  already computes exactly this and is the condition to reuse; it is
+  currently computed for the whole subtree, so it needs splitting into
+  own-paint and children halves.
+- Antialiasing at the boundary between self-paint and children is not a
+  concern: they are separate draws either way, and srcOver of a
+  coverage-modulated child over a blitted destination is the same 8-bit
+  sequence as over a directly-rasterised one. That is the same argument
+  the leaf promotion rests on and it is already asserted by
+  `PromotesAnExpensiveLeafAndKeepsEveryPixel`.
+
+So the eligibility rule is: **the node's OWN paint must not read the
+backdrop, and the node must be upright and unscaled in device space**
+(the same device-snapping requirement, for the same reason). Children
+may be anything at all. The test must render a node with an expensive
+static fill under a moving child and assert zero differing pixels
+against the same tree with the split disabled — every frame across the
+child's motion, not one still.
 
 ## 16. Stamped-brush bakes are cached in the VALUE, so rebuilding the value re-bakes everything
 

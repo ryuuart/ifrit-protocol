@@ -52,6 +52,7 @@ set(SIGIL_SKETCH_STUDIES
   nightingale_coxcomb
   # Pattern and tradition
   black_watch kumiko_asanoha penrose_paving sigillum_aemeth
+  thunder_fulu
   # Motion and film
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense lain_navi
