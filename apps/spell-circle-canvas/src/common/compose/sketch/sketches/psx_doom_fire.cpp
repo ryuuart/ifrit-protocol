@@ -371,7 +371,9 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     return text(toU8("id Software / Williams \xe2\x80\x94 PlayStation port "
                      "title screen \xc2\xb7 algorithm reverse-engineered "
                      "from the Doom 64 disassembly by Samuel Villarreal, "
-                     "documented by Fabien Sanglard"),
+                     "documented by Fabien Sanglard "
+                     "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
+                     "\xc2\xb7 DoomFirePSX/flames.html"),
                 ui(11.5f, kSteel, 0.2f))
         .opacity(withFrom(0.0f, 1.0f,
                           {.duration = 320ms, .delay = 200ms}));
@@ -380,6 +382,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   Element header() {
     return box()
         .column()
+        .shrink(0) // the body row is grow(1); never let it steal header px
         .gap(5)
         .child(eyebrow())
         .child(title())
@@ -400,10 +403,11 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .right(left ? autoDim() : Dim(dx))
         .top(top ? Dim(dy) : autoDim())
         .bottom(top ? autoDim() : Dim(dy))
-        .width(10)
-        .height(10)
+        .width(11)
+        .height(11)
+        .fill(SkColor4f{0, 0, 0, 0.6f})
         .stroke(stroke(1.0f, Fill::color(kAmber), PathFormat::Align::Inner))
-        .opacity(0.55f)
+        .opacity(0.8f)
         .zIndex(6);
   }
 
@@ -424,7 +428,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         .child(text(toU8("DOOM"), doomType())
                    .absolute()
                    .left(0)
-                   .top(66)
+                   .top(80)
                    .width(kPanelW)
                    .textAlign(sigil::weave::TextAlignment::kCenter)
                    .opacity(withFrom(0.0f, 1.0f,
@@ -546,23 +550,24 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .children(std::move(swatches)))
         .child(box()
                    .row()
-                   .child(text(toU8("PALETTE \xc2\xb7 37 ENTRIES, HARD LUT "
-                                    "(NO INTERPOLATION)"),
+                   .child(text(toU8("\xe2\x86\x91 IDX 0 \xc2\xb7 ALPHA 0 "
+                                    "(THE COLD CORE)"),
                                mono(10, kSteel, 1.2f)))
                    .child(box().grow(1))
-                   .child(text(toU8("IDX 0 = ALPHA 0 (COLD CORE)"),
+                   .child(text(toU8("PALETTE \xe2\x80\x94 37 ENTRIES, HARD "
+                                    "LUT, NO INTERPOLATION"),
                                mono(10, kSteel, 1.2f)))
-                   .child(box().width(18))
-                   .child(text(toU8("IDX 36 = SEED"),
+                   .child(box().grow(1))
+                   .child(text(toU8("IDX 36 \xc2\xb7 SEED \xe2\x86\x91"),
                                mono(10, hex(0xEFEFC7), 1.2f))));
   }
 
   console::Style consoleStyle() {
     console::Style s;
-    s.text = mono(12, kAmber);
-    s.palette = {mono(12, hex(0x8A6A22)),  // 0: dim continuation
-                 mono(12, kBone)};         // 1: emphasis
-    s.gap = 3;
+    s.text = mono(11.5f, kAmber);
+    s.palette = {mono(11.5f, hex(0x8A6A22)),  // 0: dim continuation
+                 mono(11.5f, kBone)};         // 1: emphasis
+    s.gap = 2;
     s.visibleLines = 16;
     s.cursorColor = kAmber;
     s.cursorWidth = 8;
@@ -575,8 +580,9 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     return box()
         .column()
         .grow(1)
-        .padding(16, 14)
-        .gap(10)
+        .shrink(0)
+        .padding(15, 12)
+        .gap(8)
         .fill(kPanelInk)
         .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
         .child(box()
@@ -604,19 +610,15 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                               .child(text(toU8("MEAN HEAT / ROW"),
                                           mono(11, kBone, 1.6f)))
                               .child(box().grow(1))
-                              .child(text(toU8("0 \xe2\x80\x93 36"),
-                                          mono(10, kSteel, 1.0f))))
+                              .child(text(toU8("y=167 \xe2\x86\x92 y=0"),
+                                          mono(9.5f, kSteel, 1.0f))))
                    .child(custom(profileProgram())
-                              .height(52)
+                              .height(44)
+                              .shrink(0)
                               .cache(Cache::None)
                               .opacity(withFrom(0.0f, 1.0f,
                                                 {.duration = 400ms,
-                                                 .delay = 1150ms})))
-                   .child(box()
-                              .row()
-                              .child(text(toU8("y=167 SEED"), mono(9, kSteel)))
-                              .child(box().grow(1))
-                              .child(text(toU8("y=0 TOP"), mono(9, kSteel)))))
+                                                 .delay = 1150ms}))))
         .child(box().height(1).fill(kKeyline))
         .child(slot("stats"));
   }
@@ -624,9 +626,9 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   Element statRow(const char *label, std::string value, SkColor4f color) {
     return box()
         .row()
-        .child(text(toU8(label), mono(11, kSteel, 0.8f)))
+        .child(text(toU8(label), mono(10.5f, kSteel, 0.8f)))
         .child(box().grow(1))
-        .child(text(toU8(value), mono(11, color, 0.8f)));
+        .child(text(toU8(value), mono(10.5f, color, 0.8f)));
   }
 
   Element inspectorPanel() {
@@ -688,7 +690,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .child(box()
                               .column()
                               .grow(1)
-                              .gap(14)
+                              .gap(12)
                               .child(specPanel())
                               .child(inspectorPanel())));
   }
@@ -715,7 +717,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     std::snprintf(ratio, sizeof ratio, "%.2f\xc3\x97", drawHz / kSimHz);
     return box()
         .column()
-        .gap(4)
+        .gap(3)
         .child(statRow("SIM STEP", std::to_string(simSteps), kBone))
         .child(statRow("SIM RATE", rate, kAmber))
         .child(statRow("DRAW RATE", draw, kBone))

@@ -591,7 +591,56 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
 }
 
 #include <sigilcompose/Material.h>
+#include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+
+TEST(ComposeShapes, SectorIsClosedAndFillable) {
+  // shapes::arc() is open by contract; a pie wedge needs a closed path.
+  // A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
+  // lower-right quadrant of its box and nothing else.
+  Host host(200, 200);
+  host.composer.render(box().child(
+      box().width(200).height(200).absolute().inset(0)
+          .outline(shapes::sector(0, 90))
+          .fill(Material::solid({1, 0, 0, 1}))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u); // inside the wedge
+  EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);   // lower-left: outside
+  EXPECT_LT(SkColorGetR(host.pixel(130, 70)), 60u);   // upper-right: outside
+
+  // innerRatio carves the donut hole out of the middle.
+  Host donut(200, 200);
+  donut.composer.render(box().child(
+      box().width(200).height(200).absolute().inset(0)
+          .outline(shapes::sector(0, 350, 0.6f))
+          .fill(Material::solid({1, 0, 0, 1}))));
+  donut.frame();
+  EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u); // on the ring
+  EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);  // through the hole
+}
+
+TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
+  // patterns::noise() is fractal RGB noise — its channels are independent
+  // fields, so overlaying it on a coloured surface hue-shifts rather than
+  // shades. grain() is the luminance one: equal channels, real variation.
+  Host host(120, 120);
+  host.composer.render(box().child(box().width(120).height(120).absolute()
+                                       .inset(0)
+                                       .fill(patterns::grain(0.08f, 4, 3.0f))));
+  host.frame();
+  int lo = 255, hi = 0;
+  for (int y = 4; y < 116; y += 3)
+    for (int x = 4; x < 116; x += 3) {
+      const SkColor c = host.pixel(x, y);
+      const int r = (int)SkColorGetR(c), g = (int)SkColorGetG(c),
+                b = (int)SkColorGetB(c);
+      ASSERT_LE(std::abs(r - g), 2) << "channel split at " << x << "," << y;
+      ASSERT_LE(std::abs(g - b), 2) << "channel split at " << x << "," << y;
+      lo = std::min(lo, r);
+      hi = std::max(hi, r);
+    }
+  EXPECT_GT(hi - lo, 40) << "grain is flat — no field to overlay";
+}
 
 TEST(ComposeMaterial, LinearGradientFillPaints) {
   Host host;

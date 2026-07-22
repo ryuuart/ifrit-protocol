@@ -20,6 +20,8 @@
 
 #include "sigilcompose/Compose.h"
 
+#include <algorithm>
+
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
@@ -190,6 +192,38 @@ inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {
     SkPathBuilder b;
     b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
              std::min(sweepDeg, 359.9f));
+    return b.detach();
+  };
+}
+
+/** A CLOSED, fillable circular sector inscribed in the box — the arc plus
+ *  its two radii, or with @p innerRatio > 0 the annular segment between
+ *  two radii (a donut slice). `arc()` above is deliberately open and
+ *  cannot be filled; this is the one to reach for when the wedge itself
+ *  is the mark: pie and polar-area charts (Nightingale's coxcomb),
+ *  cooldown sweeps, radial menus, gauge fills, compass roses.
+ *
+ *  Angles follow Skia's canvas convention: 0° = +x, sweeping clockwise. */
+inline OutlineFn sector(float startDeg, float sweepDeg,
+                        float innerRatio = 0.0f) {
+  return [startDeg, sweepDeg, innerRatio](SkSize s) {
+    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+    const float sweep = std::clamp(sweepDeg, -360.0f, 360.0f);
+    const float inner = std::clamp(innerRatio, 0.0f, 0.999f);
+    const SkRect outerBox = SkRect::MakeWH(s.width(), s.height());
+    SkPathBuilder b;
+    if (inner <= 0.0f) {
+      b.moveTo(cx, cy);
+      b.arcTo(outerBox, startDeg, sweep, false);
+      b.close();
+      return b.detach();
+    }
+    const SkRect innerBox =
+        SkRect::MakeXYWH(cx - cx * inner, cy - cy * inner,
+                         s.width() * inner, s.height() * inner);
+    b.arcTo(outerBox, startDeg, sweep, true);
+    b.arcTo(innerBox, startDeg + sweep, -sweep, false);
+    b.close();
     return b.detach();
   };
 }

@@ -17,6 +17,7 @@
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -190,6 +191,64 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
                  : SkShaders::MakeFractalNoise(frequency, frequency, octaves,
                                                seed, nullptr);
   return Material::shader(std::move(shader));
+}
+
+/** LUMINANCE noise — value-noise fBm collapsed to one channel.
+ *
+ *  `noise()` above wraps Skia's Perlin shader, whose three channels are
+ *  INDEPENDENT fields. That is the right thing for a displacement source
+ *  and the wrong thing for grain: composited over a coloured surface with
+ *  kOverlay or kSoftLight it does not darken and lighten the surface, it
+ *  hue-shifts it — porphyry comes out as rainbow terrazzo. Every "make
+ *  this surface less perfect" move — paper tooth, film grain, stone
+ *  veining, dither, worn metal — wants THIS one, where all three channels
+ *  carry the same value and a blend mode reads as light.
+ *
+ *  `frequency` is features-per-px on the same scale as `noise()`. */
+inline Material grain(float frequency, int octaves = 4, float seed = 1.0f) {
+  static constexpr char kSrc[] = R"(
+uniform float uFreq;
+uniform float uOctaves;
+uniform float uSeed;
+
+float hash21(float2 p) {
+  p = fract(p * float2(123.34, 456.21) + uSeed);
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float vnoise(float2 p) {
+  float2 i = floor(p);
+  float2 f = fract(p);
+  float2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
+             mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), u.x),
+             u.y);
+}
+half4 main(float2 pos) {
+  float2 q = pos * uFreq;
+  float amp = 0.5;
+  float sum = 0.0;
+  float total = 0.0;
+  for (int o = 0; o < 8; ++o) {
+    if (float(o) >= uOctaves) { break; }
+    sum += amp * vnoise(q);
+    total += amp;
+    q *= 2.0;
+    amp *= 0.5;
+  }
+  float v = total > 0.0 ? sum / total : 0.5;
+  return half4(half3(v), 1.0);
+}
+)";
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
+  if (!effect) {
+    SkDebugf("patterns::grain: %s\n", error.c_str());
+    return Material::solid({0.5f, 0.5f, 0.5f, 1});
+  }
+  return Material::sksl(std::move(effect),
+                        {{"uFreq", frequency},
+                         {"uOctaves", (float)std::clamp(octaves, 1, 8)},
+                         {"uSeed", seed}});
 }
 
 // ---------------------------------------------------------------------------

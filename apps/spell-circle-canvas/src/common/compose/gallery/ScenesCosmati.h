@@ -89,10 +89,12 @@ inline sigil::weave::TextStyle type(float size, SkColor4f color,
   return s;
 }
 
-/** A cut stone: the quarry's two tones on a diagonal bed, veined with a
- *  speckle drawn IN THE STONE'S OWN COLOURS. (patterns::noise is fractal
- *  RGB noise — overlaying it turns every quarry into rainbow terrazzo,
- *  which is the one thing a Cosmati floor is not.) */
+/** A cut stone: the quarry's two tones on a diagonal bed, veined with
+ *  LUMINANCE grain and flecked with a speckle in the stone's own colours.
+ *  patterns::grain() exists because patterns::noise() is fractal RGB
+ *  noise whose three channels are independent — overlaid on a coloured
+ *  surface it hue-shifts rather than shades, and turned every quarry here
+ *  into rainbow terrazzo, which is the one thing a Cosmati floor is not. */
 inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24) {
   const float a = angleDeg * 3.14159265f / 180.0f;
   const float dx = std::cos(a) * 52.0f, dy = std::sin(a) * 52.0f;
@@ -104,9 +106,9 @@ inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24) {
       {{Material::linear({0, 0}, {dx, dy},
                          {{0.0f, hi}, {0.52f, lo}, {1.0f, hi}}),
         SkBlendMode::kSrc},
-       {patterns::speckle(34, 22, 0.5f, 2.1f,
-                          {mix(hi, 1.45f, 0.30f), mix(lo, 0.55f, 0.34f),
-                           mix(hi, 0.80f, 0.22f)})
+       {patterns::grain(0.055f, 4, 7.0f), SkBlendMode::kOverlay},
+       {patterns::speckle(34, 16, 0.5f, 1.9f,
+                          {mix(hi, 1.45f, 0.26f), mix(lo, 0.55f, 0.28f)})
             .material(),
         SkBlendMode::kSrcOver}});
 }
