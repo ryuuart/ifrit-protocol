@@ -52,7 +52,18 @@ a **positioned leaf set** for generated geometry that wants no layout at
 all. Three studies paid four-figure Yoga node counts for scenes with zero
 layout in them.
 
-**3. Volatility is declared per NODE, and authors think per PROPERTY.**
+**3. Volatility is declared per NODE and BINARY, and authors think per
+PROPERTY and per RATE.** The CDE study priced this and the number is
+uncomfortable: forty bound `Fill` Outputs driving a whole desktop's
+theme cost **0.33 ms/frame steady** against **0.033 ms** for the same
+forty as plain values — ten times the steady-state paint to save about
+1 ms on one frame in three hundred, i.e. **5.6× more total work per
+palette change**. Nothing is wrong with the binding; the PRICING is.
+`animated()` is per node and binary, so "repaints when the theme changes"
+and "repaints at 60 Hz" are one declaration, and 80% of a desktop
+inherits it through its ancestors. Wanted: a change-rate hint, or
+property-granular volatility.
+
 `trim` is a node property while a second window wants to be a stroke's
 (§7 — which turned out to already work). `dashPhase` was a constant while
 `trimPhase` was bindable (closed). `Effect` takes constant uniforms while
@@ -110,6 +121,7 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `ShapingStyle::aliased` | Skia takes glyph edging from the FONT, never the paint, so `setAntiAlias(false)` was silently ignored and a 1-bit era reconstruction had to leave SigilWeave entirely | `sigilweave/Style.h`, `Shaper.cpp` |
 | `Pool::texWindows()` — per-instance UV window | The per-sprite tex rect existed all the way down; the only narrowing was that a Pool could name a cell INDEX and never a RECT | `Instances.h` |
 | `shapes::circle(direction, startIndex)` | The winding IS the engraver's convention — glyph-up points radially IN on one plate and OUT on another, and half of all ring inscriptions hand-rolled an OutlineFn over a default nobody chose | `Shapes.h` |
 | `Ribbon::widthMax` | `bleed()` cannot look inside a `widthFn`, so a 166 px flow band declared 10 px of reach and was silently clipped | `Brushes.h` |
@@ -771,6 +783,27 @@ axis are the same axis.
   HALF-DIAGONAL, so on a `circle()` node the outermost ring always lands
   at R√2 — outside the shape, clipped away. Same class as §10c's
   `radialUnit` trap, and a two-circle limb is unspellable.
+
+## 10k. Themed textures, and text that cannot be asked for
+
+- **`Pattern` bakes its colours**, so a themed texture cannot be bound.
+  `Pattern::tile` memoizes an `SkImage` on shared state and the colours
+  live inside the `PatternProgram`, so a themed backdrop needs one
+  `Pattern` per palette AND a re-describe to swap them — the only reason
+  the CDE study re-describes at all. §10f is the same wall from the other
+  side: two-colour mask × palette LUT is the natural spelling and wants a
+  child shader. Wanted: `Pattern::recolor(span<Fill>)`.
+- **Text COLOUR has no `PropValue`** — third route to §10c.
+  `TextStyle::paint.foreground` is an `SkPaint`, and `textFill(Material)`
+  CAN be live (checked before filing) but only as float uniforms plus
+  hand-written SkSL for what is a solid colour. That is why a theme
+  switch still repatches every label even in the bound build. Wanted:
+  `text()` taking a `PropValue<Fill>` for the glyph pass.
+- ~~**Text edging cannot be asked for**~~ — **CLOSED** as
+  `ShapingStyle::aliased`. Skia takes edging from the FONT, never the
+  paint, so `setAntiAlias(false)` was silently ignored and a period
+  reconstruction left this engine entirely for its labels. One field, not
+  a face.
 
 ## 11. `Effect` has no live uniforms
 
