@@ -111,7 +111,50 @@ inline constexpr StudyInfo kStudies[] = {
      "Bass and Whitney's Vertigo titles (1958) \xe2\x80\x94 a Lissajous off an "
      "M-5 gun director"},
 
+    // ---- Run 2: film, game and esoteric interfaces ----
+    // These were registered in SIGIL_SKETCH_STUDIES one at a time as they
+    // shipped, which compiled them in — and then were absent from the
+    // gallery for hours, because THE COMPILED SET AND THE LISTED SET ARE
+    // TWO LISTS. The build knows what exists; this table knows what is
+    // shown; nothing checks that they agree. Same two-name identity that
+    // cost three agents an hour elsewhere today (ROADMAP §22), wearing
+    // its third face: not two spellings of one name, but two registries
+    // of one fact.
+    {"thaumonomicon", "thaumonomicon", "Study \xc2\xb7 Game UI",
+     "Thaumcraft 6's research browser (2018) \xe2\x80\x94 edges that are "
+     "stamped art, not strokes"},
+    {"vagrant_story_target", "vagrant story target", "Study \xc2\xb7 Game UI",
+     "Vagrant Story's targeting overlay (2000) \xe2\x80\x94 a projected "
+     "sphere, and a hidden +10 the printed number omits"},
+    {"astral_tome", "astral tome", "Study \xc2\xb7 Game UI",
+     "Astral Sorcery's constellation spread \xe2\x80\x94 the chart is "
+     "square, the CELL is stretched"},
+    {"bg3_dice_roll", "bg3 dice roll", "Study \xc2\xb7 Game UI",
+     "Baldur's Gate 3's ability check \xe2\x80\x94 an icosahedron, and an "
+     "enum whose ordinals are 5e's skill table"},
+    {"eva_magi_defense", "eva magi defense", "Study \xc2\xb7 Film",
+     "The End of Evangelion's MAGI plate (1997) \xe2\x80\x94 six "
+     "installations are one component, rotated"},
+    {"eva_magi_interior", "eva magi interior", "Study \xc2\xb7 Film",
+     "Evangelion Ep 13 under Ireul \xe2\x80\x94 the camera roll was the "
+     "projection; the infection is a shader"},
+    {"lain_navi", "lain navi", "Study \xc2\xb7 Film",
+     "Serial Experiments Lain's Copland OS \xe2\x80\x94 no opaque window "
+     "anywhere, and text through a fixed focal plane"},
+    {"sigillum_aemeth", "sigillum aemeth", "Study \xc2\xb7 Esoteric",
+     "Dee's Sigillum Dei Aemeth (1582) \xe2\x80\x94 solved from the "
+     "angels' own jump rule, 33 of 40 cells"},
+    {"thunder_fulu", "thunder fulu", "Study \xc2\xb7 Esoteric",
+     "A Thunder-Rite talisman, WRITTEN \xe2\x80\x94 real stroke medians, "
+     "and the foot at 7.1\xc3\x97 the body's tempo"},
+    {"dunhuang_star_chart", "dunhuang star chart", "Study \xc2\xb7 Esoteric",
+     "The Dunhuang star chart (c. 649\xe2\x80\x93" "684) reprojected from "
+     "1,460 real stars \xe2\x80\x94 and it refuses to answer"},
+
     // ---- The kit itself ----
+    {"stroke_atlas", "stroke atlas", "Kit",
+     "The line, border and corner specimen plate \xe2\x80\x94 every rule "
+     "captioned with the call that made it"},
     {"hello", "hello", "Kit", "The starter sketch. Copy it."},
     {"stock_materials", "stock materials", "Kit",
      "One of every stock SkSL material \xe2\x80\x94 also the split-Skia ctest "
