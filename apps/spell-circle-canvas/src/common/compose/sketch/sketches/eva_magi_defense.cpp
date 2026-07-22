@@ -403,10 +403,8 @@ inline Element glowText(std::u8string s, float size, SkColor4f c,
   // colour to the byte and the halo only exists where the glyph is not.
   return box()
       .child(text(s, glowType(size, c, condense, 6.5f, 0.34f))
-                 .absolute()
                  .inset(0))
       .child(text(s, glowType(size, c, condense, 2.2f, 0.62f))
-                 .absolute()
                  .inset(0))
       .child(text(std::move(s), type(size, c, condense)));
 }
@@ -829,7 +827,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
 
     const SkPoint at = unroll(s.centre);
     auto plate = box()
-                     .absolute()
                      .left(at.fX - tre::kBarW * 0.5f)
                      .top(at.fY - tre::kTotalH * 0.5f)
                      .width(tre::kBarW)
@@ -844,7 +841,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     for (int n : {1, 2, 3}) {
       const SkRect r = tre::cell(n);
       auto cell = box()
-                      .absolute()
                       .left(r.left())
                       .top(r.top())
                       .width(r.width())
@@ -858,7 +854,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
       // the plate turns.
       cell.child(glowText(toU8(std::string(1, (char)('0' + n))), numeralSize,
                           kNumeral, 0.88f)
-                     .absolute()
                      .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
                      .rotate(-s.rotation));
       plate.child(std::move(cell));
@@ -879,7 +874,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // 36 pt is scaleX 0.86 — the word is Helvetica CONDENSED on the plate and
     // the numerals are not, which is what fontsinuse lists for the panels.
     plate.child(box()
-                    .absolute()
                     .centerAt(tre::kLabelAt)
                     .column()
                     .alignItems(Align::Center)
@@ -897,7 +891,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
     const SkPoint at = unroll(L.centre);
     auto node = box()
-                    .absolute()
                     .left(at.fX - L.w * 0.5f)
                     .top(at.fY - L.h * 0.5f)
                     .width(L.w)
@@ -935,7 +928,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
 
   Element art() const {
     using namespace eva;
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     // Cache::Texture PER MARK, not on the group. One full-canvas bake is a
     // 2 MP alpha blit every frame (8.2 ms measured) for a plate that is 65%
     // empty; bakes the size of the marks themselves total ~0.6 MP and cost
@@ -989,7 +982,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     using namespace eva;
     auto camera = [this](Element e) {
       return box()
-          .absolute()
           .inset(0)
           .translateX(&weaveX)
           .translateY(&weaveY)
@@ -997,7 +989,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
               e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f})));
     };
 
-    auto root = stack().absolute().inset(0);
+    auto root = stack().inset(0);
 
     // (no ground node: the host clears to ctx.background, and a full-canvas
     //  opaque fill is a millisecond nobody needs to spend)
@@ -1018,7 +1010,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     // the photographed CRT: scanlines + vignette baked once, crept
     Material crt = Material::sksl(crtEffect());
     root.child(box()
-                   .absolute()
                    .left(0)
                    .top(-8)
                    .width(kW)
@@ -1029,7 +1020,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                    .key("crt"));
     // phosphor flicker: an alpha-0 plane 99% of the time, so it costs nothing
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Fill::color({0, 0, 0, 1}))
                    .opacity(&flicker)
@@ -1054,7 +1044,6 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     st.gap = 3.0f;
     st.visibleLines = 16;
     return box()
-        .absolute()
         .left(0)
         .top(300)
         .width(eva::kW)

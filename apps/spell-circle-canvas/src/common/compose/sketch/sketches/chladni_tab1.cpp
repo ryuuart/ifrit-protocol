@@ -647,7 +647,6 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     root.child(text(toU8(std::to_string(f.num) + "."),
                     type(faceNumeral, 37, kInk, 0.5f))
                    .key(tag + "num")
-                   .absolute()
                    .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
                    .opacity(withFrom(0.0f, 1.0f,
                                      ramp(tNumeral * 1000 + (float)fi * 22.0f,
@@ -660,7 +659,6 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
       root.child(
           text(toU8(l.glyph), type(faceLabel, 33, kInk))
               .key(tag + "lab" + std::to_string(li))
-              .absolute()
               .centerAt(polar(c, kR * l.radius, l.bearing))
               .opacity(bind(&settle[fi]).from(0.84f, 0.99f).clamp(0.0f, 1.0f))
               .translateY(bind(&settle[fi])
@@ -678,17 +676,16 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
     // is), a vignette that lands on the sampled scan colour ----
-    root.child(box().absolute().inset(0).fill(paperMat).opacity(0.16f).blend(
+    root.child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
         SkBlendMode::kSoftLight));
-    root.child(box().absolute().inset(0).fill(foxing.material()));
+    root.child(box().inset(0).fill(foxing.material()));
     root.child(box()
-                   .absolute()
                    .left(0)
                    .top(kH * 0.50f)
                    .width(kW * 0.52f)
                    .height(kH * 0.50f)
                    .fill(foxingLL.material()));
-    root.child(box().absolute().inset(0).fill(radialGradient(
+    root.child(box().inset(0).fill(radialGradient(
         {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
         {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
          SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
@@ -698,7 +695,6 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 2; ++i) {
       const float g = (float)i * kRuleGap;
       root.child(box()
-                     .absolute()
                      .left(kFrameL + g)
                      .top(kFrameT + g)
                      .width(kFrameR - kFrameL - 2 * g)
@@ -720,7 +716,6 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     root.child(text(toU8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
                    .key("title")
                    .glyphFx(std::move(pen))
-                   .absolute()
                    .centerAt({1436 * kScale, 106 * kScale}));
 
     // ---- the twelve figures ----
@@ -728,14 +723,13 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
       figure(root, i, ctx);
 
     // ---- the sand: every grain in one pool, one atlas stamp ----
-    root.child(box().absolute().inset(0).child(
+    root.child(box().inset(0).child(
         instancing::instances(atlas, pool, instancing::Mode::Live)));
 
     // ---- the engraver's signature, inside the frame at the foot ----
     root.child(text(toU8("Capieux. sculps. 1786."),
                     type(faceSwash, 27, kInkSoft, 0.3f))
                    .key("credit")
-                   .absolute()
                    .centerAt({1402 * kScale, 1917 * kScale})
                    .opacity(withFrom(0.0f, 1.0f, ramp(tCredit * 1000, 700))));
 

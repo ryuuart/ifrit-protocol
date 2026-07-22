@@ -740,7 +740,6 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
  *  keep. */
 inline Element spikyOverlay(uint32_t seed) {
   Element e = box()
-                  .absolute()
                   .inset(0)
                   .outline(shapes::star(8, 0.74f, 0.35f))
                   .fill(Fill::color(mul(kBrass, 1.0f, 0.30f)));
@@ -1277,7 +1276,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   static Element backdropBase() {
     const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
     Element e = box()
-                    .absolute()
                     .left(g(-22))
                     .top(g(-22))
                     .width(w)
@@ -1347,7 +1345,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // Paper tooth: the luminance grain, held back so it shades instead of
     // shouting. Inside the Cache::Texture bake, so its pixels are paid once.
     e.child(box()
-                .absolute()
                 .inset(0)
                 .opacity(0.42f)
                 .blend(SkBlendMode::kOverlay)
@@ -1358,7 +1355,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   static Element backdropOver() {
     const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
     return box()
-        .absolute()
         .left(g(-22))
         .top(g(-22))
         .width(w)
@@ -1402,7 +1398,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     br.leg(std::move(pb));
 
     return connector(child.key, parent.key, thaumRoute(e.flipped))
-        .absolute()
         .inset(0)
         .key(std::string("edge:") + child.key + "<" + parent.key)
         .zIndex(tierZ(e.tier))
@@ -1443,7 +1438,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // 20 ms frame. Baked to a 64x64 texture they are 22 blits, and the
     // pulsing ones keep the bake because a bound opacity is paint-only.
     Element wrap = box()
-                       .absolute()
                        .left(c.fX - g(16))
                        .top(c.fY - g(16))
                        .width(g(32))
@@ -1461,12 +1455,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       wrap.opacity(0.3f);
 
     const uint32_t seed = (uint32_t)(n.col * 31 + n.row * 17 + 101);
-    wrap.child(plateArt(n.meta, seed, spatter[0]).absolute().inset(g(2)));
+    wrap.child(plateArt(n.meta, seed, spatter[0]).inset(g(2)));
     if (n.meta & kSpiky)
       wrap.child(spikyOverlay(seed + 7));
     wrap.child(iconEl(n.icon, n.state == kLocked ? 0.6f : 1.0f,
                       n.state == kLocked)
-                   .absolute()
                    .left(g(8))
                    .top(g(8)));
     return wrap;
@@ -1474,7 +1467,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   Element nodeBadges(const Node &n) const {
     const SkPoint c = centreOf(n.col, n.row);
-    Element g0 = box().absolute().inset(0);
+    Element g0 = box().inset(0);
     if (culled(n.col, n.row))
       return g0;
     if (n.flagResearch)
@@ -1490,7 +1483,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   Element frameBand() const {
     const float in = g(9);
     return box()
-        .absolute()
         .inset(0)
         .outline([in](SkSize s) {
           SkPathBuilder p;
@@ -1510,7 +1502,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
    *  doubled rule whose inner line is dotted. Not a rounded rect anywhere. */
   static Element innerRule() {
     const float m = g(22), cut = g(26);
-    Element e = box().absolute().inset(0).outline([m, cut](SkSize s) {
+    Element e = box().inset(0).outline([m, cut](SkSize s) {
       const float l = m, t = m, r = s.width() - m, b = s.height() - m;
       SkPathBuilder p;
       p.moveTo(l + cut, t); p.lineTo(r - cut, t);
@@ -1561,19 +1553,17 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         {"Golemancy", aspect::kHumanus, 5},
         {"Eldritch", aspect::kAlienis, 6},
     };
-    Element rail = box().absolute().inset(0);
+    Element rail = box().inset(0);
     for (int i = 0; i < 7; ++i) {
       const float y = 10.0f + (float)(i + 1) * 24.0f;
       const bool selected = i == 2; // ALCHEMY
       rail.child(cornerPlate(selected ? SkColor4f{0.6f, 1.0f, 1.0f, 1}
                                       : SkColor4f{1, 1, 1, 1})
-                     .absolute()
                      .left(g(-2 - 1))
                      .top(g(y - 3 - 1))
                      .opacity(selected ? 1.0f : 0.86f));
       const Category &cat = kCats[i];
       rail.child(box()
-                     .absolute()
                      .left(g(1))
                      .top(g(y))
                      .width(g(16))
@@ -1605,7 +1595,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     }
     // the search button (:170, UV 160,16 at x=1, y=height-17), 0.8 grey
     rail.child(box()
-                   .absolute()
                    .left(g(1))
                    .top(g(kGuiH - 17))
                    .width(g(16))
@@ -1644,7 +1633,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     const float mx = hc.fX / U + 2, my = hc.fY / U + 4;
     const float x = (mx + 3 + wd + 4 <= kGuiW) ? mx + 3 : mx - 3 - wd;
     const float y = my - 3;
-    return box().absolute().inset(0).background(
+    return box().inset(0).background(
         prog([a, b, d, x, y, wd, ht](SkCanvas &c, const PaintContext &) {
           SkPaint p;
           p.setAntiAlias(false);
@@ -1713,7 +1702,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     });
 
     // ---- the tree --------------------------------------------------------
-    Element root = box().absolute().inset(0);
+    Element root = box().inset(0);
 
     // 0. drawDefaultBackground (the world under the GUI, then the vanilla
     //    0xC0101010 -> 0xD0101010 wash) is NOT drawn, and the reason is
@@ -1729,7 +1718,6 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     // 1. the parallax pair, clipped to (startX-2, startY-2, screenX+4,
     //    screenY+4) and moved at the source's 2.0 : 1.5 divisors.
     Element plate = box()
-                        .absolute()
                         .left(g(kStartX - 2))
                         .top(g(kStartY - 2))
                         .width(g(kScreenX + 4))
@@ -1749,7 +1737,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     //    edge (:598) and lets everything else run out under the frame band,
     //    which is drawn last and covers the margin. That is why the tree
     //    reads as a viewport onto something larger.
-    Element inner = box().absolute().inset(0);
+    Element inner = box().inset(0);
 
     // 2a. warp swirls go under everything (drawForbidden, :603).
     for (const Node &n : kNodes)
@@ -1760,7 +1748,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
     // 2b. the edges, in unlock order — staggerChildren cascades the
     //     withFrom() trim entrance outward from BASEALCHEMY.
-    Element edges = box().absolute().inset(0).zIndex(0);
+    Element edges = box().inset(0).zIndex(0);
     std::vector<int> order = edgeOrder();
     int k = 0;
     for (int i : order)
@@ -1771,7 +1759,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     inner.child(std::move(edges));
 
     // 2c. the plates, then the badges at full brightness over them.
-    Element plates = box().absolute().inset(0).zIndex(4);
+    Element plates = box().inset(0).zIndex(4);
     for (const Node &n : kNodes)
       plates.child(nodePlate(n));
     for (const Node &n : kNodes)

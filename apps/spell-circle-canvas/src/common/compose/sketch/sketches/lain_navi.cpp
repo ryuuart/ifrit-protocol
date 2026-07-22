@@ -275,6 +275,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 #include <sigilcompose/Util.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
@@ -306,17 +307,10 @@ namespace lain {
 
 constexpr float kW = 1016.0f, kH = 720.0f;
 
-inline SkColor4f hex(uint32_t v, float a = 1.0f) {
-  return {(float)((v >> 16) & 255) / 255.0f, (float)((v >> 8) & 255) / 255.0f,
-          (float)(v & 255) / 255.0f, a};
-}
-inline SkColor4f dim(SkColor4f c, float k) {
-  return {c.fR * k, c.fG * k, c.fB * k, c.fA};
-}
-inline SkColor4f mix(SkColor4f a, SkColor4f b, float t) {
-  return {a.fR + (b.fR - a.fR) * t, a.fG + (b.fG - a.fG) * t,
-          a.fB + (b.fB - a.fB) * t, a.fA + (b.fA - a.fA) * t};
-}
+using studio::hex;   // the same four lines as twenty-three other files
+using studio::mix;
+// dim(c, k) was mul(c, k) with the alpha kept, which is studio::mul's default.
+inline SkColor4f dim(SkColor4f c, float k) { return studio::mul(c, k); }
 
 // ---------------------------------------------------------------------------
 // PALETTE — every entry is a CONTRIBUTION, i.e. what this stratum ADDS to the
@@ -843,7 +837,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   // --- the console block: 15 lines, each with its own sigma ------------------
   Element consoleText() const {
     using namespace lain;
-    auto g = box().absolute().inset(0);
+    auto g = box().inset(0);
     for (int i = 0; i < kLines; ++i) {
       const float y = kFirstBase + kPitch * (float)i;
       const int src =
@@ -860,7 +854,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
       // skirt — and it costs nothing measurable, because Skia caches blurred
       // glyph masks per (font, sigma) and both passes hit the same cache.
       auto place = [&](Element e) {
-        return e.absolute().left(kTextX).top(y - monoSize * 0.98f);
+        return e.at({kTextX, y - monoSize * 0.98f});
       };
       g.child(place(text(line, type(monoFace(), monoSize, dim(c, 0.40f),
                                     sigma + 2.4f)))
@@ -882,11 +876,10 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     const float waist = kRim * std::cos(phi * 0.01745329f);
     const float tilt2 = kOrbit2Tilt + 5.0f * std::sin(t * 0.5f + 1.1f);
 
-    auto g = box().absolute().inset(0).key("wire");
+    auto g = box().inset(0).key("wire");
 
     // the ruling — straight, and stopping 7% short of both rims
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([phi](SkSize) { return generatrices(phi, 7); })
                 .foreground(add(1.5f, dim(kWire, 0.44f), 0.0f))
@@ -898,7 +891,6 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     auto ellArc = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
                       float w, float t0, float t1, const char *key) {
       g.child(box()
-                  .absolute()
                   .inset(0)
                   .outline([c, a, b, tilt, t0, t1](SkSize) {
                     return ellipsePath(c, a, b, tilt, t0, t1);
@@ -924,7 +916,6 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // does not pass through the waist centre — measured x 501..505 against a
     // waist centred on 498.
     g.child(box()
-                .absolute()
                 .inset(0)
                 .outline([](SkSize) {
                   SkPathBuilder b;
@@ -942,11 +933,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // a wrapped column).
     g.child(text(u8"make me feel alright?",
                  type(monoFace(), 31.0f, kAlright, 0.55f, 4.0f))
-                .absolute()
-                .left(0)
-                .top(0)
-                .width(kW)
-                .height(kH)
+                .rect(SkRect::MakeXYWH(0, 0, kW, kH))
                 .onPath(TextPath{.path =
                                      [tilt2](SkSize) {
                                        // REVERSED: solving the two traced
@@ -974,7 +961,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   Element phrases() const {
     using namespace lain;
     const double t = std::fmod((double)phraseStep / 12.0, 13.6);
-    auto g = box().absolute().inset(0).key("phrases");
+    auto g = box().inset(0).key("phrases");
     for (int i = 0; i < kPhraseN; ++i) {
       const Phrase &p = kPhrases[i];
       const double u = t - p.at;
@@ -998,16 +985,13 @@ struct LainNavi : sigil::compose::sketch::Sketch {
       // absolute overlay (a stack() measures to nothing here and shoots the
       // run out of its own centre — the MAGI study's own note, reused)
       g.child(box()
-                  .absolute()
                   .centerAt(p.centre)
                   .key("ph" + std::to_string(i))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, dim(c, 0.42f), 6.5f))
-                             .absolute()
                              .inset(0))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, dim(c, 0.55f), 2.2f))
-                             .absolute()
                              .inset(0))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, c, 0.7f))));
@@ -1018,14 +1002,13 @@ struct LainNavi : sigil::compose::sketch::Sketch {
   // --- the whole stack -------------------------------------------------------
   Element describe(sketch::SketchContext &ctx) {
     using namespace lain;
-    auto root = stack().absolute().inset(0);
+    auto root = stack().inset(0);
 
     // S0 — the photographic plate, and the ONLY node in the stack that does
     // not add. It is the BOTTOM: the #060719 ground is folded into its shader
     // and it composites kSrcOver, which is what keeps it off the every-frame
     // saveLayer that Cache::Texture + .blend() forces (PERF, step 4).
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Material::sksl(plateEffect()))
                    .cache(Cache::Texture)
@@ -1035,7 +1018,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // off all four edges. Leading 48-50 measured; nothing about it is aligned
     // to the window it will sit under.
     {
-      auto g = box().absolute().inset(0).key("prose");
+      auto g = box().inset(0).key("prose");
       for (int i = 0; i < kProseN; ++i) {
         const float y = -26.0f + 48.5f * (float)i;
         // the left edge wanders: no two lines start at the same x, which is
@@ -1044,9 +1027,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
         const float x = -34.0f + 14.0f * std::sin((float)i * 1.7f);
         g.child(text(std::u8string(kProseLines[i]),
                      type(minchoFace(), proseSize, kProse, 0.95f, 1.5f))
-                    .absolute()
-                    .left(x)
-                    .top(y)
+                    .at({x, y})
                     .key("prose" + std::to_string(i)));
       }
       root.child(std::move(g));
@@ -1055,11 +1036,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // S2 — the lightened panel. Measured x 190..470, y 100..380, and it is
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
     root.child(box()
-                   .absolute()
-                   .left(178)
-                   .top(88)
-                   .width(304)
-                   .height(304)
+                   .rect(SkRect::MakeXYWH(178, 88, 304, 304))
                    .fill(Material::radialUnit(
                        {0.48f, 0.46f}, 0.95f,
                        {{0.0f, kPanel}, {0.55f, dim(kPanel, 0.86f)},
@@ -1073,11 +1050,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
 
     // the body: one radial pedestal that is also the eye's rings
     root.child(box()
-                   .absolute()
-                   .left(kBodyL)
-                   .top(kBodyT)
-                   .width(kBodyR - kBodyL)
-                   .height(kBodyB - kBodyT)
+                   .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL, kBodyB - kBodyT))
                    .fill(pedestal())
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
@@ -1097,11 +1070,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // and it excludes Texture from `leafDirectBlend` for the same reason.
     // Bounded to the eye's own box so the bake is 0.05 MP, not 0.73.
     root.child(box()
-                   .absolute()
-                   .left(370)
-                   .top(150)
-                   .width(376)
-                   .height(400)
+                   .rect(SkRect::MakeXYWH(370, 150, 376, 400))
                    .outline([](SkSize s) {
                      return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
                                          92.0f);
@@ -1118,7 +1087,6 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the side rails: single hairlines at the body's own edges, dimmer than
     // the bars. No corner anywhere — the bars simply overhang them.
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .outline([](SkSize) {
                      SkPathBuilder b;
@@ -1140,22 +1108,14 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the interface and its 30 px against 2 px hairlines IS the contrast
     // structure.
     root.child(box()
-                   .absolute()
-                   .left(kBarTopL)
-                   .top(kBarTopT)
-                   .width(kBarTopR - kBarTopL)
-                   .height(kBarTopB - kBarTopT)
+                   .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL, kBarTopB - kBarTopT))
                    .outline(barOutline(kShearTop))
                    .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("barTop"));
     root.child(box()
-                   .absolute()
-                   .left(kBarBotL)
-                   .top(kBarBotT)
-                   .width(kBarBotR - kBarBotL)
-                   .height(kBarBotB - kBarBotT)
+                   .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL, kBarBotB - kBarBotT))
                    .outline(barOutline(kShearBot))
                    .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
                    .blend(SkBlendMode::kPlus)
@@ -1165,7 +1125,6 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the rotated Copland lockup, up the left margin at -55 deg. Documented
     // wordmark, verbatim off the boot plate and the ASCII transcription both.
     root.child(box()
-                   .absolute()
                    .centerAt({88, 300})
                    .rotate(-55.0f)
                    .column()
@@ -1185,13 +1144,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // `COVer me` — soft brush, orange, the only warm thing in the frame.
     // x 576..884, y 136..229 measured; it runs UPHILL to the right.
     root.child(box()
-                   .absolute()
                    .centerAt({730, 182})
                    .rotate(-9.0f)
                    .key("cover")
                    .child(text(u8"COVer me",
                                type(markerFace(), 62, dim(kCover, 0.5f), 6.5f))
-                              .absolute()
                               .centerAt({0, 0}))
                    .child(text(u8"COVer me", type(markerFace(), 62, kCover,
                                                   1.4f))));
@@ -1200,7 +1157,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // shapes — three bands of different length at different heights, blurred
     // hard along x only.
     {
-      auto g = box().absolute().inset(0).key("magenta");
+      auto g = box().inset(0).key("magenta");
       const float bands[5][4] = {{474, 508, 128, 0.95f},
                                  {556, 528, 250, 0.72f},
                                  {498, 552, 74, 0.55f},
@@ -1208,11 +1165,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                                  {742, 604, 118, 0.48f}};
       for (const auto &b : bands)
         g.child(box()
-                    .absolute()
-                    .left(b[0])
-                    .top(b[1])
-                    .width(b[2])
-                    .height(15)
+                    .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
                     .fill(Material::linearUnit(
                         {0, 0}, {1, 0},
                         {{0.0f, dim(kMagenta, 0.0f)},
@@ -1247,20 +1200,14 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // habit, not a workaround for a demonstrated defect, and the next study to
     // read this should not believe otherwise.
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .translateY(&creep)
                    .child(box()
-                              .absolute()
-                              .left(0)
-                              .top(-12)
-                              .width(kW)
-                              .height(kH + 24)
+                              .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
                               .fill(Material::sksl(crtEffect()))
                               .cache(Cache::Texture)
                               .key("crt")));
     root.child(box()
-                   .absolute()
                    .inset(0)
                    .fill(Fill::color({0, 0, 0, 1}))
                    .opacity(&flicker)

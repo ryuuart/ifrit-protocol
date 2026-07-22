@@ -290,6 +290,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/Studio.h>
 #include <sigilcompose/Util.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
@@ -333,25 +334,20 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;  // Cluster:59 — the HIT box
 constexpr float kUlen = kRenderBox / (float)kGrid;   // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;      // Cluster:240
 
-inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16) & 255) / 255.0f, (float)((hex >> 8) & 255) / 255.0f,
-          (float)(hex & 255) / 255.0f, a};
-}
-inline SkColor4f mul(SkColor4f c, float k, float a = -1.0f) {
-  return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
-}
+using studio::hex;   // the same four lines as twenty-three other files
+using studio::mul;
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
 // Palette, sampled out of the mod's own PNGs (see the header).
-const SkColor4f kLeatherDark = rgb(0x0A0800);   // guijspacebook, darkest bulk
-const SkColor4f kLeatherMid = rgb(0x2C1602);    // its commonest opaque colour
-const SkColor4f kLeatherWarm = rgb(0x634913);
-const SkColor4f kGilt = rgb(0x9B7A2D);          // its brightest
-const SkColor4f kOlive = rgb(0x7D6C00);         // guijarrow
-const SkColor4f kOliveDim = rgb(0x574E25);
-const SkColor4f kNebula = rgb(0x0B080B);        // guiresbgcst mean * (.8,.8,1)*.7
-const SkColor4f kFieldStar = rgb(0x8F8FB3);     // its white points, same tint
-const SkColor4f kInk = rgb(0xDDDDDD);           // Cluster:253 text 0xBBDDDDDD
+const SkColor4f kLeatherDark = hex(0x0A0800);   // guijspacebook, darkest bulk
+const SkColor4f kLeatherMid = hex(0x2C1602);    // its commonest opaque colour
+const SkColor4f kLeatherWarm = hex(0x634913);
+const SkColor4f kGilt = hex(0x9B7A2D);          // its brightest
+const SkColor4f kOlive = hex(0x7D6C00);         // guijarrow
+const SkColor4f kOliveDim = hex(0x574E25);
+const SkColor4f kNebula = hex(0x0B080B);        // guiresbgcst mean * (.8,.8,1)*.7
+const SkColor4f kFieldStar = hex(0x8F8FB3);     // its white points, same tint
+const SkColor4f kInk = hex(0xDDDDDD);           // Cluster:253 text 0xBBDDDDDD
 constexpr float kInkAlpha = 0xBB / 255.0f;
 
 // ---------------------------------------------------------------------------
@@ -480,7 +476,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     st.shaping.letterSpacing = track;
     st.shaping.aliased = useMono;
     st.paint.foreground.setColor4f(col, nullptr);
-    return box().absolute().left(x).top(y).child(text(toU8(s), st));
+    return box().at({x, y}).child(text(toU8(s), st));
   }
   Element label(const std::string &s, float x, float y, float size, SkColor4f col,
                 float track = 0.0f, bool useMono = false) const {
@@ -504,7 +500,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  picture replays the draw call, not the result. */
   Element leather() const {
     Element e = box()
-                    .absolute()
                     .inset(0)
                     .key("leather")
                     .cache(Cache::Texture)
@@ -528,11 +523,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const float x = at::gx(15), y = at::gy(10);
     const float w = at::g(at::kGuiW - 30), h = at::g(at::kGuiH - 20);
     Element p = box()
-                    .absolute()
-                    .left(x)
-                    .top(y)
-                    .width(w)
-                    .height(h)
+                    .rect(SkRect::MakeXYWH(x, y, w, h))
                     .key("page")
                     .cache(Cache::Texture)
                     .fill(Material::blend(
@@ -564,7 +555,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                         .outline(shapes::star(4, 0.26f, 0.14f))
                         .fill(Fill::color(at::mul(at::kFieldStar, 1.0f, r.alpha)));
       p.child(box()
-                  .absolute()
                   .inset(-60)
                   .key(std::string("field") + std::to_string(i))
                   .outline(shapes::lissajous(r.a, r.b, r.delta, 1600))
@@ -590,7 +580,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element linkPass(const at::Con &c, int li, int pass, int key) const {
     const SkPoint a = at::starAt(c, c.links[(size_t)li].first);
     const SkPoint b = at::starAt(c, c.links[(size_t)li].second);
-    const SkColor4f col = at::rgb(c.color);
+    const SkColor4f col = at::hex(c.color);
     const float half = at::g(at::kLineBreadth);      // 6 canvas px
     const float band = half * 2.0f;                  // 12 canvas px
 
@@ -679,11 +669,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const SkPoint p0{a.fX - box2.left(), a.fY - box2.top()};
     const SkPoint p1{b.fX - box2.left(), b.fY - box2.top()};
     return box()
-        .absolute()
-        .left(box2.left())
-        .top(box2.top())
-        .width(std::max(box2.width(), 1.0f))
-        .height(std::max(box2.height(), 1.0f))
+        .rect(SkRect::MakeXYWH(box2.left(), box2.top(), std::max(box2.width(), 1.0f), std::max(box2.height(), 1.0f)))
         .key(std::string("lk") + std::to_string(key) + "_" + std::to_string(pass))
         .outline([p0, p1](SkSize) {
           SkPathBuilder p;
@@ -703,7 +689,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  the one piece of magnitude information the graph actually carries. */
   Element starEl(const at::Con &c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
-    const SkColor4f col = at::rgb(c.color);
+    const SkColor4f col = at::hex(c.color);
     const int deg = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);          // 18.39 canvas px
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
@@ -715,14 +701,12 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // 1200x750 layers a frame and 18.4 ms of an 16.6 ms budget. The layer has
     // to be the size of the thing that twinkles. See the perf story.
     Element grp = box()
-                      .absolute()
                       .width(side)
                       .height(side)
                       .centerAt(p)
                       .key(std::string("st") + std::to_string(key));
     // the halo — a gradient, which lowers to a SIMD blitter, not a blur
     grp.child(box()
-                  .absolute()
                   .inset(0)
                   .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
                                            {{0.0f, at::mul(col, 1.0f, 0.42f)},
@@ -730,11 +714,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                                             {1.0f, at::mul(col, 1.0f, 0.0f)}})));
     // the glyph
     grp.child(box()
-                  .absolute()
-                  .left((side - r) * 0.5f)
-                  .top((side - r) * 0.5f)
-                  .width(r)
-                  .height(r)
+                  .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
                   .outline(shapes::star(4, 0.24f, 0.16f))
                   .fill(Fill::color(at::mul(col, 1.35f, 0.92f))));
     // the white-hot core. The one kPlus on this canvas, declared as a
@@ -742,11 +722,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // throughout (Blending.java:23).
     const float cr = r * 0.34f;
     grp.child(box()
-                  .absolute()
-                  .left((side - cr) * 0.5f)
-                  .top((side - cr) * 0.5f)
-                  .width(cr)
-                  .height(cr)
+                  .rect(SkRect::MakeXYWH((side - cr) * 0.5f, (side - cr) * 0.5f, cr, cr))
                   .blend(SkBlendMode::kPlus)
                   .outline(shapes::circle())
                   .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.85f})));
@@ -761,11 +737,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element cellPlate(int i, bool key) const {
     const SkPoint o = at::kOffsets[(size_t)i];
     Element e = box()
-                    .absolute()
-                    .left(at::gx(o.fX))
-                    .top(at::gy(o.fY))
-                    .width(at::g(at::kCellW))
-                    .height(at::g(at::kCellH))
+                    .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), at::g(at::kCellW), at::g(at::kCellH)))
                     .key(std::string("cell") + std::to_string(i))
                     .outline(shapes::chamfered(at::g(4.0f), shapes::Corner::All))
                     .foreground(decorations::brackets(
@@ -807,11 +779,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element arrow(float guiX, float guiY, bool flip, bool hovered,
                 const char *k) const {
     Element e = box()
-                    .absolute()
-                    .left(at::gx(guiX))
-                    .top(at::gy(guiY))
-                    .width(at::g(30))
-                    .height(at::g(15))
+                    .rect(SkRect::MakeXYWH(at::gx(guiX), at::gy(guiY), at::g(30), at::g(15)))
                     .key(k)
                     .transformOrigin(0.5f, 0.5f)
                     .outline(shapes::arrow(0.34f, 0.42f))
@@ -837,17 +805,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element bookmarkRail() const {
     static constexpr const char *kNames[4] = {"RESEARCH", "CONSTELLATIONS",
                                               "PERKS", "KNOWLEDGE"};
-    Element rail = box().absolute().inset(0).key("bm").zIndex(12);
+    Element rail = box().inset(0).key("bm").zIndex(12);
     for (int i = 0; i < 4; ++i) {
       const bool sel = i == 1;              // bookmarkIndex 20 = Constellations
       const float w = 67.0f + (sel ? 0.0f : 5.0f);
       const float y = 20.0f + 18.0f * (float)i;
       rail.child(box()
-                     .absolute()
-                     .left(at::gx(at::kGuiW - 17.25f))
-                     .top(at::gy(y))
-                     .width(at::g(w))
-                     .height(at::g(15))
+                     .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y), at::g(w), at::g(15)))
                      .key(std::string("bmk") + std::to_string(i))
                      .outline(shapes::notched(at::g(9.0f), at::g(4.0f),
                                               shapes::Corner::TopRight |
@@ -877,11 +841,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const SkPoint o = at::kOffsets[(size_t)ci];
     const float side = at::g(at::kRenderBox);
     Element e = box()
-                    .absolute()
-                    .left(at::gx(o.fX))
-                    .top(at::gy(o.fY))
-                    .width(side)
-                    .height(side)
+                    .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), side, side))
                     .key("lattice")
                     .foreground(lines::crosshatch(
                         Fill::color(at::mul(at::kGilt, 1.0f, 0.11f)),
@@ -896,7 +856,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element keyCoords(int ci) const {
     const at::Con &c = at::kPage0[(size_t)ci];
     const SkPoint o = at::kOffsets[(size_t)ci];
-    Element g2 = box().absolute().inset(0).key("coords").zIndex(7);
+    Element g2 = box().inset(0).key("coords").zIndex(7);
     for (int si = 1; si <= c.starCount; ++si) {
       const SkPoint p = at::starAt(c, si);
       const auto &s = c.stars[(size_t)(si - 1)];
@@ -910,7 +870,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       // "centre 47.5"; the coordinates just never got it.
       g2.child(scrimLabel(t, at::gx(o.fX) + p.fX + 9.0f,
                           at::gy(o.fY) + p.fY - 16.0f, 10.0f,
-                          at::mul(at::rgb(c.color), 1.25f, 0.86f), 0.6f));
+                          at::mul(at::hex(c.color), 1.25f, 0.86f), 0.6f));
     }
     return g2;
   }
@@ -923,15 +883,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
   Element magnitudeKey(float x, float y) const {
     static constexpr const char *kWho[4] = {"discidia sl1", "vicio sl4",
                                             "aevitas sl1", "armara sl2"};
-    Element k = box().absolute().inset(0).key("magkey").zIndex(14);
+    Element k = box().inset(0).key("magkey").zIndex(14);
     k.child(label("GLYPH RADIUS \xC3\x97 LINK DEGREE", x, y - 22.0f, 10.5f,
                   at::mul(at::kGilt, 1.0f, 0.68f), 2.0f, true));
     k.child(box()
-                .absolute()
-                .left(x)
-                .top(y - 6.0f)
-                .width(216.0f)
-                .height(2.0f)
+                .rect(SkRect::MakeXYWH(x, y - 6.0f, 216.0f, 2.0f))
                 .key("magrule")
                 .outline([](SkSize s2) {
                   SkPathBuilder p;
@@ -952,7 +908,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       const float r = base * (0.74f + 0.15f * (float)d);
       const float cx = x + 22.0f + (float)(d - 1) * 58.0f;
       k.child(box()
-                  .absolute()
                   .width(r)
                   .height(r)
                   .centerAt({cx, y + 26.0f})
@@ -975,7 +930,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  every link filed under that divisor, so the strip is a direct read on the
    *  structure, not a legend for it. */
   Element divisorStrip(float x, float y) {
-    Element k = box().absolute().inset(0).key("divstrip").zIndex(14);
+    Element k = box().inset(0).key("divstrip").zIndex(14);
     k.child(label("conCFlicker \xC2\xB7 seed 0x4196A15C91A5E199 \xC2\xB7 d = 12 "
                   "\xE2\x80\xA6 21 \xC2\xB7 3.77 \xE2\x80\x93 6.60 s",
                   x, y + 24.0f, 10.0f, at::mul(at::kGilt, 0.95f, 0.52f), 0.8f,
@@ -983,11 +938,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     for (int i = 0; i < at::kDivCount; ++i) {
       const float bx = x + (float)i * 25.0f;
       k.child(box()
-                  .absolute()
-                  .left(bx)
-                  .top(y)
-                  .width(17.0f)
-                  .height(18.0f)
+                  .rect(SkRect::MakeXYWH(bx, y, 17.0f, 18.0f))
                   .key(std::string("fb") + std::to_string(i))
                   .transformOrigin(0.5f, 1.0f)
                   .scaleY(bind(&bright[(size_t)i])
@@ -996,11 +947,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                               .offset(0.22f))
                   .fill(Fill::color(at::mul(at::kInk, 1.0f, 0.72f))));
       k.child(box()
-                  .absolute()
-                  .left(bx)
-                  .top(y + 19.0f)
-                  .width(17.0f)
-                  .height(1.0f)
+                  .rect(SkRect::MakeXYWH(bx, y + 19.0f, 17.0f, 1.0f))
                   .key(std::string("fu") + std::to_string(i))
                   .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.45f))));
     }
@@ -1017,7 +964,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const SkPoint o = at::kOffsets[(size_t)ci];
     const SkPoint p{at::gx(o.fX) + at::starAt(c, si).fX,
                     at::gy(o.fY) + at::starAt(c, si).fY};
-    const SkColor4f col = at::rgb(c.color);
+    const SkColor4f col = at::hex(c.color);
     const auto &s = c.stars[(size_t)(si - 1)];
     const int deg = at::degreeOf(c, si);
     const int d = divisors[(size_t)(2 * c.linkCount + si - 1)];
@@ -1028,13 +975,9 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                                        std::max(p.fY, to.fY) + 2);
     const SkPoint a0{p.fX - bb.left(), p.fY - bb.top()};
     const SkPoint a1{to.fX - bb.left(), to.fY - bb.top()};
-    Element g2 = box().absolute().inset(0).key(std::string("co") + std::to_string(ci)).zIndex(13);
+    Element g2 = box().inset(0).key(std::string("co") + std::to_string(ci)).zIndex(13);
     g2.child(box()
-                 .absolute()
-                 .left(bb.left())
-                 .top(bb.top())
-                 .width(bb.width())
-                 .height(bb.height())
+                 .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
                  .key(std::string("col") + std::to_string(ci))
                  .outline([a0, a1](SkSize) {
                    // an elbow: out along the bearing, then flat into the
@@ -1073,15 +1016,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const float w = 176.0f, h = 74.0f;
     const SkColor4f ink = at::mul(at::kGilt, 1.15f, 0.9f);
     const SkColor4f dim = at::mul(at::kGilt, 1.0f, 0.30f);
-    Element m = box().absolute().inset(0).key("sprofile").zIndex(14);
+    Element m = box().inset(0).key("sprofile").zIndex(14);
     m.child(label("connectionperks.png \xC2\xB7 alpha by v", x, y - 20.0f, 10.0f,
                   at::mul(at::kGilt, 1.0f, 0.66f), 1.4f, true));
     m.child(box()
-                .absolute()
-                .left(x)
-                .top(y)
-                .width(w)
-                .height(h)
+                .rect(SkRect::MakeXYWH(x, y, w, h))
                 .key("sprof")
                 .foreground(decorations::brackets(1.0f, Fill::color(dim), 12.0f))
                 .background(at::prog([=](SkCanvas &c, const PaintContext &) {
@@ -1127,15 +1066,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  80 px pitch and NOT a grid. */
   Element offsetKey(float x, float y) const {
     const float k = 0.55f;   // canvas px per GUI px, ~1/5.45 of the plate
-    Element m = box().absolute().inset(0).key("offkey").zIndex(14);
+    Element m = box().inset(0).key("offkey").zIndex(14);
     m.child(label("offsetMap \xC2\xB7 4 PER PAGE", x, y - 22.0f,
                   10.5f, at::mul(at::kGilt, 1.0f, 0.68f), 1.6f, true));
     m.child(box()
-                .absolute()
-                .left(x)
-                .top(y)
-                .width(at::kGuiW * k)
-                .height(at::kGuiH * k)
+                .rect(SkRect::MakeXYWH(x, y, at::kGuiW * k, at::kGuiH * k))
                 .key("offframe")
                 .outline(shapes::chamfered(7.0f, shapes::Corner::All))
                 .foreground(decorations::weightedCorners(
@@ -1145,29 +1080,21 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       const SkPoint o = at::kOffsets[(size_t)i];
       // the 80 x 110 hit cell
       m.child(box()
-                  .absolute()
-                  .left(x + o.fX * k)
-                  .top(y + o.fY * k)
-                  .width(at::kCellW * k)
-                  .height(at::kCellH * k)
+                  .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k, at::kCellW * k, at::kCellH * k))
                   .key(std::string("ok") + std::to_string(i))
                   .foreground(decorations::brackets(
-                      0.9f, Fill::color(at::rgb(at::kPage0[(size_t)i].color, 0.8f)),
+                      0.9f, Fill::color(at::hex(at::kPage0[(size_t)i].color, 0.8f)),
                       9.0f)));
       // the 95 x 95 render box standing proud of it
       m.child(box()
-                  .absolute()
-                  .left(x + o.fX * k)
-                  .top(y + o.fY * k)
-                  .width(at::kRenderBox * k)
-                  .height(at::kRenderBox * k)
+                  .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k, at::kRenderBox * k, at::kRenderBox * k))
                   .key(std::string("or") + std::to_string(i))
                   .foreground(lines::Line{
                       .width = 0.7f,
-                      .fill = Fill::color(at::rgb(at::kPage0[(size_t)i].color, 0.32f)),
+                      .fill = Fill::color(at::hex(at::kPage0[(size_t)i].color, 0.32f)),
                       .dashIntervals = {2.0f, 4.0f}}));
       m.child(label(std::to_string(i), x + o.fX * k + 3.0f, y + o.fY * k + 2.0f,
-                    9.5f, at::rgb(at::kPage0[(size_t)i].color, 0.95f), 0.4f,
+                    9.5f, at::hex(at::kPage0[(size_t)i].color, 0.95f), 0.4f,
                     true));
     }
     m.child(label("0 45,55    1 125,105", x, y + at::kGuiH * k + 5.0f, 8.5f,
@@ -1190,14 +1117,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     const SkPoint pivot{at::gx(o.fX) + at::g(at::kCellW * 0.5f),
                         at::gy(o.fY) + at::g(at::kCellW * 0.5f)};
     const SkPoint centre{at::gx(o.fX) + side * 0.5f, at::gy(o.fY) + side * 0.5f};
-    Element m = box().absolute().inset(0).key("pivot").zIndex(13);
+    Element m = box().inset(0).key("pivot").zIndex(13);
     // the ghost: where the chart sits when NOT hovered
     m.child(box()
-                .absolute()
-                .left(at::gx(o.fX))
-                .top(at::gy(o.fY))
-                .width(side)
-                .height(side)
+                .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), side, side))
                 .key("ghost")
                 .foreground(lines::Line{
                     .width = 1.1f,
@@ -1208,7 +1131,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                        at::gx(o.fX) + 4.0f, at::gy(o.fY) - 18.0f, 9.5f,
                        at::mul(at::kInk, 1.0f, 0.72f), 0.9f));
     m.child(box()
-                .absolute()
                 .width(26.0f)
                 .height(26.0f)
                 .centerAt(pivot)
@@ -1216,7 +1138,6 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                 .outline(shapes::star(4, 0.06f, 0.0f))
                 .fill(Fill::color(at::mul(at::kGilt, 1.4f, 0.95f))));
     m.child(box()
-                .absolute()
                 .width(11.0f)
                 .height(11.0f)
                 .centerAt(centre)
@@ -1233,17 +1154,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
 
   // ----------------------------------------------------------- marginalia
   Element marginalia() const {
-    Element m = box().absolute().inset(0).key("margin").zIndex(14);
+    Element m = box().inset(0).key("margin").zIndex(14);
 
     // The plate frame: a double border whose outer rule THICKENS into the
     // corner and whose inner rule stops short of it, over a chamfered
     // silhouette. A frame is not a 1 px rounded rect.
     m.child(box()
-                .absolute()
-                .left(at::gx(15) + 5)
-                .top(5)
-                .width(at::g(at::kGuiW - 30) - 10)
-                .height(at::kCanvasH - 10)
+                .rect(SkRect::MakeXYWH(at::gx(15) + 5, 5, at::g(at::kGuiW - 30) - 10, at::kCanvasH - 10))
                 .key("plateframe")
                 .outline(shapes::chamfered(26.0f, shapes::Corner::All))
                 .style(decorations::doubleBorder(
@@ -1262,11 +1179,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                   35.0f, 40.0f, 11.5f, at::mul(at::kGilt, 0.85f, 0.6f), 0.4f,
                   true));
     m.child(box()
-                .absolute()
-                .left(34.0f)
-                .top(56.0f)
-                .width(500.0f)
-                .height(3.0f)
+                .rect(SkRect::MakeXYWH(34.0f, 56.0f, 500.0f, 3.0f))
                 .key("headrule")
                 .outline([](SkSize s2) {
                   SkPathBuilder p;
@@ -1294,11 +1207,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(label("CORRECTIONS FROM THE SOURCE", ex, ey - 24.0f, 10.5f,
                   at::mul(at::kGilt, 1.1f, 0.72f), 2.2f, true));
     m.child(box()
-                .absolute()
-                .left(ex)
-                .top(ey - 8.0f)
-                .width(496.0f)
-                .height(2.0f)
+                .rect(SkRect::MakeXYWH(ex, ey - 8.0f, 496.0f, 2.0f))
                 .key("noterule")
                 .outline([](SkSize s2) {
                   SkPathBuilder p;
@@ -1321,23 +1230,15 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(label("NOT ON THIS PAGE \xC2\xB7 PAGES 2\xE2\x80\x93" "4", tx, ty - 22.0f,
                   10.5f, at::mul(at::kGilt, 1.0f, 0.68f), 2.0f, true));
     m.child(box()
-                .absolute()
-                .left(tx)
-                .top(ty - 8.0f)
-                .width(486.0f)
-                .height(1.0f)
+                .rect(SkRect::MakeXYWH(tx, ty - 8.0f, 486.0f, 1.0f))
                 .key("tierrule")
                 .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.36f))));
     for (int i = 0; i < 12; ++i) {
-      const SkColor4f c = at::rgb(at::kRest[(size_t)i].color);
+      const SkColor4f c = at::hex(at::kRest[(size_t)i].color);
       const float cx = tx + (float)(i % 6) * 81.0f;
       const float cy = ty + (float)(i / 6) * 46.0f;
       m.child(box()
-                  .absolute()
-                  .left(cx)
-                  .top(cy + 4.0f)
-                  .width(26.0f)
-                  .height(3.0f)
+                  .rect(SkRect::MakeXYWH(cx, cy + 4.0f, 26.0f, 3.0f))
                   .key(std::string("tier") + std::to_string(i))
                   .fill(Fill::color(at::mul(c, 1.0f, 0.92f))));
       m.child(label(at::kRest[(size_t)i].name, cx, cy + 10.0f, 9.5f,
@@ -1348,11 +1249,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
 
     // Registration marks on the page plate.
     m.child(box()
-                .absolute()
-                .left(at::gx(15))
-                .top(0)
-                .width(at::g(at::kGuiW - 30))
-                .height(at::kCanvasH)
+                .rect(SkRect::MakeXYWH(at::gx(15), 0, at::g(at::kGuiW - 30), at::kCanvasH))
                 .key("reg")
                 .foreground(decorations::brackets(
                     1.4f, Fill::color(at::mul(at::kGilt, 1.0f, 0.4f)), 30.0f,
@@ -1396,7 +1293,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     });
 
     // ---- the tree -------------------------------------------------------
-    Element root = box().absolute().inset(0);
+    Element root = box().inset(0);
     root.child(leather().zIndex(0));
     root.child(pagePlate().zIndex(1));
 
@@ -1418,13 +1315,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // and the links inside a chart cascade again at 25 ms. Containers with no
     // opacity of their own allocate no layer, so this costs nothing at rest.
     Element links = box()
-                        .absolute()
                         .inset(0)
                         .key("links")
                         .zIndex(3)
                         .staggerChildren(160ms);
     Element stars = box()
-                        .absolute()
                         .inset(0)
                         .key("stars")
                         .zIndex(4)
@@ -1441,12 +1336,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       const bool hovered = ci == 1;
       const float pivot = at::g(at::kCellW * 0.5f);
       Element chartLinks = box()
-                               .absolute()
                                .inset(0)
                                .key(std::string("cl") + std::to_string(ci))
                                .staggerChildren(25ms);
       Element chartStars = box()
-                               .absolute()
                                .inset(0)
                                .key(std::string("cs") + std::to_string(ci))
                                .staggerChildren(25ms);

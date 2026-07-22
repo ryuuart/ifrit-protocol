@@ -24,6 +24,8 @@
 
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/Material.h" // Stop — the along-arc gradient ramp
+#include "sigilcompose/Shapes.h"   // detail::bisectTransition — one copy of
+                                   // the contour-scan refinement, shared
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
@@ -227,23 +229,26 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
       const float dot = prev.x() * tan.x() + prev.y() * tan.y();
       sharpestDot = std::min(sharpestDot, dot);
       if (dot < cosThresh) {
-        float lo = std::max(0.0f, d - stride), hi = std::min(d, len);
+        // Narrow the bracket through the SHARED refinement — the same
+        // operation shapes::edges() performs on a quadrant change. Only
+        // the predicate differs, and keeping one copy of the refinement
+        // is what keeps the "answer is `hi`, never the midpoint"
+        // convention from being rediscovered a fourth time.
         SkVector inTan = prev, outTan = tan;
-        for (int it = 0; it < 8; ++it) {
-          const float mid = (lo + hi) * 0.5f;
-          SkVector mt;
-          if (!contour.getPosTan(mid, nullptr, &mt))
-            break;
-          if (inTan.x() * mt.x() + inTan.y() * mt.y() < cosThresh) {
-            hi = mid;
-            outTan = mt;
-          } else {
-            lo = mid;
-            inTan = mt;
-          }
-        }
-        if (corners.empty() || hi - corners.back().d > minSpacing)
-          corners.push_back({hi, inTan, outTan});
+        const float at = shapes::detail::bisectTransition(
+            std::max(0.0f, d - stride), std::min(d, len), [&](float mid) {
+              SkVector mt;
+              if (!contour.getPosTan(mid, nullptr, &mt))
+                return true; // unevaluable: keep the near side
+              if (inTan.x() * mt.x() + inTan.y() * mt.y() < cosThresh) {
+                outTan = mt;
+                return false;
+              }
+              inTan = mt;
+              return true;
+            });
+        if (corners.empty() || at - corners.back().d > minSpacing)
+          corners.push_back({at, inTan, outTan});
       }
     }
     prev = tan;

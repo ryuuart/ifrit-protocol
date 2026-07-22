@@ -407,7 +407,7 @@ inline std::string hexOf(SkColor4f c) {
 
 // The whole composition is pinned: an engraved plate has no layout.
 inline Element at(float x, float y, float w, float h) {
-  return box().absolute().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
+  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
 }
 inline Element label(const std::string &s, const weave::TextStyle &st, float x,
                      float y, float w) {
@@ -1131,7 +1131,6 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
         // sized parent silently collapses all 72 labels onto one point.
         g.child(text(U(s), st)
                     .key(key)
-                    .absolute()
                     .width(Dim(2 * rMid))
                     .height(Dim(2 * rMid))
                     .centerAt(kC)
@@ -1160,7 +1159,6 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       // the cell divider, on the sector boundary
       const float bd = sectorStart(n) * 3.14159265f / 180.0f;
       g.child(box()
-                  .absolute()
                   .left(Dim(kC.fX - kRLimbOut))
                   .top(Dim(kC.fY - kRLimbOut))
                   .width(Dim(2 * kRLimbOut))
@@ -1188,7 +1186,6 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       const int n = i * 6;
       g.child(text(U(std::to_string(n)), mn(10.0f, kRed, 0.3f))
                   .key("ix" + std::to_string(n))
-                  .absolute()
                   .width(Dim(2 * (kRSweepOut + 11)))
                   .height(Dim(2 * (kRSweepOut + 11)))
                   .centerAt(kC)
@@ -1337,7 +1334,6 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
           decorations::paintOn(c, pc, cross.detach(),
                                stroke(1.2f, Fill::color(kInk)));
         })
-            .absolute()
             .inset(0)));
 
     // the 36 chords, drawing in one at a time

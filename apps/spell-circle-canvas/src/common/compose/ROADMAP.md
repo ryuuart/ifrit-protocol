@@ -701,6 +701,52 @@ things at once.
   Wanted: an optional `measure()` consulted by the container's Yoga
   measure func.
 
+### The two entries filed beside this one, MEASURED — one is wrong and the other is not what it said
+
+Both were carried as separate open items. Measured with `Composer::bounds()`
+on a 200×200 canvas:
+
+```
+flex-embedded stack, 60x40 child             200.0 x   0.0
+absolute stack, 60x40 child, no size           0.0 x   0.0
+absolute stack, children out to (70,80)        0.0 x   0.0
+absolute BOX, the same ABSOLUTE children       0.0 x   0.0   <- control
+absolute BOX, FLOW children                   50.0 x  50.0   <- control
+slot(), 60x40 content root                   200.0 x  40.0   <- control
+plain box, the same 60x40 child              200.0 x  40.0   <- control
+```
+
+**`slot()` lays out W×0 — REFUTED.** It sizes exactly like the plain box
+beside it. The symptom is real and the cause is elsewhere, and my own
+probe reproduced it before I found out why: **`slot(name)` stores the
+name in `key`**, so `slot("panel").key("s")` silently RENAMES the slot,
+`renderSlot("panel", …)` then finds nothing, and an empty container
+stretched by flex is W×0. That is the same shared-namespace seam commit
+`4cc6c06` fixed between `byKey` and `bySlot`; this is its remaining
+authoring-side edge, and it is worth a warning at minimum — a `.key()`
+on a `Kind::Slot` node is almost certainly a mistake.
+
+**`stack()` measures 0×0 always — TWO corrections.** It measures **W×0**
+when flex-embedded, which is the common case; 0×0 only when it is itself
+absolute. And **it is not a `stack()` defect at all**: a plain `box()`
+with absolute children measures 0×0 identically. `stack()`'s only
+contribution is that it makes its children absolute for you
+(`Reconcile.cpp:574`), so it always lands in a case a box lands in only
+when the author opts in. The one true statement under all of it is
+Yoga's: **an absolutely-positioned child does not contribute to its
+parent's intrinsic size.**
+
+So this is ONE item, not three, and it belongs in this section rather
+than beside it: *a container should be able to size itself to what it
+contains, including absolutely-placed content.* `applyCustomLayouts`
+already implements exactly that rule for `placeFn` containers — union
+the placed rects, apply per axis, only where the author left the axis
+Auto and un-pinned. Generalising it is a small change and a **large blast
+radius**: every flex-embedded `stack()` in the corpus goes from W×0 to
+W×H, which moves its siblings in any flex column. It should land with a
+full 35-study pixel sweep behind it, and probably opt-in, which is why it
+is filed rather than done.
+
 ## 10e. Colour has no space, and gradients have six stops
 
 Sixteen studies in, the first one whose entire content is a PALETTE — a
@@ -1404,6 +1450,39 @@ answers the same need from a better place, since θ→arc-length-fraction is
 a property of the FRAME and not of text, and every consumer of a circular
 contour wanted it. A field on `TextPath` would have been the fifth copy
 of the arithmetic wearing the name of its first caller.
+
+## 26. Two studies are not reproducible captures, and every pixel sweep will blame the wrong change
+
+`genesis_fire` prints `BUILD %.2f ms` and `slitscan_2001` prints
+`... BAKE %d ms` — each measures itself and draws the number into its own
+plate. Measured, **same binary, two consecutive runs, same `--at`**:
+
+```
+genesis_fire    34 differing pixels   (BUILD 1.29 vs 1.32 ms)
+slitscan_2001   16 differing pixels   (BAKE  39   vs 50   ms)
+kumiko_asanoha   0 differing pixels   <- the negative control
+```
+
+So a corpus pixel sweep reports these two as CHANGED by any patch,
+including a patch that changes nothing, and the natural reading of that
+is "my change did something". It cost this session two rounds of cropping
+and looking to establish that a 3.15× perf win had altered no pixels
+anywhere — and the only reason it did not cost more is that the diffs
+were tiny and clustered, which is exactly the shape a real subtle
+regression also has.
+
+This is the same family as the gallery's machine-dependent capture frame,
+and the same corollary applies: **an instrument that draws its own reading
+into the thing being measured makes that thing untestable by comparison.**
+The negative control is what turns "explaining away a difference" into a
+measurement, and it should be the standard move: re-render with the SAME
+binary before attributing any diff to a change.
+
+Remedies, cheapest first: a `--deterministic` capture flag that blanks
+self-measured readouts; or those two studies bind their readout to a
+value the host pins under `--frame`; or the sweep tool masks the known
+regions, which is the worst of the three because the mask is a second
+thing to keep in sync.
 
 ## Host and tooling
 
