@@ -19,6 +19,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/GpuImage.h"
 
 #include <sigilimage/ImageAsset.h>
 
@@ -159,33 +160,27 @@ struct Slice {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::vector<int> xDivs;
   std::vector<int> yDivs;
+  /** drawImageLattice takes the image DIRECTLY — on Graphite a raster
+   *  image must promote first or the lattice silently vanishes (the
+   *  invisible-nine-slice finding). Excluded from equality. */
+  std::shared_ptr<gpuimg::Promoted> gpuCache =
+      std::make_shared<gpuimg::Promoted>();
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
-   *  frame prunes without memo. */
-  bool operator==(const Slice &) const = default;
+   *  frame prunes without memo. The promotion cache is identity-free. */
+  bool operator==(const Slice &o) const {
+    return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs;
+  }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     if (!asset || asset->frames().empty())
       return;
-    const sk_sp<SkImage> &img = asset->frames().front().image;
+    sk_sp<SkImage> img = asset->frames().front().image;
     if (!img)
       return;
     const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
-    if (xDivs.empty() && yDivs.empty()) {
-      canvas.drawImageRect(img, dst,
-                           SkSamplingOptions(SkFilterMode::kLinear));
-      return;
-    }
-    SkCanvas::Lattice lattice{};
-    lattice.fXDivs = xDivs.data();
-    lattice.fYDivs = yDivs.data();
-    lattice.fXCount = (int)xDivs.size();
-    lattice.fYCount = (int)yDivs.size();
-    lattice.fBounds = nullptr;
-    lattice.fRectTypes = nullptr;
-    lattice.fColors = nullptr;
-    canvas.drawImageLattice(img.get(), lattice, dst,
-                            SkFilterMode::kLinear, nullptr);
+    gpuimg::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
+                        SkFilterMode::kLinear);
   }
 };
 

@@ -32,6 +32,7 @@
  */
 
 #include "sigilcompose/Compose.h"
+#include "sigilcompose/GpuImage.h"
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
@@ -214,6 +215,11 @@ private:
   std::vector<Cell> m_cells;
   std::vector<SkRect> m_tex; // baked-pixel rects, parallel to m_cells
   sk_sp<SkImage> m_sheet;
+
+public:
+  /** drawAtlas takes the sheet DIRECTLY — Graphite hosts must stamp the
+   *  promoted texture (see GpuImage.h). detail::stamp uses this. */
+  gpuimg::Promoted gpuCache;
 };
 
 // ---------------------------------------------------------------------------
@@ -275,13 +281,13 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
   if (xforms.empty())
     return;
   // All-white tints modulate to identity — skip the colors lane entirely
-  // (the untinted path is the common one for UI sprites).
-  canvas.drawAtlas(atlas.image().get(), SkSpan(xforms.data(), xforms.size()),
-                   SkSpan(tex.data(), tex.size()),
-                   tinted ? SkSpan<const SkColor>(colors.data(), colors.size())
-                          : SkSpan<const SkColor>(),
-                   tinted ? SkBlendMode::kModulate : SkBlendMode::kSrcOver,
-                   SkSamplingOptions(SkFilterMode::kLinear), nullptr, nullptr);
+  // (the untinted path is the common one for UI sprites). drawSpriteAtlas
+  // is the backend-portable form: native drawAtlas on raster, decomposed
+  // to one drawVertices on Graphite (whose drawAtlas is an empty stub).
+  gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
+                          xforms.data(), tex.data(),
+                          tinted ? colors.data() : nullptr, xforms.size(),
+                          SkSamplingOptions(SkFilterMode::kLinear));
 }
 
 struct DataProps {

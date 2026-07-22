@@ -71,6 +71,20 @@ target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_test COMMAND compose_test)
 
+# GPU-backend behavior tests (Graphite Metal): the raster suite proves
+# semantics, this one proves the same pixels arrive on the GPU — it
+# exists for the direct-image draw gaps (lattice/atlas) the raster suite
+# cannot see.
+if(APPLE AND TARGET SpellCircleSkia)
+  add_executable(compose_gpu_test
+    test/ComposeGpuTest.mm
+  )
+  target_link_libraries(compose_gpu_test PRIVATE
+    SigilCompose SigilWeavePorts SpellCircleSkia GTest::gtest_main
+    "-framework Metal")
+  add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
+endif()
+
 # SigilScry integration (the web() leaf, stress item 19) — the kernel
 # never links SigilScry; the adapter is header-only and this dedicated
 # test target exists only when the Ultralight SDK produced the target.

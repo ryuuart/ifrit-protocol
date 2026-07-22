@@ -256,7 +256,10 @@ struct Y2kChromeScene final : Scene {
     // ---- title bar: the y2kChrome() PRESET on the bar box -----------------
     Element titleBar =
         box().height(yc::kTitleBarH)
-            .style(styles::y2kChrome()) // ramp + bevel + keyline + shadow
+            // No horizon sliver on a caption bar: at 12px type the
+            // full-width sheen line reads as strikethrough (real Y2K bars
+            // carry the top-edge highlight only).
+            .style(styles::y2kChrome({.horizonSliver = false}))
             .row().alignItems(Align::Center).padding(12, 0).gap(5)
             .child(text(toU8("SIGILNET 2000 \xe2\x80\x94 hyperportal v4.2"),
                         [] {
@@ -302,16 +305,8 @@ struct Y2kChromeScene final : Scene {
             .translateY(withFrom(14.0f, 0.0f, {550ms, &ch::easeOutQuint}))
             .opacity(withFrom(0.0f, 1.0f, {400ms}))
             .child(plate)
-            // white specular sliver straddling the hard horizon
-            .child(box().absolute().inset(20, horizonY - 1.0f, 20, 0)
-                       .height(2.0f)
-                       .fill(Material::linear(
-                           {0, 0}, {380, 0},
-                           {{0.00f, {1, 1, 1, 0.0f}},
-                            {0.12f, {1, 1, 1, 0.85f}},
-                            {0.88f, {1, 1, 1, 0.85f}},
-                            {1.00f, {1, 1, 1, 0.0f}}}))
-                       .blend(SkBlendMode::kPlus).zIndex(2))
+            // (the preset's own sliver rides the plate BEHIND the type now —
+            // the duplicate over-type sliver was the strikethrough)
             // starburst glints riding the horizon + one cap top
             .child(box().absolute().inset(22, horizonY - 12, 0, 0)
                        .child(yc::glint(24, 0)))

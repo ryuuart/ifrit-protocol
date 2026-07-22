@@ -37,6 +37,7 @@
 #include <include/gpu/graphite/Surface.h>
 #endif
 
+#include <cstring>
 #include <filesystem>
 
 namespace compose_gallery {
@@ -191,12 +192,67 @@ inline int runHeadless(const std::string &outDir, bool gpu = false) {
         stage.composer->stats().nodesPainted);
     // Capture the PNG at 2x: the stats above ran at 1x, but the saved
     // frame re-renders through a scaled canvas so review images are
-    // sharp (Cache::Texture re-bakes at the capture scale). GPU sweeps
-    // skip captures: the stage's caches hold Graphite-backed images that
-    // must not be replayed onto a raster canvas, and the raster sweep
-    // already writes identical imagery.
-    if (gpu)
+    // sharp (Cache::Texture re-bakes at the capture scale).
+#ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
+    if (gpu) {
+      // GPU captures read back through the async path (a Graphite surface
+      // cannot readPixels synchronously) — these are what the interactive
+      // QQuickRhiItem gallery actually shows, so visual QA runs HERE, not
+      // on the raster sweep.
+      constexpr float kGpuCapture = 2.0f;
+      const SkImageInfo shotInfo = SkImageInfo::MakeN32Premul(
+          (int)(kSceneSize.width() * kGpuCapture),
+          (int)(kSceneSize.height() * kGpuCapture));
+      sk_sp<SkSurface> shot =
+          SkSurfaces::RenderTarget(graphite->recorder(), shotInfo);
+      if (shot) {
+        shot->getCanvas()->clear(SK_ColorBLACK);
+        shot->getCanvas()->scale(kGpuCapture, kGpuCapture);
+        stage.frame(*shot->getCanvas(), 1.0 / 60.0);
+        if (auto recording = graphite->recorder()->snap()) {
+          skgpu::graphite::InsertRecordingInfo insert;
+          insert.fRecording = recording.get();
+          graphite->context()->insertRecording(insert);
+        }
+        struct ReadContext {
+          std::unique_ptr<const SkImage::AsyncReadResult> result;
+          bool called = false;
+        } read;
+        graphite->context()->asyncRescaleAndReadPixels(
+            shot.get(), shotInfo, SkIRect::MakeWH(shotInfo.width(),
+                                                  shotInfo.height()),
+            SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
+            [](SkImage::ReadPixelsContext context,
+               std::unique_ptr<const SkImage::AsyncReadResult> result) {
+              auto *r = static_cast<ReadContext *>(context);
+              r->result = std::move(result);
+              r->called = true;
+            },
+            &read);
+        skgpu::graphite::SubmitInfo submitInfo;
+        submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
+        graphite->context()->submit(submitInfo);
+        for (int spin = 0; spin < 5000 && !read.called; ++spin)
+          graphite->context()->checkAsyncWorkCompletion();
+        if (read.result) {
+          SkBitmap bm;
+          bm.allocPixels(shotInfo);
+          const auto *src = static_cast<const uint8_t *>(read.result->data(0));
+          const size_t srcRB = read.result->rowBytes(0);
+          for (int y = 0; y < shotInfo.height(); ++y)
+            std::memcpy(bm.pixmap().writable_addr(0, y),
+                        src + (size_t)y * srcRB,
+                        std::min(srcRB, bm.rowBytes()));
+          const std::string path =
+              outDir + "/gallery_" + stage.scene->name() + ".png";
+          SkFILEWStream stream(path.c_str());
+          if (stream.isValid())
+            SkPngEncoder::Encode(&stream, bm.pixmap(), {});
+        }
+      }
       continue;
+    }
+#endif
     constexpr float kCapture = 2.0f;
     // Clean captures: the FPS overlay bakes live wall-clock digits into the
     // pixels, which makes every capture differ run-to-run — with it off the

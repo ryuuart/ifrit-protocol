@@ -448,11 +448,14 @@ inline LayerStyle y2kChrome(ChromeOptions opts = {}) {
   LayerStyle bundle;
   bundle.under = {Decoration(util::Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
                   Decoration(ChromeBody{opts.palette})};
+  // The sliver rides the PLATE, under any content: chrome wordmarks keep
+  // the sheen line behind the glyphs — as a foreground it struck through
+  // the type (the mispositioned-sheen finding).
+  if (opts.horizonSliver)
+    bundle.under.push_back(Decoration(ChromeSliver{}));
   if (opts.palette == ChromeOptions::Palette::Steel)
     bundle.over.push_back(
         Decoration(InnerShadow{detail::rgb(0x001020, 0.30f), {0, 3}, 4}));
-  if (opts.horizonSliver)
-    bundle.over.push_back(Decoration(ChromeSliver{}));
   bundle.over.push_back(Decoration(BevelEmboss{
       opts.bevelDepth, opts.bevelSize, 120, {1, 1, 1, 0.5f},
       {0, 0, 0, 0.65f}}));
