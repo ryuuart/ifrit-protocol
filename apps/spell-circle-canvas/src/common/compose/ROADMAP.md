@@ -1484,6 +1484,108 @@ value the host pins under `--frame`; or the sweep tool masks the known
 regions, which is the worst of the three because the mask is a second
 thing to keep in sync.
 
+## 27. A default that encodes a judgement about the caller's art cannot be changed compatibly
+
+`f706f5d` (2026-07-22 12:03) taught `PatternBrush`'s corner scanner to
+bisect its own bracket **and** added `cornerAlign`, defaulting to
+`Bisector`. **Both halves are right.** The combination silently rewrote
+every corner stamp in the corpus.
+
+Before that commit the bisector was computed by re-probing at `d±2` from
+a point already past the vertex, so both probes landed on the **same leg
+twice** and every corner in every study behaved as `Outgoing` — not as a
+choice, as a bug. Art authored against it is authored in the outgoing
+frame. After 12:03 that art is stamped on the true bisector, off by half
+the turn angle.
+
+Source-compatible. No warning. No diagnostic. It edited no file its
+victims owned. And the commit's own subject line is about caching, so
+`git log --oneline` gives no hint that corner geometry moved in it.
+
+### Two casualties, both found by looking rather than by any tool
+
+- **`thaumonomicon`** (`6962173`) — elbows of pipe 45° off, and whole
+  edges unrecognisable rather than merely tilted, because a 2×2-cell
+  route is *all corner*: `cornerRoom = 2 × 1.5 × kCell = 216` against a
+  trimmed path of exactly 216, so both side runs come out to zero tiles.
+  Fixed `aa11a6b`.
+- **`sigillum_aemeth`** (`0ea8aa3`) — Dee's "little Crosses" at the
+  corners of the seven angle plates, and the worst case of the class for
+  a structural reason: **every corner of an annular sector is a right
+  angle**, so the bisector sits 45° from *both* legs — and a Greek cross
+  has 90° symmetry, which makes `Outgoing` corner-agnostic and `Bisector`
+  uniformly, maximally wrong. Twenty-eight crosses had been twenty-eight
+  saltires, through a review. Fixed `0c2c36e`.
+
+**Cleared by the same method:** `thunder_fulu` (`a932bd1`, 12:36 — the
+commit that ADDED the file also edits the post-change `Brushes.h`, so its
+art was drawn against current behaviour). Forcing `Outgoing` rotates six
+stubby lozenges 13–35° and nothing snaps.
+
+### The recipe — thirty seconds, and the only thing that settles this class
+
+> Set the other value in a scratch copy, re-render the same `--at`, and
+> diff. **If nothing moves, the art is rotationally forgiving and the
+> study is *proved* clean; if corners snap, it was broken.** Render a
+> third variant with `corner` unset to mask the stamps, and you can
+> **measure** the rotation instead of judging it.
+
+Judging by eye failed twice on the Sigillum plate, by the person who
+went looking for exactly this.
+
+### What shipped
+
+1. **The changelog line, with the SHA and an imperative.** The header
+   already said "Until the tangent-break search learned to bisect its own
+   bracket, every corner silently got `Outgoing`" — the fact, in the past
+   tense, with no date and no instruction. **Neither author read that
+   sentence as being about their file.** It now names `f706f5d`, its
+   date, and what to do: *if your art predates it, it is aligned wrong
+   and you must ask for `Outgoing` explicitly.* Both diagnoses become a
+   header read. The audit recipe is in the header too.
+2. **The default now announces itself.** `cornerAlign` is a
+   `std::optional<CornerAlign>`; unset still behaves as `Bisector` and
+   still compiles at every existing designated-initializer call site, but
+   a brush with corner art and no explicit alignment prints a one-time
+   warning naming both cases. **The diagnostic is the change; the
+   behaviour is untouched** — verified below. A required constructor
+   argument would be better and costs a source break at all five
+   consumers; this is the version that could land today, and after the
+   two fixes every corpus consumer sets the field explicitly, so the
+   warning fires only for authors who have not yet thought about it.
+3. **The rule, stated where authors meet it.** `Bisector` is for an
+   ORNAMENT — art symmetric about its own bisector, one drawing serving
+   four corners. `Outgoing` is for anything with a distinguishable entry
+   and exit: an elbow of pipe, a flow tick, an arrow turning a corner, a
+   cross whose arms are meant to lie along the edges. **That second class
+   is not exotic — it is two of the five corner consumers in this corpus,
+   and both shipped broken.** With the corollary from `aa11a6b`, because
+   it is the reason people reach for `Bisector` in the first place:
+   bisector alignment does **not** buy you one art instead of two. The
+   arms sit at `(turn/2, 180 − turn/2)` off the bisector and mirror with
+   the sign of the turn, so handedness costs an art either way.
+
+Verified pixel-neutral the way §26 says to: same sketch sources, the only
+variable being `Brushes.h` with and without the change. **33 of 35
+studies byte-identical; the 2 that differ are `genesis_fire` and
+`slitscan_2001`, which differ from themselves.**
+
+### The general lesson
+
+> **A default that encodes a judgement about the caller's art cannot be
+> changed compatibly, and "source-compatible" is not the test. The test
+> is whether any existing caller's OUTPUT changes.**
+
+`cornerAlign` cannot have a correct default because the correct value
+depends on what the art looks like, and the library cannot see the art.
+Any default is a guess made on the author's behalf, silently, in a field
+they never typed.
+
+This is the eighth instance of the session's recurring shape — a change
+that landed correctly in one place and silently altered its siblings —
+and the first where **both halves were individually correct**. That is
+what makes it the hardest one to catch: there is no wrong line to find.
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers
