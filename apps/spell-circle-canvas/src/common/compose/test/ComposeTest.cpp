@@ -5635,3 +5635,43 @@ TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
       bind(nullptr).window(0.4f, 0.6f).map(ease::outBack()).value().apply(5.0f);
   EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
 }
+
+TEST(ComposePattern, ARepeatCanBePannedAndItsSamplingChosen) {
+  // "Pattern cannot pan" was two studies, and the second located the fix
+  // a level below where the roadmap had it: bake() hands its matrix to
+  // Material::image, whose localMatrix has always taken a translation, so
+  // Pattern was exposing two thirds of a matrix its own backend takes
+  // whole. Phase is the defining property of a surprising number of
+  // repeats — a twill advances one thread per pick.
+  auto stripes = [](SkPoint pan) {
+    Pattern p = Pattern::tile({8, 8}, [](SkCanvas &c, SkSize s, uint32_t) {
+      SkPaint left;
+      left.setColor4f({1, 0, 0, 1}, nullptr);
+      c.drawRect(SkRect::MakeWH(s.width() * 0.5f, s.height()), left);
+      SkPaint right;
+      right.setColor4f({0, 1, 0, 1}, nullptr);
+      c.drawRect(SkRect::MakeXYWH(s.width() * 0.5f, 0, s.width() * 0.5f,
+                                  s.height()),
+                 right);
+    });
+    p.offset(pan).sampling(SkSamplingOptions(SkFilterMode::kNearest));
+    return p.material();
+  };
+  auto colourAt = [](Material m, int x) {
+    Host host(64, 64);
+    host.composer.render(box().child(
+        box().absolute().inset(0).fill(std::move(m))));
+    host.frame();
+    return host.pixel(x, 32);
+  };
+
+  // Unpanned: the left half of each 8px tile is red.
+  const SkColor unpanned = colourAt(stripes({0, 0}), 1);
+  EXPECT_GT(SkColorGetR(unpanned), 180);
+  EXPECT_LT(SkColorGetG(unpanned), 80);
+
+  // Panned by half a tile: the same pixel is now green. Nothing rebakes.
+  const SkColor panned = colourAt(stripes({4, 0}), 1);
+  EXPECT_GT(SkColorGetG(panned), 180);
+  EXPECT_LT(SkColorGetR(panned), 80);
+}
