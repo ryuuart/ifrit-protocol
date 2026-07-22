@@ -292,7 +292,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if ((bool)a.imageData != (bool)b.imageData)
     return false;
   if (a.imageData && (a.imageData->asset != b.imageData->asset ||
-                      a.imageData->region != b.imageData->region))
+                      a.imageData->region != b.imageData->region ||
+                      a.imageData->sampling != b.imageData->sampling))
     return false;
   return true;
 }

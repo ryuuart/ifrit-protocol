@@ -51,6 +51,9 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
+| `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
+| `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
+| §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
 | Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
 
 ---
@@ -444,17 +447,17 @@ declared choppiness for shaders and nothing for logic.
 
 Natural API: `ticker.addFixed(hz, fn)`.
 
-## 13. Sampling, and the pixel-art path
+## 13. Sampling, and the pixel-art path — **element leaf CLOSED**
 
-`Paint.cpp`, `Decorations.h` (Slice), `Pattern.h`, `Instances.h`,
-`Brushes.h` and `Web.h` all hardcode `SkFilterMode::kLinear`.
-`Material::image()` is the **only** place a caller can pass
-`SkSamplingOptions`, so any pixel-art, tilemap or simulation-buffer
-content drawn through the `image()` element factory is silently blurred —
-and the fix is discoverable only by diffing two signatures.
+`Element::sampling(SkSamplingOptions)` now reaches the `image()` leaf, so
+pixel art, tilemaps and simulation buffers stop being silently blurred.
 
-Natural API: `Element::sampling(SkSamplingOptions)` on image leaves, plus
-a `sampling` field on `Slice` / `PatternBrush` / `Atlas`.
+Still hardcoded to `kLinear`, and still worth fixing when someone needs
+them: `Decorations.h` (Slice), `Pattern.h`, `Instances.h`, `Brushes.h`
+and `Web.h`. Wanted: a `sampling` field on `Slice` / `PatternBrush` /
+`Atlas`. `Material::image()` always took one, which is exactly why this
+was hard to find — the fix was discoverable only by diffing two
+signatures.
 
 ## 14. Smaller, but each cost someone an iteration
 

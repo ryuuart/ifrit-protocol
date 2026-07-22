@@ -344,6 +344,11 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   return e;
 }
 
+Element &Element::sampling(SkSamplingOptions options) {
+  m_node->imageData.ensure().sampling = options;
+  return *this;
+}
+
 Element &Element::region(SkRect sourceRect) {
   m_node->imageData.ensure().region = sourceRect;
   return *this;

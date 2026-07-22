@@ -5230,3 +5230,35 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
   EXPECT_GT(greenHead, 5);
   EXPECT_GT(redBody, 20);
 }
+
+TEST(ComposeContent, SamplingReachesTheImageLeaf) {
+  // Every blessed image path hardcoded kLinear, so pixel art, tilemaps
+  // and simulation buffers drawn through image() were silently blurred.
+  // Material::image() has always taken sampling; the element factory did
+  // not, so the fix was discoverable only by diffing two signatures.
+  auto atlas = twoCellAtlas(); // 32x16: left half red, right half green
+  auto magnified = [&](SkSamplingOptions options) {
+    Host host(200, 200);
+    host.composer.render(box().child(image(atlas)
+                                         .sampling(options)
+                                         .absolute()
+                                         .left(0)
+                                         .top(0)
+                                         .width(200)
+                                         .height(100)));
+    host.frame();
+    // Count columns straddling the red/green seam that are NEITHER pure
+    // red nor pure green — the blend band linear filtering invents.
+    int blended = 0;
+    for (int x = 80; x < 120; ++x) {
+      const SkColor c = host.pixel(x, 50);
+      const bool pureRed = SkColorGetR(c) > 200 && SkColorGetG(c) < 40;
+      const bool pureGreen = SkColorGetG(c) > 200 && SkColorGetR(c) < 40;
+      blended += !pureRed && !pureGreen;
+    }
+    return blended;
+  };
+
+  EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
+  EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
+}
