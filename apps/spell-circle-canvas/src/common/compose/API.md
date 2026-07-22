@@ -3,11 +3,14 @@
 Companion to DESIGN.md. This is the surface as you would write it,
 header-level signatures plus complete usage in real canvas contexts.
 Everything here is `namespace sigil::compose` unless noted. Originally
-the design proposal; now implemented through the completeness round —
-`<sigilcompose/Compose.h>` (kernel), `Decorations.h`, `Shapes.h`,
-`Layouts.h`, `Routers.h`, `Util.h`, and `Web.h` are the real headers,
-and STRESS_TESTS.md carries the measured numbers. Where this document
-and the headers disagree, the headers win.
+the design proposal; now implemented well past the completeness round —
+`<sigilcompose/Compose.h>` (kernel) plus the extension headers
+`Decorations.h`, `Shapes.h`, `Layouts.h`, `Routers.h`, `Util.h`,
+`Web.h`, `Material.h`/`Ocio.h`, `Sdf.h`, `Brushes.h`/`Lines.h`/
+`LayerStyles.h`/`Pattern.h`/`Patterns.h`, `Kinetic.h`, `Console.h`,
+`Instances.h`, and `GpuImage.h` are the real headers, and
+STRESS_TESTS.md carries the measured numbers. Where this document and
+the headers disagree, the headers win.
 
 ## The three answers up front
 
@@ -61,13 +64,30 @@ Dim px(float);  Dim pct(float);  Dim autoDim();
 struct Transition {
   std::chrono::milliseconds duration;
   choreograph::EaseFn ease = choreograph::easeOutQuad;
+  std::chrono::milliseconds delay;   // holds the current/from value first —
+                                     // the stagger primitive
 };
-template <typename T> struct Transitioned { T value; Transition spec; };
+template <typename T> struct Transitioned {  // value + spec, plus optional
+  T value; Transition spec;                  // mount-time `from` / keyframe
+  /* from, waypoints */                      // waypoints (see below)
+};
 template <typename T> Transitioned<T> with(T value, Transition spec);
+// Mount entrances: play from → to when the node first appears (the CSS
+// animation-on-enter); afterwards behaves exactly like with(to, spec).
+template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec);
+// Mount keyframe path: absolute (time, value) waypoints — the damped-
+// overshoot entrances one ramp can't shape.
+template <typename T> Transitioned<T> withKeyframes(
+    std::vector<std::pair<std::chrono::milliseconds, T>> frames,
+    choreograph::EaseFn ease = ...);
 
-template <typename T>   // T: float, SkColor4f, Fill… (Lerpable concept)
-using PropValue = std::variant<T, Transitioned<T>,
-                               const choreograph::Output<T> *>;
+template <typename T> class PropValue;  // T: float, SkColor4f, Fill…
+// Holds a plain T, a Transitioned<T>, or a const ch::Output<T>*. Stored
+// COMPACTLY, not as a std::variant: constants and bindings inline, the
+// fat Transitioned payload (from/waypoints/spec, ~100 B for a float)
+// boxed out-of-line — eight PropValue<float>s ride every node's paint
+// props, so this is the ElementNode hot-base/boxed-rarities rule
+// applied to the property type itself (see DESIGN.md).
 // Bound and transitioned properties are paint-only by contract:
 // animating them never triggers relayout.
 ```
@@ -80,10 +100,13 @@ happens until a `Composer` reconciles the tree.
 ```cpp
 // ---- factories (the leaf set = everything we already draw) ----
 Element box();
+Element stack();                                            // overlap container
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
-Element text(sigil::weave::Paragraph paragraph,                 // full control:
-             sigil::weave::ParagraphLayoutOptions opts = {});   // spans, K-P,
-                                                            // justification…
+Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph, // full control:
+             sigil::weave::ParagraphLayoutOptions opts = {});    // spans, K-P,
+                                     // justification… — pointer identity is
+                                     // the change signal (reuse the shared_ptr
+                                     // to keep shaping caches warm)
 Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
 Element web(std::shared_ptr<sigil::scry::WebView> view);     // live frames
 Element custom(PaintProgram program);                       // raw SkCanvas
@@ -98,7 +121,12 @@ Element &minWidth(Dim); Element &maxWidth(Dim);              // + heights
 Element &grow(float = 1); Element &shrink(float); Element &basis(Dim);
 Element &alignItems(Align); Element &alignSelf(Align);       // Baseline!
 Element &justify(Justify);
-Element &absolute(); Element &inset(float all);               // + per-edge
+Element &absolute(); Element &inset(float all);   // + per-edge, + Dim-valued
+                                                  // (autoDim() = unpinned side)
+Element &left(Dim); Element &top(Dim);            // pin ONE edge (implies
+Element &right(Dim); Element &bottom(Dim);        // absolute) — corner badges
+Element &centerAt(SkPoint);   // center an absolute node ON a parent-space
+                              // point (resolved post-measure) — node graphs
 
 // ---- shape (geometry: defines PaintContext::outline and clipping) ----
 Element &corners(Corners);
@@ -108,29 +136,79 @@ Element &corners(Corners);
 // Spiky shout dialogs, scalloped seals, any non-rectangular chrome.
 Element &outline(std::function<SkPath(SkSize)>);
 Element &clip(bool = true);
+// Trim Path (Lottie/sksg): reveal the painted outline over [start, end]
+// fractions of arc length — fill surface AND every outline-following
+// decoration, so a stroked border .trim(0, with(1.0f, {600ms})) DRAWS
+// ON. All three take the full PropValue treatment; TrimMode::Wrap +
+// an animated offset marches a fixed window around a closed outline
+// forever (marching ants, orbiting comets). Paint-phase only: clipping
+// and hit-testing keep the untrimmed shape.
+Element &trim(PropValue<float> start, PropValue<float> end,
+              PropValue<float> offset = 0.0f, TrimMode = TrimMode::Clamp);
 
 // ---- paint (ours; stacking per DESIGN.md) ----
 // .fill() is kernel; every setter takes a PropValue, so
 // with(v, {300ms}) and Output bindings work uniformly everywhere:
 Element &fill(PropValue<Fill>);            // colors/fills lerp via
                                            // choreograph Sequence
+Element &fill(Material);                   // the richer authoring value —
+                                           // see "Materials" below
+Element &background(Decoration); Element &foreground(Decoration);
+Element &stroke(Decoration brush);         // foreground() named for what it
+                                           // means: dress the OUTLINE
+Element &style(LayerStyle);                // a decoration bundle (aquaGel(),
+                                           // y2kChrome()…) in one call
+Element &echo(SkVector offset, SkColor4f); // misprint re-stamp UNDER the
+                                           // fill/text (P3R registration error)
+Element &effect(Effect); Element &backdrop(Effect);
 Element &opacity(PropValue<float>);
 Element &blend(SkBlendMode);
 Element &translateX(PropValue<float>); Element &translateY(PropValue<float>);
 Element &rotate(PropValue<float>); Element &scale(PropValue<float>);
+Element &skewX(PropValue<float>); Element &skewY(PropValue<float>);
+                                           // degrees; the ATLUS diagonal —
+                                           // paint-only like rotate/scale
 Element &transformOrigin(float fx, float fy);   // fractions of own box
+Element &transformOriginPx(SkPoint);            // px pivot for overlay zooms
 Element &zIndex(int);
-// stroke()/shadow()/gradient constructors live in <sigilcompose/util.h>
-// — pure sugar over foreground(PathFormat…)/background(…)/Fill::shader,
-// deliberately outside the kernel (see "Kernel, util, extensions").
+// gradient/stroke()/shadow() CONSTRUCTORS live in <sigilcompose/util.h>
+// — pure sugar over PathFormat/Fill::shader, deliberately outside the
+// kernel (see "Kernel, util, extensions").
+
+// ---- text extras (text() leaves) ----
+Element &textAlign(sigil::weave::TextAlignment);
+Element &textFill(Material);   // glyph paint mapped to TEXT-METRIC space
+                               // (unit square → cap band); chrome type
+Element &glyphFx(GlyphFx);     // kinetic typography: per-glyph effect +
+                               // stagger + PropValue master progress
+                               // (presets in <sigilcompose/Kinetic.h>)
+// VariationDrive: drive a variable-font axis at DRAW time from a bound
+// Output — paint-only, no reshape, no relayout. Gated per font: the
+// paint phase probes advance-invariance (every glyph advance sampled at
+// the axis extremes, memoized per content) and REFUSES advance-variant
+// axes with a warning — wght moves advances on most fonts; GRAD is the
+// advance-invariant weight. Refused text draws at its shaped coords.
+Element &variationDrive(const char (&tag)[5],
+                        const choreograph::Output<float> *value);
 
 // ---- identity, caching, transitions ----
 Element &key(std::string_view);            // stable identity across renders
 Element &cache(Cache);                     // OVERRIDE only — see Caching:
                                            // provably-static subtrees are
                                            // picture-cached automatically
+Element &bakeScale(float);                 // Cache::Texture only, 0.1–1: bake
+                                           // at a reduced raster scale, blit
+                                           // up — for planes whose content is
+                                           // soft anyway (blurred glass);
+                                           // never for sharp text/hairlines
 Element &transition(Transition);           // node default applied to any
                                            // plain-constant prop change
+Element &staggerChildren(std::chrono::milliseconds each,
+                         Stagger::From = Stagger::From::Start);
+                                           // GSAP container stagger: child
+                                           // subtrees' withFrom() entrances
+                                           // delay by order·each (End =
+                                           // bottom-up, Center = ripple)
 
 // ---- composition ----
 Element &child(Element);
@@ -155,6 +233,8 @@ struct PaintContext {
                           // time-scaled consistently with all bindings
   float contentScale;     // device px per layout px (2.0 on HiDPI)
   bool animating;         // whether the Ticker is currently active
+  sigil::weave::FontContext *fonts; // the composer's fonts — what element
+                          // stamps and ad-hoc SigilWeave drawing use
 };
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
 // Contract: canvas is translated to the node's origin (clipped when
@@ -183,9 +263,13 @@ snapping*. The lifecycle rules, stated once:
   mid-flight retargets back; describing a plain value with no
   `with()`/node transition snaps. There is no imperative
   cancel/reset/cleanup API to call or forget.
-- **Mount applies values directly** — no transition on first
-  appearance (the CSS rule). Enter/exit choreography is explicit
-  bindings today; a dedicated enter/exit extension can come later.
+- **Mount applies values directly** — plain values and `with()` don't
+  transition on first appearance (the CSS rule). Entrances are
+  EXPLICIT: `withFrom(from, to, spec)` plays its ramp on mount,
+  `withKeyframes()` plays a waypoint path, and `staggerChildren()`
+  cascades a container's entrances — afterwards all behave like
+  `with()` (retarget-from-current). `snapshot()`/`measure()` render
+  the settled end values.
 - **Unmount cancels automatically**: the instance's `ch::Output`s are
   destroyed with it, and Choreograph disconnects a motion when its
   Output dies — removed list rows can't leak motions by construction.
@@ -197,7 +281,10 @@ snapping*. The lifecycle rules, stated once:
 ```cpp
 class Composer {
 public:
-  explicit Composer(sigil::motion::Ticker &ticker);
+  /** fontContext outlives the composer; ticker drives transitions and
+   *  (via its FrameClock, when attached) PaintContext time. */
+  Composer(sigil::motion::Ticker &ticker,
+           sigil::weave::FontContext &fontContext);
 
   /** Layout viewport in canvas-space px (a poster's size, a panel's
    *  rect…). Percent dims resolve against this. The ROOT element
@@ -207,11 +294,25 @@ public:
    *  snapshot() uses). */
   void setSize(SkSize size);
 
+  /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
+   *  freezes paint time at 0 — static content, goldens. */
+  void setClock(const sigil::motion::FrameClock *clock);
+
+  /** Output view transform (color management): applied to the whole
+   *  output as the final stage — one saveLayer while set, zero cost
+   *  cleared. Intended source: an OCIO display/view baked to a LUT
+   *  (<sigilcompose/Ocio.h>); any Effect works. Post-cache. */
+  void setView(Effect view);
+
   /** Reconciles `root` against the retained tree by key/position:
    *  new nodes mount, matching nodes patch (starting transitions),
    *  missing nodes unmount. Call whenever your data changed — memo'd
    *  subtrees with equal props cost a hash check. */
   void render(Element root);
+
+  /** Updates only the named slot() mount point (independent data
+   *  domains); the surrounding tree's caches stay valid. */
+  void renderSlot(std::string_view name, Element content);
 
   /** True when content or layout changed since the last draw() —
    *  combine with ticker.active() for the redraw decision. */
@@ -222,17 +323,41 @@ public:
    *  surface, no loop, no thread. Cached subtrees replay SkPictures. */
   void draw(SkCanvas &canvas);
 
+  /** Drops every per-node cache (auto pictures, Texture bakes, held
+   *  live-material shaders) and marks a full repaint. GPU hosts call
+   *  this on device loss or a backend switch — cached images minted by
+   *  a dead context must not replay onto the next canvas. The retained
+   *  tree, layout, and animations are untouched. */
+  void purgeCaches();
+
   // ---- escape hatches / queries ----
   /** Resolved layout rect of a keyed node (canvas space). */
   std::optional<SkRect> bounds(std::string_view key) const;
   /** The live SigilWeave layout of a keyed text node — for glyph
    *  choreography, hit queries, decorations. Valid until next layout. */
   const sigil::weave::ParagraphLayout *paragraphLayout(std::string_view key) const;
+  /** Topmost key at a canvas-space point (paint-order, transform- and
+   *  shape-aware; see "Querying" below). */
+  std::optional<std::string> hitTest(SkPoint canvasPoint) const;
+  /** Keys of route elements (connector()/rail()) anchored on nodeKey —
+   *  the edge store's back-index; see "Querying" below. */
+  std::vector<std::string> routesAt(std::string_view nodeKey) const;
+
+  /** Per-frame introspection: node/cache/memo counters plus per-phase
+   *  wall time — reconcileMs (render()s since the previous draw),
+   *  layoutMs, volatileMs, paintMs. The paint number is where per-pixel
+   *  cost lives; the other three are the retained machinery, which
+   *  rounds to zero on every measured scene (DESIGN.md, "paint is the
+   *  frame"). */
+  struct Stats { /* instances, memoHits, picturesLive, …,
+                    reconcileMs, layoutMs, volatileMs, paintMs */ };
+  const Stats &stats() const;
 };
 ```
 
-That is the entire integration contract: **construct with a Ticker,
-`render()` on data change, `draw(canvas)` wherever you already draw.**
+That is the entire integration contract: **construct with a Ticker and
+a FontContext, `render()` on data change, `draw(canvas)` wherever you
+already draw.**
 
 ---
 
@@ -258,7 +383,21 @@ property of a subtree, not a heuristic guess. So:
   heavy effects. The default path is: write nothing, get the caches.
 - **Animation costs exactly its subtree.** A bound headline demotes its
   own node, not its parent's static frame — volatility partitions the
-  tree; static siblings stay cached while neighbors animate.
+  tree; static siblings stay cached while neighbors animate. And it
+  partitions by KIND: paint-only volatility (bound/transitioning
+  transforms and opacity) keeps the node's own content picture and
+  replays it under the live transform; content volatility (fill lerps,
+  animated decorations, live materials, `Cache::None`, animated image
+  frames) paints live.
+- **Texture bakes have a resolution dial**: `bakeScale(0.1–1)`
+  rasterizes the bake below device scale and blits it back up — for
+  planes whose content is soft anyway (blurred glass, watercolor
+  walls); sharp text and hairlines do not belong under a reduced bake.
+- **`purgeCaches()` is the host's one hook**: on GPU device loss or a
+  backend switch, drop every per-node cache (pictures, texture bakes,
+  held live-material shaders) — images minted by a dead context must
+  not replay onto the next canvas. Tree, layout, and animations
+  survive.
 
 ## Kernel, util, extensions — where things live
 
@@ -275,9 +414,9 @@ Three layers keep the library lean and the call sites short:
   loop:
 
   ```cpp
-  util::Stage stage({1080, 1350});      // owns FrameClock+Ticker+Composer
-  stage.render(poster(info));           // on data change
-  bool more = stage.frame(canvas);      // tick + draw + needs-more-frames
+  util::Stage stage({1080, 1350}, fonts); // owns FrameClock+Ticker+Composer
+  stage.render(poster(info));             // on data change
+  bool more = stage.frame(canvas);        // tick + draw + needs-more-frames
   ```
 
   Anything in util is by definition optional reading.
@@ -289,9 +428,18 @@ Three layers keep the library lean and the call sites short:
   outline generators, `rounded()`, per-edge `edges()`/`onEdges()`),
   `<sigilcompose/Layouts.h>` (`Radial`, `AlongPath`, `Scatter`
   layout schemes), `<sigilcompose/Routers.h>`
-  (`straight`/`orthogonal`/`arc` connector routers), and
+  (`straight`/`orthogonal`/`arc` connector routers;
+  `polyline`/`octilinear`/`orbit` rail routers), and
   `<sigilcompose/Web.h>` (the SigilScry `web()` leaf; header-only, only
-  targets that link SigilScry include it).
+  targets that link SigilScry include it) — and the later shelf, on
+  the same terms: `<sigilcompose/Material.h>`/`Ocio.h` (the polymorphic
+  paint value + LUT bake tooling, "Materials" below), `Sdf.h` (IQ
+  operators as one-pass materials), `Brushes.h`/`Lines.h`/
+  `LayerStyles.h`/`Pattern.h`/`Patterns.h` (the brush/line/chrome
+  vocabulary, "The Brush engine" below), `Kinetic.h` (glyph-effect
+  presets), `Console.h` (the streaming log), `Instances.h`
+  ("Instancing" below), and `GpuImage.h` ("Drawing images portably"
+  below).
 
 ## Worked example 1 — static poster, headless (weave_demo style)
 
@@ -301,7 +449,7 @@ namespace ch = choreograph;
 
 Element poster(const EventInfo &info) {
   return box().column().padding(64).gap(24)
-      .fill(Fill::linearGradient({0, 0}, {1080, 1350},
+      .fill(util::linearGradient({0, 0}, {1080, 1350},
                                  {kInkDark, kInkPlum}))
       .cache(Cache::Picture)                    // static → record once
       .child(text(info.title, display96).key("title").zIndex(2))
@@ -313,7 +461,8 @@ Element poster(const EventInfo &info) {
 
 // Host: exactly like a textflow demo panel.
 sigil::motion::Ticker ticker;               // unused motions? fine — inert
-Composer composer(ticker);
+sigil::weave::FontContext fonts;
+Composer composer(ticker, fonts);
 composer.setSize({1080, 1350});
 composer.render(poster(info));
 
@@ -494,6 +643,7 @@ system). The read surface is post-layout and read-only:
 std::optional<SkRect> bounds(std::string_view key) const;
 const sigil::weave::ParagraphLayout *paragraphLayout(std::string_view key) const;
 std::optional<std::string> hitTest(SkPoint canvasPoint) const;  // topmost key
+std::vector<std::string> routesAt(std::string_view nodeKey) const; // edges
 ```
 
 That is enough to draw *around* nodes, attach scene geometry to them,
@@ -504,7 +654,15 @@ corner radii bound the region — the gap between a star's arms misses);
 keyless hits resolve to the nearest keyed ancestor, and clipped
 subtrees don't hit outside their clip.
 
-One more read-side primitive rounds this out — the one-shot render:
+routesAt is the graph query — "which edges touch this node" — answered
+from the edge store's back-index in O(routes at that node): keys of
+`connector()`/`rail()` elements anchored on the node, in tree order,
+for hover highlights and pruned edge updates. Keyless routes are
+anchored but unaddressable, so they're omitted — give routes keys to
+see them here. Valid after `render()`.
+
+Two more read-side primitives round this out — the one-shot render and
+its sizing twin:
 
 ```cpp
 /** Reconcile + lay out + record an element tree into a picture at its
@@ -513,6 +671,12 @@ One more read-side primitive rounds this out — the one-shot render:
  *  element stamps — and generally "an element tree as a brush". */
 sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
                           SkSize maxSize = {});
+
+/** One-shot intrinsic measurement: the same reconcile+layout without
+ *  painting — the sizing primitive behind content-fit chrome
+ *  (marquees, tooltips, badges). Same sampling rules as snapshot(). */
+SkSize measure(Element root, sigil::weave::FontContext &fonts,
+               SkSize maxSize = {});
 ```
 
 ### Swapping children / updating data directly — the two write paths
@@ -531,9 +695,10 @@ and policed differently:
    mutated every frame without any render call. Bindings are *declared*
    in the description, so the composer knows exactly which properties
    are volatile — bound properties are paint-only by contract, and a
-   bound node inside a `Cache::Picture` boundary is either lifted out
-   of the recording or the boundary demotes to `Cache::None`
-   (declared volatility is what keeps caching sound).
+   bound node demotes itself from its ancestors' recordings while
+   active: bound transforms/opacity still replay the node's own cached
+   content under the live transform, while content volatility paints
+   live (declared volatility is what keeps caching sound).
 
 Arbitrary direct mutation of retained nodes is rejected on principle:
 it's the one door that, once open, makes every cache unsound and every
@@ -587,8 +752,10 @@ Fill::shader(sk_sp<SkShader>);   // incl. SkRuntimeEffect-built shaders
 PathFormat{.effects = {...}, .paint = Fill::..., .width = 3};
 
 // 3. Slice — map an image/asset onto a box through a lattice
-//    (SkCanvas::drawImageLattice: N-patch, per-cell stretch/repeat).
-//    Nine-slice is the 3x3 case.
+//    (N-patch, per-cell stretch/repeat; nine-slice is the 3x3 case).
+//    Painted via gpuimg::drawLattice, never the native
+//    SkCanvas::drawImageLattice — an empty stub on Graphite (see
+//    "Drawing images portably").
 Slice{.asset = frame, .xDivs = {...}, .yDivs = {...}};
 
 // 4. ContourWalk — the general procedural border: walk the outline by
@@ -679,7 +846,7 @@ resolved output:
 | --- | --- | --- |
 | **Describe** | data → elements | components, `memo`, ranges — generation by ordinary code |
 | **Layout** | constraints → rects | `LayoutScheme`; text measure via SigilWeave |
-| **Derive** | resolved geometry → more content | `flowAround`, `connector`, `ContourWalk` stamps |
+| **Derive** | resolved geometry → more content | `flowAround`, `connector`/`rail`, `ContourWalk` stamps |
 | **Paint** | geometry + canvas → pixels | `DecorationScheme`, `custom()`, SkSL |
 | **Frame** | time → values / next data | Choreograph outputs, steppables, host data feedback |
 
@@ -698,14 +865,23 @@ text(verse, ink).flowAround("dropcap", 14).flowAround("fne", 8);
 
 // Borders between connections: a relationship, not a node property —
 // a first-class element whose geometry derives from its endpoints'
-// resolved bounds, drawn with the full primitive set (a PathFormat, an
-// SkSL Fill along the connecting path, a ContourWalk…). Mirrors the
-// scene schema's own Edge-between-Points model.
-connector("node-a", "node-b")
-    .route(routers::orthogonal)                // routers are values/fns
-                                               // (Router concept), not an
-                                               // enum — write your own
-    .format(PathFormat{.paint = Fill::shader(flowFieldSkSL), .width = 4});
+// resolved bounds. The routed path arrives as the connector's
+// PaintContext::outline, so the full primitive set dresses it (a
+// PathFormat, an SkSL Fill along the path, a ContourWalk, a Brush…).
+// Mirrors the scene schema's own Edge-between-Points model. Routers
+// are values/fns (stock ones in <sigilcompose/Routers.h>), not an
+// enum — write your own.
+connector("node-a", "node-b", routers::orthogonal())
+    .stroke(PathFormat{.paint = Fill::shader(flowFieldSkSL), .width = 4});
+
+// The component that IS a line: a path threaded through an ordered run
+// of anchors (normalized points on keyed nodes' bounds — a transit
+// line through its stations), re-routed whenever an anchored node
+// moves. trim() makes it draw itself.
+rail({{"a", {1, .5f}}, {"hub", {.5f, .5f}}, {"b", {0, .5f}}},
+     routers::octilinear())
+    .trim(0, with(1.0f, {800ms}))
+    .stroke(lines::cased(3, ink, 5));
 ```
 
 **Recursion is closed under the model**: a `ContourWalk` stamp is an
@@ -720,6 +896,52 @@ second pass) or across frames through ordinary data (this frame's
 `bounds()` feed next frame's describe), which the event-driven loop
 already models. Same backend, same niceties, one dial: at which phase
 your code runs.
+
+## Materials — the polymorphic paint value
+
+`Material` (`<sigilcompose/Material.h>`) supersedes the kernel's
+three-case `Fill` as the *authoring* value for `fill()` — and for
+`textFill()`, glyph paint mapped to text-metric space; `Fill` stays
+the low-level {none, color, shader} carrier the reconciler stores. A
+Material is a small tree of paint nodes that compiles to ONE shader —
+layers via `SkShaders::Blend`, never stacked saveLayer:
+
+```cpp
+Material::solid(color);
+Material::linear(a, b, stops);  Material::radial(...);  Material::sweep(...);
+Material::image(img, tileX, tileY, localMatrix);  // sprites: sub-rect matrix
+Material::sksl(effect, {{"uSpeed", 2.f}});        // SkSL runtime effect
+Material::blend({{base, kSrcOver}, {sheen, kScreen}});  // ONE flattened shader
+material.uniform("uGlow", &output);  // bind a ch::Output → material is LIVE
+material.quantizeTime(6.0f);         // step the injected uTime at 6 Hz
+```
+
+Three volatility tiers, decided by what the recipe reads:
+
+- **Static** (solids, ramps, images, constant-uniform sksl): resolves
+  eagerly, collapses to a `Fill`, caches and prunes on the kernel
+  path. Materials compare STRUCTURALLY by recipe, so re-describing
+  the same material prunes even though each describe minted a fresh
+  shader.
+- **Geometry-dependent** (the effect declares `uResolution`): resolves
+  when the node records, caches between layouts, re-records on size
+  change.
+- **Live** (a bound `ch::Output` uniform, or the effect reads `uTime`
+  or `uContentScale` — both change independently of the node, so
+  *reading them IS the volatility declaration*): re-resolves every
+  frame; the node paints live. `quantizeTime(hz)` steps the injected
+  uTime (`floor(t·hz)/hz`) — declared choppiness as a MATERIAL
+  property, not per-consumer ticker plumbing (the P3R sea rule: its
+  caustics run at 6 Hz); quantized/held materials repaint at their own
+  rate, not the frame rate — between steps the cached picture replays.
+
+A `blend()` inherits the highest tier among its layers (the flatten
+defers to resolve time when needed). Full-screen live materials are
+GPU-tier content (DESIGN.md, "GPU-first"). Color management is an
+output stage, not a material concern: `Composer::setView()` takes any
+Effect, and `<sigilcompose/Ocio.h>` bakes an OCIO display/view or
+colorspace conversion to an F16 3D-LUT Effect — OCIO is bake/export
+tooling; the realtime path carries only the LUT sample.
 
 ## The Brush engine (lines as expressive as fills)
 
@@ -757,6 +979,95 @@ element.stroke(Brush{}
 path to the same pipeline, so a transit line, a directed edge, and a
 sketchy river are all `Brush` values on routes.
 
+Alongside the pipeline, the line-and-chrome vocabulary — all ordinary
+value decorations that compare, prune, and cache like `PathFormat`:
+
+- **`brushes::artAlong(art, height, stationPx)`** (`ArtBrush`) — the
+  Illustrator ART brush proper: ONE art cell (any element tree) baked
+  once at 2×, each contour walked into a triangle-strip ribbon, one
+  `drawVertices` warping the art CONTINUOUSLY around curvature — where
+  a rigid stamp run breaks into segments. `stationPx` is warp fidelity
+  (6 px follows tight metro curves).
+- **`lines::hatch(fill, spacing, width, angleDeg)`** /
+  **`lines::crosshatch(...)`** (`Hatch`) — Sk2D lattice hatching
+  (`SkLine2DPathEffect`) clipped to the node's outline, so concave
+  shapes hatch exactly; crosshatch adds the perpendicular pass. The
+  engraving/drafting/blueprint fill for any silhouette.
+- **`styles::gloss(color, sigma, offset, ringCenter, ringWidth)`**
+  (`GlossContour`) — the Photoshop Satin / "Gloss Contour" curve: the
+  shape's blurred coverage remapped through a 256-entry contour table
+  (blur → TableARGB on one image-filter chain), tinted, clipped INSIDE
+  the shape. The moving light band in gel and chrome that a plain
+  gradient can't fake — it follows the shape's distance field, not a
+  screen axis. Attach as a foreground.
+
+## Instancing — thousands of things as one leaf
+
+`<sigilcompose/Instances.h>` (namespace `sigil::compose::instancing`)
+is the flyweight repeat layer: a template ATLAS baked once from
+element trees, a user-owned SoA POOL, ONE atlas stamp per frame.
+Node-graph nodes, inventory cells, confetti, tick arrays — masses are
+a leaf, never N Yoga subtrees.
+
+```cpp
+auto atlas = std::make_shared<instancing::Atlas>(/*oversample=*/2.0f);
+int gem = atlas->cell(gemCell(), {24, 24});    // frame index for the pool
+
+auto pool = std::make_shared<instancing::Pool>();
+pool->add({x, y}, gem, angleRad, scale, tint); // SoA: position / rotation /
+pool->positions(); pool->tints(); /*…*/        // scale / tint / frame spans
+pool->touch();                                 // bulk-mutated? bump revision
+
+parent.child(box().width(w).height(h)          // the wrapper IS the
+    .child(instancing::instances(atlas, pool,  // placement API
+                                 instancing::Mode::Data)));
+
+place::grid(*pool, count, columns, cell);      // data-level generators:
+place::ring(*pool, count, center, radius);     // O(count) arithmetic, no
+place::repeat(*pool, count, start, step, …);   // Yoga (skottie Repeater
+                                               // law: exponential scale)
+```
+
+The contract: the **Atlas is a recipe** — cells register at a fixed
+logical size, the sheet bakes once on first stamp (oversampled so
+raster stamps never magnify; re-registering drops the bake). The
+**Pool is yours** — mutate it directly or copy in from an EnTT view;
+the ECS stays on your side of the seam. **Stamping is RSXform** —
+rotation + uniform scale + translation only, by design (skew or
+non-uniform cells are real elements). The leaf FILLS ITS PARENT
+(absolute, inset 0): wrap it in a sized box and pool positions are
+that parent's local px. Two modes, matching the kernel's two write
+paths: `Mode::Data` prunes on (atlas, pool, revision) — mutate,
+`touch()`, `render()`; `Mode::Live` is the `Cache::None` particle path
+that reads the pool every frame. Past 2048 instances the stamp culls
+against the local clip before building draw arrays. Measured: 10k
+instances in 0.18 ms on Graphite (18 ns/sprite, ~200× CPU raster) —
+masses are a GPU play.
+
+## Drawing images portably — the GpuImage rule
+
+For anyone writing custom decorations or paint programs that draw
+lattices or sprite batches: **use `gpuimg::drawLattice` /
+`gpuimg::drawSpriteAtlas` (`<sigilcompose/GpuImage.h>`), never the
+native `SkCanvas::drawImageLattice` / `drawAtlas`.** In this Skia,
+graphite's `Device` overrides those two ops with EMPTY bodies — the
+draw silently vanishes on any Graphite canvas. And because compose
+records subtrees into SkPictures, checking the live canvas is not
+enough: a native op recorded on a raster canvas still vanishes when
+the picture replays on Graphite. The portable forms are therefore
+ALWAYS decomposed — lattice into per-cell `drawImageRect`s (NinePatch
+alternating fixed/stretch bands), atlas into one `drawVertices`
+sampling the sheet — and decomposed draws replay correctly on every
+backend (raster's native drawAtlas lowers to the same vertices
+internally anyway).
+
+Both take a `gpuimg::Promoted &` cache: Graphite performs no implicit
+raster-image uploads, so raster sources promote to textures once per
+(image, recorder) — hold the cache where you hold the image (a Slice,
+an Atlas). `Slice` and the instancing stamp already route through this
+layer; images sampled by shaders/materials ride the recorder's
+ImageProvider instead.
+
 ## C++20 at the surface
 
 Used deliberately, for errors and ergonomics rather than cleverness:
@@ -777,8 +1088,10 @@ Used deliberately, for errors and ergonomics rather than cleverness:
   sketches): `.transition({.duration = 400ms, .ease = ch::easeOutQuint})` —
   no naked doubles-of-seconds.
 - **UDLs** for dimensions: `width(50_pct)`, `padding(24_px)`.
-- `std::span`/`std::string_view` at boundaries; `std::variant` for
-  `Animatable`; no exceptions in the hot path.
+- `std::span`/`std::string_view` at boundaries; no exceptions in the
+  hot path. (`PropValue` is deliberately NOT a `std::variant` — a
+  compact class boxing the fat `Transitioned` payload out-of-line; see
+  Values.)
 
 ## Non-goals (unchanged)
 
