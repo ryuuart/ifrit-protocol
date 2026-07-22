@@ -166,6 +166,13 @@ struct Composer::Impl {
   bool needsLayout = true;
   bool contentDirty = true;
   std::unordered_map<std::string, detail::Instance *> byKey;
+  // Slots get their OWN index. They live in byKey too (so bounds() and
+  // hitTest() still answer for a slot's name), but a slot's CONTENT may
+  // legitimately carry a root .key() with the same name — and since a
+  // child is indexed after its parent, last-writer-wins let it shadow the
+  // slot, so every later renderSlot() returned silently and the slot
+  // froze on its first value. Two namespaces, no collision.
+  std::unordered_map<std::string, detail::Instance *> bySlot;
   // The EDGE STORE, rebuilt with the key index each render: routed nodes
   // (connector()/rail()) as a flat list in tree order, plus the back-index
   // anchor-key → routes-anchored-there. The derive pass iterates these flat

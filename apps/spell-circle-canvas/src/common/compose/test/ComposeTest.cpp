@@ -6445,3 +6445,39 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
   // A key that was never in the tree is still absent, not NaN.
   EXPECT_FALSE(host.composer.bounds("nope").has_value());
 }
+
+TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
+  // slot(name) sets node->key = name, and renderSlot used to resolve
+  // through the same byKey map the whole tree shares. Give the slot's
+  // CONTENT a root .key(name) and — since a child is indexed after its
+  // parent, last writer wins — the content Box shadowed the slot, every
+  // later renderSlot() returned silently, and the slot froze on its
+  // first value. No warning. A study lost forty minutes and a printf to
+  // it. Slots now have their own index.
+  Host host(200, 200);
+  host.composer.render(box().child(slot("readout").absolute().inset(0)));
+  host.composer.renderSlot(
+      "readout", box().key("readout").absolute().inset(0).fill(red()));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
+
+  // Control: with NO colliding key the second update has always worked.
+  Host control(200, 200);
+  control.composer.render(box().child(slot("r2").absolute().inset(0)));
+  control.composer.renderSlot("r2", box().absolute().inset(0).fill(red()));
+  control.frame();
+  control.composer.renderSlot("r2", box().absolute().inset(0).fill(green()));
+  control.frame();
+  ASSERT_GT(SkColorGetG(control.pixel(100, 100)), 180)
+      << "the plain slot path is broken, not the collision fix";
+
+  // The second update must land. Before the fix this returned silently.
+  host.composer.renderSlot(
+      "readout", box().key("readout").absolute().inset(0).fill(green()));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
+  EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
+
+  // And a slot's name still answers bounds(), so the two indexes coexist.
+  EXPECT_TRUE(host.composer.bounds("readout").has_value());
+}
