@@ -99,7 +99,7 @@ constexpr SkColor4f kSpaceEdge = C(0x06070A);
 constexpr SkColor4f kNebula = C(0x6E7288);
 constexpr SkColor4f kNebula2 = C(0x525F82);
 
-constexpr SkColor4f kOceanLit = C(0x2B5C82);  // sampled mid-tone
+constexpr SkColor4f kOceanLit = C(0x235274);  // sampled mid-tone
 constexpr SkColor4f kOceanDark = C(0x12283A);
 constexpr SkColor4f kLandMoss = C(0x5F8C42);
 constexpr SkColor4f kLandTan = C(0xA08A5C);
@@ -136,7 +136,7 @@ constexpr SkColor4f kBezelDk = C(0x555D64);
 constexpr SkColor4f kPanel = C(0x33383E);
 constexpr SkColor4f kPanelDk = C(0x1B1F23);
 
-constexpr SkColor4f kSky = C(0x1C9BC0);
+constexpr SkColor4f kSky = C(0x1180AC);
 constexpr SkColor4f kSkyHi = C(0x8ED4E8);      // sampled (430,260)
 constexpr SkColor4f kGround = C(0x8B5A2E);
 constexpr SkColor4f kGroundLo = C(0x5A3A1E);
@@ -526,7 +526,7 @@ half4 main(float2 xy) {
   float a = max(s.a, 1e-4);
   float3 straight = float3(s.rgb) / a;
   float l = max(max(straight.r, straight.g), straight.b);
-  float k = smoothstep(0.55, 0.95, l) * float(a);
+  float k = smoothstep(0.68, 0.98, l) * float(a);
   return half4(half3(straight * k), half(k));
 }
 )";
@@ -694,9 +694,9 @@ struct KspMapView : sigil::compose::sketch::Sketch {
     // Fresnel limb: one SDF pass, border + exponential glow.
     const sdf::Style rim{.fill = {0, 0, 0, 0},
                          .borderWidth = 1.6f,
-                         .borderColor = fade(kAtmo, 0.75f),
-                         .glowRadius = 11.0f,
-                         .glowColor = fade(kAtmo, 0.42f)};
+                         .borderColor = fade(kAtmo, 0.68f),
+                         .glowRadius = 8.0f,
+                         .glowColor = fade(kAtmo, 0.26f)};
     const float boxSize = sdf::minBoxFor(rim, d);
     g.child(at(box().fill(sdf::material(sdf::circle(), rim)), kKerbin, boxSize,
                boxSize));

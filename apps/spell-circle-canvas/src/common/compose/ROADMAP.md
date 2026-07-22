@@ -38,6 +38,8 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | Two `onPath` bugs, found hours after it shipped | `autoFlip` turned each glyph over **in place**, mirroring the run; a centred run at `at = 0` silently ate every glyph before the seam | `Paint.cpp` |
 | A third: `onPath` was never reconciled | `textEqual()` compared everything about a run except its baseline, so a new path or a moving `at` pruned and kept the OLD one. `TextPath`'s defaulted `operator==` was implicitly deleted and compiled quietly | `Reconcile.cpp` |
 | **`bind()` — a binding you can shape** | The most-cited gap in the program: five studies, five directions, all keeping a second Output in pixels beside the [0,1] one | `Compose.h`, `Transitions.cpp` |
+| An empty easing crashed instead of defaulting | `{360ms, {}, 220ms}` — the obvious spelling — aggregate-initialises an empty `std::function` and throws `bad_function_call` on frame one | `Compose.h` (`Transition::easing()`) |
+| A guest crash was exit 139 and silence | Four agents spent most of a night localising ONE bad shader with no diagnostic at all | `sketch/SketchCrash.*` |
 
 ---
 
@@ -85,7 +87,7 @@ Natural API: `PropValue(const Output<float>*, std::function<float(float)>)`,
 or a `.map()`/`.scale()`/`.offset()` chain on the binding. The paint path
 already reads through a pointer; this is one call site.
 
-## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *four studies*
+## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *five studies*
 
 `Instances.h` names inventory cells and node-graph nodes as its cases.
 Both are usually **labelled**, and a `Pool` carries only position,
@@ -95,7 +97,8 @@ rotation, uniform scale, tint and frame. So:
 - a lattice of 514 differently-mitred boards has no flyweight (kumiko);
 - a staggered assembly has no per-instance progress or delay (kumiko, 2Advanced);
 - strips of varying length are outside RSXform's uniform scale (kumiko);
-- press-wire rows, chips and readout windows are all ineligible (2Advanced).
+- press-wire rows, chips and readout windows are all ineligible (2Advanced);
+- a playlist's rows are the textbook instancing case and carry text (Winamp).
 
 Also `place::repeat` writes lanes it does not own — it clobbers
 `tints[i].fA` and cannot set `frame`, so every mixed-frame call site
@@ -324,10 +327,11 @@ a `sampling` field on `Slice` / `PatternBrush` / `Atlas`.
 
 ## Host and tooling
 
-- **A guest crash surfaces only as exit 139.** `ComposeSketch` reports
-  nothing when a sketch dylib faults. Catching SIGSEGV in the guest and
-  naming the sketch would have saved most of the time four agents spent
-  localising one bad shader.
+- ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers
+  on SEGV/BUS/ILL/FPE/ABRT now name the sketch, the phase (setup / update
+  / draw / capture), the frame, a stack, and the two causes that account
+  for nearly all of them, then re-raise so the shell and any debugger
+  still see the real signal.
 - **A material that fails to build should be loud.** `MakeForShader`
   returning a valid effect and an empty error string, then dying at draw,
   is the worst possible failure mode.
