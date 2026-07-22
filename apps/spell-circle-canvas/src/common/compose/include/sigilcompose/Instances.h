@@ -58,7 +58,12 @@ namespace sigil::compose::instancing {
 /** Struct-of-arrays per-instance data. The scene owns and mutates this
  *  (directly, from a ticker steppable, or copied out of an EnTT view);
  *  the element only reads it. After external mutation in Mode::Data,
- *  call touch() so the next render() sees a changed revision. */
+ *  call touch() so the next render() sees a changed revision.
+ *
+ *  A position is the CELL'S CENTRE, not its top-left. `place::grid` says
+ *  so in its arithmetic and nowhere else did, so every hand-populated
+ *  pool — and every port out of an ECS, where a transform is usually an
+ *  origin — had to discover it by reading the generator's source. */
 class Pool {
 public:
   /** Appends one instance; returns its index. */

@@ -5046,3 +5046,26 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   topFlipped.frame();
   EXPECT_EQ(differs(snap(topPlain), snap(topFlipped)), 0);
 }
+
+TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
+  // Winamp's volume slider is literally round(percent * 28), and its 28
+  // sprite frames are what anyone who used it remembers — a smooth
+  // slider sampled at draw time is a different widget. Quantisation is
+  // the design, so it belongs in the binding rather than in the caller's
+  // steppable.
+  auto q = [](float v) {
+    return bind(nullptr).quantize(5).value().apply(v); // levels 0,.25,.5,.75,1
+  };
+  EXPECT_FLOAT_EQ(q(0.0f), 0.00f);
+  EXPECT_FLOAT_EQ(q(0.10f), 0.00f);
+  EXPECT_FLOAT_EQ(q(0.20f), 0.25f);
+  EXPECT_FLOAT_EQ(q(0.60f), 0.50f);
+  EXPECT_FLOAT_EQ(q(1.0f), 1.00f);
+  // It runs BEFORE the affine chain, so the steps land on round pixels.
+  EXPECT_FLOAT_EQ(bind(nullptr).quantize(5).to(0, 80).value().apply(0.6f),
+                  40.0f);
+  // …and after the curve, so an eased value still lands on a step.
+  EXPECT_FLOAT_EQ(
+      bind(nullptr).map(&choreograph::easeNone).quantize(5).value().apply(0.9f),
+      1.0f);
+}

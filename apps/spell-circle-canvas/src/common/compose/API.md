@@ -102,7 +102,9 @@ Bound bind(const ch::Output<float> *source);
 // Three stages, always in this order:
 //   1. from(lo, hi)   normalise the SOURCE range onto [0,1]
 //   2. map(ease)      shape it — any ch::EaseFn, so all of ease:: fits
-//   3. scale/offset/to/invert  — affine, composed in CALL ORDER;
+//   3. quantize(n) snaps to n discrete levels (period-authentic widgets:
+//      Winamp's volume really is round(percent*28), not a sampled slider)
+//   4. scale/offset/to/invert  — affine, composed in CALL ORDER;
 //      clamp(lo, hi) always applies last, wherever it is written
   .translateX(bind(&phase).to(-70, 170))            // [0,1] → px
   .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))

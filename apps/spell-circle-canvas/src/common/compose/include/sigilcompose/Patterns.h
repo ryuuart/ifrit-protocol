@@ -212,6 +212,13 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
  *  multiplied in y, so > 1 runs the fibre lengthwise (wood, brushed
  *  metal) and 1.0 is isotropic (dust, paper, stone).
  *
+ *  MIND THE PRODUCT. `stretch` divides the x frequency but MULTIPLIES the
+ *  y one by the same factor, so it is not free: keep
+ *  `frequency · stretch · 2^(octaves-1)` under roughly 0.4, or the y axis
+ *  aliases and you get hash noise with no diagnostic. Brushed metal at ×3
+ *  wants something like `frequency 0.075, stretch 5` — not
+ *  `frequency 6, stretch 6`, which asks for 36 cycles per pixel.
+ *
  *  TWO IMPLEMENTATION RULES, and both are load-bearing. A sketch dylib
  *  carries its OWN copy of Skia — vcpkg builds Skia hidden-visibility, so
  *  sketch dylibs link libskia.a directly rather than resolving it from the
