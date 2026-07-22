@@ -74,8 +74,11 @@
 // GLYPH-UP POINTING RADIALLY INWARD everywhere — you turn the plate so the
 // sector you are reading is at the bottom. That is one uniform engraver's
 // convention (the same kind of decision the Nightingale study found, with
-// the opposite sign). It needs a COUNTER-CLOCKWISE baseline, which
-// shapes::circle() cannot produce; see LIBRARY GAPS in the report.
+// the opposite sign). It needs a COUNTER-CLOCKWISE baseline. When this
+// study was written `shapes::circle()` was addOval(kCW) only and the rim
+// baseline had to be spelled out from two arcTo sweeps; that gap is CLOSED
+// — `shapes::circle(SkPathDirection, unsigned startIndex)` is at
+// Shapes.h:167 and `rimBaseline()` below is now one call to it.
 // Orient::Radial is exercised where something genuinely radiates: the
 // reconstructed index ring.
 //
@@ -427,16 +430,17 @@ inline Element rightAt(const std::string &s, const weave::TextStyle &st,
  *   - the arc-length fraction of sector n is exactly n/72;
  *   - the tangent runs the way the engraver set the type, so glyph-up
  *     points radially INWARD everywhere, which is what the plate does.
- *  shapes::circle() is addOval(kCW) and gives the opposite convention. */
+ *
+ *  THIS USED TO BE HAND-BUILT FROM TWO 180° arcTo SWEEPS, under a comment
+ *  saying `shapes::circle()` is addOval(kCW) and cannot give the opposite
+ *  convention. That was TRUE WHEN WRITTEN and is not any more:
+ *  `shapes::circle(SkPathDirection, unsigned startIndex)` landed at
+ *  Shapes.h:167. startIndex 2 is the bottom of the box — addOval indexes
+ *  0 top, 1 right, 2 bottom, 3 left in BOTH directions, checked — which
+ *  is screen-angle 90°, so kCCW + 2 is exactly the contour this used to
+ *  spell out, and the plate renders pixel-for-pixel identically. */
 inline shapes::OutlineFn rimBaseline() {
-  return [](SkSize s) {
-    const SkRect r = SkRect::MakeWH(s.width(), s.height());
-    SkPathBuilder b;
-    b.arcTo(r, 90.0f, -180.0f, true);
-    b.arcTo(r, -90.0f, -180.0f, false);
-    b.close();
-    return b.detach();
-  };
+  return shapes::circle(SkPathDirection::kCCW, 2);
 }
 /** A radius through the centre of the box, as a straight diameter. */
 inline shapes::OutlineFn diameter() {

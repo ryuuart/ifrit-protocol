@@ -800,23 +800,28 @@ inline LayeredBrush add(float width, SkColor4f c, float sigma = 0.0f,
       {{width, c, sigma, std::move(dash), 0, SkBlendMode::kPlus, true}}};
 }
 
-/** LIBRARY GAP, worked around in eight lines and already reported once by the
- *  MAGI study: `LayeredBrush` declares no `bleed()`, so a blurred additive
- *  stack is culled at its node's own bounds when the subtree records. Wrapping
- *  it in a value scheme that DOES declare reach fixes it. The header should
- *  grow `float bleed() const` returning widest width/2 + 3 sigma. */
-struct Reach {
-  LayeredBrush brush;
-  float reach = 12.0f;
-  bool operator==(const Reach &o) const {
-    return brush == o.brush && reach == o.reach;
-  }
-  float bleed() const { return reach; }
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    brush.paint(c, ctx);
-  }
-};
-inline Reach reach(LayeredBrush b, float r) { return Reach{std::move(b), r}; }
+/** THE `Reach` WRAPPER THAT USED TO SIT HERE IS GONE, AND SO IS THE GAP.
+ *
+ *  This file, and the MAGI study before it, shipped an eight-line value scheme
+ *  whose only job was to hold a `LayeredBrush` and declare a `bleed()` for it,
+ *  because `LayeredBrush` did not have one: a blurred additive stack was
+ *  therefore culled at its node's own bounds the moment the subtree recorded.
+ *
+ *  `LayeredBrush::bleed()` shipped (Brushes.h:76) — per layer, `width / 2 +
+ *  3σ`, taking the max, which is exactly what both studies asked for — so the
+ *  wrapper and its `reach()` helper are deleted, and all five call sites hand
+ *  the brush straight to `foreground()`.
+ *
+ *  The hand-set numbers they were passing are worth a line, because none of
+ *  them was right. A σ = 0 additive stroke needs `width / 2` and nothing
+ *  else, so the ruling's 4, the rims' 5 and the rails' 8 were padding over
+ *  envelopes of 0.75, w/2 and 3.4; and the eye furniture asked for 38 where
+ *  its two blurred layers need 51. Four over, one under.
+ *
+ *  And the plate renders IDENTICALLY either way — 0 differing pixels over the
+ *  whole 1016x720 frame, checked. Which is the useful thing to know: on this
+ *  sketch nothing was ever actually being culled, so the eight lines were
+ *  buying nothing even before the library grew the method. */
 
 } // namespace lain
 
@@ -884,7 +889,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                 .absolute()
                 .inset(0)
                 .outline([phi](SkSize) { return generatrices(phi, 7); })
-                .foreground(reach(add(1.5f, dim(kWire, 0.44f), 0.0f), 4.0f))
+                .foreground(add(1.5f, dim(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
@@ -898,7 +903,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                   .outline([c, a, b, tilt, t0, t1](SkSize) {
                     return ellipsePath(c, a, b, tilt, t0, t1);
                   })
-                  .foreground(reach(add(w, col, 0.0f, dot), 5.0f))
+                  .foreground(add(w, col, 0.0f, dot))
                   .key(key));
     };
     auto ell = [&](SkPoint c, float a, float b, float tilt, SkColor4f col,
@@ -927,7 +932,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                   b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
                   return b.detach();
                 })
-                .foreground(reach(add(2.4f, dim(kWire, 0.72f), 0.7f), 9.0f)));
+                .foreground(add(2.4f, dim(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` rides the tilted orbit's lower-left arc,
     // (185, 455) counter-clockwise up to (840, 215) — the run the conic was
@@ -1101,12 +1106,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                      return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
                                          92.0f);
                    })
-                   .foreground(reach(
+                   .foreground(
                        LayeredBrush{{{24.0f, hex(0x070C17), 13.0f, {}, 0,
                                       SkBlendMode::kPlus, true},
                                      {9.0f, hex(0x0A1120), 5.0f, {}, 0,
-                                      SkBlendMode::kPlus, true}}},
-                       38.0f))
+                                      SkBlendMode::kPlus, true}}})
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("eye"));
@@ -1124,7 +1128,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                      b.lineTo(kBodyR - 6, kBarBotT + 4);
                      return b.detach();
                    })
-                   .foreground(reach(add(2.0f, kRail, 0.8f), 8.0f))
+                   .foreground(add(2.0f, kRail, 0.8f))
                    .key("rails"));
 
     // the MIPS block, in its own slot: it re-describes 4.5 times a second and

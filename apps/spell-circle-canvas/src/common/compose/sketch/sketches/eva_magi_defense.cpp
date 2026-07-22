@@ -336,27 +336,32 @@ inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
 //
 // NOTHING BELOW EVER TOUCHES A RIBBON. Ribbons are flat.
 
-/** LIBRARY GAP, worked around in eight lines: `LayeredBrush` declares no
- *  `bleed()`, so `Decoration` reports 0 reach for it and a blurred additive
- *  stack is culled at its node's own bounds when the subtree records. That
- *  hits every stock brush in the header — `brushes::filament()` is a 14 px
- *  envelope under an 8 px blur and would lose its halo the same way. Wrapping
- *  it in a value scheme that DOES declare reach fixes it here; the header
- *  should grow `float bleed() const` on LayeredBrush (widest width/2 + 3
- *  sigma). */
-struct Glow {
-  LayeredBrush brush;
-  float reach = 26.0f;
-  bool operator==(const Glow &o) const {
-    return brush == o.brush && reach == o.reach;
-  }
-  float bleed() const { return reach; }
-  void paint(SkCanvas &c, const PaintContext &ctx) const {
-    brush.paint(c, ctx);
-  }
-};
-
-inline Glow rimGlow(float core, SkColor4f c) {
+/** THE `Glow` WRAPPER THAT USED TO SIT HERE IS GONE, AND SO IS THE GAP.
+ *
+ *  This file shipped an eight-line value scheme whose whole job was to hold a
+ *  `LayeredBrush` and declare a `bleed()` for it, because `LayeredBrush` did
+ *  not have one — `Decoration` therefore reported 0 reach and a blurred
+ *  additive stack was culled at its node's own bounds the moment the subtree
+ *  recorded. That was real, and it hit every stock brush in the header:
+ *  `brushes::filament()` is a 14 px envelope under an 8 px blur and lost its
+ *  halo the same way.
+ *
+ *  `LayeredBrush::bleed()` shipped (Brushes.h:76) computing exactly what this
+ *  file asked for — per layer, `width/2 + 3σ`, taking the max — so the wrapper
+ *  is deleted and `rimGlow` returns the stock brush.
+ *
+ *  The numbers differ by 3.5 px — the wrapper declared `core/2 + 7 + 3σ`,
+ *  adding the WHOLE of the wide layer's extra width where the envelope only
+ *  needs half of it — and the difference is worth stating precisely, because
+ *  the frame is not byte-identical and a reader diffing it should know why.
+ *  No halo is lost: the reach the wrapper was over-reserving carried about a
+ *  tenth of one 8-bit level, since 3σ is already >99% of the Gaussian and the
+ *  wide pass runs at 0.30 alpha. What DOES change is that every marks bakes
+ *  under `Cache::Texture`, so a 3.5 px change in reserved reach resizes the
+ *  bake surface and re-phases its blit — which reshuffles about a pixel of
+ *  antialiasing on every edge in the plate. Measured, it does not soften it:
+ *  mean |dI/dx| over the whole frame goes 4.4732 -> 4.4796. */
+inline LayeredBrush rimGlow(float core, SkColor4f c) {
   // TWO passes, not three. A middle pass at width core+3.5 and only sigma 2
   // does not read as a halo, it reads as a FATTER RIM — side by side with the
   // plate the 2 px keyline came out looking 6 px thick. The measured profile
@@ -364,11 +369,10 @@ inline Glow rimGlow(float core, SkColor4f c) {
   // 9 px), so: a hairline, and a wide dim blur under it.
   SkColor4f wide = c;
   wide.fA = 0.30f;
-  return Glow{LayeredBrush{{
-                  {core + 7.0f, wide, 6.5f, {}, 0, SkBlendMode::kPlus, false},
-                  {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
-              }},
-              core * 0.5f + 7.0f + 3.0f * 6.5f};
+  return LayeredBrush{{
+      {core + 7.0f, wide, 6.5f, {}, 0, SkBlendMode::kPlus, false},
+      {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
+  }};
 }
 
 inline weave::TextStyle glowType(float size, SkColor4f color, float condense,
