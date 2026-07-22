@@ -3735,11 +3735,43 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
 // Cache::Auto texture promotion — the library fixing a slow frame by itself.
 
 namespace {
-/** A subtree expensive enough to trip the promotion threshold, built from
- *  ordinary drawing rather than a timer, so the test exercises the real
- *  decision path. */
+/** Expensive per PIXEL, which is the only kind of expensive that matters
+ *  here: the promoter measures milliseconds, not ops. Shared by the leaf
+ *  tests further down. */
+sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
+  // The static variant must not so much as DECLARE uTime: Material::sksl
+  // reads liveness off the declaration, not off whether anything drives it.
+  SkString src;
+  if (withTime)
+    src.append("uniform float uTime;");
+  src.append("half4 main(float2 p) {");
+  src.append(withTime ? "  float t = uTime;" : "  float t = 0.0;");
+  src.append("  float v = 0.0;"
+             "  for (int i = 0; i < 40; ++i) {"
+             "    float f = float(i) + 1.0;"
+             "    v += sin(p.x * 0.031 * f + t) *"
+             "         cos(p.y * 0.027 * f - t) / f;"
+             "  }"
+             "  float g = clamp(v * 0.5 + 0.5, 0.0, 1.0);"
+             "  return half4(half(g), half(g * 0.5), half(1.0 - g), 1.0);"
+             "}");
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(src);
+  if (!effect)
+    ADD_FAILURE() << err.c_str();
+  return effect;
+}
+
+/** A subtree the promoter will actually promote.
+ *
+ *  "Expensive" here has to mean **over the promotion threshold**, and this
+ *  panel did not: 220 thin children with hairline strokes measured 23 us
+ *  against a 1 ms bar, so every test that asked whether this thing gets
+ *  promoted was asking about a node that never could be. Structure alone
+ *  does not cost milliseconds — per-pixel work does, so the panel now
+ *  carries a shader over its whole area as well as its 220 children. */
 Element expensivePanel() {
-  Element panel = box().width(180).height(180).fill(blue());
+  Element panel =
+      box().width(180).height(180).fill(Material::sksl(heavyEffect(false)));
   for (int i = 0; i < 220; ++i) {
     const float t = (float)i / 220.0f;
     panel.child(box()
@@ -3752,6 +3784,41 @@ Element expensivePanel() {
                     .foreground(util::stroke(0.7f, Fill::color({1, 1, 1, 0.5f})))); 
   }
   return panel;
+}
+
+/** THE CACHE-TEST FIXTURE. Use it for anything that asserts on how a node
+ *  was cached.
+ *
+ *  A static node under a CACHEABLE parent is painted exactly once, into
+ *  that parent's recording, and never visited again — so it never appears
+ *  in `profile()` and every assertion about it passes by iterating an
+ *  empty match set. That is not a hypothetical: three tests in this file
+ *  shipped that way, including one guarding a property we had to prove
+ *  twice. `Cache::None` on the wrapper keeps the subject painted every
+ *  frame, which is also the real shape of the corpus (these nodes sit
+ *  under a stack() with animated siblings).
+ *
+ *  Pair it with `requireRow()`, and note what each half guarantees:
+ *  `profiledUnder` gets the node PROFILED, `requireRow` proves it was.
+ *  **Neither makes it PROMOTED** — that needs the node to be genuinely
+ *  over the cost threshold, which is a property of the content, not of
+ *  the fixture. See `expensivePanel`. */
+Element profiledUnder(Element subject) {
+  return box().cache(Cache::None).child(std::move(subject));
+}
+
+/** The profile row for `key`, failing loudly when there is none — the
+ *  difference between "the library did not promote it" and "the test never
+ *  looked at it", which a `for`-loop-with-an-`if` cannot tell you. */
+const Composer::NodeCost *requireRow(const Composer &composer,
+                                     const char *key) {
+  for (const auto &row : composer.profile())
+    if (row.label.rfind(key, 0) == 0)
+      return &row;
+  ADD_FAILURE() << "no profile row for '" << key
+                << "' — the node was never painted, so nothing below this "
+                   "line tested anything. Wrap it in profiledUnder().";
+  return nullptr;
 }
 std::vector<SkColor> grab(Host &host) {
   SkBitmap bm;
@@ -3826,18 +3893,19 @@ TEST(ComposeCache, CachePictureOptsOutOfPromotion) {
   // Cache::None on the wrapper, or the panel is recorded into its parent
   // once and never profiled again — and the loop below would then assert
   // nothing at all, which is how it read before this line existed.
-  host.composer.render(box().cache(Cache::None).child(
-      expensivePanel().cache(Cache::Picture).key("optout")));
+  host.composer.render(
+      profiledUnder(expensivePanel().cache(Cache::Picture).key("optout")));
   for (int i = 0; i < 30; ++i)
     host.frame();
-  bool sawIt = false;
-  for (const auto &row : host.composer.profile())
-    if (row.label.rfind("optout", 0) == 0) {
-      sawIt = true;
-      EXPECT_NE(row.cacheState, Composer::CacheState::Promoted);
-      EXPECT_EQ(row.promotion, Composer::Promotion::OptedOut);
-    }
-  EXPECT_TRUE(sawIt) << "the node under test was never profiled";
+  const Composer::NodeCost *row = requireRow(host.composer, "optout");
+  ASSERT_NE(row, nullptr);
+  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(row->promotion, Composer::Promotion::OptedOut);
+  // The panel must actually be over the bar, or "not promoted" is true for
+  // the wrong reason and this asserts nothing about the opt-out.
+  EXPECT_GT(row->selfMs, 1.0)
+      << "expensivePanel is under the promotion threshold, so Cache::Picture "
+         "is not what kept it from being promoted";
 }
 
 // ---------------------------------------------------------------------------
@@ -3990,6 +4058,97 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// subtreeReadsBackdrop — the one thing promotion may never do.
+//
+// A bake is taken into a TRANSPARENT layer and blitted back. Anything in
+// the subtree that composites against what is ALREADY on the canvas would
+// therefore resolve against transparent black instead of the real
+// backdrop, and come out wrong. computeVolatile works this out for the
+// whole subtree; until now nothing tested it, and it is invisible in the
+// common case — a still frame of an unpromoted node looks identical.
+
+namespace {
+/** An expensive panel with one MULTIPLY child, over an opaque ground. The
+ *  ground matters: multiply against mid-grey and multiply against
+ *  transparent black differ enormously, so a wrongly-baked subtree is
+ *  loud rather than subtle. */
+Element blendingScene(SkBlendMode mode) {
+  return profiledUnder(
+      stack()
+          .child(box().absolute().inset(0).fill(
+              Fill::color({0.55f, 0.55f, 0.6f, 1})))
+          .child(expensivePanel().key("reader").child(
+              box()
+                  .absolute()
+                  .left(20)
+                  .top(20)
+                  .width(90)
+                  .height(90)
+                  .fill(Fill::color({0.9f, 0.5f, 0.2f, 1}))
+                  .blend(mode))));
+}
+} // namespace
+
+TEST(ComposeCache, PromotionRefusesASubtreeThatBlendsWithTheCanvas) {
+  Host host(220, 220);
+  host.composer.setProfiling(true);
+  host.composer.render(blendingScene(SkBlendMode::kMultiply));
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = requireRow(host.composer, "reader");
+  ASSERT_NE(row, nullptr);
+  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted)
+      << "baked a subtree containing a kMultiply child — its blend would "
+         "have resolved against transparent black";
+  EXPECT_EQ(row->promotion, Composer::Promotion::Filtered);
+}
+
+TEST(ComposeCache, ABlendingSubtreeKeepsItsPixelsUnderPromotion) {
+  // The assertion that would catch a future relaxation of the rule. If the
+  // subtree were ever baked, the multiply child would composite against a
+  // transparent layer and these two renders would diverge by a lot.
+  for (SkBlendMode mode : {SkBlendMode::kMultiply, SkBlendMode::kScreen,
+                           SkBlendMode::kPlus}) {
+    Host on(220, 220), off(220, 220);
+    off.composer.setAutoTexturePromotion(false);
+    on.composer.render(blendingScene(mode));
+    off.composer.render(blendingScene(mode));
+    for (int i = 0; i < 24; ++i) {
+      on.frame();
+      off.frame();
+    }
+    EXPECT_TRUE(identicalPixels(off, on, 220, 220))
+        << "promotion changed the pixels of a subtree that blends with the "
+           "canvas (mode " << (int)mode << ")";
+  }
+}
+
+TEST(ComposeCache, PromotionRefusesABackdropFilter) {
+  // The other half of subtreeReadsBackdrop: a backdrop filter SAMPLES the
+  // destination, so a bake would filter transparent black.
+  Host host(220, 220);
+  host.composer.setProfiling(true);
+  host.composer.render(profiledUnder(
+      stack()
+          .child(box().absolute().inset(0).fill(
+              Fill::color({0.55f, 0.55f, 0.6f, 1})))
+          .child(expensivePanel().key("reader").child(
+              box()
+                  .absolute()
+                  .left(20)
+                  .top(20)
+                  .width(90)
+                  .height(90)
+                  .backdrop(Effect::filter(
+                      SkImageFilters::Blur(3, 3, nullptr)))))));
+  for (int i = 0; i < 24; ++i)
+    host.frame();
+  const Composer::NodeCost *row = requireRow(host.composer, "reader");
+  ASSERT_NE(row, nullptr);
+  EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
+}
+
 TEST(ComposeCache, PromotionRefusesEveryRotation) {
   // Promotion's envelope is upright, unmirrored and unskewed, and ±90° is
   // "axis aligned" in the loose sense that would have let it through. A
@@ -4001,20 +4160,16 @@ TEST(ComposeCache, PromotionRefusesEveryRotation) {
     // Cache::None on the wrapper so the panel is painted every frame; under
     // a cacheable parent it would be recorded once and never profiled, and
     // every assertion below would pass without testing anything.
-    host.composer.render(box().cache(Cache::None).child(expensivePanel()
-                                                            .absolute()
-                                                            .left(40)
-                                                            .top(40)
-                                                            .rotate(degrees)
-                                                            .key("turned")));
+    host.composer.render(profiledUnder(
+        expensivePanel().absolute().left(40).top(40).rotate(degrees).key(
+            "turned")));
     for (int i = 0; i < 30; ++i)
       host.frame();
-    for (const auto &row : host.composer.profile())
-      if (row.label.rfind("turned", 0) == 0) {
-        EXPECT_NE(row.cacheState, Composer::CacheState::Promoted)
-            << "promoted a node at rotate(" << degrees << ")";
-        EXPECT_EQ(row.promotion, Composer::Promotion::Transformed);
-      }
+    const Composer::NodeCost *row = requireRow(host.composer, "turned");
+    ASSERT_NE(row, nullptr);
+    EXPECT_NE(row->cacheState, Composer::CacheState::Promoted)
+        << "promoted a node at rotate(" << degrees << ")";
+    EXPECT_EQ(row->promotion, Composer::Promotion::Transformed);
   }
 }
 
@@ -4028,46 +4183,9 @@ TEST(ComposeCache, PromotionRefusesEveryRotation) {
 // structurally invisible to it.
 
 namespace {
-/** Expensive per PIXEL rather than per op, which is the shape of the real
- *  problem: a leaf whose cost no tree-shaped instrument can find. */
-sk_sp<SkRuntimeEffect> heavyEffect(bool withTime) {
-  // The static variant must not so much as DECLARE uTime: Material::sksl
-  // reads liveness off the declaration, not off whether anything drives it.
-  SkString src;
-  if (withTime)
-    src.append("uniform float uTime;");
-  src.append("half4 main(float2 p) {");
-  src.append(withTime ? "  float t = uTime;" : "  float t = 0.0;");
-  src.append("  float v = 0.0;"
-             "  for (int i = 0; i < 40; ++i) {"
-             "    float f = float(i) + 1.0;"
-             "    v += sin(p.x * 0.031 * f + t) *"
-             "         cos(p.y * 0.027 * f - t) / f;"
-             "  }"
-             "  float g = clamp(v * 0.5 + 0.5, 0.0, 1.0);"
-             "  return half4(half(g), half(g * 0.5), half(1.0 - g), 1.0);"
-             "}");
-  auto [effect, err] = SkRuntimeEffect::MakeForShader(src);
-  if (!effect)
-    ADD_FAILURE() << err.c_str();
-  return effect;
-}
-/** The wrapper is Cache::None ON PURPOSE. A static leaf under a CACHEABLE
- *  parent is painted exactly once — into the parent's recording — and never
- *  visited again, so it would never appear in the profile and every
- *  assertion about it would pass vacuously. A live root is also the real
- *  shape of the corpus: these leaves sit under a stack() with animated
- *  siblings, which is why their cost is paid every frame. */
 Element heavyLeaf(const char *key) {
-  return box().cache(Cache::None).child(
-      box().width(400).height(400).key(key).fill(
-          Material::sksl(heavyEffect(false))));
-}
-const Composer::NodeCost *rowFor(const Composer &c, const char *key) {
-  for (const auto &row : c.profile())
-    if (row.label.rfind(key, 0) == 0)
-      return &row;
-  return nullptr;
+  return profiledUnder(box().width(400).height(400).key(key).fill(
+      Material::sksl(heavyEffect(false))));
 }
 } // namespace
 
@@ -4077,7 +4195,7 @@ TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
   promoted.composer.render(heavyLeaf("field"));
   for (int i = 0; i < 24; ++i)
     promoted.frame();
-  const Composer::NodeCost *row = rowFor(promoted.composer, "field");
+  const Composer::NodeCost *row = requireRow(promoted.composer, "field");
   ASSERT_NE(row, nullptr);
   EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
       << "a leaf costing " << row->selfMs
@@ -4105,16 +4223,15 @@ TEST(ComposeCache, ARefusalSaysWhy) {
   // not agreement. Cache::Texture is how you say you accept that.
   Host host(400, 400);
   host.composer.setProfiling(true);
-  host.composer.render(box().cache(Cache::None).child(
-      box()
-          .width(400)
-          .height(400)
-          .key("wash")
-          .fill(Material::sksl(heavyEffect(false)))
-          .opacity(0.4f)));
+  host.composer.render(profiledUnder(box()
+                                         .width(400)
+                                         .height(400)
+                                         .key("wash")
+                                         .fill(Material::sksl(heavyEffect(false)))
+                                         .opacity(0.4f)));
   for (int i = 0; i < 24; ++i)
     host.frame();
-  const Composer::NodeCost *row = rowFor(host.composer, "wash");
+  const Composer::NodeCost *row = requireRow(host.composer, "wash");
   ASSERT_NE(row, nullptr);
   EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
   EXPECT_EQ(row->promotion, Composer::Promotion::Composited);
@@ -4173,7 +4290,7 @@ TEST(ComposeCache, AQuantizedMaterialIsCacheableBetweenItsTicks) {
   host.composer.render(timedLeaf(4.0f));
   for (int i = 0; i < 24; ++i)
     host.frame(1.0 / 60.0);
-  const Composer::NodeCost *row = rowFor(host.composer, "plasma");
+  const Composer::NodeCost *row = requireRow(host.composer, "plasma");
   ASSERT_NE(row, nullptr);
   EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
       << "a material stepping at 4 Hz still paid its shader 60 times a second";
@@ -4189,7 +4306,7 @@ TEST(ComposeCache, AContinuousMaterialStaysLive) {
   host.composer.render(timedLeaf(0.0f));
   for (int i = 0; i < 24; ++i)
     host.frame(1.0 / 60.0);
-  const Composer::NodeCost *row = rowFor(host.composer, "plasma");
+  const Composer::NodeCost *row = requireRow(host.composer, "plasma");
   ASSERT_NE(row, nullptr);
   EXPECT_NE(row->cacheState, Composer::CacheState::Promoted);
   EXPECT_EQ(row->promotion, Composer::Promotion::Volatile);
