@@ -286,14 +286,22 @@ Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
 }
 
 /** A circle of radius @p r centred on the node's box, starting at
- *  @p startDeg and running clockwise — the baseline for onPath() ring
- *  captions (fraction 0.25 is 12 o'clock when startDeg is 180). */
-std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
-  return [r, startDeg](SkSize s) {
+ *  @p startDeg — the baseline for onPath() ring captions (fraction 0.25
+ *  is 12 o'clock when startDeg is 180 and ccw is false).
+ *
+ *  `ccw` exists because TextPath::autoFlip turns each glyph over IN
+ *  PLACE without reversing the run's direction of travel, so a caption
+ *  on the lower half of a clockwise ring comes out mirror-reversed
+ *  ("TECHNICOLOR" reads "ROLOCINHCET"). Handing the bottom caption a
+ *  counter-clockwise baseline and autoFlip = false is the fix that
+ *  works today. */
+std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f,
+                                         bool ccw = false) {
+  return [r, startDeg, ccw](SkSize s) {
     SkPathBuilder p;
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     for (int i = 0; i <= 360; ++i) {
-      const float a = (startDeg + (float)i) * kDeg;
+      const float a = (startDeg + (ccw ? -1.0f : 1.0f) * (float)i) * kDeg;
       const SkPoint q{cx + r * std::cos(a), cy + r * std::sin(a)};
       if (i == 0)
         p.moveTo(q);
@@ -461,7 +469,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // laid over the busiest part of the card: that is where the film puts
     // its body credits too.
     panel.child(text(toU8("TITLE DESIGN SAUL BASS · SPIRALS JOHN WHITNEY"),
-                     type(faceDisplay, 17, kSolidInk, 2.6f))
+                     type(faceDisplay, 15, kSolidInk, 2.6f))
                     .key("credit")
                     .absolute()
                     .centerAt({kEye.x(), kEye.y() + 152.0f})
@@ -490,11 +498,15 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
             .key("ring-bottom")
             .absolute()
             .inset(0)
-            .onPath({.path = circlePath(272.0f),
-                     .at = 0.75f,
+            // start the ccw baseline at the TOP so the bottom of the ring
+            // lands at fraction 0.5 — Align::Center at at = 0 would set
+            // start = −runWidth/2 and onPath drops every glyph at d < 0,
+            // silently eating the first half of the caption.
+            .onPath({.path = circlePath(272.0f, 270.0f, /*ccw=*/true),
+                     .at = 0.5f,
                      .align = TextPath::Align::Center,
-                     .offset = -14.0f,
-                     .autoFlip = true})
+                     .offset = 3.0f,
+                     .autoFlip = false})
             .opacity(withFrom(0.0f, 1.0f, ramp(1120, 500))));
 
     // the card slug: four of them stacked in the same corner, each riding
@@ -513,12 +525,11 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
-    panel.child(text(toU8("T = 12π · N = 2000 SAMPLES · TURNTABLE 18°/s · "
-                          "PEN AT CONSTANT RATE (easeNone)"),
-                     type(faceGothic, 10, hex(0xEDE6D8, 0.55f), 1.8f))
+    panel.child(text(toU8("T = 12π · N = 2000 · TURNTABLE 18°/s · easeNone"),
+                     type(faceGothic, 10, hex(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
                     .absolute()
-                    .right(22)
+                    .left(22)
                     .bottom(20)
                     .opacity(withFrom(0.0f, 1.0f, ramp(1200, 400))));
 
@@ -557,9 +568,12 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     p.child(box()
                 .key("spec-bed")
                 .absolute()
-                .inset(0)
-                .outline(lissajous(kCards[2], 34.0f, 700))
-                .stroke(stroke(0.9f, Fill::color(hex(0x2E5C9E, 0.75f))))
+                .left(-46)
+                .top(-64)
+                .width(352)
+                .height(268)
+                .outline(lissajous(kCards[2], 74.0f, 900))
+                .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.42f))))
                 .rotate(&spin));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));

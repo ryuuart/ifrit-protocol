@@ -13,6 +13,12 @@ live in `STRESS_TESTS.md` (its dated sections record each arc), pinned
 by ~190 unit tests, the ComposeGallery scenes, compose_demo panels,
 and byte-exact capture diffs. The concrete surface lives in `API.md`.
 
+`ROADMAP.md` is the list of things this library does NOT do yet, and
+unlike a wishlist every entry came out of building something real: seven
+reference-grounded gallery scenes and a set of study sketches under
+`sketch/sketches/`, each reconstructing a named artefact. Entries are
+ordered by how many independent studies asked for the same thing.
+
 ## Problem
 
 We lay out paragraphs beautifully (SigilWeave) and documents completely
