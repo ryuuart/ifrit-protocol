@@ -830,8 +830,11 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                     fo::titleCondense());
   }
 
-  Element bodyAt(const std::string &s, SkColor4f c, float x, float y) {
-    return fo::ink(fo::t(s, body(c)), x, y, fo::bodyRise());
+  Element bodyAt(const std::string &s, SkColor4f c, float x, float y,
+                 float condense = 1.0f) {
+    return fo::ink(
+        fo::t(s, fo::type(fo::bodyBold(), fo::bodySize(), c, 0, condense)), x,
+        y, fo::bodyRise());
   }
 
   // =========================================================================
@@ -1093,9 +1096,17 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
         {"Healing Rate", std::to_string(stats.healingRate)},
         {"Critical Chance", std::to_string(stats.criticalChance) + "%"},
     }};
+    // The labels are CONDENSED, the values are not. 194 -> 288 is 94 original
+    // px and "Critical Chance" is 15 characters: at the block's 6.15 px
+    // monospaced advance the label ends 1.7 px short of the value column and
+    // its final `e` sits against the `5`, which is not what a proportional
+    // font 101 does. 0.96 buys 3.7 px of gap and is the same discipline the
+    // plaque type already uses — condense the substitute onto the measured
+    // original width rather than let the advance decide the column.
+    constexpr float kLabelCondense = 0.96f;
     for (int i = 0; i < 10; ++i) {
       const float y = 179 + kRowPitch13 * (float)i;
-      g.child(bodyAt(rows[(size_t)i].label, kGreen, 194, y));
+      g.child(bodyAt(rows[(size_t)i].label, kGreen, 194, y, kLabelCondense));
       g.child(bodyAt(rows[(size_t)i].value, kGreen, 288, y));
     }
     return g;

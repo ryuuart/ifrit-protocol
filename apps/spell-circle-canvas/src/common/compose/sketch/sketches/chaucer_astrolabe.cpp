@@ -2460,13 +2460,23 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .width(w)
                   .textAlign(sigil::weave::TextAlignment::kCenter)
                   .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, by + 12}));
+      // The 30° reference rule cuts across this band. A bar within ~9 px of
+      // it (the 24.9° signs) put its value label ON the rule and the dashes
+      // struck the digits through; those labels centre in the gap instead.
+      const float y30r = by - 84.0f * 30.0f / maxSpan;
+      float ly = by - h - 9;
+      if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
+        ly = 0.5f * ((by - h) + y30r);
       g.child(text(toU8(fmt("%.1f", span)), type(faceMono, 9.5f, kInk))
                   .absolute()
                   .width(w)
                   .textAlign(sigil::weave::TextAlignment::kCenter)
-                  .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, by - h - 9}));
+                  .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
     }
-    // the 30° reference
+    // the 30° reference — a 5-on/4-off STRIPE tile filling a 1 px band, not
+    // a dashed stroke around the perimeter of a 1 px box. The perimeter walk
+    // laid the dash down twice, one scanline apart and out of phase, and the
+    // pair read as a sawtooth rather than a rule.
     const float y30 = by - 84.0f * 30.0f / maxSpan;
     g.child(box()
                 .absolute()
@@ -2474,10 +2484,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .top(y30)
                 .width(bw)
                 .height(1)
-                .fill(Fill::none())
-                .stroke(PathFormat{.width = 1.0f,
-                                   .strokeFill = Fill::color(hex(0x241c15, 0.55f)),
-                                   .dashIntervals = {5.0f, 4.0f}}));
+                .fill(patterns::stripes(5.0f, 4.0f, hex(0x241c15, 0.55f))
+                          .material()));
     g.child(text(toU8("30\xc2\xb0 \xe2\x80\x94 an unprojected ring"),
                  type(faceItalic, 11, hex(0x7b6a54)))
                 .absolute()

@@ -1619,8 +1619,12 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         prog([a, b, d, x, y, wd, ht](SkCanvas &c, const PaintContext &) {
           SkPaint p;
           p.setAntiAlias(false);
+          // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
+          // k1-4 .. k1-3 top strip, i.e. THREE px of sill below the last
+          // line — not one. At +1 the descender of "Centrifuge" landed on
+          // the inner border and its 1 px shadow crossed it.
           const SkRect r = SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4),
-                                            g(y + ht + 1));
+                                            g(y + ht + 3));
           p.setColor4f(rgb(0x100010, 0.94f), nullptr);
           c.drawRect(r, p);
           // the vanilla two-tone inner border

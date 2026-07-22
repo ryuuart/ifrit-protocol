@@ -654,17 +654,18 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // 9x13 each. The ghost "88:88" behind them, in VISCOLOR's documented
     // off-segment grey, is what turns green numerals into a display.
     Element clock = at(box(), 45, 26, 54, 13);
-    clock.child(at(box(), 0, 0, 54, 13)
-                    .justify(Justify::Center)
-                    .alignItems(Align::Center)
-                    .child(t("88:88", pix(10, kUnlit))));
+    clock.child(at(lcdCells("88:88", kUnlit), 0, 0, 54, 13));
     clock.child(box().absolute().inset(0).child(slot("time")));
     w.child(clock);
 
-    // the scrolling track title (TEXT.BMP, 5x6 cell) in its own sunken box
+    // the scrolling track title (TEXT.BMP, 5x6 cell) in its own sunken box.
+    // The clip is 9 native px tall, not TEXT.BMP's 6: `pix(5)` sizes the
+    // SUBSTITUTED face so its ADVANCE is 5 px, and that face's line box is
+    // taller than its advance, so a 6- or 7-px viewport cut the bottom
+    // scanline off every round glyph — E read as F, L as I, U as II.
     Element titleWell = at(box(), 109, 22, 158, 11).fill(C(0x101020));
     sunken(titleWell, fade(C(0x4A4A70), 0.5f), C(0x08080E));
-    Element title = at(box(), 2, 2, 154, 7).clip();
+    Element title = at(box(), 2, 1, 154, 9).clip();
     title.child(util::marquee(
         t(marqueeText(), pix(5, C(0x00E000))), marqueeW, &marqueePhase, n(40)));
     titleWell.child(title);
@@ -908,12 +909,31 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     return s;
   }
 
-  Element timeReadout(int seconds) {
+  /** The five NUMBERS.BMP cells, ONE GLYPH PER FIXED CELL. Centring the whole
+   *  run instead — which is what this did — lets the leading blank of " 3:02"
+   *  shift the lit digits sideways off the unlit "88:88" behind them, and
+   *  registering with that ghost is the only reason the ghost exists. Cell
+   *  pitch is 54/5; the ghost and the live readout are built by the same
+   *  function so they cannot drift apart again. */
+  static Element lcdCells(const std::string &s, SkColor4f ink) {
     using namespace wa;
-    return box()
-        .justify(Justify::Center)
-        .alignItems(Align::Center)
-        .child(t(mmssCells(seconds), wa::pix(10, wa::kGreen)));
+    const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
+    Element row = box().row().width(Dim(n(54))).height(Dim(n(13)));
+    for (char ch : s) {
+      Element cell = box()
+                         .width(Dim(pitch))
+                         .shrink(0)
+                         .justify(Justify::Center)
+                         .alignItems(Align::Center);
+      if (ch != ' ')
+        cell.child(t(std::string(1, ch), pix(10, ink)));
+      row.child(std::move(cell));
+    }
+    return row;
+  }
+
+  Element timeReadout(int seconds) {
+    return lcdCells(mmssCells(seconds), wa::kGreen);
   }
 
   // ---- equalizer window ---------------------------------------------------
