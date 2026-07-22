@@ -1028,6 +1028,17 @@ struct Ribbon {
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
+  /** Any w(s) over the run — a taper is the default, not the limit: a
+   *  bulge, a pulse train, a per-node profile all fit here.
+   *
+   *  **Key it to `distance`, not to `fraction`, if the host can `trim()`.**
+   *  A decoration under a trim is handed the REVEALED contour, so
+   *  `PathSample::fraction` is a fraction of what has been drawn SO FAR,
+   *  not of the whole path — and a width law keyed to it slides along the
+   *  stroke as the reveal grows. `distance / <the full length you
+   *  authored against>` stays put. The two are identical in a still frame
+   *  and only diverge in motion, which is the worst way for a bug to be
+   *  visible. */
   std::function<float(const PathSample &)> widthFn;
   /** Upper bound on what `widthFn` returns, in px.
    *

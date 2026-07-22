@@ -414,6 +414,12 @@ struct Wash {
  *  corner scan `PatternBrush` already ran), and an ordinary dashed stroke:
  *
  *      .foreground(decorations::brackets(2, ink, 18))     // reticle corners
+ *
+ *  Each corner helper takes a trailing `angleDeg`. It is the last
+ *  parameter because it is usually the default — but WITHOUT it the
+ *  helpers could not reach `Border::cornerAngleDeg` at all, so an n-gon
+ *  bezel (18 degrees per vertex on a 20-gon, under the 30 default) had no
+ *  spelling short of building the Border by hand.
  *      .foreground(decorations::border(1, ink, 6))        // inset rule
  *      .foreground(decorations::gappedRule(1, ink, 14))   // open corners
  *
@@ -442,7 +448,21 @@ struct Border {
   /** The tangent break that counts as a corner. A gently ROUNDED corner
    *  has no hard break and therefore no corner — brackets vanish and a
    *  gapped rule runs continuous. That is correct, and it is the first
-   *  thing that surprises people. */
+   *  thing that surprises people.
+   *
+   *  **A regular n-gon turns 360/n degrees per vertex, so this default
+   *  finds nothing above 12 sides.** A 20-gon turns 18° and renders blank;
+   *  a dodecagon turns exactly 30° and is on the boundary. That is not
+   *  exotic — an n-gon bezel is the natural frame for a die face or a
+   *  rosette, which is what this vocabulary was added to serve. Pass
+   *  roughly 0.6 × the turn angle (12° for a 20-gon).
+   *
+   *  The default is deliberately NOT adaptive. The scan steps 2 px, so an
+   *  arc of radius r turns ~114/r degrees per sample — about 11° at
+   *  r = 10 — and any threshold low enough to catch a 20-gon's vertices
+   *  would shatter a small rounded corner into a run of false ones. The
+   *  number stays yours; when a scan finds nothing the library prints the
+   *  sharpest break it did see and what to pass. */
   float cornerAngleDeg = 30.0f;
 
   std::vector<SkScalar> dash;
@@ -530,34 +550,38 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
  *  the selection handle, the crop mark, the target frame. `arm` is the
  *  length of each leg in px of arc length. */
 inline Border brackets(float width, Fill fill, float arm = 18.0f,
-                       float inset = 0.0f) {
+                       float inset = 0.0f, float angleDeg = 30.0f) {
   return Border{.width = width,
                 .fill = std::move(fill),
                 .inset = inset,
                 .mode = Border::Mode::Bracket,
-                .corner = arm};
+                .corner = arm,
+                .cornerAngleDeg = angleDeg};
 }
 
 /** A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */
 inline Border gappedRule(float width, Fill fill, float gap = 14.0f,
-                         float inset = 0.0f) {
+                         float inset = 0.0f, float angleDeg = 30.0f) {
   return Border{.width = width,
                 .fill = std::move(fill),
                 .inset = inset,
                 .mode = Border::Mode::Gapped,
-                .corner = gap};
+                .corner = gap,
+                .cornerAngleDeg = angleDeg};
 }
 
 /** A border whose WEIGHT changes at the corner: `width` along the runs,
  *  `cornerWidth` within `arm` px of each turn. */
 inline Border weightedCorners(float width, float cornerWidth, Fill fill,
-                              float arm = 18.0f, float inset = 0.0f) {
+                              float arm = 18.0f, float inset = 0.0f,
+                              float angleDeg = 30.0f) {
   return Border{.width = width,
                 .fill = std::move(fill),
                 .inset = inset,
                 .mode = Border::Mode::Weighted,
                 .corner = arm,
-                .cornerWidth = cornerWidth};
+                .cornerWidth = cornerWidth,
+                .cornerAngleDeg = angleDeg};
 }
 
 /** DOUBLE BORDER with independent insets — two rules, one value, as a

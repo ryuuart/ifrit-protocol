@@ -253,6 +253,33 @@ namespace detail {
  *  A gently ROUNDED corner deliberately yields nothing: there is no hard
  *  break, so there is no corner. That is the right answer and it surprises
  *  people, so it is stated here and at every call site. */
+/** Says so when a corner scan found nothing but the shape clearly has
+ *  vertices — the alternative being a bracket set that renders blank while
+ *  the API does exactly what it was told.
+ *
+ *  Why this is a diagnostic and NOT an adaptive default: the threshold's
+ *  whole job is to tell a VERTEX from a finely-sampled CURVE, and a
+ *  rounded corner is meant to take no bracket (stated at `cornerAngleDeg`).
+ *  The scan steps 2 px, so an arc of radius r turns ~114/r degrees per
+ *  sample — about 11° at r = 10. Any auto-lowered threshold low enough to
+ *  catch a 20-gon's 18° vertices is also low enough to shatter a small
+ *  rounded corner into a run of false ones. So the number stays the
+ *  author's, and the library explains what to pass. */
+inline void warnNoCornersFound(float sharpestDeg, float angleDeg) {
+  static int lastWarned = -1;
+  const int key = (int)std::lround(sharpestDeg);
+  if (key == lastWarned)
+    return;
+  lastWarned = key;
+  SkDebugf("lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
+           "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
+           "brackets/gappedRule/weightedCorners will draw nothing here. A "
+           "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
+           "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
+           "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",
+           angleDeg, sharpestDeg, std::max(4.0f, sharpestDeg * 0.6f));
+}
+
 inline std::vector<float> cornerDistances(SkContourMeasure &contour,
                                           float angleDeg,
                                           float minSpacing = 3.0f,
@@ -262,6 +289,9 @@ inline std::vector<float> cornerDistances(SkContourMeasure &contour,
   if (len <= 0)
     return corners;
   const float cosThresh = std::cos(angleDeg * 0.017453293f);
+  // The sharpest break actually present, so a scan that finds nothing can
+  // say what it DID see instead of failing silently.
+  float sharpestDot = 1.0f;
   SkVector prev{0, 0}, atStart{0, 0};
   bool havePrev = false;
   for (float d = 0; d <= len; d += step) {
@@ -273,6 +303,7 @@ inline std::vector<float> cornerDistances(SkContourMeasure &contour,
       atStart = tan;
     } else {
       const float dot = prev.x() * tan.x() + prev.y() * tan.y();
+      sharpestDot = std::min(sharpestDot, dot);
       if (dot < cosThresh &&
           (corners.empty() || d - corners.back() > minSpacing))
         corners.push_back(d - step * 0.5f);
@@ -282,8 +313,16 @@ inline std::vector<float> cornerDistances(SkContourMeasure &contour,
   }
   if (contour.isClosed() && havePrev) {
     const float dot = prev.x() * atStart.x() + prev.y() * atStart.y();
+    sharpestDot = std::min(sharpestDot, dot);
     if (dot < cosThresh && (corners.empty() || corners.front() > minSpacing))
       corners.insert(corners.begin(), 0.0f);
+  }
+  if (corners.empty()) {
+    const float sharpestDeg =
+        std::acos(std::clamp(sharpestDot, -1.0f, 1.0f)) * 57.29578f;
+    // 4° is above the noise a smooth curve produces at this step size.
+    if (sharpestDeg >= 4.0f)
+      warnNoCornersFound(sharpestDeg, angleDeg);
   }
   return corners;
 }

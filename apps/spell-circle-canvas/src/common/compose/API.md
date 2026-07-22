@@ -419,6 +419,15 @@ property of a subtree, not a heuristic guess. So:
 - **Animation costs exactly its subtree.** A bound headline demotes its
   own node, not its parent's static frame — volatility partitions the
   tree; static siblings stay cached while neighbors animate. And it
+  **Size the node to the thing that animates.** A bound opacity or blend
+  allocates a `saveLayer` the size of the NODE, not the size of what is
+  painted in it — so ten Outputs hung on twenty full-canvas groups cost
+  eighteen megapixels of layer per frame to twinkle content covering 2%
+  of it. Measured: **18.38 → 7.94 ms** by moving each binding onto its
+  own primitive's tight box, same Outputs, same pixels. This is the same
+  shape of trap as "a picture is not a pixel cache" — a true statement
+  that reads as free, and is free only per pixel of the node's box.
+
   partitions by KIND: paint-only volatility (bound/transitioning
   transforms and opacity) keeps the node's own content picture and
   replays it under the live transform; content volatility (fill lerps,
