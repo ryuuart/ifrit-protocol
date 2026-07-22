@@ -4245,3 +4245,137 @@ TEST(ComposeBrushTail, GlossContourBandsInsideTheShape) {
   EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100)); // center: fill
   EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));     // outside: clip
 }
+
+// ---------------------------------------------------------------------------
+// VariationDrive — draw-time variable-font axes, gated by the advance probe
+
+TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
+  // The San Francisco system face carries the advance-invariant GRAD axis
+  // on modern macOS; find a face that passes the probe or skip honestly.
+  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
+  sk_sp<SkTypeface> ui;
+  for (const char *family :
+       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
+    ui = manager->matchFamilyStyle(family, SkFontStyle());
+    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD"))
+      break;
+    ui = nullptr;
+  }
+  if (!ui)
+    GTEST_SKIP() << "no advance-invariant GRAD face on this system";
+  // The probe proves advances HOLD; it cannot prove the clone RESPONDS
+  // (a hidden system face can accept the axis and render identically).
+  // Check a glyph's outline actually moves across the range, else skip.
+  {
+    const int n = ui->getVariationDesignParameters({});
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
+    ui->getVariationDesignParameters({axes.data(), axes.size()});
+    float lo = 0, hi = 0;
+    for (const auto &a : axes)
+      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+        lo = a.min;
+        hi = a.max;
+      }
+    const sigil::weave::FontVariation vLo("GRAD", lo), vHi("GRAD", hi);
+    SkFont fLo(fonts().variedTypeface(ui, {&vLo, 1}), 48);
+    SkFont fHi(fonts().variedTypeface(ui, {&vHi, 1}), 48);
+    SkGlyphID glyph = fLo.unicharToGlyph('W');
+    auto rasterize = [&](const SkFont &f) {
+      sk_sp<SkSurface> s =
+          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 80));
+      s->getCanvas()->clear(SK_ColorBLACK);
+      SkPaint paint;
+      paint.setColor(SK_ColorWHITE);
+      paint.setAntiAlias(true);
+      const SkPoint at{10, 60};
+      s->getCanvas()->drawGlyphs(SkSpan(&glyph, 1), SkSpan(&at, 1), {0, 0}, f,
+                                 paint);
+      SkBitmap bm;
+      bm.allocPixels(s->imageInfo());
+      s->readPixels(bm.pixmap(), 0, 0);
+      return bm;
+    };
+    SkBitmap rLo = rasterize(fLo), rHi = rasterize(fHi);
+    int rasterDelta = 0;
+    for (int y = 0; y < 80; ++y)
+      for (int x = 0; x < 100; ++x)
+        if (rLo.getColor(x, y) != rHi.getColor(x, y))
+          ++rasterDelta;
+    if (rasterDelta == 0)
+      GTEST_SKIP() << "GRAD clone is rendering-inert on this system face";
+  }
+  // Drive the axis's REAL design range (SF's GRAD span is font-defined;
+  // hardcoded values can land clamped onto the default = no visual delta).
+  float gradeMin = 0, gradeMax = 0;
+  {
+    const int n = ui->getVariationDesignParameters({});
+    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
+    ui->getVariationDesignParameters({axes.data(), axes.size()});
+    for (const auto &a : axes)
+      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+        gradeMin = a.min;
+        gradeMax = a.max;
+      }
+  }
+
+  choreograph::Output<float> grade{gradeMin};
+  Host host;
+  auto describe = [&] {
+    sigil::weave::TextStyle style = styleAt(48);
+    style.shaping.typeface = ui;
+    style.paint.foreground.setColor(SK_ColorWHITE); // black-on-black otherwise
+    return box().child(text(u8"WEIGHT", style)
+                           .key("t")
+                           .variationDrive("GRAD", &grade)
+                           .absolute()
+                           .inset(20, 60, 20, 60));
+  };
+  host.composer.render(describe());
+  host.frame();
+  const SkRect before = *host.composer.bounds("t");
+  SkBitmap lo;
+  lo.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  host.surface->readPixels(lo.pixmap(), 0, 0);
+
+  grade = gradeMax; // heavy grade — glyphs thicken, advances hold
+  host.frame();
+  const SkRect after = *host.composer.bounds("t");
+  SkBitmap hi;
+  hi.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  host.surface->readPixels(hi.pixmap(), 0, 0);
+
+  EXPECT_EQ(before, after); // no relayout — paint-only volatility
+  int changed = 0;
+  for (int y = 0; y < 200; y += 2)
+    for (int x = 0; x < 200; x += 2)
+      if (lo.getColor(x, y) != hi.getColor(x, y))
+        ++changed;
+  EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".." << gradeMax; // visible thickening
+}
+
+TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
+  sk_sp<SkTypeface> ui = fonts().defaultTypeface();
+  if (fonts().axisIsAdvanceInvariant(ui, "wght"))
+    GTEST_SKIP() << "this font's wght is advance-invariant; nothing to refuse";
+
+  choreograph::Output<float> weight{400.0f};
+  Host host;
+  host.composer.render(box().child(text(u8"WEIGHT", styleAt(48))
+                                       .key("t")
+                                       .variationDrive("wght", &weight)
+                                       .absolute()
+                                       .inset(20, 60, 20, 60)));
+  host.frame();
+  SkBitmap base;
+  base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  host.surface->readPixels(base.pixmap(), 0, 0);
+
+  weight = 900.0f;
+  host.frame(); // refused: draws at shaped coordinates, pixels hold
+  SkBitmap after;
+  after.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+  host.surface->readPixels(after.pixmap(), 0, 0);
+  for (int y = 0; y < 200; y += 4)
+    for (int x = 0; x < 200; x += 4)
+      ASSERT_EQ(base.getColor(x, y), after.getColor(x, y));
+}

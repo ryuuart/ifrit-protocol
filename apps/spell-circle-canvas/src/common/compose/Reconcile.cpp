@@ -6,6 +6,7 @@
 #include "ComposeRuntime.h"
 
 #include <algorithm>
+#include <cstring>
 #include <numeric>
 
 namespace sigil::compose {
@@ -79,16 +80,15 @@ template <typename T>
 bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
   if (a.index() != b.index())
     return false;
-  if (const T *plainA = std::get_if<T>(&a))
-    return *plainA == *std::get_if<T>(&b);
-  if (const Transitioned<T> *trA = std::get_if<Transitioned<T>>(&a)) {
-    const Transitioned<T> *trB = std::get_if<Transitioned<T>>(&b);
+  if (const T *plainA = a.plain())
+    return *plainA == *b.plain();
+  if (const Transitioned<T> *trA = a.transitioned()) {
+    const Transitioned<T> *trB = b.transitioned();
     return trA->value == trB->value && trA->from == trB->from &&
            trA->waypoints == trB->waypoints &&
            transitionEqual(trA->spec, trB->spec);
   }
-  return std::get<const choreograph::Output<T> *>(a) ==
-         std::get<const choreograph::Output<T> *>(b);
+  return a.binding() == b.binding();
 }
 
 bool effectEqual(const std::optional<Effect> &a,
@@ -113,6 +113,11 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.glyphFx)
     return false; // effect is a callable — memo covers settled kinetic text
+  // VariationDrive: BINDING identity, like PropValue bindings — same tag
+  // and same Output pointer prune (the value lives outside the tree).
+  if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
+      ta.driveValue != tb.driveValue)
+    return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style))
     return false;
   // layoutOptions aren't comparable in full, but alignment is the one knob
@@ -355,6 +360,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
           prevText->layoutOptions.alignment != text.layoutOptions.alignment;
       if (textChanged) {
         inst.contentRev++;
+        inst.driveProbe = -1; // new content → re-probe the drive gate
         if (text.paragraphOverride)
           inst.paragraph.emplace(*text.paragraphOverride);
         else {

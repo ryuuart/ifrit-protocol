@@ -1093,7 +1093,8 @@ ParagraphLayout::placeholderRects(const Paragraph &paragraph) const {
 }
 
 void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
-                                  const PaintStyle *overridePaint) const {
+                                  const PaintStyle *overridePaint,
+                                  const LiveVariations *liveVariations) const {
   const std::vector<StyleSpan> &spans = paragraph.spans();
 
   // Buckets keyed by (typeface, font size, resolved paint). A frame's worth of
@@ -1188,8 +1189,12 @@ void ParagraphLayout::drawBatched(SkCanvas *canvas, const Paragraph &paragraph,
        std::span<const Bucket>(buckets.data(), activeBucketCount)) {
     if (bucket.glyphs.empty())
       continue;
-    const SkFont font =
-        makeFont(bucket.typeface, bucket.fontSize, bucket.scaleX);
+    sk_sp<SkTypeface> typeface = bucket.typeface;
+    if (liveVariations && liveVariations->fonts &&
+        !liveVariations->variations.empty())
+      typeface = liveVariations->fonts->variedTypeface(
+          typeface, liveVariations->variations);
+    const SkFont font = makeFont(typeface, bucket.fontSize, bucket.scaleX);
     const SkSpan<const SkGlyphID> glyphs(bucket.glyphs.data(),
                                          bucket.glyphs.size());
     const SkSpan<const SkPoint> positions(bucket.positions.data(),

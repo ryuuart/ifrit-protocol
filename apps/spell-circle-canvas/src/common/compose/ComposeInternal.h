@@ -97,6 +97,11 @@ struct TextData {
   sigil::weave::ParagraphLayoutOptions layoutOptions;
   // Kinetic typography
   std::optional<GlyphFx> glyphFx;
+  // VariationDrive: a variable-font axis driven at DRAW time (paint-only;
+  // the paint phase probes advance-invariance per font and refuses axes
+  // that would move advances — GRAD yes, wght no).
+  char driveTag[4] = {0, 0, 0, 0};
+  const choreograph::Output<float> *driveValue = nullptr;
   // textFill(): glyph paint in text-metric space (unit square → cap band).
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
@@ -196,15 +201,15 @@ template <typename T>
 ResolvedProp<T> resolveProp(const PropValue<T> &v,
                             const std::optional<Transition> &nodeDefault) {
   ResolvedProp<T> out;
-  if (const T *plain = std::get_if<T>(&v)) {
+  if (const T *plain = v.plain()) {
     out.target = *plain;
     if (nodeDefault)
       out.transition = &*nodeDefault;
-  } else if (const Transitioned<T> *tr = std::get_if<Transitioned<T>>(&v)) {
+  } else if (const Transitioned<T> *tr = v.transitioned()) {
     out.target = tr->value;
     out.transition = &tr->spec;
   } else {
-    out.binding = std::get<const choreograph::Output<T> *>(v);
+    out.binding = v.binding();
   }
   return out;
 }

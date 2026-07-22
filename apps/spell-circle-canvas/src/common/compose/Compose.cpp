@@ -349,6 +349,17 @@ Element &Element::glyphFx(GlyphFx fx) {
   return *this;
 }
 
+Element &Element::variationDrive(const char (&tag)[5],
+                                 const choreograph::Output<float> *value) {
+  detail::TextData &text = m_node->textData.ensure();
+  text.driveTag[0] = tag[0];
+  text.driveTag[1] = tag[1];
+  text.driveTag[2] = tag[2];
+  text.driveTag[3] = tag[3];
+  text.driveValue = value;
+  return *this;
+}
+
 Element &Element::textAlign(sigil::weave::TextAlignment a) {
   m_node->textData.ensure().layoutOptions.alignment = a;
   return *this;

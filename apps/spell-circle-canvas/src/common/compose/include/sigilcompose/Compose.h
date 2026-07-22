@@ -140,10 +140,55 @@ withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
  * under a node-level transition), a constant with its own transition, or
  * a live Choreograph binding stepped by the Ticker (paint-only; the
  * caller owns the Output and composes motions on ticker.timeline()).
+ *
+ * Stored compactly (this used to be a std::variant): Transitioned<T> is
+ * the fat form — from/waypoints/spec, ~100 B for a float — and most
+ * properties on most nodes are plain constants, so the transitioned
+ * payload lives out-of-line. Eight PropValue<float>s ride every node's
+ * PaintProps; this is the ElementNode block-split rule applied to the
+ * property type itself (856 B -> ~250 B of PaintProps).
  */
-template <typename T>
-using PropValue =
-    std::variant<T, Transitioned<T>, const choreograph::Output<T> *>;
+template <typename T> class PropValue {
+public:
+  PropValue() = default;
+  PropValue(T v) : m_plain(std::move(v)) {}
+  PropValue(Transitioned<T> t)
+      : m_kind(Kind::kAnim),
+        m_anim(std::make_unique<Transitioned<T>>(std::move(t))) {}
+  PropValue(const choreograph::Output<T> *bound)
+      : m_kind(Kind::kBound), m_bound(bound) {}
+  PropValue(const PropValue &other) { *this = other; }
+  PropValue(PropValue &&) noexcept = default;
+  PropValue &operator=(const PropValue &other) {
+    m_kind = other.m_kind;
+    m_plain = other.m_plain;
+    m_bound = other.m_bound;
+    m_anim = other.m_anim ? std::make_unique<Transitioned<T>>(*other.m_anim)
+                          : nullptr;
+    return *this;
+  }
+  PropValue &operator=(PropValue &&) noexcept = default;
+
+  /** Which form holds (0 plain, 1 transitioned, 2 bound — the old
+   *  variant's index order, for the reconciler's compare). */
+  int index() const { return (int)m_kind; }
+  const T *plain() const {
+    return m_kind == Kind::kPlain ? &m_plain : nullptr;
+  }
+  const Transitioned<T> *transitioned() const {
+    return m_kind == Kind::kAnim ? m_anim.get() : nullptr;
+  }
+  const choreograph::Output<T> *binding() const {
+    return m_kind == Kind::kBound ? m_bound : nullptr;
+  }
+
+private:
+  enum class Kind : uint8_t { kPlain, kAnim, kBound };
+  Kind m_kind = Kind::kPlain;
+  T m_plain{};
+  const choreograph::Output<T> *m_bound = nullptr;
+  std::unique_ptr<Transitioned<T>> m_anim;
+};
 
 // ---------------------------------------------------------------------------
 // Paint values
@@ -664,6 +709,14 @@ public:
   /** Kinetic typography on a text() element: a per-glyph effect staggered
    *  across the glyphs and driven by a master progress (see GlyphFx). */
   Element &glyphFx(GlyphFx fx);
+  /** VariationDrive (text leaves): drive a variable-font axis from a
+   *  bound Output at DRAW time — paint-only volatility, no reshape, no
+   *  relayout. The paint phase probes the node's fonts once per content:
+   *  an advance-variant axis (wght on most fonts) is REFUSED with a debug
+   *  warning and the text draws at its shaped coordinates — drive GRAD
+   *  (the advance-invariant weight) or re-render discretely instead. */
+  Element &variationDrive(const char (&tag)[5],
+                          const choreograph::Output<float> *value);
 
   /** Text leaves only: how lines sit inside the node's width (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the

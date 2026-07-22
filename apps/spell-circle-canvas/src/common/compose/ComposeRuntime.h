@@ -52,6 +52,9 @@ struct Instance {
   YGSize measuredSize{0, 0};
   uint32_t contentRev = 0;    // bumped on text/exclusion change
   uint32_t measuredRev = ~0u; // rev the cached measurement belongs to
+  // VariationDrive probe result for the CURRENT text content:
+  // -1 unprobed, 0 refused (axis absent or advance-variant), 1 live.
+  int8_t driveProbe = -1;
 
   // Transition state, keyed by property slot
   enum Slot : int {

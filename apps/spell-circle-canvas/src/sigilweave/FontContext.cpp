@@ -218,6 +218,53 @@ FontContext::variedTypeface(const sk_sp<SkTypeface> &base,
   return clone;
 }
 
+bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface> &base,
+                                         const char (&axisTag)[5]) {
+  const sk_sp<SkTypeface> &face = base ? base : defaultTypeface();
+  if (!face)
+    return false;
+  const SkFourByteTag wanted =
+      SkSetFourByteTag(axisTag[0], axisTag[1], axisTag[2], axisTag[3]);
+  const int axisCount = face->getVariationDesignParameters({});
+  if (axisCount <= 0)
+    return false;
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)axisCount);
+  face->getVariationDesignParameters({axes.data(), axes.size()});
+  const SkFontParameters::Variation::Axis *axis = nullptr;
+  for (const auto &candidate : axes)
+    if (candidate.tag == wanted) {
+      axis = &candidate;
+      break;
+    }
+  if (!axis)
+    return false;
+
+  // Sample every glyph's advance at both extremes (capped — a CJK face's
+  // first thousand glyphs are plenty to catch a moving advance).
+  const FontVariation lo(axisTag, axis->min), hi(axisTag, axis->max);
+  sk_sp<SkTypeface> faceLo = variedTypeface(face, {&lo, 1});
+  sk_sp<SkTypeface> faceHi = variedTypeface(face, {&hi, 1});
+  if (!faceLo || !faceHi)
+    return false;
+  const int glyphCount = std::min(face->countGlyphs(), 1024);
+  if (glyphCount <= 0)
+    return false;
+  std::vector<SkGlyphID> glyphs((size_t)glyphCount);
+  for (int i = 0; i < glyphCount; ++i)
+    glyphs[(size_t)i] = (SkGlyphID)i;
+  constexpr float kProbeSize = 64.0f;
+  SkFont fontLo(faceLo, kProbeSize), fontHi(faceHi, kProbeSize);
+  std::vector<SkScalar> widthsLo((size_t)glyphCount), widthsHi((size_t)glyphCount);
+  fontLo.getWidths(SkSpan(glyphs.data(), glyphs.size()),
+                   SkSpan(widthsLo.data(), widthsLo.size()));
+  fontHi.getWidths(SkSpan(glyphs.data(), glyphs.size()),
+                   SkSpan(widthsHi.data(), widthsHi.size()));
+  for (int i = 0; i < glyphCount; ++i)
+    if (std::abs(widthsLo[(size_t)i] - widthsHi[(size_t)i]) > 0.001f)
+      return false;
+  return true;
+}
+
 void FontContext::purgeShapeCache() { m_impl->shapeCache.clear(); }
 
 void FontContext::purgeAllCaches() {

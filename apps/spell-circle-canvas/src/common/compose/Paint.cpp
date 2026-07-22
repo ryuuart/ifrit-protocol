@@ -8,6 +8,7 @@
 #include <sigilimage/ImageAsset.h>
 
 #include <sigilweave/Choreograph.h>
+#include <sigilweave/FontContext.h>
 #include <sigilweave/Shaper.h> // makeFont — textFill's cap-height metrics
 
 #include <include/core/SkCanvas.h>
@@ -25,6 +26,7 @@
 #include <include/effects/SkTrimPathEffect.h>
 
 #include <algorithm>
+#include <cstring>
 #include <chrono>
 #include <cmath>
 
@@ -66,13 +68,64 @@ inline const std::vector<Echo> &echoesOf(const ElementNode &n) {
 } // namespace
 
 // ---------------------------------------------------------------------------
+// VariationDrive — the paint-side gate + per-frame coordinate
+
+namespace {
+
+/** The node's live font-variation override, or null: probes the layout's
+ *  shaped typefaces ONCE per text content (advance-invariance on the
+ *  driven axis) and refuses advance-variant axes with a one-time warning —
+ *  the shaped positions must stay the truth. Returns a pointer to
+ *  thread-local state consumed by the immediately following drawBatched. */
+const sigil::weave::ParagraphLayout::LiveVariations *
+liveDriveImpl(Instance &inst, const ElementNode &node,
+              sigil::weave::FontContext &fonts) {
+  const TextData *text = node.textData ? &*node.textData : nullptr;
+  if (!text || !text->driveValue)
+    return nullptr;
+  if (inst.driveProbe < 0) {
+    char tag[5] = {text->driveTag[0], text->driveTag[1], text->driveTag[2],
+                   text->driveTag[3], 0};
+    bool invariant = false, sawTypeface = false;
+    for (const sigil::weave::PositionedRun &run : inst.textLayout.runs) {
+      if (!run.shaped || !run.shaped->typeface)
+        continue;
+      sawTypeface = true;
+      if (!fonts.axisIsAdvanceInvariant(run.shaped->typeface, tag)) {
+        invariant = false;
+        break;
+      }
+      invariant = true;
+    }
+    inst.driveProbe = (sawTypeface && invariant) ? 1 : 0;
+    if (inst.driveProbe == 0)
+      SkDebugf("sigilcompose variationDrive: axis \"%s\" is absent or "
+               "moves advances on this font — drive refused (text draws at "
+               "its shaped coordinates; GRAD is the advance-invariant "
+               "weight, or re-render discretely)\n",
+               tag);
+  }
+  if (inst.driveProbe != 1)
+    return nullptr;
+  static thread_local sigil::weave::FontVariation coordinate;
+  static thread_local sigil::weave::ParagraphLayout::LiveVariations live;
+  std::memcpy(coordinate.tag, text->driveTag, 4);
+  coordinate.value = text->driveValue->value();
+  live.fonts = &fonts;
+  live.variations = {&coordinate, 1};
+  return &live;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
 // Volatility & caching
 
 bool Composer::Impl::computeVolatile(Instance &inst) {
   const ElementNode &node = *inst.desc;
 
   auto boundOrRunning = [&](Instance::Slot slot, const PropValue<float> &v) {
-    if (std::holds_alternative<const choreograph::Output<float> *>(v))
+    if (v.binding())
       return true;
     return inst.anims[slot] && inst.anims[slot]->value.isConnected();
   };
@@ -97,9 +150,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
                     inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool nonLiveMatContent = ownContent; // everything below except the
                                              // live material slot
-  if (node.paint.fill &&
-      std::holds_alternative<const choreograph::Output<Fill> *>(
-          *node.paint.fill))
+  if (node.paint.fill && node.paint.fill->binding())
     ownContent = true;
   const Material *nodeLiveMat = liveMaterialOf(node);
   const bool liveMat = nodeLiveMat && nodeLiveMat->isLive();
@@ -124,6 +175,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   }
   if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
     ownContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
+  if (node.textData && node.textData->driveValue)
+    ownContent = true; // VariationDrive repaints per frame (no reshape)
 
   bool childrenVolatile = false;
   for (auto &child : inst.children)
@@ -157,6 +210,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
                boundOrRunning(Instance::kTrimOffset, node.fxData->trimOffset);
     if (const GlyphFx *g = glyphFxOf(node))
       other |= boundOrRunning(Instance::kGlyphProgress, g->progress);
+    if (node.textData && node.textData->driveValue)
+      other = true;
     if (other)
       inst.liveMatOnly = false;
   }
@@ -470,9 +525,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                        : live->resolve(paintCtx);
   } else if (node.paint.fill) {
     Fill fill;
-    if (const auto *binding =
-            std::get_if<const choreograph::Output<Fill> *>(&*node.paint.fill))
-      fill = (*binding)->value();
+    if (const choreograph::Output<Fill> *binding = node.paint.fill->binding())
+      fill = binding->value();
     else if (inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
              inst.anims[Instance::kFillLerp]->value.isConnected()) {
@@ -606,9 +660,11 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           havePaint = true;
         }
         inst.textLayout.drawBatched(&canvas, *inst.paragraph,
-                                    havePaint ? &metric : nullptr);
+                                    havePaint ? &metric : nullptr,
+                                    liveDriveImpl(inst, node, fonts));
       } else {
-        inst.textLayout.drawBatched(&canvas, *inst.paragraph);
+        inst.textLayout.drawBatched(&canvas, *inst.paragraph, nullptr,
+                                    liveDriveImpl(inst, node, fonts));
       }
     }
     break;
@@ -717,8 +773,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // outside any cached recording) and texture bakes (blending must hit the
   // real destination, not the bake's transparent surface).
   const bool opacityLive =
-      std::holds_alternative<const choreograph::Output<float> *>(
-          node.paint.opacity) ||
+      node.paint.opacity.binding() != nullptr ||
       (inst.anims[Instance::kOpacity] &&
        inst.anims[Instance::kOpacity]->value.isConnected());
   const bool leafDirectBlend =
