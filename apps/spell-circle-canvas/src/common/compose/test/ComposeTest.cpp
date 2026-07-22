@@ -5262,3 +5262,49 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
   EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
 }
+
+TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
+  // The slot between the two that did not exist: background() hides
+  // beneath the fill and foreground() paints above the children, so a
+  // textured button greys out its own label. Hazard stripes over the
+  // surface but under the digit is the canonical case.
+  auto build = [](bool useForeground) {
+    auto bars = lines::hatch(Fill::color({0, 0, 0, 1}), 6.0f, 4.0f, 0.0f);
+    Element cell = box()
+                       .absolute()
+                       .inset(0)
+                       .fill(Fill::color({1, 1, 1, 1}))
+                       .child(box()
+                                  .absolute()
+                                  .left(60)
+                                  .top(60)
+                                  .width(80)
+                                  .height(80)
+                                  .fill(Fill::color({0, 1, 0, 1})));
+    return useForeground ? cell.foreground(bars) : cell.overlay(bars);
+  };
+  auto greenPixels = [](Host &host) {
+    int n = 0;
+    for (int y = 62; y < 138; ++y)
+      for (int x = 62; x < 138; ++x) {
+        const SkColor c = host.pixel(x, y);
+        n += SkColorGetG(c) > 180 && SkColorGetR(c) < 80;
+      }
+    return n;
+  };
+
+  Host over(200, 200), under(200, 200);
+  over.composer.render(box().child(build(/*useForeground=*/true)));
+  over.frame();
+  under.composer.render(box().child(build(/*useForeground=*/false)));
+  under.frame();
+
+  // foreground(): the stripes cross the child and eat into it.
+  // overlay(): the child is painted after them and comes through whole.
+  EXPECT_GT(greenPixels(under), greenPixels(over) + 500);
+  // The stripes still reach the surface OUTSIDE the child in both.
+  int outsideInk = 0;
+  for (int x = 10; x < 50; ++x)
+    outsideInk += under.pixel(x, 20) == SK_ColorBLACK;
+  EXPECT_GT(outsideInk, 5);
+}

@@ -197,6 +197,11 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
   if (a->staggerChildrenMs != b->staggerChildrenMs ||
       a->staggerFrom != b->staggerFrom)
     return false;
+  if (a->overlays.size() != b->overlays.size())
+    return false;
+  for (size_t i = 0; i < a->overlays.size(); ++i)
+    if (!(a->overlays[i] == b->overlays[i]))
+      return false;
   return effectEqual(a->layerEffect, b->layerEffect) &&
          effectEqual(a->backdropEffect, b->backdropEffect);
 }

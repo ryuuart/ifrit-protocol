@@ -51,6 +51,7 @@ Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
 | `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
 | `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
 | `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
+| `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
 | `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
 | `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
 | §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
@@ -421,11 +422,6 @@ the right thing internally and hands out only the finished result.
   path entirely, which is why it is written down at all. Wanted:
   `PropValue<Fill>` from `(const Output<float>*, function<Fill(float)>)`,
   or a `Material::steps(colors, Bound)` value.
-- **No paint slot between the fill and the content.** `foreground()`
-  paints ABOVE children, so a hazard stripe greys out its own digit;
-  `background()` hides under the fill. Every textured button with a label
-  meets this and works around it with a sibling stack. Wanted:
-  `Element::overlay()` — one entry in the paint order.
 - **`patterns::grain` over a near-transparent base composites as its own
   luminance** rather than modulating what is beneath; the first nebula
   came back a white cloud at 15% alpha. The header warns about `noise` vs

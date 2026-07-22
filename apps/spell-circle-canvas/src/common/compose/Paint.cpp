@@ -167,6 +167,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     ownContent |= d.animated();
   for (const Decoration &d : node.foregrounds)
     ownContent |= d.animated();
+  if (node.fxData)
+    for (const Decoration &d : node.fxData->overlays)
+      ownContent |= d.animated();
   if (node.kind == Kind::Image && imageAssetOf(node) &&
       imageAssetOf(node)->animated())
     ownContent = true;
@@ -203,6 +206,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       other |= d.animated();
     for (const Decoration &d : node.foregrounds)
       other |= d.animated();
+    if (node.fxData)
+      for (const Decoration &d : node.fxData->overlays)
+        other |= d.animated();
     if (node.kind == Kind::Image && imageAssetOf(node) &&
         imageAssetOf(node)->animated())
       other = true;
@@ -485,6 +491,9 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     bleed = std::max(bleed, d.bleed());
   for (const Decoration &d : node.foregrounds)
     bleed = std::max(bleed, d.bleed());
+  if (node.fxData)
+    for (const Decoration &d : node.fxData->overlays)
+      bleed = std::max(bleed, d.bleed());
   for (const Echo &e : echoesOf(node))
     bleed = std::max(
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
@@ -744,6 +753,13 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       canvas.drawRRect(rrect, paint);
   }
 
+  // Overlays: over the fill, under the content and children. The slot a
+  // textured button needs so its own hazard stripe does not grey out its
+  // label. Unclipped like the other decorations — they dress the outline.
+  if (node.fxData)
+    for (const Decoration &decoration : node.fxData->overlays)
+      decoration.paint(canvas, paintCtx);
+
   // Content
   switch (node.kind) {
   case Kind::Text:
@@ -960,7 +976,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&
-      node.foregrounds.empty() && !layerEffectOf(node) &&
+      node.foregrounds.empty() &&
+      (!node.fxData || node.fxData->overlays.empty()) &&
+      !layerEffectOf(node) &&
       !backdropEffectOf(node) &&
       !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture;
   const bool needsLayer =
@@ -1085,6 +1103,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
               !node.backgrounds.empty() || !node.foregrounds.empty() ||
+              (node.fxData && !node.fxData->overlays.empty()) ||
               layerEffectOf(node) || inst.liveMatOnly)) {
     // (liveMatOnly bare boxes DO record — the memo's point is replaying
     // the rasterized shader while resolve() stays stable.)

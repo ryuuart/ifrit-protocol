@@ -885,6 +885,16 @@ public:
    *  with one background program. Decorations dress the OUTLINE: clip()
    *  does not clip them (it bounds fill/content/children only), so outer
    *  strokes and shadows survive on clipped nodes. */
+  /** A decoration painted OVER the fill and UNDER the content and
+   *  children — the slot between the two that did not exist.
+   *
+   *  `background()` hides beneath the fill and `foreground()` paints
+   *  above the children, so a textured button greys out its own label:
+   *  hazard stripes over the surface but under the digit, a scanline
+   *  field over a panel but under its readout, a paper tooth over the
+   *  stock but under the ink. The workaround was a sibling stack, which
+   *  costs a node and loses the outline. */
+  Element &overlay(Decoration d);
   Element &background(Decoration d);
   Element &foreground(Decoration d);
   /** fill's peer (the Photoshop/Illustrator mental model): dress the
