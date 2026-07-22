@@ -318,7 +318,7 @@ inline Router pcb(float cut, float jog) {
         // step out, rise 45 deg, run, fall 45 deg, step in
         const float s = horiz ? (dx > 0 ? 1.f : -1.f) : (dy > 0 ? 1.f : -1.f);
         const float j = std::abs(jog) * (jog > 0 ? 1.f : -1.f);
-        const float lead = 20.0f;
+        const float lead = 26.0f;
         if (horiz) {
           b.lineTo(ax + s * lead, ay);
           b.lineTo(ax + s * (lead + std::abs(j)), ay + j);
@@ -456,11 +456,11 @@ constexpr NodeDef kBeamNodes[] = {
 constexpr EdgeDef kBeamEdges[] = {
     {4, 5, 0},  {5, 6, 0},  {6, 7, 0},  {7, 8, 0},   // trunk, left to right
     {8, 9, 0},  {9, 10, 0}, {10, 11, 0},
-    {5, 0, 0},  {0, 1, -5}, {8, 2, 0},  {11, 3, 0},  // upper taps
-    {6, 13, 0}, {13, 12, 5}, {13, 18, 0}, {7, 14, 0},// lower taps
-    {14, 19, 0}, {9, 15, 0}, {15, 16, -5}, {10, 16, 0},
+    {5, 0, 0},  {0, 1, -10}, {8, 2, 0},  {11, 3, 0},  // upper taps
+    {6, 13, 0}, {13, 12, 10}, {13, 18, 0}, {7, 14, 0},// lower taps
+    {14, 19, 0}, {9, 15, 0}, {15, 16, -10}, {10, 16, 0},
     {11, 17, 0}, {15, 20, 0},
-    {18, 19, 0}, {19, 20, 5},                        // second lower rank
+    {18, 19, 0}, {19, 20, 10},                        // second lower rank
 };
 
 // -- the two smaller Bench trees: the RIG and the Stasis Module --
@@ -569,7 +569,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
                            PathFormat::Align::Inner));
     Element empty = box().outline(chevron()).stroke(
-        stroke(1.1f, Fill::color(alpha(kDim, 0.9f)),
+        stroke(1.2f, Fill::color(alpha(kCyan, 0.30f)),
                PathFormat::Align::Inner));
     pipFilled = pips->cell(std::move(filled), {kPipW, kPipH});
     pipEmpty = pips->cell(std::move(empty), {kPipW, kPipH});
@@ -719,15 +719,38 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                               .effect(styles::textGlow(alpha(kCyan, 0.5f),
                                                        5.0f))));
 
-    // the shoulder captions ride the frame's lower tier, left and right of
-    // the raised centre — the only flat band the silhouette leaves free
-    root.child(box().absolute().left(Dim(kPX + 34)).top(Dim(kPY + 30))
+    // the shoulder marks ride the frame's lower tier, left and right of the
+    // raised centre — the only flat band the silhouette leaves free
+    root.child(box().absolute().left(Dim(kPX + 30)).top(Dim(kPY + 30))
                    .zIndex(7)
-                   .child(text(toU8("NANOCIRCUIT REPAIR"),
-                               type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
-    root.child(box().absolute().right(Dim(kW - kPR + 34))
+                   .child(text(toU8("NANOCIRCUIT"),
+                               type(9, alpha(kCyan, 0.5f), 0.2f, false))));
+    root.child(box().absolute().right(Dim(kW - kPR + 30))
                    .top(Dim(kPY + 30)).zIndex(7)
-                   .child(text(toU8("RIG LINK · OK"),
+                   .child(text(toU8("LINK · OK"),
+                               type(9, alpha(kCyan, 0.5f), 0.2f, false))));
+
+    // under the rule: the repair caption at left, and at right the RIG's
+    // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
+    // the track and the fill are the same generator twice
+    root.child(box().absolute().left(Dim(kPX + 34)).top(Dim(kRuleY + 13))
+                   .zIndex(7)
+                   .child(text(toU8("NANOCIRCUIT REPAIR · TIER III"),
+                               type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
+    const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
+    root.child(box().absolute().left(Dim(gaugeX)).top(Dim(gaugeY))
+                   .width(Dim(gaugeD)).height(Dim(gaugeD))
+                   .outline(shapes::sector(0, 359.99f, 0.58f))
+                   .fill(Material::solid(alpha(kCyan, 0.18f)))
+                   .zIndex(7));
+    root.child(box().absolute().left(Dim(gaugeX)).top(Dim(gaugeY))
+                   .width(Dim(gaugeD)).height(Dim(gaugeD))
+                   .outline(shapes::sector(-90, 360 * 0.78f, 0.58f))
+                   .fill(Material::solid(alpha(kCyan, 0.9f)))
+                   .zIndex(7));
+    root.child(box().absolute().left(Dim(gaugeX + 34)).top(Dim(kRuleY + 13))
+                   .zIndex(7)
+                   .child(text(toU8("R.I.G. INTEGRITY 78%"),
                                type(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
   }
 
@@ -749,7 +772,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    canvas.drawPath(t.detach(), p);
                  })
                      .absolute()
-                     .left(Dim(at.fX - 34)).top(Dim(at.fY - 9))
+                     .left(Dim(at.fX - 24)).top(Dim(at.fY - 9))
                      .width(Dim(16.0f)).height(Dim(18.0f))
                      .opacity(&socketPulse)
                      .zIndex(8));
@@ -880,32 +903,23 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
     if (!c.caption)
       return;
-    // the subtree's completion, as an annular gauge — shapes::sector is a
-    // CLOSED wedge, so track and fill are the same generator twice
     int typedCount = 0;
     for (int i = 0; i < c.nodeCount; ++i)
       typedCount += c.nodes[i].kind != Blank;
-    const float frac = (float)typedCount / (float)c.nodeCount;
-    const float ringD = 22;
-    root.child(box().absolute().left(Dim(c.x0 - 42))
-                   .top(Dim(c.y0 - 60)).width(Dim(ringD)).height(Dim(ringD))
-                   .outline(shapes::sector(0, 360, 0.62f))
-                   .fill(Material::solid(alpha(kCyan, 0.16f)))
-                   .zIndex(8));
-    root.child(box().absolute().left(Dim(c.x0 - 42))
-                   .top(Dim(c.y0 - 60)).width(Dim(ringD)).height(Dim(ringD))
-                   .outline(shapes::sector(-90, 360 * frac, 0.62f))
-                   .fill(Material::solid(alpha(kCyan, 0.85f)))
-                   .zIndex(8));
-    root.child(box().absolute().left(Dim(c.x0 - 12)).top(Dim(c.y0 - 56))
-                   .zIndex(8)
+    char slots[24];
+    std::snprintf(slots, sizeof(slots), "%d / %d NODES", typedCount,
+                  c.nodeCount);
+    root.child(box().absolute().left(Dim(c.x0 - 34)).top(Dim(c.y0 - 58))
+                   .row().alignItems(Align::Center).gap(14).zIndex(8)
                    .child(text(toU8(c.caption),
-                               type(11, alpha(kCyan, 0.62f), 0.18f))));
-    root.child(box().absolute().left(Dim(c.x0 - 42))
-                   .top(Dim(c.y0 - 30)).width(Dim(168.0f))
+                               type(11, alpha(kCyan, 0.62f), 0.18f)))
+                   .child(text(toU8(slots),
+                               type(9.5f, alpha(kCyan, 0.4f), 0.18f, false))));
+    root.child(box().absolute().left(Dim(c.x0 - 34))
+                   .top(Dim(c.y0 - 32)).width(Dim(280.0f))
                    .height(Dim(1.0f))
                    .outline(hline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.3f))))
+                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
                    .zIndex(8));
   }
 

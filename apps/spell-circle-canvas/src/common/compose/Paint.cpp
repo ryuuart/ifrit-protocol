@@ -444,9 +444,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
             // Closed contours stitch into ONE run through the seam; OPEN
             // contours have no seam — joining the pieces would invent a
             // straight chord from the end back to the start.
-            contour->getSegment(s * len, len, &stitched, true);
-            contour->getSegment(0, e * len, &stitched,
-                                !contour->isClosed());
+            // getSegment's bool says whether it appended anything; the
+            // emptiness check below already covers both calls, so the
+            // per-call answer is genuinely not interesting here.
+            (void)contour->getSegment(s * len, len, &stitched, true);
+            (void)contour->getSegment(0, e * len, &stitched,
+                                      !contour->isClosed());
           }
           SkPath stitchedPath = stitched.detach();
           if (!stitchedPath.isEmpty()) {

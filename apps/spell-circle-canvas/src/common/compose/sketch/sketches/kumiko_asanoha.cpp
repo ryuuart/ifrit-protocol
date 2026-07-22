@@ -223,6 +223,52 @@ sk_sp<SkRuntimeEffect> timberEffect() {
   return fx;
 }
 
+
+// The milled tooth: LUMINANCE noise (all three channels carrying the same
+// value) so a soft-light pass reads as light on the timber rather than as a
+// hue shift. This is `patterns::grain()` with its fBm loop UNROLLED — the
+// stock generator's `for (int o = 0; o < 8; ++o) { if (o >= uOctaves) break; }`
+// segfaults the raster paint the moment its material is drawn; three explicit
+// octaves are the same field and survive. (Reported; see LIBRARY GAPS.)
+sk_sp<SkRuntimeEffect> toothEffect() {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+uniform float uFreq;
+uniform float uSeed;
+float hash21(float2 p) {
+  p = fract(p * float2(123.34, 456.21) + uSeed);
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float vnoise(float2 p) {
+  float2 i = floor(p);
+  float2 f = fract(p);
+  float2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
+             mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), u.x),
+             u.y);
+}
+half4 main(float2 pos) {
+  float2 q = pos * uFreq;
+  float v = 0.5 * vnoise(q) + 0.25 * vnoise(q * 2.0) + 0.125 * vnoise(q * 4.0);
+  v = v / 0.875;
+  return half4(half3(v), 1.0);
+}
+)"));
+    if (!effect)
+      SkDebugf("kumiko tooth shader: %s\n", err.c_str());
+    return effect;
+  }();
+  return fx;
+}
+
+Material toothMaterial(float freq, float seed) {
+  sk_sp<SkRuntimeEffect> fx = toothEffect();
+  if (!fx)
+    return Material::solid({0.5f, 0.5f, 0.5f, 1});
+  return Material::sksl(std::move(fx), {{"uFreq", freq}, {"uSeed", seed}});
+}
+
 struct Timber {
   SkColor4f base, light, dark;
   float grain;
@@ -262,17 +308,18 @@ public:
                      .uniform("uBase", t.base)
                      .uniform("uLight", t.light)
                      .uniform("uDark", t.dark);
-    // The milled tooth on top of the figure: LUMINANCE noise (equal channels)
-    // soft-lit over the timber. patterns::noise() would hue-shift the wood —
-    // its three channels are independent fields.
-    Material blended = m_tooth;
+    // Figure (the shader above) carries the wood's story; the tooth carries
+    // its surface. Soft-light over the body, flattened into ONE shader by
+    // Material::blend — no saveLayer, still picture-cacheable.
+    Material blended = Material::blend(
+        {{m, SkBlendMode::kSrcOver}, {m_tooth, SkBlendMode::kSoftLight}});
     m_bank.emplace(key, blended);
     return blended;
   }
 
 private:
-  // Built ONCE (each patterns::grain() call compiles its own effect).
-  Material m_tooth = patterns::grain(0.62f, 3, 4.0f);
+  // Built ONCE — every call compiles its own runtime effect.
+  Material m_tooth = toothMaterial(0.55f, 4.0f);
   std::map<uint64_t, Material> m_bank;
 };
 
