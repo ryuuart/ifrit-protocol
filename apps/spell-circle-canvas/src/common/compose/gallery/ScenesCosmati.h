@@ -195,7 +195,7 @@ inline std::function<SkPath(SkSize)> triangleCourse(int cols, int rows,
 } // namespace cosmati
 
 struct CosmatiScene final : Scene {
-  choreograph::Output<float> rake{0};   // the raking light's x, in px
+  choreograph::Output<float> rake{0};   // the raking light's sweep, 0..1
   choreograph::Output<float> lay{0};    // the laying-in progress, 0..1
   choreograph::Output<float> plait{0};  // the guilloche phase
 
@@ -209,7 +209,7 @@ struct CosmatiScene final : Scene {
       t += dt;
       // A raking light crosses the floor every 7 s: the way polished
       // porphyry actually announces itself in a nave.
-      rake = -260.0f + (float)std::fmod(t / 7.0, 1.0) * (cosmati::kW + 520.0f);
+      rake = (float)std::fmod(t / 7.0, 1.0);
       plait = (float)std::fmod(t * 0.10, 1.0);
       lay = (float)std::min(1.0, t / 2.4);
       return true;
@@ -444,7 +444,7 @@ struct CosmatiScene final : Scene {
                          .width(Dim(210.0f))
                          .height(Dim(cs::kFieldSide + 80))
                          .rotate(14.0f)
-                         .translateX(&rake)
+                         .translateX(bind(&rake).to(-260, cosmati::kW + 260))
                          .fill(Material::linear(
                              {0, 0}, {210, 0},
                              {{0.0f, {1, 0.96f, 0.88f, 0.0f}},

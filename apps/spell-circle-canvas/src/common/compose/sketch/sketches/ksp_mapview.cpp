@@ -734,10 +734,14 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                         .strokeFill = Fill::color(
                                             fade(kTarget, 0.95f))})));
 
-    // Escape / flyby hyperbola — open, not a closed shape.
-    const float nuInf = esc.nuInfinity() - 6.0f;
+    // Escape / flyby hyperbola — open, not a closed shape. The window is
+    // hand-fitted to the part that crosses the frame: sampling out to the
+    // asymptote makes path() drop off-canvas points, which splits the
+    // result into several contours, and onPath only uses the FIRST one.
+    const float nuA = -104.0f, nuB = 98.0f;
+    (void)esc.nuInfinity();
     g.child(full(box()
-                     .outline(esc.outline(-nuInf, nuInf, 300))
+                     .outline(esc.outline(nuA, nuB, 260))
                      .stroke(MarchingDots{.width = 1.2f,
                                           .color = fade(kEscape, 0.50f),
                                           .intervals = {1.4f, 5.8f},
@@ -745,10 +749,10 @@ struct KspMapView : sigil::compose::sketch::Sketch {
                                           .speed = 0.55f})));
     g.child(full(t("ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m",
                    body(8.5f, fade(kEscape, 0.6f), 1.3f))
-                     .onPath(TextPath{.path = esc.outline(-nuInf, nuInf, 300),
+                     .onPath(TextPath{.path = esc.outline(nuA, nuB, 260),
                                       .at = 0.80f,
                                       .align = TextPath::Align::Center,
-                                      .offset = -7.0f,
+                                      .offset = 8.0f,
                                       .autoFlip = true})));
 
     // The hero: the current orbit, drawn on with a trim reveal and dressed
