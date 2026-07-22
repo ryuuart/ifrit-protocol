@@ -9,7 +9,6 @@
 #include "ScenesData.h"
 #include "ScenesFlourish.h"
 #include "ScenesGame.h"
-#include "ScenesMotion.h"
 #include "ScenesOrganic.h"
 #include "ScenesOrnament.h"
 #include "ScenesAero.h"
@@ -53,19 +52,9 @@ inline constexpr SceneInfo kScenes[] = {
     {"manuscript", "Showcase", "ornament"},
     {"nine slice", "Showcase", "#9 texture-gen"},
     {"botanical", "Showcase", "generative"},
-    {"ui particles", "Showcase", "SoA scale"},
-    {"scoreboard", "Composition & data", "#2"},
-    {"slots", "Composition & data", "#4"},
-    {"grid + query", "Composition & data", "#5 #6"},
-    {"transitions", "Composition & data", "#18"},
-    {"load", "Composition & data", "#21"},
-    {"headline", "Animation", "#17"},
-    {"blend", "Animation", "#3"},
-    {"chrome", "Chrome & decoration", "#8 #9 #10"},
-    {"sksl border", "Chrome & decoration", "#11"},
-    {"crt + bloom", "Effects", "#13 #14"},
+    {"ui particles", "Showcase", "SoA scale \xc2\xb7 instances()"},
+    {"load", "Scale", "#21 sustained load"},
     {"tile map", "Tiling", "#15"},
-    {"derive", "Derive", "#7 #12"},
     {"organic", "Showcase", "#5 #9 #10 #12 shapes/layouts"},
     {"flourish", "Showcase", "the whole surface, at once"},
     {"kinetic card", "Showcase", "\xc2\xa7""8 kinetic grammar (study port)"},
@@ -90,30 +79,20 @@ inline std::unique_ptr<Scene> makeScene(int index) {
   case 2: return std::make_unique<NineSliceScene>();
   case 3: return std::make_unique<BotanicalScene>();
   case 4: return std::make_unique<UiParticleScene>();
-  case 5: return std::make_unique<ScoreboardScene>();
-  case 6: return std::make_unique<SlotsScene>();
-  case 7: return std::make_unique<GridScene>();
-  case 8: return std::make_unique<TransitionScene>();
-  case 9: return std::make_unique<LoadScene>();
-  case 10: return std::make_unique<HeadlineScene>();
-  case 11: return std::make_unique<BlendScene>();
-  case 12: return std::make_unique<ChromeScene>();
-  case 13: return std::make_unique<SkslBorderScene>();
-  case 14: return std::make_unique<CrtScene>();
-  case 15: return std::make_unique<TileScene>();
-  case 16: return std::make_unique<DeriveScene>();
-  case 17: return std::make_unique<OrganicScene>();
-  case 18: return std::make_unique<FlourishScene>();
-  case 19: return std::make_unique<KineticCardScene>();
-  case 20: return std::make_unique<NightNetworkScene>();
-  case 21: return std::make_unique<PersonaMenuScene>();
-  case 22: return std::make_unique<AeroDesktopScene>();
-  case 23: return std::make_unique<Y2kChromeScene>();
-  case 24: return std::make_unique<SkillTreeScene>();
-  case 25: return std::make_unique<DaemonConsoleScene>();
-  case 26: return std::make_unique<MotionPosterScene>();
-  case 27: return std::make_unique<ZelligeScene>();
-  case 28: return std::make_unique<BeethovenScene>();
+  case 5: return std::make_unique<LoadScene>();
+  case 6: return std::make_unique<TileScene>();
+  case 7: return std::make_unique<OrganicScene>();
+  case 8: return std::make_unique<FlourishScene>();
+  case 9: return std::make_unique<KineticCardScene>();
+  case 10: return std::make_unique<NightNetworkScene>();
+  case 11: return std::make_unique<PersonaMenuScene>();
+  case 12: return std::make_unique<AeroDesktopScene>();
+  case 13: return std::make_unique<Y2kChromeScene>();
+  case 14: return std::make_unique<SkillTreeScene>();
+  case 15: return std::make_unique<DaemonConsoleScene>();
+  case 16: return std::make_unique<MotionPosterScene>();
+  case 17: return std::make_unique<ZelligeScene>();
+  case 18: return std::make_unique<BeethovenScene>();
   default: return nullptr;
   }
 }
