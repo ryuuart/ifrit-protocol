@@ -110,6 +110,7 @@ missing ones.
 | `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
 | `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
 | `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
+| `Ribbon::widthMax` | `bleed()` cannot look inside a `widthFn`, so a 166 px flow band declared 10 px of reach and was silently clipped | `Brushes.h` |
 | `Atlas::filter()`, two-axis `patterns::gridLines` | Instancing's biggest use is tilemaps — pixel grids — and a lattice whose pitch differs per axis is not exotic (an X-COM panel's is 5 × 2) | `Instances.h`, `Patterns.h` |
 | `addFixed` exact across draw rates, and a clamp signal | The step count came from an accumulator, which slips one comparison over a long pre-roll; and a frame that DROPPED time makes anything measured on it meaningless | `sigilmotion/Ticker.*` |
 | Unit ramps take ANY number of stops | Six, fixed, with the tail clamped — which a 24-run sett and a 72-step sweep both ran out of, from opposite directions | `Material.h` |
@@ -685,6 +686,31 @@ smaller one than it was filed as.
 *(This is the sixth claim in this program that would have been recorded
 as impossible and was not, because it got checked first. The habit is now
 worth more than any single feature it has produced.)*
+
+## 10i. A shared axis has no spelling, and a drawn width cannot be audited
+
+Both from the first study to put two panels over one abscissa — Minard's
+1869 sheet, whose map's longitude axis and temperature panel's longitude
+axis are the same axis.
+
+- **Two panels sharing one scale has no expression.** A scale is not a
+  layout: the panels are siblings with independent boxes, and keeping
+  their x mapping identical is a discipline the author enforces by hand
+  at every call site. Every small-multiple, every stacked chart with a
+  shared time axis, every before/after pair has this shape.
+- **`debug::widthAlong`.** `debug::coverage` answers "does this tiling
+  tile"; the flow-map question is "is this band the width it claims", and
+  the auditor is a min-chord measurement perpendicular to the spine. The
+  Minard study wrote one to measure the 1869 engraving and then needed
+  the identical function to check its own output — which is the argument:
+  a study that measures its reference should be able to measure itself
+  with the same call.
+- **A `widthFn` Ribbon can never prune** — its `operator==` ends
+  `&& !widthFn && !o.widthFn`, so the whole band re-records per
+  `render()`. Same shape as §3, and the same fix would cover it: a
+  comparable value, or a key that participates in equality.
+- **`brushes::Ribbon` has no corner joins**, so a 14-corner route shows
+  its facets.
 
 ## 11. `Effect` has no live uniforms
 
