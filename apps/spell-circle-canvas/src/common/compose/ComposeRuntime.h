@@ -353,7 +353,22 @@ struct Composer::Impl {
   // own total upward. That gives selfMs = totalMs - children without a
   // second traversal.
   bool profileEnabled = false;
-  bool autoPromote = true; // Composer::setAutoTexturePromotion
+  bool autoPromote = true; // Composer::setAutoTexturePromotion (the INTENT)
+  bool promotionExplicit = false; // did the host call the setter?
+  // The value paint() actually reads, recomputed each draw(). Differs from
+  // `autoPromote` only under the backend-aware default: automatic promotion
+  // is OFF on a Graphite/GPU surface unless the host asked for it
+  // explicitly, because the whole cost model that drives it — the 1 ms
+  // threshold, the stability EMA, the temporal gate — is measured on
+  // op-RECORDING time, which describes raster and not GPU. Measured: on GPU,
+  // promotion on vs off is noise (kumiko 112–144 vs 111–124 ms, the
+  // run-to-run variance dwarfing the delta), because it rarely crosses the
+  // recording-time threshold and rarely fires; when it would fire, the
+  // bake+sync+upload costs more than the ~0.8 ms recording it replaces. It
+  // is dead weight there, not a win and not a regression, so it is off until
+  // a GPU-timestamp cost model can re-enable it with evidence. The global
+  // switch still overrides in both directions.
+  bool autoPromoteEffective = true;
   // Promoted bakes are pixels, and a dense study has a lot of full-canvas
   // nodes: chaucer_astrolabe paints 174 at 2400x1600, which is 15 MB each.
   // A budget, carried from the previous frame (paint order is stable, so

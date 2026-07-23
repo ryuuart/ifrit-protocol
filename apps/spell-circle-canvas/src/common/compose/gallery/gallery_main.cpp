@@ -24,10 +24,13 @@ int main(int argc, char *argv[]) {
     std::string outDir = "compose_gallery_out";
     std::string only;
     bool gpu = false;
+    bool noPromotion = false;
     for (int i = 2; i < argc; ++i) {
       const std::string arg = argv[i];
       if (arg == "--gpu")
         gpu = true;
+      else if (arg == "--no-promotion") // force auto promotion off (the A/B)
+        noPromotion = true;
       else if (arg == "--scene" && i + 1 < argc)
         only = argv[++i];
       else
@@ -50,7 +53,7 @@ int main(int argc, char *argv[]) {
         return 1;
       }
     }
-    return compose_gallery::runHeadless(outDir, gpu, sceneIndex);
+    return compose_gallery::runHeadless(outDir, gpu, sceneIndex, noPromotion);
   }
 
   // `--shot <png> [--scene <name|index>]`: bring the real window up, let it
