@@ -180,6 +180,19 @@ SIGIL_SKETCH(MySketch)
   createCanvas/background: declare the canvas in `setup()`; the window
   letterboxes to it and headless captures honor it. Calling
   `ctx.canvas()` later resizes live. Defaults: 900×640, near-black.
+- `ctx.captureAt(seconds)` — declare the scene time a STILL of this
+  sketch should be taken at. **Reach for it whenever the sketch has
+  beats**: an entrance that settles into a hold, a cycle that visits
+  several states, a reveal. The gallery otherwise captures at a fixed
+  t = 6.0 s, which is an artifact of its warm-and-sample budget rather
+  than a choice, so a loop longer than that is reviewed mid-gesture.
+  `black_watch` turns five shade families over an 8 s cycle and was
+  captured on the weathered one for its entire life — a plate titled
+  BLACK WATCH (GOVERNMENT) showing brown cloth, reported as a bad blend
+  layer, and it was the right frame of the wrong beat. Only stills honor
+  it; the live host and the timing table are untouched. Sweep the corpus
+  at two times (`--capture-at 6.0` vs `7.0`) to find which sketches still
+  need one — whatever differs was moving under the shutter.
 - `setup(ctx)` runs on every (re)load and when an asset file changes.
 - `update(elapsed, ctx)` runs every frame; re-`render()` for
   data-driven changes, use bindings/transitions for motion.
