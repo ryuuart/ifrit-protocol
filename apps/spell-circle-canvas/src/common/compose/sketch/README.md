@@ -103,6 +103,58 @@ The phase line answers "what dominates" first:
   defeating the cache. `memo()` the host node or keep the callable
   pointer-stable.
 
+### The one CPU signal that predicts the GPU: **0 steady-state cache writes**
+
+`--bench` measures the **CPU raster** path; the product renders on
+**Graphite/Metal**. A `.cache(Cache::Texture)` that rescues a CPU FAIL can
+in principle *regress the GPU* — the failure mode where a bake is
+re-rasterised and re-uploaded every frame and costs more than the picture
+replay it replaced. You usually cannot measure an edit's GPU from here
+(`--bench`/`--frame` are raster-only; the gallery links studies
+statically). You do not need to. The `last frame:` line reports
+
+```
+  last frame: … 0 cache writes (0 recordings, 0 bakes), … N textures live, …
+```
+
+and that counter is the tell. A cache that **sticks** bakes once and then
+reports **`0 cache writes` on every steady-state frame**; a cache that
+**thrashes** re-bakes and shows a write *every* frame — visible right here,
+on the CPU. The rule the perf pass proved on every static cache it landed:
+
+> **If a `Cache::Texture` you added shows `0 cache writes` at the settled
+> phase, it is holding — and it comes out GPU-neutral-or-better.** If it
+> shows a write every frame, you did not cache a static node; you cached a
+> live one, and that same per-frame re-bake is exactly what makes the bake
+> expensive on the GPU.
+
+So verify at the **settled** `--at` (where bindings hold their final
+values, so a genuinely-static subtree's writes fall to zero) and read the
+counter. Measured across an eleven-study perf pass, `0 steady-state
+writes` predicted GPU-neutral-or-better in every case but one — including
+the caches the author expected to regress (a per-band `Cache::Texture` on
+a scaled, procedurally-textured node came out *faster* on GPU,
+3.5 → 1.8 ms).
+
+**The one counter-example defines the proxy's limit, so learn both
+together.** fallout2's static character-card cache stuck perfectly —
+`0 cache writes` every steady-state frame — and still took the GPU from
+11.5 to 15–20 ms, measured against thermal controls reading at baseline.
+The proxy predicts **thrash**; it cannot see **bandwidth**. A very large
+baked texture is sampled and composited every frame whether or not it is
+ever re-baked, and past some size that steady-state cost exceeds the
+shader evaluation it replaced. **A sticking cache is not a free cache.**
+So the counter is necessary, not sufficient: on a bake whose area is a
+large fraction of the canvas, the GPU still has to be measured, and the
+cache reverted if it does not hold (that one was).
+The corollary is the diagnosis for a node whose writes *won't* fall to
+zero: its content is not actually static between ticks. Move the animated
+slot to a wrapper, `quantizeTime` the material, or accept that it is live
+and leave it uncached — and know that a container whose only volatility is
+a settled-but-still-bound child will refuse to bake at all (`0 bakes`),
+because `Cache::Texture` bakes a node's *own* paint, not its children's
+composited result.
+
 ## Writing a sketch
 
 ```cpp
