@@ -743,6 +743,26 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
     add(group, kRoleJigumiH);
     add(group, kRoleJigumiV);
     add(group, kRoleRegister);
+    // perf-pass INVESTIGATION (not landed — see report): kumiko is the one
+    // study slow on both backends (183 ms CPU / 133 ms GPU). Each strip is a
+    // wood-grain SkSL fill + a BevelEmboss, and every strip is ROTATED to its
+    // jig angle (22.5/45/67.5 deg). The auto-promoter refuses rotated nodes
+    // (its bake is device-space, integer-snapped, no resampling — rotation
+    // breaks that), so the strips stay pictures whose replay re-runs every
+    // shader. Three sketch-level bakes were tried and none is both correct and
+    // effective: (a) per-strip .cache(Cache::Texture) BAKES but is not
+    // pixel-safe — a bake isolates, so each bevel arris and the strip-abutment
+    // compositing resolve differently baked-than-live (~34% of pixels move);
+    // (b) a container-level .cache(Cache::Texture) on this group is a NO-OP
+    // (0 bakes: Cache::Texture bakes a node's OWN paint, and a fill-less
+    // container has none — its 523 children stay individually promoted); a
+    // transparent fill and .effect(Effect{}) to force a stacking context both
+    // still gave 0 bakes. Making the strips static (drop fade/pop) only drops
+    // CPU to ~30 ms (still FAIL) by removing the live-binding re-record cost,
+    // AND shifts 4% of settled pixels + loses the staggered assembly. The
+    // pixel-safe fix (composite the rotated strips into ONE unrotated
+    // device-space layer, then bake) needs a LIBRARY capability the sketch
+    // cannot reach. Left at the honest 183/133 ms FAIL pending that.
     return group;
   }
 

@@ -387,21 +387,22 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
   // ------------------------------------------------------------------
   Element screenPanel() {
+    // perf-pass NOTE: the whole screen panel is a saveLayer (rounded clip +
+    // the kColor "stain" descendant that blends with the canvas force one)
+    // re-compositing 900x596 every frame — ~85 ms on the CPU raster backend,
+    // the residual after the paperGrain fold below. A `.cache(Cache::Texture)`
+    // here is REFUSED (0 bakes: the library will not bake a subtree that
+    // blends with the canvas) and only adds overhead, so it is deliberately
+    // NOT cached. That composite is a genuine per-frame floor on raster;
+    // vertigo is CPU-FAIL (~101 ms) / GPU-PASS (3.8 ms) for that reason.
     auto panel = box()
                      .width(kPanelW)
                      .height(kPanelH)
                      .shrink(0)
                      .corners({10})
                      .clip(true)
-                     .key("screen");
-
-    // perf-pass: irisMat (Material::blend of a radial + a sweep, built once
-    // in setup) is STATIC but 85 ms/frame of live eval on raster. It was the
-    // panel's fill; move it into a cached background child so the panel's
-    // LIVE children (the red stain, the precessing spiral cards, the VERTIGO
-    // entrance) still animate every frame over a one-time blit. Clipped to
-    // the same rounded panel, so pixels are unchanged. Cache STICKS (static).
-    panel.child(box().inset(0).fill(irisMat).cache(Cache::Texture));
+                     .key("screen")
+                     .fill(irisMat);
 
     panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")

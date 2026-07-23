@@ -656,12 +656,18 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
     // the grain the compressed CRT capture carries — enough to kill the
     // "clean vector art" read without becoming VHS noise
+    // perf-pass: static procedural grain, 70.8 ms/frame of live eval on the
+    // CPU raster backend (opacity 0.07 + kOverlay refuses an auto-bake). Bake
+    // once — GPU was already 10ms, provably static so the cache STICKS. (The
+    // plate BASE below it stays live: its fill carries a scrolling scanField
+    // shader, so ds2 keeps a live floor and does not fully clear the gate.)
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
                    .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .fill(grain)
                    .opacity(0.07f)
                    .blend(SkBlendMode::kOverlay)
+                   .cache(Cache::Texture)
                    .zIndex(2));
 
     // frame: a soft plus-blended halo under a crisp cyan keyline
