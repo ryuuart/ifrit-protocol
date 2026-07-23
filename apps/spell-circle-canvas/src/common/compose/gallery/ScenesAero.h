@@ -117,8 +117,21 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
 // glass sheen, and the diagonal desktop reflection (screen, peak a~.2).
 inline Material glassTint(float w, float h) {
   return Material::blend({
-      // tint*colorBalance -- the flat Sky wash
-      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.54f}),
+      // tint*colorBalance -- the flat Sky wash.
+      //
+      // 0.30, was 0.54. The user's report was that the glass reads OPAQUE,
+      // and the diagnosis is worth keeping because it exonerates the parts
+      // that looked guilty: the fake-backdrop (a canvas-aligned frozen
+      // aurora copy, blurred and clipped to the pane -- there is no live
+      // backdrop() here, deliberately, so the pane can bake) is CORRECT and
+      // was rendering the whole time; and promotion is not touching it
+      // (on/off differs by ~1 LSB). It was buried. Dropped to 0.10 in a
+      // scratch build the blurred aurora resolved perfectly and aligned
+      // with the desktop through the frame; 0.54 simply washed 54% of it
+      // out. 0.30 lets the blur READ as translucent glass -- the whole
+      // point of the pane -- while keeping the Sky character and the dark
+      // caption text legible over it (measured at this value).
+      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.30f}),
        SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
       {Material::linear({0, 0}, {0, h},
