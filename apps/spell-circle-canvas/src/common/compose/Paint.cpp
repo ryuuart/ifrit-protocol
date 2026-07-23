@@ -1487,7 +1487,17 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       break;
     }
 
-  const bool promotable = why == Prom::Cheap && !liveOnly;
+  // recordingDepth == 0, for the SAME reason the Cache::Texture device
+  // path checks it (and the split bake): a device-space bake blits with
+  // canvas.resetMatrix() + drawImage() at an ABSOLUTE device rect, and a
+  // picture can be replayed under a different matrix than it was recorded
+  // at. Recorded into an ancestor's picture and replayed at the 2x capture
+  // scale, that blit draws a 1x texture at 1x coords on a 2x canvas — the
+  // wordmark of y2k_chrome came out at quarter size in the wrong place,
+  // 283k pixels and a peak of 0.92. The Cache::Texture path guarded this
+  // from the day it shipped; automatic promotion never did.
+  const bool promotable =
+      why == Prom::Cheap && !liveOnly && recordingDepth == 0;
   if (!promotable)
     inst.autoTexture = false;
   const auto note = [&](Prom p) {
