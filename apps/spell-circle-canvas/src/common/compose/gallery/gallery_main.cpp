@@ -16,6 +16,7 @@
 #include <QtQuick/QQuickWindow>
 
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -25,6 +26,16 @@ int main(int argc, char *argv[]) {
     std::string only;
     bool gpu = false;
     bool noPromotion = false;
+    // --capture-at S: take every still at scene time S, overriding both the
+    // derived frame and any Scene::captureSeconds. It exists for the AUDIT
+    // the declaration implies: sweep at two times and diff, and the scenes
+    // that differ are the ones still in motion when the gallery photographs
+    // them. A settled scene is identical at 6 s and 7 s; a moving one is not,
+    // and only its author can say whether the moment it was caught at is the
+    // one worth showing. Without this the question is unaskable per-scene
+    // without a recompile, which is how `black watch` stayed wrong for its
+    // whole life.
+    double captureAt = -1.0;
     for (int i = 2; i < argc; ++i) {
       const std::string arg = argv[i];
       if (arg == "--gpu")
@@ -33,6 +44,8 @@ int main(int argc, char *argv[]) {
         noPromotion = true;
       else if (arg == "--scene" && i + 1 < argc)
         only = argv[++i];
+      else if (arg == "--capture-at" && i + 1 < argc)
+        captureAt = std::atof(argv[++i]);
       else
         outDir = arg;
     }
@@ -53,7 +66,8 @@ int main(int argc, char *argv[]) {
         return 1;
       }
     }
-    return compose_gallery::runHeadless(outDir, gpu, sceneIndex, noPromotion);
+    return compose_gallery::runHeadless(outDir, gpu, sceneIndex, noPromotion,
+                                        captureAt);
   }
 
   // `--shot <png> [--scene <name|index>]`: bring the real window up, let it

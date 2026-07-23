@@ -197,7 +197,8 @@ inline std::unique_ptr<Scene> makeScene(int index) {
 /** Sweeps the registry (or one scene when `only` is a valid index),
  *  printing the FPS table and writing a 2x PNG per scene. */
 inline int runHeadless(const std::string &outDir, bool gpu = false,
-                       int only = -1, bool noPromotion = false) {
+                       int only = -1, bool noPromotion = false,
+                       double captureAtOverride = -1.0) {
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
   std::unique_ptr<SkiaGraphiteContext> graphite;
   if (gpu) {
@@ -357,7 +358,8 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // and therefore declares the same canvas; the sizes are asserted rather
     // than assumed, since a scene that resized on rebuild would otherwise
     // draw into a surface of the wrong shape and merely look odd.
-    const double declared = stage.scene->captureSeconds();
+    const double declared = captureAtOverride > 0 ? captureAtOverride
+                                                  : stage.scene->captureSeconds();
     if (declared > 0) {
       stage.activate(makeScene(i));
       if (noPromotion)
