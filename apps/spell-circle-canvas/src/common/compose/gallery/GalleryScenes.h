@@ -197,7 +197,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
 /** Sweeps the registry (or one scene when `only` is a valid index),
  *  printing the FPS table and writing a 2x PNG per scene. */
 inline int runHeadless(const std::string &outDir, bool gpu = false,
-                       int only = -1) {
+                       int only = -1, bool noPromotion = false) {
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
   std::unique_ptr<SkiaGraphiteContext> graphite;
   if (gpu) {
@@ -207,6 +207,15 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       return 1;
     }
     std::printf("backend: Graphite GPU (work ms = CPU + synced GPU)\n");
+    // The profiler is blind here, and it must say so: Composer::profile()'s
+    // selfMs measures op-RECORDING time under Graphite, not GPU execution
+    // (which is async). So every per-node cost, and every caching decision
+    // built on one — the promotion threshold, the stability EMA, the
+    // temporal gate — describes the raster machine, not this one. A node can
+    // read 0.1 ms here and cost 20 ms of GPU. Read the work-ms column for
+    // real cost; treat per-node selfMs on GPU as recording weight only.
+    std::printf("NOTE: per-node profile times are RECORDING time on GPU, "
+                "not GPU execution — trust the work-ms column.\n");
   }
 #else
   if (gpu) {
@@ -228,6 +237,13 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
       return 1;
     }
     stage.activate(std::move(next));
+    // --no-promotion: force automatic texture promotion off explicitly, so
+    // the ledger A/B (promotion on vs off, either backend) runs on a real
+    // binary. On GPU the backend-aware default already turns it off; this is
+    // for a reproducible, attributable comparison rather than a behaviour it
+    // adds. Set AFTER activate() (which rebuilds the composer).
+    if (noPromotion)
+      stage.composer->setAutoTexturePromotion(false);
     SkDebugf("=== scene %s\n", stage.scene->name());
     // Every size below comes off the stage, not off kSceneSize: a study
     // declares its own canvas from inside setup(), which activate() has

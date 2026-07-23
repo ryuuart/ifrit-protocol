@@ -941,8 +941,13 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
     return stack()
         .fill(Fill::color(kJointBed))
         // the bedding course showing through the saw cuts
+        // perf-pass: full-canvas procedural grain, STATIC, but the single
+        // most expensive node in the frame — 109 ms/frame of live eval on the
+        // CPU raster backend (opacity 0.20 refuses an auto-bake). Bake once.
+        // GPU was already 9.7ms; provably static so the cache STICKS.
         .child(box().inset(0, 0, 0, 0).fill(
-            patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f))
+            patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)).opacity(0.20f)
+                   .cache(Cache::Texture))
         .child(field)
         // Weathering at PLAZA scale — 250 px cells, i.e. a couple of metres
         // of traffic staining that crosses joints because dirt does not know
@@ -960,19 +965,24 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         // ---- daylight. One multiply pass carries both the sun's falloff
         // across the plaza and the corner vignette; a plaza is not evenly lit
         // and an evenly lit tiling is exactly what reads as a diagram.
+        // perf-pass: static full-canvas daylight/vignette gradient under a
+        // multiply. Cached — the gradient eval stops re-running each frame.
         .child(box()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kMultiply)
+                   .cache(Cache::Texture)
                    .fill(util::radialGradient(
                        {470, 280}, 1280,
                        {rgb(0xFAFAF8), rgb(0xE6E6E4), rgb(0xB2B4B8),
                         rgb(0x74777C), rgb(0x42454A)},
                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
         // the sun pool itself, added back
+        // perf-pass: static full-canvas sun-pool gradient under a plus. Cached.
         .child(box()
                    .inset(0, 0, 0, 0)
                    .blend(SkBlendMode::kPlus)
                    .opacity(0.5f)
+                   .cache(Cache::Texture)
                    .fill(util::radialGradient(
                        {470, 280}, 1100,
                        {rgb(0xFFF8E8, 0.13f), rgb(0xFFF3DA, 0.075f),

@@ -225,6 +225,31 @@ void Composer::draw(SkCanvas &canvas) {
   impl.promotedBytesLast = impl.promotedBytes;
   impl.promotedBytes = 0;
 
+  // Backend-aware promotion default (see ComposeRuntime.h). recorder() is
+  // non-null on a Graphite canvas, recordingContext() on a Ganesh one;
+  // either means the profiler's op-recording measurement does not describe
+  // what this surface costs, so automatic promotion is off unless the host
+  // asked for it. When it flips OFF here, drop any bakes taken on a previous
+  // raster frame so a mixed-backend host does not blit a stale texture.
+  const bool gpuBacked =
+      canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
+  const bool effective =
+      impl.promotionExplicit ? impl.autoPromote : impl.autoPromote && !gpuBacked;
+  if (effective != impl.autoPromoteEffective) {
+    impl.autoPromoteEffective = effective;
+    if (!effective && impl.root) {
+      const auto clear = [](auto &&self, detail::Instance &inst) -> void {
+        inst.autoTexture = false;
+        inst.hotFrames = 0;
+        if (inst.desc && inst.desc->cacheMode != Cache::Texture)
+          inst.textureImage.reset();
+        for (auto &child : inst.children)
+          self(self, *child);
+      };
+      clear(clear, *impl.root);
+    }
+  }
+
   // PaintContext::contentScale — device px per layout px under the host's
   // current transform (2.0 on a HiDPI-scaled canvas). Best effort: recordings
   // capture the scale current when they re-record.
@@ -297,6 +322,8 @@ bool Composer::profiling() const { return m_impl->profileEnabled; }
 
 void Composer::setAutoTexturePromotion(bool on) {
   m_impl->autoPromote = on;
+  m_impl->promotionExplicit = true; // the host has an opinion; honour it on
+                                    // every backend, overriding the default.
   if (!on && m_impl->root) {
     // Drop every promoted bake so a study can prove the promotion is what
     // changed its numbers, rather than measuring a stale texture.

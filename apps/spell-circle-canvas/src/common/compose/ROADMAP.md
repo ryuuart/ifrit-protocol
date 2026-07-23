@@ -1697,6 +1697,102 @@ of these was written by someone who had just been in the code. It is that
 a limit is the one kind of claim nobody re-tests, because re-testing it
 means attempting something you have been told will not work.
 
+## 29. The profiler is blind on GPU, and every caching decision rode on it
+
+Every number this program measured — the 60 FPS gate, the 28×, the corpus
+table, the promotion thresholds — was `SkSurfaces::Raster`. The product
+runs Graphite/Metal. Six scenes measured on GPU: five fine (`chladni tab1`
+3.4 ms, `daemon console` 1.0), one catastrophic — `kumiko asanoha`
+**113 ms, 9 fps**.
+
+The root is structural and it is the sentence that ties the whole session
+together. `Composer::profile()`'s `selfMs` is a wall-clock bracket around
+`draw`. Under Graphite, `draw` RECORDS commands; the GPU executes them
+asynchronously later. **So selfMs measures op-recording time, not GPU
+execution** — a node can read 0.1 ms here and cost 20 ms on the GPU. And
+every caching decision is built on that number: the 1 ms promotion
+threshold, the stability EMA, the temporal re-bake gate. They describe the
+raster machine, not the one the product ships.
+
+This is the same failure as the leaf-measurement bug (§ "Promotion could
+not SEE a leaf"), the vacuous tests, and the y2k picture-replay bug, in
+one sentence: **the instrument measured a different machine than the one
+that pays.**
+
+### Promotion is INERT on GPU, not harmful — measured, against a shared prior
+
+The natural fear was that bakes REGRESS GPU. They do not. Same binary,
+`--gpu`, promotion on vs off:
+
+```
+kumiko GPU, work ms:   ON 112.01  144.17  125.11
+                       OFF 111.27  123.28  124.09
+```
+
+The run-to-run variance dwarfs any on/off delta. Promotion barely fires on
+GPU — it rarely crosses the recording-time threshold — so ON ≈ OFF. When
+it would fire, the bake+sync+upload costs more than the ~0.8 ms recording
+it replaces. Dead weight, not a regression.
+
+### What shipped
+
+- **Backend-aware default: automatic promotion OFF on Graphite/GPU**
+  surfaces, unless the host calls `setAutoTexturePromotion` explicitly
+  (`Composer::draw` detects the backend via `canvas.recorder()` /
+  `recordingContext()`; the reason is in `ComposeRuntime.h` beside
+  `autoPromoteEffective`). The global switch overrides both ways, so a
+  future GPU-timestamp cost model can re-enable it with evidence.
+- **`ComposeGallery --no-promotion`** forces it off explicitly on either
+  backend, so the ledger A/B is reproducible on a real binary.
+- **The GPU headless header now says the profiler is blind**: "per-node
+  profile times are RECORDING time on GPU — trust the work-ms column."
+  One line, where the next person would otherwise trust `selfMs`.
+
+Still open: a GPU counterpart to the 60 FPS gate in the ledger, and a
+per-node GPU cost measurement (timestamp queries) if promotion is ever to
+be justified on GPU.
+
+## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake
+
+Characterised, because §29's default turns promotion off on GPU and
+therefore does NOT fix this — kumiko needs a different remedy.
+
+`kumiko_asanoha` is a hinoki asanoha ranma: a lattice of ~dozens of
+strips, each a box carrying a wood-grain **SkSL** fill plus a
+`BevelEmboss` image-filter arris. The opacity/scale of each strip is
+bound to a 6.4 s entrance loop, so the strips are `Volatile` and never
+auto-promote — on ANY backend. They cache as PICTURES, and a picture
+replay re-runs its shaders every frame. On raster that was 331 ms until
+the CPU promotion pass; on GPU the shaders re-run on the GPU every frame
+and it is 113 ms.
+
+**The experiment that settles the category** (manager's hypothesis):
+`.cache(Cache::Texture)` on the strip node, GPU-measured:
+
+```
+kumiko GPU:   baseline 115.69 ms  →  strips Cache::Texture 4.95 ms   (23x)
+```
+
+So it is **static shader ALU** — not a software fallback (a texture blit
+avoids the shader, and the cost vanishes) and not overdraw (the lattice
+barely overlaps). It is the "a picture is not a pixel cache" finding,
+alive on GPU, on content auto-promotion cannot reach because the binding
+keeps it Volatile.
+
+**Route: perf-pass, under its existing bar** (static-only, explicit,
+steady-state-writes-verified, pixel-checked) — with one caveat that the
+bar will catch: the naive per-strip `Cache::Texture` above is **not
+pixel-safe**. It changed 34% of pixels (peak 0.57) because the bake
+ISOLATES — the `BevelEmboss` arris and the compositing where strips abut
+resolve differently baked-in-a-layer than composited-live. The fix is to
+bake at a granularity that does not split the bevel or the joints (the
+settled lattice as one static layer is the likely shape), which is
+exactly the judgement the pixel-check bar exists to force.
+
+The general lesson is §29's: this was invisible for the whole program
+because the gate was raster, and the one scene where a picture's shaders
+dominate is the one that a raster gate flatters and a GPU punishes.
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers

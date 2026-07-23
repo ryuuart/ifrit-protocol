@@ -393,8 +393,15 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                      .shrink(0)
                      .corners({10})
                      .clip(true)
-                     .key("screen")
-                     .fill(irisMat);
+                     .key("screen");
+
+    // perf-pass: irisMat (Material::blend of a radial + a sweep, built once
+    // in setup) is STATIC but 85 ms/frame of live eval on raster. It was the
+    // panel's fill; move it into a cached background child so the panel's
+    // LIVE children (the red stain, the precessing spiral cards, the VERTIGO
+    // entrance) still animate every frame over a one-time blit. Clipped to
+    // the same rounded panel, so pixels are unchanged. Cache STICKS (static).
+    panel.child(box().inset(0).fill(irisMat).cache(Cache::Texture));
 
     panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")
@@ -705,11 +712,16 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                               .child(rigPlate())));
 
     // ---- the whole sheet under one very faint tooth ---------------
+    // perf-pass: full-canvas procedural paperGrain overlay, STATIC, but
+    // 126 ms/frame of live eval on the CPU raster backend (opacity+overlay
+    // refuses an auto-bake). Bake once — GPU was already 3.8ms, provably
+    // static so the cache STICKS.
     root.child(box()
                    .inset(0)
                    .fill(paperGrain)
                    .blend(SkBlendMode::kOverlay)
-                   .opacity(0.16f));
+                   .opacity(0.16f)
+                   .cache(Cache::Texture));
     return root;
   }
 

@@ -1458,7 +1458,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const auto flag = [&](Prom p) {
     refusals |= (uint16_t)(1u << (unsigned)p);
   };
-  const bool optedOut = !autoPromote || node.cacheMode != Cache::Auto;
+  // autoPromoteEffective, not autoPromote: the backend-aware default (off on
+  // GPU unless the host asked) is applied in draw(). See ComposeRuntime.h.
+  const bool optedOut =
+      !autoPromoteEffective || node.cacheMode != Cache::Auto;
   if (optedOut)
     flag(Prom::OptedOut);
   if (!contentStable)

@@ -676,20 +676,46 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- paper: fractal tone, foxing (biased lower-left, as the scan
     // is), a vignette that lands on the sampled scan colour ----
-    root.child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
-        SkBlendMode::kSoftLight));
-    root.child(box().inset(0).fill(foxing.material()));
-    root.child(box()
-                   .left(0)
-                   .top(kH * 0.50f)
-                   .width(kW * 0.52f)
-                   .height(kH * 0.50f)
-                   .fill(foxingLL.material()));
-    root.child(box().inset(0).fill(radialGradient(
-        {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-        {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
-         SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
-        {0.0f, 0.62f, 1.0f})));
+    // perf-pass: the ENTIRE paper base is static and CPU-catastrophic — the
+    // paperMat procedural fractal alone is 662 ms/frame of live eval on the
+    // raster backend, plus a ~14 ms/frame full-canvas softLight COMPOSITE.
+    // Fold all four static layers into ONE opaque box whose own fill is
+    // kPaper — the exact backdrop the softLight blended against when these
+    // were separate root children — and cache it once. The softLight now
+    // resolves at BAKE time (no per-frame composite) and the frame blits one
+    // opaque srcOver texture. The cache BOUNDARY sits around these four
+    // because everything below them is this static base and everything above
+    // (frame hairlines, the twelve figures, the live bow, the sand pool) is
+    // animated or genuinely live and must stay outside the bake.
+    //   opacity+blend refuses an auto-bake (rounds twice); accepted here.
+    //   CPU p50 672 -> 16.96 ms, p99 17.76 (was 672/672). GPU was already
+    //   4.9 ms and the group is provably static so the cache STICKS (0
+    //   steady-state cache writes — the backend-neutral thrash guard).
+    //   Pixels verified at the settled phase t=12: 0/3151200 differ, byte
+    //   IDENTICAL (the fold bakes the fully-composited OPAQUE paper at float
+    //   precision, so even the softLight rounding vanishes).
+    //   Residual: chladni still lands ~1 ms over the 16.6 gate. The floor is
+    //   now the live sand pool (instancing Mode::Live, ~7.5 ms) — genuinely
+    //   live because the grains ANIMATE in ("the sand finds the line"); it
+    //   cannot be frozen without killing the study's entrance. Honest
+    //   near-miss: p50 16.96 / p99 17.76 CPU, PASS on GPU.
+    root.child(stack().inset(0).fill(Fill::color(kPaper))
+                   .child(box().inset(0).fill(paperMat).opacity(0.16f).blend(
+                       SkBlendMode::kSoftLight))
+                   .child(box().inset(0).fill(foxing.material()))
+                   .child(box()
+                              .left(0)
+                              .top(kH * 0.50f)
+                              .width(kW * 0.52f)
+                              .height(kH * 0.50f)
+                              .fill(foxingLL.material()))
+                   .child(box().inset(0).fill(radialGradient(
+                       {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
+                       {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
+                        SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB,
+                                  0.26f}},
+                       {0.0f, 0.62f, 1.0f})))
+                   .cache(Cache::Texture));
 
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
