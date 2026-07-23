@@ -736,38 +736,50 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
         if (panel.strips[i].role == role)
           into.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));
     };
-    auto group = box().inset(0, 0, 0, 0);
+    auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     add(group, kRoleDiagonal);
     add(group, kRoleFiller);
     add(group, kRoleLock);
     add(group, kRoleJigumiH);
     add(group, kRoleJigumiV);
     add(group, kRoleRegister);
-    // perf-pass INVESTIGATION (not landed — see report): kumiko is the one
-    // study slow on both backends (183 ms CPU / 133 ms GPU). Each strip is a
-    // wood-grain SkSL fill + a BevelEmboss, and every strip is ROTATED to its
-    // jig angle (22.5/45/67.5 deg). The auto-promoter refuses rotated nodes
-    // (its bake is device-space, integer-snapped, no resampling — rotation
-    // breaks that), so the strips stay pictures whose replay re-runs every
-    // shader. Three sketch-level bakes were tried and none is both correct and
-    // effective: (a) per-strip .cache(Cache::Texture) BAKES but is not
-    // pixel-safe — a bake isolates, so each bevel arris and the strip-abutment
-    // compositing resolve differently baked-than-live (~34% of pixels move);
-    // (b) a container-level .cache(Cache::Texture) on this group is a NO-OP
-    // (0 bakes: Cache::Texture bakes a node's OWN paint, and a fill-less
-    // container has none — its 523 children stay individually promoted); a
-    // transparent fill and .effect(Effect{}) to force a stacking context both
-    // still gave 0 bakes. Making the strips static (drop fade/pop) only drops
-    // CPU to ~30 ms (still FAIL) by removing the live-binding re-record cost,
-    // AND shifts 4% of settled pixels + loses the staggered assembly. The
-    // pixel-safe fix (composite the rotated strips into ONE unrotated
-    // device-space layer, then bake) needs a LIBRARY capability the sketch
-    // cannot reach. Left at the honest 183/133 ms FAIL pending that.
+    // ONE LINE, and it is the whole perf story of this study — so the
+    // investigation that produced it stays.
+    //
+    // kumiko was the study slow on BOTH backends (189 ms CPU / 112 ms GPU).
+    // Each strip is a wood-grain SkSL fill plus a BevelEmboss, every strip is
+    // ROTATED to its jig angle, and every strip carries a bound opacity and
+    // scale for the entrance. That binding is what made it uncacheable: the
+    // strips are Volatile forever — the Output never disconnects — so nothing
+    // in the library would hold pixels for them, and a picture replay re-runs
+    // every shader over every pixel, every frame.
+    //
+    // Three sketch-level bakes were tried and none was both correct and
+    // effective. (a) Per-strip .cache(Cache::Texture) BAKES but is not
+    // pixel-safe: a bake ISOLATES, so each bevel arris and the compositing
+    // where strips abut resolve differently baked-than-live — 34% of pixels
+    // moved, peak 0.57. (b) A container-level .cache(Cache::Texture) here is
+    // a NO-OP (0 bakes: Texture bakes a node's OWN paint and a fill-less
+    // container has none); a transparent fill and .effect(Effect{}) to force
+    // a stacking context both still gave 0 bakes. (c) Making the strips
+    // static drops CPU only to ~30 ms, shifts 4% of settled pixels, and
+    // loses the staggered assembly, which is the study.
+    //
+    // `Cache::Group` is (a) done at the right granularity. The whole lattice
+    // composites ONCE into one unrotated device-space layer — the rotations,
+    // the arrises and the abutments all resolve inside that bake at full
+    // precision — and the layer is held only while every bound opacity and
+    // scale below it is holding the value it held last frame. The entrance
+    // plays live, exactly as before; the settled panel is one blit.
     return group;
   }
 
   Element frame() {
-    auto group = box().inset(0, 0, 0, 0);
+    // The same argument as lattice(), on four members instead of 523: the
+    // mitred keyaki boards carry the same bound entrance, so they were the
+    // next two cost centres on the profile once the lattice stopped being
+    // one (9.55 and 6.91 ms of picture replay on 1081x45 and 721x45 boards).
+    auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)
         group.child(stripElement(panel.strips[i], bank, &fade[i], &pop[i]));

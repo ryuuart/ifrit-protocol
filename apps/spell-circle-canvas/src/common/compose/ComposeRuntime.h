@@ -148,6 +148,35 @@ struct Instance {
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
+  // ---- §30: Cache::Group, the SUBTREE value memo -------------------------
+  // §17 asked "did this node's own animated scalars move". A group asks the
+  // same question of a whole subtree, and for a different reason: kumiko's
+  // 523 strips are volatile not because their CONTENT changes — their
+  // pictures are stable — but because each carries a bound opacity and
+  // scale on a 6.4 s entrance. Nothing about them is cacheable by the
+  // volatility rule, and everything about them is cacheable for the four
+  // seconds a frame the entrance is not running.
+  //
+  // `groupSafe` is the subtree-wide AND: does this node, and everything
+  // under it, carry only volatility a float comparison can SEE? A live
+  // material, an animated decoration, a GIF frame, a bound Fill or a
+  // Cache::None paint program all move pixels with no float to compare, so
+  // one of them anywhere below a group root refuses the whole thing rather
+  // than baking something that goes stale silently.
+  bool groupSafe = false;
+  // …and may THIS node be a group root — cacheMode is Group, its own paint
+  // is memo-visible, every child is groupSafe, no backdrop filter. The
+  // root's own blend and opacity are deliberately allowed: they are applied
+  // by paint()'s saveLayer OUTSIDE the bake, exactly as they would be
+  // applied outside the live paint.
+  bool groupRootOK = false;
+  bool groupWarned = false; // the refusal is printed once per instance
+  // The subtree's animated scalars as of the PREVIOUS frame, in tree order.
+  // Compared by value, not by hash: a 64-bit digest of 2000 floats is a
+  // small chance of blitting last second's picture forever, and the vector
+  // costs 8 KB on the one node in a tree that asked for it.
+  std::vector<float> groupPrev;
+  bool groupPrevSeen = false;
   // Auto texture promotion: a rolling estimate of what this node's PAINT
   // costs each frame — a picture replay for a cached subtree, the live
   // draw for a leaf that never records one — and how many consecutive
@@ -419,6 +448,9 @@ struct Composer::Impl {
 
   // ---- volatility & caching (Paint.cpp) ----
   bool computeVolatile(detail::Instance &inst);
+  // Scratch for the §30 subtree value memo, swapped with the group root's
+  // `groupPrev` each frame so a settled group allocates nothing at all.
+  std::vector<float> groupScratch;
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance &inst);

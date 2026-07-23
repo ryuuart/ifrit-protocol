@@ -116,6 +116,64 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
   return &live;
 }
 
+/** §30: every animated scalar under a `Cache::Group` root, in tree order.
+ *
+ *  This is the whole invalidation mechanism, and therefore the whole risk.
+ *  What it gathers is the set of numbers that can change what the bake looks
+ *  like WITHOUT changing any description — which is exactly the set
+ *  `computeVolatile` calls volatility and refuses to cache across. Two rules
+ *  keep it honest:
+ *
+ *   - **Only LIVE slots are pushed.** A plain or settled value cannot move
+ *     without a patch, and a patch calls markPaintDirtyUp() on the group.
+ *     So the vector's LENGTH is part of the comparison: a motion connecting
+ *     or disconnecting changes it, and the group re-bakes.
+ *   - **The root's own transform and opacity are excluded.** They are
+ *     applied by paint()'s matrix and saveLayer, outside the bake, and a
+ *     fading group would otherwise drop its bake on every frame of the fade
+ *     for a change the bake does not contain. (Its own transform moving is
+ *     handled separately and more strictly — a device-pinned bake is refused
+ *     outright while the node moves.) The root's CONTENT scalars are inside
+ *     paintContent and are gathered like everyone else's.
+ *
+ *  Cost is one traversal of the subtree per frame, reading a handful of
+ *  floats per node: ~2000 reads for kumiko's 523 strips, against the 111 ms
+ *  it is deciding whether to skip. */
+void collectGroupScalars(const Instance &inst, bool root,
+                         std::vector<float> &out) {
+  const ElementNode &node = *inst.desc;
+  const auto push = [&](Instance::Slot slot, const PropValue<float> &v) {
+    if (v.binding() ||
+        (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
+      out.push_back(inst.resolveFloat(slot, v));
+  };
+  if (!root) {
+    push(Instance::kOpacity, node.paint.opacity);
+    push(Instance::kTx, node.paint.translateX);
+    push(Instance::kTy, node.paint.translateY);
+    push(Instance::kRotate, node.paint.rotate);
+    push(Instance::kScale, node.paint.scale);
+    push(Instance::kScaleX, node.paint.scaleX);
+    push(Instance::kScaleY, node.paint.scaleY);
+    push(Instance::kSkewX, node.paint.skewX);
+    push(Instance::kSkewY, node.paint.skewY);
+  }
+  if (node.hasTrim()) {
+    push(Instance::kTrimStart, node.fxData->trimStart);
+    push(Instance::kTrimEnd, node.fxData->trimEnd);
+    push(Instance::kTrimOffset, node.fxData->trimOffset);
+  }
+  if (node.fxData && node.fxData->hasWipe)
+    push(Instance::kWipe, node.fxData->wipeFraction);
+  if (const GlyphFx *g = glyphFxOf(node))
+    push(Instance::kGlyphProgress, g->progress);
+  if (inst.anims[Instance::kFillLerp] &&
+      inst.anims[Instance::kFillLerp]->value.isConnected())
+    out.push_back(inst.anims[Instance::kFillLerp]->value.value());
+  for (const auto &child : inst.children)
+    collectGroupScalars(*child, false, out);
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -199,11 +257,44 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.textData && node.textData->driveValue)
     ownContent = true; // VariationDrive repaints per frame (no reshape)
 
+  // §30: what a SUBTREE VALUE MEMO can and cannot see. A group bake is held
+  // by comparing floats, so every source of volatility in it must either BE
+  // a float this frame can read back (the transform slots, opacity, trim /
+  // wipe / glyph, the fill lerp) or arrive as a description change, which
+  // stales the group root through markPaintDirtyUp(). Everything listed here
+  // is neither: it moves pixels off the clock with no number to compare, and
+  // a group holding a bake across one of them would blit last second's
+  // picture forever. Refused outright rather than approximated — this is the
+  // whole risk of the feature, and it is the one place to be conservative.
+  bool opaqueToTheMemo = false;
+  if (node.paint.fill && node.paint.fill->binding())
+    opaqueToTheMemo = true; // a Fill is not a float
+  if (liveMat)
+    opaqueToTheMemo = true; // uTime / a bound uniform
+  if (const Material *mf = metricFillOf(node); mf && mf->isLive())
+    opaqueToTheMemo = true;
+  if (node.cacheMode == Cache::None)
+    opaqueToTheMemo = true; // declared per-frame volatility
+  for (const Decoration &d : node.backgrounds)
+    opaqueToTheMemo |= d.animated();
+  for (const Decoration &d : node.foregrounds)
+    opaqueToTheMemo |= d.animated();
+  if (node.fxData)
+    for (const Decoration &d : node.fxData->overlays)
+      opaqueToTheMemo |= d.animated();
+  if (node.kind == Kind::Image && imageAssetOf(node) &&
+      imageAssetOf(node)->animated())
+    opaqueToTheMemo = true;
+  if (node.textData && node.textData->driveValue)
+    opaqueToTheMemo = true;
+
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
+  bool childrenGroupSafe = true;
   for (auto &child : inst.children) {
     childrenVolatile |= computeVolatile(*child);
     childReadsBackdrop |= child->subtreeReadsBackdrop;
+    childrenGroupSafe &= child->groupSafe;
   }
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
@@ -219,6 +310,36 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
                           node.paint.blendMode != SkBlendMode::kSrcOver;
   inst.subtreeReadsBackdrop = inst.ownReadsBackdrop || childReadsBackdrop;
+
+  // §30, the two halves. `groupSafe` is what a PARENT asks of this subtree —
+  // and it includes this node's own backdrop read, because inside a group
+  // bake a kMultiply child resolves against transparent black exactly as it
+  // would under whole-subtree promotion. `groupRootOK` is what this node
+  // asks of ITSELF, and deliberately does not: a group root's own blend and
+  // opacity are applied by paint()'s saveLayer, outside the bake, exactly as
+  // they would be applied outside the live paint. A backdrop FILTER on the
+  // root is still fatal — it samples the destination, which the bake is not.
+  inst.groupSafe =
+      !opaqueToTheMemo && !inst.ownReadsBackdrop && childrenGroupSafe;
+  inst.groupRootOK = node.cacheMode == Cache::Group && !opaqueToTheMemo &&
+                     childrenGroupSafe && backdropEffectOf(node) == nullptr;
+  if (node.cacheMode == Cache::Group && !inst.groupRootOK && !inst.groupWarned) {
+    inst.groupWarned = true;
+    // Loud, because the alternative is an author reading `live paint,
+    // 663 ms` on a node they explicitly asked to bake and having no way to
+    // learn that one descendant three levels down declined it for them.
+    SkDebugf("sigilcompose Cache::Group: \"%s\" cannot bake — %s. A group is "
+             "held by comparing FLOATS, so live materials (uTime or a bound "
+             "uniform), animated decorations, animated images, bound fill(), "
+             "variable-font drives, Cache::None leaves and non-srcOver "
+             "blends below the root all refuse it.\n",
+             node.key.empty() ? "(anon)" : node.key.c_str(),
+             opaqueToTheMemo      ? "the group node itself carries volatility "
+                                    "the memo cannot see"
+             : !childrenGroupSafe ? "something in its subtree carries "
+                                    "volatility the memo cannot see"
+                                  : "it carries a backdrop filter");
+  }
 
   // subtreeVolatile gates the node's own caches: blocked by content volatility
   // here or ANY volatility below (children paint inside the recording,
@@ -299,7 +420,15 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   }
   if (inst.subtreeVolatile && !memoized) {
     inst.picture.reset();
-    inst.textureImage.reset();
+    // §30: a group root's bake is dropped by its OWN value memo, in paint(),
+    // one frame at a time. Dropping it here instead would drop it every
+    // frame — the subtree IS volatile, permanently, and that verdict is
+    // precisely the one the group exists to look past. `picture` is still
+    // reset: a group root never replays one, and leaving a stale recording
+    // reachable is how the fall-through path would blit last frame's pixels
+    // on the frame the memo just said not to.
+    if (!inst.groupRootOK)
+      inst.textureImage.reset();
   }
   return ownPaint || blocked;
 }
@@ -1262,7 +1391,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                         !node.fxData->hasWipe)) &&
       !layerEffectOf(node) &&
       !backdropEffectOf(node) &&
-      !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture;
+      !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
+      node.cacheMode != Cache::Group; // (same reason: bakes isolate)
   const bool needsLayer =
       (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
       !leafDirectBlend;
@@ -1784,6 +1914,154 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       canvas.restore();
     canvas.restore();
     return;
+  }
+
+  // ---- §30: Cache::Group — the whole subtree, held by a VALUE memo --------
+  //
+  // The problem this exists for, stated as the shape it has rather than as
+  // one study: MANY SMALL ROTATED PIECES FORMING ONE STATIC ASSEMBLY, each
+  // piece carrying a bound entrance. kumiko_asanoha is 523 hinoki strips,
+  // each an SkSL wood grain plus a BevelEmboss arris, each rotated to its
+  // jig angle, each with a bound opacity and scale on a 6.4 s loop that is
+  // finished by 3.4 s and then holds. Nothing in that description is
+  // cacheable by the volatility rule and everything in it is cacheable for
+  // three seconds in every six.
+  //
+  // WHY THE BAKE IS THE EASY HALF. This is the same construction the device
+  // path below and whole-subtree promotion already use: paintContent into a
+  // transparent layer whose canvas carries the node's exact matrix offset by
+  // an INTEGER device translation, then blit with the matrix reset. The
+  // children's rotations, their bevels and their mutual compositing all
+  // happen INSIDE that bake at full precision — which is exactly why it is
+  // pixel-safe where the per-strip Cache::Texture the study tried was not.
+  // That one isolated each piece into its own layer, so every arris and
+  // every abutment resolved against transparent black instead of against
+  // its neighbour, and 34% of the panel's pixels moved.
+  //
+  // WHY THE INVALIDATION IS THE HARD HALF, AND THE WHOLE FEATURE. A group
+  // may hold a bake only while it is provably not changing, and "not
+  // changing" cannot be read off the volatility verdict — that verdict says
+  // Volatile forever, correctly, because the bindings never disconnect. So
+  // the group compares VALUES, as §17 does for one node's content scalars,
+  // generalised to a whole subtree's bound transforms and opacities. Every
+  // frame: gather them, compare with last frame's, and on any difference at
+  // all DROP THE BAKE and paint live. A bake taken while the entrance is
+  // running would freeze the entrance, and it would look completely fine in
+  // any still.
+  //
+  // The refusals are in computeVolatile (`groupRootOK`), because they are
+  // about what the memo can SEE, not about this frame.
+  if (!liveOnly && inst.groupRootOK && recordingDepth == 0) {
+    // Gather, compare, and become last frame — in that order. The swap is
+    // what makes a settled group allocate nothing: `groupScratch` comes back
+    // holding the vector that was `groupPrev`, at the right capacity.
+    groupScratch.clear();
+    collectGroupScalars(inst, /*root=*/true, groupScratch);
+    const bool settled = inst.groupPrevSeen && groupScratch == inst.groupPrev;
+    std::swap(inst.groupPrev, groupScratch);
+    inst.groupPrevSeen = true;
+
+    // The device rect, and the two "is it holding still" questions the
+    // device path below asks for its own reasons — they are the same
+    // questions here. `transformLive` is the node's own declared motion; the
+    // rect comparison catches the motions no declaration can see (a resizing
+    // host, a pinch zoom, an uncached ancestor's live transform). A bake
+    // pinned to a rect that moves is a bake remade every frame, which costs
+    // strictly more than the paint it replaces.
+    // THE BAKE RECT IS CLIPPED TO THE CANVAS, and this is not an
+    // optimisation — it is the difference between 2871 differing pixels and
+    // zero. §25 measured it on the promoter: a bake rect LARGER than the
+    // device clip hands Skia a different clip to rasterize antialiased edges
+    // against, and that is worth tens of levels, not the one LSB an integer
+    // offset under rotation costs. A lattice of rotated boards with bevel
+    // bleed overruns its own canvas on all four sides, so this fires on
+    // exactly the content the feature exists for: measured here at peak
+    // channel delta 12 before the intersection and 0 after.
+    //
+    // Nothing visible is lost — content outside the device clip does not
+    // reach the canvas either way — and `getDeviceClipBounds()` is in base
+    // device coordinates, the same space the blit's resetMatrix() draws in,
+    // including inside the saveLayer an opacity/blend group opens.
+    SkIRect device = deviceRectOf();
+    const SkIRect clip = canvas.getDeviceClipBounds();
+    if (!device.intersect(clip))
+      device = SkIRect::MakeEmpty();
+    else
+      device = SkIRect::MakeLTRB(clip.left(), clip.top(), device.right(),
+                                 device.bottom());
+    const bool rectStable =
+        !inst.deviceRectSeen || device == inst.lastDeviceRect;
+    inst.lastDeviceRect = device;
+    inst.deviceRectSeen = true;
+
+    // THE DROP. Not "re-bake": a group whose bindings are ticking is
+    // ticking for a while, and re-baking each of those frames would pay the
+    // bake on top of the paint. Hold the pixels only while they are right.
+    if (!settled || inst.paintDirty)
+      inst.textureImage.reset();
+
+    const int64_t area = (int64_t)device.width() * device.height();
+    const size_t bytes = (size_t)std::max<int64_t>(area, 0) * 4;
+    const bool affordable =
+        inst.textureImage ||
+        std::max(promotedBytesLast, promotedBytes) + bytes <= kPromotedBudget;
+    if (settled && !inst.paintDirty && !inst.transformLive && rectStable &&
+        !totalM.hasPerspective() && device.width() > 0 &&
+        device.height() > 0 && area <= 16 * 1024 * 1024 && affordable) {
+      const SkRect want = SkRect::Make(device);
+      if (!inst.textureImage || !inst.textureDeviceSpace ||
+          inst.textureBakeRect != want) {
+        sk_sp<SkSurface> layer = canvas.makeSurface(
+            SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (!layer)
+          layer = SkSurfaces::Raster(
+              SkImageInfo::MakeN32Premul(device.width(), device.height()));
+        if (layer) {
+          SkCanvas *lc = layer->getCanvas();
+          lc->translate(-(float)device.left(), -(float)device.top());
+          lc->concat(totalM); // identical device geometry, offset by ints
+          // No leaf blend and no leaf opacity: bakes isolate, and the node's
+          // own blend/opacity are applied by the saveLayer wrapping the blit
+          // — which is why leafDirectBlend excludes Cache::Group.
+          paintContent(inst, *lc, hostScale);
+          inst.textureImage = layer->makeImageSnapshot();
+          inst.textureDeviceSpace = true;
+          inst.textureBakeRect = want;
+          inst.textureScale = maxScaleOf(totalM);
+          inst.paintDirty = false;
+          // A group root never replays a recording. It can have made one on
+          // its very first frame — before it had a previous frame to compare
+          // with, a group with a fully static subtree falls through to the
+          // picture branch once — and holding it after that is bytes nobody
+          // will ever read.
+          inst.picture.reset();
+          stats.picturesRecorded++;
+          stats.texturesBaked++;
+        }
+      }
+      if (inst.textureImage) {
+        promotedBytes += bytes;
+        if (profileScope.row != SIZE_MAX) {
+          profileRows[profileScope.row].cacheState = Composer::CacheState::Group;
+          profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+        }
+        canvas.save();
+        canvas.resetMatrix();
+        profDraw("group blit", [&] {
+          canvas.drawImage(inst.textureImage, (float)device.left(),
+                           (float)device.top(), SkSamplingOptions());
+        });
+        canvas.restore();
+        if (needsLayer)
+          canvas.restore();
+        canvas.restore();
+        return;
+      }
+    }
+    // Falls through: `cacheHolds` is false for a volatile group root, so the
+    // picture branch below cannot take it either and the node paints LIVE.
+    // That is the intended outcome on a ticking frame — the same paint the
+    // scene did before this feature existed.
   }
 
   if (!liveOnly && cacheHolds && node.cacheMode == Cache::Texture &&

@@ -263,6 +263,9 @@ int runBench(sigil::compose::sketch::SketchHost &host,
       case sigil::compose::Composer::CacheState::SplitOwn:
         state = "[OWN PAINT baked, live children over the blit]";
         break;
+      case sigil::compose::Composer::CacheState::Group:
+        state = "[group — subtree baked whole while its bindings hold still]";
+        break;
       }
       std::printf("    %8.2f ms  %-40s %s\n", row.selfMs, row.label.c_str(),
                   state);

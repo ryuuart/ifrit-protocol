@@ -1752,7 +1752,109 @@ Still open: a GPU counterpart to the 60 FPS gate in the ledger, and a
 per-node GPU cost measurement (timestamp queries) if promotion is ever to
 be justified on GPU.
 
-## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake
+## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake — **SHIPPED as `Cache::Group`, PIXEL-VERIFIED, NOT YET TIMED**
+
+> Shipped as `Cache::Group` in `Compose.h` / `Paint.cpp`, with the subtree
+> value memo that holds it. **The performance claim below (115.69 → ~4.95 ms)
+> is still a TARGET, not a result** — the session ended with the machine
+> under a corpus sweep and no reading was taken. Do not quote a number for
+> this until someone takes the before/after pair back to back on a clear
+> machine. What IS established is correctness, and the shape of the win:
+> kumiko's lattice reads `[group]` at **0.49 ms of recording time on a
+> 1400x1000 node that was 523 live pictures**, with `0 cache writes` in
+> steady state.
+>
+> ### What it is
+>
+> `Cache::Group` on a container bakes the container AND its children into
+> one unrotated device-space layer and blits it at an integer offset — the
+> construction promotion and the split bake already use. The children's
+> rotations, bevels and mutual compositing all resolve INSIDE the bake at
+> full precision, which is exactly why it is pixel-safe where the per-strip
+> `Cache::Texture` this section proposed was not (that isolated each piece;
+> 34% of pixels moved).
+>
+> **The bake was the easy half. The invalidation is the feature.** kumiko's
+> strips are `subtreeVolatile` forever — not because their content changes
+> but because each carries a live opacity/scale BINDING that never
+> disconnects. So the group is held by a SUBTREE VALUE MEMO: every frame,
+> gather every animated scalar below the node (transform slots, opacity,
+> trim/wipe/glyph, the fill lerp), compare with last frame's vector, and on
+> any difference DROP the bake and paint live. §17's `scalarMemo`
+> generalised from one node's content scalars to a whole subtree's bound
+> transforms. Exact comparison, not a hash: a 64-bit digest of 2000 floats
+> is a small chance of blitting last second's picture forever.
+>
+> Refusals are computed in `computeVolatile` (`groupSafe` / `groupRootOK`)
+> and printed once per node: a live material, an animated decoration, an
+> animated image, a bound `fill()`, a variable-font drive, a `Cache::None`
+> descendant or a non-srcOver blend below the root all refuse the bake
+> outright, because a float comparison cannot see any of them.
+>
+> ### THE FINDING, and it is bigger than this feature
+>
+> **Every pixel-identity test in `ComposeTest.cpp` composites over the
+> host's opaque BLACK clear — and premultiplied srcOver over opaque black
+> is `result.rgb = src.rgb`, with the destination term multiplied away. So
+> none of them can see the one error an isolating bake actually makes.**
+> Measured on the same 24-board rotated lattice:
+>
+> | reference | differing pixels | peak |
+> |---|---|---|
+> | over black | **0** | 0 |
+> | over a lit ground | 1847 / 57600 | 2/255 |
+> | over a lit ground, reference ALSO isolated in a layer | **0** | 0 |
+>
+> The residual is one extra 8-bit requantisation: an antialiased edge lands
+> in the bake as premultiplied coverage rounded to 8 bits and composites
+> from there, where live paint composites the same edge in one step from
+> full-precision coverage. It is **not** the rotation (a flat-colour fill
+> shows it just as strongly, 1474), **not** the shader's inverted CTM, and
+> **not** the integer device offset (snapping the offset to zero changed
+> nothing). It applies to `Cache::Texture` and to automatic promotion
+> exactly as much as to `Cache::Group`; it has simply never been visible.
+>
+> So the claim the tests make is the exact one: **a group bake is byte
+> identical to compositing the same subtree through a layer**, which is a
+> thing an author can already ask for by hand. Both spellings are asserted.
+>
+> ### One real bug the tests caught, which nothing else would have
+>
+> The first bake rect was the node's paint bounds, unclipped. A lattice of
+> rotated boards with bevel bleed overruns its own canvas on all four
+> sides, and a bake rect LARGER than the device clip hands Skia a different
+> clip to rasterize antialiased edges against — §25 measured this on the
+> promoter and it is worth tens of levels. Here: **peak channel delta 12
+> before intersecting the bake rect with `getDeviceClipBounds()`, 2 after.**
+> Nothing visible is lost, since content outside the device clip never
+> reaches the canvas either way.
+>
+> ### The positive control, run
+>
+> The drop-on-tick was deliberately defeated in `Paint.cpp` (the memo still
+> computed, never acted on — the most plausible way this breaks), rebuilt,
+> and the suite re-run. Three tests failed:
+> `GroupDropsTheBakeOnTheFrameABindingTicks` directly, and both pixel tests
+> at **238 of 241 frames, worst frame 17815 pixels at peak 217/255** —
+> against the honest residual of 1847 at peak 2. Two orders of magnitude in
+> both count and peak. Restored; 321/321 green.
+>
+> ### On kumiko itself
+>
+> `.cache(Cache::Group)` on `lattice()` (523 strips) and on `frame()` (4
+> mitred keyaki members, the next two cost centres once the lattice stopped
+> being one). Both read `[group]`. **Byte-identical at seven phases across
+> the 6.4 s loop** — 0.6 / 1.9 / 2.74 / 3.5 / 4.2 / 5.0 / 6.3 s, covering
+> the entrance, the seating beat, the hero and the wrap — 0 differing
+> pixels, peak 0, at 1400x1000. The remaining top cost is the backlight
+> (990x630 radial, 3.20 ms of picture replay); it is static and wants
+> `Cache::Texture`, and is untouched.
+>
+> ### Generalises to
+>
+> "Many small rotated/blended pieces forming one static assembly."
+> `sigillum_aemeth`'s plates, `thunder_fulu`'s stations and
+> `thaumonomicon`'s frame all rhyme with kumiko and were not tried.
 
 Characterised, because §29's default turns promotion off on GPU and
 therefore does NOT fix this — kumiko needs a different remedy.

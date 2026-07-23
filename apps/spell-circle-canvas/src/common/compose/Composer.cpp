@@ -241,7 +241,11 @@ void Composer::draw(SkCanvas &canvas) {
       const auto clear = [](auto &&self, detail::Instance &inst) -> void {
         inst.autoTexture = false;
         inst.hotFrames = 0;
-        if (inst.desc && inst.desc->cacheMode != Cache::Texture)
+        // Cache::Group is the author's bake too, and it is not promotion:
+        // dropping it here would cost a re-bake for a switch that has
+        // nothing to say about it.
+        if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
+            inst.desc->cacheMode != Cache::Group)
           inst.textureImage.reset();
         for (auto &child : inst.children)
           self(self, *child);
@@ -332,7 +336,8 @@ void Composer::setAutoTexturePromotion(bool on) {
       inst.hotFrames = 0;
       inst.replayMs = 0;
       inst.liveStableRate = 0;
-      if (inst.desc && inst.desc->cacheMode != Cache::Texture)
+      if (inst.desc && inst.desc->cacheMode != Cache::Texture &&
+          inst.desc->cacheMode != Cache::Group)
         inst.textureImage.reset();
       for (auto &child : inst.children)
         self(self, *child);
