@@ -760,10 +760,39 @@ struct Echo {
 /** Cache override. Auto (the default) picture-caches provably-static
  *  subtrees; Texture rasterizes the subtree once into an image (the
  *  raster-surface pixel win — best for dense or effect-heavy content,
- *  wasteful for sparse regions); None opts a node out (per-frame paint
+ *  wasteful for sparse regions); Group is Texture for a subtree whose
+ *  children ANIMATE (below); None opts a node out (per-frame paint
  *  programs that read the clock MUST declare this — declared
- *  volatility). */
-enum class Cache : uint8_t { Auto, Picture, Texture, None };
+ *  volatility).
+ *
+ *  **Group** — "many small rotated/blended pieces forming one static
+ *  assembly". `Cache::Texture` bakes a node's OWN paint and refuses the
+ *  moment anything below it is volatile, so a fill-less container of 523
+ *  animated strips gets zero bakes and every strip replays its shaders
+ *  every frame. `Cache::Group` bakes the container AND its children into
+ *  one unrotated device-space layer — the children's rotations, bevels and
+ *  mutual compositing all resolve INSIDE the bake at full precision, which
+ *  is why it is pixel-safe where a per-child `Cache::Texture` is not (that
+ *  isolates each piece and moved 34% of kumiko's pixels).
+ *
+ *  It is held by a SUBTREE VALUE MEMO, not by a volatility verdict: the
+ *  bake is taken only while every bound transform, opacity and content
+ *  scalar below the node is holding the value it held last frame, and is
+ *  dropped on the frame any of them ticks. So an entrance animation plays
+ *  live and the settled assembly costs one blit — measured on
+ *  `kumiko_asanoha`, 111.9 → 5.5 ms of GPU work.
+ *
+ *  It REFUSES, permanently and loudly (one line to stderr), any subtree
+ *  carrying volatility a float comparison cannot see: a live material
+ *  (`uTime` or a bound uniform), an animated decoration, an animated image,
+ *  a bound `fill()`, a variable-font drive, a `Cache::None` descendant, or
+ *  a non-srcOver blend / backdrop filter below the root (which would
+ *  resolve against the bake's transparent black). It also declines, per
+ *  frame, while its own transform animates or its device rect is moving —
+ *  a device-pinned bake remade every frame costs more than the paint it
+ *  replaces. `--bench` shows a held group as `[group]`; a Group node that
+ *  never reaches that state has one of the above in it. */
+enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
 
 // ---------------------------------------------------------------------------
 // Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)
@@ -1532,6 +1561,13 @@ public:
      *  one moving child shares the child's verdict and loses; this state
      *  says the two were separated. */
     SplitOwn,
+    /** Blitted a whole-subtree bake held by `Cache::Group`'s value memo:
+     *  the node AND its animated children, composited once into one
+     *  unrotated device layer while every bound scalar below holds still.
+     *  Distinct from Texture because the thing being asserted is
+     *  different — a Texture node is provably static, a Group node is
+     *  provably NOT CHANGING RIGHT NOW, and the difference is one frame. */
+    Group,
   };
   /** WHY a node is, or is not, a pixel bake.
    *

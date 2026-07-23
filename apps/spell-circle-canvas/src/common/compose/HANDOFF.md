@@ -134,3 +134,85 @@ inside the Modern hold).
 5. Use absolute paths; background shells reset cwd.
 6. A suite that passed is a claim about a BINARY, not a source tree.
 7. When a visual report names a cause, verify the cause is involved (§31).
+
+---
+
+## `Cache::Group` (§30) — shipped, pixel-verified, **NOT TIMED**
+
+Landed by maint at the end of the session. Read ROADMAP §30 first; it has
+the full write-up. This section is only what the next person must not
+assume.
+
+### Done, and verified
+
+- **The enum plumbing.** `Cache::Group` in `Compose.h` (inserted after
+  `Texture`, so `None` renumbered — nothing serializes `Cache`, and every
+  use site is a comparison), `CacheState::Group` for the profiler, the
+  `--bench` switch case, both `cacheMode != Cache::Texture` guards in
+  `Composer.cpp`, and the enum-coverage test.
+- **The subtree value memo, and it does drop on tick.** Asserted, not
+  argued: `GroupDropsTheBakeOnTheFrameABindingTicks` moves one binding and
+  requires the profile row to stop reading `Group` on that exact frame,
+  requires `texturesBaked == 0` on it (a re-bake per moving frame is the
+  fallout2 shape), then holds the phase and requires the bake to come back
+  with exactly one write. It sits under a `Cache::None` wrapper with
+  `requireRow()`, so it cannot go vacuous.
+- **The positive control WAS run.** The drop was defeated in `Paint.cpp`,
+  rebuilt, and the suite re-run: three tests fail, the pixel tests at 238
+  of 241 frames, worst 17815 pixels at peak 217/255, against an honest
+  residual of 1847 at peak 2. Restored; `compose_test` is 321/321 green on
+  a binary built at 23:0x by me.
+- **Pixel identity on kumiko itself**: 0 differing pixels at seven phases
+  across the 6.4 s loop, at 1400x1000, `.cache(Cache::Group)` on both
+  `lattice()` and `frame()`. Verified with ComposeSketch `--frame` against
+  a stripped copy of the same sketch, not against a stored capture.
+
+### NOT done — and the reason, which matters
+
+- **No performance number exists for this feature.** None. The 23x in §30
+  is the manager's hypothesis from a per-strip experiment, not a result
+  from `Cache::Group`. My one baseline reading (kumiko 111.88 GPU / 189.03
+  CPU raster, 22:25–22:30) is **QUARANTINED** — the machine was under a
+  continuous build/ctest/render load and then a corpus sweep for that whole
+  window. Do not use it, and do not use it as half of a pair.
+  **The next person takes before AND after back to back on a clear
+  machine.** Both halves must sit on the same commit and the same thermal
+  state; that is the only property that makes the delta mean anything.
+- **CPU raster is unmeasured too**, and it is the one that could regress:
+  the group bake is a large texture (kumiko's lattice bakes at roughly
+  canvas size) and a large baked texture is SAMPLED every frame whether or
+  not it is re-baked. That is exactly how fallout2's card cache stuck
+  perfectly and still regressed GPU 11.5 → 15–20 ms. The thrash proxy
+  (`0 cache writes`) is green here and proves nothing about bandwidth.
+- **The "feature present but not opted in" measurement was never taken.**
+  It separates "does Group help kumiko" from "does the memo machinery tax
+  every scene that never asks for it". The second is invisible unless
+  measured deliberately. The memo only walks the tree for nodes whose
+  `cacheMode == Cache::Group`, so the expected cost is the two extra bools
+  per node in `computeVolatile` — but expected is not measured.
+- **The stretch goal was not attempted**: `sigillum_aemeth`,
+  `thunder_fulu`, `thaumonomicon` all have kumiko's shape and none was
+  tried.
+
+### What the next person must not assume
+
+1. **Do not assume "byte-identical" is achievable in general.** It is not,
+   and the reason is now measured (ROADMAP §30): every existing pixel test
+   in this file composites over opaque BLACK, where srcOver's destination
+   term vanishes and an isolating bake cannot show its one error. Over a
+   lit ground the residual is 1847/57600 pixels at peak 2/255, and it goes
+   to exactly 0 when the reference is itself isolated in a layer. That is
+   the standard `Cache::Group` holds, and `Cache::Texture` and automatic
+   promotion have always had the same property without anyone noticing.
+2. **Do not remove the bake-rect clip** in the group branch of `Paint.cpp`.
+   Intersecting with `getDeviceClipBounds()` is worth peak 12 → 2 on
+   content that overruns its canvas, which is most content this feature is
+   for.
+3. **`groupRootOK` must stay out of `memoized`** in `computeVolatile`. It
+   is deliberately excluded so that `cacheHolds` stays false for a volatile
+   group root and a ticking frame falls through to LIVE paint. Folding it
+   in would let a dropped group replay a stale picture instead, which no
+   pixel test over black would catch.
+4. The refusal list in the header is tested (`GroupRefusesWhatItsMemoCannotSee`,
+   `AMovingGroupRefusesTheBakeRatherThanRemakingIt`) — §28 discipline. Any
+   new limit added to that doc comment needs a case in those tests.
