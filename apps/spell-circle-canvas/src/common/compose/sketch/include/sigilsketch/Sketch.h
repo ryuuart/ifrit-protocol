@@ -32,7 +32,7 @@ namespace sigil::compose::sketch {
 
 /** Bumped whenever SketchContext/Sketch change shape; the host refuses
  *  sketch dylibs built against another version. */
-inline constexpr unsigned kAbiVersion = 3;
+inline constexpr unsigned kAbiVersion = 4; // 4: CanvasSpec::captureSeconds
 
 /** The canvas the host realizes for the sketch: logical size (the
  *  window letterboxes it, headless captures honor it) and the clear
@@ -40,6 +40,10 @@ inline constexpr unsigned kAbiVersion = 3;
 struct CanvasSpec {
   SkSize size = {900, 640};
   SkColor4f background = {0.043f, 0.039f, 0.078f, 1};
+  /** Scene time, in seconds, at which a still of this sketch is
+   *  representative; negative means the host chooses. See
+   *  `SketchContext::captureAt` and `gallery::Scene::captureSeconds`. */
+  double captureSeconds = -1.0;
 };
 
 struct SketchContext {
@@ -98,6 +102,24 @@ struct SketchContext {
   void background(SkColor4f color) {
     if (spec)
       spec->background = color;
+  }
+
+  /** Declare the scene time a STILL of this sketch should be taken at —
+   *  the moment the piece is most itself. Only stills honor it; the live
+   *  host and the timing table are untouched.
+   *
+   *  Reach for it whenever the sketch has beats: an entrance that settles
+   *  into a hold, a cycle that visits several states, a reveal. The gallery
+   *  otherwise captures at a fixed t = 6.0 s that is an artifact of its
+   *  warm-and-sample budget, and a sketch whose loop is longer than that
+   *  will be reviewed mid-gesture. `black_watch` turns five shade families
+   *  over an 8 s cycle and was captured, for its whole life, on the
+   *  weathered one.
+   *
+   *      ctx.captureAt(7.2); // loom 0.90 — the Modern hold */
+  void captureAt(double seconds) {
+    if (spec)
+      spec->captureSeconds = seconds;
   }
 };
 

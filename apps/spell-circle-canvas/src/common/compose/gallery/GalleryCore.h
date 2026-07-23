@@ -107,6 +107,36 @@ struct Scene {
   /** What the host clears to behind the scene. Studies that rebuild paper
    *  or a lit desk need it; the catalog scenes are all built on black. */
   virtual SkColor4f background() const { return {0, 0, 0, 1}; }
+
+  /** The scene time, in seconds, at which this scene is most ITSELF — the
+   *  frame a reviewer should be shown. Negative means "no preference": the
+   *  sweep uses its derived capture frame.
+   *
+   *  WHY THIS EXISTS. Making the capture deterministic fixed a real bug
+   *  (two sweeps differed on 15 of 45 scenes) but answered only half the
+   *  question: the capture is now always the same frame, and that frame is
+   *  a fixed t = 6.0 s that no scene was authored to look best at. It is
+   *  whatever probe + warm + sample happens to add up to.
+   *
+   *  `black watch` is how that surfaced. Its loom is an 8 s cycle that
+   *  weaves the cloth, proves the arithmetic, then turns FIVE shade
+   *  families over one another — Modern, Ancient, Muted, Weathered,
+   *  Reproduction — before returning to Modern for the hold. t = 6.0 s is
+   *  loom 0.75, which lands inside the WEATHERED hold. So the hero cloth on
+   *  a plate titled BLACK WATCH (GOVERNMENT) rendered brown and olive while
+   *  its own shade cards, three inches to the right, showed the navy and
+   *  green everyone knows. It was reported as an incorrect blending layer.
+   *  Nothing was blending wrong: the panel was a correct frame of a correct
+   *  animation, sampled at a moment chosen by an arithmetic identity.
+   *
+   *  The lesson generalises past the one scene. A still of an animation is
+   *  a CLAIM about that animation, and a harness that picks the moment by
+   *  accident will eventually make a claim the author never intended —
+   *  which is unfalsifiable from the still alone, because a wrong-looking
+   *  frame and a wrongly-chosen frame look identical. Determinism made
+   *  captures reproducible; this makes them REPRESENTATIVE, and the two are
+   *  not the same property. */
+  virtual double captureSeconds() const { return -1.0; }
 };
 
 // ---------------------------------------------------------------------------

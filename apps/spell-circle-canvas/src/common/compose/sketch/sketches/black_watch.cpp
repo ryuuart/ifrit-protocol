@@ -1362,6 +1362,16 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     build();
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kCard);
+    // The still belongs to the MODERN hold. The loop weaves, proves, then
+    // turns the five shade families over one another (see `turns`), so most
+    // of its 8 s shows a cloth that is a correct Black Watch in some OTHER
+    // registered palette. The gallery's fixed t = 6.0 s is loom 0.75 —
+    // dead centre of the WEATHERED card — so every still ever taken of this
+    // plate showed brown and olive under a title reading GOVERNMENT, beside
+    // its own shade cards showing the navy and green. It read as a bad
+    // blend layer and was none: right frame of the wrong beat.
+    // 7.2 s is loom 0.90, inside the final Modern hold (0.85 -> 1.0).
+    ctx.captureAt(7.2);
     ctx.ticker.add([this](double dt) {
       clock += dt;
       loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);
