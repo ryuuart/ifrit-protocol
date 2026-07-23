@@ -1810,3 +1810,64 @@ dominate is the one that a raster gate flatters and a GPU punishes.
 - **`SketchContext` dangles if captured by reference in a steppable.** It
   is a per-frame value the host rebuilds. Now documented in
   `sketch/README.md`; making it non-copyable would be better.
+
+## 31. A still is a CLAIM about an animation — and the harness was choosing it
+
+**Status: closed for the mechanism (61c8963, ffc8b04), open for the audit.**
+
+§26 made gallery captures reproducible: two consecutive sweeps had differed
+on 15 of 45 scenes, so no plate had ever been verifiable frame to frame.
+The fix derived the capture frame from the probe/warm/sample caps, and it
+was correct. It also answered only half the question.
+
+The frame it derives is a fixed **t = 6.0 s** — 360 frames at dt = 1/60,
+which is `kProbeFrames + kMaxWarmFrames + kMaxSampleFrames` and nothing
+else. No scene was authored to look best at an arithmetic identity, and
+scenes whose loops run longer than 6 s are photographed wherever that
+lands.
+
+**How it surfaced.** `black watch` weaves a tartan, proves its arithmetic,
+then turns five *registered* shade families over one another — Modern,
+Ancient, Muted, Weathered, Reproduction — before returning to Modern for
+the hold. Its cycle is 8 s, so t = 6.0 s is loom 0.75: dead centre of the
+WEATHERED card. Every still ever taken of that plate showed brown and
+olive cloth under a title reading BLACK WATCH (GOVERNMENT), beside its own
+shade cards showing the navy and green everyone knows. It was reported as
+an incorrect blending layer on top. Sampling settled it: the panel is
+`#3D2A20` against the weathered card's `#4C3428` — exactly itself under
+the multiply grain. **Right frame of the wrong beat.**
+
+**Why it survived review.** From the still alone, a wrong-looking frame
+and a wrongly-*chosen* frame are indistinguishable. It went through several
+review passes, including one where a person looked straight at it and
+correctly said something was wrong — and the wrongness was unattributable
+without reading the loop and recompiling, so it stayed.
+
+This is the second instance this session of the same shape: **a visual
+report named a mechanism, and the mechanism was innocent.** `aero desktop`
+was reported as opaque glass with a suspected broken/inert backdrop; the
+backdrop had been rendering correctly the whole time and a 0.54 tint alpha
+was the entire story (12b15e9). The rule that falls out is cheap and would
+have saved both: *when a report names a cause, verify the cause is even
+involved before fixing it* — one A/B, one sample, before any edit.
+
+**The mechanism.** `Scene::captureSeconds()` sits alongside `canvasSize()`
+and `background()`, the two other harness assumptions scenes had already
+had to take back; sketches declare it `ctx.captureAt(seconds)` the way they
+declare their canvas. Reaching a declared time rebuilds and steps exactly,
+from zero — the benchmark frames cannot be reused, because their count is
+machine-dependent (the §26 bug) and a declared time may be *earlier* than
+them, which there is no rewind for. Proven to be the same machinery, not a
+second path: `--capture-at 6.0` reproduces the default at **0 differing
+pixels** on `y2k chrome`, `aero desktop`, `persona menu`.
+
+**Open: the audit.** `--capture-at` exists so the corpus question is
+askable — sweep at two scene times and diff, and whatever differs was
+moving under the shutter. Those scenes are not necessarily wrong; each
+needs its author to say whether the moment it was caught at is the one
+worth showing. Only `black watch` has been given a declaration so far
+(7.2 s, loom 0.90, inside the Modern hold).
+
+Determinism made the captures reproducible. This makes them
+*representative*. They are not the same property, and the corpus spent its
+whole life with only the first one.
