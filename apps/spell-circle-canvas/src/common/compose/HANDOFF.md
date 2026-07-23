@@ -69,29 +69,40 @@ build/bin/Release/ComposeGallery.app/Contents/MacOS/ComposeGallery \
 # then diff pairwise; whatever differs was moving under the shutter
 ```
 
-**Partial result, 19 pairs — 18 of 19 scenes are in motion at capture:**
+**COMPLETE result, all 56 pairs. 52 of 56 scenes are in motion when the
+gallery photographs them. Only four are settled:** `beethoven`,
+`fallout2 charsheet`, `penrose paving`, `stock materials`.
 
-| scene | % pixels differing 6.0 vs 7.0 |
-|---|---|
-| daemon console | 98.68 |
-| ui_particles | 88.61 |
-| flourish | 67.48 |
-| zellige | 62.28 |
-| aero desktop | 31.50 |
-| persona menu | 10.82 |
-| botanical | 8.64 |
-| manuscript | 8.33 |
-| load | 6.84 |
-| passive tree | 6.82 |
-| motion poster | 6.39 |
-| nineslice | 4.44 |
-| organic | 2.97 |
-| tilemap | 1.65 |
-| kinetic card | 1.36 |
-| world hud | 1.36 |
-| y2k chrome | 0.66 |
-| night network | 0.42 |
-| **beethoven** | **0.00 — the only settled plate** |
+Top of the range (% of pixels differing between t=6.0 s and t=7.0 s):
+
+| scene | % | scene | % |
+|---|---|---|---|
+| daemon console | 98.68 | vertigo titles | 11.71 |
+| ui_particles | 88.61 | persona menu | 10.82 |
+| flourish | 67.48 | genesis fire | 10.41 |
+| ds2 bench | 66.84 | botanical | 8.64 |
+| zellige | 62.28 | vagrant story target | 8.34 |
+| thaumonomicon | 58.92 | manuscript | 8.33 |
+| kumiko asanoha | 55.79 | load | 6.84 |
+| eva magi defense | 50.06 | passive tree | 6.82 |
+| xcom battlescape | 49.25 | motion poster | 6.39 |
+| black watch | 33.09 | bg3 dice roll | 6.08 |
+| aero desktop | 31.50 | twoadvanced v4 | 5.94 |
+| psx doom fire | 27.79 | nineslice | 4.44 |
+| slitscan 2001 | 18.84 | ksp mapview | 4.11 |
+| cosmati | 16.97 | chevreul circle | 4.06 |
+| lain navi | 14.39 | astral tome | 4.00 |
+
+Below 4%: loot grid 3.77, dunhuang star chart 3.71, eva magi interior
+3.51, organic 2.97, spacejam 1996 2.71, chladni tab1 2.62, hitman verlet
+1.84, tilemap 1.65, kinetic card 1.36, world hud 1.36, winamp base 1.20,
+cde motif 1.13, hello 0.96, sigillum aemeth 0.91, chaucer astrolabe 0.91,
+y2k chrome 0.66, night network 0.42, gerstner grid 0.40, nightingale
+coxcomb 0.35, minard 1869 0.34, thunder fulu 0.23, stroke atlas 0.03.
+
+(`black watch` at 33.09 is the control: the two passes force 6.0 and 7.0,
+straddling the Weathered/Modern boundary, which is exactly the defect this
+found. Its shipped default is now its own declared 7.2 s.)
 
 **Differing does NOT mean wrong.** The judgement is per scene and it is
 the whole remaining task:
