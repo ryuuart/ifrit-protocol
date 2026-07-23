@@ -186,6 +186,7 @@ public:
   const char *name() const override { return m_info->name; }
   SkSize canvasSize() const override { return m_spec.size; }
   SkColor4f background() const override { return m_spec.background; }
+  double captureSeconds() const override { return m_spec.captureSeconds; }
 
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     m_composer = &composer;

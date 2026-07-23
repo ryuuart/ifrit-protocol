@@ -343,10 +343,42 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // it keeps its budget and its `*` mark.
     constexpr int kCaptureFrame =
         kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
-    const int stepped = kProbeFrames + warmFrames + sampleFrames;
-    for (int f = stepped; f < kCaptureFrame; ++f) {
-      surface->getCanvas()->clear(clearColor);
-      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+    // ...unless the scene NAMES its moment (Scene::captureSeconds). Reaching
+    // a declared time cannot reuse the top-up above, for two independent
+    // reasons: `stepped` is machine-dependent — the very bug the derived
+    // frame fixed — and a declared time may be EARLIER than the frames
+    // already spent benchmarking, which there is no way to rewind. So the
+    // scene is rebuilt and stepped exactly, from zero, at the same fixed
+    // step. The capture frame is then a function of the DECLARATION alone,
+    // which is the same property the derived frame bought, obtained the same
+    // way: never let a machine's speed reach the image.
+    //
+    // The rebuild reuses the surface because it comes from the same factory
+    // and therefore declares the same canvas; the sizes are asserted rather
+    // than assumed, since a scene that resized on rebuild would otherwise
+    // draw into a surface of the wrong shape and merely look odd.
+    const double declared = stage.scene->captureSeconds();
+    if (declared > 0) {
+      stage.activate(makeScene(i));
+      if (noPromotion)
+        stage.composer->setAutoTexturePromotion(false);
+      if (stage.sceneSize != sceneSize) {
+        std::fprintf(stderr,
+                     "scene %s declared a different canvas on rebuild\n",
+                     stage.scene->name());
+        return 1;
+      }
+      const int captureFrame = (int)(declared * 60.0 + 0.5);
+      for (int f = 0; f < captureFrame; ++f) {
+        surface->getCanvas()->clear(clearColor);
+        stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+      }
+    } else {
+      const int stepped = kProbeFrames + warmFrames + sampleFrames;
+      for (int f = stepped; f < kCaptureFrame; ++f) {
+        surface->getCanvas()->clear(clearColor);
+        stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+      }
     }
 
     char canvasLabel[24];
