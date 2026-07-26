@@ -1731,6 +1731,39 @@ value-site spec), and the scheme declaration word (`animates()` vs
 `animated()`/`isLive()`). Only the `withFrom`/`withKeyframes` family
 actually renames, which shrinks the probe.
 
+RULINGS SESSION (2026-07-27, designer — twelve calls, closing the
+taste agenda; the standing doctrine change first): **REPLACE, not
+converge** — alias-first was the migration mechanism, never the end
+state; after the corpus ports to the new grammar, the legacy
+spellings are DELETED. The rulings: (1) per-property change ramp is
+`animate(to(v), spec)` — to() alone means ramp-on-change, from().to()
+means entrance; with() dies in the port. (2) The scheme
+self-declaration word is `animates()` — unifies the five volatility
+spellings; animated()/isLive() die. (3) Bound's stages rename
+`from/to` → `source(lo,hi)/target(lo,hi)` — the authored from/to
+keeps its words. (4) Namespace convention RATIFIED as shipped: value
+types live in concept namespaces, free verbs stay top-level and
+qualify at colliding sites. (5) The across sign: LEFT of travel wins
+everywhere; lines::' right-of-travel members die in the port. (6) The
+decoration cache home: an Instance-side slot map handed through
+PaintContext — serves §16 and the crossing cache in one design. (7)
+The weave's two limits (translucent double-cover, close-knot
+territory) are ACCEPTED; the crossover pass owns them. (8)
+cornerAlign becomes a REQUIRED argument — the break rides the port.
+(9) Pool::touch() → commit(). (10) brushes:: folds into brush:: and
+dies (Ribbon→profile seam, restyle→.shaped()). (11) The derive family
+gathers under derive:: (the phase name is canon vocabulary). (12) §8b
+closes: a milled groove is band+fill; no crossFill lane.
+
+THE REPLACEMENT PROGRAM, gated in order: phase R1 — land the ruled
+spellings additively (animate(to), animates(), source/target,
+commit(), derive::, the brushes:: fold) plus the wrapping span (N7,
+trim's last job); phase R2 — port the corpus sweep-style with pixel
+verification (503 outline(, 128 withFrom(, 81 trim(, 39 PropValue<,
+the ops::/linearUnit/widthFn stragglers); phase R3 — DELETE the
+legacy spellings and the aliases, one loud commit. §31's beat
+judgements and the measurement campaign remain separate tracks.
+
 BRUSH & STROKE GRAMMAR — consolidated 2026-07-26 after six sample
 rounds with the designer. Supersedes the 2026-07-25 interim record
 (which had corners-as-kinds and weave-as-container; both were walked
