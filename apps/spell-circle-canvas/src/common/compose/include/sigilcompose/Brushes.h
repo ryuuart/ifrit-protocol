@@ -529,12 +529,14 @@ struct Weave {
     return strands == o.strands && crossing == o.crossing &&
            patch == o.patch;
   }
-  bool animated() const {
+  bool animates() const {
     for (const Strand &s : strands)
-      if (s.brush.animated())
+      if (s.brush.animates())
         return true;
     return false;
   }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float bleed() const {
     float worst = 0;
     for (const Strand &s : strands)
@@ -748,7 +750,7 @@ struct Brush {
     pipeline.push_back(GeometryOp(std::move(s)));
     return *this;
   }
-  /** Legacy spelling of shaped() — retained indefinitely (§27). `op` and
+  /** Legacy spelling of shaped() — retained until the R3 deletion (ROADMAP §33) (§27). `op` and
    *  `GeometryOp` name the mechanism; a shaper names what it does. */
   Brush &op(GeometryOp g) {
     pipeline.push_back(std::move(g));
@@ -762,12 +764,14 @@ struct Brush {
   bool operator==(const Brush &o) const {
     return pipeline == o.pipeline && legs == o.legs;
   }
-  bool animated() const {
+  bool animates() const {
     for (const Leg &l : legs)
-      if (l.dec.animated())
+      if (l.dec.animates())
         return true;
     return false;
   }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   /** The widest mark any leg paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
@@ -837,7 +841,9 @@ struct Restyled {
   Decoration inner;
   float extraBleed = 8.0f; // the op's own overhang (wave amplitude…)
 
-  bool animated() const { return inner.animated(); }
+  bool animates() const { return inner.animates(); }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float bleed() const { return inner.bleed() + extraBleed; }
   float reach() const { return inner.reach(); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be
@@ -1064,7 +1070,9 @@ struct ScatterBrush {
   StampModFn mod;
   bool animatedMod = false; ///< mod reads time → repaint per frame
 
-  bool animated() const { return animatedMod; }
+  bool animates() const { return animatedMod; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float bleed() const { return reach; }
   bool operator==(const ScatterBrush &o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
@@ -1117,15 +1125,98 @@ struct ScatterBrush {
   }
 };
 
+/** Which way a corner tile faces. **There is no default**, and that is
+ *  the whole design: it is not a preference, it is a statement about what
+ *  the art LOOKS LIKE, and the library cannot see the art.
+ *
+ *  WHICH ONE:
+ *
+ *  - `Bisector` — for an ORNAMENT: art symmetric about its own bisector,
+ *    drawn once and serving all four corners of a frame. A fleuron, a
+ *    rosette, a bracket.
+ *  - `Outgoing` — for anything with a distinguishable ENTRY and EXIT: an
+ *    elbow of pipe, a flow tick, an arrow turning a corner, a cross whose
+ *    arms are meant to lie along the edges. This class is not exotic — it
+ *    is **two of the five corner consumers in this corpus, and both of
+ *    them shipped broken.**
+ *
+ *  Bisector does NOT buy you one art instead of two. The arms of a
+ *  bisector-aligned tile sit at `(turn/2, 180 − turn/2)` off the bisector
+ *  and mirror with the SIGN of the turn, so a handed ornament costs two
+ *  drawings either way.
+ *
+ *  ---
+ *  **CHANGELOG — if your art predates `f706f5d` (2026-07-22 12:03), IT IS
+ *  ALIGNED WRONG AND YOU MUST ASK FOR `Outgoing`.**
+ *
+ *  Before that commit the bisector was computed by re-probing at d±2 from
+ *  a point already past the vertex, so both probes landed on the SAME leg
+ *  and every corner in every study behaved as `Outgoing` — not as a
+ *  choice, as a bug. Art authored then is authored in the outgoing frame.
+ *  `f706f5d` fixed the probe and added an alignment field defaulting to
+ *  `Bisector`, and the two correct halves together silently re-aimed every
+ *  corner stamp in the corpus by half the turn angle. It was
+ *  source-compatible, warned nothing, and edited no file its victims
+ *  owned. (The commit's subject line is about caching, so
+ *  `git log --oneline` gives no hint either.)
+ *
+ *  Two studies shipped visibly wrong through review. The worst case of the
+ *  class is structural and worth knowing: **every corner of an annular
+ *  sector is a right angle**, so the bisector sits 45° from BOTH legs —
+ *  and a shape with 90° symmetry (a Greek cross) is therefore
+ *  corner-agnostic under `Outgoing` and uniformly, maximally wrong under
+ *  `Bisector`. Twenty-eight crosses had been twenty-eight saltires.
+ *
+ *  **TO AUDIT A STUDY, IN THIRTY SECONDS:** set the other value in a
+ *  scratch copy, re-render the same `--at`, and diff. If nothing moves,
+ *  the art is rotationally forgiving and the study is *proved* clean; if
+ *  corners snap, it was broken. Render a third variant with no corner art
+ *  to mask the stamps, and you can MEASURE the rotation instead of judging
+ *  it. Judging it by eye failed twice on the same plate. */
+enum class CornerAlign { Bisector, Outgoing };
+
+/** CORNER ART AND HOW IT IS AIMED — one value, because the second half is
+ *  not optional information about the first.
+ *
+ *  This is ROADMAP §27's own conclusion, finally landed (§33 ruling 8):
+ *  *"a required constructor argument would be better and costs a source
+ *  break at all five consumers."* A `std::optional<CornerAlign>` beside
+ *  the art could only WARN at paint time, which is a diagnostic for a
+ *  mistake the type system can refuse outright. There is no default
+ *  constructor and no default member initializer: you cannot hand this
+ *  brush a corner tile without saying which way it faces.
+ *
+ *      pb.corner = brushes::CornerArt{elbow, brushes::CornerAlign::Outgoing};
+ */
+struct CornerArt {
+  Element art;
+  CornerAlign align;
+  CornerArt(Element artIn, CornerAlign alignIn)
+      : art(std::move(artIn)), align(alignIn) {}
+  bool operator==(const CornerArt &o) const {
+    return art.node() == o.art.node() && align == o.align;
+  }
+};
+
 /** The PATTERN brush (Illustrator tile semantics): a SIDE tile repeated an
  *  INTEGER number of times per run and stretched along the tangent to fit
  *  exactly (never a torn tile at the end); optional CORNER tiles where the
- *  tangent breaks by more than `cornerAngleDeg` (placed on the bisector);
- *  optional START/END tiles on open contours. Runs are the stretches
+ *  tangent breaks by more than `cornerAngleDeg` (placed on the bisector,
+ *  or on the outgoing leg — `CornerArt` carries the choice and requires
+ *  it); optional START/END tiles on open contours. Runs are the stretches
  *  between corners. An art brush is the one-tile degenerate case. */
 struct PatternBrush {
+  /** Nested legacy spellings — `brushes::PatternBrush::CornerAlign::…`
+   *  keeps compiling; the type itself now lives at `brushes::` scope so
+   *  `CornerArt` can name it. */
+  using CornerAlign = brushes::CornerAlign;
+  using CornerArt = brushes::CornerArt;
+
   Element side;
-  std::optional<Element> start, end, corner;
+  std::optional<Element> start, end;
+  /** Corner tiles, and their alignment — see CornerArt. Absent means the
+   *  runs simply meet at the break. */
+  std::optional<CornerArt> corner;
   float advance = 0;           ///< tile length along the path (0 → intrinsic)
   /** PER-SAMPLE tangent break — gently ROUNDED corners intentionally take
    *  no corner tile (no hard break exists).
@@ -1154,82 +1245,23 @@ struct PatternBrush {
    *  will shift side-tile phase very slightly; that is the corner finally
    *  taking up its own room. */
   float cornerLength = 0.0f;
-  /** Which way a corner tile faces. **CHOOSE THIS EXPLICITLY WHENEVER YOU
-   *  SET `corner`.** It is not a preference; it is a statement about what
-   *  the art looks like, and the library cannot see the art.
-   *
-   *  WHICH ONE:
-   *
-   *  - `Bisector` — for an ORNAMENT: art symmetric about its own
-   *    bisector, drawn once and serving all four corners of a frame. A
-   *    fleuron, a rosette, a bracket.
-   *  - `Outgoing` — for anything with a distinguishable ENTRY and EXIT:
-   *    an elbow of pipe, a flow tick, an arrow turning a corner, a cross
-   *    whose arms are meant to lie along the edges. This class is not
-   *    exotic — it is **two of the five corner consumers in this corpus,
-   *    and both of them shipped broken.**
-   *
-   *  Bisector does NOT buy you one art instead of two. The arms of a
-   *  bisector-aligned tile sit at `(turn/2, 180 − turn/2)` off the
-   *  bisector and mirror with the SIGN of the turn, so a handed ornament
-   *  costs two drawings either way.
-   *
-   *  ---
-   *  **CHANGELOG — if your art predates `f706f5d` (2026-07-22 12:03),
-   *  IT IS ALIGNED WRONG AND YOU MUST ASK FOR `Outgoing` EXPLICITLY.**
-   *
-   *  Before that commit the bisector was computed by re-probing at d±2
-   *  from a point already past the vertex, so both probes landed on the
-   *  SAME leg and every corner in every study behaved as `Outgoing` — not
-   *  as a choice, as a bug. Art authored then is authored in the outgoing
-   *  frame. `f706f5d` fixed the probe and added this field defaulting to
-   *  `Bisector`, and the two correct halves together silently re-aimed
-   *  every corner stamp in the corpus by half the turn angle. It was
-   *  source-compatible, warned nothing, and edited no file its victims
-   *  owned. (The commit's subject line is about caching; the corner
-   *  change is buried in it, so `git log --oneline` gives no hint either.)
-   *
-   *  Two studies shipped visibly wrong through review. The worst case of
-   *  the class is structural and worth knowing: **every corner of an
-   *  annular sector is a right angle**, so the bisector sits 45° from
-   *  BOTH legs — and a shape with 90° symmetry (a Greek cross) is
-   *  therefore corner-agnostic under `Outgoing` and uniformly, maximally
-   *  wrong under `Bisector`. Twenty-eight crosses had been twenty-eight
-   *  saltires.
-   *
-   *  **TO AUDIT A STUDY, IN THIRTY SECONDS:** set the other value in a
-   *  scratch copy, re-render the same `--at`, and diff. If nothing moves,
-   *  the art is rotationally forgiving and the study is *proved* clean;
-   *  if corners snap, it was broken. Render a third variant with `corner`
-   *  unset to mask the stamps, and you can MEASURE the rotation instead
-   *  of judging it. Judging it by eye failed twice on the same plate. */
-  enum class CornerAlign { Bisector, Outgoing };
-  /** Unset means `Bisector`, and warns once when `corner` art is present:
-   *  a defaulted enum on a field whose correct value depends on what the
-   *  art LOOKS LIKE is a default that cannot be right, so the library
-   *  says so rather than choosing silently. Kept as an optional rather
-   *  than made a required constructor argument so that every existing
-   *  designated-initializer call site still compiles and still renders
-   *  identically — the diagnostic is the change, not the behaviour. */
-  std::optional<CornerAlign> cornerAlign;
-  CornerAlign resolvedCornerAlign() const {
-    return cornerAlign.value_or(CornerAlign::Bisector);
-  }
   bool stretchToFit = true;    ///< false: natural size, slack spread evenly
   float reach = 32.0f;         ///< cull reserve
   StampModFn mod;              ///< side tiles only
   bool animatedMod = false;
 
-  bool animated() const { return animatedMod; }
+  bool animates() const { return animatedMod; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float bleed() const { return reach; }
   bool operator==(const PatternBrush &o) const {
     auto node = [](const std::optional<Element> &e) {
       return e ? e->node().get() : nullptr;
     };
     return side.node() == o.side.node() && node(start) == node(o.start) &&
-           node(end) == node(o.end) && node(corner) == node(o.corner) &&
+           node(end) == node(o.end) && corner == o.corner &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
-           cornerLength == o.cornerLength && cornerAlign == o.cornerAlign &&
+           cornerLength == o.cornerLength &&
            stretchToFit == o.stretchToFit && reach == o.reach && !mod &&
            !o.mod && animatedMod == o.animatedMod;
   }
@@ -1267,7 +1299,7 @@ struct PatternBrush {
     const void *sideNode = side.node().get();
     const void *startNode = node(start);
     const void *endNode = node(end);
-    const void *cornerNode = node(corner);
+    const void *cornerNode = corner ? corner->art.node().get() : nullptr;
     if (cache->bakedSide != sideNode || cache->bakedStart != startNode ||
         cache->bakedEnd != endNode || cache->bakedCorner != cornerNode) {
       *cache = Cache{};
@@ -1284,7 +1316,8 @@ struct PatternBrush {
       cache->side = snapshot(box().child(side), *ctx.fonts);
     bake(start, cache->start);
     bake(end, cache->end);
-    bake(corner, cache->corner);
+    if (corner && !cache->corner)
+      cache->corner = snapshot(box().child(corner->art), *ctx.fonts);
     if (!cache->side)
       return;
     const float tileLen =
@@ -1376,22 +1409,10 @@ struct PatternBrush {
 
       // Corner tiles sit on the bisector of the break — the two leg
       // tangents came out of the detection, so no re-probing is needed.
-      if (cache->corner && !cornerAlign && !corners.empty()) {
-        // The whole point of §27: the wrong alignment is invisible in
-        // source and obvious on the plate, and nobody reads a header
-        // sentence as being about their own file. Once per process.
-        static bool warned = false;
-        if (!warned) {
-          warned = true;
-          SkDebugf("[compose] PatternBrush has corner art but no "
-                   "cornerAlign — defaulting to Bisector. That is a "
-                   "statement about what your art LOOKS like, so say it: "
-                   "Bisector for a symmetric ornament, Outgoing for "
-                   "anything with an entry and an exit (an elbow, a flow "
-                   "tick, a cross whose arms lie on the edges). Art "
-                   "authored before f706f5d wants Outgoing.\n");
-        }
-      }
+      // No diagnostic here any more: the alignment is a REQUIRED
+      // constructor argument of CornerArt (§27's own conclusion, §33
+      // ruling 8), so "corner art with no stated alignment" is a state
+      // that cannot be described.
       if (cache->corner)
         for (const detail::CornerHit &hit : corners) {
           SkPoint pos;
@@ -1400,8 +1421,7 @@ struct PatternBrush {
           SkVector dir{hit.in.x() + hit.out.x(), hit.in.y() + hit.out.y()};
           // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
           // silent zero rotation. Fall back to the outgoing leg.
-          if (dir.length() < 1e-3f ||
-              resolvedCornerAlign() == CornerAlign::Outgoing)
+          if (dir.length() < 1e-3f || corner->align == CornerAlign::Outgoing)
             dir = hit.out;
           caps.push_back({{pos, dir, hit.d, len > 0 ? hit.d / len : 0},
                           cache->corner.get()});
@@ -1467,7 +1487,42 @@ struct Ribbon {
    *  cannot derive for you. */
   float widthMax = 0.0f;
 
+  /** THE WIDTH LAW, on the shared PROFILE seam — and the reason
+   *  `widthFn`/`widthMax` are now the legacy pair (ROADMAP §33, stage
+   *  three / N12).
+   *
+   *  A `Profile` is `float across(float along)` plus a REQUIRED
+   *  `float max()` plus EQUALITY, so setting it closes both holes the
+   *  callable pair leaves open at once: `bleed()` can ask how far the
+   *  mark reaches instead of trusting a second field nobody set (the
+   *  §25/audit-I9 silent-clip trap, now structurally impossible on this
+   *  path), and the reconciler can compare two ribbons instead of
+   *  declaring every `widthFn` ribbon unequal forever.
+   *
+   *  `across(along)` is the FULL width at that fraction of the spine, the
+   *  same value `band(spine, across(...))` reads — one vocabulary for a
+   *  band's taper, a strand's displacement and a ribbon's width.
+   *
+   *  IT ALSO CHANGES THE GEOMETRY, deliberately: a profiled ribbon is
+   *  `bandRegion()`, so its rails go through `profileOffset` and pick up
+   *  `lines::offsetAlong`'s real-vertex corner repair (arc outside a
+   *  turn, miter inside). The sample-and-displace walk below leaves a
+   *  spur on the inside of every rectangle corner. That is why this is a
+   *  new field and not a reinterpretation of the old ones — no existing
+   *  ribbon's output moves (§27).
+   *
+   *  Default-constructed means ABSENT: `widthFn`, then the nib, then the
+   *  widthStart→widthEnd taper apply, exactly as before. */
+  Profile width;
+
+  /** Is the profile seam in use? (A default-constructed Profile compares
+   *  equal to itself — see Profile::operator== — so this is the honest
+   *  presence test, and a zero-width profile paints nothing either way.) */
+  bool hasProfile() const { return !(width == Profile{}); }
+
   float bleed() const {
+    if (hasProfile())
+      return width.max();
     const float base = std::max(widthStart, widthEnd);
     return widthFn ? std::max(base, widthMax) : base;
   }
@@ -1475,7 +1530,8 @@ struct Ribbon {
     return fill == o.fill && widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
            nibContrast == o.nibContrast && step == o.step &&
-           widthMax == o.widthMax && !widthFn && !o.widthFn;
+           widthMax == o.widthMax && width == o.width && !widthFn &&
+           !o.widthFn;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
@@ -1485,6 +1541,16 @@ struct Ribbon {
       p.setColor4f(fill.colorValue, nullptr);
     else if (fill.kind == Fill::Kind::Shader)
       p.setShader(fill.shaderValue);
+
+    if (hasProfile()) {
+      // One geometry with band(): the region between the two profile
+      // rails, per contour, with proper joins.
+      const SkPath region =
+          bandRegion(ctx.outline, Across{width}, Formation::Centered);
+      if (!region.isEmpty())
+        c.drawPath(region, p);
+      return;
+    }
 
     const float stride = std::max(step, 0.5f);
     SkContourMeasureIter iter(ctx.outline, false);
@@ -1570,7 +1636,9 @@ struct ArtBrush {
   float stationPx = 6.0f;  ///< arc-length between strip stations
   float reach = 32.0f;     ///< cull reserve: half height + art overhang
 
-  bool animated() const { return false; }
+  bool animates() const { return false; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float bleed() const { return reach; }
   bool operator==(const ArtBrush &o) const {
     return art.node() == o.art.node() && height == o.height &&
@@ -1685,6 +1753,40 @@ using Scatter = brushes::ScatterBrush;
 /** An element stretched ALONG the boundary in its (along, across) space.
  *  Legacy spelling: `brushes::ArtBrush`. */
 using Art = brushes::ArtBrush;
+/** A variable-width FILLED band along the boundary — the calligraphic
+ *  kind (Illustrator's third archetype). Width comes from the shared
+ *  `Profile` seam (`Ribbon::width`); `widthFn`/`widthMax` are the legacy
+ *  pair. Legacy spelling: `brushes::Ribbon`. */
+using Ribbon = brushes::Ribbon;
+/** `Ribbon` presets: the linear taper (comet body, ink pull-away) and the
+ *  calligraphic nib. Legacy spellings: `brushes::taper`/`calligraphic`. */
+using brushes::calligraphic;
+using brushes::taper;
+/** A Ribbon on the PROFILE seam — the taught constructor, because the
+ *  profile is the half of a ribbon that has a shared vocabulary. */
+inline Ribbon ribbon(Profile width, Fill fill) {
+  Ribbon r;
+  r.width = std::move(width);
+  r.fill = std::move(fill);
+  return r;
+}
+/** One art cell bent along each contour. Legacy: `brushes::artAlong`. */
+using brushes::artAlong;
+/** WHERE instances land along a path (the QGIS marker-line placement
+ *  grammar), and what a per-instance twist may say. Legacy spellings:
+ *  `brushes::Placement` / `brushes::StampMod` / `brushes::StampModFn`. */
+using Placement = brushes::Placement;
+using StampMod = brushes::StampMod;
+using StampModFn = brushes::StampModFn;
+/** Corner art and its REQUIRED alignment — see brushes::CornerArt. */
+using CornerAlign = brushes::CornerAlign;
+using CornerArt = brushes::CornerArt;
+/** The geometry-deviation WRAPPER. Present so the fold is complete and
+ *  nothing in `brushes::` is left without a home; the TAUGHT spelling for
+ *  a geometry deviation is `Element::shaped(value)`, which is comparable
+ *  where this wrapper is not. Legacy: `brushes::Restyled`/`restyle`. */
+using Restyled = brushes::Restyled;
+using brushes::restyle;
 } // namespace brush
 
 } // namespace sigil::compose

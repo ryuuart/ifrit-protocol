@@ -1637,7 +1637,11 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
     // ---- the arithmetic, before anything is drawn ----------------------
     sheetAudit = audit();
-    stats = derive(narg, nargTraits, kLevel, kToughness);
+    // Qualified: `derive` is now also a compose NAMESPACE (the derive
+    // family, ROADMAP §33 ruling 11), and this file's own derive() is
+    // reached through `using namespace fo` — a fourth sighting of the
+    // short-good-noun collision the roadmap is tracking.
+    stats = fo::derive(narg, nargTraits, kLevel, kToughness);
     tagged[0] = tagged[4] = tagged[5] = true; // Small Guns, Melee, Throwing
     invested[0] = 12;  // 24% on a tagged skill
     invested[4] = 15;  // 30%

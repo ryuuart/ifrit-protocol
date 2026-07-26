@@ -1409,14 +1409,14 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
                              .stretchToFit = true,
                              .reach = g(56)};
     if (elbow >= 0) {
-      pb.corner = elbows[t][(size_t)elbow];
-      pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
       // An elbow of PIPE, not an ornament: entry, exit and a handedness, and
-      // elbowTile() authors it with local +x along the outgoing leg. The
-      // brush's default is the bisector, under which this art stamps 45
-      // degrees off — and a 2x2 route is all corner and no side tiles, so the
-      // whole edge becomes a chevron. Ask for the frame the art is drawn in.
-      pb.cornerAlign = brushes::PatternBrush::CornerAlign::Outgoing;
+      // elbowTile() authors it with local +x along the outgoing leg. On the
+      // bisector this art stamps 45 degrees off — and a 2x2 route is all
+      // corner and no side tiles, so the whole edge becomes a chevron. The
+      // frame the art is drawn in now travels WITH the art.
+      pb.corner = brushes::CornerArt{elbows[t][(size_t)elbow],
+                                     brushes::CornerAlign::Outgoing};
+      pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
     }
     Brush br;
     br.leg(std::move(pb));
@@ -1523,11 +1523,11 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         // audited but is only half audited looks like.
         .stroke(brushes::PatternBrush{
             .side = runTile,
-            .corner = cornerTile,
+            .corner = brushes::CornerArt{cornerTile,
+                                         brushes::CornerAlign::Bisector},
             .advance = g(64),
             .cornerAngleDeg = 35.0f,
             .cornerLength = g(20),
-            .cornerAlign = brushes::PatternBrush::CornerAlign::Bisector,
             .stretchToFit = true,
             .reach = g(26)});
   }

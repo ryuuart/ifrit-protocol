@@ -4842,7 +4842,8 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
   Host host;
   brushes::PatternBrush b;
   b.side = box().width(20).height(4).fill(red());
-  b.corner = box().width(12).height(12).fill(blue());
+  b.corner = brushes::CornerArt{box().width(12).height(12).fill(blue()),
+                                brushes::CornerAlign::Bisector};
   host.composer.render(box().child(
       box()
           .absolute()
@@ -6115,7 +6116,8 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
   Host host;
   brushes::PatternBrush b;
   b.side = box().width(20).height(4).fill(red());
-  b.corner = box().width(12).height(12).fill(blue());
+  b.corner = brushes::CornerArt{box().width(12).height(12).fill(blue()),
+                                brushes::CornerAlign::Bisector};
   host.composer.render(box().child(
       box()
           .absolute()
@@ -6373,7 +6375,8 @@ TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
   base.side = box().width(16).height(4).fill(green());
   base.start = art(red());
   base.end = art(red());
-  base.corner = art(red());
+  base.corner = brushes::CornerArt{art(red()),
+                                   brushes::CornerAlign::Bisector};
   base.advance = 16;
 
   // Aggregate copies intentionally share the memoization cache. The cache
@@ -6381,7 +6384,8 @@ TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
   brushes::PatternBrush variant = base;
   variant.start = art(blue());
   variant.end = art(blue());
-  variant.corner = art(blue());
+  variant.corner = brushes::CornerArt{art(blue()),
+                                      brushes::CornerAlign::Bisector};
 
   auto lRun = [](brushes::PatternBrush brush) {
     return box().child(box()
@@ -6460,7 +6464,8 @@ TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
   brush.side = box().width(20).height(2).fill(red());
   // A thin bar exposes orientation: the rect seam exits upward and enters
   // rightward, so its corner bisector points up-right (-45 degrees).
-  brush.corner = box().width(20).height(4).fill(blue());
+  brush.corner = brushes::CornerArt{box().width(20).height(4).fill(blue()),
+                                    brushes::CornerAlign::Bisector};
   brush.advance = 20;
   host.composer.render(box().child(box()
                                        .absolute()
@@ -6831,7 +6836,8 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
   brush.side = box().width(24).height(10).child(
       box().absolute().left(2).top(4).width(20).height(2).fill(
           Fill::color({0.35f, 0.45f, 0.95f, 1})));
-  brush.corner = directedCornerTile();
+  brush.corner = brushes::CornerArt{directedCornerTile(),
+                                    brushes::CornerAlign::Bisector};
   brush.advance = 24;
   brush.cornerLength = 40;
   brush.reach = 40;
@@ -6895,11 +6901,11 @@ TEST(ComposeBrushes, PatternCornerAlignOutgoingIsStillAvailable) {
   Host host(400, 340);
   brushes::PatternBrush brush;
   brush.side = box().width(24).height(2).fill(Fill::color({0.2f, 0.2f, 0.6f, 1}));
-  brush.corner = directedCornerTile();
+  brush.corner = brushes::CornerArt{directedCornerTile(),
+                                    brushes::CornerAlign::Outgoing};
   brush.advance = 24;
   brush.cornerLength = 40;
   brush.reach = 40;
-  brush.cornerAlign = brushes::PatternBrush::CornerAlign::Outgoing;
   host.composer.render(box().child(box()
                                        .absolute()
                                        .inset(0)
@@ -10471,4 +10477,605 @@ TEST(ComposeComposites, CompositesNest) {
   host.frame();
   EXPECT_EQ(host.pixel(90, 40), SK_ColorGREEN) << "the nested layers' top";
   EXPECT_EQ(host.pixel(90, 28), SK_ColorBLUE) << "the offset strand, outside";
+}
+
+// ---------------------------------------------------------------------------
+// PHASE R1 — the ruled spellings, landed additively (ROADMAP §33)
+//
+// Every test here is a pair: the new spelling must describe EXACTLY what the
+// old one described, because R2 ports the corpus onto these words and R3
+// deletes the old ones. A difference found here is a difference that would
+// ship as a silent picture change.
+
+#include <sigilcompose/Instances.h>
+
+namespace {
+
+/** A box whose whole boundary is stroked, for the trim/span comparisons. */
+Element revealBox() {
+  return box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
+}
+
+/** A ring of samples around the stroked boundary above — enough of them
+ *  that a window landing in the wrong place cannot hide. */
+std::vector<SkColor> boundaryRing(Host &host) {
+  std::vector<SkColor> out;
+  for (int x = 15; x <= 125; x += 2)
+    out.push_back(host.pixel(x, 20));
+  for (int y = 15; y <= 125; y += 2)
+    out.push_back(host.pixel(120, y));
+  for (int x = 125; x >= 15; x -= 2)
+    out.push_back(host.pixel(x, 120));
+  for (int y = 125; y >= 15; y -= 2)
+    out.push_back(host.pixel(20, y));
+  return out;
+}
+
+size_t inkedCount(const std::vector<SkColor> &ring) {
+  return (size_t)std::count_if(ring.begin(), ring.end(),
+                               [](SkColor c) { return c != SK_ColorBLACK; });
+}
+
+} // namespace
+
+// ---- 1. animate(to(v), spec) ----------------------------------------------
+
+TEST(ComposeR1Animate, AnimateToIsTheChangeRampWithSaid) {
+  // The same Transitioned value, so the same motion — proved by describing
+  // a change and reading the property MID-RAMP, where a snap and a ramp
+  // differ. Both hosts get identical frames.
+  auto run = [](bool useLegacyWith) {
+    Host host(200, 200);
+    auto describe = [&](float opacity) {
+      Element inner = box().width(100).height(100).fill(red());
+      inner.opacity(useLegacyWith ? with(opacity, Transition{200ms})
+                                  : animate(to(opacity), {200ms}));
+      return stack().child(std::move(inner));
+    };
+    host.composer.render(describe(1.0f));
+    host.frame();
+    host.composer.render(describe(0.0f)); // the CHANGE
+    host.frame(0.1);                      // half way down the ramp
+    return host.pixel(50, 50);
+  };
+  const SkColor spanned = run(false);
+  EXPECT_EQ(spanned, run(true));
+  // …and it is genuinely mid-ramp, not "already gone" or "not started".
+  EXPECT_GT((int)SkColorGetR(spanned), 20);
+  EXPECT_LT((int)SkColorGetR(spanned), 235);
+}
+
+TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
+  // The doc's whole distinction, as pixels: to() mounts holding its value;
+  // from().to() plays a path on first appearance.
+  auto mountedOpacity = [](bool withEntrance) {
+    Host host(200, 200);
+    Element inner = box().width(100).height(100).fill(red());
+    if (withEntrance)
+      inner.opacity(animate(from(0.0f).to(1.0f), {400ms}));
+    else
+      inner.opacity(animate(to(1.0f), {400ms}));
+    host.composer.render(stack().child(std::move(inner)));
+    host.frame(0.001);
+    return (int)SkColorGetR(host.pixel(50, 50));
+  };
+  EXPECT_GT(mountedOpacity(false), 240) << "to() alone must not fade in";
+  EXPECT_LT(mountedOpacity(true), 60) << "from().to() is a mount entrance";
+}
+
+// ---- 2. animates() ---------------------------------------------------------
+
+namespace {
+
+/** Two schemes that paint identically and declare volatility with the two
+ *  different words — the duck-typing the transition depends on. */
+struct SaysAnimates {
+  bool live = true;
+  bool animates() const { return live; }
+  void paint(SkCanvas &c, const PaintContext &) const {
+    SkPaint p;
+    p.setColor4f({1, 0, 0, 1}, nullptr);
+    c.drawRect(SkRect::MakeWH(40, 40), p);
+  }
+  bool operator==(const SaysAnimates &) const = default;
+};
+struct SaysAnimated {
+  bool live = true;
+  bool animated() const { return live; }
+  void paint(SkCanvas &c, const PaintContext &) const {
+    SkPaint p;
+    p.setColor4f({1, 0, 0, 1}, nullptr);
+    c.drawRect(SkRect::MakeWH(40, 40), p);
+  }
+  bool operator==(const SaysAnimated &) const = default;
+};
+
+} // namespace
+
+TEST(ComposeR1Volatility, BothWordsDeclareVolatility) {
+  // The concept accepts either spelling for the length of the transition.
+  static_assert(AnimatingDecoration<SaysAnimates>);
+  static_assert(AnimatedDecoration<SaysAnimated>);
+  EXPECT_TRUE(Decoration(SaysAnimates{true}).animates());
+  EXPECT_FALSE(Decoration(SaysAnimates{false}).animates());
+  EXPECT_TRUE(Decoration(SaysAnimated{true}).animates())
+      << "the legacy word must still be heard";
+  EXPECT_FALSE(Decoration(SaysAnimated{false}).animates());
+  // The legacy READER forwards to the new one, so nothing that asks the
+  // old question gets a different answer.
+  EXPECT_TRUE(Decoration(SaysAnimates{true}).animated());
+}
+
+TEST(ComposeR1Volatility, LibrarySchemesDeclareWithTheNewWord) {
+  // The library's own schemes implement animates() as the PRIMARY, with
+  // animated() forwarding — so the two can never disagree.
+  lines::Line line;
+  choreograph::Output<float> phase;
+  line.dashPhaseBinding = &phase;
+  EXPECT_TRUE(line.animates());
+  EXPECT_EQ(line.animates(), line.animated());
+
+  PathFormat pf;
+  EXPECT_FALSE(pf.animates());
+  EXPECT_EQ(pf.animates(), pf.animated());
+
+  // Material: the fifth spelling folded in. isLive() stays as the tier
+  // vocabulary; animates() is the declaration.
+  const Material stat = Material::solid({1, 0, 0, 1});
+  EXPECT_FALSE(stat.animates());
+  EXPECT_EQ(stat.animates(), stat.isLive());
+}
+
+// ---- 3. Bound::source / ::target -------------------------------------------
+
+TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
+  choreograph::Output<float> hp;
+  hp = 25.0f;
+  const BoundFloat named = bind(&hp).source(0, 100).target(-70, 170).value();
+  const BoundFloat legacy = bind(&hp).from(0, 100).to(-70, 170).value();
+  // Same arithmetic at several inputs, not just one.
+  for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
+    EXPECT_FLOAT_EQ(named.apply(v), legacy.apply(v)) << "at " << v;
+  EXPECT_FLOAT_EQ(named.apply(0.0f), -70.0f);
+  EXPECT_FLOAT_EQ(named.apply(100.0f), 170.0f);
+}
+
+TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
+  choreograph::Output<float> t;
+  const BoundFloat w = bind(&t).window(0.2f, 0.4f).value();
+  const BoundFloat s = bind(&t).source(0.2f, 0.4f).value();
+  EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
+  EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
+  EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
+}
+
+// ---- 4. Pool::commit() -----------------------------------------------------
+
+TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
+  instancing::Pool pool;
+  pool.add({10, 10});
+  pool.add({20, 20});
+  const uint64_t after = pool.revision();
+  for (SkPoint &p : pool.positions())
+    p.fY += 5;
+  EXPECT_EQ(pool.revision(), after) << "a span write is staging, not publish";
+  pool.commit();
+  const uint64_t committed = pool.revision();
+  EXPECT_NE(committed, after);
+  pool.touch(); // the legacy word does the same thing
+  EXPECT_NE(pool.revision(), committed);
+}
+
+// ---- 5. Ribbon on the profile seam ----------------------------------------
+
+namespace {
+/** A taper as a comparable profile — the shape widthFn used to need a
+ *  lambda (and a second field) for. */
+struct LinearTaper {
+  float start = 20.0f, end = 4.0f;
+  float across(float along) const { return start + (end - start) * along; }
+  float max() const { return std::max(start, end); }
+  bool operator==(const LinearTaper &) const = default;
+};
+} // namespace
+
+TEST(ComposeR1Ribbon, ProfileIsComparableAndBoundsItsOwnReach) {
+  brushes::Ribbon a;
+  a.width = Profile(LinearTaper{});
+  a.fill = Fill::color({1, 0, 0, 1});
+  brushes::Ribbon b = a;
+  EXPECT_TRUE(a == b) << "a profiled ribbon PRUNES; a widthFn one never did";
+  b.width = Profile(LinearTaper{20.0f, 6.0f});
+  EXPECT_FALSE(a == b);
+  // The trap the seam closes: bleed() can ask a profile how far it goes.
+  EXPECT_FLOAT_EQ(a.bleed(), 20.0f);
+  brushes::Ribbon legacy;
+  legacy.widthFn = [](const PathSample &) { return 166.0f; };
+  EXPECT_LT(legacy.bleed(), 166.0f) << "…which the callable pair cannot";
+}
+
+TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
+  Host host(200, 200);
+  brushes::Ribbon r;
+  r.width = Profile(strand::offset(16.0f)); // constant 16px wide
+  r.fill = Fill::color({1, 0, 0, 1});
+  host.composer.render(stack().child(
+      box()
+          .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+          .shape([](SkSize s) {
+            SkPathBuilder p;
+            p.moveTo(0, s.height() * 0.5f);
+            p.lineTo(s.width(), s.height() * 0.5f);
+            return p.detach();
+          })
+          .stroke(std::move(r))));
+  host.frame();
+  EXPECT_EQ(host.pixel(90, 90), SK_ColorRED) << "on the spine";
+  EXPECT_EQ(host.pixel(90, 84), SK_ColorRED) << "6px off it, inside 16 wide";
+  EXPECT_EQ(host.pixel(90, 70), SK_ColorBLACK) << "20px off it, outside";
+}
+
+// ---- the brushes:: fold ----------------------------------------------------
+
+TEST(ComposeR1Brush, TheFoldIsAliasesAndNothingElse) {
+  static_assert(std::is_same_v<brush::Ribbon, brushes::Ribbon>);
+  static_assert(std::is_same_v<brush::Placement, brushes::Placement>);
+  static_assert(std::is_same_v<brush::StampMod, brushes::StampMod>);
+  static_assert(std::is_same_v<brush::CornerArt, brushes::CornerArt>);
+  static_assert(std::is_same_v<brush::CornerAlign, brushes::CornerAlign>);
+  static_assert(std::is_same_v<brush::Restyled, brushes::Restyled>);
+  const brushes::Ribbon legacy = brushes::taper(10, 2, red());
+  const brush::Ribbon taught = brush::taper(10, 2, red());
+  EXPECT_TRUE(legacy == taught);
+  // The taught constructor is the PROFILE one.
+  const brush::Ribbon profiled = brush::ribbon(strand::offset(9.0f), red());
+  EXPECT_TRUE(profiled.hasProfile());
+  EXPECT_FLOAT_EQ(profiled.bleed(), 9.0f);
+}
+
+// ---- 6. the derive family --------------------------------------------------
+
+TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
+  // Aliases, so the same picture, term for term.
+  auto draw = [](bool qualified) {
+    Host host(200, 200);
+    Element a = box().key("a").rect(SkRect::MakeXYWH(20, 20, 40, 40));
+    Element b = box().key("b").rect(SkRect::MakeXYWH(120, 120, 40, 40));
+    Element wire = qualified ? derive::connector("a", "b")
+                             : connector("a", "b");
+    wire.absolute().inset(0).foreground(util::stroke(4, red()));
+    host.composer.render(
+        stack().child(std::move(a)).child(std::move(b)).child(std::move(wire)));
+    host.frame();
+    host.frame(); // derive resolves against the first layout
+    std::vector<SkColor> out;
+    for (int i = 20; i < 160; i += 4)
+      out.push_back(host.pixel(i, i));
+    return out;
+  };
+  const std::vector<SkColor> qualified = draw(true);
+  EXPECT_EQ(qualified, draw(false));
+  EXPECT_GT(inkedCount(qualified), 10u) << "the wire actually drew";
+}
+
+TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
+  auto draw = [](bool freeVerb) {
+    Host host(300, 200);
+    Element para = text(u8"one two three four five six seven eight nine ten "
+                        u8"eleven twelve thirteen fourteen",
+                        styleAt(16));
+    if (freeVerb)
+      para = derive::flowAround(std::move(para), "cut", 6.0f);
+    else
+      para.flowAround("cut", 6.0f);
+    host.composer.render(
+        stack()
+            .child(box().key("cut").rect(SkRect::MakeXYWH(10, 10, 90, 60)))
+            .child(box().absolute().inset(0).child(std::move(para))));
+    host.frame();
+    host.frame();
+    std::vector<SkColor> out;
+    for (int y = 0; y < 200; y += 3)
+      for (int x = 0; x < 300; x += 3)
+        out.push_back(host.pixel(x, y));
+    return out;
+  };
+  EXPECT_EQ(draw(true), draw(false));
+}
+
+// ---- 7. the wrapping span (N7) ---------------------------------------------
+//
+// THE PARITY GATE. `spans::wrap` exists so that TrimMode::Wrap — the last
+// thing trim() could do that spans could not — has a span spelling. So the
+// tests are parity tests against trim, not "does it draw something".
+
+TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
+  auto draw = [](bool useLegacyTrim) {
+    Host host(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(0.9f, 1.15f, 0.0f, TrimMode::Wrap).stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::wrap(0.9f, 1.15f), util::stroke(6, red()));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return boundaryRing(host);
+  };
+  const std::vector<SkColor> spanned = draw(false);
+  EXPECT_EQ(spanned, draw(true));
+  // A genuine seam-crossing window: some ink, but far from all of it.
+  const size_t inked = inkedCount(spanned);
+  EXPECT_GT(inked, 5u);
+  EXPECT_LT(inked, spanned.size() / 2);
+}
+
+TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
+  // The full marching-ants idiom: a fixed-length window driven all the way
+  // round, compared at eight phases — two of which straddle the seam, and
+  // one of which sits exactly ON it.
+  //
+  // trim spells the window as (start, end, OFFSET); spans spell it as
+  // arithmetic on the two ENDPOINTS of one Output, which is why no third
+  // parameter is owed.
+  constexpr float kWindow = 0.25f;
+  choreograph::Output<float> phase;
+
+  Host trimmed(200, 200);
+  trimmed.composer.render(stack().child(
+      revealBox()
+          .trim(0.0f, kWindow, &phase, TrimMode::Wrap)
+          .stroke(util::stroke(6, red()))));
+
+  Host spanned(200, 200);
+  spanned.composer.render(stack().child(revealBox().stroke(
+      spans::wrap(bind(&phase), bind(&phase).offset(kWindow)),
+      util::stroke(6, red()))));
+
+  for (float p : {0.0f, 0.12f, 0.37f, 0.5f, 0.66f, 0.80f, 0.90f, 0.97f}) {
+    phase = p;
+    trimmed.frame();
+    spanned.frame();
+    const std::vector<SkColor> want = boundaryRing(trimmed);
+    EXPECT_EQ(boundaryRing(spanned), want) << "phase " << p;
+    EXPECT_GT(inkedCount(want), 5u) << "phase " << p << " drew nothing";
+    EXPECT_LT(inkedCount(want), want.size())
+        << "phase " << p << " drew everything";
+  }
+}
+
+TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
+  // The composer-driven half: BOTH endpoints on animate() ramps that carry
+  // the window past 1.0, so the seam is crossed by a transition rather than
+  // by a bound value.
+  constexpr float kWindow = 0.2f;
+  auto host = [](bool useLegacyTrim) {
+    auto h = std::make_unique<Host>(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(0.0f, kWindow, animate(from(0.0f).to(1.0f), {1000ms}),
+             TrimMode::Wrap)
+          .stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::wrap(animate(from(0.0f).to(1.0f), {1000ms}),
+                           animate(from(kWindow).to(1.0f + kWindow),
+                                   {1000ms})),
+               util::stroke(6, red()));
+    h->composer.render(stack().child(std::move(e)));
+    return h;
+  };
+  std::unique_ptr<Host> t = host(true), s = host(false);
+  // Both easings are the house default, so the two windows stay aligned.
+  for (int step = 0; step < 8; ++step) {
+    t->frame(0.12);
+    s->frame(0.12);
+    const std::vector<SkColor> want = boundaryRing(*t);
+    EXPECT_EQ(boundaryRing(*s), want) << "step " << step;
+    EXPECT_GT(inkedCount(want), 3u) << "step " << step;
+  }
+}
+
+TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
+  auto ink = [](bool useLegacyTrim, float a, float b) {
+    Host host(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(a, b, 0.0f, TrimMode::Wrap).stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::wrap(a, b), util::stroke(6, red()));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return inkedCount(boundaryRing(host));
+  };
+  // end <= begin claims NOTHING (not "everything", not "the complement").
+  EXPECT_EQ(ink(false, 0.6f, 0.6f), 0u);
+  EXPECT_EQ(ink(false, 0.6f, 0.6f), ink(true, 0.6f, 0.6f));
+  EXPECT_EQ(ink(false, 0.6f, 0.3f), ink(true, 0.6f, 0.3f));
+  // A window a whole cycle long (or more) claims all of it.
+  const size_t whole = ink(false, 0.3f, 1.3f);
+  EXPECT_GT(whole, 100u);
+  EXPECT_EQ(whole, ink(true, 0.3f, 1.3f));
+  EXPECT_EQ(ink(false, 0.3f, 2.6f), ink(true, 0.3f, 2.6f));
+}
+
+TEST(ComposeR1Wrap, WrapIsItsOwnTermAndRangeStillClamps) {
+  // The design judgement, pinned: range() did NOT learn to wrap, because
+  // range(0.9, 0.1) already means something (§27), and the reader of a
+  // claim conflict needs the call site to say "cyclic".
+  const SkPath boundary = unitBox();
+  SpanInput in;
+  in.outline = &boundary;
+  const std::vector<float> vals{0.9f, 0.1f};
+  in.values = &vals;
+  EXPECT_EQ(spans::range(0.9f, 0.1f).resolve(in).size(), 1u)
+      << "range still normalises a reversed pair into one run";
+  const std::vector<Span> wrapped = spans::wrap(0.9f, 0.1f).resolve(in);
+  EXPECT_TRUE(wrapped.empty()) << "…and wrap reads it as an EMPTY window";
+  const std::vector<float> ants{0.9f, 1.1f};
+  in.values = &ants;
+  const std::vector<Span> two = spans::wrap(0.9f, 1.1f).resolve(in);
+  ASSERT_EQ(two.size(), 2u) << "one term, two runs, at opposite seams";
+  EXPECT_NEAR(two[0].begin, 0.0f, 1e-4f);
+  EXPECT_NEAR(two[0].end, 0.1f, 1e-4f);
+  EXPECT_NEAR(two[1].begin, 0.9f, 1e-4f);
+  EXPECT_NEAR(two[1].end, 1.0f, 1e-4f);
+}
+
+TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
+  // Without this the marching reveal above would prune to its first frame:
+  // every wrapped window would compare equal to every other one.
+  EXPECT_TRUE(spans::wrap(0.1f, 0.4f) == spans::wrap(0.1f, 0.4f));
+  EXPECT_FALSE(spans::wrap(0.1f, 0.4f) == spans::wrap(0.1f, 0.5f));
+  EXPECT_FALSE(spans::wrap(0.1f, 0.4f) == spans::range(0.1f, 0.4f));
+}
+
+// ---- 8. cornerAlign is a required argument --------------------------------
+
+TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
+  // The §27 break, enforced by the type system rather than by a warning:
+  // there is no way to describe corner art with no stated alignment.
+  static_assert(!std::is_default_constructible_v<brushes::CornerArt>);
+  static_assert(!std::is_constructible_v<brushes::CornerArt, Element>);
+  static_assert(std::is_constructible_v<brushes::CornerArt, Element,
+                                        brushes::CornerAlign>);
+  // And the alignment participates in equality, so two brushes that differ
+  // only in how their corners face do not prune into each other.
+  const Element art = box().width(10).height(10).fill(red());
+  brushes::PatternBrush a, b;
+  a.side = box().width(10).height(2).fill(red());
+  b.side = a.side;
+  a.corner = brushes::CornerArt{art, brushes::CornerAlign::Bisector};
+  b.corner = brushes::CornerArt{art, brushes::CornerAlign::Outgoing};
+  EXPECT_FALSE(a == b);
+  b.corner = brushes::CornerArt{art, brushes::CornerAlign::Bisector};
+  EXPECT_TRUE(a == b);
+}
+
+// ---- THE TRIM PARITY TABLE -------------------------------------------------
+//
+// Expressiveness parity is the gate for the R3 deletion: every capability of
+// Element::trim must have a spans spelling, or trim cannot be deleted. Each
+// row below is one capability, verified against trim() itself. The two rows
+// that do NOT close here are named in ROADMAP §33's R1 status note.
+
+TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
+  // Row: trim(start, end) with a NON-ZERO start — upTo() was only ever the
+  // start == 0 case.
+  auto draw = [](bool useLegacyTrim) {
+    Host host(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(0.15f, 0.55f).stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::range(0.15f, 0.55f), util::stroke(6, red()));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return boundaryRing(host);
+  };
+  const std::vector<SkColor> spanned = draw(false);
+  EXPECT_EQ(spanned, draw(true));
+  EXPECT_GT(inkedCount(spanned), 5u);
+  EXPECT_LT(inkedCount(spanned), spanned.size());
+}
+
+TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
+  // Row: TrimMode::Clamp's defining behaviour — fractions outside [0,1]
+  // pin rather than wrap. normalizeSpans clamps the same way.
+  auto draw = [](bool useLegacyTrim) {
+    Host host(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(-0.4f, 0.6f).stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::range(-0.4f, 0.6f), util::stroke(6, red()));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return boundaryRing(host);
+  };
+  EXPECT_EQ(draw(false), draw(true));
+}
+
+TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
+  // Row: plain bound endpoints, both modes' shared case.
+  choreograph::Output<float> begin, end;
+  Host trimmed(200, 200), spanned(200, 200);
+  trimmed.composer.render(stack().child(
+      revealBox().trim(&begin, &end).stroke(util::stroke(6, red()))));
+  spanned.composer.render(stack().child(revealBox().stroke(
+      spans::range(&begin, &end), util::stroke(6, red()))));
+  for (auto [b, e] : {std::pair{0.0f, 0.2f}, std::pair{0.3f, 0.9f},
+                      std::pair{0.45f, 0.55f}}) {
+    begin = b;
+    end = e;
+    trimmed.frame();
+    spanned.frame();
+    EXPECT_EQ(boundaryRing(spanned), boundaryRing(trimmed))
+        << "window " << b << ".." << e;
+  }
+}
+
+TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
+  // Row: trim's third argument. A CONSTANT offset is addition at the call
+  // site; a BOUND offset over constant ends is `bind(&off).offset(k)` on
+  // each end. Both checked against trim carrying the offset itself.
+  choreograph::Output<float> off;
+  Host constTrim(200, 200), constSpan(200, 200);
+  constTrim.composer.render(stack().child(
+      revealBox().trim(0.1f, 0.4f, 0.25f).stroke(util::stroke(6, red()))));
+  constSpan.composer.render(stack().child(revealBox().stroke(
+      spans::range(0.1f + 0.25f, 0.4f + 0.25f), util::stroke(6, red()))));
+  constTrim.frame();
+  constSpan.frame();
+  EXPECT_EQ(boundaryRing(constSpan), boundaryRing(constTrim))
+      << "constant offset";
+
+  Host boundTrim(200, 200), boundSpan(200, 200);
+  boundTrim.composer.render(stack().child(
+      revealBox().trim(0.0f, 0.3f, &off).stroke(util::stroke(6, red()))));
+  boundSpan.composer.render(stack().child(revealBox().stroke(
+      spans::range(bind(&off), bind(&off).offset(0.3f)),
+      util::stroke(6, red()))));
+  for (float v : {0.0f, 0.17f, 0.42f, 0.61f}) {
+    off = v;
+    boundTrim.frame();
+    boundSpan.frame();
+    EXPECT_EQ(boundaryRing(boundSpan), boundaryRing(boundTrim))
+        << "bound offset " << v;
+  }
+}
+
+TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
+  // Row: composer-manufactured endpoints under Clamp.
+  auto host = [](bool useLegacyTrim) {
+    auto h = std::make_unique<Host>(200, 200);
+    Element e = revealBox();
+    if (useLegacyTrim)
+      e.trim(0.0f, animate(from(0.0f).to(1.0f), {800ms}))
+          .stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::upTo(animate(from(0.0f).to(1.0f), {800ms})),
+               util::stroke(6, red()));
+    h->composer.render(stack().child(std::move(e)));
+    return h;
+  };
+  std::unique_ptr<Host> t = host(true), s = host(false);
+  for (int step = 0; step < 6; ++step) {
+    t->frame(0.13);
+    s->frame(0.13);
+    EXPECT_EQ(boundaryRing(*s), boundaryRing(*t)) << "step " << step;
+  }
+}
+
+TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
+  // Row: trim reveals EVERY outline-following decoration of a node at
+  // once. A span claims ONE pass — and two passes claiming the same run is
+  // the LOUD error, whose message names the fix. So the N-decoration
+  // reveal is spelled as one pass with a COMPOSITE brush, which is a
+  // spelling, not a gap.
+  Host host(200, 200);
+  host.composer.render(stack().child(revealBox().stroke(
+      spans::upTo(0.4f),
+      brush::layers({brush::solid(8, red()), brush::solid(3, green())}))));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 20), SK_ColorGREEN) << "both marks, one claim";
+  EXPECT_EQ(host.pixel(110, 20), SK_ColorBLACK) << "and the claim ends";
 }

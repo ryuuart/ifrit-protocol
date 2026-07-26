@@ -897,12 +897,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                   .fill = Fill::color(hex(0x0a0909, 0.75f))}}))
                             .leg(brushes::PatternBrush{
                                 .side = hammerTile,
-                                .corner = hammerCorner,
+                                .corner = brushes::CornerArt{
+                                    hammerCorner,
+                                    brushes::CornerAlign::Bisector},
                                 .advance = 26.0f,
                                 .cornerAngleDeg = 30.0f,
                                 .cornerLength = 34.0f,
-                                .cornerAlign = brushes::PatternBrush::
-                                    CornerAlign::Bisector,
                                 .reach = 22.0f}))
                 .cache(Cache::Texture)
                 .key("ironedge"));

@@ -277,7 +277,10 @@ bool Spans::operator==(const Spans &other) const {
         a.duty != b.duty || a.margin != b.margin || a.count != b.count ||
         a.index != b.index || a.key != b.key)
       return false;
-    if (a.rule == Rule::Range &&
+    // The two ENDPOINT-carrying rules. Leaving Wrap out here would make
+    // every wrapped window compare equal to every other one and a
+    // marching reveal would prune to its first frame forever.
+    if ((a.rule == Rule::Range || a.rule == Rule::Wrap) &&
         (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end)))
       return false;
   }

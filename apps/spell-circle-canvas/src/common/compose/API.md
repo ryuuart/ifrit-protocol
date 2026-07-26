@@ -71,14 +71,19 @@ template <typename T> struct Transitioned {  // value + spec, plus optional
   T value; Transition spec;                  // mount-time `from` / keyframe
   /* from, waypoints */                      // waypoints (see below)
 };
-template <typename T> Transitioned<T> with(T value, Transition spec);
 // animate() is COMPOSER-MANUFACTURED motion: the composer runs the clock,
-// as against a bound Output, where you do. Both forms are MOUNT
-// choreography — they play when the node first appears (the CSS
-// animation-on-enter) and afterwards behave exactly like with(to, spec).
+// as against a bound Output, where you do. THE ARGUMENT SAYS WHICH KIND:
+//   to(v)          — RAMP ON CHANGE. No entrance; every later describe
+//                    that differs ramps instead of snapping, retargeting
+//                    from the current value. (Legacy spelling: with(v, spec).)
+//   from(a).to(b)  — a MOUNT ENTRANCE (the CSS animation-on-enter); after
+//                    it plays, the property behaves exactly like to(b).
+template <typename T> To<T> to(T value);
+template <typename T> Transitioned<T> animate(To<T> t, Transition spec = {});
 template <typename T> From<T> from(T value);          // .to(target) completes
 template <typename T> Transitioned<T> animate(FromTo<T> ft,
                                               Transition spec = {});
+template <typename T> Transitioned<T> with(T value, Transition spec); // legacy
 // Keyframe path: absolute (time, value) waypoints — the damped-overshoot
 // entrances one ramp can't shape; `ease` applies per segment, a leading
 // time > 0 holds the first value. through() takes a float path with no
@@ -88,9 +93,11 @@ Waypoints<float> through(
     std::initializer_list<std::pair<std::chrono::milliseconds, float>>);
 template <typename T> Transitioned<T> animate(Waypoints<T> w,
                                               choreograph::EaseFn ease = ...);
-  .opacity(animate(from(0.0f).to(1.0f), {400ms}))
+  .opacity(animate(to(dimmed ? 0.4f : 1.0f), {180ms}))   // ramp on change
+  .opacity(animate(from(0.0f).to(1.0f), {400ms}))        // mount entrance
   .translateX(animate(through({{0ms, 40.f}, {200ms, -20.f}, {400ms, 0.f}})))
-// Legacy spellings, retained indefinitely: withFrom(a, b, spec) is
+// Legacy spellings, retained until the R3 deletion (ROADMAP §33):
+// with(v, spec) is animate(to(v), spec); withFrom(a, b, spec) is
 // animate(from(a).to(b), spec); withKeyframes<T>(frames, ease) is
 // animate(through(frames), ease).
 
@@ -114,16 +121,18 @@ template <typename T> using PropValue = Animatable<T>;  // legacy spelling;
 // opacity and a bar's scaleX at once — without a second Output per unit
 // and without the easing living in the tick loop.
 Bound bind(const ch::Output<float> *source);
-// Three stages, always in this order:
-//   1. from(lo, hi)   normalise the SOURCE range onto [0,1]
+// Three stages, always in this order (the stage names are source/target;
+// from/to are their legacy spellings — they read as the endpoints of an
+// authored ramp, which is a different idea, ROADMAP §33 ruling 3):
+//   1. source(lo, hi) normalise the SOURCE range onto [0,1]
 //   2. map(ease)      shape it — any ch::EaseFn, so all of ease:: fits
 //   3. quantize(n) snaps to n discrete levels (period-authentic widgets:
 //      Winamp's volume really is round(percent*28), not a sampled slider)
-//   4. scale/offset/to/invert  — affine, composed in CALL ORDER;
+//   4. scale/offset/target/invert — affine, composed in CALL ORDER;
 //      clamp(lo, hi) always applies last, wherever it is written
-  .translateX(bind(&phase).to(-70, 170))            // [0,1] → px
+  .translateX(bind(&phase).target(-70, 170))        // [0,1] → px
   .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
-  .scaleX(bind(&hp).from(0, maxHp))                 // a health bar
+  .scaleX(bind(&hp).source(0, maxHp))               // a health bar
 // `.scale(240).offset(-70)` is v*240-70; `.offset(-70).scale(240)` is
 // (v-70)*240 — reading order is evaluation order.
 // Prunes like anything else (same Output, same affine, same curve under
@@ -417,7 +426,7 @@ already draw.**
 
 "Cache as much as possible" is the policy, and the declared-volatility
 rule is what makes it *safe to automate*: because every source of
-change is declared (bindings, `with()` transitions, `animated()`
+change is declared (bindings, `animate()` transitions, `animates()`
 schemes, web/custom `Cache::None` leaves), "static" is a provable
 property of a subtree, not a heuristic guess. So:
 
@@ -707,8 +716,9 @@ full list with its citation counts; this is the surface.
 
 ```cpp
 // ---- bindings you can shape ----
-bind(&out).from(lo,hi).map(ease).quantize(n).scale(s).offset(o)
-          .to(lo,hi).invert().clamp(lo,hi)   // any float property
+bind(&out).source(lo,hi).map(ease).quantize(n).scale(s).offset(o)
+          .target(lo,hi).invert().clamp(lo,hi)   // any float property
+          // (from/to are the legacy spellings of source/target)
 fill(&fillOutput)                            // ch::Output<Fill>, live
 
 // ---- paint order ----
@@ -1123,7 +1133,7 @@ concept DecorationScheme =
     requires(const D &d, SkCanvas &canvas, const PaintContext &in) {
       { d.paint(canvas, in) };
     };  // PaintContext: the ONE paint-program context (see Elements).
-        // Optional `bool animated() const` → node repaints per frame —
+        // Optional `bool animates() const` → node repaints per frame —
         // the single declared-volatility rule shared by decorations,
         // effects, and bound properties alike.
 
@@ -1206,7 +1216,7 @@ hand any primitive.
 
 **Caching stays sound**: decorations are values in the description
 (reconciled and hashed like everything else), painted inside the node's
-`Cache::Picture` recording; ones declaring `animated()` — or carrying
+`Cache::Picture` recording; ones declaring `animates()` — or carrying
 bound `ch::Output` fields — demote their node to live painting while
 active, exactly the declared-volatility rule bound properties follow.
 
@@ -1224,7 +1234,8 @@ struct Effect {
                                                   // lighting, compose chains
   static Effect shader(sk_sp<SkRuntimeEffect> e,  // SkSL image filter: the
                        Uniforms u = {});          // node's layer is an input
-};                                                // optional animated()
+};                                       // optional animates() [legacy:
+                                           //   animated(); Material: isLive()]
 
 Element &effect(Effect);    // filters the node's own rendered layer
 Element &backdrop(Effect);  // filters what's already painted beneath
@@ -1322,6 +1333,46 @@ rail({{"a", {1, .5f}}, {"hub", {.5f, .5f}}, {"b", {0, .5f}}},
     .trim(0, with(1.0f, {800ms}))
     .stroke(lines::cased(3, ink, 5));
 ```
+
+#### The derive family — one name, six spellings, four shared laws
+
+Everything above is ONE mechanism, and until §33 ruling 11 it had no
+collective name — which is the audit's item 8 (six spellings, ~55 total
+uses; the low churn *is* the symptom). The family is now gathered under
+`derive::`, additively — nothing moved, and every existing spelling
+still compiles:
+
+| Member | What it borrows | Taught spelling |
+| --- | --- | --- |
+| flow text around a node | that node's resolved outline | `derive::flowAround(el, key, margin)` — or the method, which chains |
+| a relationship between two nodes | both nodes' resolved boxes | `derive::connector(a, b[, router])` |
+| a line through many nodes | each anchor's resolved box | `derive::rail(anchors[, router])` |
+| a band's spine | a keyed element's resolved path | `band(derive::around(key), across(px))` |
+| a stroke pass's gap | a keyed element's resolved box | `.stroke(spans::fit(key, margin), what)` |
+| a weave strand's path | a keyed element's resolved path | `brush::Strand{strand::from(key), ink}` |
+
+The last two keep their own concept namespaces (`spans::`, `strand::`)
+because that is where an author is already looking; what `derive::`
+gathers is the family's identity and its laws.
+
+**The four laws they share** — one flat edge store, walked once per
+render:
+
+1. **An unknown key is SILENT.** `flowAround("typo")`,
+   `spans::fit("typo")`, `around("typo")`, a connector to a node not in
+   the tree — every one resolves to nothing and draws nothing. No
+   diagnostic, by precedent and consistency: a warning would have to be
+   the whole family's at once.
+2. **ONE second pass, cycle-guarded.** Backward influence inside a frame
+   is this declared exception and nothing else. A borrow that would close
+   a cycle is dropped, not chased.
+3. **The answer can lag one frame** where the borrowed node's own
+   geometry settles during that layout. (The second `frame()` in the
+   `fit`/`flowAround` tests is that, not a test artefact.)
+4. **Flat, not recursive.** Routed nodes and flowing text are flat lists
+   in tree order plus a back-index from anchor key to routes, so a tree
+   with no derived content pays nothing and `routesAt(key)` answers in
+   O(routes at that node).
 
 **Recursion is closed under the model**: a `ContourWalk` stamp is an
 element subtree, whose decorations may themselves walk contours, whose
@@ -1475,7 +1526,8 @@ The factories:
 
 | Factory | Claims |
 | --- | --- |
-| `spans::range(a, b)` | `[a, b]` of the boundary's total arc length |
+| `spans::range(a, b)` | `[a, b]` of the boundary's total arc length (clamped) |
+| `spans::wrap(a, b)` | the same window on a CYCLE — wraps the seam when `a > b` |
 | `spans::upTo(t)` | `range(0, t)` — **the reveal** |
 | `spans::corners(arm[, angleDeg])` | `arm` px either side of every tangent break |
 | `spans::edges(arm[, angleDeg])` | the runs between the breaks |
@@ -1506,6 +1558,25 @@ what the query side refuses.
 Output — so one spelling reveals every brush kind. `Element::trim()` is
 the legacy spelling of the same idea and still compiles; what it cannot
 do is reveal ONE pass of several, which is why it moved.
+
+**Marching ants — `spans::wrap`.** The seam-crossing window, the one
+thing `trim()` did that spans could not (`TrimMode::Wrap`):
+
+```cpp
+.stroke(spans::wrap(bind(&phase), bind(&phase).offset(0.25f)), ants)
+```
+
+`wrap(a, b)` reads the boundary as a cycle: when `a` wraps past `b` the
+term claims `[a,1]` AND `[0,b]` — one term, two runs, stitched into ONE
+contour so caps and additive brushes never double-hit at the seam.
+`b - a <= 0` claims nothing and `>= 1` claims the whole boundary, read
+from the RAW endpoints so a window driven past 1.0 keeps its length.
+`trim()`'s third `offset` argument has no counterpart here on purpose:
+shifting a window is arithmetic on its two ENDPOINTS (`bind(&p)` and
+`bind(&p).offset(w)` are two shaped views of one Output), not a third
+parameter. `range()` deliberately did NOT learn to wrap — `range(0.9,
+0.1)` already means something, and a reader auditing a claim conflict
+needs the call site to say the term is cyclic.
 
 **`spans::corners()` supersedes four spellings.** `decorations::brackets`
 / `decorations::gappedRule` and `lines::cornerBrackets` /
@@ -1602,11 +1673,36 @@ A brush is what PAINTS. That is the whole vocabulary:
 | **kind** | `brush::Pattern` — the mark built from CELLS | `brushes::PatternBrush` |
 | **kind** | `brush::Scatter` — cells strewn NEAR the mark | `brushes::ScatterBrush` |
 | **kind** | `brush::Art` — an element stretched ALONG it | `brushes::ArtBrush` |
+| **kind** | `brush::Ribbon` — a variable-width FILLED band | `brushes::Ribbon` |
 | **composite** | `brush::layers({a, b, …})` — fixed order, bottom-up | — |
 | **composite** | `brush::weave({strands…}, rule)` — per-crossing order | — |
 
 The kinds are the types that were already here under mechanism names;
 `brush::` is where they are taught and the old names keep compiling.
+
+**The `brushes::` fold (§33 ruling 10).** `brushes::` dies in R3, so
+everything AUTHORS spell in it has a `brush::` spelling now (the
+internals — `placementSamples()`, `drawStamp()`, the `CornerHit`
+re-export — get none and die in R3): the kinds above plus
+`brush::taper`/`calligraphic`/`ribbon` (Ribbon presets),
+`brush::artAlong`, `brush::Placement`/`StampMod`/`StampModFn`,
+`brush::CornerArt`/`CornerAlign`, and `brush::Restyled`/`restyle` (whose
+TAUGHT replacement is `.shaped(value)` — the alias exists so the fold is
+complete, not as an endorsement). **Two things are NOT folded**, and they
+are the R2/R3 open items: the four `LayeredBrush` presets
+(`filament`/`circuit`/`rope`/`pulse`) are PRESETS by the tier rule and
+belong in a kit, not in core under a taught namespace; and `ops::` is a
+pre-existing public escape hatch whose demotion is its own ticket.
+
+**`brush::ribbon(profile, fill)` is the taught Ribbon constructor.** A
+`Ribbon`'s width now rides the shared `Profile` seam (`across(along)` +
+a REQUIRED `max()` + equality), which does three things `widthFn` /
+`widthMax` could not: `bleed()` asks the profile instead of trusting a
+second field nobody set, the value COMPARES so the node prunes, and the
+band is built by `bandRegion()` — so its rails go through
+`profileOffset` and pick up the real-vertex corner repair. `widthFn` /
+`widthMax` still work and still draw exactly what they always drew; a
+profiled ribbon is the new geometry, which is why it is a new field.
 `solid` replaces `PathFormat` because "path format" names the
 implementation — and `pen` was rejected because it implies calligraphy,
 which is a *profile*, not a kind.
@@ -1812,11 +1908,19 @@ element.stroke(Brush{}
 properly.** A corner tile reserves `cornerLength` of arc on each
 adjacent run (so side tiles butt against the elbow instead of sliding
 underneath it — set it whenever the corner art is bigger than the side
-art), it lands on the **vertex** rather than up to half a detection
-step past it, and it faces the **bisector** of the two legs by
-default, so one piece of art serves all four corners of a rectangle.
-`cornerAlign = Outgoing` is the other useful answer — a directional
-marker turning a corner should keep pointing the way it is going.
+art), and it lands on the **vertex** rather than up to half a detection
+step past it.
+
+**Corner art carries its own alignment, and there is no default.**
+`.corner` takes a `brush::CornerArt{art, align}` — a REQUIRED
+constructor argument, the §27 break the roadmap called for and §33
+ruling 8 authorised. `Bisector` is for an ORNAMENT (art symmetric about
+its own bisector: one drawing serves all four corners of a rectangle);
+`Outgoing` is for anything with an entry and an exit — an elbow of pipe,
+a flow tick, a directional marker turning a corner. It is not a
+preference, it is a statement about what the art LOOKS like, which is
+why a default that only warns was not good enough: two studies shipped
+visibly wrong through review under one.
 `cornerAngleDeg` is a per-sample tangent break, so a gently *rounded*
 corner deliberately takes no corner tile: there is no break there to
 find.
@@ -1893,9 +1997,11 @@ brushes::filament(glow, core, scale)   // Ori's 4-layer additive glow
 brushes::circuit(color, tier)          // FUI trace tiers 0/1/2
 brushes::rope(state, zoom)             // Path of Exile's 3-state rope
 brushes::ScatterBrush{.art, .spacing, .jitter*, .mod}   // Illustrator scatter
-brushes::PatternBrush{.side, .corner, .start, .end,
-                      .advance, .cornerLength, .cornerAlign}
+brushes::PatternBrush{.side, .start, .end, .advance, .cornerLength,
+                      .corner = brush::CornerArt{art, align}}  // see below
 brushes::artAlong(art, height, stationPx)   // ArtBrush: warps, not stamps
+brush::ribbon(profile, fill)                // the seam form: comparable,
+                                            // bounded, proper corners
 brushes::Ribbon{.widthStart, .widthEnd, .nibAngleDeg, .widthFn, .widthMax}
 brushes::restyle(op, inner, extraBleed) // OP FIRST, then the decoration
 ops::Wave / Rounded / Sketchy / Square / Offset            // geometry ops
@@ -1986,7 +2092,8 @@ int gem = atlas->cell(gemCell(), {24, 24});    // frame index for the pool
 auto pool = std::make_shared<instancing::Pool>();
 pool->add({x, y}, gem, angleRad, scale, tint); // SoA: position / rotation /
 pool->positions(); pool->tints(); /*…*/        // scale / tint / frame spans
-pool->touch();                                 // bulk-mutated? bump revision
+pool->commit();                        // bulk-mutated? publish the edit
+                                       // (touch() is the legacy spelling)
 
 parent.child(box().width(w).height(h)          // the wrapper IS the
     .child(instancing::instances(atlas, pool,  // placement API
@@ -2008,7 +2115,7 @@ non-uniform cells are real elements). The leaf FILLS ITS PARENT
 (absolute, inset 0): wrap it in a sized box and pool positions are
 that parent's local px. Two modes, matching the kernel's two write
 paths: `Mode::Data` prunes on (atlas, pool, revision) — mutate,
-`touch()`, `render()`; `Mode::Live` is the `Cache::None` particle path
+`commit()`, `render()`; `Mode::Live` is the `Cache::None` particle path
 that reads the pool every frame. Past 2048 instances the stamp culls
 against the local clip before building draw arrays. Measured: 10k
 instances in 0.18 ms on Graphite (18 ns/sprite, ~200× CPU raster) —

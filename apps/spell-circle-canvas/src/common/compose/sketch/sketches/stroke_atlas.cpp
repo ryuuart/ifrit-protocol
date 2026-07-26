@@ -862,18 +862,19 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         brushes::PatternBrush tiled;
         tiled.side = box().width(11).height(7).outline(hline()).stroke(
             lines::Line{.width = 1.2f, .fill = ink()});
-        tiled.corner = box()
-                           .width(15)
-                           .height(15)
-                           .outline(shapes::polygon(4, 45.0f))
-                           .foreground(util::stroke(1.3f, red()));
-        // Bisector, and NOT merely because it is the default. This
+        // Bisector, and NOT merely because it is what the ART wants. This
         // specimen's caption says "lozenge", and a lozenge is only a
         // lozenge on the bisector: a rectangle's outgoing legs are axis
         // aligned, so under Outgoing the same polygon(4, 45) comes back
         // as four upright SQUARES and the label stops being true of the
         // picture beside it. Measured both ways before writing this.
-        tiled.cornerAlign = brushes::PatternBrush::CornerAlign::Bisector;
+        tiled.corner = brushes::CornerArt{box()
+                                              .width(15)
+                                              .height(15)
+                                              .outline(shapes::polygon(4, 45.0f))
+                                              .foreground(util::stroke(1.3f,
+                                                                       red())),
+                                          brushes::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
         add("PatternBrush{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
@@ -968,8 +969,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
     // arrows chasing each other round the frame.
     plate.child(sectionTitle(56, 1700, "VIII",
                              "THE CORNER \xc2\xb7 WHICH WAY IT FACES"));
-    plate.child(call("brushes::PatternBrush{cornerAlign} \xe2\x80\x94 the same "
-                     "art, the same rect, one field different",
+    plate.child(call("brushes::CornerArt{art, align} \xe2\x80\x94 the same "
+                     "art, the same rect, one word different",
                      9.0f, kInkSoft)
                     .absolute()
                     .left(56)
@@ -995,22 +996,21 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       };
       struct Corner {
         const char *label;
-        brushes::PatternBrush::CornerAlign align;
+        brushes::CornerAlign align;
       };
       const Corner variants[] = {
-          {"cornerAlign = Bisector  (the default)",
-           brushes::PatternBrush::CornerAlign::Bisector},
-          {"cornerAlign = Outgoing  (a marker that keeps going)",
-           brushes::PatternBrush::CornerAlign::Outgoing},
+          {"CornerArt{art, Bisector}  (an ornament)",
+           brushes::CornerAlign::Bisector},
+          {"CornerArt{art, Outgoing}  (a marker that keeps going)",
+           brushes::CornerAlign::Outgoing},
       };
       for (int i = 0; i < 2; ++i) {
         brushes::PatternBrush pb;
         pb.side = tick();
-        pb.corner = chevron();
+        pb.corner = brushes::CornerArt{chevron(), variants[i].align};
         pb.advance = 12.0f;
         pb.cornerLength = 20.0f;
         pb.reach = 20.0f;
-        pb.cornerAlign = variants[i].align;
         plate.child(box()
                         .absolute()
                         .left(56.0f + 360.0f * (float)i)
@@ -1029,11 +1029,6 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // half-a-detection-step error obvious.
       brushes::PatternBrush octo;
       octo.side = tick();
-      octo.corner = box()
-                        .width(13)
-                        .height(13)
-                        .outline(shapes::polygon(4, 45.0f))
-                        .foreground(util::stroke(1.3f, red()));
       // Bisector, and it is load-bearing for what this specimen is FOR.
       // The point here is PLACEMENT — that a tile lands exactly on the
       // vertex — and bisector alignment gives eight identically oriented
@@ -1042,7 +1037,13 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // legs alternate axis-aligned and 45 degrees, and that alternation
       // is a confound: you cannot tell a misplaced tile from a merely
       // differently-rotated one. Measured both ways.
-      octo.cornerAlign = brushes::PatternBrush::CornerAlign::Bisector;
+      octo.corner = brushes::CornerArt{box()
+                                           .width(13)
+                                           .height(13)
+                                           .outline(shapes::polygon(4, 45.0f))
+                                           .foreground(util::stroke(1.3f,
+                                                                    red())),
+                                       brushes::CornerAlign::Bisector};
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;
       octo.reach = 18.0f;

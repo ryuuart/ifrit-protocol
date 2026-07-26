@@ -285,6 +285,13 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
  *  way to build parallel rails: every rail keeps the same arc
  *  parameterization, so dashes stay in phase across the set.
  *
+ *  **THE SIGN DIES IN R3.** LEFT of travel wins everywhere (ROADMAP §33
+ *  ruling 5): the kernel — `bandPointAt`, `Profile`, `TextPath::offset` —
+ *  has always been left-of-travel-is-outward, and `lines::`' right-of-
+ *  travel members are the minority that goes. Nothing flips HERE, now: a
+ *  sign flip changes every existing caller's output, so it rides the R2
+ *  corpus port with pixel verification, not this additive phase.
+ *
  *  THE CORNER REPAIR. A uniform resample cannot offset a polygon: it
  *  samples either side of a vertex and draws a chord between the two
  *  offset points, so the outer side comes out CHAMFERED and the inner
@@ -655,7 +662,11 @@ struct Line {
    *  positive = right of travel) — bus lanes beside the road, half-side
    *  hachures. (Same semantics as ops::Offset in a Brush pipeline — use
    *  the op when several legs share one offset, this field for a single
-   *  Line.) */
+   *  Line.)
+   *
+   *  **The right-of-travel convention dies in R3 — LEFT wins everywhere**
+   *  (ROADMAP §33 ruling 5, the kernel's sign). No flip now: it changes
+   *  every caller's picture, so it rides the R2 port. */
   float offset = 0.0f;
 
   /** Terminal caps per contour (start = the path's first point). The
@@ -692,7 +703,9 @@ struct Line {
 
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
-  bool animated() const { return dashPhaseBinding != nullptr; }
+  bool animates() const { return dashPhaseBinding != nullptr; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -1074,7 +1087,10 @@ inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
 /** One rail of a `Rails` stroke: its own displacement from the route, its
  *  own width, fill, dash pattern and phase. `offset` is px RIGHT of travel
  *  (Mapbox line-offset sign, same as `Line::offset` and `ops::Offset`), so
- *  a symmetric pair is {-gap/2, +gap/2}. */
+ *  a symmetric pair is {-gap/2, +gap/2}.
+ *
+ *  **The right-of-travel convention dies in R3 — LEFT wins everywhere**
+ *  (ROADMAP §33 ruling 5); the flip rides the R2 port, not this phase. */
 struct Rail {
   float offset = 0.0f;
   float width = 2.0f;
@@ -1120,7 +1136,9 @@ struct Rails {
 
   bool operator==(const Rails &) const = default;
 
-  bool animated() const { return dashPhaseBinding != nullptr; }
+  bool animates() const { return dashPhaseBinding != nullptr; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -1263,9 +1281,11 @@ struct Hatch {
   const choreograph::Output<float> *spacingBinding = nullptr;
   const choreograph::Output<float> *angleBinding = nullptr;
 
-  bool animated() const {
+  bool animates() const {
     return spacingBinding != nullptr || angleBinding != nullptr;
   }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float pitch() const {
     return spacingBinding ? spacingBinding->value() : spacing;
   }
