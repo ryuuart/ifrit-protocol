@@ -887,19 +887,20 @@ Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 
 TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   // `.shaped(value)` is the ONE geometry-deviation seam. `brushes::restyle`
-  // is the older wrapper that does the same job around a `ops::PathOp`
-  // lambda — it is NOT retired (it still ships, and the lowercase ops::
-  // family's demotion is deferred to the C-batch), so the claim here is
-  // agreement, not replacement.
+  // is the older wrapper that does the same job around a `GeometryOp` —
+  // it is NOT retired (it still ships), so the claim here is agreement,
+  // not replacement. The legacy arm spells `ops::Wave`, the comparable
+  // struct: the lowercase `ops::wave` lambda it used to spell is deleted.
   //
   // What is asserted is INK-COUNT SIMILARITY within 5%, not identical
-  // output: the two paths build their own PaintContext and the lambda
-  // form is incomparable, so byte equality was never the property.
+  // output: the two paths build their own PaintContext and wrap the op
+  // differently, so byte equality was never the property.
   auto draw = [](bool legacySpelling) {
     StrokeHost host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
     if (legacySpelling)
-      e.stroke(brushes::restyle(ops::wave(5, 24), brush::solid(3, strokeRed()), 8));
+      e.stroke(
+          brushes::restyle(ops::Wave{5, 24}, brush::solid(3, strokeRed()), 8));
     else
       e.stroke(Brush{}
                    .shaped(kit::brush::shapers::wave(5, 24))

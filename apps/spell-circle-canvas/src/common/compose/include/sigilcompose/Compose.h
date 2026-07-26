@@ -126,7 +126,12 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
 } // namespace ease
 
 template <typename T> struct Transitioned {
-  T value;
+  /** Value-initialized, not default-initialized: `animate(through({}))`
+   *  and `withKeyframes<float>({})` build one of these and then fill
+   *  nothing, and for a scalar T that left the property reading whatever
+   *  was on the stack (§32 review REV-11). An empty keyframe list is a
+   *  degenerate ask, but it must be a DETERMINATE one — zero. */
+  T value{};
   Transition spec;
   /** animate(from(a).to(b)): where the value ENTERS from when the node
    *  first mounts. Empty for plain with() — no entrance, only change
@@ -532,6 +537,13 @@ struct PaintContext {
   SkPath outline;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
+  /** Is the composer's Ticker running anything at all this frame, as
+   *  read by a node that REPAINTS this frame (a cached node replays its
+   *  recording and keeps its last-read value) — the
+   *  WHOLE tree's answer, not this node's. A program that wants cheap
+   *  chrome while something moves reads it; nothing in the library does.
+   *  False outside a composer (a decoration painted standalone), which is
+   *  the honest answer there: there is no ticker to be active. */
   bool animating = false;
   sigil::weave::FontContext *fonts = nullptr;
   /** Paths this node BORROWED from keyed elements in the derive phase, in
@@ -1974,6 +1986,15 @@ public:
   Element &onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----
+  /** The author-owned identity: what the reconciler matches a child by
+   *  across describes, and what `connector`/`rail`/`spans::fit` borrow
+   *  geometry by.
+   *
+   *  ON A `slot()` IT RENAMES THE MOUNT. A slot's name IS its key —
+   *  there is no second field — so `slot("hud").key("panel")` produces a
+   *  slot called "panel", and `renderSlot("hud")` then finds nothing and
+   *  no-ops. Doing it warns once (Release too), because the symptom is a
+   *  W × 0 layout, not an error (ROADMAP §26b's other half). */
   Element &key(std::string_view k);
   Element &cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
@@ -2042,8 +2063,12 @@ private:
 // ---- factories -----------------------------------------------------------
 
 Element box();
-/** Overlap container: children share the box (absolute by default),
- *  painted in (zIndex, declaration order). */
+/** Overlap container: children share the box, painted in (zIndex,
+ *  declaration order). EVERY child is absolute — the container sets it
+ *  after the child's own layout props, so a child cannot rejoin the flex
+ *  flow from inside a stack (it keeps its insets, which is what absolute
+ *  is for: `.top(12).right(12)` pins a corner). Mixed flow wants a box
+ *  with a stack inside it. */
 Element stack();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
@@ -2091,7 +2116,12 @@ template <LayoutScheme L> Element layout(L scheme) {
 
 /** A named mount point whose content is supplied independently via
  *  Composer::renderSlot() — the surrounding tree's caches stay valid
- *  across slot updates (independent data domains). */
+ *  across slot updates (independent data domains).
+ *
+ *  THE NAME IS STORED AS THE ELEMENT'S `key`, which is the same field
+ *  `.key()` writes: `slot("hud").key("panel")` is a slot named "panel"
+ *  and `renderSlot("hud")` silently finds nothing. Name the slot here,
+ *  never twice; `.key()` warns once if it is called on one anyway. */
 Element slot(std::string_view name);
 
 /** A relationship as a first-class element: a path routed between two

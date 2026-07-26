@@ -118,7 +118,7 @@
 // -----------------------------------------------------------------------------
 // AND ONE CORRECTION TO MY OWN ASSIGNMENT, WHICH THE RESEARCHER MADE FIRST
 //
-// LAIN'S LINES ARE NOT WOBBLY. `ops::sketchy` is the wrong instinct and I did
+// LAIN'S LINES ARE NOT WOBBLY. `ops::Sketchy` is the wrong instinct and I did
 // not use it. Hairline cross-sections in both frames are smooth single-lobe
 // profiles, 2 px, no tremor — mechanically clean. What reads as hand-made is
 // PLACEMENT (nothing is aligned to anything, no element is centred, no

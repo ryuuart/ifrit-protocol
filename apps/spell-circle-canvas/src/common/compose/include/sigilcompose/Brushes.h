@@ -38,7 +38,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkStrokeRec.h> // ops::rounded / ops::sketchy filterPath
+#include <include/core/SkStrokeRec.h> // ops::Rounded / ops::Sketchy filterPath
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
@@ -223,55 +223,36 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
 
 namespace ops {
 
-/** A path→path geometry op — our SkPathEffect-shaped extension point
- *  (Skia's own subclassing seam is sealed in its public API). Chain them
- *  with chain(); apply to any decoration with brushes::restyle(). */
+/** THE ESCAPE HATCH: a path→path geometry op as a raw callable — our
+ *  SkPathEffect-shaped extension point, because Skia's own subclassing
+ *  seam is sealed in its public API. It can do anything, and it can never
+ *  prune: an incomparable callable compares conservatively unequal, so a
+ *  node wearing one re-records every render (memo the host, or keep it
+ *  pointer-stable). Reach for it when neither a comparable `ops::` struct
+ *  (below) nor a `kit::brush::shapers` value can say what you mean.
+ *  Chain them with chain(); apply to any decoration with
+ *  brushes::restyle(), which takes either form.
+ *
+ *  THE LOWERCASE FACTORIES ARE GONE (audit I6, deleted with this note):
+ *  `ops::wave/zigzag/rounded/sketchy` each returned one of these lambdas
+ *  doing exactly what its capitalised struct one letter away does —
+ *  so which of the two an author typed silently decided whether the node
+ *  could EVER prune, and `ops::rounded` additionally collided with
+ *  `shapes::rounded`, which rounds a different thing. The comparable
+ *  spellings, and the whole port:
+ *
+ *      ops::wave(a, w)         → ops::Wave{a, w}
+ *      ops::zigzag(a, w)       → ops::Wave{a, w, true}
+ *      ops::rounded(r)         → ops::Rounded{r}
+ *      ops::sketchy(s, d, k)   → ops::Sketchy{s, d, k}
+ *      op(path)                → Op{...}.apply(path) */
 using PathOp = std::function<SkPath(const SkPath &)>;
-
-inline PathOp wave(float amplitude, float wavelength) {
-  return [amplitude, wavelength](const SkPath &p) {
-    return lines::displace(p, amplitude, wavelength, false);
-  };
-}
-inline PathOp zigzag(float amplitude, float wavelength) {
-  return [amplitude, wavelength](const SkPath &p) {
-    return lines::displace(p, amplitude, wavelength, true);
-  };
-}
-/** Round every corner (SkCornerPathEffect). */
-inline PathOp rounded(float radius) {
-  return [radius](const SkPath &p) {
-    SkPathBuilder out;
-    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  };
-}
-/** The hand-drawn jitter (SkDiscretePathEffect — the rough.js look;
- *  grounded params in REFERENCES.md §9: deviation ≈ 2, and rough.js draws
- *  TWO passes, full + half deviation with different seeds, for the
- *  sketchy double-line — compose two restyle()s to match). */
-inline PathOp sketchy(float segLength = 8.0f, float deviation = 2.0f,
-                      uint32_t seed = 7) {
-  return [segLength, deviation, seed](const SkPath &p) {
-    SkPathBuilder out;
-    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
-    // open contours — the transit study's phantom river channel (the
-    // return chord braided the real run under jitter divergence).
-    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
-    if (sk_sp<SkPathEffect> fx =
-            SkDiscretePathEffect::Make(segLength, deviation, seed);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  };
-}
 
 /** Dump the path's contour census (count/lengths/closedness/bounds) to
  *  stderr and pass it through unchanged — drop into any pipeline position
- *  when a construction misbehaves. */
+ *  when a construction misbehaves. Lowercase and kept: it is a
+ *  DIAGNOSTIC, has no capitalised twin to be confused with, and a
+ *  pass-through that prints has nothing to prune. */
 inline PathOp debug(const char *tag = "brush") {
   std::string t = tag;
   return [t](const SkPath &p) {
@@ -287,7 +268,11 @@ inline PathOp debug(const char *tag = "brush") {
   };
 }
 
-/** Chain ops left-to-right — compose like SkComposePathEffect. */
+/** Chain escape-hatch ops left-to-right — compose like
+ *  SkComposePathEffect. Lowercase and kept for the same reason as
+ *  debug(): it is the PathOp family's own combinator, not a duplicate of
+ *  a comparable value. Comparable ops chain by listing them —
+ *  `Brush::op()` appends, and each `.leg()` carries its own list. */
 inline PathOp chain(std::vector<PathOp> steps) {
   return [steps = std::move(steps)](const SkPath &p) {
     SkPath r = p;
@@ -303,7 +288,9 @@ inline PathOp chain(std::vector<PathOp> steps) {
 /** Anything with `SkPath apply(const SkPath&) const` — a geometry op as a
  *  VALUE. Optional `float bleed() const` declares extra paint reach (wave
  *  amplitude, offset distance). Value-comparable ops keep the whole Brush
- *  prunable; a raw ops::PathOp still converts (conservatively unequal). */
+ *  prunable; an ops::PathOp converts too (conservatively unequal) — a
+ *  bare lambda literal must be assigned to an ops::PathOp first (two
+ *  user-defined conversions do not chain). */
 template <typename G>
 concept GeometryScheme = requires(const G &g, const SkPath &p) {
   { g.apply(p) } -> std::convertible_to<SkPath>;
@@ -363,7 +350,18 @@ private:
 
 namespace ops {
 
-/** The struct forms — comparable, prunable, designated-init friendly. */
+// The struct forms — comparable, prunable, designated-init friendly, and
+// the ONLY spelling now that the lowercase lambdas are gone.
+//
+// PUBLIC, deliberately, though §33's plan was to demote `ops::` to
+// internal once the lambdas died: the corpus spells these ~35 times, and
+// the taught seam that would replace them (`.shaped(value)` over
+// `kit::brush::shapers`) covers wave/jitter/offset only. `Rounded` and
+// `Square` have no kit twin, so demoting the family would delete two
+// capabilities with nothing to say instead — which §27 forbids. The
+// demotion is blocked on that gap, not on taste; a kit shaper for each is
+// what unblocks it.
+
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f;
   bool zigzag = false;
@@ -373,18 +371,41 @@ struct Wave {
     return lines::displace(p, amplitude, wavelength, zigzag);
   }
 };
+/** Round every corner (SkCornerPathEffect). Note `shapes::rounded()` is a
+ *  different thing — it rounds an OUTLINE generator's result; this rounds
+ *  whatever path the brush pipeline is carrying. */
 struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded &) const = default;
-  SkPath apply(const SkPath &p) const { return rounded(radius)(p); }
+  SkPath apply(const SkPath &p) const {
+    SkPathBuilder out;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
+  }
 };
-struct Sketchy { // open contours STAY open (hairline rec — see sketchy())
+/** The hand-drawn jitter (SkDiscretePathEffect — the rough.js look;
+ *  grounded params in REFERENCES.md §9: deviation ≈ 2). ONE pass: rough.js
+ *  draws TWO, full + half deviation at different seeds, so the sketchy
+ *  double-line is two legs (or two restyle()s), never one call. */
+struct Sketchy {
   float segLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
   bool operator==(const Sketchy &) const = default;
   float bleed() const { return deviation * 2; }
   SkPath apply(const SkPath &p) const {
-    return sketchy(segLength, deviation, seed)(p);
+    SkPathBuilder out;
+    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
+    // open contours — the transit study's phantom river channel (the
+    // return chord braided the real run under jitter divergence).
+    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
+    if (sk_sp<SkPathEffect> fx =
+            SkDiscretePathEffect::Make(segLength, deviation, seed);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
   }
 };
 struct Square { // boxy: battlement/meander-key displacement
@@ -805,10 +826,14 @@ namespace brushes {
 
 /** Run a geometry pipeline, then paint `inner` on the restyled outline —
  *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
- *  jitter, rounding without knowing. The op is an incomparable callable:
- *  memo the host node (or keep it pointer-stable) to prune. */
+ *  jitter, rounding without knowing.
+ *
+ *  Takes a `GeometryOp`, so a comparable value (`ops::Wave{...}`, a kit
+ *  shaper) and a raw `ops::PathOp` lambda both spell it. The WRAPPER is
+ *  incomparable either way — it has no operator== — so memo the host node
+ *  (or keep it pointer-stable) to prune, whichever op you hand it. */
 struct Restyled {
-  ops::PathOp op;
+  GeometryOp op;
   Decoration inner;
   float extraBleed = 8.0f; // the op's own overhang (wave amplitude…)
 
@@ -820,7 +845,9 @@ struct Restyled {
   std::vector<std::string> borrows() const { return inner.borrows(); }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
-    PaintContext restyled{ctx.size,        op ? op(ctx.outline) : ctx.outline,
+    // GeometryOp::apply passes the path through when it holds nothing,
+    // which is what the old `op ? op(outline) : outline` guard bought.
+    PaintContext restyled{ctx.size,        op.apply(ctx.outline),
                           ctx.elapsedSeconds, ctx.contentScale,
                           ctx.animating,   ctx.fonts,
                           ctx.borrowed};
@@ -828,7 +855,7 @@ struct Restyled {
   }
 };
 
-inline Restyled restyle(ops::PathOp op, Decoration inner,
+inline Restyled restyle(GeometryOp op, Decoration inner,
                         float extraBleed = 8.0f) {
   return Restyled{std::move(op), std::move(inner), extraBleed};
 }
@@ -850,26 +877,37 @@ struct Placement {
     SegmentCenter, ///< the midpoint of every straight segment
   };
   Mode mode = Mode::Interval;
-  float interval = 24.0f; ///< px, or contour fraction when ≤ 1
-  float offset = 0.0f;    ///< leading phase for Interval (same units)
+  /** px, or contour fraction when ≤ 1. UNSET means "take the host brush's
+   *  own spacing" — `ScatterBrush::spacing` resolves it. It is an optional
+   *  and not a defaulted float because the default WAS 24, compared against
+   *  24 to detect "unset", so an author writing `.interval = 24` got
+   *  `spacing` instead of the number they typed, silently (audit I8). An
+   *  optional cannot be spelled by accident. */
+  std::optional<float> interval;
+  float offset = 0.0f; ///< leading phase for Interval (same units)
   bool operator==(const Placement &) const = default;
 };
 
 namespace detail {
-/** Resolve a Placement into concrete samples (position + tangent). */
+/** Resolve a Placement into concrete samples (position + tangent).
+ *  @param spacing the host brush's spacing — what an UNSET `interval`
+ *         resolves to (the sugar; see Placement::interval). Passed in
+ *         rather than defaulted here because only the brush owns it. */
 inline std::vector<PathSample> placementSamples(const SkPath &path,
-                                                const Placement &p) {
+                                                const Placement &p,
+                                                float spacing) {
   std::vector<PathSample> out;
   using Mode = Placement::Mode;
   if (p.mode == Mode::Interval || p.mode == Mode::CentralPoint) {
+    const float interval = p.interval.value_or(spacing);
     SkContourMeasureIter iter(path, false);
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float len = contour->length();
-      const float step = p.interval <= 1.0f ? len * std::max(p.interval, 0.001f)
-                                            : p.interval;
+      const float step =
+          interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
       const float phase =
           p.offset <= 1.0f && p.offset >= -1.0f && p.mode == Mode::Interval &&
-                  p.interval <= 1.0f
+                  interval <= 1.0f
               ? len * p.offset
               : p.offset;
       auto sampleAt = [&](float d) {
@@ -1015,7 +1053,7 @@ struct ScatterBrush {
   float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
   /** Full placement grammar — set `place.mode` for Vertex/SegmentCenter/
    *  CentralPoint… families; `spacing` feeds Interval when place is
-   *  default-constructed. */
+   *  `interval` is unset. */
   Placement place{};
   uint32_t seed = 0; ///< 0 = a regular run, no jitter roll
   float jitterAlong = 0, jitterNormal = 0; ///< ±px
@@ -1056,11 +1094,11 @@ struct ScatterBrush {
     if (!cache->pic)
       return;
 
-    Placement resolved = place;
-    if (resolved.mode == Placement::Mode::Interval && resolved.interval == 24.0f)
-      resolved.interval = spacing; // the spacing sugar feeds Interval
+    // An unset place.interval takes `spacing` — the sugar, resolved where
+    // the spacing lives rather than by comparing against a sentinel value
+    // an author could type (audit I8).
     std::vector<PathSample> samples =
-        detail::placementSamples(ctx.outline, resolved);
+        detail::placementSamples(ctx.outline, place, spacing);
     for (size_t i = 0; i < samples.size(); ++i) {
       StampMod m;
       if (mod)

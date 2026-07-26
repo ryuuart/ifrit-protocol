@@ -915,6 +915,10 @@ Three tiers, cheapest first:
    // stay valid, and the slot content still participates in layout and
    // stacking exactly like an inline child.
    ```
+
+   A slot's NAME IS ITS KEY — one field — so `.key()` on a slot renames
+   the mount and `renderSlot()` on the original name no-ops into a W × 0
+   layout. Name a slot once, in `slot()`; both calls warn if you don't.
 3. **Multiple Composers** for fully separate systems (scene HUD vs
    poster): each is already a guest in the canvas; cross-composer
    ordering is simply draw-call order.
@@ -1789,7 +1793,9 @@ element.stroke(Brush{}
   designated-init structs with `apply(SkPath)`, optional `bleed()`).
   `GeometryOp` type-erases them exactly like `Decoration` does paint
   schemes — Skia seals `SkPathEffect` subclassing, so this is that seam
-  as data. A raw `ops::PathOp` lambda still converts (never prunes).
+  as data. An `ops::PathOp` converts too (never prunes) — assign a bare
+  lambda to an `ops::PathOp` variable first; a lambda literal does not
+  convert directly.
 - **Legs** are ordinary Decorations: `lines::Line` (parallel casings,
   terminal/mid caps with the tip-at-endpoint convention, railway ties,
   dash that stays phase-registered across rails), `LayeredBrush` stacks
@@ -1912,20 +1918,26 @@ in a still frame and diverge only in motion. And set `widthMax` whenever
 you set `widthFn`: `bleed()` cannot look inside a `std::function`, so an
 undeclared 166 px band declares 10 px of reach and is silently clipped.
 
-**3. `ops::sketchy` is ONE pass of `SkDiscretePathEffect`.** It jitters
+**3. `ops::Sketchy` is ONE pass of `SkDiscretePathEffect`.** It jitters
 vertices; it does not bow the segments between them, so it is not the
 Rough.js construction on its own — Rough.js draws TWO passes, full and
 half deviation at different seeds. Compose two `restyle()`s (or two
 `Sketchy` legs) to match; no single call reproduces it. Note `restyle`
-takes the OP FIRST and the decoration second, and its op is an
-incomparable callable — memo the host node or keep it pointer-stable, or
-it never prunes.
+takes the OP FIRST and the decoration second, and the WRAPPER is
+incomparable whatever op you hand it (it has no `operator==`) — memo the
+host node or keep it pointer-stable, or it never prunes.
 
 **Geometry ops are VALUES** (`ops::Wave{...}` etc., designated-init
 structs with `apply(SkPath)` and an optional `bleed()`), type-erased by
 `GeometryOp` exactly as `Decoration` type-erases paint schemes, because
 Skia seals `SkPathEffect` subclassing. A raw `ops::PathOp` lambda still
-converts — and never prunes.
+converts — and never prunes. The lowercase factories that returned those
+lambdas (`ops::wave/zigzag/rounded/sketchy`) are DELETED: each duplicated
+its own capitalised struct one letter away with the opposite pruning
+behaviour, and `ops::rounded` collided with `shapes::rounded`. Spell the
+struct (`ops::Wave{a, w}`, `ops::Wave{a, w, true}` for the zigzag,
+`ops::Rounded{r}`, `ops::Sketchy{seg, dev, seed}`); `ops::PathOp` itself,
+with `chain()` and `debug()`, stays as the escape hatch.
 
 **Live pitch and angle.** `lines::Hatch` takes `spacingBinding` and
 `angleBinding` (raw `const Output<float>*`, the same convention as
