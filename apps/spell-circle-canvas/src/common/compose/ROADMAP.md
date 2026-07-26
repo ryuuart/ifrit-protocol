@@ -1764,6 +1764,142 @@ the ops::/linearUnit/widthFn stragglers); phase R3 — DELETE the
 legacy spellings and the aliases, one loud commit. §31's beat
 judgements and the measurement campaign remain separate tracks.
 
+**THE PARITY GATE (designer, 2026-07-26) — binding on R2 and R3.**
+*Expressiveness parity is the condition for deletion.* If anything the
+old grammar can express has no new-grammar spelling, that is a BLOCKER
+finding, reported as such, never papered over. A rename is not done
+when it compiles; it is done when the capability table closes. The
+method: enumerate the old surface's capabilities one row at a time,
+show the new spelling WITH A TEST for each, and mark the rest NO
+SPELLING. Where a gap is found, propose the additive term that closes
+it — and nothing more; parity is the budget, not an invitation to
+design.
+
+**PHASE R1 SHIPPED 2026-07-26 — the ruled spellings, additively.** All
+nine items landed; full Debug build, 14/14 ctest, and Release
+byte-compare on ds2_bench / thaumonomicon / stroke_atlas.
+
+1. **`animate(to(v), spec)`** — a `To<T>` builder beside `From`/`FromTo`
+   and an `animate(To<T>, Transition)` overload that builds the same
+   `Transitioned` `with(v, spec)` builds. The argument now says which
+   kind of motion: `to()` alone is ramp-on-change, `from().to()` is a
+   mount entrance. `with()` is documented as its legacy spelling.
+2. **`animates()`** — the volatility concept split in two
+   (`AnimatingDecoration` / `AnimatedDecoration`), duck-typing both
+   words for the length of the transition, `animates()` winning where a
+   scheme spells both. Every library scheme (16 of them) implements
+   `animates()` as the primary with `animated()` forwarding; `Material`
+   gained `animates()` beside `isLive()`; `Decoration` reads
+   `animates()` and forwards `animated()`.
+3. **`Bound::source(lo,hi)` / `target(lo,hi)`** — the stage names.
+   `from`/`to` are one-line legacy delegates. `window()` is documented
+   as `source()` that clamps.
+4. **`Pool::commit()`** — `touch()` delegates. Recorded at the
+   declaration that this is TASTE, not a bug fix: GRAMMAR_AUDIT M6's
+   re-audit found 14 corpus sites and zero stale-lane renders.
+5. **The `brushes::` fold** — `brush::` gained `Ribbon`, `taper`,
+   `calligraphic`, `ribbon(profile, fill)`, `artAlong`, `Placement`,
+   `StampMod`, `StampModFn`, `CornerArt`, `CornerAlign`, `Restyled`,
+   `restyle`. **Ribbon's Profile migration landed too**: a `Profile
+   width` member (comparable, required `max()`), `bleed()` reading the
+   profile, and the profiled path built by the now-public
+   `bandRegion()` — so the corner-join win falls out of `profileOffset`
+   exactly as predicted. `widthFn`/`widthMax` stay, unchanged, and no
+   existing ribbon's output moves.
+6. **`derive::`** — `connector`, `rail`, `around` as using-declarations,
+   `flowAround` as a free verb over the method; one API.md section
+   ("The derive family") naming the six members and the four shared
+   laws (silent unknown key, one cycle-guarded second pass, the
+   one-frame lag, flat-not-recursive).
+7. **`spans::wrap(begin, end)`** — see the parity table below.
+8. **`cornerAlign` is a required constructor argument.** The break took
+   the shape the §27 entry asked for and the type system can enforce:
+   corner art and its alignment are ONE value, `brushes::CornerArt{art,
+   align}`, with no default constructor — so "corner art with no stated
+   alignment" is a state that cannot be described, and the paint-time
+   warning is deleted. Five sketch consumers ported. It immediately
+   found a sixth site that was setting `cornerAlign` on a brush with NO
+   corner art (eva_magi_interior, twice): inert configuration that a
+   warning could never have caught.
+9. **LEFT-of-travel** noted at all five sign sites (two `lines::`
+   members, three kernel sites): the convention dies in R3, left wins,
+   and no sign flips now because a flip moves every caller's pixels —
+   it rides the R2 port.
+
+**THE TRIM PARITY TABLE (R1's gate deliverable).** `Element::trim` is
+the surface R3 wants to delete, so every capability of it was
+enumerated and tested against the span spelling
+(`ComposeR1TrimParity.*` and `ComposeR1Wrap.*`, 12 tests):
+
+| trim capability | spans spelling | status |
+| --- | --- | --- |
+| `trim(0, t)` reveal | `spans::upTo(t)` | closed (pre-existing test) |
+| `trim(a, b)` window | `spans::range(a, b)` | closed |
+| ends outside [0,1] pin (Clamp) | `range` normalises identically | closed |
+| animated endpoints | `range`/`upTo` take any `Animatable` | closed |
+| bound endpoints | same | closed |
+| CONSTANT `offset` | addition at the call site | closed |
+| BOUND `offset`, constant ends | `range(bind(&o), bind(&o).offset(w))` | closed |
+| `TrimMode::Wrap`, static seam-crossing window | `spans::wrap(a, b)` | closed |
+| Wrap marching ants (bound) | `wrap(bind(&p), bind(&p).offset(w))` | closed, 8 phases incl. mid-seam |
+| Wrap marching ants (animated both ends) | `wrap(animate(...), animate(...))` | closed, 8 steps |
+| Wrap degenerate: `end-begin <= 0` → nothing, `>= 1` → whole | same rule, from the RAW endpoints | closed |
+| reveals ALL of a node's outline-followers at once | one pass with a COMPOSITE brush (the overlap diagnostic's own advice) | closed for stroke-pass legs ONLY (see next row) |
+| reveals BACKGROUND-slot followers (painted BELOW children) | NO SPELLING — span passes paint above children in the foreground half | GAP — third R3 blocker row (review find) |
+| **BOUND `offset` AND bound endpoints together** | — | **NO SPELLING** |
+| trim also trims the FILL surface | — | **no spelling, and none wanted** |
+
+The two open rows, precisely:
+
+- **Two live Outputs summed into one endpoint.** `trim(&start, &end,
+  &offset)` adds two independently-driven values; a `BoundFloat` holds
+  ONE source pointer, so `spans` cannot express it. **Zero corpus sites**
+  (every trim in the corpus binds either the ends or the offset, never
+  both), so this blocks R3 only formally. The additive closure, if the
+  designer wants it, is an `Animatable<float> offset` FIELD on
+  `Spans::Term` — the direct translation of trim's third argument, still
+  a closed comparable value, no new kind, `valueCount()` 3 per term. Not
+  built: parity is the budget.
+- **The fill under a trim.** `trim()` also re-draws the node's FILL
+  along the trimmed (open) path. That is not a capability to port — it
+  is the documented misfeature `wipe()` exists to answer ("trim walks
+  the PERIMETER, so on a filled shape it sweeps a wedge round the
+  outline instead of extending the surface", three studies). Recorded so
+  R3 does not rediscover it as a regression.
+
+**Why `spans::wrap` and not `range` learning to wrap.** Two reasons,
+both load-bearing. (1) `range(0.9, 0.1)` compiles today and means the
+reversed window `normalizeSpans` swaps — teaching `range` to wrap
+changes what existing descriptions DRAW, which §27 forbids and R1 is
+not the phase for. (2) The no-overlap law reads over RESOLVED runs, and
+this is the only term that yields two runs from one pair of endpoints;
+a reader auditing a claim conflict needs the call site to say the term
+is cyclic. `wrap` names the intent, `range` stays the clamped interval.
+
+**One real bug found by the parity test, and fixed.** `detail::spanPath`
+claimed in its own comment that "a whole contour claimed whole stays
+whole — closed stays closed, so joins and additive brushes behave as
+they do untrimmed", and did not close it: `getSegment` returns an OPEN
+run whose ends merely coincide, so the seam vertex got two butt caps
+instead of a miter join. Two pixels at one corner of a rectangle — and a
+visible notch under any wide or additive brush. It was invisible until a
+full-cycle `spans::wrap` was compared byte-for-byte against an untrimmed
+Wrap trim. The close() lands on ANY whole-contour claim — edges() on
+a smooth shape, every(1), range(0,1), bare rest() against nothing —
+not only full-cycle wrap; the corpus has zero spans:: sites at all, so
+the byte-compares could not exercise this branch (two kernel tests
+hit it and pass, seam pixels unpinned). R2 must pin: seam pixels on a
+whole-contour claim, wrap under the overlap law, wrap + rest(), and a
+LIVE-material animates() arm. Beyond that, nothing
+downstream moved.
+
+**Namespace friction, FOURTH sighting** (the roadmap wanted a ruling
+after three). `derive::` collided with `fallout2_charsheet.cpp`'s own
+`fo::derive()` under `using namespace fo` — a hard error, fixed by
+qualifying the call site. The pattern is unchanged: a short, good noun
+at `sigil::compose` scope collides with corpus code, and every new
+concept namespace adds a sighting.
+
 BRUSH & STROKE GRAMMAR — consolidated 2026-07-26 after six sample
 rounds with the designer. Supersedes the 2026-07-25 interim record
 (which had corners-as-kinds and weave-as-container; both were walked
@@ -1962,12 +2098,16 @@ findings, recorded so they are not rediscovered:
 - **There is no seam-crossing span.** `spans::range` clamps, so
   Wrap-mode marching ants and the orbiting comet remain `trim()`'s job.
   If spans are ever to retire trim outright, a wrapping range is the
-  missing piece.
+  missing piece. **CLOSED in R1** by `spans::wrap(begin, end)` — a
+  dedicated cyclic term, not `range` learning to wrap; see the R1 status
+  note and the trim parity table above for why, and for the two rows
+  that remain open.
 - **`rest("unknown")` and `fit("unknown")` are silent** — they resolve to
   nothing, matching the `flowAround` precedent for an unresolved key.
   Now documented rather than changed; a diagnostic would have to be the
-  whole family's at once.
-- **NAMESPACE FRICTION, now three sightings.** A short, good noun at
+  whole family's at once. **R1 wrote that law down** as the first of the
+  derive family's four (API.md, "The derive family").
+- **NAMESPACE FRICTION, now FOUR sightings.** A short, good noun at
   `sigil::compose` scope collides with corpus code: (1) §32's `from`,
   (2) `band` shadowing locals at `Brushes.h:1138` and
   `LayerStyles.h:450`, and (3) stage two's `Weave`/`Strand`, which
@@ -1976,8 +2116,12 @@ findings, recorded so they are not rediscovered:
   `namespace brush`. The move then bit inside the kit, where `brush::`
   means `kit::brush`, so `kit::strands::braid` has to spell
   `sigil::compose::brush::Strand` and name its brush parameter `ink`.
-  Three sightings is a pattern, not friction; it wants a ruling before
-  stage three adds more nouns.
+  (4) R1's `derive::` against `fallout2_charsheet.cpp`'s own
+  `fo::derive()` under `using namespace fo` — a HARD ERROR again, fixed
+  by qualifying the call site.
+  Three sightings is a pattern, not friction; four is the pattern
+  repeating on schedule, and every new concept namespace adds one. It
+  wants a ruling before any further nouns land.
 - **`discoverCrossings` is uncached — O(P^2 M^2) per paint, and now
   MEASURED.** Every paint of a weave re-flattens its strands and re-tests
   every segment pair. The braid regression test (two strands over a
@@ -2066,10 +2210,14 @@ are documented as the legacy one, which is all stage two actually
 delivered here.
 
 **Stage three / open**: the lowercase incomparable `ops::` lambda family
-and the `brush::ops` demotion (audit item 6, C-batch); `Ribbon`'s migration onto the profile seam (its
-`widthFn`/`widthMax` pair is the last silent-clip trap); the
-perpendicular-sign reconciliation (kernel says left, `Lines` says right);
-and the four pinned passes, unchanged.
+and the `brush::ops` demotion (audit item 6, C-batch); the four pinned
+passes, unchanged. Two entries CLOSED by phase R1 below: `Ribbon`'s
+migration onto the profile seam (a `Profile width` member landed
+additively — `widthFn`/`widthMax` still compile and still draw what they
+drew, so the trap is closed on the new path and the old pair dies with
+R3), and the perpendicular-sign reconciliation (RULED: left wins
+everywhere, the `lines::` sign dies in R3, the flip rides R2 because it
+moves every caller's pixels).
 
 A full-surface discovery pass (2026-07-25) swept
 every authoring header for names that say mechanism instead of

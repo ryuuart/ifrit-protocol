@@ -112,7 +112,9 @@ struct Shadow {
   bool knockout = false;
 
   bool operator==(const Shadow &) const = default;
-  bool animated() const { return bindOffsetX || bindOffsetY; }
+  bool animates() const { return bindOffsetX || bindOffsetY; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   /** Paint reach beyond the node's bounds (recording cull grows by this) —
    *  the aero-study fix: big soft shadows must not be culled at the node's
    *  picture-cache bounds. */

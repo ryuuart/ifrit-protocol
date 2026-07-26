@@ -718,7 +718,9 @@ struct EdgeSlice {
     local.outline = edges(ctx.outline, mask, step);
     inner.paint(canvas, local);
   }
-  bool animated() const { return inner.animated(); }
+  bool animates() const { return inner.animates(); }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   /** Structural equality, so a static per-edge border prunes like any
    *  other decoration. It did not have one — `Inset`, the sibling
    *  adaptor twelve lines below, always did — so every
@@ -779,7 +781,9 @@ struct Inset {
     }
     inner.paint(canvas, local);
   }
-  bool animated() const { return inner.animated(); }
+  bool animates() const { return inner.animates(); }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   bool operator==(const Inset &o) const {
     return px == o.px && inner == o.inner;
   }

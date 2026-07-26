@@ -137,10 +137,12 @@ struct PathFormat {
   float reach() const { return width; }
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
-  bool animated() const {
+  bool animates() const {
     return trimPhase != nullptr || dashPhaseBinding != nullptr ||
-           (strokeMaterial && strokeMaterial->isLive());
+           (strokeMaterial && strokeMaterial->animates());
   }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -285,7 +287,9 @@ struct ContourWalk {
 
   std::optional<Element> stamp;
 
-  bool animated() const { return animatedWalk; }
+  bool animates() const { return animatedWalk; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     if ((!draw && !stamp) || spacing <= 0)
@@ -368,7 +372,9 @@ struct Wash {
   bool operator==(const Wash &o) const {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
-  bool animated() const { return material.isLive(); }
+  bool animates() const { return material.animates(); }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
@@ -464,7 +470,9 @@ struct Border {
   SkPaint::Join join = SkPaint::kMiter_Join;
 
   bool operator==(const Border &) const = default;
-  bool animated() const { return dashPhaseBinding != nullptr; }
+  bool animates() const { return dashPhaseBinding != nullptr; }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -541,7 +549,7 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
   return Border{.width = width, .fill = std::move(fill), .inset = inset};
 }
 
-/** Legacy spelling — retained indefinitely (§27). The stroke grammar says
+/** Legacy spelling — retained until the R3 deletion (ROADMAP §33) (§27). The stroke grammar says
  *  this as `.stroke(spans::corners(arm), brush::solid(width, fill))`: a
  *  pass that CLAIMS the corner runs, on the node's real boundary, leaving
  *  `spans::rest()` free to dress everything else. Same corner scan
@@ -560,7 +568,7 @@ inline Border brackets(float width, Fill fill, float arm = 18.0f,
                 .cornerAngleDeg = angleDeg};
 }
 
-/** Legacy spelling — retained indefinitely (§27); the grammar says
+/** Legacy spelling — retained until the R3 deletion (ROADMAP §33) (§27); the grammar says
  *  `.stroke(spans::edges(gap), brush::solid(width, fill))`.
  *
  *  A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */

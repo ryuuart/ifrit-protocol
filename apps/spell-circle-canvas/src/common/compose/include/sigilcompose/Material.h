@@ -217,14 +217,22 @@ public:
    *  re-resolves per frame and its node stays volatile. A blend() inherits
    *  liveness from its layers. */
   bool isLive() const;
+  /** THE VOLATILITY DECLARATION, in the word the whole library now uses
+   *  (ROADMAP §33 ruling 2; see the AnimatingDecoration concept). Exactly
+   *  `isLive()` — a material that re-resolves per frame is a surface that
+   *  runs itself, and `isLive()` said "live DATA" for a thing that is
+   *  animated GRAPHICS. `isLive()` stays as the peer of
+   *  `geometryDependent()` inside the tier vocabulary and as the legacy
+   *  spelling outside it; `animates()` is what a scheme declares. */
+  bool animates() const { return isLive(); }
   /** True when the effect declares uResolution (the node's layout size):
    *  the material needs PaintContext at resolve, but is stable between
    *  layouts — it resolves when its node records, CACHES like static
    *  content, and re-records on size change. A blend() inherits this from
    *  its layers (the flatten defers to resolve time). */
   bool geometryDependent() const;
-  /** Declared-volatility hook (mirrors DecorationScheme::animated()). */
-  bool animated() const { return isLive(); }
+  /** Legacy spelling of animates() — dies in the R3 deletion. */
+  bool animated() const { return animates(); }
 
   bool isNone() const { return !m_isSolid && !m_shader && !m_live; }
   bool isSolid() const { return m_isSolid; }

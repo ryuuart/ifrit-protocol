@@ -1248,7 +1248,9 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .advance = 14.0f,
         .cornerAngleDeg = 34.0f,
         .cornerLength = 0.0f,
-        .cornerAlign = brushes::PatternBrush::CornerAlign::Bisector,
+        // No `.corner` art on this brush, so there is no alignment to
+        // state — the field it used to set was inert. Making the two one
+        // value (brushes::CornerArt) is what made that visible.
         .stretchToFit = true,
         .reach = 12.0f};
     chevronBrush = brushes::PatternBrush{
@@ -1260,7 +1262,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .advance = 10.0f,
         .cornerAngleDeg = 34.0f,
         .cornerLength = 0.0f,
-        .cornerAlign = brushes::PatternBrush::CornerAlign::Outgoing,
+        // Likewise inert: no corner art on this brush either.
         .stretchToFit = true,
         .reach = 11.0f};
   }

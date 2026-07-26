@@ -333,17 +333,22 @@ a third.
 - **A default that encodes a judgement about the caller's art cannot
   be changed compatibly** — the test is whether any existing caller's
   *output* changes (the `cornerAlign` doctrine, ROADMAP §27; audit
-  recipe: flip it in a scratch copy and diff).
+  recipe: flip it in a scratch copy and diff). Its conclusion, landed
+  2026-07-26: such a default should not EXIST. Corner art and its
+  alignment are one value (`brush::CornerArt{art, align}`) with a
+  required constructor argument, so the un-thought-about state cannot
+  be described. A diagnostic is what you ship when the type system
+  could have refused.
 - **The grammar names the author's intent, never the mechanism**
   (priority set 2026-07-25; ruling refined in ROADMAP §33). An author
   animating thinks one principle — a value over time on a property —
   and the first word at the call site names the OWNER of the motion:
-  `animate()` is composer-manufactured (entrances, keyframe paths);
-  a DRIVEN property keeps the data spelling (`&out`, shaped `bind()`
+  `animate()` is composer-manufactured — `animate(to(v), spec)` ramps
+  on change, `animate(from(a).to(b), spec)` is a mount entrance; a
+  DRIVEN property keeps the data spelling (`&out`, shaped `bind()`
   — the bare overloads are retained BY DESIGN: driven is data
   updating, animation a side effect); a surface that RUNS ITSELF
-  declares volatility (its declaration word is still open). Mechanism
-  names (`PropValue`) stay internal. The grep test is two honest
+  declares `animates()`. Mechanism names (`PropValue`) stay internal. The grep test is two honest
   searches: `animate(` finds every authored motion; `bind(` and bound
   fields find everything data-driven. The wall and ruling are ROADMAP
   §32; the full-surface audit is §33. Its cheapest test, applied to

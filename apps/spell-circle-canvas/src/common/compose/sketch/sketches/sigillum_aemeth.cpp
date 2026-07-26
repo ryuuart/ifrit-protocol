@@ -848,11 +848,11 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                   .strokeFill = Fill::color(hex(0x4a3418, 0.55f))})
                               .leg(brushes::PatternBrush{
                                   .side = sideTile,
-                                  .corner = crossTile,
+                                  .corner = brushes::CornerArt{
+                                      crossTile,
+                                      brushes::CornerAlign::Outgoing},
                                   .advance = 22.0f,
                                   .cornerAngleDeg = 40.0f,
-                                  .cornerAlign = brushes::PatternBrush::
-                                      CornerAlign::Outgoing,
                                   .reach = 16.0f}))
                   .key("plate" + std::to_string(k)));
     }

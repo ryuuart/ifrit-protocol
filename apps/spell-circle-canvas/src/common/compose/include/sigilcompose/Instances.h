@@ -22,8 +22,8 @@
  *
  * Two modes, matching the kernel's two write paths:
  *  - Mode::Data (default): the element carries the pool's revision;
- *    mutate → touch() → render(). An untouched pool prunes and its
- *    cached picture replays; a touched one repaints once.
+ *    mutate → commit() → render(). An uncommitted pool prunes and its
+ *    cached picture replays; a committed one repaints once.
  *  - Mode::Live: a Cache::None leaf that reads the pool every frame —
  *    the particle path (mutate from a ticker steppable; nothing else to
  *    declare). Measured at 10k Live sprites in 0.18 ms on Graphite —
@@ -61,7 +61,7 @@ namespace sigil::compose::instancing {
 /** Struct-of-arrays per-instance data. The scene owns and mutates this
  *  (directly, from a ticker steppable, or copied out of an EnTT view);
  *  the element only reads it. After external mutation in Mode::Data,
- *  call touch() so the next render() sees a changed revision.
+ *  call commit() so the next render() sees a changed revision.
  *
  *  A position is the CELL'S CENTRE, not its top-left. `place::grid` says
  *  so in its arithmetic and nowhere else did, so every hand-populated
@@ -109,7 +109,7 @@ public:
   size_t size() const { return m_positions.size(); }
 
   // Bulk mutation views (the EnTT copy-in path). Mutating through these
-  // does NOT bump the revision — touch() when done (Mode::Data only).
+  // does NOT bump the revision — commit() when done (Mode::Data only).
   std::span<SkPoint> positions() { return m_positions; }
   std::span<float> rotations() { return m_rotations; }
   std::span<float> scales() { return m_scales; }
@@ -159,9 +159,18 @@ public:
   std::span<const SkSize> sizes() const { return m_sizes; }
   std::span<const SkRect> texWindows() const { return m_texWindows; }
 
-  /** Data changed → the next describe carries a new revision, so the
-   *  reconciler repaints the leaf exactly once. */
-  void touch() { ++m_revision; }
+  /** PUBLISH the bulk edit: the next describe carries a new revision, so
+   *  the reconciler repaints the leaf exactly once.
+   *
+   *  Named for what it does to the reader — the spans handed out above are
+   *  a staging area, and this is the line that makes the frame's writes
+   *  visible. `touch()` named the mechanism (a counter got bumped). The
+   *  rename is TASTE, not a bug fix: the audit found 14 corpus sites and
+   *  zero stale-lane renders (GRAMMAR_AUDIT M6, re-audited 2026-07-27),
+   *  and the designer called it anyway (ROADMAP §33 ruling 9). */
+  void commit() { ++m_revision; }
+  /** Legacy spelling of commit() — dies in the R3 deletion. */
+  void touch() { commit(); }
   uint64_t revision() const { return m_revision; }
 
 private:
@@ -399,7 +408,7 @@ struct DataProps {
 // The component
 
 enum class Mode {
-  /** Cached: mutate → touch() → render(); untouched pools prune. */
+  /** Cached: mutate → commit() → render(); uncommitted pools prune. */
   Data,
   /** Cache::None: the leaf reads the pool every frame (particles —
    *  mutate from a ticker steppable, keep the host redrawing). */
@@ -461,7 +470,7 @@ inline void grid(Pool &pool, size_t count, int columns, SkSize cell,
                     origin.fY + cell.height() * 0.5f +
                         (float)row * (cell.height() + gap.height())};
   }
-  pool.touch();
+  pool.commit();
 }
 
 /** Evenly spaced ring; @p faceOut rotates each instance along its spoke. */
@@ -478,7 +487,7 @@ inline void ring(Pool &pool, size_t count, SkPoint center, float radius,
     if (faceOut)
       rotations[i] = a + (float)M_PI / 2.0f;
   }
-  pool.touch();
+  pool.commit();
 }
 
 /** The skottie Repeater law: per-copy linear translate + linear rotate,
@@ -500,7 +509,7 @@ inline void repeat(Pool &pool, size_t count, SkPoint start, SkPoint translate,
     scales[i] = std::pow(scaleStep, (float)i);
     tints[i].fA = opacityFrom + (opacityTo - opacityFrom) * t;
   }
-  pool.touch();
+  pool.commit();
 }
 
 } // namespace place

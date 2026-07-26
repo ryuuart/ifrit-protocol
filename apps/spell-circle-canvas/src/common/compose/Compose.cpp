@@ -746,9 +746,18 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
         return false;
       // A whole contour claimed whole stays whole — closed stays closed,
       // so joins and additive brushes behave as they do untrimmed.
-      if (lo <= 1e-4f && hi >= run.length - 1e-4f)
+      //
+      // The close() is load-bearing and was MISSING (found by the R1
+      // wrap-parity test, which compares a full-cycle span against an
+      // untrimmed TrimMode::Wrap window): getSegment hands back an OPEN
+      // run whose ends merely coincide, so the vertex at the seam got two
+      // butt caps instead of a miter join — two pixels at one corner of a
+      // rectangle, and a visible notch under any wide or additive brush.
+      if (lo <= 1e-4f && hi >= run.length - 1e-4f) {
         (void)contour->getSegment(0, run.length, &out, !stitch);
-      else
+        if (run.closed && !stitch)
+          out.close();
+      } else
         (void)contour->getSegment(lo, hi, &out, !stitch);
       return true;
     };
@@ -921,6 +930,11 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
 
 } // namespace detail
 
+SkPath bandRegion(const SkPath &spine, const Across &width,
+                  Formation formation) {
+  return detail::bandRegion(spine, width, formation);
+}
+
 std::vector<Span> Spans::resolve(const SpanInput &in) const {
   std::vector<Span> out;
   if (!in.outline)
@@ -935,6 +949,35 @@ std::vector<Span> Spans::resolve(const SpanInput &in) const {
                           ? (*in.values)[t * 2 + 1]
                           : 1.0f;
       out.push_back({a, b});
+      break;
+    }
+    case Rule::Wrap: {
+      const float a =
+          in.values && in.values->size() > t * 2 ? (*in.values)[t * 2] : 0.0f;
+      const float b = in.values && in.values->size() > t * 2 + 1
+                          ? (*in.values)[t * 2 + 1]
+                          : 1.0f;
+      // The same three cases TrimMode::Wrap resolves, and deliberately in
+      // the same order: the RAW difference decides emptiness and fullness
+      // (a window driven to [1.1, 1.35] is still a quarter of the cycle),
+      // and only then do the endpoints wrap into [0,1).
+      const float length = b - a;
+      if (length <= 0.0f)
+        break; // claims nothing
+      if (length >= 1.0f) {
+        out.push_back({0.0f, 1.0f}); // the whole cycle
+        break;
+      }
+      const float s = a - std::floor(a);
+      const float e = b - std::floor(b);
+      if (s < e) {
+        out.push_back({s, e});
+      } else {
+        // Straddles the seam: two runs, which normalizeSpans sorts to the
+        // ends of the list and spanPath stitches back into one contour.
+        out.push_back({s, 1.0f});
+        out.push_back({0.0f, e});
+      }
       break;
     }
     case Rule::Corners: {
@@ -987,6 +1030,15 @@ Spans range(Animatable<float> begin, Animatable<float> end) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Range;
+  t.begin = std::move(begin);
+  t.end = std::move(end);
+  s.terms.push_back(std::move(t));
+  return s;
+}
+Spans wrap(Animatable<float> begin, Animatable<float> end) {
+  Spans s;
+  Spans::Term t;
+  t.rule = Spans::Rule::Wrap;
   t.begin = std::move(begin);
   t.end = std::move(end);
   s.terms.push_back(std::move(t));

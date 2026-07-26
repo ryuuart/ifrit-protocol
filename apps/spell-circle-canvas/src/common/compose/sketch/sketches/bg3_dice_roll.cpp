@@ -696,19 +696,22 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                         .height(7)
                         .outline(shapes::polygon(4, 45.0f))
                         .foreground(stroke(0.9f, bg3::giltDark(0.85f)));
-    ornament.corner = box()
-                          .width(22)
-                          .height(22)
-                          .outline(shapes::star(4, 0.34f, 0.14f))
-                          .fill(bg3::alpha(bg3::kGilt, 0.92f))
-                          .foreground(stroke(0.8f, bg3::ink(0.55f)));
+    // A four-pointed rosette, symmetric about its own bisector: an
+    // ORNAMENT, which is what Bisector is for.
+    ornament.corner = brushes::CornerArt{
+        box()
+            .width(22)
+            .height(22)
+            .outline(shapes::star(4, 0.34f, 0.14f))
+            .fill(bg3::alpha(bg3::kGilt, 0.92f))
+            .foreground(stroke(0.8f, bg3::ink(0.55f))),
+        brushes::CornerAlign::Bisector};
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
     ornament.reach = 26.0f;
     // PatternBrush has its OWN threshold, and its default is 35 — higher
     // than Border's 30. It needs telling separately.
     ornament.cornerAngleDeg = a;
-    ornament.cornerAlign = brushes::PatternBrush::CornerAlign::Bisector;
 
     Element ring =
         stack()
