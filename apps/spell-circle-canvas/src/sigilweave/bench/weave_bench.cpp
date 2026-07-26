@@ -493,6 +493,61 @@ static void BM_DrawBatched_Raster_300w(benchmark::State &state) {
 }
 BENCHMARK(BM_DrawBatched_Raster_300w)->Unit(benchmark::kMicrosecond);
 
+// ROADMAP §4, the wall reproduction. Identical corpus, flow, surface and
+// draw path to BM_DrawBatched_Raster_300w above — the ONLY difference is
+// one default underline decoration (skipInk = true, span = kDecoratedRange).
+// Every frame that costs: makeFont + getMetrics per decoration group
+// (ParagraphLayout.cpp:787-790) and TWO SkTextBlob::getIntercepts calls per
+// run (:828, :832), each resolving a strike and walking glyph outlines —
+// all of it recomputed from layout-stable inputs (blob, band position, band
+// thickness). This is a raster-vs-raster diff of CPU-side work, so raster is
+// the right harness (the ROADMAP's GPU hazard does not apply: no glyph atlas
+// is involved in the quantity being measured).
+static void BM_DrawBatched_Raster_300w_SkipInkUnderline(
+    benchmark::State &state) {
+  TextStyle underlined = style16();
+  underlined.paint.addDecoration(Decoration{}); // defaults: underline, skipInk
+  Paragraph paragraph;
+  paragraph.appendText(makeText(300, /*mixed=*/true), underlined);
+  BlockFlow flow(SkRect::MakeWH(700, 3000));
+  ParagraphLayout layout = layoutParagraph(fontContext(), paragraph, flow);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(720, 1400));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_300w_SkipInkUnderline)
+    ->Unit(benchmark::kMicrosecond);
+
+// The control that makes the number above attributable: same decoration,
+// skip-ink OFF. Plain-vs-none is the price of drawing a band at all;
+// skipInk-vs-plain is an UPPER BOUND on the intercept/strike cost the
+// memoization fix targets — ink-skipping also swaps one wide band rect
+// per group for N segment fills, and the memo removes only the former.
+// Without this arm the §4 diff conflates band price with intercept cost.
+static void BM_DrawBatched_Raster_300w_PlainUnderline(benchmark::State &state) {
+  TextStyle underlined = style16();
+  Decoration decoration;
+  decoration.skipInk = false;
+  underlined.paint.addDecoration(decoration);
+  Paragraph paragraph;
+  paragraph.appendText(makeText(300, /*mixed=*/true), underlined);
+  BlockFlow flow(SkRect::MakeWH(700, 3000));
+  ParagraphLayout layout = layoutParagraph(fontContext(), paragraph, flow);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(720, 1400));
+  for ([[maybe_unused]] auto benchmarkIteration : state) {
+    surface->getCanvas()->clear(SK_ColorWHITE);
+    layout.drawBatched(surface->getCanvas(), paragraph);
+    benchmark::DoNotOptimize(surface.get());
+  }
+}
+BENCHMARK(BM_DrawBatched_Raster_300w_PlainUnderline)
+    ->Unit(benchmark::kMicrosecond);
+
 // Four ordered glyph passes: blurred shadow, blurred glow, outline, fill.
 // This intentionally exposes the cost users opt into: draw submission scales
 // with pass count, while blur-mask work is backend/font-size dependent.
