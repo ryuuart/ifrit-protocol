@@ -283,6 +283,22 @@ static void BM_Draw_DenseText_TextureBlit(benchmark::State &state) {
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit);
 
+/** SLOT — sktext::gpu::Slug replay, unbuilt on purpose (SigilWeave
+ *  ROADMAP §3). Slug plans glyph→strike→atlas once at conversion instead
+ *  of per replay, but it lives in include/private/chromium/ (unversioned,
+ *  free to vanish on a Skia bump), so adoption goes behind a thin seam or
+ *  not at all — and that decision is GATED on the picture-replay number
+ *  from BM_Draw_DenseText_PictureReplay_Graphite. This registered name
+ *  reserves the slot so the arm lands beside its siblings when the gate
+ *  opens; it reports as skipped until then. Do not fill it in without the
+ *  Graphite measurement in hand. */
+static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
+  state.SkipWithMessage(
+      "gated on ROADMAP §3: measure BM_Draw_DenseText_PictureReplay_Graphite "
+      "first; Slug integration needs a seam decision");
+}
+BENCHMARK(BM_Draw_DenseText_SlugReplay);
+
 /** The sparse case: the 100-row list texture-cached whole — blitting
  *  its mostly-empty full area vs replaying only the rows. */
 static void BM_Draw_100Rows_TextureBlit(benchmark::State &state) {
@@ -559,6 +575,72 @@ static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
+
+// ---- SigilWeave ROADMAP §1/§3: the dense-text Graphite arm ---------------
+// "The measurement gap that precedes everything": dense STATIC text on
+// Graphite genuinely replays draw calls every frame (compose's texture
+// promotion is off by default there, by measured design), so every glyph
+// goes through strike → atlas planning per Recording. That is exactly the
+// shape ContextOptions/RecorderOptions::fRequireOrderedRecordings moves
+// (unordered ⇒ Recorder::snap() calls AtlasProvider::invalidateAtlases(),
+// evicting the text atlas every snap) and exactly the shape sktext::gpu::
+// Slug would cache. weave_bench CANNOT answer this — it is CPU raster,
+// which has no glyph atlas at all.
+//
+// Same corpus and geometry as the raster pair above (denseBlock, 800x2400)
+// so the arms are directly comparable; the only difference is the target
+// surface and the per-iteration snap+insert+submit.
+
+static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State &state) {
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(800, 2400);
+  host.composer.render(denseBlock(Cache::Picture));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite(*graphiteContext);
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite(*graphiteContext);
+  }
+}
+BENCHMARK(BM_Draw_DenseText_PictureReplay_Graphite);
+
+/** The bake, on the same target: the pixels the atlas work is being
+ *  compared against. Without this arm the picture-replay number has no
+ *  floor to be read against on the GPU path. */
+static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State &state) {
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(800, 2400);
+  host.composer.render(denseBlock(Cache::Texture));
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite(*graphiteContext);
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite(*graphiteContext);
+  }
+  state.counters["texturesLive"] =
+      (double)host.composer.stats().texturesLive;
+}
+BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
 
 #endif // COMPOSE_BENCH_GRAPHITE
 

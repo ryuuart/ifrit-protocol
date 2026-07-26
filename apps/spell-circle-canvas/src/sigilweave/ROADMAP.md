@@ -22,7 +22,7 @@ misspells it `fRequired…`) replaces `fDisableCachedGlyphUploads`: with
 the default `false`, Graphite "has to flush some caches at the start
 of each Recording" — the glyph-upload cache among them, so glyphs
 potentially re-upload to the atlas every recording. We build the
-context with default options (`SkiaGraphiteContextMetal.mm:29-30`,
+context with default options (`SkiaGraphiteContextMetal.mm:30`,
 `SkiaGraphiteContextVulkan.cpp:90` — one line each).
 **Correctness precondition, not a tradeoff**: out-of-order replay
 with the flag set is corruption, not slowdown — audit every
@@ -33,6 +33,18 @@ Graphite`, `BM_Draw_Bloom_PictureReplay_Graphite`) plus a Graphite
 twin of `BM_Draw_DenseText_PictureReplay` — which does not exist yet
 and is exactly the shape this flag moves. Confirm with a Metal
 capture on atlas upload bytes.
+**2026-07-26 — bench built, audit filed, still unmeasured.**
+`BM_Draw_DenseText_PictureReplay_Graphite` (plus `_TextureBlit_Graphite`
+as its floor) registered in compose_bench; Debug and Release both build;
+smoke-run only. Audit: `docs/graphite_ordering_audit.md` — every
+`insertRecording` and Recorder site, verdict SAFE-conditional, one-line
+patch prepared there but NOT applied (it rides the number). Two
+corrections to this entry from m151 source: the better seam is the
+per-Recorder `RecorderOptions` field through the existing
+`SkiaGraphiteContextCommon.cpp:69-73` funnel (one line, both backends at
+once), and out-of-order replay returns `kOutOfOrderRecording` — a
+permanent silent no-render, not corruption. One blocking site found
+(`scry/bench/WebBench.cpp:186` snaps and discards).
 
 ## 2. drawBatched re-packs every glyph every frame
 
@@ -66,6 +78,11 @@ bottleneck at 60 fps, this is dead.
 Risk: Slug lives in `include/private/chromium/` — unversioned, absent
 from RELEASE_NOTES, free to vanish on a bump. Adoption goes behind a
 thin seam or not at all.
+**2026-07-26 — slot reserved, nothing integrated.**
+`BM_Draw_DenseText_SlugReplay` is registered in compose_bench beside the
+`_PictureReplay` / `_TextureBlit` pair and reports SKIPPED with the gate
+in its message. No Slug header is included and no seam exists; filling
+the slot stays gated on §1's Graphite dense-text number.
 
 ## 4. Skip-ink underlines re-enter the strike every frame
 
@@ -82,6 +99,15 @@ per-run path the group path's scratch.
 Measure: no skip-ink draw bench exists — add
 `BM_DrawBatched_Raster_300w_SkipInkUnderline` and diff against plain.
 That bench IS the wall reproduction; it must come first.
+**2026-07-26 — bench built, unmeasured.**
+`BM_DrawBatched_Raster_300w_SkipInkUnderline` registered in weave_bench
+beside plain `BM_DrawBatched_Raster_300w`, same corpus/flow/surface, one
+default underline decoration the only difference. Added with it:
+`BM_DrawBatched_Raster_300w_PlainUnderline` (skipInk off) — without that
+control the diff conflates band-rect rasterization with the intercept
+and strike cost the memo fix targets, and only the second is §4. Debug
+and Release both build; smoke-run only. Raster-vs-raster, so the file's
+GPU hazard does not apply here. The fix stays gated on the number.
 
 ## 5. SkStrikeRef / getWidthsStrided (the m151 headline) — REJECTED for now
 
@@ -132,3 +158,6 @@ measured design), which is precisely where §1 and §3 bite — and
 precisely where bench coverage is thinnest. The Graphite dense-text
 bench arm is the first thing to build; every ranked item above
 funnels through it.
+**2026-07-26: it is built** (`BM_Draw_DenseText_PictureReplay_Graphite`,
+compose_bench) **and still unmeasured** — the machine was not quiet. The
+gap closes when that arm has a Release number, not before.
