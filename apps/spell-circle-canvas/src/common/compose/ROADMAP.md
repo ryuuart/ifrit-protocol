@@ -1690,7 +1690,11 @@ same two words, unrelated meanings, one authoring line apart.
 
 ## 33. The grammar audit — §32 generalised over the whole surface
 
-**Status: open, first rulings landed 2026-07-25.** The designer ruled:
+**Status: R1 and R2 SHIPPED (2026-07-26); R3 blocked on three designer
+calls — see the R2 note's deletion list.** The parity table below is
+CLOSED: every row reads CLOSED or CLOSED-BY-DESIGN.
+
+**The first rulings, 2026-07-25.** The designer ruled:
 (1) `PropValue` → **`Animatable<T>` — SHIPPED**, alias-first, tests
 green; (2+3) the door verbs take a different shape than first sketched
 — **one overarching `animate()` verb** as the umbrella, with `bind`
@@ -1763,6 +1767,9 @@ verification (503 outline(, 128 withFrom(, 81 trim(, 39 PropValue<,
 the ops::/linearUnit/widthFn stragglers); phase R3 — DELETE the
 legacy spellings and the aliases, one loud commit. §31's beat
 judgements and the measurement campaign remain separate tracks.
+**R1 and R2 have SHIPPED** (status notes below); R3's deletion list is
+enumerated at the end of the R2 note, with three entries marked BLOCKED
+on a designer's reading of a picture.
 
 **THE PARITY GATE (designer, 2026-07-26) — binding on R2 and R3.**
 *Expressiveness parity is the condition for deletion.* If anything the
@@ -1844,28 +1851,49 @@ enumerated and tested against the span spelling
 | Wrap marching ants (bound) | `wrap(bind(&p), bind(&p).offset(w))` | closed, 8 phases incl. mid-seam |
 | Wrap marching ants (animated both ends) | `wrap(animate(...), animate(...))` | closed, 8 steps |
 | Wrap degenerate: `end-begin <= 0` → nothing, `>= 1` → whole | same rule, from the RAW endpoints | closed |
-| reveals ALL of a node's outline-followers at once | one pass with a COMPOSITE brush (the overlap diagnostic's own advice) | closed for stroke-pass legs ONLY (see next row) |
-| reveals BACKGROUND-slot followers (painted BELOW children) | NO SPELLING — span passes paint above children in the foreground half | GAP — third R3 blocker row (review find) |
-| **BOUND `offset` AND bound endpoints together** | — | **NO SPELLING** |
-| trim also trims the FILL surface | — | **no spelling, and none wanted** |
+| reveals ALL of a node's outline-followers at once | one pass with a COMPOSITE brush (the overlap diagnostic's own advice) | closed — and now for BOTH halves (see next row) |
+| reveals BACKGROUND-slot followers (painted BELOW children) | `.background(Spans, Decoration[, name])` — stroke()'s twin in the other z-half | **CLOSED in R2** |
+| BOUND `offset` AND bound endpoints together | `spans::range/wrap(a, b).offset(o)` — a third `Animatable<float>` on the term | **CLOSED in R2** |
+| trim also trims the FILL surface | `wipe()` — a directional reveal of the SURFACE | **CLOSED BY DESIGN** (see below) |
 
-The two open rows, precisely:
+**THE TABLE IS CLOSED (R2, 2026-07-26).** Every row now reads CLOSED or
+CLOSED-BY-DESIGN. The two that closed by SPELLING did so additively, and
+neither invented a kind:
 
 - **Two live Outputs summed into one endpoint.** `trim(&start, &end,
   &offset)` adds two independently-driven values; a `BoundFloat` holds
-  ONE source pointer, so `spans` cannot express it. **Zero corpus sites**
-  (every trim in the corpus binds either the ends or the offset, never
-  both), so this blocks R3 only formally. The additive closure, if the
-  designer wants it, is an `Animatable<float> offset` FIELD on
-  `Spans::Term` — the direct translation of trim's third argument, still
-  a closed comparable value, no new kind, `valueCount()` 3 per term. Not
-  built: parity is the budget.
-- **The fill under a trim.** `trim()` also re-draws the node's FILL
-  along the trimmed (open) path. That is not a capability to port — it
-  is the documented misfeature `wipe()` exists to answer ("trim walks
-  the PERIMETER, so on a filled shape it sweeps a wedge round the
-  outline instead of extending the surface", three studies). Recorded so
-  R3 does not rediscover it as a regression.
+  ONE source pointer, so endpoint arithmetic could not express it. Closed
+  by the field the R1 note proposed and did not build: an
+  `Animatable<float> offset` on `Spans::Term`, set by `Spans::offset(by)`,
+  added to BOTH endpoints of every Range/Wrap term before the interval is
+  read — which is exactly what `Paint.cpp`'s trim block does with its
+  third argument (`s0 = start + off`, `e0 = end + off`). Still a closed
+  comparable value, no new kind; `valueCount()` is 3 per term and the
+  offset participates in equality the way the endpoints do (without that,
+  a claim that only SLIDES would prune to its first frame — the same bug
+  R1 fixed for Wrap's endpoints). Tests: `ComposeR2Offset.*`, three of
+  them, Clamp and Wrap, with all three Outputs driving at once.
+- **Background-slot followers.** `.background(Spans, Decoration[, name])`
+  mirrors `.stroke(Spans, ...)` exactly and differs in ONE thing: where
+  the mark lands. It is ONE ledger, two z-halves — `StrokePass` gained a
+  `half` discriminator and nothing else moved, so claims, the no-overlap
+  law, append order and `rest()` all read across both halves. That is not
+  an implementation convenience, it is the law: a boundary does not have
+  two of itself, so a background pass and a stroke pass claiming the same
+  run is the same mistake it always was, and it is still loud. Tests:
+  `ComposeR2Background.*`, five of them, including the z-order pin (the
+  same brush in the two halves lands on opposite sides of a child) and
+  `rest()` reading across the halves.
+- **The fill under a trim — CLOSED BY DESIGN, not by spelling.** `trim()`
+  also re-draws the node's FILL along the trimmed (open) path. That is
+  not a capability to port: it is the documented misfeature `wipe()`
+  exists to answer ("trim walks the PERIMETER, so on a filled shape it
+  sweeps a wedge round the outline instead of extending the surface",
+  three studies). The consequence for R2 is concrete and is recorded in
+  the R2 status note below: 14 corpus trims sit on filled nodes, and each
+  is a re-authoring decision (wedge sweep → directional wipe), not a
+  rename. R3 cannot delete `trim()` until a designer has looked at those
+  fourteen pictures.
 
 **Why `spans::wrap` and not `range` learning to wrap.** Two reasons,
 both load-bearing. (1) `range(0.9, 0.1)` compiles today and means the
@@ -1891,7 +1919,266 @@ the byte-compares could not exercise this branch (two kernel tests
 hit it and pass, seam pixels unpinned). R2 must pin: seam pixels on a
 whole-contour claim, wrap under the overlap law, wrap + rest(), and a
 LIVE-material animates() arm. Beyond that, nothing
-downstream moved.
+downstream moved. **All four pinned in R2** —
+`ComposeR2Seam.AWholeContourClaimKeepsItsCornerJoin` (the miter's own
+square AT THE SEAM CORNER, five spellings against an untrimmed stroke:
+`every(1)`, `range(0,1)`, full-cycle `wrap`, bare `rest()`),
+`ComposeR2Wrap.WrapIsUnderTheOverlapLawLikeEveryOtherTerm` (a claim that
+overlaps only the run on the FAR side of the seam is still loud, and one
+that clears both runs is silent), `ComposeR2Wrap.RestIsTheComplement
+OfBothOfWrapsRuns`, and `ComposeR2Volatility.ALiveMaterialOnASpanPass
+DeclaresItself`. The last one found a real omission on the way: the
+volatility scan read `pass.what.animated()`, the legacy word — correct
+today because `animated()` forwards, and a landmine for the R3 deletion.
+It reads `animates()` now.
+
+A fact the seam test had to establish first, and which no doc stated:
+**the seam (fraction 0) of an rrect outline is its BOTTOM-LEFT corner,
+and the boundary runs UP the left edge from there** (`addRRect` start
+index 3). Two of the four new tests were written against "top-left,
+clockwise" and failed; the existing suite had never needed to say which
+corner, because every earlier assertion was symmetric under the choice.
+It is now written where an author will meet it — the `Spans` class doc in
+`Compose.h` and API.md's stroke-slot section — and not only here.
+
+**And the seam test had to be aimed at that corner to mean anything.**
+Its first cut sampled the TOP-left, which is mid-run: every corner except
+the seam joins correctly whether or not the contour was closed, so all
+five assertions passed with R1's `close()` reverted. A test that cannot
+fail is not a pin. Re-aimed at (20, 120) and VERIFIED by reverting
+`close()` locally, watching this test and
+`ComposeR1Wrap.DegenerateWindowsMatchTrimToo` both go red, and restoring
+it. The general form is worth keeping: *when a test is written to pin a
+fix, the acceptance step is watching it fail without the fix* — a
+"passing" assertion aimed at the wrong pixel is indistinguishable from a
+working one until the day it is needed.
+
+**PHASE R2 SHIPPED 2026-07-26 — the parity table closed, and the corpus
+ported.** Four work packages, in order; the gate throughout was that
+every gallery plate renders BYTE-IDENTICAL in Release, which is the only
+reason a sweep this size can be believed.
+
+**WP1 — the two closable gaps.** Both closed additively; see the parity
+table above for the design and the tests. `Spans::Term` gained
+`Animatable<float> offset` (`valueCount()` 2 → 3, equality, volatility,
+`spanEndpoints`, `resolveSpans` all follow it); `Element::background(Spans,
+Decoration, name)` joined `stroke(Spans, ...)` over ONE `StrokePass` list
+carrying a `half`. Eleven new tests (`ComposeR2*`) covering both, plus
+the four obligations R1 pinned; five more in `compose_kit_test` for the
+kit values WP2 and WP3 added. 400 cases in `compose_test`, 47 in
+`compose_kit_test`, 14/14 suites.
+
+**WP2 — the corpus port.** 68 files (35 studies, 18 gallery headers, the
+kernel's own docs, the tests, the bench and compose_demo). The right-hand
+column counts the NEW spelling in the ported corpus, which is the number
+a grep test will read:
+
+| old | new | sites |
+| --- | --- | --- |
+| `outline()` | `shape()` | 591 |
+| `withFrom(a,b,s)` | `animate(from(a).to(b), s)` | 280 |
+| `withKeyframes<T>(f,e)` | `animate(through(f), e)` | 19 |
+| `with(v,s)` | `animate(to(v), s)` | 17 |
+| `trim(...)` | `spans::upTo/range/wrap[.offset]` | 58 of 75 |
+| `PropValue<T>` | `Animatable<T>` | 48 |
+| `bind().from/to` | `.source()/.target()` | 65 |
+| `pool->touch()` | `pool->commit()` | 17 |
+| `brushes::X` | `brush::X` (or `kit::brush::presets::X`) | 181 |
+| `animated()` | `animates()` | 29 |
+| `.op(ops::X)` | `.shaped(kit::brush::shapers::Y)` | 21 |
+
+(The 58 trims land as 56 `spans::upTo`, 2 `spans::range` and 2
+`spans::wrap`, two of the latter carrying `.offset()` — R2's own new
+term, in the corpus on the day it shipped.)
+
+`linearUnit` untouched (ruled CLOSED). The mechanical renames were
+scripted with a balanced-paren parser rather than a regex — `withFrom`
+arguments span lines and nest — and only lines the port made longer than
+84 columns were re-wrapped, so the diff is line-for-line and the corpus's
+hand layout survives.
+
+**The presets kept their old NAMES.** WP3 moved the four bodies out of
+core, and the first cut deleted `brushes::filament` and its three
+siblings outright — a phase early, and a straight breach of the
+alias-first law the whole program runs on. They are back as
+using-declarations at the bottom of `kit/Strokes.h` (not in core's
+`Brushes.h`: the tier boundary is structural and a core header cannot
+name a kit value), with a test that the legacy spelling still resolves
+AND still means the same value through its default arguments.
+
+**Three things the port found that a compile could not.**
+
+1. **`trim()` ports for 58 of 75 sites, and the fill row is far smaller
+   than it looked.** The first classification called every `.fill()` in
+   the chain a blocker and counted 14. That was wrong: **12 of those 14
+   are `Fill::none()`**, and `Paint.cpp` skips the fill block outright
+   when `resolvedFill->kind == Fill::Kind::None` (and the echo block with
+   it), so there is no surface to sweep and nothing to port around. The
+   test is whether the fill PAINTS, not whether a `.fill()` call is
+   present. Re-classified and ported, **17 remain**, in three groups:
+
+   > **A PAINTING fill — 2, and these are the designer's two pictures.**
+   > `chaucer_astrolabe` 971 (a 2 px meridian bar, filled, no stroke at
+   > all — the reveal IS the fill sweep) and `sigillum_aemeth` 1225 (a
+   > translucent brass wash under a `lines::rails` stroke, both revealed
+   > together). Nothing else in the corpus depends on the wedge.
+   >
+   > **Built across statements — 11.** `astral_tome` 1364 ·
+   > `chaucer_astrolabe` 1023, 1032, 1269 · `sigillum_aemeth` 672 ·
+   > `thunder_fulu` 760 · `twoadvanced_v4` 1062 ·
+   > `vagrant_story_target` 742, 1703 · `ScenesBeethoven.h` 132, 137.
+   > The element is assembled in a helper or over several statements, so
+   > the sweep cannot see the stroke and the trim together. A limit of
+   > the PORT, not of the grammar — each is a hand edit.
+   >
+   > **More than one outline follower — 4.** `ds2_bench` 819 (two
+   > unqualified strokes) · `ScenesNetwork.h` 303 (three) and 308 (a
+   > `.style()` bundle, whose `under` layers land in the other z-half) ·
+   > `chaucer_astrolabe` 1352 (**three `foreground()` calls and no
+   > `stroke()` at all** — the milled-edge bar). Each is one pass with a
+   > composite brush, which is a spelling, but it is also a picture the
+   > author has to look at.
+
+   So **R3's `trim()` deletion is 17 sites of work, of which exactly 2
+   need a designer** — not 29 with 14 pictures, as the first pass
+   reported. The lesson generalises past this port: *"the chain contains
+   `.fill()`" is not the question; "does the fill PAINT" is.* A
+   conservative classifier that reads syntax rather than behaviour
+   over-reports blockers, and an over-reported blocker is indistinguishable
+   from a real one in a handoff.
+
+2. **`widthFn` → `Profile` is a RE-DRAW, not a rename — BLOCKER.**
+   `Ribbon::paint` has two entirely different constructions: with a
+   profile it calls `bandRegion()` (offset rails, real joins), without
+   one it samples the contour and zips left/right point lists. So moving
+   the corpus's 7 `widthFn` ribbons onto the profile lane changes their
+   pixels by construction, and no amount of care makes it byte-identical.
+   A second, independent reason: `Profile::across` is asked in FRACTIONS
+   of arc length, and every corpus `widthFn` keys on `PathSample::
+   distance` **on purpose** — `thunder_fulu` documents why (under a
+   reveal the decoration is handed the REVEALED contour, so `fraction`
+   slides). **Not ported.** R3's deletion of `widthFn`/`widthMax` needs
+   either the profile lane reproducing the zip construction, or a
+   designer looking at 7 pictures.
+3. **The `brush::ops` demotion needed THREE kit twins, not two.** §33
+   named `Rounded` and `Square`; both are now
+   `kit::brush::shapers::Rounded/Square`. The third was
+   `ops::Wave{.zigzag = true}`, which has a live corpus site (the
+   gallery's pipeline trio) and no kit spelling — kit `Wave::shape()`
+   hardcodes `zigzag = false`. Closed as its own value,
+   `kit::brush::shapers::Zigzag`, rather than a flag on `Wave`, because
+   `Wave` is ALSO read as a profile and a flag the profile reading
+   ignored would be a silent asymmetry. **The demotion is now unblocked
+   for the PIPELINE seam** (`.op(ops::X)` → `.shaped(kit…)`, all 21 sites
+   ported) **and still blocked for the per-LEG suffix**:
+   `Brush::leg(Decoration, std::vector<GeometryOp>)` has no shaper-typed
+   spelling, and `{kit::brush::shapers::Offset{...}}` cannot convert
+   implicitly (two user-defined conversions do not chain). The additive
+   closure is a `leg(Decoration, std::vector<Shaper>)` overload. Not
+   built: parity is the budget.
+
+**WP3 — the four presets left the core.** `filament`, `circuit`, `rope`,
+`pulse` moved from `brushes::` to **`kit::brush::presets::`**, unchanged —
+same layers, same numbers, same REFERENCES citations. Placed under
+`kit/Strokes.h` beside the shapers, and in a SEPARATE scope from them,
+because they are peers in tier mechanics (free functions over the public
+API) and not peers in kind: a shaper is vocabulary, a preset is a finished
+drawing, and `kit::brush::shapers::wave` vs `kit::brush::presets::rope`
+says so at every call site. §33's end state for presets is an EXTERNAL
+loadable kit; no such mechanism is built, and these four had to leave
+`brushes::` because that namespace dies with R3 — so this is one move now
+and a change of HOME later, rather than two changes of name. 25 call
+sites ported. The header's own "what is deliberately NOT here: PRESETS"
+paragraph was rewritten to say all of that instead of contradicting the
+file it sits in.
+
+**THE PLATE LEDGER — 56 scenes, Release, `ComposeGallery --headless`,
+hashed before and after.** **49 byte-identical. 7 differ. 0 reverted.**
+And the seven split cleanly in two, because the run carried a CONTROL:
+
+- **Four are not attributable to the port.** `chladni_tab1`,
+  `hitman_verlet`, `ksp_mapview` and `slitscan_2001` differ **from
+  themselves** — the PRISTINE binary, re-run on the same sources,
+  produces a different plate. Each was checked that way individually.
+  (`genesis_fire` and `slitscan_2001` were already on record as
+  self-differing from the cornerAlign pass; `genesis_fire` came out
+  IDENTICAL this time and `slitscan_2001` did not, which is what
+  self-instability looks like from close up. The other three are new to
+  the list, making five scenes now observed unstable.) Their deltas are
+  ±3 LSB over antialiased curves (`chladni_tab1`, `ksp_mapview` — and
+  bit-for-bit the same noise signature, same bounding box, before and
+  after twelve trims were ported inside `chladni_tab1`, which is the
+  strongest evidence available that the ports did not touch them) or a
+  few dozen pixels of one live readout (`hitman_verlet`,
+  `slitscan_2001`). The capture FRAME is deterministic (§31 fixed it);
+  what is not is auto texture promotion, which is decided on measured
+  milliseconds and therefore on machine load. `--no-promotion` exists for
+  exactly this and is the flag any future ledger should carry.
+- **Three are the port, and all three are CAPTION STRINGS** — the
+  precedent the gate names. `stroke_atlas`, `thunder_fulu` and
+  `minard_1869` are specimen and report plates that PRINT the API names
+  they use, so `brushes::rope(...)` → `kit::brush::presets::rope(...)`
+  and `Brush{}.op(ops::Square{5,26})` → `.shaped(shapers::Square{5,26})`
+  change the drawing because the drawing is the text.
+
+  **Proved to the byte, not argued.** Re-render `thunder_fulu` from a
+  tree in which its ONE changed string is restored to the old spelling:
+  the plate's SHA-256 is `b6618a16…`, which is the baseline's, exactly.
+  Restore the ported spelling and it returns to `1ed74d90…`, which is the
+  swept plate's. Both artifacts kept, in their own directories — the
+  first attempt at this experiment overwrote its own evidence with an
+  ordinary re-render and left a file that hashed as the PORTED plate,
+  which is worse than no experiment.
+
+  The differing region is ONE text line in `thunder_fulu` (13 rows) and
+  one in `minard_1869` (9 rows). `stroke_atlas` is the specimen page and
+  changes twelve caption lines, so its diff is **twelve bands**, each
+  12–24 rows tall, totalling 0.35% of the plate — measured, not
+  estimated.
+
+The method was itself controlled: a per-scene `--scene` render reproduces
+the sweep's plate byte-for-byte (checked on `ds2_bench`, `spacejam_1996`
+and `thaumonomicon`), which is what makes every stability test above mean
+anything.
+
+`sizeof(ElementNode)` is unchanged and its guard stands — `StrokePass`
+grew by one byte and lives in `Box<StrokeData>`, never inline.
+
+**WP4 — this entry, and API.md.**
+
+**THE R3 DELETION LIST, enumerated.** Everything below is legacy surface
+kept alive only by the alias-first law, with its remaining in-repo count
+after the R2 port. Anything marked BLOCKED cannot be deleted without a
+designer's decision about a picture:
+
+| surface | where | state |
+| --- | --- | --- |
+| `Element::outline()` | Compose.h | 0 corpus sites; 1 deliberate legacy-parity arm in the tests. NB `ksp::Conic::outline()` is a *different* member (7 uses) and stays — a grep for the deletion has to be `\.outline(` on an Element |
+| `withFrom()` | Compose.h | 1 deliberate legacy-parity arm in the tests |
+| `withKeyframes<T>()` | Compose.h | 1 deliberate legacy-parity arm |
+| `with(v, spec)` | Compose.h | 0 corpus sites |
+| `Element::trim()` + `TrimMode` + `FxData::trim*` | Compose.h, Paint.cpp | **BLOCKED — 17 sites, of which exactly 2 need a designer** (the rest are hand edits) |
+| `PropValue<T>` alias | Compose.h | 0 corpus sites; the LIBRARY still spells it internally (~130) and that is a rename, not a deletion |
+| `Bound::from(lo,hi)` / `Bound::to(lo,hi)` | Compose.h | 0 corpus sites |
+| `Pool::touch()` | Instances.h | 0 corpus sites |
+| `namespace brushes` (the whole fold) | Brushes.h, and the four preset names in kit/Strokes.h | 0 corpus sites; tests only (deliberate `static_assert` identity arms, plus the preset-alias test) |
+| `animated()` on every scheme + `Decoration` | ~14 headers | deliberate parity arms only |
+| `Material::isLive()` | Material.h | 41 sites — **not part of R2's map**; the ruling unified the *scheme* word, and `isLive()` is Material's own. Needs a call. |
+| `Ribbon::widthFn` / `widthMax` | Brushes.h | **BLOCKED — see WP2 finding 2** |
+| `Brush::op()` | Brushes.h | 0 corpus sites — every `.op()` is `.shaped()` |
+| `ops::` PUBLIC (the structs) | Brushes.h | **BLOCKED — the per-leg suffix has no shaper-typed spelling**; the pipeline half is done |
+| `lines::offsetAlong` / `Rail::offset` right-of-travel sign | Lines.h | **BLOCKED — the flip moves every caller's pixels; it did NOT ride R2** |
+| the lowercase retention docs ("Legacy spelling of …") | ~30 sites | delete with their subjects |
+
+Two of those deserve saying plainly. **The `lines::` sign flip did not
+happen in R2.** §33 rules left-of-travel everywhere and says the flip
+"rides the R2 port"; it cannot, because R2's gate is byte-identity and a
+sign flip moves every caller's pixels by construction — the same argument
+that blocks `widthFn`. It needs its own pass with a designer reading the
+diffs. And **`isLive()` was never in R2's map**: ruling 2 unified the
+five *volatility* spellings on `animates()`, and `Material` gained
+`animates()` beside `isLive()` in R1; whether the older word dies is a
+call nobody has made.
 
 **Namespace friction, FOURTH sighting** (the roadmap wanted a ruling
 after three). `derive::` collided with `fallout2_charsheet.cpp`'s own
@@ -2218,6 +2505,19 @@ drew, so the trap is closed on the new path and the old pair dies with
 R3), and the perpendicular-sign reconciliation (RULED: left wins
 everywhere, the `lines::` sign dies in R3, the flip rides R2 because it
 moves every caller's pixels).
+
+**R2 UPDATES BOTH.** (1) The `ops::` demotion is **half done**: R2 added
+the `Rounded`, `Square` and — the gap nobody had spotted — `Zigzag` kit
+shapers, and ported all 21 corpus `.op()` sites to `.shaped()`, so the
+PIPELINE seam is clear. What still holds `ops::` public is
+`Brush::leg(Decoration, std::vector<GeometryOp>)`: the per-leg suffix has
+no shaper-typed spelling and `{kit::brush::shapers::Offset{…}}` cannot
+convert implicitly (two user-defined conversions do not chain). A
+`leg(Decoration, std::vector<Shaper>)` overload closes it. (2) The
+`lines::` sign flip **did NOT ride R2**, and the entry above should be
+read as superseded: a sign flip moves every caller's pixels by
+construction, and R2's gate is byte-identity. It needs its own pass with
+a designer reading the diffs — the same shape as the `widthFn` blocker.
 
 A full-surface discovery pass (2026-07-25) swept
 every authoring header for names that say mechanism instead of

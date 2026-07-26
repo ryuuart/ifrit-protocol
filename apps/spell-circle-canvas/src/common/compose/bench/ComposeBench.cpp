@@ -467,13 +467,13 @@ BENCHMARK(BM_Draw_Instances10k_DataCached);
  *  worst case; a settled artline caches like any decoration. */
 static void BM_Draw_ArtWarp_Live(benchmark::State &state) {
   Host host(900, 640);
-  brushes::ArtBrush vine = brushes::artAlong(
+  brush::Art vine = brush::artAlong(
       box().width(48).height(16).corners({8})
           .fill(Fill::color({0.5f, 0.8f, 0.5f, 1})),
       14, 6);
   host.composer.render(box().child(
       box().absolute().inset(20, 20, 20, 20)
-          .outline([](SkSize s) {
+          .shape([](SkSize s) {
             SkPathBuilder b;
             b.moveTo(0, s.height() / 2);
             b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
@@ -493,7 +493,7 @@ static void BM_Draw_Hatch_Live(benchmark::State &state) {
   Host host(900, 640);
   host.composer.render(box().child(
       box().width(400).height(400).centerAt({450, 320})
-          .outline(shapes::blob(5, 0.2f))
+          .shape(shapes::blob(5, 0.2f))
           .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
           .cache(Cache::None)));
   host.composer.draw(*host.surface->getCanvas());
@@ -934,7 +934,7 @@ static void BM_Draw_StampBorder_Cached(benchmark::State &state) {
   ContourWalk vine;
   vine.spacing = 24.0f;
   vine.stamp = box().width(14).height(14)
-                   .outline(shapes::star(4, 0.45f))
+                   .shape(shapes::star(4, 0.45f))
                    .fill(Fill::color({1, 0.7f, 0.4f, 1}));
   host.composer.render(box().child(
       box().width(400).height(280).inset(100, 100, 300, 220).absolute()
@@ -953,7 +953,7 @@ static void BM_HitTest_ShapedTree(benchmark::State &state) {
   for (int i = 0; i < 50; ++i)
     scatter.child(box().key("blob" + std::to_string(i))
                       .width(60).height(60)
-                      .outline(shapes::blob((uint32_t)i, 0.3f, 7))
+                      .shape(shapes::blob((uint32_t)i, 0.3f, 7))
                       .rotate((float)i * 7.0f)
                       .fill(Fill::color({0.5f, 0.3f, 0.4f, 1})));
   host.composer.render(box().child(scatter));
@@ -975,7 +975,7 @@ static void BM_Draw_BlendField_100Blobs(benchmark::State &state) {
                      .inset(0);
   for (int i = 0; i < 100; ++i)
     scatter.child(box().width(70).height(60)
-                      .outline(shapes::blob((uint32_t)(i + 1), 0.3f, 6))
+                      .shape(shapes::blob((uint32_t)(i + 1), 0.3f, 6))
                       .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
                       .blend(SkBlendMode::kPlus));
   host.composer.render(box().child(scatter));
@@ -994,11 +994,11 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State &state) {
   ContourWalk vine;
   vine.spacing = 24.0f;
   vine.stamp = box().width(14).height(14)
-                   .outline(shapes::star(4, 0.45f))
+                   .shape(shapes::star(4, 0.45f))
                    .fill(Fill::color({1, 0.7f, 0.4f, 1}));
   host.composer.render(box().child(
       box().width(300).height(300).inset(250, 150, 250, 150).absolute()
-          .outline(shapes::rounded(shapes::star(7, 0.6f), 10))
+          .shape(shapes::rounded(shapes::star(7, 0.6f), 10))
           .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
           .rotate(&spin)
           .foreground(vine)));

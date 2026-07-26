@@ -64,7 +64,7 @@
 //     that EATS TWO CELLS OF EACH LEG (`bigCorner`, :904 and :970-1005). That
 //     one flag is the entire reason this brief exists: a corner tile that
 //     consumes leg length before the side tiles are fitted is precisely what
-//     brushes::PatternBrush could not do until this study asked. See THE
+//     brush::Pattern could not do until this study asked. See THE
 //     CORNER REPORT below.
 //  2. THE ARROWHEAD IS AT THE CHILD AND ITS GLYPH IS PICKED BY THE FIRST LEG,
 //     NOT BY THE EDGE. :938-966 tests ym before xm, so a route with any
@@ -92,7 +92,7 @@
 //     resolution it opens at.
 //
 // -----------------------------------------------------------------------------
-// THE CORNER REPORT — brushes::PatternBrush, measured, and now closed
+// THE CORNER REPORT — brush::Pattern, measured, and now closed
 //
 // The brief predicted PatternBrush would break on a 48 px corner tile against
 // 24 px side tiles. It did. Probed with a scratch sketch (three L routes; a
@@ -171,6 +171,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -548,8 +549,9 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
                       float bow = 0.0f) {
   Brush br;
   if (bow > 0)
-    br.op(ops::Wave{.amplitude = g(bow), .wavelength = g(30)});
-  br.op(ops::Sketchy{.segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
+    br.shaped(kit::brush::shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
+  br.shaped(kit::brush::shapers::Jitter{
+      .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body. NO blur —
   // and that is a measured constraint, not a taste. PatternBrush and
   // ScatterBrush bake their art with snapshot(), which records DRAW CALLS,
@@ -566,7 +568,7 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
   br.leg(lines::Line{.width = g(0.45f) * k,
                      .fill = Fill::color(mul(tint, 1.35f, 0.85f * tint.fA))},
          {ops::Offset{.px = -g(0.85f), .step = g(2)}});
-  br.leg(brushes::ScatterBrush{.art = spatter,
+  br.leg(brush::Scatter{.art = spatter,
                                .spacing = g(13),
                                .seed = 9,
                                .jitterAlong = g(4),
@@ -580,7 +582,7 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
 
 /** One ink grain — the ScatterBrush cell. */
 inline Element spatterCell(SkColor4f tint) {
-  return box().width(g(1.2f)).height(g(1.2f)).outline(shapes::circle()).fill(
+  return box().width(g(1.2f)).height(g(1.2f)).shape(shapes::circle()).fill(
       Fill::color(mul(tint, 0.85f, 0.7f * tint.fA)));
 }
 
@@ -592,15 +594,15 @@ inline Element straightTile(SkColor4f tint, const Element &spatter,
                             const Element &knot) {
   const float w = g(28), h = g(14);
   Brush br = penBrush(tint, 1.0f, spatter, 0.45f);
-  br.leg(brushes::ScatterBrush{
+  br.leg(brush::Scatter{
       .art = knot,
-      .place = {.mode = brushes::Placement::Mode::CentralPoint},
+      .place = {.mode = brush::Placement::Mode::CentralPoint},
       .alignToPath = true,
       .reach = g(6)});
   return box()
       .width(w)
       .height(h)
-      .outline([w, h](SkSize) {
+      .shape([w, h](SkSize) {
         SkPathBuilder p;
         p.moveTo(0, h * 0.5f);
         p.lineTo(w, h * 0.5f);
@@ -614,7 +616,7 @@ inline Element knotCell(SkColor4f tint) {
   Element e = box()
                   .width(g(4.4f))
                   .height(g(3.2f))
-                  .outline(shapes::polygon(4, 0))
+                  .shape(shapes::polygon(4, 0))
                   .fill(Fill::color(mul(tint, 1.12f)));
   e.stroke(PathFormat{.width = g(1.1f),
                       .strokeFill =
@@ -645,15 +647,15 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
   const SkPoint entry{half, half + handed * arm};
   const SkPoint exit{half + arm, half};
   Brush br = penBrush(tint, 1.0f, spatter, 0.0f);
-  br.leg(brushes::ScatterBrush{
+  br.leg(brush::Scatter{
       .art = knot,
-      .place = {.mode = brushes::Placement::Mode::InnerVertices},
+      .place = {.mode = brush::Placement::Mode::InnerVertices},
       .alignToPath = true,
       .reach = g(6)});
   return box()
       .width(side)
       .height(side)
-      .outline([entry, exit, half](SkSize) {
+      .shape([entry, exit, half](SkSize) {
         SkPathBuilder p;
         p.moveTo(entry);
         p.lineTo(half, half);
@@ -668,7 +670,7 @@ inline Element arrowCell(SkColor4f tint) {
   return box()
       .width(g(9))
       .height(g(7.5f))
-      .outline(shapes::arrow(0.02f, 0.98f))
+      .shape(shapes::arrow(0.02f, 0.98f))
       .fill(Fill::color(tint))
       .stroke(PathFormat{.width = g(1),
                          .strokeFill =
@@ -727,7 +729,7 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
   Element e = box()
                   .width(g(32))
                   .height(g(32))
-                  .outline(shape)
+                  .shape(shape)
                   .fill(Material::radialUnit({0.38f, 0.32f}, 1.05f,
                                              {{0.0f, lit},
                                               {0.55f, face},
@@ -739,7 +741,8 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
                                         .angleDeg = 32});
   // A doubled rule: a solid outer and a dotted inner that stops short.
   Brush rule;
-  rule.op(ops::Sketchy{.segLength = g(5), .deviation = g(0.7f), .seed = seed});
+  rule.shaped(kit::brush::shapers::Jitter{
+      .segLength = g(5), .deviation = g(0.7f), .seed = seed});
   lines::Line outer;
   outer.width = g(1.6f);
   outer.fill = Fill::color(mul(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
@@ -759,10 +762,11 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
 inline Element spikyOverlay(uint32_t seed) {
   Element e = box()
                   .inset(0)
-                  .outline(shapes::star(8, 0.74f, 0.35f))
+                  .shape(shapes::star(8, 0.74f, 0.35f))
                   .fill(Fill::color(mul(kBrass, 1.0f, 0.30f)));
   Brush br;
-  br.op(ops::Sketchy{.segLength = g(4), .deviation = g(0.6f), .seed = seed});
+  br.shaped(kit::brush::shapers::Jitter{
+      .segLength = g(4), .deviation = g(0.6f), .seed = seed});
   lines::Line l;
   l.width = g(1.1f);
   l.fill = Fill::color(mul(kBrassLit, 0.9f, 0.85f));
@@ -992,7 +996,7 @@ inline Element researchBadge() {
   return box()
       .width(g(16))
       .height(g(16))
-      .outline(shapes::star(4, 0.30f, 0.55f))
+      .shape(shapes::star(4, 0.30f, 0.55f))
       .fill(Material::radialUnit({0.5f, 0.5f}, 0.9f,
                                  {{0, rgb(0xFFF3C0)},
                                   {0.45f, rgb(0xFFAA00)},
@@ -1002,7 +1006,7 @@ inline Element pageBadge() {
   Element e = box()
                   .width(g(11))
                   .height(g(13))
-                  .outline([](SkSize s) {
+                  .shape([](SkSize s) {
                     SkPathBuilder p;
                     const float w = s.width(), h = s.height(), c = w * 0.42f;
                     p.moveTo(0, 0);
@@ -1039,7 +1043,7 @@ inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
   Element e = box()
                   .width(g(44))
                   .height(g(44))
-                  .outline(shapes::star(6, 0.50f, 0.62f))
+                  .shape(shapes::star(6, 0.50f, 0.62f))
                   .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
                                              {{0.0f, rgb(0xC060FF, a)},
                                               {0.45f, rgb(0x7A0BA8, a * 0.8f)},
@@ -1403,7 +1407,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         !shape.hasCorner ? -1
                          : (shape.bigCorner ? 2 : 0) + (shape.handed > 0 ? 1 : 0);
 
-    brushes::PatternBrush pb{.side = straight[t],
+    brush::Pattern pb{.side = straight[t],
                              .advance = kCell,
                              .cornerAngleDeg = 35.0f,
                              .stretchToFit = true,
@@ -1414,8 +1418,8 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       // bisector this art stamps 45 degrees off — and a 2x2 route is all
       // corner and no side tiles, so the whole edge becomes a chevron. The
       // frame the art is drawn in now travels WITH the art.
-      pb.corner = brushes::CornerArt{elbows[t][(size_t)elbow],
-                                     brushes::CornerAlign::Outgoing};
+      pb.corner = brush::CornerArt{elbows[t][(size_t)elbow],
+                                     brush::CornerAlign::Outgoing};
       pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
     }
     Brush br;
@@ -1425,12 +1429,13 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         .inset(0)
         .key(std::string("edge:") + child.key + "<" + parent.key)
         .zIndex(tierZ(e.tier))
-        .stroke(br)
-        .trim(0.0f, withFrom(0.0f, 1.0f,
-                             Transition{.duration = 620ms,
-                                        .ease = ch::easeOutQuad,
-                                        .delay = std::chrono::milliseconds(
-                                            60 * order)}));
+        .stroke(
+            spans::upTo(animate(
+                from(0.0f).to(1.0f),
+                Transition{.duration = 620ms,
+                           .ease = ch::easeOutQuad,
+                           .delay = std::chrono::milliseconds(60 * order)})),
+            br);
   }
 
   Element arrowEl(const Edge &e) const {
@@ -1474,7 +1479,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       return wrap;
     wrap.cache(Cache::Texture);
     if (n.state == kUnlockable)
-      wrap.opacity(bind(&pulse).to(0.5f, 1.0f));
+      wrap.opacity(bind(&pulse).target(0.5f, 1.0f));
     else if (n.state == kLocked)
       wrap.opacity(0.3f);
 
@@ -1508,7 +1513,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     const float in = g(9);
     return box()
         .inset(0)
-        .outline([in](SkSize s) {
+        .shape([in](SkSize s) {
           SkPathBuilder p;
           p.addRect(SkRect::MakeLTRB(in, in, s.width() - in, s.height() - in));
           return p.detach();
@@ -1521,10 +1526,10 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
         // file already documented the Outgoing decision three times and still
         // left its OTHER brush unexamined, which is what a file that reads as
         // audited but is only half audited looks like.
-        .stroke(brushes::PatternBrush{
+        .stroke(brush::Pattern{
             .side = runTile,
-            .corner = brushes::CornerArt{cornerTile,
-                                         brushes::CornerAlign::Bisector},
+            .corner = brush::CornerArt{cornerTile,
+                                         brush::CornerAlign::Bisector},
             .advance = g(64),
             .cornerAngleDeg = 35.0f,
             .cornerLength = g(20),
@@ -1536,7 +1541,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
    *  doubled rule whose inner line is dotted. Not a rounded rect anywhere. */
   static Element innerRule() {
     const float m = g(22), cut = g(26);
-    Element e = box().inset(0).outline([m, cut](SkSize s) {
+    Element e = box().inset(0).shape([m, cut](SkSize s) {
       const float l = m, t = m, r = s.width() - m, b = s.height() - m;
       SkPathBuilder p;
       p.moveTo(l + cut, t); p.lineTo(r - cut, t);
@@ -1781,7 +1786,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       }
 
     // 2b. the edges, in unlock order — staggerChildren cascades the
-    //     withFrom() trim entrance outward from BASEALCHEMY.
+    //     animate(from().to()) span entrance outward from BASEALCHEMY.
     Element edges = box().inset(0).zIndex(0);
     std::vector<int> order = edgeOrder();
     int k = 0;

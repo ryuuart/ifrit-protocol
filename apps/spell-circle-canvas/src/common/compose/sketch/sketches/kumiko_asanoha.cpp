@@ -688,7 +688,7 @@ Element stripElement(const Strip &s, TimberBank &bank,
                   .width(boxW)
                   .height(s.w)
                   .rotate(angDeg)
-                  .outline([shape](SkSize) { return shape; })
+                  .shape([shape](SkSize) { return shape; })
                   .fill(bank.get(*s.timber, s.w, !lit, s.seed))
                   // The arris: light angle counter-rotated into the piece's
                   // own frame so one raking source lights every board.
@@ -905,8 +905,7 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
                    .top(mid.top())
                    .width(mid.width())
                    .height(mid.height())
-                   .trim(0.0f, &frameTrim)
-                   .stroke(PathFormat{.width = 2.2f,
+                   .stroke(spans::upTo(&frameTrim), PathFormat{.width = 2.2f,
                                       .strokeFill =
                                           Fill::color(rgb(0xC79A57, 0.60f)),
                                       .align = PathFormat::Align::Center}))

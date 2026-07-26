@@ -955,9 +955,11 @@ struct Span {
 
 /** What a Spans value is resolved against. `fitRects` are the derive
  *  pass's answers for spans::fit(), keyed; `values` holds the resolved
- *  animatable endpoints in declaration order (two per term), which is how
- *  a reveal can be a transition or a binding without Spans knowing about
- *  either. */
+ *  animatable endpoints in declaration order — THREE per term, `begin`,
+ *  `end`, `offset` — which is how a reveal can be a transition or a
+ *  binding without Spans knowing about either. Short arrays are
+ *  tolerated: a missing slot reads its default, so a caller that only
+ *  cares about endpoints may pass two. */
 struct SpanInput {
   const SkPath *outline = nullptr;
   const std::vector<std::pair<std::string, SkRect>> *fitRects = nullptr;
@@ -966,6 +968,15 @@ struct SpanInput {
 
 /** WHERE a stroke pass goes: a comparable value built by the `spans::`
  *  factories and combined with `|` (union).
+ *
+ *  **FRACTION 0 IS THE BOTTOM-LEFT CORNER**, and the boundary runs UP the
+ *  left edge from there. That is `SkPath::addRRect`'s own convention
+ *  (start index 3, clockwise in Skia's y-down space), inherited unchanged
+ *  — but nothing said it out loud until R2 wrote two tests against
+ *  "top-left, clockwise" and watched them fail. Anything that reasons
+ *  about WHERE a fraction lands needs it: `upTo(0.25)` on a square is the
+ *  LEFT edge, not the top one. A custom `shape()` seams wherever its own
+ *  path starts.
  *
  *  Deliberately a CLOSED vocabulary rather than an open seam. The seam
  *  convention (one named required member, §33) governs shapers, profiles
@@ -990,6 +1001,13 @@ public:
   struct Term {
     Rule rule = Rule::Range;
     Animatable<float> begin = 0.0f, end = 1.0f;
+    /** Added to BOTH endpoints before the interval is read — trim()'s
+     *  third argument, as a field. Read by Range and Wrap only. Its point
+     *  is the one thing endpoint arithmetic cannot spell: a window whose
+     *  ENDS are driven by one Output and whose position is driven by
+     *  ANOTHER, since a bound endpoint holds one source pointer and two
+     *  live values summed into one number need two. */
+    Animatable<float> offset = 0.0f;
     float arm = 0.0f;         ///< Corners/Edges: px of arc length
     float angleDeg = 30.0f;   ///< Corners/Edges: the tangent break that counts
     float duty = 1.0f;        ///< Every: fraction of each slot claimed
@@ -999,6 +1017,31 @@ public:
   };
   std::vector<Term> terms;
 
+  /** SLIDE THE WHOLE CLAIM: `by` is added to both endpoints of every
+   *  Range/Wrap term — the direct translation of `trim(begin, end,
+   *  offset)`'s third argument, and the same value kind as the endpoints,
+   *  so it may be constant, `animate(...)` or a bound Output.
+   *
+   *      .stroke(spans::wrap(&start, &end).offset(&drift), ants)
+   *
+   *  Endpoint arithmetic (`bind(&o).offset(w)`) covers every case where
+   *  ONE Output drives the window; this covers the case where the ends
+   *  and the position are driven independently.
+   *
+   *  Three things about the call, all of them things a reader will
+   *  otherwise assume wrongly:
+   *  - it MUTATES and returns `*this` by reference, so it chains off a
+   *    temporary safely only while that temporary lives — bind the result
+   *    to a `Spans` value (or pass it straight to `stroke()`, which takes
+   *    one by value) rather than to `auto &`;
+   *  - it applies to the terms PRESENT AT CALL TIME, so
+   *    `range(a,b).offset(o) | corners(8)` offsets only the range, while
+   *    `(range(a,b) | corners(8)).offset(o)` writes both (the corner term
+   *    ignores it);
+   *  - on an empty value it does nothing, silently — there is no term to
+   *    carry the offset and nothing to warn about. */
+  Spans &offset(Animatable<float> by);
+
   /** Structural equality, defined beside the reconciler's own property
    *  comparator so an animated endpoint compares the way every other
    *  animated property does (declared here, defined in Reconcile.cpp). */
@@ -1007,8 +1050,9 @@ public:
   /** Resolve to intervals. Rest terms return nothing — the complement
    *  needs the element's OTHER passes and is computed by the painter. */
   std::vector<Span> resolve(const SpanInput &in) const;
-  /** How many floats `SpanInput::values` must carry (two per term). */
-  size_t valueCount() const { return terms.size() * 2; }
+  /** How many floats `SpanInput::values` must carry: begin, end and
+   *  offset, in that order, for every term. */
+  size_t valueCount() const { return terms.size() * 3; }
   bool hasRest() const {
     for (const Term &t : terms)
       if (t.rule == Rule::Rest)
@@ -1922,6 +1966,27 @@ public:
    *  top of. If you want it over the surface but under the children, that
    *  is `overlay()` above. */
   Element &background(Decoration d);
+  /** THE BACKGROUND SLOT, span-qualified — `.stroke(where, what)`'s twin
+   *  in the other z-half.
+   *
+   *      .background(spans::edges(14), stroke(3, shadowInk))  // under the fill
+   *      .stroke(spans::corners(18), stroke(2, ink))          // over the kids
+   *
+   *  Identical in every respect to `stroke(Spans, ...)` except WHERE the
+   *  mark lands: it paints with the backgrounds, beneath the fill and
+   *  therefore beneath the content and the children. Everything else is
+   *  shared, and deliberately so — the passes append into ONE list in
+   *  declaration order, one claim ledger covers both halves, the
+   *  no-overlap law reads across both, and `rest()` complements both.
+   *  A boundary does not have two of itself, so a background pass and a
+   *  stroke pass claiming the same run is the same mistake it always was,
+   *  and `rest("name")` can name a pass in either half.
+   *
+   *  This exists because `trim()` revealed a node's BACKGROUND-slot
+   *  followers along with its foreground ones, and a span pass could only
+   *  ever paint above the children — the one capability the parity table
+   *  could not close by spelling (ROADMAP §33). */
+  Element &background(Spans where, Decoration what, std::string name = {});
   Element &foreground(Decoration d);
   /** fill's peer (the Photoshop/Illustrator mental model): dress the
    *  node's whole BOUNDARY with a brush — a PathFormat, a layered brush
@@ -2171,6 +2236,12 @@ private:
    *  a borrow honoured by only some of them would be the sibling-path
    *  failure family again. */
   void claimBorrows(const Decoration &d);
+
+  /** The shared body of stroke(Spans,…) and background(Spans,…). `half` is
+   *  a detail::StrokePass::Half, passed as an int so the exported header
+   *  does not have to name an internal enum. */
+  Element &addSpanPass(Spans where, Decoration what, std::string name,
+                       int half);
 
   /** Copy-on-write handle: Element stays a cheap value, but fluent mutation
    *  can never alter another copy or a description retained by Composer. */

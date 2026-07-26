@@ -148,7 +148,7 @@ public:
    *  Which is a trap for the commonest use, and caught two studies: a
    *  soft round light authored at radius 1 is still at ~10% alpha where
    *  the inscribed circle is, so if the node also carries
-   *  `.outline(shapes::circle())` the glow gets a visible hard rim. The
+   *  `.shape(shapes::circle())` the glow gets a visible hard rim. The
    *  magic number is 0.707. Use glowUnit() below when you mean "fills
    *  this box", and keep radialUnit for when you genuinely mean the
    *  corners (a vignette, a corner-to-corner wash). */

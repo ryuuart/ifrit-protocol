@@ -259,7 +259,7 @@ inline Element artwork(Art art, float w, float h, SkColor4f tint,
                                        1};
   const SkColor4f lo{tint.fR * 0.32f, tint.fG * 0.32f, tint.fB * 0.32f, 1};
   return box().width(Dim(w)).height(Dim(h))
-      .outline(artPath(art))
+      .shape(artPath(art))
       .fill(Material::linear({0, 0}, {w * 0.35f, h},
                              {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
       .stroke(util::stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
@@ -490,7 +490,7 @@ struct LootGridScene final : Scene {
         cell.child(box().inset(1).clip()
                        .child(box().width(Dim(w * 0.30f)).height(Dim(h * 1.8f))
                                   .left(-w * 0.4f).top(-h * 0.4f)
-                                  .translateX(bind(&shimmer).to(-70, 170))
+                                  .translateX(bind(&shimmer).target(-70, 170))
                                   .rotate(18.0f)
                                   .fill(Material::linear(
                                       {0, 0}, {w * 0.35f, 0},
@@ -676,8 +676,8 @@ struct LootGridScene final : Scene {
                                                     0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")
-        .opacity(withFrom(0.0f, 1.0f, {380ms}))
-        .translateY(withFrom(8.0f, 0.0f, {460ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {380ms}))
+        .translateY(animate(from(8.0f).to(0.0f), {460ms}))
         .zIndex(9)
         .child(text(toU8("Doomslinger"), lt::type(15, rc, 1.4f, 620)))
         .child(text(toU8("Colossus Blade"), lt::type(11.5f, lt::kParch, 0.8f))

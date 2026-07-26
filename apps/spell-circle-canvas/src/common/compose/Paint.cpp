@@ -202,12 +202,14 @@ void warnOverlappingClaims(const std::string &a, const std::string &b,
   if (seen.size() >= 16)
     return;
   seen.push_back(key);
-  SkDebugf("compose: stroke passes %s and %s both claim %.3f–%.3f of the "
+  SkDebugf("compose: span passes %s and %s both claim %.3f–%.3f of the "
            "same boundary. One boundary, one mark: spans partition it, they "
-           "do not stack. To layer two marks on one run, make them ONE pass "
-           "with a composite brush (Brush{}.leg(a).leg(b), or a "
-           "LayeredBrush); to keep them apart, give the second pass a "
-           "disjoint span (or spans::rest()).\n",
+           "do not stack — and the law reads across BOTH z-halves, so a "
+           "background(spans, ...) pass and a stroke(spans, ...) pass "
+           "collide the same way two strokes do. To layer two marks on one "
+           "run, make them ONE pass with a composite brush "
+           "(Brush{}.leg(a).leg(b), or a LayeredBrush); to keep them apart, "
+           "give the second pass a disjoint span (or spans::rest()).\n",
            a.c_str(), b.c_str(), shared.begin, shared.end);
 }
 
@@ -227,16 +229,17 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   std::vector<float> values;
   values.reserve(spanAnims.size());
   size_t slot = 0;
+  auto push = [&](const PropValue<float> &v) {
+    const AnimatedFloat *a =
+        slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
+    values.push_back(resolveFloatAt(a, v));
+    ++slot;
+  };
   for (const StrokePass &pass : passes)
     for (const Spans::Term &term : pass.where.terms) {
-      const AnimatedFloat *a =
-          slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
-      values.push_back(resolveFloatAt(a, term.begin));
-      ++slot;
-      const AnimatedFloat *b =
-          slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
-      values.push_back(resolveFloatAt(b, term.end));
-      ++slot;
+      push(term.begin);
+      push(term.end);
+      push(term.offset);
     }
 
   SpanInput in;
@@ -318,9 +321,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     size_t slot = 0;
     bool live = false;
     for (const StrokePass &pass : node.strokeData->passes) {
-      live |= pass.what.animated();
+      live |= pass.what.animates();
       for (const Spans::Term &term : pass.where.terms)
-        for (const PropValue<float> *v : {&term.begin, &term.end}) {
+        for (const PropValue<float> *v :
+             {&term.begin, &term.end, &term.offset}) {
           if (v->binding())
             live = true;
           else if (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
@@ -1130,13 +1134,44 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     wiped = true;
   }
 
+  // Span-qualified passes, resolved ONCE per paint however many halves
+  // read them: the claim ledger is one ledger (StrokePass), and resolving
+  // it twice would also re-walk the boundary three or four times for
+  // nothing.
+  std::optional<std::vector<std::vector<Span>>> spanClaims;
+  auto paintSpanHalf = [&](detail::StrokePass::Half half) {
+    if (!node.hasStrokePasses())
+      return;
+    if (!spanClaims)
+      spanClaims = inst.resolveSpans(paintCtx.outline);
+    const std::vector<detail::StrokePass> &passes = node.strokeData->passes;
+    for (size_t i = 0; i < passes.size() && i < spanClaims->size(); ++i) {
+      if (passes[i].half != half || (*spanClaims)[i].empty())
+        continue;
+      const PaintContext passCtx{
+          paintCtx.size,
+          detail::spanPath(paintCtx.outline, (*spanClaims)[i]),
+          paintCtx.elapsedSeconds,
+          paintCtx.contentScale,
+          paintCtx.animating,
+          paintCtx.fonts,
+          paintCtx.borrowed};
+      passes[i].what.paint(canvas, passCtx);
+    }
+  };
+
   // Background decorations paint beneath the fill (the CSS box-shadow
   // ordering): shadow/pattern layers first, then the surface. Decorations
   // are NEVER clipped — they dress the outline (shadows keep their
   // reach, outer strokes survive on clipped nodes; the aero-study fix).
-  if (emitOwn)
+  if (emitOwn) {
     for (const Decoration &decoration : node.backgrounds)
       decoration.paint(canvas, paintCtx);
+    // Span-qualified BACKGROUND passes land here, in the background half,
+    // under the fill and therefore under the content and the children —
+    // the z-slot trim() revealed and a stroke pass could not reach.
+    paintSpanHalf(detail::StrokePass::Half::Background);
+  }
 
   // clip() bounds the fill, the content, and the children — not the
   // decorations (above and below), which trace the outline itself.
@@ -1416,20 +1451,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // the sub-geometry it CLAIMED, so a brush that knows nothing about
   // spans (a PathFormat, a Brush, a PatternBrush) dresses part of a
   // boundary with no new vocabulary.
-  if (emitChildren && node.hasStrokePasses()) {
-    const std::vector<std::vector<Span>> claims =
-        inst.resolveSpans(paintCtx.outline);
-    for (size_t i = 0; i < node.strokeData->passes.size() && i < claims.size();
-         ++i) {
-      if (claims[i].empty())
-        continue;
-      const PaintContext passCtx{
-          paintCtx.size,     detail::spanPath(paintCtx.outline, claims[i]),
-          paintCtx.elapsedSeconds, paintCtx.contentScale,
-          paintCtx.animating, paintCtx.fonts, paintCtx.borrowed};
-      node.strokeData->passes[i].what.paint(canvas, passCtx);
-    }
-  }
+  if (emitChildren)
+    paintSpanHalf(detail::StrokePass::Half::Foreground);
 
   if (wiped)
     canvas.restore();

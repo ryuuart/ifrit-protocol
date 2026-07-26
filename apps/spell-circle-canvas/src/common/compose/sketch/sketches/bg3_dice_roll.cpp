@@ -166,7 +166,7 @@
 //    driven 14 px -> 3 px and angle swinging 12 degrees. Two bound Outputs on
 //    one decoration, and the right idiom because the value being encoded is
 //    CONFIDENCE, not a quantity.
-//  * `brushes::Ribbon` with a calligraphic nib for the flourishes off the DC
+//  * `brush::Ribbon` with a calligraphic nib for the flourishes off the DC
 //    plate — variable width is the whole point of a nib.
 //  * `shapes::notched` on the DC plate so it reads as a hung sign;
 //    `shapes::chamfered` on the portrait tablet and the outcome banner.
@@ -185,7 +185,7 @@
 // cos(18) = 0.9511 < cos(12) = 0.9781 and all twenty land.
 //
 // Every corner-bearing decoration on this plate therefore passes ~12 degrees
-// EXPLICITLY, and `brushes::PatternBrush` needs it separately — its own
+// EXPLICITLY, and `brush::Pattern` needs it separately — its own
 // `cornerAngleDeg` field defaults to 35, higher still.
 //
 // The default is deliberately not adaptive, and having lived with it I agree:
@@ -690,22 +690,22 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     const float a = bg3::kCornerAngle;
 
     // The gilt fleuron that sits ON each vertex, on the bisector.
-    brushes::PatternBrush ornament;
+    brush::Pattern ornament;
     ornament.side = box()
                         .width(13)
                         .height(7)
-                        .outline(shapes::polygon(4, 45.0f))
+                        .shape(shapes::polygon(4, 45.0f))
                         .foreground(stroke(0.9f, bg3::giltDark(0.85f)));
     // A four-pointed rosette, symmetric about its own bisector: an
     // ORNAMENT, which is what Bisector is for.
-    ornament.corner = brushes::CornerArt{
+    ornament.corner = brush::CornerArt{
         box()
             .width(22)
             .height(22)
-            .outline(shapes::star(4, 0.34f, 0.14f))
+            .shape(shapes::star(4, 0.34f, 0.14f))
             .fill(bg3::alpha(bg3::kGilt, 0.92f))
             .foreground(stroke(0.8f, bg3::ink(0.55f))),
-        brushes::CornerAlign::Bisector};
+        brush::CornerAlign::Bisector};
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
     ornament.reach = 26.0f;
@@ -723,26 +723,26 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
             // vertices — the brass-rule move.
             .child(box()
                        .inset(0)
-                       .outline(shapes::polygon(20))
+                       .shape(shapes::polygon(20))
                        .foreground(decorations::weightedCorners(
                            1.5f, 5.5f, bg3::gilt(), 20.0f, 0.0f, a)))
             // A twenty-tick bracket ladder just inside it: one tick per face
             // of the die, so the ornament IS the index.
             .child(box()
                        .inset(17)
-                       .outline(shapes::polygon(20))
+                       .shape(shapes::polygon(20))
                        .foreground(decorations::brackets(2.4f, bg3::ink(0.7f),
                                                          15.0f, 0.0f, a)))
             // The illuminated border proper: fleuron on every vertex.
             .child(box()
                        .inset(36)
-                       .outline(shapes::polygon(20))
+                       .shape(shapes::polygon(20))
                        .stroke(ornament))
             // The inner 20-gon: stops short at every flat, so vellum
             // breathes between the two rules.
             .child(box()
                        .inset(o - i)
-                       .outline(shapes::polygon(20))
+                       .shape(shapes::polygon(20))
                        .foreground(decorations::gappedRule(2.4f, bg3::ink(0.85f),
                                                            32.0f, 0.0f, a))
                        .foreground(decorations::brackets(3.4f, bg3::gilt(),
@@ -763,7 +763,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(bg3::kCy - o)
         .width(o * 2)
         .height(o * 2)
-        .outline(shapes::polygon(20))
+        .shape(shapes::polygon(20))
         // Light enough that the rules read as ornament ON vellum rather than
         // ink on a brown ring — this is gilt, not bronze.
         .fill(linearGradient({0, 0}, {o * 1.4f, o * 2},
@@ -790,7 +790,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(bg3::kCy - r)
         .width(r * 2)
         .height(r * 2)
-        .outline(shapes::polygon(20, 9.0f))
+        .shape(shapes::polygon(20, 9.0f))
         // Opaque, so it masks the band's concentric rules down to the band.
         .fill(radialGradient({r, r}, r,
                              {bg3::kVellum, bg3::alpha(bg3::kVellumDeep, 1.0f)}))
@@ -825,7 +825,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     // one enormous gold arc through the whole composition. Documented at the
     // call site; still the easiest thing in Shapes.h to get wrong.
     auto flourish = [&](bool mirror) {
-      brushes::Ribbon nib;
+      brush::Ribbon nib;
       nib.fill = bg3::gilt(0.9f);
       nib.widthStart = 5.6f;
       nib.widthEnd = 0.6f;
@@ -837,7 +837,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
           .top(26.0f)
           .width(118)
           .height(62)
-          .outline(shapes::parametric(
+          .shape(shapes::parametric(
               [dir](float t) {
                 // Unit space: a hooked spur that curls back on itself.
                 const float u = t * 3.14159f;
@@ -859,7 +859,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                    .top(0)
                    .width(228)
                    .height(118)
-                   .outline(shapes::notched(30.0f, 13.0f, shapes::Corner::All))
+                   .shape(shapes::notched(30.0f, 13.0f, shapes::Corner::All))
                    .fill(bg3::alpha(bg3::kVellumDeep, 0.96f))
                    .background(shadow({0.1f, 0.07f, 0.04f, 0.30f}, {0, 4}, 12))
                    .style(decorations::doubleBorder(
@@ -920,7 +920,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                   .top(y0 - 6.0f)
                   .width(14.0f)
                   .height(y1 - y0 + 12.0f)
-                  .outline(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
+                  .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
                   .foreground(decorations::brackets(1.6f, bg3::giltDark(),
                                                     11.0f, 0.0f, 24.0f)));
       // The header sits in the gap ABOVE its block, on its own row.
@@ -990,14 +990,15 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
               .top(y - 10.0f)
               .width(kRowW)
               .height(44.0f)
-              .opacity(withFrom(0.0f, 1.0f, {260ms, choreograph::easeOutQuad}))
-              .translateX(withFrom(18.0f, 0.0f,
-                                   {300ms, choreograph::easeOutQuad}))
+              .opacity(animate(from(0.0f).to(1.0f),
+                               {260ms, choreograph::easeOutQuad}))
+              .translateX(animate(from(18.0f).to(0.0f),
+                                  {300ms, choreograph::easeOutQuad}))
               // The leader tick, running back toward the bezel.
-              .child(rule(0.0f, 20.0f, 84.0f,
-                          lines::heavyHairHeavy(1.4f, 0.5f,
-                                                bg3::giltDark(0.8f), 2.6f),
-                          1.0f))
+              .child(rule(
+                  0.0f, 20.0f, 84.0f,
+                  lines::heavyHairHeavy(1.4f, 0.5f, bg3::giltDark(0.8f), 2.6f),
+                  1.0f))
               .child(label(b.sourceName, 96.0f, 2.0f, 21.0f, bg3::kInk, 0.8f))
               .child(label(b.description, 96.0f, 26.0f, 9.5f,
                            bg3::alpha(bg3::kInk, 0.45f), 0.7f, true))
@@ -1043,7 +1044,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(1094.0f)
         .width(452.0f)
         .height(64.0f)
-        .outline(shapes::chamfered(14.0f, shapes::Corner::Diagonal))
+        .shape(shapes::chamfered(14.0f, shapes::Corner::Diagonal))
         .fill(bg3::alpha(bg3::kViridian, 0.10f))
         .overlay(wash)
         .foreground(decorations::weightedCorners(1.2f, 3.4f, bg3::gilt(), 16.0f,
@@ -1052,7 +1053,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .child(label("RollCritical.None 0  \xc2\xb7  Total 20 \xe2\x89\xa5 DC 15",
                      34.0f, 44.0f, 9.0f, bg3::alpha(bg3::kInk, 0.55f), 0.9f,
                      true))
-        .opacity(withFrom(0.0f, 1.0f, {380ms, choreograph::easeOutQuad}));
+        .opacity(animate(from(0.0f).to(1.0f), {380ms, choreograph::easeOutQuad}));
   }
 
   // ------------------------------------------------------------- marginalia
@@ -1063,7 +1064,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(cy - r - 16.0f)
         .width(r * 2 + 32.0f)
         .height(r * 2 + 32.0f)
-        .outline(shapes::chamfered(10.0f))
+        .shape(shapes::chamfered(10.0f))
         .fill(bg3::alpha(bg3::kVellumDeep, 0.95f))
         .background(shadow({0.1f, 0.07f, 0.04f, 0.32f}, {0, 3}, 10))
         .style(
@@ -1075,7 +1076,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                    .top(16.0f)
                    .width(r * 2)
                    .height(r * 2)
-                   .outline(shapes::polygon(20, 9.0f))
+                   .shape(shapes::polygon(20, 9.0f))
                    .fill(radialGradient({r, r * 0.8f}, r * 1.25f,
                                         {bg3::alpha(bg3::kVellum, 1.0f),
                                          bg3::alpha(bg3::kGiltDark, 0.55f)}))
@@ -1124,7 +1125,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                 .top(yTotal)
                 .width(20.0f)
                 .height(yDC - yTotal)
-                .outline(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
+                .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
                 .fill(bg3::alpha(bg3::kViridian, 0.14f))
                 .foreground(decorations::brackets(
                     1.8f, Fill::color(bg3::kViridian), 9.0f, 0.0f, 24.0f)));
@@ -1147,7 +1148,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                 .top(26)
                 .width(bg3::kW - 52)
                 .height(bg3::kH - 52)
-                .outline(shapes::chamfered(26.0f))
+                .shape(shapes::chamfered(26.0f))
                 .foreground(decorations::brackets(1.4f, bg3::ink(0.42f), 30.0f,
                                                   0.0f, 24.0f))
                 .foreground(decorations::gappedRule(0.6f, bg3::giltDark(0.55f),
@@ -1254,7 +1255,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(bg3::kCy - 660.0f)
         .width(1400)
         .height(1400)
-        .outline(shapes::polygon(40, 4.5f))
+        .shape(shapes::polygon(40, 4.5f))
         .style(decorations::doubleBorder(
             decorations::border(2.6f, bg3::giltDark(0.42f)),
             decorations::border(0.9f, bg3::ink(0.3f), 16.0f)))
@@ -1288,7 +1289,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .top(kAy2 + 64.0f)
         .width(232.0f)
         .height(196.0f)
-        .outline(shapes::parametric(
+        .shape(shapes::parametric(
             [](float t) {
               return SkPoint{-1.0f + 2.0f * t, -1.0f + 2.0f * t * t};
             },
@@ -1305,12 +1306,12 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
         .width(bg3::kW)
         .height(bg3::kH)
         .transformOriginPx({bg3::kCx, bg3::kCy})
-        .scale(withKeyframes<float>({{0ms, 0.80f},
+        .scale(animate(through({{0ms, 0.80f},
                                      {1100ms, 1.0f},
                                      {1210ms, 1.075f},
                                      {1300ms, 0.975f},
                                      {1390ms, 1.02f},
-                                     {1450ms, 1.0f}}))
+                                     {1450ms, 1.0f}})))
         .child(die(bg3::kDieRadius, 1.0f, true, 0.0f));
   }
 
@@ -1455,7 +1456,7 @@ SIGIL_SKETCH(Bg3DiceRoll)
 // `Border{}` aggregate by hand. They now take a trailing `angleDeg` and this
 // file uses it throughout.
 //
-// One asymmetry remains: `brushes::PatternBrush::cornerAngleDeg` defaults to
+// One asymmetry remains: `brush::Pattern::cornerAngleDeg` defaults to
 // 35, five degrees HIGHER than `Border::cornerAngleDeg`'s 30, so a frame whose
 // rules and whose corner tiles are both on the same polygon needs two different
 // numbers passed to two differently-shaped APIs to describe one fact about one

@@ -380,7 +380,7 @@ inline OutlineFn parallelogram(float skewDeg) {
  *  coordinates (±1 spans the box); @p samples is the segment count, and
  *  @p close joins the last point back to the first.
  *
- *      .outline(shapes::parametric([](float t) {
+ *      .shape(shapes::parametric([](float t) {
  *        return SkPoint{std::cos(3 * t), std::sin(2 * t)};
  *      }, 0, 2 * SK_FloatPI, 720))
  */
@@ -493,7 +493,7 @@ inline OutlineFn trochoid(float R, float r, float d, bool inside = false,
 
 /** Wraps any outline generator so every sharp corner rounds with a
  *  consistent radius — corners() for arbitrary silhouettes:
- *  `.outline(rounded(star(5), 8))`. */
+ *  `.shape(rounded(star(5), 8))`. */
 inline OutlineFn rounded(OutlineFn shape, float radius) {
   return [shape = std::move(shape), radius](SkSize s) {
     SkPath src = shape(s);

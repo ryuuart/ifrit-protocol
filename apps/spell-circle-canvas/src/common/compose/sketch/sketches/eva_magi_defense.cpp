@@ -179,6 +179,7 @@
 #include <sigilcompose/Console.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Util.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -343,8 +344,8 @@ inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
  *  not have one — `Decoration` therefore reported 0 reach and a blurred
  *  additive stack was culled at its node's own bounds the moment the subtree
  *  recorded. That was real, and it hit every stock brush in the header:
- *  `brushes::filament()` is a 14 px envelope under an 8 px blur and lost its
- *  halo the same way.
+ *  `kit::brush::presets::filament()` is a 14 px envelope under an 8 px blur and
+ * lost its halo the same way.
  *
  *  `LayeredBrush::bleed()` shipped (Brushes.h:76) computing exactly what this
  *  file asked for — per layer, `width/2 + 3σ`, taking the max — so the wrapper
@@ -831,9 +832,9 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                      .top(at.fY - tre::kTotalH * 0.5f)
                      .width(tre::kBarW)
                      .height(tre::kTotalH)
-                     .outline(tre::silhouette)
+                     .shape(tre::silhouette)
                      .rotate(s.rotation)
-                     .fill(with(Fill::color(plateFill), snap))
+                     .fill(animate(to(Fill::color(plateFill)), snap))
                      .foreground(rimGlow(2.4f, rim))
                      .key(std::string("site#") + s.name);
 
@@ -902,7 +903,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
                     .gap(-2)
                     .key(std::string(keyTag) + std::to_string(keyIndex));
     if (L.pill) {
-      node.outline(pillOutline(10.0f, L.cuts, 26.0f));
+      node.shape(pillOutline(10.0f, L.cuts, 26.0f));
       node.fill(Fill::color(kCell));
       node.foreground(rimGlow(3.0f, ink));
     }
@@ -921,7 +922,7 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     return box()
         .width(kW)
         .height(kH)
-        .outline([this](SkSize) { return funnel; })
+        .shape([this](SkSize) { return funnel; })
         .fill(rampMaterial((float)frontStep / 84.0f))
         .key("funnel");
   }

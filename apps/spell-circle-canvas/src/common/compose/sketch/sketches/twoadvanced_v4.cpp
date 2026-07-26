@@ -352,7 +352,7 @@ struct RailFlares {
   float period = 6.0f, phase = 0.0f;
 
   bool operator==(const RailFlares &) const = default;
-  bool animated() const { return true; }
+  bool animates() const { return true; }
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     const float w = ctx.size.width(), h = ctx.size.height();
     const float ys[3] = {h * 0.167f, h * 0.5f, h * 0.833f};
@@ -615,7 +615,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
               SkColor4f hairline = tav::kNear) {
     using namespace tav;
     return box().width(Dim(w)).height(Dim(h))
-        .outline(chamfer(9, kTL | kBR))
+        .shape(chamfer(9, kTL | kBR))
         .fill(Material::linearUnit({0, 0}, {0, 1},
                                    {{0.0f, kCtaHi},
                                     {0.42f, kCta},
@@ -633,7 +633,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   Element readout(float w, float h, SkColor4f ground = tav::C(0x1B0708)) {
     using namespace tav;
     return box().width(Dim(w)).height(Dim(h))
-        .outline(chamfer(7, kTR | kBL))
+        .shape(chamfer(7, kTR | kBL))
         .fill(ground)
         .foreground(InsetBevel{fade(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 0, 1, 1})
         .foreground(Brackets{fade(kCyan, 0.55f), 8, 2, 3, 0xF});
@@ -643,7 +643,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
    *  page is this with a different bezel. */
   Element radarSweep(int i, SkColor4f tint, float inner = 0.30f) {
     return box().inset(0)
-        .outline(shapes::sector(-100, 78, inner))
+        .shape(shapes::sector(-100, 78, inner))
         .fill(Material::linearUnit({0, 0}, {1, 1},
                                    {{0.0f, tav::fade(tint, 0.85f)},
                                     {1.0f, tav::fade(tint, 0.05f)}}))
@@ -661,7 +661,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element teal =
         singleBevel(box().left(Dim(0)).top(Dim(0)).width(560)
                         .height(40)
-                        .outline(chamfer(40, kBR))
+                        .shape(chamfer(40, kBR))
                         .row().alignItems(Align::Center).padding(10, 0).gap(8),
                     kTealBar)
             .translateY(animate(from(-46.0f).to(0.0f),
@@ -688,7 +688,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element maroon =
         singleBevel(box().left(Dim(548)).top(Dim(0))
                         .width(Dim(1892.0f - 548.0f)).height(40)
-                        .outline(chamfer(40, kTL))
+                        .shape(chamfer(40, kTL))
                         .row().alignItems(Align::Center)
                         .padding(58, 0, 14, 0).gap(10),
                     kChrome)
@@ -732,7 +732,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     Element scope =
         box().grow(1).height(100)
-            .outline(chamfer(8, kTR | kBL))
+            .shape(chamfer(8, kTR | kBL))
             .fill(spectrum)
             .foreground(Scanlines{{0, 0, 0, 0.16f}, 3, 1})
             .foreground(Brackets{fade(kCyan, 0.6f), 10, 2, 3, 0xF})
@@ -741,7 +741,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     auto key = [&](const char *glyph, bool hot) {
       return box().width(38).height(22)
-          .outline(chamfer(6, kTL | kBR))
+          .shape(chamfer(6, kTL | kBR))
           .fill(Material::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, hot ? kCtaHi : C(0x5A2226)},
                                       {0.5f, hot ? kCta : C(0x3A0F12)},
@@ -824,7 +824,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       chips.child(
           box().grow(1).column().gap(3)
               .child(box().grow(1)
-                         .outline(chamfer(8, kTL | kBR))
+                         .shape(chamfer(8, kTL | kBR))
                          .fill(Material::linearUnit(
                              {0, 0}, {0, 1},
                              {{0.0f, C(0x06232A)}, {1.0f, C(0x01090B)}}))
@@ -888,7 +888,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                  .borderColor = kCyan}))
             .justify(Justify::Center).alignItems(Align::Center)
             .child(box().width(50).height(50)
-                       .outline(shapes::polygon(6, 0))
+                       .shape(shapes::polygon(6, 0))
                        .stroke(util::stroke(
                            1, Fill::color(fade(kCyanRing, 0.75f))))
                        .justify(Justify::Center).alignItems(Align::Center)
@@ -1054,7 +1054,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     scene.child(portal);
 
     // an orbital ring, trim-revealed with the panel
-    Element ring = place(box().outline(shapes::arc(-125, 310))
+    Element ring = place(box().shape(shapes::arc(-125, 310))
                              .stroke(util::stroke(
                                  2, Fill::color(fade(kCyanRing, 0.6f)))),
                          cx - 118, horizon - 226, 236, 236);
@@ -1069,7 +1069,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     const float fss[3] = {0.82f, 1.0f, 0.78f};
     for (int i = 0; i < 3; ++i) {
       const float dw = 66 * fss[i], dh = 100 * fss[i];
-      Element fig = place(box().outline([](SkSize s) {
+      Element fig = place(box().shape([](SkSize s) {
                             SkPathBuilder b;
                             b.moveTo(0, s.height());
                             b.lineTo(0, s.width() * 0.5f);
@@ -1217,7 +1217,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       Element cell =
           box().grow(1).column().gap(3)
               .child(box().grow(1)
-                         .outline(chamfer(7, kTL | kBR))
+                         .shape(chamfer(7, kTL | kBR))
                          .fill(Material::linearUnit(
                              {0, 0}, {0, 1},
                              {{0.0f, C(0x0A2C33)}, {1.0f, C(0x02171B)}}))
@@ -1256,7 +1256,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     using namespace tav;
     Element thumb =
         box().width(150).height(150).shrink(0)
-            .outline(chamfer(12, kTL | kBR))
+            .shape(chamfer(12, kTL | kBR))
             .fill(Material::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, C(0x06232A)},
                                         {1.0f, C(0x011114)}}))
@@ -1278,7 +1278,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         box().grow(1).column().gap(6)
             .child(box().row().gap(7).alignItems(Align::Center)
                        .child(box().width(9).height(9)
-                                  .outline(shapes::polygon(3, 90))
+                                  .shape(shapes::polygon(3, 90))
                                   .fill(kDate))
                        .child(t("01.30.06",
                                 type(blackFace(), 14, kDate, 40, 0.95f)))
@@ -1349,7 +1349,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
             .child(leftCol)
             .child(copy);
     // the hazard wedge, bottom-left — the STATIC baked-tile pattern path
-    bodyArea.child(place(box().outline([](SkSize s) {
+    bodyArea.child(place(box().shape([](SkSize s) {
                            SkPathBuilder b;
                            b.moveTo(0, 0);
                            b.lineTo(s.width(), s.height());
@@ -1491,7 +1491,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       col.foreground(TickRail{fade(kDust, 0.35f), 7, 3, 6, 1, 4, false, true})
           .child(box().row().gap(8).alignItems(Align::Center)
                      .child(box().width(32).height(32)
-                                .outline(chamfer(8, kTL | kBR))
+                                .shape(chamfer(8, kTL | kBR))
                                 .fill(Material::linearUnit(
                                     {0, 0}, {0, 1},
                                     {{0.0f, C(0x5A1A20)}, {1.0f, C(0x220608)}}))
@@ -1526,7 +1526,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                      .child(t(cols[i].link, micro(11, fade(kCyan, 0.9f), 220)))
                      .child(box().grow(1))
                      .child(box().width(120).height(24)
-                                .outline(chamfer(7, kTL | kBR))
+                                .shape(chamfer(7, kTL | kBR))
                                 .fill(Material::linearUnit(
                                     {0, 0}, {0, 1},
                                     {{0.0f, kPanelHi},
@@ -1740,7 +1740,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
   Element toggle(const char *lbl, bool on) {
     using namespace tav;
     return box().height(18).padding(7, 0)
-        .outline(chamfer(5, kTL | kBR))
+        .shape(chamfer(5, kTL | kBR))
         .fill(on ? Material::linearUnit({0, 0}, {0, 1},
                                         {{0.0f, C(0x0A4148)},
                                          {1.0f, C(0x02181C)}})
@@ -1782,7 +1782,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     auto selector = [&](const char *lbl, const char *value) {
       return box().row().gap(8).alignItems(Align::Center)
           .child(box().width(46).height(34)
-                     .outline(chamfer(8, kTL | kBR))
+                     .shape(chamfer(8, kTL | kBR))
                      .fill(Material::radialUnit({0.5f, 0.76f}, 1.1f,
                                                 {{0.0f, C(0x0A4148)},
                                                  {1.0f, C(0x010D10)}}))
@@ -1864,7 +1864,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                               .child(t("ARCHIVED VERSIONS:",
                                        micro(11, kDust, 240)))
                               .child(box().height(24).padding(8, 0)
-                                         .outline(chamfer(7, kTL | kBR))
+                                         .shape(chamfer(7, kTL | kBR))
                                          .fill(C(0x2A0A0C))
                                          .stroke(util::stroke(
                                              1,
@@ -1960,7 +1960,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     // the instanced chevron array — one atlas cell, one stamp
     strip.child(box().width(260).height(150)
-                    .outline(chamfer(7, kTR | kBL))
+                    .shape(chamfer(7, kTR | kBL))
                     .fill(C(0x110303))
                     .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
                     .child(box().left(Dim(12)).top(Dim(12))
@@ -1973,7 +1973,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                         micro(10, kD6, 220)))));
 
     strip.child(box().grow(1).height(150)
-                    .outline(chamfer(7, kTR | kBL))
+                    .shape(chamfer(7, kTR | kBL))
                     .fill(C(0x140404))
                     .column().padding(10).gap(5)
                     .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
@@ -2000,7 +2000,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     Element cluster =
         box().width(310).height(150)
-            .outline(chamfer(9, kTL | kBR))
+            .shape(chamfer(9, kTL | kBR))
             .fill(Material::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kD3}, {1.0f, C(0x0C0202)}}))
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 5, 2, 1})
@@ -2050,12 +2050,13 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
 
     auto hair = [&](float x, float y, float w, float h, float dx, float dy,
                     int delayMs) {
-      return place(box().outline(ray(dx, dy))
-                       .stroke(util::stroke(1.5f, Fill::color(kCyan)))
-                       .trim(0.0f,
-                             animate(from(0.0f).to(1.0f),
-                                     {400ms, &ch::easeOutQuint,
-                                      std::chrono::milliseconds(delayMs)})),
+      return place(box()
+                       .shape(ray(dx, dy))
+                       .stroke(spans::upTo(animate(
+                                   from(0.0f).to(1.0f),
+                                   {400ms, &ch::easeOutQuint,
+                                    std::chrono::milliseconds(delayMs)})),
+                               util::stroke(1.5f, Fill::color(kCyan))),
                    x, y, w, h);
     };
 
@@ -2075,30 +2076,33 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     o.child(hair(cx, cy, 470, 1, 1, 1, 150));
     o.child(hair(cx, cy - 300, 1, 300, 1, -1, 220));
     o.child(hair(cx, cy, 1, 300, 1, 1, 220));
-    o.child(place(box().outline(shapes::arc(-90, 359))
-                      .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.7f))))
-                      .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                          {500ms, &ch::easeOutQuint, 260ms})),
-                  cx - 92, cy - 92, 184, 184));
+    o.child(place(
+        box()
+            .shape(shapes::arc(-90, 359))
+            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                        {500ms, &ch::easeOutQuint, 260ms})),
+                    util::stroke(1, Fill::color(fade(kCyan, 0.7f)))),
+        cx - 92, cy - 92, 184, 184));
     // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
-    o.child(place(box().column().alignItems(Align::Center).gap(9),
-                  cx - 260, cy + 120, 520, 110)
-                .opacity(animate(through({{520ms, 0.0f},
-                                          {620ms, 1.0f},
-                                          {1350ms, 1.0f},
-                                          {1450ms, 0.0f}})))
-                .child(slot("bootpct"))
-                .child(box().width(420).height(2).fill(fade(kCyan, 0.18f))
-                           .child(box().inset(0)
-                                      .outline(ray(1, 1))
-                                      .stroke(util::stroke(
-                                          2, Fill::color(kCyan)))
-                                      .trim(0.0f,
-                                            animate(from(0.0f).to(1.0f),
-                                                    {800ms, &ch::easeNone,
-                                                     550ms}))))
-                .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97" "655",
-                         micro(11, fade(kCyan, 0.6f), 240))));
+    o.child(
+        place(box().column().alignItems(Align::Center).gap(9), cx - 260,
+              cy + 120, 520, 110)
+            .opacity(animate(through({{520ms, 0.0f},
+                                      {620ms, 1.0f},
+                                      {1350ms, 1.0f},
+                                      {1450ms, 0.0f}})))
+            .child(slot("bootpct"))
+            .child(box()
+                       .width(420)
+                       .height(2)
+                       .fill(fade(kCyan, 0.18f))
+                       .child(box().inset(0).shape(ray(1, 1)).stroke(
+                           spans::upTo(animate(from(0.0f).to(1.0f),
+                                               {800ms, &ch::easeNone, 550ms})),
+                           util::stroke(2, Fill::color(kCyan)))))
+            .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97"
+                     "655",
+                     micro(11, fade(kCyan, 0.6f), 240))));
     // 4. the boot-complete flash
     o.child(box().inset(0).fill(SkColor4f{1, 1, 1, 1})
                 .opacity(animate(through({{1330ms, 0.0f},
@@ -2203,7 +2207,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     // --- the instanced chevron array in the footer dock ---
     dockAtlas = std::make_shared<instancing::Atlas>(2.0f);
     const int chev = dockAtlas->cell(
-        box().outline([](SkSize s) {
+        box().shape([](SkSize s) {
               SkPathBuilder b;
               b.moveTo(0, 0);
               b.lineTo(s.width() * 0.62f, s.height() * 0.5f);
@@ -2224,7 +2228,7 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
         const float k = 0.35f + 0.65f * (float)((i * 7 + 3) % 11) / 10.0f;
         tints[i] = {1, 1, 1, k};
       }
-      dockPool->touch();
+      dockPool->commit();
     }
 
     // --- declared idle motion (§9's second list) --------------------------

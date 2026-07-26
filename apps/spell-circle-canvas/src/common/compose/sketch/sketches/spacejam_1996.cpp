@@ -248,7 +248,7 @@ inline Element rect(float x, float y, float w, float h) {
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
 inline Element sphere(SkPoint c, float r, Material m) {
-  return disc(c, r).outline(shapes::circle()).fill(std::move(m));
+  return disc(c, r).shape(shapes::circle()).fill(std::move(m));
 }
 
 // ---------------------------------------------------------------------------
@@ -498,7 +498,7 @@ inline Element starTile() {
       const float waist = eight ? 0.15f : 0.12f;
       const float len = S(eight ? 4.8f + 6.6f * L : 4.2f + 6.0f * L);
       Element sp = disc({S((float)s.x), S((float)s.y)}, len)
-                       .outline(shapes::star(pts, 0.035f, waist))
+                       .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blend(SkBlendMode::kPlus);
       if (diagSpike(s.x, s.y))
@@ -551,7 +551,7 @@ inline Element navLabel(sigil::weave::FontContext &fonts, const char *s,
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
                     float innerRatio, Material m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
-      .outline(shapes::annulus(innerRatio))
+      .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))
       .rotate(rotDeg);
 }
@@ -604,7 +604,7 @@ inline Element artBball(sigil::weave::FontContext &f) {
   const float W = S(62), H = S(62);
   return artBox(W, H)
       .child(disc({S(31), S(37.5f)}, S(25.5f))
-                 .outline(shapes::circle())
+                 .shape(shapes::circle())
                  .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300),
                                     C5(0x843900), 0.055f))
                  .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
@@ -639,7 +639,7 @@ inline Element artJamCentral(sigil::weave::FontContext &f) {
                         {0.28f, 0.80f, 0.34f, 0.16f, 97, 0x00EF00}};
   for (const Mass &m : mass)
     globe.child(rect(m.x * d, m.y * d, m.w * d, m.h * d)
-                    .outline(shapes::blob(m.seed, 0.62f, 13))
+                    .shape(shapes::blob(m.seed, 0.62f, 13))
                     .fill(Fill::color(C5(m.ink))));
   return artBox(W, H)
       .child(std::move(globe))
@@ -787,7 +787,7 @@ inline Element artSitemap(sigil::weave::FontContext &f) {
   // they were authored.
   Element vortex =
       rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
-          .outline(shapes::annulus(0.30f))
+          .shape(shapes::annulus(0.30f))
           .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                    {{0.0f, C5(0xFFFF00)},
                                     {0.34f, C5(0xFFEF00)},
@@ -805,7 +805,7 @@ inline Element artSitemap(sigil::weave::FontContext &f) {
   for (int i = 0; i < 4; ++i)
     out.child(rect(c.fX + px[i] * S(34) - dw * 0.5f,
                    c.fY + py[i] * S(31) - dh * 0.5f, dw, dh)
-                  .outline(dart())
+                  .shape(dart())
                   .fill(Fill::color(C5(0xFFFF00)))
                   .rotate(ang[i]));
   out.child(navLabel(f, "SITE MAP", S(64), S(26), S(39), S(10)));
@@ -841,23 +841,23 @@ inline Element artPressBox(sigil::weave::FontContext &f) {
   Element ship = rect(0, 0, W, H).rotate(-12.6f).transformOrigin(0.5f, 0.5f);
   // dorsal fin, swept back from mid-body
   ship.child(rect(S(38), S(6), S(52), S(20))
-                 .outline(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
+                 .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
                  .fill(Material::linearUnit(
                      {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})));
   // ventral fin
   ship.child(rect(S(58), S(36), S(40), S(15))
-                 .outline(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
+                 .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
                  .fill(Fill::color(C5(0xA50029))));
   // rear nacelle
   ship.child(rect(S(4), S(25), S(36), S(14))
-                 .outline(shapes::squircle(2.6f))
+                 .shape(shapes::squircle(2.6f))
                  .fill(Material::linearUnit({0, 0}, {0, 1},
                                             {{0.0f, C5(0x8CDE73)},
                                              {0.42f, grn},
                                              {1.0f, grnLo}})));
   // fuselage
   ship.child(rect(S(16), S(23), S(100), S(17))
-                 .outline(shapes::squircle(2.2f))
+                 .shape(shapes::squircle(2.2f))
                  .fill(Material::linearUnit({0, 0}, {0, 1},
                                             {{0.0f, hullHi},
                                              {0.26f, hull},
@@ -865,11 +865,11 @@ inline Element artPressBox(sigil::weave::FontContext &f) {
                                              {1.0f, C5(0x8C0021)}})));
   // dorsal ridge highlight
   ship.child(rect(S(28), S(25), S(72), S(3))
-                 .outline(shapes::squircle(2.0f))
+                 .shape(shapes::squircle(2.0f))
                  .fill(Fill::color(fade(C5(0xFFC6D6), 0.85f))));
   // nose spike
   ship.child(rect(S(108), S(27), S(24), S(8))
-                 .outline(shapes::arrow(0.28f, 0.90f))
+                 .shape(shapes::arrow(0.28f, 0.90f))
                  .fill(Fill::color(hull)));
   // window strip
   for (int i = 0; i < 5; ++i)
@@ -905,7 +905,7 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
   };
   auto swirl = [&] {
     return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
-        .outline(shapes::annulus(0.44f))
+        .shape(shapes::annulus(0.44f))
         .fill(swirlFill())
         .rotate(-18);
   };
@@ -970,7 +970,7 @@ inline Element artLogo(sigil::weave::FontContext &fonts) {
         for (int i = 0; i < 4; ++i) {
           const float k = 0.960f - (float)i * 0.092f;
           band.child(rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
-                         .outline(shapes::arc(96, 90))
+                         .shape(shapes::arc(96, 90))
                          .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
                                         PathFormat::Align::Center)));
         }
@@ -1314,7 +1314,7 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
       // Fully arrived: the live element, whose material steps its uTime at
       // 10 Hz — the GIF's own frame rate, six frames, forever.
       fastRow.child(rect(S(53), S(3), S(40), S(40))
-                        .outline(shapes::circle())
+                        .shape(shapes::circle())
                         .fill(ballMaterial(true, C5(0xFF6B29), C5(0xC64210),
                                            C5(0x521800), 0.050f))
                         .key("fastbreak"));
@@ -1388,7 +1388,7 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
                     rect(0, 0, S(40), S(40))
                         .left(Dim(0))
                         .top(Dim(0))
-                        .outline(shapes::circle())
+                        .shape(shapes::circle())
                         .fill(ballMaterial(false, C5(0xFF6B29), C5(0xC64210),
                                            C5(0x521800), 0.050f)),
                     S(40), S(40)});

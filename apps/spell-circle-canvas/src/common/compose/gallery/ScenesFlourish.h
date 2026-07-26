@@ -127,14 +127,14 @@ struct FlourishScene final : Scene {
     ContourWalk crestWalk;
     crestWalk.spacing = 70.0f;
     crestWalk.stamp = box().width(16).height(11)
-                          .outline(shapes::star(3, 0.5f))
+                          .shape(shapes::star(3, 0.5f))
                           .fill(Fill::color(st.gold));
 
     std::vector<Element> studs;
     studs.reserve(kRosettes);
     for (int i = 0; i < kRosettes; ++i)
       studs.push_back(box().width(11).height(11)
-                          .outline(shapes::star(6, 0.5f))
+                          .shape(shapes::star(6, 0.5f))
                           .fill(Fill::color(st.gold)));
 
     auto innerRect = [](SkSize s) {
@@ -196,7 +196,7 @@ struct FlourishScene final : Scene {
     petals.reserve(kPetals);
     for (int i = 0; i < kPetals; ++i)
       petals.push_back(box().width(13).height(18)
-                           .outline(shapes::rounded(shapes::star(4, 0.36f), 2))
+                           .shape(shapes::rounded(shapes::star(4, 0.36f), 2))
                            .fill(Fill::color(st.goldBright))
                            .foreground(sigil::compose::util::stroke(
                                0.7f, Fill::color(st.bronze))));
@@ -214,7 +214,7 @@ struct FlourishScene final : Scene {
         .rotate(&spin[q]).scale(&breathe[q])
         .cache(Cache::Picture)
         .child(box().inset(15)
-                   .outline(shapes::squircle(4.0f))
+                   .shape(shapes::squircle(4.0f))
                    .fill(disc)
                    .foreground(sigil::compose::util::stroke(
                        2.2f, Fill::color(st.gold)))
@@ -225,7 +225,7 @@ struct FlourishScene final : Scene {
         .child(box()
                    .inset(kMedD / 2 - 9, kMedD / 2 - 9, kMedD / 2 - 9,
                           kMedD / 2 - 9)
-                   .outline(shapes::star(8, 0.5f))
+                   .shape(shapes::star(8, 0.5f))
                    .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
                    .opacity(&flare));
   }
@@ -282,7 +282,7 @@ struct FlourishScene final : Scene {
     sparks.reserve(kSparks);
     for (int i = 0; i < kSparks; ++i)
       sparks.push_back(box().width(3).height(3)
-                           .outline(shapes::star(4, 0.4f))
+                           .shape(shapes::star(4, 0.4f))
                            .fill(Fill::color({st.bronze.fR, st.bronze.fG,
                                               st.bronze.fB, 0.5f}))
                            .opacity(0.5f));
@@ -311,39 +311,56 @@ struct FlourishScene final : Scene {
     return box()
         .key("cartouche")
         .inset(224, 188, 224, 188) // ~452×264 centered box
-        .corners({16}).zIndex(3).clip()
+        .corners({16})
+        .zIndex(3)
+        .clip()
         .backdrop(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::util::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
         .background(carved)
-        .column().padding(30, 26).gap(9).alignItems(Align::Center)
-        .child(layout(layouts::Scatter{7, 0.7f}).inset(22)
+        .column()
+        .padding(30, 26)
+        .gap(9)
+        .alignItems(Align::Center)
+        .child(layout(layouts::Scatter{7, 0.7f})
+                   .inset(22)
                    .children(std::move(sparks)))
-        .child(stack().width(258).height(66)
-                   .outline(scallopOutline(12))
+        .child(stack()
+                   .width(258)
+                   .height(66)
+                   .shape(scallopOutline(12))
                    .fill(Fill::color({st.parchment.fR * 1.05f,
                                       st.parchment.fG * 1.05f,
                                       st.parchment.fB * 1.02f, 1}))
-                   .foreground(sigil::compose::util::stroke(
-                       1.3f, Fill::color(st.gold)))
+                   .foreground(
+                       sigil::compose::util::stroke(1.3f, Fill::color(st.gold)))
                    .child(titleLayer(st.goldBright, true))
                    .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
-        .child(box().key("seal").width(42).height(42)
-                   .transformOrigin(0.5f, 0.5f).scale(&sealBreathe)
-                   .outline(shapes::star(12, 0.66f))
-                   .fill(with(Fill::color(accent ? st.rubric : st.bronze),
-                             {600ms}))
-                   .foreground(sigil::compose::util::stroke(
-                       1.4f, Fill::color(st.goldBright))))
+        .child(
+            box()
+                .key("seal")
+                .width(42)
+                .height(42)
+                .transformOrigin(0.5f, 0.5f)
+                .scale(&sealBreathe)
+                .shape(shapes::star(12, 0.66f))
+                .fill(animate(to(Fill::color(accent ? st.rubric : st.bronze)),
+                              {600ms}))
+                .foreground(sigil::compose::util::stroke(
+                    1.4f, Fill::color(st.goldBright))))
         .child(text(u8"Framed by a vine that draws itself on, corner by "
                     u8"corner, while the medallions turn and the rules hold "
                     u8"their three weights of gold — every ornament a "
                     u8"different corner of the compose surface, woven around "
                     u8"this seal.",
                     glyphs(12.5f, st.ink))
-                   .key("motto").flowAround("seal", 7))
-        .child(box().row().gap(2).justify(Justify::Center)
+                   .key("motto")
+                   .flowAround("seal", 7))
+        .child(box()
+                   .row()
+                   .gap(2)
+                   .justify(Justify::Center)
                    .children(std::move(frieze)))
         .child(text(u8"— a stress test that chose to be beautiful —",
                     glyphs(11, st.rubric)));

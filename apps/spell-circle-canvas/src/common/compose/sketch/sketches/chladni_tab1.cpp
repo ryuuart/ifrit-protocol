@@ -88,7 +88,7 @@
 //   bind()               one settle Output per figure, shaped three ways
 //   PathFormat::trim*    the bow's travelling contact arc
 //   patterns::grain/speckle  plate tone and foxing
-//   trim()/withFrom()    the frame, the rims, the reading order
+//   spans::upTo/animate  the frame, the rims, the reading order
 //
 // Run:
 //   ./build/bin/Release/ComposeSketch \
@@ -561,23 +561,24 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ink opacity: the drawing surfaces once the sand has found the line
     auto inkIn = [&] {
-      return bind(&settle[fi]).from(0.58f, 0.94f).clamp(0.0f, 1.0f);
+      return bind(&settle[fi]).source(0.58f, 0.94f).clamp(0.0f, 1.0f);
     };
 
     // ---- the rim hairline ----
-    root.child(disc(c, kR)
-                   .key(tag + "rim")
-                   .outline(shapes::circle())
-                   .fill(Fill::none())
-                   .stroke(stroke(1.5f, Fill::color(kInkLine)))
-                   .trim(0.0f, withFrom(0.0f, 1.0f,
-                                        ramp(rimDelay, 620, ch::easeOutQuad))));
+    root.child(
+        disc(c, kR)
+            .key(tag + "rim")
+            .shape(shapes::circle())
+            .fill(Fill::none())
+            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                        ramp(rimDelay, 620, ch::easeOutQuad))),
+                    stroke(1.5f, Fill::color(kInkLine))));
 
     // ---- the figure itself ----
     if (f.kind == Kind::Star) {
       root.child(disc(c, kR * kTip)
                      .key(tag + "star")
-                     .outline(starOutline(f.points, f.inner))
+                     .shape(starOutline(f.points, f.inner))
                      .fill(inkMat)
                      .opacity(inkIn()));
     } else if (f.kind == Kind::Petals) {
@@ -603,28 +604,28 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           root.child(
               disc(c, kR)
                   .key(tag + "h" + std::to_string(p) + "_" + std::to_string(k))
-                  .outline(shapes::sector(b0 - 90.4f, ssw + 0.8f))
+                  .shape(shapes::sector(b0 - 90.4f, ssw + 0.8f))
                   .fill(Fill::none())
                   .background(lines::hatch(Fill::color(hex(0x211c14, 0.52f)),
                                            4.6f, 0.85f, bc - 90.0f))
-                  .opacity(bind(&settle[fi]).from(0.52f, 0.98f).clamp(0, 1)));
+                  .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1)));
         }
       root.child(disc(c, kR * 1.002f)
                      .key(tag + "mask")
-                     .outline(starOutline(f.points, f.inner))
+                     .shape(starOutline(f.points, f.inner))
                      .fill(Fill::color(kPaper)));
     } else {
       const std::vector<Linie> &lines = linienOf(f.num);
       for (size_t li = 0; li < lines.size(); ++li)
-        root.child(
-            disc(c, kR)
-                .key(tag + "l" + std::to_string(li))
-                .outline(linieOutline(lines[li]))
-                .fill(Fill::none())
-                .stroke(stroke(2.6f, Fill::color(kInk)))
-                .opacity(inkIn())
-                .trim(0.0f,
-                      bind(&settle[fi]).from(0.55f, 0.98f).clamp(0.0f, 1.0f)));
+        root.child(disc(c, kR)
+                       .key(tag + "l" + std::to_string(li))
+                       .shape(linieOutline(lines[li]))
+                       .fill(Fill::none())
+                       .stroke(spans::upTo(bind(&settle[fi])
+                                               .source(0.55f, 0.98f)
+                                               .clamp(0.0f, 1.0f)),
+                               stroke(2.6f, Fill::color(kInk)))
+                       .opacity(inkIn()));
     }
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
@@ -636,7 +637,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     bow.trimPhase = &bowPhase[fi];
     root.child(disc(c, kR)
                    .key(tag + "bow")
-                   .outline(shapes::circle())
+                   .shape(shapes::circle())
                    .fill(Fill::none())
                    .stroke(bow)
                    .opacity(&bowAlpha[fi])
@@ -644,13 +645,13 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
 
     // ---- the numeral, upper left of its circle (measured at
     // -0.80R, -1.04R from the centre, baseline-left) ----
-    root.child(text(toU8(std::to_string(f.num) + "."),
-                    type(faceNumeral, 37, kInk, 0.5f))
-                   .key(tag + "num")
-                   .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     ramp(tNumeral * 1000 + (float)fi * 22.0f,
-                                          360))));
+    root.child(
+        text(toU8(std::to_string(f.num) + "."),
+             type(faceNumeral, 37, kInk, 0.5f))
+            .key(tag + "num")
+            .centerAt({c.fX - 0.82f * kR, c.fY - 1.15f * kR})
+            .opacity(animate(from(0.0f).to(1.0f),
+                             ramp(tNumeral * 1000 + (float)fi * 22.0f, 360))));
 
     // ---- reference letters: upright, never rotated ----
     const std::vector<Label> &labels = labelsOf(f.num);
@@ -660,12 +661,12 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
           text(toU8(l.glyph), type(faceLabel, 33, kInk))
               .key(tag + "lab" + std::to_string(li))
               .centerAt(polar(c, kR * l.radius, l.bearing))
-              .opacity(bind(&settle[fi]).from(0.84f, 0.99f).clamp(0.0f, 1.0f))
+              .opacity(bind(&settle[fi]).source(0.84f, 0.99f).clamp(0.0f, 1.0f))
               .translateY(bind(&settle[fi])
-                              .from(0.84f, 0.99f)
+                              .source(0.84f, 0.99f)
                               .map(ch::easeOutQuad)
                               .invert()
-                              .to(0.0f, 7.0f)
+                              .target(0.0f, 7.0f)
                               .clamp(0.0f, 7.0f)));
     }
   }
@@ -720,17 +721,18 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     // ---- the frame's double hairline ----
     for (int i = 0; i < 2; ++i) {
       const float g = (float)i * kRuleGap;
-      root.child(box()
-                     .left(kFrameL + g)
-                     .top(kFrameT + g)
-                     .width(kFrameR - kFrameL - 2 * g)
-                     .height(kFrameB - kFrameT - 2 * g)
-                     .key("frame" + std::to_string(i))
-                     .fill(Fill::none())
-                     .stroke(stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine)))
-                     .trim(0.0f, withFrom(0.0f, 1.0f,
+      root.child(
+          box()
+              .left(kFrameL + g)
+              .top(kFrameT + g)
+              .width(kFrameR - kFrameL - 2 * g)
+              .height(kFrameB - kFrameT - 2 * g)
+              .key("frame" + std::to_string(i))
+              .fill(Fill::none())
+              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                           ramp(tFrame * 1000 + (float)i * 90,
-                                               880, ch::easeOutQuint))));
+                                               880, ch::easeOutQuint))),
+                      stroke(i == 0 ? 2.0f : 1.3f, Fill::color(kInkLine))));
     }
 
     // ---- "Tab. I.", swash italic, above the frame at the right ----
@@ -738,7 +740,7 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
     pen.effect = glyphfx::typeOn();
     pen.stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60};
     pen.progress =
-        withFrom(0.0f, 1.0f, ramp(tTitle * 1000, 620, ch::easeNone));
+        animate(from(0.0f).to(1.0f), ramp(tTitle * 1000, 620, ch::easeNone));
     root.child(text(toU8("Tab. I."), type(faceSwash, 62, kInk, 1.0f))
                    .key("title")
                    .glyphFx(std::move(pen))
@@ -753,11 +755,12 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
         instancing::instances(atlas, pool, instancing::Mode::Live)));
 
     // ---- the engraver's signature, inside the frame at the foot ----
-    root.child(text(toU8("Capieux. sculps. 1786."),
-                    type(faceSwash, 27, kInkSoft, 0.3f))
-                   .key("credit")
-                   .centerAt({1402 * kScale, 1917 * kScale})
-                   .opacity(withFrom(0.0f, 1.0f, ramp(tCredit * 1000, 700))));
+    root.child(
+        text(toU8("Capieux. sculps. 1786."),
+             type(faceSwash, 27, kInkSoft, 0.3f))
+            .key("credit")
+            .centerAt({1402 * kScale, 1917 * kScale})
+            .opacity(animate(from(0.0f).to(1.0f), ramp(tCredit * 1000, 700))));
 
     return root;
   }

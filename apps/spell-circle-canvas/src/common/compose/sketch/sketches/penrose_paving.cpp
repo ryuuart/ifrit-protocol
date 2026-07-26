@@ -752,7 +752,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                     .top(bb.top())
                     .width(bb.width())
                     .height(bb.height())
-                    .outline([shape](SkSize) { return shape; })
+                    .shape([shape](SkSize) { return shape; })
                     .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed,
                                    t.fat))
                     .foreground(Decoration(PaintProgram(chamfer)))
@@ -768,7 +768,7 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                                  .clamp(0.0f, 1.0f))
                     .scale(bind(&grow[i])
                                .map(ease::outBack(1.32f))
-                               .to(0.52f, 1.0f));
+                               .target(0.52f, 1.0f));
 
     for (int k = 0; k < 2; ++k)
       e.child(inlay(t, k, org, i));
@@ -808,9 +808,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .top(bb.top() - parentOrg.y())
         .width(bb.width())
         .height(bb.height())
-        .outline([local](SkSize) { return local; })
-        .trim(0.0f, &arcT[i])
-        .stroke(Brush{}
+        .shape([local](SkSize) { return local; })
+        .stroke(spans::upTo(&arcT[i]), Brush{}
                     // the milled slot the insert sits in — a hairline of
                     // occlusion either side, not an outline
                     .leg(PathFormat{.width = kBandW + 0.9f,
@@ -830,8 +829,8 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
                      .key("gen" + std::to_string(gen))
                      .staggerChildren(9ms, Stagger::From::Center)
                      .transformOrigin(0.5f, 0.5f)
-                     .scale(withFrom(0.94f, 1.0f,
-                                     Transition{320ms, ease::outBack(1.1f)}));
+                     .scale(animate(from(0.94f).to(1.0f),
+                                    Transition{320ms, ease::outBack(1.1f)}));
 
     for (size_t i = 0; i < tri.size(); ++i) {
       const Tri &src = tri[i];
@@ -858,23 +857,22 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
       b.lineTo(g.c.x() - bb.left(), g.c.y() - bb.top());
       b.close();
       SkPath p = b.detach();
-      group.child(box()
-                      .key("g" + std::to_string(gen) + "_" + std::to_string(i))
-                      .left(bb.left())
-                      .top(bb.top())
-                      .width(bb.width())
-                      .height(bb.height())
-                      .outline([p](SkSize) { return p; })
-                      .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7)
-                                                    : rgb(0x76797E)))
-                      // NO per-piece scale: scaling each half about its own
-                      // centre pulls a subdivision apart, and a deflation
-                      // diagram that shows gaps is saying the opposite of
-                      // what it is for. The patch as a whole takes the
-                      // entrance instead (see the group below).
-                      .opacity(withFrom(
-                          0.0f, 1.0f,
-                          Transition{260ms, choreograph::easeOutQuad})));
+      group.child(
+          box()
+              .key("g" + std::to_string(gen) + "_" + std::to_string(i))
+              .left(bb.left())
+              .top(bb.top())
+              .width(bb.width())
+              .height(bb.height())
+              .shape([p](SkSize) { return p; })
+              .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7) : rgb(0x76797E)))
+              // NO per-piece scale: scaling each half about its own
+              // centre pulls a subdivision apart, and a deflation
+              // diagram that shows gaps is saying the opposite of
+              // what it is for. The patch as a whole takes the
+              // entrance instead (see the group below).
+              .opacity(animate(from(0.0f).to(1.0f),
+                               Transition{260ms, choreograph::easeOutQuad})));
     }
 
     // The rhomb outlines: every triangle's a→b→c run WITHOUT the closing edge,

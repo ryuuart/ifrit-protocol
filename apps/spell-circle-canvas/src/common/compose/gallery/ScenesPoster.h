@@ -263,7 +263,7 @@ struct MotionPosterScene final : Scene {
         .child(box().width(140).height(140)
                    .inset(focus.x() - 70, focus.y() - 70, W - focus.x() - 70,
                           H - focus.y() - 70)
-                   .outline(shapes::rounded(shapes::star(9, 0.58f), 3))
+                   .shape(shapes::rounded(shapes::star(9, 0.58f), 3))
                    .fill(starFill)
                    .rotate(&spin)
                    .opacity(0.92f))

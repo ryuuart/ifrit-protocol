@@ -414,7 +414,7 @@ struct WorldHudScene final : Scene {
       if (kSlots[i].filled)
         rail.child(box().left(x + 9).top(wh::kSlotsY * 0 + 9)
                        .width(Dim(24.0f)).height(Dim(24.0f))
-                       .outline(wh::glyphPath(kSlots[i].glyph))
+                       .shape(wh::glyphPath(kSlots[i].glyph))
                        .fill(Material::linear(
                            {0, 0}, {0, 24},
                            {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
@@ -465,7 +465,7 @@ struct WorldHudScene final : Scene {
     constexpr float d = 168;
     return stack().key("minimap").right(28).top(28)
         .width(Dim(d)).height(Dim(d))
-        .opacity(withFrom(0.0f, 1.0f, {420ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {420ms}))
         .child(box().inset(0).corners({d * 0.5f}).clip()
                    .fill(Material::solid(worldhud::C(0x2E4A2A)))
                    .child(box().inset(0)
@@ -489,13 +489,13 @@ struct WorldHudScene final : Scene {
         // compass rose, counter-rotating under the frame
         .child(box().inset(0).rotate(&compass)
                    .child(box().inset(0)
-                              .outline(shapes::star(4, 0.12f))
+                              .shape(shapes::star(4, 0.12f))
                               .fill(Material::solid(
                                   {wh::kBoneHi.fR, wh::kBoneHi.fG,
                                    wh::kBoneHi.fB, 0.22f}))))
         .child(box().left(d * 0.5f - 4).top(d * 0.5f - 4)
                    .width(Dim(8.0f)).height(Dim(8.0f))
-                   .outline(shapes::polygon(3))
+                   .shape(shapes::polygon(3))
                    .fill(Material::solid(worldhud::C(0xFFE9A8))))
         .child(box().left(d * 0.30f).top(d * 0.36f)
                    .width(Dim(6.0f)).height(Dim(6.0f)).corners({3})
@@ -536,8 +536,8 @@ struct WorldHudScene final : Scene {
                       .staggerChildren(70ms);
     for (const Pip &p : kPips)
       row.child(box().width(Dim(30.0f)).height(Dim(30.0f)).corners({4})
-                    .opacity(withFrom(0.0f, 1.0f, {320ms}))
-                    .translateY(withFrom(-10.0f, 0.0f, {380ms}))
+                    .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+                    .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
                     .fill(Material::linear({0, 0}, {0, 30},
                                            {{0.0f, worldhud::C(0x2A2118)},
                                             {1.0f, worldhud::C(0x120C08)}}))
@@ -574,8 +574,8 @@ struct WorldHudScene final : Scene {
                        .staggerChildren(90ms);
     for (const Line &l : kLines)
       feed.child(box().row().alignItems(Align::Center).gap(7)
-                     .opacity(withFrom(0.0f, 1.0f, {420ms}))
-                     .translateX(withFrom(-24.0f, 0.0f, {480ms}))
+                     .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+                     .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
                      .child(box().width(Dim(16.0f)).height(Dim(16.0f))
                                 .corners({2})
                                 .fill(Material::solid({l.color.fR * 0.28f,
@@ -591,18 +591,30 @@ struct WorldHudScene final : Scene {
   Element targetPlate() {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
-    return box().key("target").column().alignItems(Align::Center)
-        .left(0).right(0).top(96).zIndex(6)
-        .opacity(withFrom(0.0f, 1.0f, {360ms, &choreograph::easeOutQuad, 220ms}))
+    return box()
+        .key("target")
+        .column()
+        .alignItems(Align::Center)
+        .left(0)
+        .right(0)
+        .top(96)
+        .zIndex(6)
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {360ms, &choreograph::easeOutQuad, 220ms}))
         .child(text(toU8("CAVE TROLL"), wh::type(15, wh::kInk, 1.6f, 640)))
         .child(text(toU8("Lv 27"), wh::type(10, wh::kInkDim, 1.4f))
                    .margin(0, 2, 0, 4))
-        .child(box().width(Dim(168.0f)).height(Dim(9.0f))
+        .child(box()
+                   .width(Dim(168.0f))
+                   .height(Dim(9.0f))
                    .fill(Material::solid(worldhud::kTrack))
                    .foreground(util::stroke(
                        1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
-                   .child(box().left(1).top(1)
-                              .width(Dim(166.0f)).height(Dim(7.0f))
+                   .child(box()
+                              .left(1)
+                              .top(1)
+                              .width(Dim(166.0f))
+                              .height(Dim(7.0f))
                               .transformOrigin(0.0f, 0.5f)
                               .scaleX(&enemyHp)
                               .fill(Material::solid(wh::kEnemyHp))));
@@ -629,7 +641,7 @@ struct WorldHudScene final : Scene {
     auto ridge = [&](float baseY, float amp, float freq, float phase,
                      SkColor4f color) {
       return box().inset(0)
-          .outline([baseY, amp, freq, phase](SkSize s) {
+          .shape([baseY, amp, freq, phase](SkSize s) {
             SkPathBuilder b;
             b.moveTo(0, s.height());
             b.lineTo(0, baseY);

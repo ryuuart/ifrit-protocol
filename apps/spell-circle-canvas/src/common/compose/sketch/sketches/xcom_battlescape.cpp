@@ -1195,7 +1195,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
             ++terrainZ1;
           }
         }
-    terrain->touch();
+    terrain->commit();
   }
 
   /** previewPath, Pathfinding.cpp:972. Walk the path in order, subtract the
@@ -1234,7 +1234,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     }
     if (!path.empty())
       overlay->add(cellCentre(path.back().x(), path.back().y(), 0), cellCursor);
-    overlay->touch();
+    overlay->commit();
   }
 
   void buildMapGlyphs() {
@@ -1249,7 +1249,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
       const float oy = tl.fY / PX + 29.0f;
       pushNumber(*mapGlyphs, v, ox, oy, blk(pathBlock[i] - 1, 0), true);
     }
-    mapGlyphs->touch();
+    mapGlyphs->commit();
   }
 
   void buildPanelGlyphs(const Phase &p) {
@@ -1268,7 +1268,7 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     for (int i = 0; i < p.tags; ++i)
       pushNumber(*panelGlyphs, i + 1, 306 + (i == 9 ? -2 : 0),
                  132 - 13 * i, 16, false); // visibleUnits: 16
-    panelGlyphs->touch();
+    panelGlyphs->commit();
   }
 
   // =========================================================================

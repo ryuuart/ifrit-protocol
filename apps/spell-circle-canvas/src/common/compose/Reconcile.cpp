@@ -204,7 +204,8 @@ bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
     return false;
   for (size_t i = 0; i < a->passes.size(); ++i) {
     const StrokePass &x = a->passes[i], &y = b->passes[i];
-    if (x.name != y.name || !(x.where == y.where) || !(x.what == y.what))
+    if (x.name != y.name || x.half != y.half || !(x.where == y.where) ||
+        !(x.what == y.what))
       return false;
   }
   return true;
@@ -279,9 +280,13 @@ bool Spans::operator==(const Spans &other) const {
       return false;
     // The two ENDPOINT-carrying rules. Leaving Wrap out here would make
     // every wrapped window compare equal to every other one and a
-    // marching reveal would prune to its first frame forever.
+    // marching reveal would prune to its first frame forever. `offset`
+    // rides with them for the same reason: it is a third live endpoint
+    // term, and a claim that only slides would otherwise prune to its
+    // first frame.
     if ((a.rule == Rule::Range || a.rule == Rule::Wrap) &&
-        (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end)))
+        (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end) ||
+         !propEqual(a.offset, b.offset)))
       return false;
   }
   return true;

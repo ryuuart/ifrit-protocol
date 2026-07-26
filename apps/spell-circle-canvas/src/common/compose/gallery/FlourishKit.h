@@ -95,7 +95,7 @@ inline Element acanthusLeaf(const FlourishStyle &s, float w = 28.0f,
   return box()
       .width(w)
       .height(h)
-      .outline(leafOutline())
+      .shape(leafOutline())
       .fill(sigil::compose::util::linearGradient({0, 0}, {w, h},
                                                  {s.leaf, s.bronze}))
       .foreground(sigil::compose::util::stroke(1.1f, Fill::color(s.goldBright)))

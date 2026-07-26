@@ -135,7 +135,7 @@
 //    three hundred. Over one palette interval that is 59 ms of paint
 //    against 10 ms — the bound path is 5.6x MORE total work for a
 //    colour that changes every three seconds. Nothing is wrong with the
-//    binding; the pricing is. `animated()` is declared per NODE and is
+//    binding; the pricing is. `animates()` is declared per NODE and is
 //    binary, so "this repaints when the theme changes" and "this
 //    repaints at 60 Hz" are the same declaration (ROADMAP.md argument
 //    3), and 80% of a desktop inherits it.
@@ -453,11 +453,11 @@ struct ColorSet {
   // The two spellings of the same colour, chosen by the experiment
   // switch below. Declared out of line because g_liveColors is defined
   // after this type.
-  PropValue<Fill> pBg() const;
-  PropValue<Fill> pFg() const;
-  PropValue<Fill> pTs() const;
-  PropValue<Fill> pBs() const;
-  PropValue<Fill> pSel() const;
+  Animatable<Fill> pBg() const;
+  Animatable<Fill> pFg() const;
+  Animatable<Fill> pTs() const;
+  Animatable<Fill> pBs() const;
+  Animatable<Fill> pSel() const;
 };
 
 /** The experiment switch (`CDE_STATIC_COLORS=1` in the environment).
@@ -466,7 +466,7 @@ struct ColorSet {
  *  `const ch::Output<Fill>*`. A palette change is forty assignments; the
  *  description never mentions a colour, so nothing repatches for one —
  *  and every node carrying one is content-volatile forever, because
- *  `animated()` is declared per NODE and is binary.
+ *  `animates()` is declared per NODE and is binary.
  *
  *  VALUES: the same forty colours reach their nodes as plain `Fill`s.
  *  Everything prunes and picture-caches — and a palette change is a
@@ -475,21 +475,21 @@ struct ColorSet {
  *  Both numbers are in the report. */
 inline bool g_liveColors = true;
 
-inline PropValue<Fill> ColorSet::pBg() const {
-  return g_liveColors ? PropValue<Fill>{&bg} : PropValue<Fill>{Fill::color(bgV)};
+inline Animatable<Fill> ColorSet::pBg() const {
+  return g_liveColors ? Animatable<Fill>{&bg} : Animatable<Fill>{Fill::color(bgV)};
 }
-inline PropValue<Fill> ColorSet::pFg() const {
-  return g_liveColors ? PropValue<Fill>{&fg} : PropValue<Fill>{Fill::color(fgV)};
+inline Animatable<Fill> ColorSet::pFg() const {
+  return g_liveColors ? Animatable<Fill>{&fg} : Animatable<Fill>{Fill::color(fgV)};
 }
-inline PropValue<Fill> ColorSet::pTs() const {
-  return g_liveColors ? PropValue<Fill>{&ts} : PropValue<Fill>{Fill::color(tsV)};
+inline Animatable<Fill> ColorSet::pTs() const {
+  return g_liveColors ? Animatable<Fill>{&ts} : Animatable<Fill>{Fill::color(tsV)};
 }
-inline PropValue<Fill> ColorSet::pBs() const {
-  return g_liveColors ? PropValue<Fill>{&bs} : PropValue<Fill>{Fill::color(bsV)};
+inline Animatable<Fill> ColorSet::pBs() const {
+  return g_liveColors ? Animatable<Fill>{&bs} : Animatable<Fill>{Fill::color(bsV)};
 }
-inline PropValue<Fill> ColorSet::pSel() const {
-  return g_liveColors ? PropValue<Fill>{&sel}
-                      : PropValue<Fill>{Fill::color(selV)};
+inline Animatable<Fill> ColorSet::pSel() const {
+  return g_liveColors ? Animatable<Fill>{&sel}
+                      : Animatable<Fill>{Fill::color(selV)};
 }
 
 struct Theme {
@@ -589,12 +589,12 @@ struct MotifShadow {
    *  binary: "this bevel changes every three seconds" is priced as "this
    *  bevel repaints at 60 Hz" (ROADMAP.md argument 3). Measured both
    *  ways — see the report in the sketch's tail comment. */
-  bool animated() const { return top != nullptr || bottom != nullptr; }
+  bool animates() const { return top != nullptr || bottom != nullptr; }
   bool operator==(const MotifShadow &) const = default;
 };
 
 /** The bevel of a colour set — top shadow over bottom shadow. Under
- *  `g_liveColors` it holds the two Outputs and declares `animated()`;
+ *  `g_liveColors` it holds the two Outputs and declares `animates()`;
  *  otherwise it holds the two colours as values, prunes, and caches. */
 inline MotifShadow bevel(float T, bool sunken, bool etched,
                          const ColorSet &s) {
@@ -633,7 +633,7 @@ struct MotifHighlight {
                     p);
   }
   SkColor4f value{0, 0, 0, 1};
-  bool animated() const { return color != nullptr; }
+  bool animates() const { return color != nullptr; }
   bool operator==(const MotifHighlight &) const = default;
 };
 
@@ -680,7 +680,7 @@ struct MotifStipple {
         SkBlendMode::kSrcIn));
     canvas.drawRect(ctx.outline.getBounds(), p);
   }
-  bool animated() const { return color != nullptr; }
+  bool animates() const { return color != nullptr; }
   bool operator==(const MotifStipple &) const = default;
 };
 
@@ -973,7 +973,7 @@ inline std::optional<SkColor4f> fixedColor(char ch) {
   }
 }
 
-inline std::optional<PropValue<Fill>> symbolic(char c, const ColorSet &s) {
+inline std::optional<Animatable<Fill>> symbolic(char c, const ColorSet &s) {
   switch (c) {
   case 'B': return s.pBg();
   case 'T': return s.pTs();

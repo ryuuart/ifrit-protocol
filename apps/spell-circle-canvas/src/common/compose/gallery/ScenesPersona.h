@@ -439,8 +439,8 @@ struct PersonaMenuScene final : Scene {
         .left(nn::kBaseX + r.dx - 14).top(r.y - 14)
         .padding(14)
         .rotate(r.rot).zIndex(r.z)
-        .translateY(withFrom(-30.0f, 0.0f, {400ms, &ch::easeOutQuint}))
-        .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad}))
+        .translateY(animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+        .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
         .child(text(toU8(r.label), nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
@@ -461,24 +461,28 @@ struct PersonaMenuScene final : Scene {
     const float lx = 20, ly = -2; // label, row-local
     const float wW = 250, wH = 68;
 
-    Element row = box().key(r.label)
-                      .left(nn::kBaseX + r.dx).top(r.y - 12)
-                      .width(264).height(78)
-                      .rotate(r.rot).zIndex(r.z)
-                      .translateY(withFrom(-30.0f, 0.0f,
-                                           {400ms, &ch::easeOutQuint}))
-                      .opacity(withFrom(0.0f, 1.0f,
-                                        {400ms, &ch::easeOutQuad}));
+    Element row =
+        box()
+            .key(r.label)
+            .left(nn::kBaseX + r.dx)
+            .top(r.y - 12)
+            .width(264)
+            .height(78)
+            .rotate(r.rot)
+            .zIndex(r.z)
+            .translateY(
+                animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+            .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
     row.child(box().left(10).top(3).width(wW).height(wH)
-                  .outline(nn::sliverWedge()).rotate(8)
+                  .shape(nn::sliverWedge()).rotate(8)
                   .fill(Material::solid(nn::kPink)));
     // white wedge -- clips the red echo; idle heartbeat on scale.
     // Echo top carries +5px: the wedge's +8 deg spin about ITS center
     // walks the echo ~5px up; the compensation restores the verified
     // (3,-6).
     row.child(box().left(0).top(-6).width(wW).height(wH)
-                  .outline(nn::sliverWedge()).rotate(8).clip(true)
+                  .shape(nn::sliverWedge()).rotate(8).clip(true)
                   .fill(Material::solid(nn::kPaper))
                   .scale(&wedgePulse)
                   .child(text(toU8(r.label), nn::menuType(50, nn::kRedC, 0))
@@ -504,23 +508,23 @@ struct PersonaMenuScene final : Scene {
         .top(nn::kMenuY + r.y + 12).width(36).height(36)
         .zIndex(7).rotate(-16)
         .translateX(&curDx).translateY(&curDy)
-        .opacity(withFrom(0.0f, 1.0f, {60ms, &ch::easeOutQuad, 400ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
         // sec.1 calls this additive; at 36px over the navy sea kPlus
         // washes the red rim out entirely, so the scene keeps it plain
         // red.
         .child(box().inset(0)
-                   .outline(shapes::polygon(3, 92))
+                   .shape(shapes::polygon(3, 92))
                    .fill(Material::solid(nn::kRedC))
                    .translateX(1).translateY(5))
         .child(box().inset(0)
-                   .outline(shapes::polygon(3, 90))
+                   .shape(shapes::polygon(3, 90))
                    .fill(Material::solid(nn::kPaper)));
   }
 
   Element promptCircle(const char *glyph) {
     namespace nn = persona_menu;
     return box().width(32).height(32)
-        .outline(shapes::squircle(2.0f))
+        .shape(shapes::squircle(2.0f))
         .fill(SkColor4f{nn::kGroundDark.fR, nn::kGroundDark.fG,
                         nn::kGroundDark.fB, 0.8f})
         .stroke(stroke(3, Fill::color(nn::kPaper)))
@@ -536,8 +540,8 @@ struct PersonaMenuScene final : Scene {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     return box().key("date").left(44).top(34).column().zIndex(8)
-        .translateX(withFrom(-30.0f, 0.0f, {420ms, &ch::easeOutQuint}))
-        .opacity(withFrom(0.0f, 1.0f, {340ms}))
+        .translateX(animate(from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
+        .opacity(animate(from(0.0f).to(1.0f), {340ms}))
         .child(box().row().alignItems(Align::End)
                    .child(text(toU8("07/22"),
                                nn::menuType(38, nn::kPaper, 2.0f))
@@ -604,9 +608,9 @@ struct PersonaMenuScene final : Scene {
       std::snprintf(level, sizeof(level), "LV %d", m.level);
       rail.child(
           box().width(246).height(52).rotate(-4)
-              .translateX(withFrom(46.0f, 0.0f, {440ms, &ch::easeOutQuint}))
-              .opacity(withFrom(0.0f, 1.0f, {360ms}))
-              .outline(shapes::parallelogram(9))
+              .translateX(animate(from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+              .opacity(animate(from(0.0f).to(1.0f), {360ms}))
+              .shape(shapes::parallelogram(9))
               .fill(Material::linear({0, 0}, {246, 0},
                                      {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
                                       {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
@@ -633,25 +637,32 @@ struct PersonaMenuScene final : Scene {
         .fill(nn::kGroundDark)
         .child(backdrop())
         // ---- giant rotated index numeral, behind the menu (sec.1) ----
-        .child(text(toU8("04"), [] {
-                 auto s = nn::menuType(220, nn::kNumeral, 0, false);
-                 // sec.1 says -0.2em (FOT-Rodin). Avenir's digit shapes
-                 // merge sooner than Rodin's: x0.88 condensation + -0.05em
-                 // is the deepest overlap that keeps "04" reading as two
-                 // digits.
-                 s.shaping.scaleX = 0.88f;
-                 s.shaping.letterSpacing = -0.05f * 220;
-                 return s;
-               }())
-                   .centerAt({450, 306}).rotate(90).zIndex(1)
-                   .opacity(withFrom(0.0f, 1.0f, {500ms}))
+        .child(text(toU8("04"),
+                    [] {
+                      auto s = nn::menuType(220, nn::kNumeral, 0, false);
+                      // sec.1 says -0.2em (FOT-Rodin). Avenir's digit shapes
+                      // merge sooner than Rodin's: x0.88 condensation + -0.05em
+                      // is the deepest overlap that keeps "04" reading as two
+                      // digits.
+                      s.shaping.scaleX = 0.88f;
+                      s.shaping.letterSpacing = -0.05f * 220;
+                      return s;
+                    }())
+                   .centerAt({450, 306})
+                   .rotate(90)
+                   .zIndex(1)
+                   .opacity(animate(from(0.0f).to(1.0f), {500ms}))
                    // 220px digits render as glyph PATHS (over the atlas
                    // cutoff); bake them once, the rotation rides outside
                    .cache(Cache::Texture))
         // ---- the sticker scatter; stagger 33ms BOTTOM-UP: children are
         //      declared bottom-first (zIndex owns paint order) ----
-        .child(box().key("menu").left(nn::kMenuX).top(nn::kMenuY)
-                   .width(450).height(530)
+        .child(box()
+                   .key("menu")
+                   .left(nn::kMenuX)
+                   .top(nn::kMenuY)
+                   .width(450)
+                   .height(530)
                    .zIndex(2)
                    .staggerChildren(33ms)
                    // declared BOTTOM-UP: the stagger runs in declaration
@@ -670,37 +681,51 @@ struct PersonaMenuScene final : Scene {
         .child(dateBlock())
         .child(partyPanel())
         // ---- right-anchored tooltip title over the COMMAND rule ----
-        .child(box().key("tooltip").top(40 - 12).right(43 - 12).zIndex(8)
+        .child(box()
+                   .key("tooltip")
+                   .top(40 - 12)
+                   .right(43 - 12)
+                   .zIndex(8)
                    .alignItems(Align::End)
                    // texture-baked (the sigma-3 glow otherwise re-blurs
                    // on every root replay); 12px padding keeps raster
                    // room for the glow tail, pins shifted to compensate
                    .padding(12)
                    .cache(Cache::Texture)
-                   .translateX(withFrom(36.0f, 0.0f,
-                                        {400ms, &ch::easeOutQuint}))
-                   .opacity(withFrom(0.0f, 1.0f, {300ms}))
+                   .translateX(animate(from(36.0f).to(0.0f),
+                                       {400ms, &ch::easeOutQuint}))
+                   .opacity(animate(from(0.0f).to(1.0f), {300ms}))
                    .child(text(toU8("PERSONA"), nn::menuType(30, nn::kPaper, 2))
                               .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)))
-                   .child(box().row().alignItems(Align::Center)
+                   .child(box()
+                              .row()
+                              .alignItems(Align::Center)
                               .margin(0, 6, 0, 0)
                               .child(text(toU8("COMMAND"),
                                           nn::smallType(12, nn::kCyanB, 2)))
-                              .child(box().width(120).height(2)
+                              .child(box()
+                                         .width(120)
+                                         .height(2)
                                          .fill(SkColor4f{1, 1, 1, 0.8f})
                                          .margin(8, 0, 0, 0))))
         // ---- button prompts, bottom-right (sec.1 chrome) ----
-        .child(box().key("prompts").right(41).bottom(28).row()
-                   .alignItems(Align::Center).zIndex(8)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {400ms, &ch::easeOutQuad, 250ms}))
-                   .child(promptCircle("O"))
-                   .child(text(toU8("CONFIRM"),
-                               nn::smallType(11, nn::kCyanB, 1.5f))
-                              .margin(8, 0, 22, 0))
-                   .child(promptCircle("X"))
-                   .child(text(toU8("BACK"), nn::smallType(11, nn::kCyanB, 1.5f))
-                              .margin(8, 0, 0, 0)));
+        .child(
+            box()
+                .key("prompts")
+                .right(41)
+                .bottom(28)
+                .row()
+                .alignItems(Align::Center)
+                .zIndex(8)
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 {400ms, &ch::easeOutQuad, 250ms}))
+                .child(promptCircle("O"))
+                .child(
+                    text(toU8("CONFIRM"), nn::smallType(11, nn::kCyanB, 1.5f))
+                        .margin(8, 0, 22, 0))
+                .child(promptCircle("X"))
+                .child(text(toU8("BACK"), nn::smallType(11, nn::kCyanB, 1.5f))
+                           .margin(8, 0, 0, 0)));
   }
 };
 

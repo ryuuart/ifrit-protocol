@@ -339,8 +339,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
   Element eyebrow() {
     return text(toU8("STUDY 01 \xc2\xb7 CELLULAR AUTOMATON"),
                 ui(12, kSteel, 2.6f))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 260ms}))
-        .translateY(withFrom(8.0f, 0.0f, {.duration = 260ms}));
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+        .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms}));
   }
 
   Element title() {
@@ -348,8 +348,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
     fx.effect = glyphfx::rise(24);
     fx.stagger = {.eachMs = 28, .durationMs = 480}; // Kinetic.h cadence
     // Master progress spans durationMs + eachMs·(N-1) of virtual time.
-    fx.progress = withFrom(0.0f, 1.0f,
-                           {.duration = 872ms,
+    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 872ms,
                             .ease = &ch::easeNone,
                             .delay = 120ms});
     return text(toU8("DOOM FIRE, 1995"), type(heavyFace(), 50, kBone, -0.6f))
@@ -375,8 +374,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                      "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
                      "\xc2\xb7 DoomFirePSX/flames.html"),
                 ui(11.5f, kSteel, 0.2f))
-        .opacity(withFrom(0.0f, 1.0f,
-                          {.duration = 320ms, .delay = 200ms}));
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 320ms, .delay = 200ms}));
   }
 
   Element header() {
@@ -391,8 +389,8 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .height(1)
                    .margin(0, 12, 0, 0)
                    .fill(kKeyline)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 400ms, .delay = 320ms})));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 400ms, .delay = 320ms})));
   }
 
   /** A corner tick pair — the placard's registration marks. */
@@ -429,15 +427,15 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .top(80)
                    .width(kPanelW)
                    .textAlign(sigil::weave::TextAlignment::kCenter)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 600ms, .delay = 380ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 600ms, .delay = 380ms}))
                    .zIndex(1))
         // the automaton
         .child(custom(fireProgram())
                    .inset(0)
                    .zIndex(2)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 400ms, .delay = 480ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 400ms, .delay = 480ms}))
                    .cache(Cache::None))
         // seed-row annotation: the fire's only permanent energy source
         .child(box()
@@ -448,12 +446,12 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .fill(hex(0xFFFFFF, 0.9f))
                    .zIndex(3))
         .child(chip(text(toU8("SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
-                             "WRITTEN ONCE, NEVER RE-RANDOMISED"),
+                              "WRITTEN ONCE, NEVER RE-RANDOMISED"),
                          mono(10, hex(0xEFEFC7), 1.0f)))
                    .left(10)
                    .bottom(12)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 300ms, .delay = 1000ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 300ms, .delay = 1000ms}))
                    .zIndex(4))
         // where the sidebar's inspector is looking
         .child(box()
@@ -463,26 +461,25 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .height((float)(kInspectRows * kBlit))
                    .stroke(stroke(1.0f, Fill::color(kAmber),
                                   PathFormat::Align::Outer))
-                   .opacity(withFrom(0.0f, 0.85f,
-                                     {.duration = 300ms, .delay = 900ms}))
+                   .opacity(animate(from(0.0f).to(0.85f),
+                                    {.duration = 300ms, .delay = 900ms}))
                    .zIndex(5))
         .child(chip(text(toU8("INSPECT \xe2\x86\x92"), mono(9, kAmber, 1.4f)),
                     0.8f)
                    .left((float)(kCropX * kBlit))
                    .top((float)(kCropY * kBlit) - 17.0f)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 300ms, .delay = 900ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 300ms, .delay = 900ms}))
                    .zIndex(5))
         // the bezel, trim()-revealed on mount
         .child(box()
                    .inset(0)
-                   .stroke(stroke(1.5f, Fill::color(kKeyline),
+                   .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                               {.duration = 500ms,
+                                                .ease = &ch::easeOutCubic,
+                                                .delay = 280ms})),
+                           stroke(1.5f, Fill::color(kKeyline),
                                   PathFormat::Align::Inner))
-                   .trim(0.0f,
-                         withFrom(0.0f, 1.0f,
-                                  {.duration = 500ms,
-                                   .ease = &ch::easeOutCubic,
-                                   .delay = 280ms}))
                    .zIndex(7))
         .child(tick(6, 6, true, true))
         .child(tick(6, 6, false, true))
@@ -491,21 +488,18 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
         // the live readout rides a slot: renderSlot() on the SIM clock
         // touches this mount point only — the rest of the tree keeps its
         // caches, and describe() is never called at 27 Hz.
-        .child(box()
-                   .right(14)
-                   .top(26)
-                   .zIndex(6)
-                   .child(slot("readout")))
+        .child(box().right(14).top(26).zIndex(6).child(slot("readout")))
         // the panel's own placard line
         .child(chip(text(toU8("BUFFER 320 \xc3\x97 168 CELLS  \xc2\xb7  "
-                              "BLIT \xc3\x97" "3 NEAREST  \xc2\xb7  "
+                              "BLIT \xc3\x97"
+                              "3 NEAREST  \xc2\xb7  "
                               "PANEL 960 \xc3\x97 504 PX"),
                          mono(10, kSteel, 1.0f)),
                     0.0f)
                    .left(22)
                    .top(24)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 300ms, .delay = 820ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 300ms, .delay = 820ms}))
                    .zIndex(6));
   }
 
@@ -519,8 +513,7 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                        .shrink(0)
                        .fill(Material::solid(hex(kPalette[i])))
                        .transformOrigin(0.5f, 1.0f)
-                       .scale(withFrom(0.0f, 1.0f,
-                                       {.duration = 220ms,
+                       .scale(animate(from(0.0f).to(1.0f), {.duration = 220ms,
                                         .ease = &easeOutBack}));
       if (i == 0) // the transparent one — show the key, not the color
         sw.fill(Material::solid(hex(0x070707)))
@@ -606,9 +599,9 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                               .height(44)
                               .shrink(0)
                               .cache(Cache::None)
-                              .opacity(withFrom(0.0f, 1.0f,
-                                                {.duration = 400ms,
-                                                 .delay = 1150ms}))))
+                              .opacity(animate(
+                                  from(0.0f).to(1.0f),
+                                  {.duration = 400ms, .delay = 1150ms}))))
         .child(box().height(1).fill(kKeyline))
         .child(slot("stats"));
   }
@@ -634,26 +627,23 @@ struct PsxDoomFire : sigil::compose::sketch::Sketch {
                    .row()
                    .child(text(toU8("BUFFER INSPECTOR"), mono(11, kBone, 1.6f)))
                    .child(box().grow(1))
-                   .child(text(toU8(std::string("@ ") +
-                                    std::to_string(kCropX) + "," +
-                                    std::to_string(kCropY)),
+                   .child(text(toU8(std::string("@ ") + std::to_string(kCropX) +
+                                    "," + std::to_string(kCropY)),
                                mono(11, kSteel, 0.8f))))
-        .child(box()
-                   .width((float)(kInspectCells * kInspectZoom))
-                   .height((float)(kInspectRows * kInspectZoom))
-                   .shrink(0)
-                   .fill(kPanelInk)
-                   .stroke(stroke(1.0f, Fill::color(kKeyline),
-                                  PathFormat::Align::Outer))
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 300ms, .delay = 700ms}))
-                   .scale(withFrom(0.94f, 1.0f,
-                                   {.duration = 300ms,
-                                    .ease = &easeOutBack,
-                                    .delay = 700ms}))
-                   .child(custom(inspectorProgram())
-                              .inset(0)
-                              .cache(Cache::None)))
+        .child(
+            box()
+                .width((float)(kInspectCells * kInspectZoom))
+                .height((float)(kInspectRows * kInspectZoom))
+                .shrink(0)
+                .fill(kPanelInk)
+                .stroke(stroke(1.0f, Fill::color(kKeyline),
+                               PathFormat::Align::Outer))
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 {.duration = 300ms, .delay = 700ms}))
+                .scale(animate(
+                    from(0.94f).to(1.0f),
+                    {.duration = 300ms, .ease = &easeOutBack, .delay = 700ms}))
+                .child(custom(inspectorProgram()).inset(0).cache(Cache::None)))
         .child(text(toU8(caption), mono(9.5f, kSteel, 1.0f)));
   }
 

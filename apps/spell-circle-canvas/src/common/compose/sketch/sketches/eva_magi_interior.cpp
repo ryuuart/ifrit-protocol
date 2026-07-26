@@ -166,10 +166,10 @@
 //   lines::crosshatch              the serration inside the four green bands
 //   lines::Line{.midCap = Arrow}   the portrait's chartreuse flow ladder —
 //                                  the one place mid-caps are correct
-//   brushes::PatternBrush          the portrait's hollow-ring bead runs and
+//   brush::Pattern          the portrait's hollow-ring bead runs and
 //                                  arrowhead chevron runs; built ONCE as
 //                                  members (the bake cache lives in the value)
-//   brushes::Ribbon (widthFn-free) the neuron dendrites, tapered
+//   brush::Ribbon (widthFn-free) the neuron dendrites, tapered
 //   shapes::polygon / chamfered    the hex lattice (cornerAngleDeg passed
 //                                  EXPLICITLY everywhere); the hatch plate
 //   shapes::parametric             the portrait's boundary conics
@@ -833,8 +833,8 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   int verdictStep = -1;
   int countdown = -1;
 
-  brushes::PatternBrush beadBrush;
-  brushes::PatternBrush chevronBrush;
+  brush::Pattern beadBrush;
+  brush::Pattern chevronBrush;
   bool auditOk = true;
 
   // ==========================================================================
@@ -985,7 +985,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                        .width(sz.width())
                        .height(sz.height())
                        .key(p.key)
-                       .outline(magi::cutBox(p.cut.fX, p.cut.fY, p.cutMask))
+                       .shape(magi::cutBox(p.cut.fX, p.cut.fY, p.cutMask))
                        .fill(Material::solid(red ? magi::kRed : magi::kAzure))
                        .clip(true)
                        // the cel's own edge light — measured, not itorr's rule
@@ -999,7 +999,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       node.child(box()
                      .inset(0)
                      .fill(Fill::none())
-                     .outline([circuit](SkSize) { return circuit; })
+                     .shape([circuit](SkSize) { return circuit; })
                      .stroke(lines::Rails{
                          .rails = {{.offset = -6.0f,
                                     .width = 3.0f,
@@ -1015,7 +1015,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       node.child(box()
                      .inset(0)
                      .fill(Fill::none())
-                     .outline([pads](SkSize) { return pads; })
+                     .shape([pads](SkSize) { return pads; })
                      .stroke(PathFormat{.width = 2.0f,
                                         .strokeFill = Fill::color(magi::kInk),
                                         .join = SkPaint::kMiter_Join}));
@@ -1158,7 +1158,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
             .top(430)
             .width(220)
             .height(120)
-            .outline(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
+            .shape(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
             .fill(Material::solid(magi::hex(0x0A0102)))
             .foreground(decorations::border(4.0f, Fill::color(ink), 3.0f))
             .child(text(carried ? u8"可決" : u8"否決", st)
@@ -1213,7 +1213,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                     .top(p.fY - across * 0.5f)
                     .width(across)
                     .height(across)
-                    .outline(shapes::polygon(6, 0.0f))
+                    .shape(shapes::polygon(6, 0.0f))
                     .fill(Material::solid(fill))
                     // Border::cornerAngleDeg defaults to 30 and finds ZERO
                     // corners above 12 sides. Passed explicitly everywhere.
@@ -1237,11 +1237,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     // The bake cache lives IN THE BRUSH VALUE, so these are members built
     // once: a PatternBrush constructed inside describe() re-bakes every tile
     // through snapshot() every frame.
-    beadBrush = brushes::PatternBrush{
+    beadBrush = brush::Pattern{
         .side = box()
                     .width(10.0f)
                     .height(10.0f)
-                    .outline(shapes::circle())
+                    .shape(shapes::circle())
                     .fill(Fill::none())
                     .foreground(decorations::border(
                         1.8f, Fill::color(magi::kPRailHi))),
@@ -1250,14 +1250,14 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
         .cornerLength = 0.0f,
         // No `.corner` art on this brush, so there is no alignment to
         // state — the field it used to set was inert. Making the two one
-        // value (brushes::CornerArt) is what made that visible.
+        // value (brush::CornerArt) is what made that visible.
         .stretchToFit = true,
         .reach = 12.0f};
-    chevronBrush = brushes::PatternBrush{
+    chevronBrush = brush::Pattern{
         .side = box()
                     .width(9.0f)
                     .height(8.0f)
-                    .outline(shapes::arrow(0.10f, 0.90f))
+                    .shape(shapes::arrow(0.10f, 0.90f))
                     .fill(Material::solid(magi::kPBodyHi)),
         .advance = 10.0f,
         .cornerAngleDeg = 34.0f,
@@ -1278,7 +1278,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .top(kPCY - r * 0.985f)
                   .width(r * 2)
                   .height(r * 1.97f)
-                  .outline(shapes::parametric(
+                  .shape(shapes::parametric(
                       [](float t) {
                         return SkPoint{0.5f + 0.5f * std::cos(t),
                                        0.5f + 0.5f * std::sin(t)};
@@ -1290,7 +1290,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                                                   magi::kBack)))));
 
     // 12 neuron somas at r 690..790, each trailing dendrites BACK toward the
-    // centre — brushes::Ribbon, tapered.
+    // centre — brush::Ribbon, tapered.
     for (int k = 0; k < 12; ++k) {
       const float a = (float)k * 30.0f - 90.0f;
       const float r = (740.0f + (k % 2 ? 46.0f : -46.0f)) * S;
@@ -1308,8 +1308,8 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  .outline([dend](SkSize) { return dend; })
-                  .stroke(brushes::Ribbon{
+                  .shape([dend](SkSize) { return dend; })
+                  .stroke(brush::Ribbon{
                       .fill = Fill::color(
                           magi::dim(magi::hex(0x8A2412), magi::kBack)),
                       .widthStart = 8.0f,
@@ -1320,7 +1320,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .top(kPCY + p.fY - d * 0.5f)
                   .width(d)
                   .height(d)
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .fill(Material::radialUnit(
                       {0.5f, 0.5f}, 1.0f,
                       {{0.0f, magi::kPBodyHi},
@@ -1358,7 +1358,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       Element run = box()
                         .inset(0)
                         .fill(Fill::none())
-                        .outline([arcp](SkSize) { return arcp; });
+                        .shape([arcp](SkSize) { return arcp; });
       if (seg % 2)
         run.stroke(beadBrush);
       else
@@ -1379,7 +1379,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  .outline([arcp](SkSize) { return arcp; })
+                  .shape([arcp](SkSize) { return arcp; })
                   .stroke(lines::Rails{
                       .rails = {{.offset = -6.0f,
                                  .width = 4.0f,
@@ -1417,7 +1417,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  .outline([fan](SkSize) { return fan; })
+                  .shape([fan](SkSize) { return fan; })
                   .stroke(PathFormat{
                       .width = 0.8f,
                       .strokeFill = Fill::color(
@@ -1437,7 +1437,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  .outline([comb](SkSize) { return comb; })
+                  .shape([comb](SkSize) { return comb; })
                   .stroke(lines::Line{.width = 1.8f,
                                       .fill = Fill::color(magi::kPPin)}));
       SkPathBuilder rb;
@@ -1449,7 +1449,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  .outline([ladder](SkSize) { return ladder; })
+                  .shape([ladder](SkSize) { return ladder; })
                   .stroke(lines::Line{.width = 0.8f,
                                       .fill = Fill::color(magi::kPChart),
                                       .midCap = lines::Cap::Arrow,
@@ -1597,7 +1597,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                     .top(872)
                     .width(Wd)
                     .height(Ht)
-                    .outline(shapes::chamfered(22.0f, shapes::Corner::All))
+                    .shape(shapes::chamfered(22.0f, shapes::Corner::All))
                     .fill(Material::solid(magi::hex(0x322A36)))
                     .clip(true)
                     .foreground(Border{.width = 13.0f,
@@ -1639,7 +1639,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     tissue.child(
         box()
             .inset(0)
-            .outline([](SkSize s) {
+            .shape([](SkSize s) {
               const float w = s.width(), h = s.height();
               SkPathBuilder b;
               // the longitudinal fissure

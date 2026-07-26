@@ -63,7 +63,7 @@
 // s = 0.88 (1.42 w₀) and a fast 收筆 cut. w₀ itself is 提按, set per stroke
 // CLASS: a 橫 is thin, a 捺 is fat, a 點 is nearly all 頓.
 //
-//   THE BRIEF PREDICTED brushes::Ribbon takes a taper or a scalar and not an
+//   THE BRIEF PREDICTED brush::Ribbon takes a taper or a scalar and not an
 //   arbitrary w(s), "and if it cannot take a profile callback that is the
 //   gap to file". IT CAN — `Ribbon::widthFn` is
 //   `std::function<float(const PathSample&)>` and takes exactly this. The
@@ -99,10 +99,10 @@
 //
 // THE PLATE CARRIES 86 MARKS IN 49 NODES: 3 hooks, 1 aperture, 33 cloud-seal
 // strokes, 罡's 10, one inverted-brush tap, and the foot's 38 as a single
-// contour. Every one is a brushes::Ribbon over a real or derived median.
+// contour. Every one is a brush::Ribbon over a real or derived median.
 //
 // BUILT FROM (the library, not by hand):
-//   brushes::Ribbon + widthFn   every stroke on the plate; 起行收 over
+//   brush::Ribbon + widthFn   every stroke on the plate; 起行收 over
 //                        distance/length, w₀ from the recovered class
 //   Brush legs + ops::Offset    飛白 as two dashed rails offset off the
 //                        stroke's own centreline — tangent-aligned by
@@ -115,8 +115,8 @@
 //                        riding the head of the self-drawing line, no
 //                        second node
 //   lines::Rails / hatch / crosshatch   hammer facets, seal ground, tread
-//   brushes::ScatterBrush   the nine footprints of 禹步 along the tread
-//   brushes::PatternBrush   corner tiles on the plate — corners rounded BY
+//   brush::Scatter   the nine footprints of 禹步 along the tread
+//   brush::Pattern   corner tiles on the plate — corners rounded BY
 //                        HAMMERING, not by a radius
 //   ops::Sketchy         the beaten iron edge: low frequency, high deviation
 //   shapes::chamfered / circle / star / parametric
@@ -682,7 +682,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   /** One stroke → its node. The whole brush model is here. */
   Element inkStroke(const Stroke &s) const {
-    brushes::Ribbon rib;
+    brush::Ribbon rib;
     rib.fill = Fill::color(s.ink);
     rib.step = 2.2f;
     rib.widthMax = s.w0 * 2.0f + 2.0f;
@@ -743,7 +743,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                     .top(f.top())
                     .width(Dim(f.width()))
                     .height(Dim(f.height()))
-                    .outline([local](SkSize) { return local; })
+                    .shape([local](SkSize) { return local; })
                     .fill(Fill::none())
                     .stroke(std::move(brush))
                     .key(s.key);
@@ -826,7 +826,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .top(-8)
                 .width(Dim(kPW + 46))
                 .height(Dim(kPH + 44))
-                .outline(shapes::chamfered(26.0f))
+                .shape(shapes::chamfered(26.0f))
                 .fill(Material::radialUnit({0.5f, 0.5f}, 0.78f,
                                            {{0.0f, hex(0x000000, 0.66f)},
                                             {0.72f, hex(0x000000, 0.40f)},
@@ -837,7 +837,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // NOT a radius — it is what a hammer leaves.
     g.child(box()
                 .inset(0)
-                .outline([](SkSize s) {
+                .shape([](SkSize s) {
                   return ops::Sketchy{46.0f, 2.6f, 1356}.apply(
                       shapes::chamfered(17.0f)(s));
                 })
@@ -882,7 +882,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // stated rather than inherited.
     g.child(box()
                 .inset(0)
-                .outline([](SkSize s) {
+                .shape([](SkSize s) {
                   return ops::Sketchy{38.0f, 3.1f, 46}.apply(
                       shapes::chamfered(17.0f)(s));
                 })
@@ -895,11 +895,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                  {.offset = 5.5f,
                                   .width = 1.1f,
                                   .fill = Fill::color(hex(0x0a0909, 0.75f))}}))
-                            .leg(brushes::PatternBrush{
+                            .leg(brush::Pattern{
                                 .side = hammerTile,
-                                .corner = brushes::CornerArt{
+                                .corner = brush::CornerArt{
                                     hammerCorner,
-                                    brushes::CornerAlign::Bisector},
+                                    brush::CornerAlign::Bisector},
                                 .advance = 26.0f,
                                 .cornerAngleDeg = 30.0f,
                                 .cornerLength = 34.0f,
@@ -917,7 +917,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   Element ironWash() {
     return box()
         .inset(0)
-        .outline(shapes::chamfered(17.0f))
+        .shape(shapes::chamfered(17.0f))
         .fill(ironGrain)
         .opacity(0.085f)
         .blend(SkBlendMode::kSoftLight)
@@ -1107,12 +1107,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(at[k].fY - 46)
                   .width(92)
                   .height(92)
-                  .outline([p = b.detach().makeOffset(-(at[k].fX - 46),
+                  .shape([p = b.detach().makeOffset(-(at[k].fX - 46),
                                                       -(at[k].fY - 46))](SkSize) {
                     return p;
                   })
                   .fill(Fill::none())
-                  .stroke(brushes::taper(3.6f, 1.0f, Fill::color(cols[k])))
+                  .stroke(brush::taper(3.6f, 1.0f, Fill::color(cols[k])))
                   .foreground(PathFormat{.width = 7.0f,
                                          .strokeFill = Fill::color(
                                              {cols[k].fR, cols[k].fG,
@@ -1146,19 +1146,21 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   Element sealBlock() {
     const float S = 104.0f, x = 474.0f, y = 786.0f;
-    auto g = box()
-                 .left(x)
-                 .top(y)
-                 .width(Dim(S))
-                 .height(Dim(S))
-                 .rotate(-6.0f)
-                 .transformOrigin(0.5f, 0.5f)
-                 .opacity(bind(&scribe).window(tSeal, tSeal + 0.45f))
-                 .scale(bind(&scribe).window(tSeal, tSeal + 0.45f).to(1.5f, 1.0f))
-                 .key("seal");
+    auto g =
+        box()
+            .left(x)
+            .top(y)
+            .width(Dim(S))
+            .height(Dim(S))
+            .rotate(-6.0f)
+            .transformOrigin(0.5f, 0.5f)
+            .opacity(bind(&scribe).window(tSeal, tSeal + 0.45f))
+            .scale(
+                bind(&scribe).window(tSeal, tSeal + 0.45f).target(1.5f, 1.0f))
+            .key("seal");
     g.child(box()
                 .inset(0)
-                .outline(shapes::chamfered(6.0f))
+                .shape(shapes::chamfered(6.0f))
                 .fill(Fill::color(hex(0xb52a17, 0.90f)))
                 .foreground(lines::crosshatch(Fill::color(hex(0x6d1409, 0.25f)),
                                               5.0f, 0.8f, 18.0f))
@@ -1178,7 +1180,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       }
       g.child(box()
                   .inset(0)
-                  .outline([p = b.detach()](SkSize) { return p; })
+                  .shape([p = b.detach()](SkSize) { return p; })
                   .fill(Fill::none())
                   .stroke(PathFormat{.width = 4.4f,
                                      .strokeFill = Fill::color(hex(0xf2e2cf, 0.95f)),
@@ -1205,7 +1207,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // the spine every component is strung on — a fu is a COLUMN
     g.child(box()
                 .inset(0)
-                .outline([](SkSize) {
+                .shape([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(kCol, 28);
                   b.lineTo(kCol, kPH - 24);
@@ -1234,7 +1236,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(regs[i].y)
                   .width(Dim(kPW - 36))
                   .height(1)
-                  .outline([w = kPW - 36](SkSize) {
+                  .shape([w = kPW - 36](SkSize) {
                     SkPathBuilder b;
                     b.moveTo(0, 0.5f);
                     b.lineTo(w, 0.5f);
@@ -1295,7 +1297,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
     g.child(box()
                 .inset(0)
-                .outline([walkPath](SkSize) { return walkPath; })
+                .shape([walkPath](SkSize) { return walkPath; })
                 .fill(Fill::none())
                 .stroke(lines::rails({{.offset = 0.0f,
                                        .width = 2.6f,
@@ -1304,7 +1306,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                         .width = 1.0f,
                                         .fill = Fill::color(hex(0xd8bd7c, 0.75f)),
                                         .dash = {2.0f, 7.0f}}}))
-                .foreground(brushes::ScatterBrush{.art = footPrint,
+                .foreground(brush::Scatter{.art = footPrint,
                                                   .spacing = 46.0f,
                                                   .alignToPath = true,
                                                   .reach = 18.0f})
@@ -1325,7 +1327,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                     .key(fmt("star%d", i));
       st.child(box()
                    .inset(0)
-                   .outline(shapes::star(6, 0.30f))
+                   .shape(shapes::star(6, 0.30f))
                    .fill(invisible ? Fill::none() : Fill::color(hex(0xe4c98a, 0.92f)))
                    .stroke(PathFormat{
                        .width = 1.0f,
@@ -1390,7 +1392,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                     .key(fmt("mini%d", i));
       mp.child(box()
                    .inset(0)
-                   .outline([](SkSize s) {
+                   .shape([](SkSize s) {
                      return ops::Sketchy{14.0f, 1.4f, 7}.apply(
                          shapes::chamfered(5.0f)(s));
                    })
@@ -1428,9 +1430,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       b.quadTo(pw * 0.5f, ph - 8, pw * 0.72f, ph - 18);
       mp.child(box()
                    .inset(0)
-                   .outline([p = b.detach()](SkSize) { return p; })
+                   .shape([p = b.detach()](SkSize) { return p; })
                    .fill(Fill::none())
-                   .stroke(brushes::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
+                   .stroke(brush::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
                       type(faceMono, 8.0f, hex(0xa89264, 0.95f)))
@@ -1463,7 +1465,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .top(24)
                 .width(468)
                 .height(3)
-                .outline([](SkSize) {
+                .shape([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(0, 1.5f);
                   b.lineTo(468, 1.5f);
@@ -1491,7 +1493,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .left(0)
                   .top(36 + (float)i * 19)
                   .width(468)
-                  .opacity(bind(&scribe).window(t, t + 0.4f).to(0.22f, 1.0f))
+                  .opacity(bind(&scribe).window(t, t + 0.4f).target(0.22f, 1.0f))
                   .key(fmt("chant%d", i)));
     }
     g.child(text(toU8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
@@ -1592,7 +1594,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
           .top(y)
           .width(Dim(w))
           .height(3)
-          .outline([w](SkSize) {
+          .shape([w](SkSize) {
             SkPathBuilder b;
             b.moveTo(0, 1.5f);
             b.lineTo(w, 1.5f);
@@ -1621,7 +1623,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .left(0)
                   .top(154 + (float)k * 26)
                   .width(Dim(Wc))
-                  .opacity(bind(&scribe).window(t, t + 0.3f).to(0.14f, 0.98f))
+                  .opacity(bind(&scribe).window(t, t + 0.3f).target(0.14f, 0.98f))
                   .key(fmt("hc%d", k)));
     }
 
@@ -1645,9 +1647,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(py + 6)
                   .width(Dim(pw))
                   .height(Dim(bh))
-                  .outline([p = axis.detach()](SkSize) { return p; })
+                  .shape([p = axis.detach()](SkSize) { return p; })
                   .fill(Fill::none())
-                  .stroke(brushes::Ribbon{
+                  .stroke(brush::Ribbon{
                       .fill = Fill::color(hex(0xcf3018, 0.92f)),
                       .step = 1.5f,
                       .widthFn = [](const PathSample &s) {
@@ -1663,7 +1665,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(cy)
                   .width(Dim(pw))
                   .height(Dim(chh))
-                  .outline([pw, chh, sc](SkSize) {
+                  .shape([pw, chh, sc](SkSize) {
                     SkPathBuilder b;
                     b.moveTo(0, chh - sc);
                     b.lineTo(pw, chh - sc);
@@ -1686,7 +1688,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   // bottom and the 1.0 reference at its middle the plot is
                   // exactly v = 1 - w(s). Returning pixels here drew a
                   // 40 000 px diagonal across the whole sheet.
-                  .outline(shapes::parametric(
+                  .shape(shapes::parametric(
                       [](float t) { return SkPoint{2.0f * t - 1.0f,
                                                    1.0f - widthLaw(t)}; },
                       0.0f, 1.0f, 180))
@@ -1751,9 +1753,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(y)
                   .width(126)
                   .height(56)
-                  .outline([p = smoothPath(kSpec[c])](SkSize) { return p; })
+                  .shape([p = smoothPath(kSpec[c])](SkSize) { return p; })
                   .fill(Fill::none())
-                  .stroke(brushes::Ribbon{
+                  .stroke(brush::Ribbon{
                       .fill = Fill::color(kCinnabar),
                       .step = 1.2f,
                       .widthFn = [w0](const PathSample &s) {
@@ -1785,7 +1787,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .left(0)
                   .top(gy + 28 + (float)k * 18)
                   .width(Dim(Wc))
-                  .opacity(bind(&scribe).window(t, t + 0.28f).to(0.14f, 0.98f))
+                  .opacity(bind(&scribe).window(t, t + 0.28f).target(0.14f, 0.98f))
                   .key(fmt("gc%d", k)));
     }
     g.child(text(toU8("the sixth phrase lands on the tenth stroke"),
@@ -1822,7 +1824,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .top(ry - 11)
                   .width(22)
                   .height(22)
-                  .outline([](SkSize s) {
+                  .shape([](SkSize s) {
                     SkPathBuilder b;
                     b.moveTo(s.width() * 0.5f, 0);
                     b.lineTo(s.width() * 0.5f, s.height());
@@ -1843,7 +1845,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .top(kPT)
                 .width(20)
                 .height(Dim(kPH))
-                .outline([](SkSize s) {
+                .shape([](SkSize s) {
                   SkPathBuilder b;
                   for (int i = 0; i <= 50; ++i) {
                     const float y = s.height() * (float)i / 50.0f;
@@ -1878,7 +1880,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .top(724)
                 .width(830)
                 .height(3)
-                .outline([](SkSize) {
+                .shape([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(0, 1.5f);
                   b.lineTo(830, 1.5f);
@@ -2027,7 +2029,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     logC.append(toU8(fmt("    shou (the cut)    w(1)    = %.2f w0",
                          (double)widthLaw(1.0f))),
                 3);
-    logC.append(toU8("  brushes::Ribbon::widthFn takes exactly this law."), 2);
+    logC.append(toU8("  brush::Ribbon::widthFn takes exactly this law."), 2);
     logC.append(toU8("  BUT under trim() a decoration is handed the REVEALED"), 0);
     logC.append(toU8("  contour: PathSample::fraction is a fraction of what is"), 0);
     logC.append(toU8("  drawn SO FAR, so key the law to distance/fullLength or"), 0);
@@ -2093,13 +2095,13 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     footPrint = box()
                     .width(7)
                     .height(11)
-                    .outline(shapes::squircle(2.6f))
+                    .shape(shapes::squircle(2.6f))
                     .fill(Fill::color(hex(0xb2914f, 0.42f)));
     hammerTile = box().width(22).height(3).fill(Fill::none());
     hammerCorner = box()
                        .width(19)
                        .height(19)
-                       .outline([](SkSize s) {
+                       .shape([](SkSize s) {
                          SkPathBuilder b;
                          const float w = s.width(), h = s.height();
                          b.moveTo(0, h * 0.5f);

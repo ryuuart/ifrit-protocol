@@ -47,11 +47,13 @@
 //                        railway ties, terminal + mid caps, dash with
 //                        phase-registered rails, alongStops
 //   lines::hatch/crosshatch/radialHatch/concentric
-//   ops::Wave/Square/Zigzag/Rounded/Sketchy/Offset  as Brush pipelines
-//   Brush                pipeline + multi-leg, per-leg op suffix
-//   brushes::filament/circuit/rope/pulse            LayeredBrush stacks
-//   brushes::Ribbon      taper and calligraphic nib
-//   brushes::ScatterBrush/PatternBrush/ArtBrush/restyle
+//   kit::brush::shapers::wave/square/zigzag/rounded/jitter/offset
+//                        as Brush pipelines, through .shaped()
+//   Brush                .shaped() pipeline + multi-leg; the per-leg
+//                        suffix is still ops:: (no shaper-typed overload)
+//   kit::brush::presets::filament/circuit/rope/pulse            LayeredBrush stacks
+//   brush::Ribbon      taper and calligraphic nib
+//   brush::Scatter/Pattern/Art/restyle
 //   PathFormat           align Inner/Outer, cap/join, stampPath, trim
 //   shapes::onEdges/inset/parametric/spiral/star/polygon
 //   decorations::wash
@@ -64,6 +66,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <sigilweave/FontContext.h>
 
@@ -222,7 +225,7 @@ Element specimen(float x, float y, float w, float h, shapes::OutlineFn shape,
       .top(y)
       .width(w)
       .height(h)
-      .outline(std::move(shape))
+      .shape(std::move(shape))
       .stroke(std::move(dec))
       .child(call(label).absolute().left(0).top(h + labelDy));
 }
@@ -237,7 +240,7 @@ Element bare(float x, float y, float w, float h, shapes::OutlineFn shape,
       .top(y)
       .width(w)
       .height(h)
-      .outline(std::move(shape))
+      .shape(std::move(shape))
       .stroke(std::move(dec));
 }
 
@@ -248,7 +251,7 @@ Element rule(float x, float y, float w, Decoration dec) {
       .top(y)
       .width(w)
       .height(10)
-      .outline(hline())
+      .shape(hline())
       .stroke(std::move(dec));
 }
 
@@ -350,7 +353,7 @@ std::vector<Style> displacedStyles() {
   zig.zigzag = true;
 
   Brush square;
-  square.op(ops::Square{.amplitude = 5, .wavelength = 26})
+  square.shaped(kit::brush::shapers::Square{.amplitude = 5, .wavelength = 26})
       .leg(lines::Line{.width = 1.6f, .fill = ink()});
 
   Brush sketch2;
@@ -360,15 +363,15 @@ std::vector<Style> displacedStyles() {
            {ops::Sketchy{.segLength = 9, .deviation = 1.0f, .seed = 41}});
 
   Brush waveOnCased;
-  waveOnCased.op(ops::Wave{.amplitude = 3.5f, .wavelength = 30})
+  waveOnCased.shaped(kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
       .leg(lines::cased(1.6f, red(), 5.0f));
 
   return {
       {"lines::wavy(1.8, ink, 4, 18)", lines::wavy(1.8f, ink(), 4.0f, 18.0f)},
       {"wavy(...) then .zigzag = true", zig},
-      {"Brush{}.op(ops::Square{5,26})  battlement", square},
+      {"Brush{}.shaped(kit::brush::shapers::Square{5,26})  battlement", square},
       {"two ops::Sketchy legs, seeds 7 + 41  (rough.js)", sketch2},
-      {"op(ops::Wave{3.5,30}).leg(cased(1.6,red,5))", waveOnCased},
+      {"shaped(shapers::Wave{3.5,30}).leg(cased(1.6,red,5))", waveOnCased},
   };
 }
 
@@ -416,26 +419,27 @@ std::vector<Style> furnishedStyles() {
 /** THE STACKS — LayeredBrush: several passes of one outline. */
 std::vector<Style> stackStyles() {
   return {
-      {"brushes::circuit(teal, tier=2)",
-       brushes::circuit({0.208f, 0.478f, 0.424f, 1}, 2)},
-      {"brushes::filament(...)  4-pass additive glow",
-       brushes::filament({0.20f, 0.42f, 0.66f, 1}, {0.10f, 0.12f, 0.16f, 1},
-                         0.55f)},
-      {"brushes::rope(state=2, scale=0.5)", brushes::rope(2, 0.5f)},
-      {"brushes::pulse(...)  trim a window and march it",
-       brushes::pulse({0.66f, 0.16f, 0.13f, 0.45f}, {0.15f, 0.13f, 0.11f, 0.9f},
-                      0.6f)},
+      {"kit::brush::presets::circuit(teal, tier=2)",
+       kit::brush::presets::circuit({0.208f, 0.478f, 0.424f, 1}, 2)},
+      {"kit::brush::presets::filament(...)  4-pass additive glow",
+       kit::brush::presets::filament({0.20f, 0.42f, 0.66f, 1},
+                                     {0.10f, 0.12f, 0.16f, 1}, 0.55f)},
+      {"kit::brush::presets::rope(state=2, scale=0.5)",
+       kit::brush::presets::rope(2, 0.5f)},
+      {"kit::brush::presets::pulse(...)  trim a window and march it",
+       kit::brush::presets::pulse({0.66f, 0.16f, 0.13f, 0.45f},
+                                  {0.15f, 0.13f, 0.11f, 0.9f}, 0.6f)},
   };
 }
 
 /** THE BANDS — a filled band whose width varies along the run. */
 std::vector<Style> bandStyles() {
   return {
-      {"brushes::taper(9, 0.6, ink)", brushes::taper(9.0f, 0.6f, ink())},
-      {"brushes::calligraphic(38, 11, ink, 0.10)",
-       brushes::calligraphic(38.0f, 11.0f, ink(), 0.10f)},
-      {"brushes::calligraphic(-15, 9, red, 0.22)",
-       brushes::calligraphic(-15.0f, 9.0f, red(), 0.22f)},
+      {"brush::taper(9, 0.6, ink)", brush::taper(9.0f, 0.6f, ink())},
+      {"brush::calligraphic(38, 11, ink, 0.10)",
+       brush::calligraphic(38.0f, 11.0f, ink(), 0.10f)},
+      {"brush::calligraphic(-15, 9, red, 0.22)",
+       brush::calligraphic(-15.0f, 9.0f, red(), 0.22f)},
   };
 }
 
@@ -447,12 +451,12 @@ Element lozenge(SkColor4f c, float r) {
   return box()
       .width(r * 2)
       .height(r * 2)
-      .outline(shapes::polygon(4, 45.0f))
+      .shape(shapes::polygon(4, 45.0f))
       .fill(c);
 }
 
 std::vector<Style> stampedStyles() {
-  brushes::ScatterBrush seeds;
+  brush::Scatter seeds;
   seeds.art = lozenge(kInk, 2.6f);
   seeds.spacing = 15.0f;
   seeds.seed = 11;
@@ -461,16 +465,16 @@ std::vector<Style> stampedStyles() {
   seeds.jitterRotateDeg = 40.0f;
   seeds.reach = 14.0f;
 
-  brushes::ScatterBrush ladder;
+  brush::Scatter ladder;
   ladder.art = tick(kRed, 1.6f, 11.0f);
   ladder.spacing = 9.0f;
   ladder.reach = 10.0f;
 
-  brushes::PatternBrush chain;
+  brush::Pattern chain;
   chain.side = box()
                    .width(14)
                    .height(10)
-                   .outline(shapes::circle())
+                   .shape(shapes::circle())
                    .foreground(util::stroke(1.4f, ink()));
   chain.advance = 11.0f;
   chain.reach = 12.0f;
@@ -562,7 +566,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .height(38)
                         .transformOrigin(0, 0.5f)
                         .rotate(deg)
-                        .outline(hline())
+                        .shape(hline())
                         .stroke(fan[(size_t)i].dec));
         const float rad = deg * 0.0174532925f;
         const float ex = originX + std::cos(rad) * (length + 9);
@@ -578,7 +582,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                       .top(originY - 8)
                       .width(16)
                       .height(16)
-                      .outline(shapes::circle())
+                      .shape(shapes::circle())
                       .foreground(util::stroke(1.0f, red())));
       plate.child(box().absolute().left(originX - 13).top(originY - 0.5f)
                       .width(26).height(1).fill(kRed));
@@ -657,7 +661,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       chev.midSpacing = 30.0f;
       chev.capSize = 8.0f;
       Brush wavyRing;
-      wavyRing.op(ops::Wave{.amplitude = 4, .wavelength = 26})
+      wavyRing.shaped(kit::brush::shapers::Wave{.amplitude = 4, .wavelength = 26})
           .leg(lines::Line{.width = 1.4f, .fill = red()});
       lines::Rails registered = lines::rails({
           {.offset = -5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
@@ -666,7 +670,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
 
       const std::vector<Ring> rings = {
           {160, -1.20f, "Rails{-5,+5, dash{10,8}} in register", registered},
-          {130, -1.00f, "op(ops::Wave{4,26}).leg(1.4 red)", wavyRing},
+          {130, -1.00f, "shaped(shapers::Wave{4,26}).leg(1.4 red)", wavyRing},
           {100, -0.80f, "lines::railway(1.4, ink, 13, 9)",
            lines::railway(1.4f, ink(), 13.0f, 9.0f)},
           {70, -0.60f, "{.midCap=Arrow, .midSpacing=30}", chev},
@@ -697,7 +701,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .top(ly - 5));
       }
       plate.child(box().absolute().left(cx - 3).top(cy - 3).width(6).height(6)
-                      .outline(shapes::circle()).fill(kRed));
+                      .shape(shapes::circle()).fill(kRed));
     }
 
     // ---- IV. THE REVERSE -------------------------------------------------
@@ -727,7 +731,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .top(y)
                         .width(330)
                         .height(44)
-                        .outline(serpent())
+                        .shape(serpent())
                         .stroke(std::move(s.dec))
                         .child(call(s.label, 8.0f,
                                     {0.72f, 0.74f, 0.78f, 1})
@@ -781,7 +785,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
             .top(1108 + dy)
             .width(124)
             .height(124)
-            .outline(std::move(shape))
+            .shape(std::move(shape))
             .background(std::move(dec))
             .foreground(util::stroke(1.0f, ink()))
             .child(call(label, 8.0f, kInkSoft).absolute().left(0).top(130));
@@ -859,8 +863,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
           decorations::border(1.6f, ink()), 0.6f);
       // Corner tiles: PatternBrush's real corner art.
       {
-        brushes::PatternBrush tiled;
-        tiled.side = box().width(11).height(7).outline(hline()).stroke(
+        brush::Pattern tiled;
+        tiled.side = box().width(11).height(7).shape(hline()).stroke(
             lines::Line{.width = 1.2f, .fill = ink()});
         // Bisector, and NOT merely because it is what the ART wants. This
         // specimen's caption says "lozenge", and a lozenge is only a
@@ -868,13 +872,13 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         // aligned, so under Outgoing the same polygon(4, 45) comes back
         // as four upright SQUARES and the label stops being true of the
         // picture beside it. Measured both ways before writing this.
-        tiled.corner = brushes::CornerArt{box()
+        tiled.corner = brush::CornerArt{box()
                                               .width(15)
                                               .height(15)
-                                              .outline(shapes::polygon(4, 45.0f))
+                                              .shape(shapes::polygon(4, 45.0f))
                                               .foreground(util::stroke(1.3f,
                                                                        red())),
-                                          brushes::CornerAlign::Bisector};
+                                          brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
         add("PatternBrush{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
@@ -883,7 +887,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         ContourWalk walk;
         walk.spacing = 15.0f;
         walk.stamp = box().width(7).height(7)
-                         .outline(shapes::polygon(3, -90.0f)).fill(kInk);
+                         .shape(shapes::polygon(3, -90.0f)).fill(kInk);
         add("ContourWalk{spacing=15, stamp=triangle}", frameRect(8), walk);
       }
       {
@@ -895,10 +899,12 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       }
       {
         Brush scalloped;
-        scalloped.op(ops::Wave{.amplitude = 3.5f, .wavelength = 22})
+        scalloped
+            .shaped(
+                kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 22})
             .leg(lines::Line{.width = 1.4f, .fill = ink()});
-        add("op(ops::Wave{3.5,22}) on a closed rect", frameRect(8), scalloped,
-            1.4f);
+        add("shaped(shapers::Wave{3.5,22}) on a closed rect",
+            frameRect(8), scalloped, 1.4f);
       }
       {
         Brush drawn;
@@ -943,7 +949,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                             .height(100)
                             .transformOrigin(0.5f, 0.5f)
                             .rotate(frames[i].rot)
-                            .outline(frames[i].shape);
+                            .shape(frames[i].shape);
         if (frames[i].style)
           frame.style(*frames[i].style);
         else
@@ -969,7 +975,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
     // arrows chasing each other round the frame.
     plate.child(sectionTitle(56, 1700, "VIII",
                              "THE CORNER \xc2\xb7 WHICH WAY IT FACES"));
-    plate.child(call("brushes::CornerArt{art, align} \xe2\x80\x94 the same "
+    plate.child(call("brush::CornerArt{art, align} \xe2\x80\x94 the same "
                      "art, the same rect, one word different",
                      9.0f, kInkSoft)
                     .absolute()
@@ -981,7 +987,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         return box()
             .width(17)
             .height(17)
-            .outline([](SkSize s) {
+            .shape([](SkSize s) {
               SkPathBuilder b;
               b.moveTo(s.width() * 0.15f, s.height() * 0.12f);
               b.lineTo(s.width() * 0.88f, s.height() * 0.5f);
@@ -991,23 +997,23 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
             .stroke(lines::Line{.width = 1.6f, .fill = red()});
       };
       auto tick = [] {
-        return box().width(12).height(7).outline(hline()).stroke(
+        return box().width(12).height(7).shape(hline()).stroke(
             lines::Line{.width = 1.1f, .fill = ink()});
       };
       struct Corner {
         const char *label;
-        brushes::CornerAlign align;
+        brush::CornerAlign align;
       };
       const Corner variants[] = {
           {"CornerArt{art, Bisector}  (an ornament)",
-           brushes::CornerAlign::Bisector},
+           brush::CornerAlign::Bisector},
           {"CornerArt{art, Outgoing}  (a marker that keeps going)",
-           brushes::CornerAlign::Outgoing},
+           brush::CornerAlign::Outgoing},
       };
       for (int i = 0; i < 2; ++i) {
-        brushes::PatternBrush pb;
+        brush::Pattern pb;
         pb.side = tick();
-        pb.corner = brushes::CornerArt{chevron(), variants[i].align};
+        pb.corner = brush::CornerArt{chevron(), variants[i].align};
         pb.advance = 12.0f;
         pb.cornerLength = 20.0f;
         pb.reach = 20.0f;
@@ -1017,7 +1023,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                         .top(1762)
                         .width(230)
                         .height(120)
-                        .outline(frameRect(10))
+                        .shape(frameRect(10))
                         .stroke(std::move(pb))
                         .child(call(variants[i].label, 7.5f, kInkSoft)
                                    .absolute()
@@ -1027,7 +1033,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // And the placement itself: the corner sits ON the vertex now. A
       // chamfer has EIGHT of them, which is the case that makes a
       // half-a-detection-step error obvious.
-      brushes::PatternBrush octo;
+      brush::Pattern octo;
       octo.side = tick();
       // Bisector, and it is load-bearing for what this specimen is FOR.
       // The point here is PLACEMENT — that a tile lands exactly on the
@@ -1037,13 +1043,13 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       // legs alternate axis-aligned and 45 degrees, and that alternation
       // is a confound: you cannot tell a misplaced tile from a merely
       // differently-rotated one. Measured both ways.
-      octo.corner = brushes::CornerArt{box()
+      octo.corner = brush::CornerArt{box()
                                            .width(13)
                                            .height(13)
-                                           .outline(shapes::polygon(4, 45.0f))
+                                           .shape(shapes::polygon(4, 45.0f))
                                            .foreground(util::stroke(1.3f,
                                                                     red())),
-                                       brushes::CornerAlign::Bisector};
+                                       brush::CornerAlign::Bisector};
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;
       octo.reach = 18.0f;
@@ -1053,7 +1059,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                       .top(1762)
                       .width(230)
                       .height(120)
-                      .outline(shapes::chamfered(20.0f))
+                      .shape(shapes::chamfered(20.0f))
                       .stroke(std::move(octo))
                       .child(call("on shapes::chamfered(20) \xe2\x80\x94 eight "
                                   "vertices, eight tiles",

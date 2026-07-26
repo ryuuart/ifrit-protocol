@@ -507,7 +507,7 @@ Element artOpArt() {
                 .top(Dim(kCellH * 0.5f - 170.0f))
                 .width(340)
                 .height(340)
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .foreground(lines::concentric(Fill::color(kWhite),
                                               9 + (i % 5) * 4, 6.0f)));
   }
@@ -527,7 +527,7 @@ Element artArch() {
                 .top(Dim(30))
                 .width(176)
                 .height(432)
-                .outline(shapes::spiral(2.4f + 0.35f * (float)i, true, 0.36f))
+                .shape(shapes::spiral(2.4f + 0.35f * (float)i, true, 0.36f))
                 .foreground(stroke(8.0f, Fill::color(kWhite))));
     for (int k = 0; k < 11; ++k)
       g.child(box()
@@ -554,7 +554,7 @@ Element artCircuit(Pattern &grid, Pattern &spek) {
                 .top(Dim(y))
                 .width(26)
                 .height(26)
-                .outline(shapes::annulus(0.52f))
+                .shape(shapes::annulus(0.52f))
                 .fill(Fill::color(kWhite)));
   }
   return g;
@@ -653,7 +653,7 @@ void buildWall(instancing::Pool &p, const WallSpec &s) {
     win[j] = SkRect::MakeXYWH(std::min(left, 1.0f - kWinFrac), 0.0f, kWinFrac,
                               1.0f);
   }
-  p.touch();
+  p.commit();
 }
 
 } // namespace slit
@@ -995,7 +995,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
       pool->frames()[0] = 0;
       pool->sizes()[0] = {1, 1};
       pool->texWindows()[0] = SkRect::MakeXYWH(left, 0, kWinFrac, 1.0f);
-      pool->touch();
+      pool->commit();
 
       Element acc = box()
                         .width(Dim((float)boxW))
@@ -1051,16 +1051,18 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
     GlyphFx fx;
     fx.effect = glyphfx::rise(18.0f);
     fx.stagger = {.eachMs = 22};
-    fx.progress = with(1.0f, {440ms, ch::easeOutExpo, 120ms});
+    fx.progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms});
     return box()
         .column()
         .height(Dim(kHeaderH))
         .gap(4)
-        .child(t("TECHNIQUE STUDY 05 · TIME AS AN AXIS OF THE IMAGE",
-                 ui(10, kType2, 2.6f))
-                   .key("eyebrow")
-                   .opacity(withFrom(0.0f, 1.0f, {260ms, ch::easeOutQuad}))
-                   .translateY(withFrom(8.0f, 0.0f, {260ms, ch::easeOutQuad})))
+        .child(
+            t("TECHNIQUE STUDY 05 · TIME AS AN AXIS OF THE IMAGE",
+              ui(10, kType2, 2.6f))
+                .key("eyebrow")
+                .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
+                .translateY(
+                    animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})))
         .child(t("THE SLIT-SCAN MACHINE, 1966–68", uiB(40, kType, 0.4f))
                    .key("title")
                    .textStroke(0.6f, Fill::color(kInk))
@@ -1072,8 +1074,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                  "2.20:1, 24 fps, f/1.8",
                  ui(11, kType2))
                    .key("cite")
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {240ms, ch::easeOutQuad, 400ms})));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {240ms, ch::easeOutQuad, 400ms})));
   }
 
   // ---------------------------------------------------------- the film frame
@@ -1126,7 +1128,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .clip()
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .key("film")
-        .wipe(0.0f, withFrom(0.0f, 1.0f, {520ms, ch::easeOutCubic, 240ms}))
+        .wipe(0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms}))
         .child(std::move(accumulation))
         .child(std::move(halation))
         // The shutter bar -- the ONLY thing in the plate driven by
@@ -1242,8 +1244,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .clip()
         .key(fmt("panel%d", order))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, ch::easeOutQuad}))
-        .translateX(withFrom(14.0f, 0.0f, {300ms, ch::easeOutQuad}))
+        .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
+        .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
         .child(pl(heading, ui(9.5f, kType2, 2.2f)))
         .child(rule(390, kRule));
   }
@@ -1320,16 +1322,17 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                 .stroke(stroke(1.0f, Fill::color(kRule)))
                 .child(box()
                            .inset(4)
-                           .outline(shapes::parametric(
+                           .shape(shapes::parametric(
                                [](float s) {
                                  // log-log axes: exact C/u is a straight
                                  // line of slope -1 in this frame.
                                  return SkPoint{s, s};
                                },
                                0.0f, 1.0f, 240, false))
-                           .stroke(stroke(1.6f, Fill::color(kAmber)))
-                           .trim(0.0f, with(1.0f, {520ms, ch::easeOutCubic,
-                                                   1500ms})))
+                           .stroke(spans::upTo(animate(
+                                       to(1.0f),
+                                       {520ms, ch::easeOutCubic, 1500ms})),
+                                   stroke(1.6f, Fill::color(kAmber))))
                 .child(custom([this](SkCanvas &c, const PaintContext &p2) {
                          drawMeasuredPoints(c, p2);
                        })
@@ -1366,8 +1369,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                       .fill(kBlack)
                       .clip()
                       .key(fmt("s4_%d", idx))
-                      .scaleX(withFrom(0.0f, 1.0f,
-                                       {220ms, ease::outBack(1.70158f)}))
+                      .scaleX(animate(from(0.0f).to(1.0f),
+                                      {220ms, ease::outBack(1.70158f)}))
                       .transformOrigin(0.0f, 0.5f)
                       .child(instancing::instances(flatAtlas, s4[(size_t)idx],
                                                    instancing::Mode::Data,

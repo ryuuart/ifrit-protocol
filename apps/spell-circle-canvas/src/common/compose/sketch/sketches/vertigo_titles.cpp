@@ -142,6 +142,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -364,25 +365,27 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
-    into.child(box()
-                   .key("curve" + tag)
-                   .inset(0)
-                   .outline(lissajous(c, R))
-                   .stroke(brushes::filament(c.core, hex(0xFFE9CF), 0.48f))
-                   .trim(0.0f, &growth[i])
-                   .rotate(&spin)
-                   .opacity(&cardA[i]));
+    into.child(
+        box()
+            .key("curve" + tag)
+            .inset(0)
+            .shape(lissajous(c, R))
+            .stroke(spans::upTo(&growth[i]),
+                    kit::brush::presets::filament(c.core, hex(0xFFE9CF), 0.48f))
+            .rotate(&spin)
+            .opacity(&cardA[i]));
 
     // the nib: a short bright plus-blended window at the trailing edge
-    into.child(box()
-                   .key("nib" + tag)
-                   .inset(0)
-                   .outline(lissajous(c, R))
-                   .stroke(brushes::pulse({1.0f, 0.90f, 0.72f, 0.42f},
-                                          {1, 1, 1, 0.95f}, 0.7f))
-                   .trim(&penTip[i], &growth[i])
-                   .rotate(&spin)
-                   .opacity(&penA[i]));
+    into.child(
+        box()
+            .key("nib" + tag)
+            .inset(0)
+            .shape(lissajous(c, R))
+            .stroke(spans::range(&penTip[i], &growth[i]),
+                    kit::brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
+                                               {1, 1, 1, 0.95f}, 0.7f))
+            .rotate(&spin)
+            .opacity(&penA[i]));
   }
 
   // ------------------------------------------------------------------
@@ -406,20 +409,21 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")
-                    .opacity(withFrom(0.0f, 1.0f, ramp(300, 420))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))));
     panel.child(ring(146.0f, hex(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
     panel.child(ring(262.0f, hex(0x120C07, 0.24f), 10.0f).key("limbus"));
 
     // "the screen is suddenly stained red" — kColor keeps the iris's
     // luminance and swaps its hue/saturation, so it TINTS rather than
     // covers. Sudden onset: easeInQuad.
-    panel.child(box()
-                    .key("stain")
-                    .inset(0)
-                    .blend(SkBlendMode::kColor)
-                    .fill(withFrom(Fill::color(hex(0x3A2A1C)),
-                                   Fill::color(hex(0xC81E2C)),
-                                   ramp(700, 500, ch::easeInQuad))));
+    panel.child(
+        box()
+            .key("stain")
+            .inset(0)
+            .blend(SkBlendMode::kColor)
+            .fill(animate(
+                from(Fill::color(hex(0x3A2A1C))).to(Fill::color(hex(0xC81E2C))),
+                ramp(700, 500, ch::easeInQuad))));
 
     for (int i = 0; i < 4; ++i)
       spiralCard(panel, i);
@@ -432,7 +436,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     // solid fill — the hollow register and per-glyph motion are mutually
     // exclusive in the library today. pop() is therefore rebuilt one tier
     // up: seven letter nodes in a row, staggerChildren() cascading their
-    // withFrom() entrances, easeOutBack(1.70158) per letter — the same
+    // animate(from().to()) entrances, easeOutBack(1.70158) per letter — the same
     // curve glyphfx::pop() applies internally.
     auto word = box()
                     .row()
@@ -459,11 +463,11 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
       }
       const char *letters[] = {"V", "E", "R", "T", "I", "G", "O"};
       for (int i = 0; i < 7; ++i)
-        word.child(
-            text(toU8(letters[i]), face)
-                .key(std::string("v") + letters[i])
-                .scale(withFrom(0.30f, 1.0f, ramp(780, 480, ease::outBack())))
-                .opacity(withFrom(0.0f, 1.0f, ramp(780, 220))));
+        word.child(text(toU8(letters[i]), face)
+                       .key(std::string("v") + letters[i])
+                       .scale(animate(from(0.30f).to(1.0f),
+                                      ramp(780, 480, ease::outBack())))
+                       .opacity(animate(from(0.0f).to(1.0f), ramp(780, 220))));
     }
     panel.child(std::move(word));
 
@@ -476,8 +480,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                      type(faceDisplay, 15, kSolidInk, 2.6f))
                     .key("credit")
                     .centerAt({kEye.x(), kEye.y() + 152.0f})
-                    .opacity(withFrom(0.0f, 1.0f, ramp(1550, 300)))
-                    .translateY(withFrom(10.0f, 0.0f, ramp(1550, 300))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
+                    .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300))));
 
     // the instrument-dial legend, set on the limbus itself with the
     // brand-new Element::onPath() — one text leaf where hand-placing
@@ -493,7 +497,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                      .align = TextPath::Align::Center,
                      .offset = 3.0f,
                      .autoFlip = false})
-            .opacity(withFrom(0.0f, 1.0f, ramp(1000, 500))));
+            .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
         text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
@@ -508,7 +512,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                      .align = TextPath::Align::Center,
                      .offset = 3.0f,
                      .autoFlip = true})
-            .opacity(withFrom(0.0f, 1.0f, ramp(1120, 500))));
+            .opacity(animate(from(0.0f).to(1.0f), ramp(1120, 500))));
 
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
@@ -530,7 +534,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                     .key("slug-rig")
                     .left(22)
                     .bottom(20)
-                    .opacity(withFrom(0.0f, 1.0f, ramp(1200, 400))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))));
 
     // film gate: grain, then a soft vignette
     panel.child(box()
@@ -545,15 +549,16 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
 
     // the bezel is its OWN node: trim() on the panel would reveal the
     // iris fill along with the keyline.
-    panel.child(box()
-                    .key("bezel")
-                    .inset(0)
-                    .corners({10})
-                    .fill(Fill::none())
-                    .stroke(stroke(2.0f, Fill::color(kKeyline),
-                                   PathFormat::Align::Inner))
-                    .trim(0.0f, withFrom(0.0f, 1.0f,
-                                         ramp(260, 480, ch::easeOutCubic))));
+    panel.child(
+        box()
+            .key("bezel")
+            .inset(0)
+            .corners({10})
+            .fill(Fill::none())
+            .stroke(
+                spans::upTo(animate(from(0.0f).to(1.0f),
+                                    ramp(260, 480, ch::easeOutCubic))),
+                stroke(2.0f, Fill::color(kKeyline), PathFormat::Align::Inner)));
     return panel;
   }
 
@@ -568,7 +573,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                 .top(-64)
                 .width(352)
                 .height(268)
-                .outline(lissajous(kCards[2], 74.0f, 900))
+                .shape(lissajous(kCards[2], 74.0f, 900))
                 .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.55f))))
                 .rotate(&spin));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
@@ -601,7 +606,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                                    PathFormat::Align::Inner))
                     .child(box()
                                .inset(0)
-                               .outline(lissajous(c, 13.0f, 420))
+                               .shape(lissajous(c, 13.0f, 420))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(&spin)));
       row.child(box()
@@ -632,8 +637,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 4; ++i)
       p.child(text(toU8(kFacts[i]), type(faceGothic, 10.5f, kSteel, 0.3f))
                   .key("rig" + std::to_string(i))
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(900.0f + (float)i * 90.0f, 300))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(900.0f + (float)i * 90.0f, 300))));
     p.child(box().grow(1));
     p.child(text(toU8("hitchcocksvertigo.substack.com · rhizome.org "
                       "· diyphotography.net"),
@@ -652,7 +657,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     GlyphFx rise;
     rise.effect = glyphfx::rise(18.0f);
     rise.stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420};
-    rise.progress = withFrom(0.0f, 1.0f, ramp(140, 900, ch::easeOutExpo));
+    rise.progress = animate(from(0.0f).to(1.0f), ramp(140, 900, ch::easeOutExpo));
 
     head.child(
         box()
@@ -663,8 +668,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                              "FIGURES"),
                         type(faceGothicBold, 11, kSteel, 3.0f))
                        .key("eyebrow")
-                       .opacity(withFrom(0.0f, 1.0f, ramp(0, 260)))
-                       .translateY(withFrom(8.0f, 0.0f, ramp(0, 260))))
+                       .opacity(animate(from(0.0f).to(1.0f), ramp(0, 260)))
+                       .translateY(animate(from(8.0f).to(0.0f), ramp(0, 260))))
             .child(text(toU8("VERTIGO, 1958"),
                         type(faceDisplay, 42, kBone, 1.0f))
                        .key("heading")
@@ -673,7 +678,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                              "spirals — Paramount, dir. Alfred Hitchcock"),
                         type(faceGothic, 12, kSteel, 0.4f))
                        .key("cite")
-                       .opacity(withFrom(0.0f, 1.0f, ramp(420, 240)))));
+                       .opacity(animate(from(0.0f).to(1.0f), ramp(420, 240)))));
 
     auto sources = box().column().gap(4).alignItems(Align::End);
     static constexpr const char *kSrc[] = {
@@ -683,10 +688,11 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         "fontsinuse.com — Clarendon / News Gothic",
     };
     for (int i = 0; i < 4; ++i)
-      sources.child(text(toU8(kSrc[i]), type(faceGothic, 9.5f, kSteelDim))
-                        .key("src" + std::to_string(i))
-                        .opacity(withFrom(0.0f, 1.0f,
-                                          ramp(520.0f + (float)i * 70.0f, 260))));
+      sources.child(
+          text(toU8(kSrc[i]), type(faceGothic, 9.5f, kSteelDim))
+              .key("src" + std::to_string(i))
+              .opacity(animate(from(0.0f).to(1.0f),
+                               ramp(520.0f + (float)i * 70.0f, 260))));
     head.child(std::move(sources));
     root.child(std::move(head));
 
@@ -695,7 +701,8 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
                    .height(1)
                    .fill(Fill::color(kKeyline))
                    .transformOrigin(0.0f, 0.5f)
-                   .scale(withFrom(0.0f, 1.0f, ramp(200, 620, ch::easeOutCubic))));
+                   .scale(animate(from(0.0f).to(1.0f),
+                                  ramp(200, 620, ch::easeOutCubic))));
 
     // ---- body -----------------------------------------------------
     root.child(box()

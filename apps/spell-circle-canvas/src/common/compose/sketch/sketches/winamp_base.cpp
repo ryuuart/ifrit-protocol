@@ -534,7 +534,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     using namespace wa;
     Element e = at(box(), x, y, w, h).fill(kGlyph);
     if (shape)
-      e.outline(std::move(shape));
+      e.shape(std::move(shape));
     return e;
   }
 
@@ -635,7 +635,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     clutter.child(at(box(), 0, 0, 8, 6)
                       .fill(C(0xCFE4FF, 0.55f))
                       .blend(SkBlendMode::kPlus)
-                      .translateY(bind(&glint).to(-n(6), n(43)))
+                      .translateY(bind(&glint).target(-n(6), n(43)))
                       .opacity(bind(&glint)
                                    .offset(-0.5f)
                                    .scale(2.0f)
@@ -647,7 +647,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     Element status = at(box(), 26, 28, 9, 9);
     status.child(at(box(), 0, 1, 3, 7).fill(kGreen).opacity(&led));
     status.child(at(box(), 4, 2, 5, 5).fill(kGreen).opacity(&led)
-                     .outline(tri(0)));
+                     .shape(tri(0)));
     w.child(status);
 
     // MM:SS — the four NUMBERS.BMP cells sit at native x 48/60 and 78/90,
@@ -714,14 +714,13 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     // is a hard cut — old displays do not fade in.
     w.child(at(box(), 0, 21, 275, 37)
                 .fill(C(0x090911))
-                .opacity(withKeyframes<float>({{0ms, 1.0f},
+                .opacity(animate(through({{0ms, 1.0f},
                                                {300ms, 1.0f},
                                                {310ms, 0.0f},
                                                {360ms, 0.0f},
                                                {370ms, 1.0f},
                                                {420ms, 1.0f},
-                                               {430ms, 0.0f}},
-                                              &ch::easeNone)));
+                                               {430ms, 0.0f}}), &ch::easeNone)));
 
     // ---- volume / balance / EQ+PL toggles -------------------------------
     w.child(box()
@@ -747,7 +746,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                             {0, 0}, {0, 1},
                             {{0.0f, lift(kBtnFace, 0.12f)},
                              {1.0f, dark(kBtnFace, 0.28f)}}))
-                        .translateX(bind(&playPos).to(0, n(248 - 31)));
+                        .translateX(bind(&playPos).target(0, n(248 - 31)));
     raised(thumb);
     thumb.child(at(box(), 13, 2, 1, 6).fill(fade(kBtnLo, 0.8f)));
     thumb.child(at(box(), 15, 2, 1, 6).fill(fade(kBtnHi, 0.7f)));
@@ -759,7 +758,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // the baked Nullsoft bolt, bottom right
     w.child(at(box(), 253, 91, 13, 15)
-                .outline(bolt())
+                .shape(bolt())
                 .fill(Material::linearUnit({0, 0}, {0, 1},
                                            {{0.0f, C(0xFFD24A)},
                                             {1.0f, C(0xC05C08)}})));
@@ -840,13 +839,13 @@ struct WinampBase : sigil::compose::sketch::Sketch {
     r.child(at(box(), 0, 0, 8, 18)
                 .fill(C(0xE8F4FF, 0.55f))
                 .blend(SkBlendMode::kPlus)
-                .translateX(withKeyframes<float>(
-                    {{600ms, n(10)}, {750ms, n(162)}}, &ch::easeNone))
-                .opacity(withKeyframes<float>({{590ms, 0.0f},
-                                               {600ms, 1.0f},
-                                               {735ms, 1.0f},
-                                               {750ms, 0.0f}},
-                                              &ch::easeNone)));
+                .translateX(animate(through({{600ms, n(10)}, {750ms, n(162)}}),
+                                    &ch::easeNone))
+                .opacity(animate(through({{590ms, 0.0f},
+                                          {600ms, 1.0f},
+                                          {735ms, 1.0f},
+                                          {750ms, 0.0f}}),
+                                 &ch::easeNone)));
     return r;
   }
 
@@ -979,14 +978,14 @@ struct WinampBase : sigil::compose::sketch::Sketch {
       trough.child(at(box(), 2, 1, 10, 61).fill(faderTrack));
       // thumb 11x11, travel 0..52 native. bind() turns the [-1,1] gain
       // straight into pixels — no second Output in slider units.
-      Element th = at(box(), 1, 0, 12, 11)
-                       .fill(Material::linearUnit(
-                           {0, 0}, {0, 1},
-                           {{0.0f, lift(kBtnFace, 0.14f)},
-                            {1.0f, dark(kBtnFace, 0.32f)}}))
-                       .translateY(
-                           bind(&gain[(size_t)i]).from(-1.0f, 1.0f).to(n(52),
-                                                                       n(0)));
+      Element th =
+          at(box(), 1, 0, 12, 11)
+              .fill(Material::linearUnit({0, 0}, {0, 1},
+                                         {{0.0f, lift(kBtnFace, 0.14f)},
+                                          {1.0f, dark(kBtnFace, 0.32f)}}))
+              .translateY(bind(&gain[(size_t)i])
+                              .source(-1.0f, 1.0f)
+                              .target(n(52), n(0)));
       raised(th);
       th.child(at(box(), 2, 5, 8, 1).fill(fade(kBtnLo, 0.85f)));
       trough.child(th);
@@ -1249,29 +1248,30 @@ struct WinampBase : sigil::compose::sketch::Sketch {
                    .left(Dim(60))
                    .top(Dim(60))
                    .transformOrigin(0.5f, 0.5f)
-                   .scale(withFrom(0.9f, 1.0f, {200ms, ease::outBack(), 100ms}))
-                   .opacity(withKeyframes<float>(
-                       {{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}},
+                   .scale(animate(from(0.9f).to(1.0f),
+                                  {200ms, ease::outBack(), 100ms}))
+                   .opacity(animate(
+                       through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
                        &ch::easeNone)));
 
     // Equalizer — docking snap from 60 px above, the same outBack value.
     root.child(eqWindow()
                    .left(Dim(60))
                    .top(Dim(408))
-                   .translateY(withFrom(-60.0f, 0.0f,
-                                        {250ms, ease::outBack(), 900ms}))
-                   .opacity(withKeyframes<float>(
-                       {{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}},
+                   .translateY(animate(from(-60.0f).to(0.0f),
+                                       {250ms, ease::outBack(), 900ms}))
+                   .opacity(animate(
+                       through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
                        &ch::easeNone)));
 
     // Playlist — same snap, 1.25 s later.
     root.child(playlistWindow()
                    .left(Dim(60))
                    .top(Dim(756))
-                   .translateY(withFrom(-60.0f, 0.0f,
-                                        {250ms, ease::outBack(), 2150ms}))
-                   .opacity(withKeyframes<float>(
-                       {{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}},
+                   .translateY(animate(from(-60.0f).to(0.0f),
+                                       {250ms, ease::outBack(), 2150ms}))
+                   .opacity(animate(
+                       through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
                        &ch::easeNone)));
     return root;
   }

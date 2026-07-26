@@ -1,10 +1,10 @@
 #pragma once
 // The kinetic-typography card (REFERENCES.md §8 — the community grammar),
 // ported from sketch/sketches/kinetic_study.cpp: the whole card enters via
-// withFrom() MOUNT choreography — one dominant move (the hero MaskedRise),
-// amount-mode stagger budgets (≤ 1.2s), Transition::delay sequencing, a
-// draw-on rule hosting a wrap-trim comet, a CharPop subline under a double
-// textGlow, a WaveFloat loop, and a measured util::marquee ticker.
+// animate(from().to()) MOUNT choreography — one dominant move (the hero
+// MaskedRise), amount-mode stagger budgets (≤ 1.2s), Transition::delay
+// sequencing, a draw-on rule hosting a wrap-trim comet, a CharPop subline under
+// a double textGlow, a WaveFloat loop, and a measured util::marquee ticker.
 //
 // This file is the PORTING EXEMPLAR for study→scene conversions:
 //  - constants/helpers live in a scene-private nested namespace
@@ -116,9 +116,9 @@ struct KineticCardScene final : Scene {
       GlyphFx fx;
       fx.effect = glyphfx::rise(kc::kHeroSize * 1.26f);
       fx.stagger = {.amountMs = 180, .durationMs = 500};
-      fx.progress = withFrom(
-          0.0f, 1.0f,
-          {680ms, &ch::easeNone, std::chrono::milliseconds(delayMs)});
+      fx.progress =
+          animate(from(0.0f).to(1.0f),
+                  {680ms, &ch::easeNone, std::chrono::milliseconds(delayMs)});
       return box().clip() // the line-box mask
           .child(text(toU8(s), kc::type(kc::kHeroSize, kc::kBone, 2))
                      .key(key)
@@ -131,7 +131,7 @@ struct KineticCardScene final : Scene {
     popFx.effect = glyphfx::pop(0.35f, 1.70158f); // back.out(1.7)
     popFx.stagger = {.amountMs = 700, .durationMs = 420,
                      .from = Stagger::From::Center};
-    popFx.progress = withFrom(0.0f, 1.0f, {1120ms, &ch::easeNone, 450ms});
+    popFx.progress = animate(from(0.0f).to(1.0f), {1120ms, &ch::easeNone, 450ms});
 
     GlyphFx waveFx;
     waveFx.effect = glyphfx::waveLoop(0.10f, 0.5f); // §8: 0.10em, 0.5 rad
@@ -183,18 +183,24 @@ struct KineticCardScene final : Scene {
     return stack()
         .fill(ground)
         .child(
-            box().column().inset(64, 44, 64, kc::kTickerH)
-                .child(box().row().alignItems(Align::Baseline)
-                           .opacity(withFrom(0.0f, 1.0f,
-                                             {450ms, &ch::easeOutQuad}))
-                           .translateY(withFrom(-14.0f, 0.0f,
-                                                {450ms, &ch::easeOutCubic}))
-                           .child(box().width(Dim(10.0f)).height(Dim(10.0f))
+            box()
+                .column()
+                .inset(64, 44, 64, kc::kTickerH)
+                .child(box()
+                           .row()
+                           .alignItems(Align::Baseline)
+                           .opacity(animate(from(0.0f).to(1.0f),
+                                            {450ms, &ch::easeOutQuad}))
+                           .translateY(animate(from(-14.0f).to(0.0f),
+                                               {450ms, &ch::easeOutCubic}))
+                           .child(box()
+                                      .width(Dim(10.0f))
+                                      .height(Dim(10.0f))
                                       .alignSelf(Align::Center)
                                       .margin(0, 0, 12, 0)
-                                      .fill(PropValue<Fill>(withFrom(
-                                          Fill::color(kc::kBone),
-                                          Fill::color(kc::kAccent),
+                                      .fill(Animatable<Fill>(animate(
+                                          from(Fill::color(kc::kBone))
+                                              .to(Fill::color(kc::kAccent)),
                                           {900ms, &ch::easeOutQuad}))))
                            .child(text(toU8("SIGIL \xe2\x80\x94 MOTION STUDY"),
                                        kc::type(15, kc::kAsh, 3)))
@@ -205,21 +211,24 @@ struct KineticCardScene final : Scene {
                 .child(box().grow(1))
                 .child(heroLine("KINETIC", "hero1", 100))
                 .child(heroLine("GRAMMAR", "hero2", 220))
-                .child(box().width(Dim(kc::kRuleW)).height(Dim(2.0f))
+                .child(box()
+                           .width(Dim(kc::kRuleW))
+                           .height(Dim(2.0f))
                            .alignSelf(Align::Center)
                            .margin(0, 30, 0, 0)
-                           .outline(lineOutline)
-                           .stroke(ruleFmt)
-                           .trim(0.0f,
-                                 withFrom(0.0f, 1.0f,
-                                          {500ms, &ch::easeOutExpo, 360ms}))
-                           .child(box().inset(0, 0, 0, 0)
-                                      .outline(lineOutline)
-                                      .stroke(cometFmt)
-                                      .trim(0.0f, 0.06f, &cometPhase,
-                                            TrimMode::Wrap)
-                                      .opacity(withFrom(
-                                          0.0f, 1.0f,
+                           .shape(lineOutline)
+                           .stroke(spans::upTo(animate(
+                                       from(0.0f).to(1.0f),
+                                       {500ms, &ch::easeOutExpo, 360ms})),
+                                   ruleFmt)
+                           .child(box()
+                                      .inset(0, 0, 0, 0)
+                                      .shape(lineOutline)
+                                      .stroke(spans::wrap(0.0f, 0.06f)
+                                                  .offset(&cometPhase),
+                                              cometFmt)
+                                      .opacity(animate(
+                                          from(0.0f).to(1.0f),
                                           {500ms, &ch::easeOutQuad, 1500ms}))))
                 .child(std::move(popLine))
                 .child(text(toU8("floating on a 1.6 s sine \xe2\x80\x94 "
@@ -230,14 +239,14 @@ struct KineticCardScene final : Scene {
                            .width(pct(100))
                            .textAlign(sigil::weave::TextAlignment::kCenter)
                            .glyphFx(std::move(waveFx))
-                           .opacity(withFrom(0.0f, 1.0f,
-                                             {560ms, &ch::easeOutQuad, 840ms}))
+                           .opacity(animate(from(0.0f).to(1.0f),
+                                            {560ms, &ch::easeOutQuad, 840ms}))
                            .margin(0, 22, 0, 0))
                 .child(box().grow(1)))
         .child(util::marquee(tickerContent(), &tickX, kc::kTickerGap)
                    .inset(0, kc::kH - kc::kTickerH, 0, 0)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {560ms, &ch::easeOutQuad, 1040ms}))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {560ms, &ch::easeOutQuad, 1040ms}))
                    .foreground(shapes::onEdges(shapes::Edge::Top, hairline)));
   }
 };

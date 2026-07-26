@@ -101,17 +101,18 @@ struct PathFormat {
    *  Bind `trimPhase` to a wrapping Output and THIS stroke marches while
    *  its siblings hold still (declares the decoration animated).
    *
-   *  IT COMPOSES WITH THE NODE'S `trim()`, which is the part people miss.
-   *  A decoration receives the ALREADY-trimmed outline, so its own window
+   *  IT COMPOSES WITH THE PASS'S OWN SPAN, which is the part people miss.
+   *  A decoration receives the ALREADY-claimed run, so its own window
    *  is a fraction of the revealed part — `trimStart 0.9, trimEnd 1.0` on
    *  a second stroke is a bright sliver riding the head of a self-drawing
    *  line, and needs no second node:
    *
    *      PathFormat head = util::stroke(6, Fill::color(kBright));
    *      head.trimStart = 0.90f; head.trimEnd = 1.0f;
-   *      box().outline(curve).trim(0, &growth)
-   *           .foreground(util::stroke(3, Fill::color(kBody)))
-   *           .foreground(head);
+   *      box().shape(curve)
+   *           .stroke(spans::upTo(&growth),
+   *                   brush::layers({util::stroke(3, Fill::color(kBody)),
+   *                                  head}));
    *
    *  Spelled out because two studies concluded there was one trim window
    *  per NODE and each rebuilt this as a duplicate element re-measuring
