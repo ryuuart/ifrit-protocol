@@ -158,6 +158,19 @@ inline int findScene(std::string_view query) {
   return -1;
 }
 
+/** The REGISTRY spelling for the entry at `index` — the one identity
+ *  everything downstream can rely on (ROADMAP §22): a study's file stem
+ *  (`chaucer_astrolabe`, what SIGIL_SKETCH_STATIC registered and what
+ *  `--scene` selects by), a catalog scene's registry name. Captures are
+ *  written under THIS name, not Scene::name()'s display spelling, so a
+ *  guard that selects by `$s` can check `gallery_$s.png` without holding
+ *  a second model of the mapping. */
+inline const char *registryName(int index) {
+  if (index >= kCatalogSceneCount && index < kGallerySceneCount)
+    return kStudies[index - kCatalogSceneCount].key;
+  return sceneInfo(index).name;
+}
+
 inline std::unique_ptr<Scene> makeCatalogScene(int index) {
   switch (index) {
   case 0: return std::make_unique<WorldHudScene>();
@@ -462,7 +475,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
                         src + (size_t)y * srcRB,
                         std::min(srcRB, bm.rowBytes()));
           const std::string path =
-              outDir + "/gallery_" + stage.scene->name() + ".png";
+              outDir + "/gallery_" + registryName(i) + ".png";
           SkFILEWStream stream(path.c_str());
           if (stream.isValid())
             SkPngEncoder::Encode(&stream, bm.pixmap(), {});
@@ -489,7 +502,7 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     bm.allocPixels(shot->imageInfo());
     shot->readPixels(bm.pixmap(), 0, 0);
     const std::string path =
-        outDir + "/gallery_" + stage.scene->name() + ".png";
+        outDir + "/gallery_" + registryName(i) + ".png";
     SkFILEWStream stream(path.c_str());
     if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
       return 1;
