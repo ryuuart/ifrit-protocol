@@ -664,8 +664,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                         .outline(chamfer(40, kBR))
                         .row().alignItems(Align::Center).padding(10, 0).gap(8),
                     kTealBar)
-            .translateY(withFrom(-46.0f, 0.0f,
-                                 {380ms, &ch::easeOutQuint, 1450ms}))
+            .translateY(animate(from(-46.0f).to(0.0f),
+                                {380ms, &ch::easeOutQuint, 1450ms}))
             .child(box().width(22).height(22).corners({5})
                        .fill(Material::radialUnit({0.5f, 0.42f}, 1.15f,
                                                   {{0.0f, kCyanRing},
@@ -692,8 +692,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                         .row().alignItems(Align::Center)
                         .padding(58, 0, 14, 0).gap(10),
                     kChrome)
-            .translateY(withFrom(-46.0f, 0.0f,
-                                 {380ms, &ch::easeOutQuint, 1530ms}))
+            .translateY(animate(from(-46.0f).to(0.0f),
+                                {380ms, &ch::easeOutQuint, 1530ms}))
             .child(t("2ADVANCED STUDIOS", micro(12, kDust, 260)))
             .child(box().width(1).height(14).fill(fade(kDust, 0.4f)))
             .child(t("PROGRESSIVE DESIGN TECHNOLOGY", micro(12, kDustDim, 260)))
@@ -797,10 +797,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     bar.fill(stripesLive).staggerChildren(40ms); // §9 beat 7
     for (int i = 0; i < 7; ++i) {
       bar.child(box().column().alignItems(Align::Center).gap(3)
-                    .translateY(withFrom(16.0f, 0.0f,
-                                         {240ms, &ch::easeOutQuint, 2250ms}))
-                    .opacity(withFrom(0.0f, 1.0f,
-                                      {240ms, &ch::easeOutQuad, 2250ms}))
+                    .translateY(animate(from(16.0f).to(0.0f),
+                                        {240ms, &ch::easeOutQuint, 2250ms}))
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {240ms, &ch::easeOutQuad, 2250ms}))
                     .child(t(items[i], label(13, i == 2 ? kCyan : kNear, 80)))
                     .child(box().width(i == 2 ? 22.0f : 8.0f).height(2)
                                .fill(fade(i == 2 ? kCyan : kDust, 0.75f))));
@@ -852,8 +852,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element panel = singleBevel(
         box().width(584).height(144).column().padding(8).gap(6), C(0x3E1013));
     panel.key("quick")
-        .translateY(withFrom(40.0f, 0.0f, {380ms, &ch::easeOutQuint, 2450ms}))
-        .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad, 2450ms}))
+        .translateY(animate(from(40.0f).to(0.0f),
+                            {380ms, &ch::easeOutQuint, 2450ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {320ms, &ch::easeOutQuad, 2450ms}))
         .foreground(Brackets{fade(kCyan, 0.55f), 12, 2, 4, kBL | kBR})
         .child(box().row().alignItems(Align::Center).gap(8).height(16)
                    .child(t("QUICK", heavy(13, kNear, 40)))
@@ -893,8 +895,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                        .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
 
     return box().width(700).height(236).column()
-        .translateX(withFrom(320.0f, 0.0f, {420ms, &ch::easeOutQuint, 1850ms}))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 1850ms}))
+        .translateX(animate(from(320.0f).to(0.0f),
+                            {420ms, &ch::easeOutQuint, 1850ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 1850ms}))
         .child(box().grow(1).row().alignItems(Align::Center)
                    .padding(26, 0, 8, 0).gap(18)
                    .child(emblem)
@@ -1043,9 +1047,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     if (!still)
       // the one deliberately bouncy beat: the power core kicking on.
       // ease::outBack() is the curve this always wanted — a bound
-      // parameter, so it converts to EaseFn (the withKeyframes path
-      // that used to be necessary is three lines shorter and reads).
-      portal.scale(withFrom(0.80f, 1.0f, {620ms, ease::outBack(2.1f), 2400ms}));
+      // parameter, so it converts to EaseFn (the keyframe path that
+      // used to be necessary is three lines shorter and reads).
+      portal.scale(animate(from(0.80f).to(1.0f),
+                           {620ms, ease::outBack(2.1f), 2400ms}));
     scene.child(portal);
 
     // an orbital ring, trim-revealed with the panel
@@ -1055,7 +1060,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                          cx - 118, horizon - 226, 236, 236);
     if (!still)
       ring.trim(0.0f,
-                withFrom(0.0f, 1.0f, {700ms, &ch::easeOutQuint, 2600ms}));
+                animate(from(0.0f).to(1.0f),
+                        {700ms, &ch::easeOutQuint, 2600ms}));
     scene.child(ring);
 
     // three helmeted figures, backlit: dome silhouette + gloss rim-light
@@ -1173,8 +1179,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element panel = doubleBevel(
         box().width(1180).height(350).column().padding(3), kChrome, 3);
     panel.key("mainframe")
-        .translateY(withFrom(70.0f, 0.0f, {520ms, &ch::easeOutQuint, 2400ms}))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 2400ms}))
+        .translateY(animate(from(70.0f).to(0.0f),
+                            {520ms, &ch::easeOutQuint, 2400ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 2400ms}))
         .child(panelHeader("MAIN", "FRAME", "PRIMARY VISUAL FEED", 0, 1174))
         .child(box().grow(1).clip().child(hero(1174, 316)));
     return panel;
@@ -1359,8 +1367,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element panel = doubleBevel(
         box().width(696).height(350).column().padding(3), kChrome, 3);
     panel.key("feature")
-        .translateX(withFrom(90.0f, 0.0f, {500ms, &ch::easeOutQuint, 2600ms}))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 2600ms}))
+        .translateX(animate(from(90.0f).to(0.0f),
+                            {500ms, &ch::easeOutQuint, 2600ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 2600ms}))
         .child(panelHeader("FEATURE", " SYSTEM", "LATEST TRANSMISSION", 1, 690))
         .child(bodyArea);
     return panel;
@@ -1440,8 +1450,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element panel = doubleBevel(
         box().width(696).height(410).column().padding(3), kChrome, 3);
     panel.key("press")
-        .translateY(withFrom(60.0f, 0.0f, {420ms, &ch::easeOutQuint, 3250ms}))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 3250ms}))
+        .translateY(animate(from(60.0f).to(0.0f),
+                            {420ms, &ch::easeOutQuint, 3250ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 3250ms}))
         .child(panelHeader("PRESS", " UPDATES", "STUDIO WIRE", 2, 690))
         .child(bodyArea);
     return panel;
@@ -1531,8 +1543,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       row.child(col);
     }
     row.key("aux")
-        .translateY(withFrom(56.0f, 0.0f, {400ms, &ch::easeOutQuint, 3100ms}))
-        .opacity(withFrom(0.0f, 1.0f, {300ms, &ch::easeOutQuad, 3100ms}));
+        .translateY(animate(from(56.0f).to(0.0f),
+                            {400ms, &ch::easeOutQuint, 3100ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 3100ms}));
     return row;
   }
 
@@ -1586,8 +1600,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     Element panel = singleBevel(
         box().width(1180).height(236).column().padding(9).gap(7), C(0x3E1013));
     panel.key("txlog")
-        .translateY(withFrom(56.0f, 0.0f, {400ms, &ch::easeOutQuint, 3400ms}))
-        .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad, 3400ms}))
+        .translateY(animate(from(56.0f).to(0.0f),
+                            {400ms, &ch::easeOutQuint, 3400ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {320ms, &ch::easeOutQuad, 3400ms}))
         .foreground(Brackets{fade(kCyan, 0.5f), 14, 2, 5, kTR | kBL})
         .child(box().row().alignItems(Align::Center).gap(9).height(20)
                    .child(t("TRANSMISSION", heavy(15, kNear, 40)))
@@ -1707,7 +1723,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                            .alignItems(Align::Center).padding(12, 0).gap(10),
                        C(0x3E1013))
         .key("wire")
-        .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad, 3550ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {400ms, &ch::easeOutQuad, 3550ms}))
         .foreground(TickRail{fade(kDust, 0.3f), 8, 3, 6, 1, 4, false, true})
         .child(t("STATUS BUS", heavy(12, kNear, 60)))
         .child(box().width(1).height(16).fill(fade(kCyan, 0.4f)))
@@ -1786,7 +1803,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     row.key("subsys")
         .background(styles::Overlay{hazard.material(), SkBlendMode::kSrcOver,
                                     0.16f})
-        .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad, 3650ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {400ms, &ch::easeOutQuad, 3650ms}))
         .foreground(TickRail{fade(kDust, 0.35f), 9, 4, 8, 1, 4, false, false})
         .child(t("SUB", heavy(15, kNear, 40)))
         .child(t("SYSTEM", type(arial(), 14, kHeadDim, 40, 0.95f)))
@@ -1832,7 +1850,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     return box().width(1892).height(90).column().padding(6, 8)
         .alignItems(Align::Center).gap(4)
         .key("legal")
-        .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad, 3750ms}))
+        .opacity(animate(from(0.0f).to(1.0f),
+                         {400ms, &ch::easeOutQuad, 3750ms}))
         .child(box().alignSelf(Align::Stretch).row().alignItems(Align::Center)
                    .child(box().row().gap(6).alignItems(Align::Center)
                               .child(box().width(60).height(1)
@@ -1910,7 +1929,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                  {hatchB.material(), SkBlendMode::kSrcOver}}))
             .row().alignItems(Align::Center).padding(14, 12).gap(12)
             .key("dock")
-            .opacity(withFrom(0.0f, 1.0f, {400ms, &ch::easeOutQuad, 3850ms}))
+            .opacity(animate(from(0.0f).to(1.0f),
+                             {400ms, &ch::easeOutQuad, 3850ms}))
             .foreground(shapes::onEdges(
                 shapes::Edge::Top,
                 util::stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
@@ -2033,23 +2053,23 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
       return place(box().outline(ray(dx, dy))
                        .stroke(util::stroke(1.5f, Fill::color(kCyan)))
                        .trim(0.0f,
-                             withFrom(0.0f, 1.0f,
-                                      {400ms, &ch::easeOutQuint,
-                                       std::chrono::milliseconds(delayMs)})),
+                             animate(from(0.0f).to(1.0f),
+                                     {400ms, &ch::easeOutQuint,
+                                      std::chrono::milliseconds(delayMs)})),
                    x, y, w, h);
     };
 
     Element o = stack().inset(0).zIndex(90);
     o.child(box().inset(0).fill(C(0x120303))
-                .opacity(withKeyframes<float>({{0ms, 1.0f},
-                                               {1400ms, 1.0f},
-                                               {1560ms, 0.0f}})));
+                .opacity(animate(through({{0ms, 1.0f},
+                                          {1400ms, 1.0f},
+                                          {1560ms, 0.0f}}))));
     // 1. the single cyan pixel-dot
     o.child(place(box().fill(kCyan), cx - 3, cy - 3, 6, 6)
-                .opacity(withKeyframes<float>({{0ms, 0.0f},
-                                               {150ms, 1.0f},
-                                               {1350ms, 1.0f},
-                                               {1450ms, 0.0f}})));
+                .opacity(animate(through({{0ms, 0.0f},
+                                          {150ms, 1.0f},
+                                          {1350ms, 1.0f},
+                                          {1450ms, 0.0f}}))));
     // 2. the reticle drawing OUTWARD from it on four trimmed rays
     o.child(hair(cx - 470, cy, 470, 1, -1, 1, 150));
     o.child(hair(cx, cy, 470, 1, 1, 1, 150));
@@ -2057,16 +2077,16 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
     o.child(hair(cx, cy, 1, 300, 1, 1, 220));
     o.child(place(box().outline(shapes::arc(-90, 359))
                       .stroke(util::stroke(1, Fill::color(fade(kCyan, 0.7f))))
-                      .trim(0.0f, withFrom(0.0f, 1.0f,
-                                           {500ms, &ch::easeOutQuint, 260ms})),
+                      .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                          {500ms, &ch::easeOutQuint, 260ms})),
                   cx - 92, cy - 92, 184, 184));
     // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
     o.child(place(box().column().alignItems(Align::Center).gap(9),
                   cx - 260, cy + 120, 520, 110)
-                .opacity(withKeyframes<float>({{520ms, 0.0f},
-                                               {620ms, 1.0f},
-                                               {1350ms, 1.0f},
-                                               {1450ms, 0.0f}}))
+                .opacity(animate(through({{520ms, 0.0f},
+                                          {620ms, 1.0f},
+                                          {1350ms, 1.0f},
+                                          {1450ms, 0.0f}})))
                 .child(slot("bootpct"))
                 .child(box().width(420).height(2).fill(fade(kCyan, 0.18f))
                            .child(box().inset(0)
@@ -2074,18 +2094,18 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                       .stroke(util::stroke(
                                           2, Fill::color(kCyan)))
                                       .trim(0.0f,
-                                            withFrom(0.0f, 1.0f,
-                                                     {800ms, &ch::easeNone,
-                                                      550ms}))))
+                                            animate(from(0.0f).to(1.0f),
+                                                    {800ms, &ch::easeNone,
+                                                     550ms}))))
                 .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97" "655",
                          micro(11, fade(kCyan, 0.6f), 240))));
     // 4. the boot-complete flash
     o.child(box().inset(0).fill(SkColor4f{1, 1, 1, 1})
-                .opacity(withKeyframes<float>({{1330ms, 0.0f},
-                                               {1390ms, 0.7f},
-                                               {1460ms, 0.0f}}))
+                .opacity(animate(through({{1330ms, 0.0f},
+                                          {1390ms, 0.7f},
+                                          {1460ms, 0.0f}})))
                 .blend(SkBlendMode::kPlus));
-    o.opacity(withKeyframes<float>({{1440ms, 1.0f}, {1480ms, 0.0f}}));
+    o.opacity(animate(through({{1440ms, 1.0f}, {1480ms, 0.0f}})));
     return o;
   }
 

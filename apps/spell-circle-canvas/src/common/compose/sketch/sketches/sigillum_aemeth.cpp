@@ -113,7 +113,7 @@
 //                         ONE arc-length coordinate spanning all contours
 //   TextPath::Orient::Upright   LE·VA·NA·el on the arms of the centre cross
 //   shapes::polygon/star/sector/circle/annulus
-//   trim() + withFrom()   the jump-walk: one path per Name, one CONTOUR per
+//   trim() + animate()    the jump-walk: one path per Name, one CONTOUR per
 //                         hop, so 0→1 marches the walk hop by hop
 //   bind()                ONE Output driving two counter-rotations
 //   slot()/renderSlot()   the solver as an independent update domain
@@ -669,7 +669,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       lines::Rails rails = lines::rails(std::move(set));
       rails.offsetStep = 7.0f;
       e.stroke(std::move(rails));
-      e.trim(0.0f, withFrom(0.0f, 1.0f, ramp(tPlate * 1000, 900)));
+      e.trim(0.0f, animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)));
       return e;
     };
     g.child(disc({kRR, kRR}, rGreat * kR)
@@ -681,7 +681,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                     .rings = 0,
                     .width = 0.8f,
                     .holeFraction = rBandIn / rGreat})
-                .opacity(withFrom(0.0f, 1.0f, ramp(tCells * 1000, 700)))
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 700)))
                 .key("bandhatch"));
     g.child(rule(rGreat, 5.6f, 1.2f, 11.0f, "great", false));
     g.child(rule(rBandIn, 3.4f, 0.9f, -8.0f, "second", true));
@@ -731,7 +731,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                    .cap = SkPaint::kRound_Cap,
                                    .trimStart = 0.09f,
                                    .trimEnd = 0.91f})
-                .opacity(withFrom(0.0f, 1.0f, ramp(tCells * 1000, 620)))
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
                 .key("dividers"));
 
     // the letters, upright-radial, and their numbers above or below
@@ -867,7 +867,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       for (int c = 0; c < 7; ++c)
         row += kAngles[k][c];
       // NOTE (perf, measured): this run used to hold a mid-path opacity via
-      // withKeyframes from 1.55 s to 9.9 s. A keyframe path that is still
+      // a keyframe path from 1.55 s to 9.9 s. A keyframe path that is still
       // RUNNING is live volatility even while its value is constant, so all
       // seven of these text-on-path nodes painted live for eight seconds —
       // 29 ms of a 38 ms frame, and they blocked their parents from being
@@ -894,8 +894,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                       .width = 2.2f,
                       .strokeFill = Fill::color(hex(0x402c10, 0.85f)),
                       .align = PathFormat::Align::Inner})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tBirds * 1000 + (float)k * 260, 420)))
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tBirds * 1000 + (float)k * 260, 420)))
                   .key("birdlit" + std::to_string(k)));
     }
     return g;
@@ -1096,9 +1096,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                       .width = i == 4 ? 2.4f : 1.5f,
                       .strokeFill = grooveFill(rr * kR, i == 4 ? 2.4f : 1.5f,
                                                0.50f, 0.34f)})
-                  .trim(0.0f, withFrom(0.0f, 1.0f,
-                                       ramp(tInner * 1000 + 200 + (float)i * 90,
-                                            620)))
+                  .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                      ramp(tInner * 1000 + 200 + (float)i * 90,
+                                           620)))
                   .key("ring" + std::to_string(i)));
     }
     return g;
@@ -1222,7 +1222,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                      {.offset = -3.2f,
                       .width = 0.8f,
                       .fill = Fill::color(hex(0xfbf0d0, 0.45f))}}))
-                .trim(0.0f, withFrom(0.0f, 1.0f, ramp(tInner * 1000 + 500, 800)))
+                .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                    ramp(tInner * 1000 + 500, 800)))
                 .key("penta"));
     for (int k = 0; k < 5; ++k) {
       const float th = (float)k * 72.0f;
@@ -1238,9 +1239,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Radial})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tInner * 1000 + 900 + (float)k * 40,
-                                         420))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tInner * 1000 + 900 + (float)k * 40,
+                                        420))));
       // the rest of the name runs circularly outward into the exterior angle
       g.child(text(toU8(kPentaNames[(size_t)k].tail),
                    type(faceQuill, 0.024f * kR, hex(0x40300f, 0.92f)))
@@ -1254,9 +1255,9 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Tangent})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tInner * 1000 + 980 + (float)k * 40,
-                                         420))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tInner * 1000 + 980 + (float)k * 40,
+                                        420))));
     }
     return g;
   }
@@ -1314,7 +1315,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Upright})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tInner * 1000 + 1200, 500))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tInner * 1000 + 1200, 500))));
     }
     return g;
   }
@@ -1355,12 +1357,16 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       if (solvePhase < 0 || n > solvePhase)
         continue;
       const bool live = (n == solvePhase);
+      // `from` is the walk's own point list here, so the entrance factory
+      // needs its namespace.
       auto fade = [&](float) -> PropValue<float> {
-        return live ? PropValue<float>(withFrom(0.0f, 1.0f, ramp(0, 220)))
+        return live ? PropValue<float>(animate(
+                          sigil::compose::from(0.0f).to(1.0f), ramp(0, 220)))
                     : PropValue<float>(0.15f);
       };
       auto reveal = [&](float ms) -> PropValue<float> {
-        return live ? PropValue<float>(withFrom(0.0f, 1.0f, ramp(0, ms)))
+        return live ? PropValue<float>(animate(
+                          sigil::compose::from(0.0f).to(1.0f), ramp(0, ms)))
                     : PropValue<float>(1.0f);
       };
       g.child(box()
@@ -1466,18 +1472,18 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       g.child(text(toU8(std::to_string(n + 1) + "."),
                    type(faceMono, 17, hex(0x8d7a58)))
                   .at({0, y + 6})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(at, 300))));
+                  .opacity(animate(from(0.0f).to(1.0f), ramp(at, 300))));
       g.child(text(toU8(kNames[(size_t)n].name),
                    type(faceDisplay, 30, kVellum, 1.2f))
                   .at({34, y})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(at + 120, 420))));
+                  .opacity(animate(from(0.0f).to(1.0f), ramp(at + 120, 420))));
       g.child(text(toU8(s.raw == s.reduced ? "" : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9"),
                    type(faceItalic, 15, hex(0x6f5f45)))
                   .at({212, y + 10})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(at + 240, 420))));
+                  .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
       g.child(text(toU8(chain), type(faceMono, 14, kTrace))
                   .at({320, y + 10})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(at + 60, 420))));
+                  .opacity(animate(from(0.0f).to(1.0f), ramp(at + 60, 420))));
     }
 
     // the leftovers
@@ -1492,17 +1498,20 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                             usedCells, 40 - usedCells)),
                    type(faceMono, 15, hex(0x8d7a58)))
                   .at({0, 492})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000, 500))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tDark * 1000, 500))));
       g.child(text(toU8("unvisited  " + un + "   =  " + unl),
                    type(faceMono, 15, kRubric))
                   .at({0, 514})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000 + 200, 500))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tDark * 1000 + 200, 500))));
       g.child(text(toU8("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
                         "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
                         "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6"),
                    type(faceItalic, 14, hex(0x6f5f45)))
                   .at({0, 536})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tDark * 1000 + 400, 500))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tDark * 1000 + 400, 500))));
     }
 
     // the 7×7 square the birds delivered; read DOWN the columns
@@ -1569,7 +1578,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                        {.offset = 19.0f,
                         .width = 0.9f,
                         .fill = Fill::color(hex(0x62b0dc, 0.60f))}}))
-                  .opacity(withFrom(0.0f, 1.0f, ramp(delay, 360))));
+                  .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 360))));
       g.child(box()
                   .inset(0)
                   .outline([a1, nameAt](SkSize) {
@@ -1584,11 +1593,14 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                                       .fill = Fill::color(hex(0x2f6f9c, 0.55f)),
                                       .endCap = lines::Cap::Dot,
                                       .capSize = 4.0f})
-                  .trim(0.0f, withFrom(0.0f, 1.0f, ramp(delay + 120, 420)))
-                  .opacity(withFrom(0.0f, 1.0f, ramp(delay + 120, 300))));
+                  .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                      ramp(delay + 120, 420)))
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(delay + 120, 300))));
       g.child(text(toU8(kArchangels[c]), type(faceQuill, 21, hex(0xd8c08a)))
                   .at({nameAt.fX, nameAt.fY})
-                  .opacity(withFrom(0.0f, 1.0f, ramp(delay + 220, 360))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(delay + 220, 360))));
     }
     // the 49 letters, one per (row, column) slot on the fan
     for (int r = 0; r < 7; ++r)
@@ -1603,13 +1615,14 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                     .centerAt(at)
                     .rotate(fanAngle(c))
                     .textAlign(sigil::weave::TextAlignment::kCenter)
-                    .opacity(withFrom(0.0f, 1.0f, ramp(delay, 300))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 300))));
       }
     g.child(text(toU8("48 letters, and one is noted by a Cross: which maketh "
                       "the 49th."),
                  type(faceItalic, 15, hex(0x8d7a58)))
                 .at({0, 840})
-                .opacity(withFrom(0.0f, 1.0f, ramp(tBirds * 1000 + 2600, 400))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tBirds * 1000 + 2600, 400))));
 
     // the four orders and their tablets
     const char *kLegend[4] = {
@@ -1750,7 +1763,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                    .inset(0)
                    .transformOrigin(0.5f, 0.5f)
                    .rotate(bind(&settle).to(0.0f, -360.0f / 7.0f))
-                   .opacity(withFrom(0.0f, 1.0f, ramp(tInner * 1000, 900)))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    ramp(tInner * 1000, 900)))
                    .cache(Cache::Texture)
                    .child(angles())
                    .child(heptagonNames())

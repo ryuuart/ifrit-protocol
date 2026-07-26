@@ -68,7 +68,7 @@ class Material;
 // Animation values
 
 /** How a reconciled property change animates instead of snapping.
- *  `delay` holds the CURRENT value (the `from`, for withFrom entrances)
+ *  `delay` holds the CURRENT value (the `from`, for animate() entrances)
  *  before the ramp starts — the stagger primitive: describe a battery of
  *  children whose delays step by 60–90ms and the cascade is data, not
  *  bookkeeping (the §8 stagger law at the Element level). */
@@ -98,7 +98,7 @@ struct Transition {
  *  overshoot entrance in the gallery hit this and every one of them
  *  silently settled for easeOutQuint instead. These bind the parameter:
  *
- *      .scale(withFrom(0.86f, 1.0f, {520ms, ease::outBack()}))
+ *      .scale(animate(from(0.86f).to(1.0f), {520ms, ease::outBack()}))
  */
 namespace ease {
 /** Overshoot and settle. `s` is the overshoot amount (Penner's 1.70158
@@ -128,46 +128,33 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
 template <typename T> struct Transitioned {
   T value;
   Transition spec;
-  /** withFrom(): where the value ENTERS from when the node first mounts.
-   *  Empty for plain with() — no entrance, only change transitions. */
+  /** animate(from(a).to(b)): where the value ENTERS from when the node
+   *  first mounts. Empty for plain with() — no entrance, only change
+   *  transitions. */
   std::optional<T> from{};
-  /** withKeyframes(): the mount-time path as (absolute time, value)
-   *  pairs — multi-segment entrances (damped overshoots) that one
+  /** animate(through({...})): the mount-time path as (absolute time,
+   *  value) pairs — multi-segment entrances (damped overshoots) that one
    *  from→to ramp can't shape. Mount-only choreography: later changes
    *  retarget to `value` like any with(). */
   std::vector<std::pair<std::chrono::milliseconds, T>> waypoints{};
 };
 
 /** Wraps a constant so changes to it transition (see API.md semantics:
- *  one motion per (instance, property), retarget-from-current). */
+ *  one motion per (instance, property), retarget-from-current). Mount
+ *  choreography — entrances and keyframe paths — is animate() below. */
 template <typename T> Transitioned<T> with(T value, Transition spec) {
   return {std::move(value), std::move(spec)};
 }
 
-/** The MOUNT transition (CSS animation-on-enter / GSAP from()): when the
- *  node first appears it plays `from → to` over `spec`; afterwards it
- *  behaves exactly like with(to, spec) — later changes retarget from the
- *  current value, and re-describing the same withFrom() prunes clean.
- *  `.opacity(withFrom(0.0f, 1.0f, {400ms}))` is the entrance idiom; it
- *  works on every float slot (opacity/transforms/skew/trim/glyph
- *  progress) and on color fills (a mount-time color sweep). snapshot()
- *  ignores entrances — a bake renders the settled value. */
+/** Legacy spelling of animate(from(a).to(b), spec) — retained
+ *  indefinitely; new code and new signatures spell the intent. */
 template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec) {
   return {std::move(to), std::move(spec), std::move(from)};
 }
 
-/** The MOUNT keyframe path (GSAP keyframes): absolute (time, value)
- *  waypoints played through on first appearance — the damped-overshoot
- *  entrances one ramp can't shape (P3R's cursor: +40 → −20 → +10 → 0):
- *
- *    .translateX(withKeyframes<float>(
- *        {{0ms, 40}, {200ms, -20}, {300ms, 10}, {400ms, 0}}))
- *
- *  `ease` applies per segment. A leading time > 0 holds the first value
- *  (a built-in delay; Transition::delay and staggerChildren() still add
- *  on top). After the path completes the value behaves like with(last):
- *  changes retarget-from-current; identical re-describes prune;
- *  snapshot()/measure() render the settled end value. */
+/** Legacy spelling of animate(through({...}), ease) — retained
+ *  indefinitely; new code and new signatures spell the intent. Needs its
+ *  explicit `<float>`, which is the deduction wall through() removes. */
 template <typename T>
 Transitioned<T>
 withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
@@ -181,6 +168,82 @@ withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
   }
   t.waypoints = std::move(frames);
   return t;
+}
+
+/** The argument builders for animate(). Nobody spells these types; they
+ *  exist so the call site reads `animate(from(a).to(b), spec)`. In
+ *  path-heavy code a local named `from` shadows the factory — qualify
+ *  `compose::from(...)` at those sites (sigillum_aemeth does, twice). */
+template <typename T> struct FromTo {
+  T from;
+  T to;
+};
+template <typename T> struct From {
+  T value;
+  FromTo<T> to(T target) { return {std::move(value), std::move(target)}; }
+};
+template <typename T> From<T> from(T v) { return {std::move(v)}; }
+
+template <typename T> struct Waypoints {
+  std::vector<std::pair<std::chrono::milliseconds, T>> frames;
+};
+
+/** The waypoint path, as a float list needing no template argument — a
+ *  nested braced list is a non-deduced context, which is why the generic
+ *  form below (and withKeyframes before it) has to be told `<float>`.
+ *  Every waypoint path in the corpus is float. */
+inline Waypoints<float>
+through(std::initializer_list<std::pair<std::chrono::milliseconds, float>>
+            frames) {
+  return {{frames.begin(), frames.end()}};
+}
+/** Any other value type — `through<SkColor4f>({...})`. */
+template <typename T>
+Waypoints<T>
+through(std::vector<std::pair<std::chrono::milliseconds, T>> frames) {
+  return {std::move(frames)};
+}
+
+/** COMPOSER-MANUFACTURED motion on a property: the composer runs the
+ *  clock, as against a bound Output, where you do. The first word at the
+ *  call site names the OWNER of the motion (the §32 grammar).
+ *
+ *      .opacity(animate(from(0.0f).to(1.0f), {400ms}))
+ *      .scale(animate(from(0.86f).to(1.0f), {520ms, ease::outBack()}))
+ *
+ *  Both forms are MOUNT choreography (CSS animation-on-enter / GSAP
+ *  from() and keyframes): the path plays when the node first appears,
+ *  and afterwards the property behaves exactly like with(to, spec) —
+ *  later changes retarget from the CURRENT value, and re-describing the
+ *  same animate() prunes clean (an entrance is a mount thing, not a
+ *  per-render restart). staggerChildren() adds order·each to every
+ *  entrance in a child subtree, on top of Transition::delay.
+ *  snapshot()/measure() ignore entrances — a bake renders the settled
+ *  value.
+ *
+ *  from→to works on every float slot (opacity/transforms/skew/trim/glyph
+ *  progress) and on color fills (a mount-time color sweep). `spec`
+ *  defaults to the house Transition (250 ms, easeOutQuad) — an
+ *  affordance withFrom never had; name a spec when the beat matters. */
+template <typename T>
+Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
+  return withFrom(std::move(ft.from), std::move(ft.to), std::move(spec));
+}
+
+/** The keyframe path: absolute (time, value) waypoints played through on
+ *  first appearance — the damped-overshoot entrances one from→to ramp
+ *  can't shape (P3R's cursor: +40 → −20 → +10 → 0):
+ *
+ *    .translateX(animate(through(
+ *        {{0ms, 40.f}, {200ms, -20.f}, {300ms, 10.f}, {400ms, 0.f}})))
+ *
+ *  `ease` applies PER SEGMENT. A leading time > 0 holds the first value
+ *  (a built-in delay; Transition::delay and staggerChildren() still add
+ *  on top). After the path completes the value behaves like with(last). */
+template <typename T>
+Transitioned<T> animate(Waypoints<T> w,
+                        choreograph::EaseFn ease = &choreograph::easeOutQuad) {
+  return withKeyframes<T>(std::move(w.frames), std::move(ease));
 }
 
 /** A live binding, SHAPED on its way to the property.
@@ -322,46 +385,51 @@ inline Bound bind(const choreograph::Output<float> *source) {
 }
 
 /**
- * Every animatable property accepts one of: a constant (snaps, or ramps
- * under a node-level transition), a constant with its own transition, a
- * live Choreograph binding stepped by the Ticker (paint-only; the caller
+ * An ANIMATABLE property value — the slot type behind every property
+ * that can move. It accepts one of: a constant (snaps, or ramps under a
+ * node-level transition), a constant with its own transition, a live
+ * Choreograph binding stepped by the Ticker (paint-only; the caller
  * owns the Output and composes motions on ticker.timeline()), or that
- * binding shaped through bind().
+ * binding shaped through bind(). A constant is animatable too — the
+ * name says what the slot CAN do, not what it is doing.
+ *
+ * (`PropValue` is the legacy spelling, kept as an alias below — the
+ *  grammar rule is DESIGN.md's: names say intent, not mechanism.)
  *
  * Stored compactly (this used to be a std::variant): Transitioned<T> is
  * the fat form — from/waypoints/spec, ~100 B for a float — and most
  * properties on most nodes are plain constants, so the transitioned
- * payload lives out-of-line. Eight PropValue<float>s ride every node's
+ * payload lives out-of-line. Eight Animatable<float>s ride every node's
  * PaintProps; this is the ElementNode block-split rule applied to the
  * property type itself (856 B -> ~250 B of PaintProps).
  */
-template <typename T> class PropValue {
+template <typename T> class Animatable {
 public:
-  PropValue() = default;
-  PropValue(T v) : m_plain(std::move(v)) {}
-  PropValue(Transitioned<T> t) : m_kind(Kind::kAnim) {
+  Animatable() = default;
+  Animatable(T v) : m_plain(std::move(v)) {}
+  Animatable(Transitioned<T> t) : m_kind(Kind::kAnim) {
     extra().anim = std::move(t);
   }
-  PropValue(const choreograph::Output<T> *bound)
+  Animatable(const choreograph::Output<T> *bound)
       : m_kind(Kind::kBound), m_bound(bound) {}
   /** bind(&out).…  — a shaped binding. Float properties only; the extra
    *  block is the same one the transitioned form allocates, so this adds
    *  nothing to sizeof(PropValue) and nothing to a node that never uses
    *  it. */
-  PropValue(const Bound &b) : m_kind(Kind::kBoundMapped) {
+  Animatable(const Bound &b) : m_kind(Kind::kBoundMapped) {
     m_bound = b.value().source;
     extra().bound = b.value();
   }
-  PropValue(const PropValue &other) { *this = other; }
-  PropValue(PropValue &&) noexcept = default;
-  PropValue &operator=(const PropValue &other) {
+  Animatable(const Animatable &other) { *this = other; }
+  Animatable(Animatable &&) noexcept = default;
+  Animatable &operator=(const Animatable &other) {
     m_kind = other.m_kind;
     m_plain = other.m_plain;
     m_bound = other.m_bound;
     m_extra = other.m_extra ? std::make_unique<Extra>(*other.m_extra) : nullptr;
     return *this;
   }
-  PropValue &operator=(PropValue &&) noexcept = default;
+  Animatable &operator=(Animatable &&) noexcept = default;
 
   /** Which form holds (0 plain, 1 transitioned, 2 bound, 3 shaped
    *  binding — the old variant's index order, for the reconciler's
@@ -389,7 +457,7 @@ public:
 private:
   enum class Kind : uint8_t { kPlain, kAnim, kBound, kBoundMapped };
   /** The out-of-line block for the two FAT forms. They are mutually
-   *  exclusive, so one pointer carries both and PropValue stays the
+   *  exclusive, so one pointer carries both and Animatable stays the
    *  size it was compacted to (ElementNode 1288 B → 688 B). */
   struct Extra {
     Transitioned<T> anim{};
@@ -406,6 +474,10 @@ private:
   const choreograph::Output<T> *m_bound = nullptr;
   std::unique_ptr<Extra> m_extra;
 };
+
+/** Legacy spelling of Animatable — retained indefinitely; new code and
+ *  new signatures spell the intent. */
+template <typename T> using PropValue = Animatable<T>;
 
 // ---------------------------------------------------------------------------
 // Paint values
@@ -1221,7 +1293,7 @@ public:
   Element &bakeScale(float factor);
   Element &transition(Transition t); // node default for plain constants
   /** GSAP-style container stagger: child i's subtree enters with an EXTRA
-   *  order·each delay on all its withFrom() mount transitions (compounding
+   *  order·each delay on all its animate() mount transitions (compounding
    *  through nested staggered containers). `from` picks the origin —
    *  Start (declaration order), End (last child first — the P3R bottom-up
    *  cascade without reordering paint), Center (ripple outward). One call,

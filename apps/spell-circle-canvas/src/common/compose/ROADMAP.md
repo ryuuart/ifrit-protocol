@@ -56,7 +56,8 @@ was settled in minutes by a twenty-line sketch.
 Companion documents: `DESIGN.md` (the design canon — where the rules
 live), `API.md` (surface), `STRESS_TESTS.md` (the acceptance catalog and
 the measured numbers), `archive/REVIEW.md` (the earlier first-principles
-pass this extends).
+pass this extends). Closed entries live in `archive/ROADMAP_CLOSED.md`
+(stable numbers preserved as stubs here).
 
 ---
 
@@ -127,121 +128,16 @@ missing ones.
 
 ## Closed during the program
 
-| What | Why it mattered | Where |
-|---|---|---|
-| `Element::onPath` | Curved lettering cost one Element and one layout PER GLYPH — ~230 of each for one ring of labels, with no kerning | `Compose.h`, `Paint.cpp` |
-| `Element::scaleX/scaleY` | Bars, wipes, meters and cooldown sweeps are the most common animated primitive in a UI and none of them are uniform | `Compose.h`, `Paint.cpp` |
-| `ease::outBack/outElastic/outBounce` | choreograph's overshoot curves take a shape parameter, so `&easeOutBack` never converted; every entrance quietly settled for easeOutQuint | `Compose.h` |
-| `Material::linearUnit/radialUnit` | `linear()` is in node-local pixels, which an author cannot know for a content-sized box; every scene that met one guessed and guessed wrong | `Material.h` |
-| `shapes::sector` | `arc()` is open by contract, so every pie wedge, polar petal, cooldown pie and gauge fill was hand-built with `arcTo` | `Shapes.h` |
-| `patterns::grain` | `noise()` is fractal RGB — overlaid on a coloured surface it hue-shifts rather than shades, turning porphyry into rainbow terrazzo | `Patterns.h` |
-| `textFill()` dropping the style's other passes | A chrome wordmark silently lost its cast shadow and keyline | `Paint.cpp` |
-| `brushes::rope(state, zoom)` | Widths tuned for a wide study swamped a real 43 px-spacing tree | `Brushes.h` |
-| The split-Skia SkSL rule | Stock materials with helper functions or uniform-guarded breaks **segfaulted every sketch that painted them**, with no diagnostic | `Patterns.h`, `compose_sketch_stock` |
-| `shapes::inset(px, Decoration)` | "The same bevel again, 6 px in" is the whole vocabulary of nested chrome and needed a second element every time | `Shapes.h` |
-| `shapes::arrow`, `util::disc` | Every HUD, gizmo and diagram draws one; every inscribed-in-the-box polar shape wrote the same four lines | `Shapes.h`, `Util.h` |
-| Two `onPath` bugs, found hours after it shipped | `autoFlip` turned each glyph over **in place**, mirroring the run; a centred run at `at = 0` silently ate every glyph before the seam | `Paint.cpp` |
-| A third: `onPath` was never reconciled | `textEqual()` compared everything about a run except its baseline, so a new path or a moving `at` pruned and kept the OLD one. `TextPath`'s defaulted `operator==` was implicitly deleted and compiled quietly | `Reconcile.cpp` |
-| **`bind()` — a binding you can shape** | The most-cited gap in the program: five studies, five directions, all keeping a second Output in pixels beside the [0,1] one | `Compose.h`, `Transitions.cpp` |
-| An empty easing crashed instead of defaulting | `{360ms, {}, 220ms}` — the obvious spelling — aggregate-initialises an empty `std::function` and throws `bad_function_call` on frame one | `Compose.h` (`Transition::easing()`) |
-| A guest crash was exit 139 and silence | Four agents spent most of a night localising ONE bad shader with no diagnostic at all | `sketch/SketchCrash.*` |
-| `shapes::parametric` + `lissajous`/`harmonograph`/`rose`/`spiral`/`trochoid` | Nothing evaluated a caller's t → (x, y), so every curve DEFINED by a parameter was a hand-rolled `SkPathBuilder` loop | `Shapes.h` |
-| Per-sprite blend on `instances()` | Nothing in the chain to `drawSpriteAtlas` carried a blend mode, and `Element::blend()` flattens the field into a layer — so an additive particle system could not accumulate at all | `Instances.h`, `GpuImage.h` |
-| A fourth `onPath` bug: only the first contour | A trajectory clipped to the frame is several contours; its label vanished with no diagnostic | `Paint.cpp` |
-| `shapes::circle`, `shapes::annulus` | Three places hand-wrote a circle OutlineFn; `util::disc` is the Element form, and onPath/trim/decorations take an OutlineFn | `Shapes.h` |
-| `debug::coverage`, `debug::endpointDegrees` | A generated tiling's two CHEAP checks — area conservation and containment — both pass on a subdivision that overlaps in one place and gaps in another | `Debug.h` |
-| `bind().quantize(n)` | Winamp's volume slider is literally `round(percent · 28)` — quantisation is the design, not an approximation of one | `Compose.h` |
-| `dashPhaseBinding` on `PathFormat` and `lines::Line` | `trimPhase` took a bound Output and declared `animated()`; `dashPhase` was a plain float, so marching ants — the commonest animated-line idiom in map UI — meant re-describing every frame | `Decorations.h`, `Lines.h` |
-| **`Pool::sizes()` — per-instance non-uniform scale** | The hard half of §2, eight studies deep: `SkRSXform` is uniform by construction, so a motion-blur streak whose aspect swings 2.4:1 → 1:1 could not be instanced at all | `Instances.h`, `GpuImage.h` |
-| `addFixed`'s render interpolant | A fixed-rate sim drawn at an unrelated rate judders; the accumulator lived inside the steppable with no way to read it | `sigilmotion/Ticker.*` |
-| `decorations::paintOn` | The brush vocabulary always worked on hand-built geometry — nobody could tell, and the roadmap said the opposite | `Decorations.h` |
-| `TextPath::Orient::Radial` | `onPath` rotated to the tangent; a limb, a compass rose and a radial axis want type RADIATING, and each numeral was costing a rotated Element | `Compose.h`, `Paint.cpp` |
-| `Element::hitTestable(false)` | A keyed full-bleed layout shell with no fill swallowed every hit in the frame, silently and totally, with no opt-out | `Compose.h`, `Query.cpp` |
-| `bounds()` absent rather than NaN | Layout runs inside `draw()`, so a query in the same `update()` as the `render()` before it returned width = NaN for every key | `Composer.cpp` |
-| `ShapingStyle::aliased` | Skia takes glyph edging from the FONT, never the paint, so `setAntiAlias(false)` was silently ignored and a 1-bit era reconstruction had to leave SigilWeave entirely | `sigilweave/Style.h`, `Shaper.cpp` |
-| `Pool::texWindows()` — per-instance UV window | The per-sprite tex rect existed all the way down; the only narrowing was that a Pool could name a cell INDEX and never a RECT | `Instances.h` |
-| `shapes::circle(direction, startIndex)` | The winding IS the engraver's convention — glyph-up points radially IN on one plate and OUT on another, and half of all ring inscriptions hand-rolled an OutlineFn over a default nobody chose | `Shapes.h` |
-| `Ribbon::widthMax` | `bleed()` cannot look inside a `widthFn`, so a 166 px flow band declared 10 px of reach and was silently clipped | `Brushes.h` |
-| `Atlas::filter()`, two-axis `patterns::gridLines` | Instancing's biggest use is tilemaps — pixel grids — and a lattice whose pitch differs per axis is not exotic (an X-COM panel's is 5 × 2) | `Instances.h`, `Patterns.h` |
-| `addFixed` exact across draw rates, and a clamp signal | The step count came from an accumulator, which slips one comparison over a long pre-roll; and a frame that DROPPED time makes anything measured on it meaningless | `sigilmotion/Ticker.*` |
-| Unit ramps take ANY number of stops | Six, fixed, with the tail clamped — which a 24-run sett and a 72-step sweep both ran out of, from opposite directions | `Material.h` |
-| `PathFormat::strokeMaterial` | `fill()` took a Material and a stroke took only the kernel `Fill`, so an object made of strokes wrote the same material twice, once per return type | `Decorations.h` |
-| `debug::coverage(…, SkPath region)`, `VertexDegrees::components()` | An annulus cannot be tested against its bounds; and "is this one piece of metal?" needed hand-rolled union-find | `Debug.h` |
-| `TextPath::Orient::Upright` | Neither Tangent nor Radial can leave a glyph level, which is what a calendar ring and a modern gauge use | `Compose.h` |
-| **`Element::textStroke(width, Fill)`** | Three studies dropped to hand-built `PaintStyle` underlays; one spelled a 1 px outline as 117 re-draws of a paragraph | `Compose.h`, `Paint.cpp` |
-| **`Element::wipe(angleDeg, fraction)`** | Three studies. `trim()` walks the perimeter and `scaleX` squashes; the last workaround left the retained tree entirely and forfeited decorations, hit-testing and pruning on twelve nodes | `Compose.h`, `Paint.cpp` |
-| `textFill` + the `Unit` ramps | The metric band already maps the shader to a unit square, then `linearUnit`'s SkSL divided by the NODE size on top: t ≈ 0.003, every glyph flat on the first stop, silently — and `Material.h` advertised the two as the same trick | `Paint.cpp` |
-| `Slice::filter` | Nine-slice is mostly used FOR pixel art, and was locked to linear | `Decorations.h` |
-| `compose::metrics(style, fonts)` | A text node's top is the LINE BOX top and artefacts position type by the CAP TOP; ~134 runs were placed off an empirical guess at the slack | `Compose.h`, `Composer.cpp` |
-| `PathFormat::cap` / `join` | ~30 open contours of line art all ended square and mitred because the paint was built and never asked | `Decorations.h` |
-| `decorations::wash(Material, blend, amount)` | The decoration primitives were strokes, slices, contour walks and raw programs — none filled a shape with a Material, so a wash above the children was an incomparable lambda that never pruned | `Decorations.h` |
-| `Pattern::offset` / `Pattern::sampling` | Pattern exposed two thirds of a matrix its own backend takes whole; and its tile was locked to linear sampling | `Pattern.h` |
-| `bind().window(lo, hi)` | `from()` normalises and the curve runs after it, so a multi-beat binding fed easings values outside their domain — and none of `ease::` is total | `Compose.h` |
-| The material cost model, documented | A static SkSL material's shader caches and its PIXELS do not; one full-canvas grain node was 480 ms of a 624 ms frame, and a texture bake took that frame to 28 ms | `API.md` |
-| `Material::glowUnit()` | `radialUnit`'s radius is a fraction of the HALF-DIAGONAL, so "a soft glow filling this box" was still at ~10% alpha at the inscribed circle — two studies lost an iteration, one silently wrong on five cells | `Material.h` |
-| `Ticker::addFixed(hz, fn)` | Every simulation-shaped study reinvented the accumulator AND its spiral-of-death clamp; the library had declared choppiness for shaders and nothing for logic | `sigilmotion/Ticker.*` |
-| `Element::overlay()` | `background()` hides under the fill and `foreground()` paints above the children, so a textured button greyed out its own label — two studies worked around it with a sibling stack | `Compose.h`, `Paint.cpp` |
-| `Element::sampling` | Every blessed image path hardcoded `kLinear`, so pixel art and tilemaps were silently blurred; `Material::image()` alone took a sampling parameter | `Compose.h`, `Paint.cpp` |
-| `lines::radialHatch` / `concentric`, `shapes::star(…, waist)` | `hatch` is a parallel lattice, so an engraved radial FAN cost 120 sector nodes; and engraved star arms are concave, not straight-chorded | `Lines.h`, `Shapes.h` |
-| §7 was WRONG: `PathFormat` has always had its own trim window | Two studies rebuilt a second trim as a duplicate node re-measuring the same path | `Decorations.h` (doc + test) |
-| **`withKeyframes` repainted through its own hold segments** (§17) | Volatility asked whether a motion was CONNECTED and never whether the value MOVED, so a keyframe hold, a settled easing, or any waypoint pair with equal values repainted every frame while provably constant — 29 ms of a 38 ms frame in one study. The recording made with those numbers is still exact while they hold | `Paint.cpp`, `ComposeRuntime.h` |
-| `Ticker::elapsed()` | Steppables could not read the clock they were being driven by, so every study that wanted a phase kept a private accumulator beside the ticker. Three lines. The extraction study then proposed `phase()`/`breath()` helpers over that pattern and WITHDREW them: a helper wrapping an unreachable clock just becomes copy thirty-seven — the getter is the fix, the sugar is not | `sigilmotion/Ticker.*` |
-| Four silent traps documented | `custom()` measures ZERO on the main axis and draws nothing; `grain`'s `stretch` multiplies the y frequency until it aliases; a `Pool` position is the cell's CENTRE; and there IS a bound `Fill` — a study concluded there was not and left the binding path over it | `Compose.h`, `Patterns.h`, `Instances.h`, `API.md` |
-| **`Cache::Texture` baked a quarter turn at QUARTER resolution** | `getScaleX/getScaleY` are the matrix DIAGONAL, and Skia snaps cos(90°) to exactly zero — so a ±90° node reported scale 0, clamped to the 0.25 floor and linear-upscaled 4×. Measured mean \|Δ\| over ink: 30–32/255 at ±90°, 14.5 at 45°, 2.4 at 180°. Singular values (`maxScaleOf`) instead | `ComposeRuntime.h`, `Paint.cpp`, `Composer.cpp` |
-| **Promotion could not SEE a leaf** | A bare box never records a picture (one `drawRect` beats a nested recording) and the promoter only ever measured the replay path — so the corpus's largest cost centre, a full-canvas box carrying one shader, was structurally invisible to it: 663 of 697 ms in `chladni_tab1`, 476 of 568 in `twoadvanced_v4`, 818 of 1115 in `chaucer_astrolabe`, every one of them `live paint` | `Paint.cpp` |
-| **Temporal promotion: "stable since last bake", not "static"** | An animated full-canvas material could not be cached at all, though `quantizeTime(10)` already means five frames in six resolve to the SAME shader and therefore the same pixels. Gated on a MEASURED stability rate, so a continuous Output never promotes and a quantized material driven past its step rate demotes itself | `Paint.cpp`, `ComposeRuntime.h` |
-| **The profile says WHY a node was not baked** | Every refusal is individually correct and individually invisible; `live paint 663 ms` with nothing beside it is how sixteen studies shipped over the gate. `NodeCost::promotion` + `--bench` printing it | `Compose.h`, `Composer.cpp`, `sketch_main.cpp` |
-| Two `PatternBrush` corner defects | The scan straddles the vertex, so the break is first seen one step late and the midpoint guess landed the art up to step/2 past the bend (3 px at advance 24, measured); and the bisector was re-probed at d±2 from a point already past the vertex, so both probes hit the same leg and every corner faced the OUTGOING tangent — except a closed contour's seam, making three corners of a rect agree and the fourth 45° off. Bisect the bracket, carry the leg tangents out with it, plus `cornerAlign` | `Brushes.h` |
-| `LayeredBrush` declared no `bleed()` | An additive stack paints wide of the path by construction — `filament()` is 31 px — and the node's recording culls at its own bounds, so every stock brush's halo was clipped | `Brushes.h` |
-| **§15 — a node's own paint, cached apart from its volatile children** | Volatility is declared per NODE, so a static full-canvas ground plane carrying one moving disc shared the disc's verdict and lost: 35.19 and 15.13 ms of SELF time on two 888×666 nodes of `genesis_fire`, both reporting "its content changes every frame" about a child. Controlled A/B on one binary — **p50 74.16 → 23.60 ms, 3.15×** — with 35 of 35 studies pixel-identical | `Paint.cpp`, `ComposeRuntime.h`, `Compose.h` |
-| **A refusal names EVERY reason, not the first** | `promotion` is a first-match verdict, so a node that is both volatile and clipped reported only `Volatile` — and an author who fixed the volatility met a second refusal nobody had mentioned. `genesis_fire`'s plane has three at once. `NodeCost::refusals` carries them all; `why` is DERIVED from the mask so the two cannot disagree | `Compose.h`, `Paint.cpp`, `sketch_main.cpp` |
-| **A device bake at an ANGLE is not pixel-exact — measured, after the opposite was argued** | The relaxation looked obviously right: a device bake concatenates the full matrix and blits at an integer offset, so it "cannot resample at any angle". Measured on a shader-filled box: 0 differing pixels at 0°, **5 at 45° and 2 at 30° (Δ1)**, and **1157 (Δ up to 40) once the bounds overflow the canvas**. A shader's local coordinates come back through an INVERSE, and only an axis-aligned matrix cancels an integer device offset exactly. The gate stays square; the refusal now names `Cache::Texture` as the author's own remedy instead of describing the geometry | `Paint.cpp`, `Composer.cpp` |
+The full table — what shipped during the program, why each mattered,
+and where — is in `archive/ROADMAP_CLOSED.md § Closed during the program`.
 
 ---
 
-## 1. Bindings that cannot be shaped — *five studies* — **CLOSED**
-
-> Shipped as `bind()` in `Compose.h`. The section stays, with its number,
-> because agents in flight are citing these by number and because the
-> five citations are the argument for why it was worth doing.
->
-> ```cpp
-> .translateX(bind(&phase).to(-70, 170))
-> .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
-> .scaleX(bind(&hp).from(0, maxHp))
-> ```
->
-> `from()` normalises the source range onto [0,1]; `map()` shapes it with
-> any choreograph easing; the affine chain composes in call order;
-> `clamp()` lands last. `sizeof(PropValue)` is unchanged — the map shares
-> the out-of-line block the transitioned form already allocates, so the
-> 1288 B → 688 B `ElementNode` compaction still holds. It prunes properly
-> (same Output, same affine, same curve), which matters because the map
-> is read live: a pruned node would shape through the old one forever.
-
-A bound `choreograph::Output<float>` lands on the property **raw**. There
-is no scale, no offset, no curve at the binding site.
-
-The consequences compound. A phase that lives in `[0,1]` — which is what
-`trim()` and `opacity()` want — cannot drive a translation in pixels
-without a **second** Output updated in the same steppable. One per-piece
-progress driving both opacity and scale needs two Output vectors: the
-kumiko study carries 1028 objects where 514 would do, with the easing
-written in the tick loop, far from the properties it shapes. The Vertigo
-study needs `growth − 0.008` for the pen-tip highlight and a curve of
-`growth` for its trailing alpha, so it keeps eight scalars in sync by hand
-across four cards — the fifth study to arrive here from an unrelated
-direction.
-
-```cpp
-// wanted
-.translateX(bind(&phase).scale(240).offset(-70))
-.opacity(bind(&progress).map(ease::outBack()))
-```
-
-Natural API: `PropValue(const Output<float>*, std::function<float(float)>)`,
-or a `.map()`/`.scale()`/`.offset()` chain on the binding. The paint path
-already reads through a pointer; this is one call site.
+## 1. Bindings that cannot be shaped — *five studies* — CLOSED
+A bound `Output` landed on a property raw — no scale, no offset, no
+curve at the binding site; closed by `bind()` in `Compose.h`, which
+normalises, maps and composes affinely and still prunes. Full record:
+archive/ROADMAP_CLOSED.md §1.
 
 ## 2. Instancing covers "many copies of one thing", not "many variations of one recipe" — *eight studies*, and by a distance the most-cited item in the program
 
@@ -444,21 +340,11 @@ problem.)
 Natural API: `blend({{base, kSrcOver}, {tex, kSoftLight, 0.30f}})`, or
 `Material::amount(float)` on the layer value.
 
-## 6. No directional wipe — *three studies* — **CLOSED**
-
-`Element::wipe(angleDeg, PropValue<float>)` reveals the fraction of a
-node lying before a moving edge at any angle. Paint-only and bindable
-like the transforms, and it covers the node's decorations too, because a
-reveal reveals.
-
-`trim()` could never express it — it walks the PERIMETER, so on a filled
-shape 0→1 sweeps a wedge round the outline rather than extending the
-surface — and `scaleX`/`scaleY` squash, which a striped or textured fill
-shows immediately. The third study's workaround is the reason this got
-built: it left the retained tree entirely, snapshotting each node at
-setup and replaying it under a hand-written `clipRect` in a
-`custom(Cache::None)` leaf, forfeiting decorations, hit-testing and
-pruning on twelve nodes at once.
+## 6. No directional wipe — *three studies* — CLOSED
+Three studies wanted a reveal at an angle, which `trim()` (perimeter) and
+`scaleX` (squash) cannot express; closed by `Element::wipe(angleDeg,
+PropValue<float>)`, paint-only and bindable. Full record:
+archive/ROADMAP_CLOSED.md §6.
 
 ## 7. One trim window per node — **WRONG, and worth saying so loudly**
 
@@ -934,17 +820,11 @@ contract. `Effect::shader(fx, uniforms)` takes constants only, so
 animating a ripple phase or a bloom threshold requires a full re-describe
 per frame.
 
-## 12. `Ticker` has no fixed-timestep helper — **CLOSED**
-
-`ticker.addFixed(hz, fn, maxCatchUp = 8)` calls `fn()` zero or more times
-per frame so it advances at exactly `hz`, whatever the host draws at.
-
-Two studies had reinvented it — a cellular automaton at 27 Hz behind the
-DOOM PlayStation titles, particles at 24 — and both had to reinvent the
-spiral-of-death clamp with it. The clamp's contract is now stated rather
-than rediscovered: beyond `maxCatchUp` steps the backlog is **discarded**,
-not carried, because carrying it makes the next frame longer, which grows
-the backlog. The sim running slow for one frame is the correct failure.
+## 12. `Ticker` has no fixed-timestep helper — CLOSED
+Two studies had each reinvented a fixed-rate accumulator and its
+spiral-of-death clamp; closed by `Ticker::addFixed(hz, fn, maxCatchUp)`
+with the discard-the-backlog contract stated. Full record:
+archive/ROADMAP_CLOSED.md §12.
 
 ## 13. Sampling, and the pixel-art path — **element leaf CLOSED**
 
@@ -1011,181 +891,12 @@ signatures.
 
 ---
 
-## 15. A node's OWN paint cannot be cached apart from its volatile children — **CLOSED**
-
-> Shipped as the SPLIT BAKE in `Paint.cpp`. The section stays with its
-> number and its original text below, because three things it predicted
-> were wrong and the corrections are the useful part.
->
-> **The mechanism.** `paintContent` gained a `Phase` parameter (`All` /
-> `OwnOnly` / `ChildrenOnly`) and two skips. A candidate paints in two
-> phases from its first eligible frame — which is also how the own half
-> gets TIMED by itself, so the promotion is decided on the node's own cost
-> rather than on a total that a child dominates. `Instance` grew
-> `ownImage`, `ownBakeRect`, `ownPaintMs`, `ownHotFrames`, `ownRebakes`
-> and `ownPaintDirty`.
->
-> **Measured, on one binary with the feature forced off and on, so that
-> nothing but the split differs:**
->
-> | | split off | split on |
-> |---|---|---|
-> | `genesis_fire` p50 | 74.16 ms | **23.60 ms** (3.15×) |
-> | `genesis_fire` p99 | 79.04 ms | 28.59 ms |
-> | the 888×666 plane, self | 35.19 ms | **0.28 ms**, `SplitOwn` |
-> | the second 888×666 node | 15.13 ms | out of the top six |
-> | `fallout2_charsheet` p50 | 119.31 ms | 89.90 ms (1.33×) |
-> | `twoadvanced_v4` p50 | 569.94 ms | 483.16 ms (1.18×) |
-> | `hello` p50 | 1.33 ms | 0.65 ms |
->
-> **35 of 35 studies render pixel-identical.** The single apparent
-> exception is `genesis_fire`, 56 pixels in a 10×8 cluster, which is the
-> study's own `BUILD %.2f ms` readout printing 1.29 against 1.32 — its
-> instrument, not its picture. No study regressed.
->
-> ### Three corrections to what this section said
->
-> **1. `clipContent` and `wipe()` must NOT be excluded.** The text below
-> says to exclude them alongside layer effects because all three "wrap
-> both halves". Only the layer effect has to be: a filter applies to the
-> UNION of own paint and children, and filtering the own half alone is a
-> different picture. A clip is opened and closed INSIDE each phase — the
-> phase flag skips only the CONTENT — so both halves get the identical
-> clip in identical device geometry. That is not a nicety: this section's
-> own citation node, `regolith()`, carries `.clip(true)` because it clips
-> its disc to a limb outline, **which is exactly why the disc is a child
-> rather than a sibling.** Excluding clips would have shipped a feature
-> that refuses the one example it was written for, and every other test
-> would still have passed.
->
-> **2. Foregrounds paint AFTER the children** and therefore belong to the
-> children half. The text below implies the own paint is everything except
-> the children. It is not — it is a contiguous PREFIX ending at the
-> children loop.
->
-> **3. The bake must be sized by `ownPaintBounds`, not `recordBounds`.**
-> `recordBounds` unions the children in, so it moves every frame a child
-> moves — and a bake rect that moves every frame is a bake remade every
-> frame, on precisely the scenes this exists for. `ownPaintBounds` is the
-> node's box, its decoration bleed and its routed path, and nothing from
-> below it.
->
-> ### Two traps that cost real time
->
-> **`ownPaintDirty` cannot be `paintDirty`.** `markPaintDirtyUp()`
-> propagates a descendant's patch to every ancestor, which is right for a
-> RECORDING (it baked the child's draw calls) and wrong here: the children
-> were never in this bake, and the whole point is that they change.
-> `Layout.cpp`'s "a child's position moved" case now passes
-> `ownPaint = false` for the same reason. If that inverts, the feature
-> silently does nothing and still passes every pixel test.
->
-> **The split needs `upright` exactly as promotion does.** It is the same
-> construction — an integer device offset concatenated onto the node's
-> matrix — so it carries the same ~1 LSB divergence under rotation. It
-> shipped without it, in the same hour that fact was established three
-> lines above, and a POSITIVE CONTROL is what caught it. That is the
-> commonest failure in this program: a fix that lands on one path and not
-> its sibling, each reading correctly alone.
-
----
-
-## 15 (original text). A node's OWN paint cannot be cached apart from its volatile children — *new, measured, and the next promotion item*
-
-Found by the per-node profiler after leaf promotion landed, and it is the
-same shape as that finding: a cost centre the cache model cannot see,
-for a structural reason rather than an authoring mistake.
-
-Volatility is per NODE. A node whose own fill is an expensive static
-material, and one of whose children moves, is `subtreeVolatile` — so
-nothing about it is cached, and the full-canvas shader is re-rasterized
-every frame in order to redraw a small moving child on top of it.
-
-`genesis_fire` is the citation: two 888×666 nodes at **34.9 ms and
-14.9 ms of self time**, both reporting `not baked: its content changes
-every frame`, and in both cases the volatility is a child. `regolith()`
-is a generated ground plane — a three-layer `Material::blend` of a
-radial ramp, grain and speckle — carrying one 264 px disc that rides a
-bound Output. The plane is static. The disc is not. They share a
-cacheability verdict, and the plane loses.
-
-The profiler already separates them: `selfMs` excludes children, which
-is how the number above was measured at all. What does not exist is a
-way to act on it. The node's own paint (fill + background/overlay
-decorations) is a layer with its own volatility, distinct from the
-children painted over it.
-
-Wanted, roughly in order of how much they change:
-
-- **Split the cache at the node's own paint.** Bake the self-layer when
-  it is stable, paint volatile children live over the blit. Pixel
-  identity holds by the same argument promotion already makes, as long
-  as the children composite srcOver onto it — which is the common case
-  and is checkable (`subtreeReadsBackdrop` already computes the
-  awkward half).
-- The authoring workaround, which is what the corpus does and should be
-  documented until the above exists: **lift the moving child out into a
-  sibling** so the expensive plane is a static leaf and promotes on its
-  own. Cheap, and it costs the author the clip/containment relationship
-  that made them nest it in the first place — `regolith()` clips its
-  disc to a limb outline, which is exactly why it is a child.
-
-Note the ordering trap this exposed in the refusal reasons: `Volatile`
-is reported before `Filtered`, so an author who fixes the volatility
-here then meets a second refusal (`clip(true)`) behind it. That is
-honest but it costs an iteration; a reason that could name *all* the
-conditions rather than the first would be better. **That change belongs
-in this batch**, because splitting the self-layer creates more nodes
-with several simultaneous reasons, not fewer. The shape: keep
-`NodeCost::promotion` as the primary outcome and add a `uint16_t`
-refusal mask beside it, so the existing values and every test that
-asserts on them keep working.
-
-### The pixel-identity argument, stated before the implementation
-
-Promotion's argument does not carry over, so it has to be made again
-from the start. Promotion bakes a WHOLE subtree and blits it in place of
-everything it contains; the claim is "an integer device-space
-translation cannot change rasterisation". Here the bake replaces only
-PART of what the node paints, and live children are drawn over the blit
-afterwards — so the claim needed is different and strictly stronger:
-
-> Painting the self-layer into a transparent device-aligned surface,
-> blitting it, and then painting the children over the result must
-> produce the same pixels as painting self-then-children directly onto
-> the canvas.
-
-That holds exactly when **every child composites srcOver onto the
-node's own paint**, and fails otherwise:
-
-- A child with a non-srcOver blend resolves against what is beneath it.
-  After a blit that is the same destination, so this one is actually
-  FINE — the blit lands before the children, unlike promotion, where the
-  children were inside the bake. This is the one place the split is
-  *safer* than promotion.
-- A child with a **backdrop filter** samples the destination, which is
-  now a blitted copy rather than freshly rasterised pixels. Identical in
-  value, so also fine.
-- The real failure is the **self-layer itself** reading the backdrop —
-  a non-srcOver blend or backdrop filter on the NODE, where the bake
-  would resolve against transparent black. `subtreeReadsBackdrop`
-  already computes exactly this and is the condition to reuse; it is
-  currently computed for the whole subtree, so it needs splitting into
-  own-paint and children halves.
-- Antialiasing at the boundary between self-paint and children is not a
-  concern: they are separate draws either way, and srcOver of a
-  coverage-modulated child over a blitted destination is the same 8-bit
-  sequence as over a directly-rasterised one. That is the same argument
-  the leaf promotion rests on and it is already asserted by
-  `PromotesAnExpensiveLeafAndKeepsEveryPixel`.
-
-So the eligibility rule is: **the node's OWN paint must not read the
-backdrop, and the node must be upright and unscaled in device space**
-(the same device-snapping requirement, for the same reason). Children
-may be anything at all. The test must render a node with an expensive
-static fill under a moving child and assert zero differing pixels
-against the same tree with the split disabled — every frame across the
-child's motion, not one still.
+## 15. A node's OWN paint cannot be cached apart from its volatile children — CLOSED
+A node's expensive static own paint shared its volatile children's
+cacheability verdict and lost; closed by the split bake in `Paint.cpp`
+(`genesis_fire` p50 74.16 → 23.60 ms, 35 of 35 studies
+pixel-identical). Full record:
+archive/ROADMAP_CLOSED.md §15.
 
 ## 16. Stamped-brush bakes are cached in the VALUE, so rebuilding the value re-bakes everything
 
@@ -1208,53 +919,11 @@ brush would silently inherit the wrong art. It needs either a weak handle
 to the node or a generation counter. Worth doing: this is the only place
 in the library where re-describing costs raster work rather than a diff.
 
-## 17. `withKeyframes` is live volatility even where its value is constant — **CLOSED**
-
-> Shipped as `Instance::scalarMemo` in `Paint.cpp`. The section stays with
-> its number. One correction to what it said when it was filed: **§15 and
-> §17 are not the same change.** They share a slogan — "provably not
-> changing, believed to be changing" — and nothing else. §17 extends an
-> INPUT MEMO (compare what you baked with against what you have; the
-> material memo already did exactly this for shaders). §15 splits paint
-> GRANULARITY (a node's own layer, separate from its children). Merging
-> them would have produced one design serving two mechanisms.
->
-> Kept deliberately disjoint from `liveMatOnly` rather than unified with
-> it: the two memos compare different things — a shader pointer and five
-> floats — and unifying them meant rewriting fifteen call sites of the
-> subtlest function in the library to gain nothing. A node carrying BOTH a
-> live material and an animated trim takes neither memo, which is the
-> conservative answer and costs exactly what it costs today.
->
-> Scope is the content-volatility slots only: trim start/end/offset, wipe
-> fraction, glyph progress. Not the transform slots — those are paint-only
-> volatility and already replay the content picture under a live matrix.
-> Note `TextPath::at` is a plain float, not a `PropValue`, so an animated
-> `onPath` position is a re-describe and is NOT covered by this.
-
-Reported with a number: **29 ms of a 38 ms frame**, seven text-on-path
-runs whose keyframe paths were between waypoints and therefore not
-changing at all.
-
-Volatility asks "is a motion connected", not "did the value change". A
-keyframe path with a hold segment, an easing that has settled, or any
-waypoint pair with equal values is *provably* constant for that stretch,
-and the node repaints every frame anyway.
-
-This is the same shape as the two findings that preceded it — a thing
-that is provably not changing which the machine believes is changing —
-and the mechanism to fix it already exists in two places. `Material`'s
-resolve memo compares the byte-identical digest of its varying inputs and
-returns the same shader; temporal promotion turns that into "stable since
-the last bake". The scalar case wants exactly that: record the animated
-values a node's recording was baked with, and treat the recording as
-valid while they still match. That generalises `liveMatOnly`/`liveStable`
-from materials to every animated scalar the content reads (trim, glyph
-progress, wipe fraction, `onPath` `at`).
-
-Not the transform slots — those are paint-only volatility and already
-replay the content picture under the live matrix. This is about the ones
-that rebuild painted geometry.
+## 17. `withKeyframes` is live volatility even where its value is constant — CLOSED
+Keyframe holds and settled easings repainted every frame while provably
+constant — 29 ms of a 38 ms frame in one study; closed by
+`Instance::scalarMemo` in `Paint.cpp`. Full record:
+archive/ROADMAP_CLOSED.md §17.
 
 ## 18. A `Cache::Texture` node with a blend allocates a saveLayer to composite ONE blit
 
@@ -1389,27 +1058,11 @@ Use `MakeXYWH(x, y, 1, 1)`, or seed the accumulator with the first point
 and `joinPossiblyEmptyRect`. Documented in `sketch/README.md` beside the
 bounds discussion.
 
-## 24. `layouts::stickerScatter` is DELETED, and the record is the point
-
-Zero users. Refused in writing by the one scene that wants a sticker
-ladder, which kept its hand-authored `{−25,−15,−20,−15,…,+8}`. Conceded
-in its own doc comment. Shipped anyway.
-
-The generator encoded one reference plate's scatter as six parameters —
-decaying rotations with the last item flipped positive, x-jitter,
-overlapping pitch, shuffled z. The refusal is the interesting part and
-it is not "the generator was inaccurate": it produced ladders *in that
-family*, and **a ladder in that family is exactly what the design is
-not.** The value of the reference ladder is that somebody CHOSE it.
-
-> A scheme belongs in `Layouts.h` when the placement is a FUNCTION the
-> author would otherwise write out — a radial ring, a modular grid, a
-> baseline rhythm. It does not when the placement IS the design
-> decision. Parameterising a judgement produces something that can only
-> be right by accident, and it costs a maintained API forever.
-
-The header keeps that paragraph where the code was. `archive/EXTRACT.md`
-§1.2 carries the long version.
+## 24. `layouts::stickerScatter` is DELETED, and the record is the point — CLOSED
+A scheme that parameterised a design judgement, with zero users and a
+written refusal from the one scene that wanted it; deleted, with the rule
+about what belongs in `Layouts.h` kept where the code was. Full record:
+archive/ROADMAP_CLOSED.md §24.
 
 ## 25. Ten documentation defects, and what they say about doc tests
 
@@ -1457,99 +1110,19 @@ a property of the FRAME and not of text, and every consumer of a circular
 contour wanted it. A field on `TextPath` would have been the fifth copy
 of the arithmetic wearing the name of its first caller.
 
-## 26. Two studies are not reproducible captures, and every pixel sweep will blame the wrong change
+## 26. Two studies are not reproducible captures, and every pixel sweep will blame the wrong change — CLOSED
+Two studies drew their own measured timings into their own plates, so any
+pixel sweep reported them as changed by a patch that changed nothing;
+closed by `ctx.measured()` / `--deterministic` (33 and 20 differing
+pixels → 0). Full record:
+archive/ROADMAP_CLOSED.md §26.
 
-`genesis_fire` prints `BUILD %.2f ms` and `slitscan_2001` prints
-`... BAKE %d ms` — each measures itself and draws the number into its own
-plate. Measured, **same binary, two consecutive runs, same `--at`**:
-
-```
-genesis_fire    34 differing pixels   (BUILD 1.29 vs 1.32 ms)
-slitscan_2001   16 differing pixels   (BAKE  39   vs 50   ms)
-kumiko_asanoha   0 differing pixels   <- the negative control
-```
-
-So a corpus pixel sweep reports these two as CHANGED by any patch,
-including a patch that changes nothing, and the natural reading of that
-is "my change did something". It cost this session two rounds of cropping
-and looking to establish that a 3.15× perf win had altered no pixels
-anywhere — and the only reason it did not cost more is that the diffs
-were tiny and clustered, which is exactly the shape a real subtle
-regression also has.
-
-This is the same family as the gallery's machine-dependent capture frame,
-and the same corollary applies: **an instrument that draws its own reading
-into the thing being measured makes that thing untestable by comparison.**
-The negative control is what turns "explaining away a difference" into a
-measurement, and it should be the standard move: re-render with the SAME
-binary before attributing any diff to a change.
-
-**CLOSED — `--deterministic`.** `SketchContext` carries the flag and a
-channel for it:
-
-```cpp
-double measured(double value, double pinned = 0.0) const;   // ctx.measured(buildMs)
-bool   deterministic;                                       // whole-panel case
-```
-
-Deliberately NOT a list of blanked readouts. The unit is **any value the
-sketch computed from its own execution rather than from its data** — a
-build time, a bake cost, a live node count, a frame counter. A node count
-is usually stable and a bake time never is, and both belong here, because
-*"usually stable"* is exactly what makes the eventual diff mystifying.
-The host cannot identify such values by inspection, so the study routes
-them and the flag pins them.
-
-Measured, three runs each, same binary, same `--at`:
-
-```
-                 without the flag        with it
-genesis_fire       33 differing px       0
-slitscan_2001      20 differing px       0
-```
-
-And inert where it is not read — `kumiko_asanoha`, `thaumonomicon`,
-`stroke_atlas`, `penrose_paving` all render identically with and without.
-
-> Masking the known regions in the sweep tool was the third option and
-> remains the worst: the mask is a second thing to keep in sync, and it
-> would have had to grow an entry every time a study learned to measure
-> itself.
-
-### A postscript, because the fix reproduced the bug it was fixing
-
-The first attempt "did not work" — both studies still differed under the
-flag. The flag was fine. The private test harness linked a **stale
-`SketchHost.o`**, compiled against the previous `SketchContext`, so the
-new field was never propagated and the two struct layouts disagreed.
-
-That is the **third** form of the same error in one session: a stale
-binary, a stale baseline, and a control that had been rebuilt with the
-code under test. Each one produced a confident, plausible, wrong reading,
-and each was caught only by a control built for the comparison. It is
-worth stating in the imperative:
-
-> Before believing a negative result about your own change, check that the
-> thing you ran contains it.
-
-## 26b. `renderSlot()` on a name that does not exist was SILENT — **CLOSED**
-
-The symptom is not "my slot is empty". It is **"my slot lays out W × 0"**,
-which reads as a layout bug and sends you into Yoga — and it was filed as
-exactly that, twice, before anyone looked at the name.
-
-The cause is almost always the one the message now names: **`slot(name)`
-stores the name in `key`**, so any later `.key(...)` on that element
-renames the slot. No type error, no second field to disagree with itself,
-and `renderSlot` then returned silently. It cost an hour, and the probe
-written to investigate it reproduced the same mistake for the same
-reason.
-
-`renderSlot` now warns once per name, lists the slot names that DO exist,
-and names the rename trap with the caller's own string substituted in —
-which turns the diagnosis into one read. Same shape as §27's remedy: the
-library cannot know which spelling the author meant, so it says what it
-saw instead of choosing.
+## 26b. `renderSlot()` on a name that does not exist was SILENT — CLOSED
+An unknown slot name failed silently and presented as a W × 0 layout bug;
+closed by a one-time warning that lists the slot names that do exist and
+names the `slot()`/`.key()` rename trap with the caller's own
+string. Full record:
+archive/ROADMAP_CLOSED.md §26b.
 
 ## 27. A default that encodes a judgement about the caller's art cannot be changed compatibly
 
@@ -2042,3 +1615,286 @@ wrong — the per-scene judgement is the remaining task, by taxonomy:
 Only black_watch declares its beat so far (7.2 s — loom 0.90, inside
 the Modern hold; it is also the audit's control, straddling the
 Weathered/Modern boundary at 33.1%).
+
+## 32. The animation grammar names the MECHANISM, not the intent
+
+**Status: open — the alias-first spelling SHIPPED 2026-07-26; the
+taste calls below remain.** Filed 2026-07-25 from the consolidation pass, not
+from a study — the wall-hitter is the library's own designer, and the
+independent code-only review corroborates: one animation engine,
+roughly five authoring grammars, and "the map of which grammar owns
+which use case exists only in comment folklore."
+
+The evidence, concretely: `PropValue` reads as "property", which is
+what it is — an internals name that leaked into the authoring
+vocabulary. The most load-bearing word in the surface is a preposition
+(`with()`), and its extensions modify the preposition (`withFrom`,
+`withKeyframes`) rather than any animation idea. And mode switches are
+implicit: `fill(&out)` vs `fill(v)` silently changes write paths;
+declaring `uTime` in SkSL text flips a node's volatility as a side
+effect of a shader string.
+
+The natural API (sketch, unverified): one principle — a value over
+time on a property — with one verb per door: it CHANGES (today
+`with()`/`transition()`), it is DRIVEN (one explicit spelling; retire
+the bare-pointer overloads so every driven call site announces
+itself), it RUNS ITSELF (an explicit spelling beside the uTime
+inference). Entrances are change-at-mount; staggers are per-child
+delays on change; kinetic is one driven progress fanned per glyph.
+Acceptance test: grep a sketch for the door verbs and you have found
+every animation in it.
+
+Constraints: the two-write-paths physics, declared volatility, and
+the price tags are not in question — this is grammar over the same
+machine. Per-property transition scoping must survive (properties are
+named once, by their setters — value-site specs like
+`opacity(v, ease)` qualify; a property enum does not). The rename is
+exactly the churn §27 prices, so it lands behind a probe — port two
+or three sketches to the target grammar (one transition-heavy, one
+binding-heavy, one self-running) and read them — never as a sweep.
+
+SHIPPED alias-first 2026-07-26: `animate(from(a).to(b), spec)` and
+`animate(through({...}))` are the authored-motion spelling, delegating
+to unchanged machinery, and `through()` carries a concrete float
+overload so the waypoint path finally deduces — `withKeyframes<float>`
+was paying for a nested braced list being a non-deduced context.
+`with`/`withFrom`/`withKeyframes` compile forever with the one-line
+legacy doc. The probe read three sketches, ported whole:
+chaucer_astrolabe (48 sites), twoadvanced_v4 (27 + 5 keyframe paths),
+sigillum_aemeth (25). The port's one friction, recorded as probe
+data: a free function named `from` collides with the commonest local
+name in path code — sigillum declares `std::vector<SkPoint> from,
+to`, so 2 of its 25 sites qualify `sigil::compose::from(...)`. Where
+this entry's body disagrees with §33's refined ruling, the ruling
+wins: the bare-pointer overloads are RETAINED, and the acceptance
+grep splits into two searches (authored vs data-driven). Still open,
+all designer taste calls: the per-property change override
+(`with(v, spec)` today), the scheme-declaration word, and — filed by
+the confirming review, straight from the meta-rule — the second-word
+collision between authored `from(a).to(b)` (entrance endpoints) and
+driven `bind().from(lo, hi)`/`.to(lo, hi)` (range normalisation):
+same two words, unrelated meanings, one authoring line apart.
+
+## 33. The grammar audit — §32 generalised over the whole surface
+
+**Status: open, first rulings landed 2026-07-25.** The designer ruled:
+(1) `PropValue` → **`Animatable<T>` — SHIPPED**, alias-first, tests
+green; (2+3) the door verbs take a different shape than first sketched
+— **one overarching `animate()` verb** as the umbrella, with `bind`
+KEPT inside that context (the umbrella disambiguates it) and the
+change forms qualified under it; the exact qualified spellings are
+what §32's three-sketch probe now explores; (4) the self-run
+declaration: `runsItself()` rejected as unclear; `isLive()` preferred
+but flagged as confusing live DATA with animated GRAPHICS — the probe
+should weigh `animates()`, which shares the umbrella's root; (5)
+`Material::linear`/`linearUnit` stay as they are — CLOSED; (6)
+`Pattern` keeps its name ("tiling is a kind of pattern") — CLOSED; the
+false Patterns.h file doc ("Each returns a Pattern") is FIXED.
+
+REFINED RULING (2026-07-25, after reading snippets): `animate()` is
+NOT an umbrella over all three doors — it is the verb for
+COMPOSER-MANUFACTURED motion only. The driven forms KEEP today's data
+spelling (`&out`, `bind(&out).window(...)`, bare-pointer overloads
+retained by design): the designer's model is that a driven property is
+DATA UPDATING, and animation is a side effect of the update — wrapping
+it in `animate()` would misstate that. `.transition(spec)` is KEPT as
+the node-level change policy — it reads clearly against `animate()`.
+The grammar thus names the OWNER of the motion at the first word:
+
+  opacity(0.5f)                              // constant
+  opacity(animate(from(0.f).to(1.f), {400ms}))  // authored motion (composer runs it)
+  scale(animate(through({...})))             // keyframes (deduces; withKeyframes<float> dies)
+  opacity(&phase)                            // data-driven (you run it)
+  trim(0, bind(&demo).window(.14, .20))      // shaped data
+  .transition({.duration = 200ms})           // change policy on reconcile
+
+Consequences accepted: the grep test splits into two honest searches
+(`animate(` = authored motion; `bind(`/bound fields = data-driven);
+the old `fill(&out)` discoverability gap is now a DOC fix, not a
+spelling fix. `Animatable<T>` stays the slot noun (capability), never
+folded under the verb. Still open for the probe: the per-property
+change override (today `with(v, spec)` — `animate(to(v), spec)` vs a
+value-site spec), and the scheme declaration word (`animates()` vs
+`animated()`/`isLive()`). Only the `withFrom`/`withKeyframes` family
+actually renames, which shrinks the probe.
+
+BRUSH & STROKE GRAMMAR — consolidated 2026-07-26 after six sample
+rounds with the designer. Supersedes the 2026-07-25 interim record
+(which had corners-as-kinds and weave-as-container; both were walked
+back during the rounds). This is the settled model:
+
+**The words.**
+- SHAPE = the region an element occupies, set by `.shape()` —
+  **`outline()` RENAMES to `shape()`** (the old name read as a drawn
+  line, i.e. as stroke). LINE = an element whose geometry is an open
+  path. BAND = a derived shape around a spine — `band(spine,
+  across(px))` or `band(around(key), across(px))`, formation explicit:
+  `.centered()` (default) / `.outward()` / `.inward()` (offset-path
+  lineage) — owning an (along, across) space, hosting ordinary
+  content, and strokable/fillable like any shape. "Frame"/"border"
+  are not concepts (they are strokes of a boundary); "bounding box"
+  is QUERY-side vocabulary only (`bounds()`), never a shape.
+- STROKE = the slot: `.stroke(where, what[, name])`; repeated calls
+  APPEND (the existing decoration law). WHERE = `spans::` factories
+  — corners/edges/every/range/at/upTo/`fit(key, margin)` (a gap sized
+  from keyed content via the derive pass, the flowAround pattern) —
+  composed with `|` (union). Claims must not overlap (LOUD error),
+  except: bare `rest()` fills the gaps up to the next claimed span,
+  and `rest("name")` is the complement of that named pass and may
+  intentionally overlay others. REVEALS are span animation
+  (`spans::upTo(animate(...))`) — uniform across every brush kind;
+  **`Element::trim()` is REMOVED** (overloaded word; its jobs move to
+  spans). Stroke pass names are LOCAL to their element (inspection +
+  intra-element reference) — never a global query key; the
+  second-identity-system law holds.
+- BRUSH = what paints. KINDS are the leaf tools: `brush::solid`
+  (PathFormat's successor; `pen` rejected — implies calligraphy),
+  `Pattern` (built from cells), `Scatter`, `Art`. COMPOSITES combine
+  any brushes: `layers` (fixed order, bottom-up) and `weave`
+  (per-crossing order) — any brush can participate in either, and
+  composites NEST (a strand painted by layers; a braid as one pass).
+  REPAIRED 2026-07-26: a weave strand is a PAIR
+  `{.path = strand::self()/offset(px)/from(key), .brush = ...}` —
+  the earlier two-parallel-lists-matched-by-index shape reproduced
+  §10d's defect and is rejected; `strands::parallel(n, spacing)`
+  survives only as sugar for n offsets sharing one brush. Crossings
+  are DISCOVERED (path intersection, indexed along the boundary),
+  never authored; the rule ladder: `alternate()` ==
+  `sequence({Over, Under})` / `sequence({...})` generic repeating
+  patterns / `pairs(...)` strand dominance incl. cyclic (Penrose) /
+  `at(index, ...)` pins layered over any rule / a comparable user
+  value `decide(const Crossing&)`. Index pins are POSITIONAL —
+  stable rules survive geometry change, pins are for settled
+  compositions; the field's doc must say so. Refinements
+  (2026-07-26b): pins compose onto a base rule via `.except(idx, ...)`
+  — one `.crossing` field, never stacked entries. Strand sources are
+  TWO FAMILIES: RELATIVE — displacements of the stroked boundary in
+  its (along, across) frame, the same frame the band owns —
+  `strand::self()` (across≡0), `offset(px)` (parallel — NEVER
+  crosses), `wave(amp, wavelength, phase)` (oscillates — THE braid
+  primitive; crossings exist where strands trade sides); and
+  ABSOLUTE — `from(key)` (derive-phase path of another element),
+  `path(SkPath)` (authored; SkPath is comparable — prunes). With
+  only absolute strands the boundary is an unpainted host.
+  `strands::parallel` is REMOVED (parallels are rails — already
+  layers + offset shapers — and cannot braid); the weave sugar is
+  `strands::braid(n, amp, wavelength)` = n waves at phase k/n,
+  crossings by construction. (2026-07-26c) The relative family's
+  SEAM is the PROFILE value: comparable, `float across(float along)`
+  + `float max()` — max REQUIRED so reach/bleed is decidable, which
+  structurally kills the Ribbon widthFn/widthMax silent-clip trap
+  (§25/audit I9); `self`/`offset` are the CORE presets; `wave` (and
+  `braid`, which is built on it) live in the KIT per the tier rule
+  (2026-07-26d, designer); custom profile values are accepted
+  directly as `.path`. The profile is
+  SHARED vocabulary: a band's taper and the future ribbon width ride
+  the same value. LAW, now explicit: paths are DATA, only elements
+  render — a path participates as an element's shape, as borrowed
+  geometry (`from(key)`, derive), or as pure guide data in no tree
+  (strand::path, band spines, TextPath, AlongPath). And FORMALLY `layers == weave` with
+  coincident self-strands (no crossings → list order everywhere):
+  one machine, two author intents, both words kept (the
+  alternate==sequence precedent). Seam-value convention: one named
+  required member per seam (`shape()` for shapers, `decide()` for
+  crossing rules), comparable values throughout. Only the rule
+  VALUES are shared with the pinned element-level crossover — its
+  API stays undecided. Double/triple lines are
+  `layers` + offset shapers (or a kit preset) — NEVER element
+  duplication; under/over relative to content uses the existing
+  background/foreground slots.
+- `.shaped(value)` is the ONE geometry-deviation seam: comparable
+  values with `SkPath shape(const SkPath&) const` (SkPath is proved
+  right because dash/width are path operations). No sugar methods
+  (`jittered()` etc. die); stock shapers are kit values, peers of
+  user-written ones. `brush::ops` is INTERNAL-ONLY — authors never
+  spell it.
+- The two mechanisms, named: a SHAPER bends the one continuous mark
+  (wave, zigzag — no tile exists); a PATTERN builds the mark from
+  cells (the cell is an element — anything paints it).
+
+**Tiers.** Core = seams, kinds, composites, span/strand factories.
+KIT = convenient values under concept scopes (`kit::brush::shapers::
+jitter/wave/offset`, `kit::shapes::ring` — "annulus" rejected as
+jargon — `kit::spans::brackets`), and the kit becomes a SEPARATE
+CMake library that links only compose's public headers (structural
+enforcement of the tier boundary). PRESETS (cased→outlined, railway,
+rope, GlossContour...) live in EXTERNAL loadable kits, never core;
+`stroke_atlas` stays the in-repo specimen page. Standing check: a
+preset whose name is craft jargon over a plain composition gets
+demoted (the `cased` treatment).
+
+**Pinned as separate passes** (named problems, deliberately not
+solved here):
+1. Inter-element crossing order ("crossover"): leading candidate is
+   the PATCH model — a derive-phase relationship (edge-store family,
+   like connector/rail) that replays the winner's cached picture
+   clipped to each intersection region; z-law preserved, elements
+   unsplit. Shares weave's crossing vocabulary BY DESIGN so
+   brush::weave can lift to it later. Known hard cases that make
+   this its own feature: translucent strands (patch double-cover)
+   and multi-crossing over the same region. Touches perceived
+   z-index — deferred on the designer's call.
+2. The masking family — `wipe()` is one member (a paint-only
+   directional mask, fraction Animatable), shape/alpha masks and the
+   kit's alphaMask bake are others; the family was never designed as
+   one. Own review pass.
+3. Material's own interface interrogation.
+4. Hit-testing organic shapes for text-flow / fill-pattern exclusion
+   — rides the derive-export arc.
+
+**Before any code**: the paper probe — rewrite ds2_bench and
+thaumonomicon's stroke code in this grammar and read it. Then
+alias-first migration, per §27.
+
+A full-surface discovery pass (2026-07-25) swept
+every authoring header for names that say mechanism instead of
+intent. The catalog with counts and candidates is
+`archive/GRAMMAR_AUDIT.md`; two hazards were independently verified
+before filing (`PaintContext::animating` is dead — declared false,
+never assigned, copied faithfully forward at Brushes.h:459/482 — and
+`Placement::interval == 24.0f` is a live sentinel that silently
+overrides an author's explicit 24).
+
+**The meta-rule the audit produced, now canon** (DESIGN.md §Growth
+rules): when a doc comment's job is to distinguish two names, that is
+the rename ticket — every multi-page disambiguation essay in
+Brushes.h/Lines.h/Decorations.h was written after a study shipped
+wrong.
+
+The ten that matter, by confusion-evidence × usage ÷ churn (all
+alias-first or additive; details and candidate spellings in the
+audit file):
+
+1. `PropValue<T>` → an intent name (`Animatable<T>` class) — 12/35
+   sketches spell the type; a `using` alias costs zero call sites.
+2. Complete the Fill→Material seam — five peer types expose five
+   different positions; purely additive overloads (decision C work).
+3. The three door verbs (`with`/`withFrom`/`withKeyframes`, the drive
+   spelling, the self-run spelling) — new evidence: the family is
+   inverted (`with(` 17 sites, `withFrom(` 294) and `fill(&out)` is
+   so invisible a study concluded it did not exist (1 corpus site
+   ever). Behind §32's probe.
+4. `Material::linear` vs `linearUnit` — corpus wants unit-space 8:1;
+   alias in, never redefine (§27).
+5. One word for declared volatility (five spellings today) + wire or
+   delete the dead `PaintContext::animating`.
+6. Delete the lowercase `ops::` lambda family — case-only distinction
+   with opposite pruning; `ops::rounded` has zero uses and collides
+   with `shapes::rounded`.
+7. The corner family — `Corner::All == 15` and `Corners{15}` both
+   compile, one letter apart, meaning opposite things.
+8. Name the derive phase as one family (flowAround/connector/rail/
+   routers:: share nothing; ~55 total uses — the low churn IS the
+   symptom). Rides the derive-export seam work.
+9. `Pattern`/`patterns::`/`PatternBrush` — Patterns.h's headline
+   claim is false for its three most-used entries (they return
+   Material); the doc fix is free.
+10. `decorations::brackets`/`gappedRule` vs `lines::cornerBrackets`/
+    `cornerGaps` — one capability, two names, corpus found one
+    (41 vs 3). §26-family sibling failure in naming form.
+
+Also filed from the audit: the missing boolean-shape vocabulary — a
+sketch reached for `clipOut()` and `shapes::subtract` by name
+(chaucer_astrolabe.cpp:972) and neither exists. New surface, not a
+rename; lands as comparable `ops::` values per decision C, never an
+eighth vocabulary.

@@ -865,7 +865,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .key("verdigris")
                 .outline(shapes::circle())
                 .fill(verdigris.material())
-                .opacity(withFrom(0.0f, 1.0f, ramp(tTropics * 1000, 900))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tTropics * 1000, 900))));
 
     // the recess: the plate sits one millimetre below the limb
     g.child(box()
@@ -886,7 +887,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .outline(shapes::circle())
                   .fill(Fill::none())
                   .stroke(dotted)
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tHorizon * 1000 + 700, 700))));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tHorizon * 1000 + 700, 700))));
     }
 
     // --- 45 almucantars, "compowned by two and two" (I.18) ----------------
@@ -898,8 +900,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       g.child(cut({0, almCy(h)}, almR(h), five ? 1.7f : 1.3f,
                   five ? 0.62f : 0.44f, five ? 0.30f : 0.20f,
                   "alm" + std::to_string(i))
-                  .opacity(withFrom(
-                      0.0f, 1.0f,
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
                       ramp(tAlmu * 1000 + (float)(44 - i) * 38.0f, 520,
                            ch::easeOutQuint))));
     }
@@ -936,7 +938,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                         .stroke(PathFormat{
                             .width = 1.3f,
                             .strokeFill = grooveFill(rad, 1.3f, 0.42f, 0.20f)})
-                        .opacity(withFrom(0.0f, 1.0f, ramp(delay, 460))));
+                        .opacity(animate(from(0.0f).to(1.0f),
+                                         ramp(delay, 460))));
         }
       }
       // the prime vertical (A = 90/270): a circle centred on the axis, and it
@@ -951,7 +954,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                       .stroke(PathFormat{
                           .width = 1.7f,
                           .strokeFill = grooveFill(rad, 1.7f, 0.55f, 0.26f)})
-                      .opacity(withFrom(0.0f, 1.0f, ramp(tAzim * 1000, 460))));
+                      .opacity(animate(from(0.0f).to(1.0f),
+                                       ramp(tAzim * 1000, 460))));
       }
       g.child(std::move(sky));
     }
@@ -964,7 +968,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(kR - 1.0f, 0, 2.0f, 2 * kR))
                 .key("meridian")
                 .fill(Fill::color(hex(0x3a2a10, 0.55f)))
-                .trim(0.0f, withFrom(0.0f, 1.0f, ramp(tAzim * 1000 + 820, 520))));
+                .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                    ramp(tAzim * 1000 + 820, 520))));
 
     // --- 12 unequal-hour lines, "twelve devisiouns embelif" (I.20) --------
     // THE REGION IS A SET DIFFERENCE: these live only inside Capricorn AND
@@ -1000,30 +1005,33 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                         .stroke(PathFormat{
                             .width = 1.5f,
                             .strokeFill = grooveFill(rad, 1.5f, 0.50f, 0.24f)})
-                        .opacity(withFrom(0.0f, 1.0f, ramp(delay, 480))));
+                        .opacity(animate(from(0.0f).to(1.0f),
+                                         ramp(delay, 480))));
       }
       // k = 6, the straight one
       night.child(box()
                       .rect(SkRect::MakeXYWH(kR - 0.8f, kR, 1.6f, kR))
                       .key("hr6")
                       .fill(Fill::color(hex(0x3a2a10, 0.5f)))
-                      .opacity(withFrom(0.0f, 1.0f, ramp(tHours * 1000, 480))));
+                      .opacity(animate(from(0.0f).to(1.0f),
+                                       ramp(tHours * 1000, 480))));
       g.child(std::move(night));
     }
 
     // --- the horizon, h = 0: heavier than its 44 siblings ------------------
     g.child(cut({0, almCy(0.0f)}, almR(0.0f), 3.4f, 0.90f, 0.50f, "horizon")
-                .trim(0.0f, withFrom(0.0f, 1.0f,
-                                     ramp(tHorizon * 1000, 900, ch::easeOutQuint))));
+                .trim(0.0f, animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tHorizon * 1000, 900, ch::easeOutQuint))));
 
     // --- the three tropics: Capricorn : equator : Cancer = 1 : k : k² -----
     const float trop[3] = {1.0f, kReq, kRcan};
     for (int i = 0; i < 3; ++i)
       g.child(cut({0, 0}, trop[i], i == 0 ? 3.0f : 2.4f, 0.80f, 0.46f,
                   "trop" + std::to_string(i))
-                  .trim(0.0f, withFrom(0.0f, 1.0f,
-                                       ramp(tTropics * 1000 + (float)i * 200,
-                                            760, ch::easeOutQuint))));
+                  .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                      ramp(tTropics * 1000 + (float)i * 200,
+                                           760, ch::easeOutQuint))));
 
     // --- the east and west points, where the horizon meets the equator ----
     // Exact invariant: √(R_eq² + R_eq²/tan²φ) = R_eq/sin φ, to the last bit
@@ -1040,7 +1048,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .key("zenith")
                 .outline(shapes::circle())
                 .fill(Fill::color(hex(0x3a2a10, 0.85f)))
-                .opacity(withFrom(0.0f, 1.0f, ramp(tAlmu * 1000, 400))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tAlmu * 1000, 400))));
 
     return g;
   }
@@ -1159,7 +1168,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         .key("reteshadow")
         .translateX(7.0f)
         .translateY(9.0f)
-        .opacity(withFrom(0.0f, 1.0f, ramp(tRete * 1000 + 200, 900)))
+        .opacity(animate(from(0.0f).to(1.0f), ramp(tRete * 1000 + 200, 900)))
         .child(std::move(inner));
   }
 
@@ -1210,7 +1219,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .depth = 2, .size = 3, .angleDeg = 125,
                   .highlight = hex(0xffe9b0, 0.55f),
                   .shadow = hex(0x2a1d08, 0.5f)})
-              .opacity(withFrom(0.0f, 1.0f, ramp(tRete * 1000 + 620, 700))));
+              .opacity(animate(from(0.0f).to(1.0f),
+                               ramp(tRete * 1000 + 620, 700))));
 
       // the 360 degree divisions INSIDE the signs, at the projection's own
       // non-uniform spacing — they visibly bunch toward Cancer, and that is
@@ -1241,8 +1251,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .fill(Fill::none())
                 .stroke(stroke((d % 5 == 0) ? 1.2f : 0.8f,
                                Fill::color(hex(0x4a3410, 0.62f))))
-                .opacity(withFrom(0.0f, 1.0f,
-                                  ramp(tRete * 1000 + 900 + (float)d * 0.6f, 300))));
+                .opacity(animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tRete * 1000 + 900 + (float)d * 0.6f, 300))));
       }
 
       // the band's own two edges, engraved: β = +6° and β = −6°, Chaucer's
@@ -1255,9 +1266,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
       // the ecliptic line itself, engraved down the middle of the band
       clipped.child(cut({0, kEclCy}, kEclR, 2.0f, 0.72f, 0.36f, "eclline")
-                        .trim(0.0f, withFrom(0.0f, 1.0f,
-                                             ramp(tRete * 1000 + 700, 1100,
-                                                  ch::easeOutQuint))));
+                        .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                            ramp(tRete * 1000 + 700, 1100,
+                                                 ch::easeOutQuint))));
 
       // the twelve sign names, tangential — running lettering, engraver's
       // convention, no autoFlip. Each is centred at its OWN cell midpoint,
@@ -1288,8 +1299,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                  .offset = -0.030f * kR,
                                  .autoFlip = false,
                                  .orient = TextPath::Orient::Tangent})
-                .opacity(withFrom(0.0f, 1.0f,
-                                  ramp(tRete * 1000 + 1200 + (float)i * 45, 400))));
+                .opacity(animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tRete * 1000 + 1200 + (float)i * 45, 400))));
       }
       g.child(std::move(clipped));
     }
@@ -1326,7 +1338,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
         node.foreground(brushes::taper(0.032f * kR + 2.0f, 2.4f,
                                        Fill::color(hex(0x3d2b0c, 0.85f))))
             .foreground(brushes::taper(0.032f * kR, 1.0f, brassStroke(bb, 0.66f)))
-            .opacity(withFrom(0.0f, 1.0f, ramp(delay, 420, ease::outBack())));
+            .opacity(animate(from(0.0f).to(1.0f),
+                             ramp(delay, 420, ease::outBack())));
       } else {
         // a milled edge on both sides of every bar: the keyline is what makes
         // the sheet read as a sheet rather than as a stroke on a diagram
@@ -1336,7 +1349,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                    .strokeFill = brassStroke(bb, 0.66f)})
             .foreground(PathFormat{.width = w * 0.30f,
                                    .strokeFill = Fill::color(hex(0xffedc0, 0.30f))})
-            .trim(0.0f, withFrom(0.0f, 1.0f, ramp(delay, 900, ch::easeOutQuint)));
+            .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                ramp(delay, 900, ch::easeOutQuint)));
       }
       g.child(std::move(node));
     }
@@ -1358,8 +1372,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Tangent})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tRete * 1000 + 1600 + (float)i * 90, 400))));
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
+                      ramp(tRete * 1000 + 1600 + (float)i * 90, 400))));
     }
 
     // --- the star tips, and the dog's head for Sirius --------------------
@@ -1379,25 +1394,26 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                         .highlight = hex(0xffe9b0, 0.6f),
                         .shadow = hex(0x2a1d08, 0.55f)})
                     .rotate(-40.0f)
-                    .opacity(withFrom(0.0f, 1.0f, ramp(delay, 420))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))));
         // the ear and the muzzle
         g.child(disc({c.fX - 0.020f * kR, c.fY - 0.020f * kR}, 0.011f * kR)
                     .key("dogear")
                     .outline(shapes::polygon(3, 20))
                     .fill(Fill::color(kBrassP70))
-                    .opacity(withFrom(0.0f, 1.0f, ramp(delay, 420))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))));
         g.child(disc(c, 3.0f)
                     .key("dogeye")
                     .outline(shapes::circle())
                     .fill(Fill::color(hex(0x2a1d08, 0.8f)))
-                    .opacity(withFrom(0.0f, 1.0f, ramp(delay + 120, 300))));
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     ramp(delay + 120, 300))));
       } else {
         g.child(disc(c, 4.2f)
                     .key("tip" + std::to_string(i))
                     .outline(shapes::circle())
                     .fill(Fill::color(kBrassP90))
                     .foreground(stroke(1.0f, Fill::color(hex(0x2a1d08, 0.6f))))
-                    .opacity(withFrom(0.0f, 1.0f, ramp(delay, 380))));
+                    .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 380))));
       }
     }
 
@@ -1426,14 +1442,16 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .stroke(PathFormat{.width = 1.0f,
                                      .strokeFill = Fill::color(hex(0x2a1d08, 0.4f)),
                                      .dashIntervals = {2.5f, 3.5f}})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tRete * 1000 + 2400 + (float)i * 30, 500))));
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
+                      ramp(tRete * 1000 + 2400 + (float)i * 30, 500))));
       g.child(disc(b, 2.6f)
                   .key("ghost" + std::to_string(i))
                   .outline(shapes::circle())
                   .fill(Fill::color(hex(0x2a1d08, 0.45f)))
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tRete * 1000 + 2400 + (float)i * 30, 500))));
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
+                      ramp(tRete * 1000 + 2400 + (float)i * 30, 500))));
     }
 
     // --- the quatrefoil above, the trefoil below (MHS 45133) -------------
@@ -1470,7 +1488,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
               .depth = 2, .size = 2.5f, .angleDeg = 125,
               .highlight = hex(0xffe9b0, 0.55f),
               .shadow = hex(0x2a1d08, 0.55f)})
-          .opacity(withFrom(0.0f, 1.0f, ramp(delay, 520, ease::outBack())));
+          .opacity(animate(from(0.0f).to(1.0f),
+                           ramp(delay, 520, ease::outBack())));
     };
     g.child(foil(4, 0.100f * kR, PL(0, 0.72f), "quatrefoil",
                  tRete * 1000 + 1000));
@@ -1486,15 +1505,16 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .depth = 2, .size = 2, .angleDeg = 125,
                     .highlight = hex(0xffe9b0, 0.6f),
                     .shadow = hex(0x2a1d08, 0.6f)})
-                .opacity(withFrom(0.0f, 1.0f,
-                                  ramp(tRete * 1000 + 900, 500, ease::outBack()))));
+                .opacity(animate(
+                    from(0.0f).to(1.0f),
+                    ramp(tRete * 1000 + 900, 500, ease::outBack()))));
 
     // --- the almury: "the Denticle of Capricorne" (I.23), at 0° Capricorn -
     g.child(disc(PL(0, -1.0f + 0.055f), 0.048f * kR)
                 .key("almury")
                 .outline(shapes::polygon(3, 180))
                 .fill(brassDisc({kCx, kCy + kR}, 0.048f * kR, 0.68f))
-                .opacity(withFrom(0.0f, 1.0f, ramp(tPin * 1000, 420))));
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tPin * 1000, 420))));
 
     return g;
   }
@@ -1521,7 +1541,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .depth = 3, .size = 6, .angleDeg = 125,
                     .highlight = hex(0xfff0c4, 0.5f),
                     .shadow = hex(0x2a1d08, 0.6f)})
-                .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000, 700))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tMater * 1000, 700))));
 
     // the polished dome: a sheen centred slightly above the pin. glowUnit,
     // because it must FILL its box — radialUnit's radius is a fraction of
@@ -1534,7 +1555,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                           {0.55f, hex(0xffdc8b, 0.10f)},
                                           {1.0f, hex(0x4f360e, 0.14f)}}))
                 .blend(SkBlendMode::kSoftLight)
-                .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000 + 200, 700))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tMater * 1000 + 200, 700))));
 
     // brass is TOOLED, and the tool marks are fine concentric turning
     g.child(disc({kCx, kCy}, kMaterR)
@@ -1542,13 +1564,15 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .outline(shapes::circle())
                 .background(lines::concentric(Fill::color(hex(0x6b4d18, 0.055f)),
                                               120, 0.9f))
-                .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000 + 300, 600))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tMater * 1000 + 300, 600))));
     g.child(disc({kCx, kCy}, kMaterR)
                 .key("brassgrain")
                 .outline(shapes::circle())
                 .fill(brassGrain)
                 .blend(SkBlendMode::kOverlay)
-                .opacity(withFrom(0.0f, 0.30f, ramp(tMater * 1000 + 300, 600))));
+                .opacity(animate(from(0.0f).to(0.30f),
+                                 ramp(tMater * 1000 + 300, 600))));
 
     // the three rules of the limb: 1.155 / 1.082 / 1.005 R
     const float rules[3] = {1.155f, 1.082f, 1.005f};
@@ -1561,9 +1585,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                       .width = i == 0 ? 3.0f : 2.0f,
                       .strokeFill = grooveFill(rules[i] * kR, i == 0 ? 3.0f : 2.0f,
                                                0.75f, 0.45f)})
-                  .trim(0.0f, withFrom(0.0f, 1.0f,
-                                       ramp(tMater * 1000 + 200 + (float)i * 120,
-                                            900, ch::easeOutQuint))));
+                  .trim(0.0f, animate(from(0.0f).to(1.0f),
+                                      ramp(tMater * 1000 + 200 + (float)i * 120,
+                                           900, ch::easeOutQuint))));
 
     // the 360 degree ticks — ONE atlas cell, three LENGTHS through
     // Pool::sizes(). This is the instancing case, and it works here for
@@ -1574,7 +1598,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     g.child(box()
                 .rect(SkRect::MakeXYWH(0, 0, kW, kH))
                 .key("ticks")
-                .opacity(withFrom(0.0f, 1.0f, ramp(tTicks * 1000, 700)))
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tTicks * 1000, 700)))
                 .child(instancing::instances(tickAtlas, tickPool,
                                              instancing::Mode::Data)));
 
@@ -1597,8 +1621,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Radial})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tTicks * 1000 + 300 + (float)i * 25, 400))));
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
+                      ramp(tTicks * 1000 + 300 + (float)i * 25, 400))));
     }
 
     // the 24 hour letters, RADIAL. A at the first hour after noon, running
@@ -1622,8 +1647,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                    .offset = 0.0f,
                                    .autoFlip = false,
                                    .orient = TextPath::Orient::Radial})
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    ramp(tLetters * 1000 + (float)n * 12, 380))));
+                  .opacity(animate(
+                      from(0.0f).to(1.0f),
+                      ramp(tLetters * 1000 + (float)n * 12, 380))));
       // the letter under the label lights as it passes
       g.child(disc(MC(1.044f * std::cos(psi * kD), 1.044f * std::sin(psi * kD)),
                    0.052f * kR)
@@ -1652,19 +1678,21 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                       .depth = 2, .size = 4, .angleDeg = 125,
                       .highlight = hex(0xfff0c4, 0.6f),
                       .shadow = hex(0x2a1d08, 0.6f)})
-                  .translateY(withFrom(-26.0f, 0.0f,
-                                       ramp(tMater * 1000 + 200, 900,
-                                            ease::outBack())))
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000 + 200, 600))));
+                  .translateY(animate(from(-26.0f).to(0.0f),
+                                      ramp(tMater * 1000 + 200, 900,
+                                           ease::outBack())))
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tMater * 1000 + 200, 600))));
       g.child(disc({top.fX, top.fY - th - 0.055f * kR}, 0.075f * kR)
                   .key("shackle")
                   .outline(shapes::annulus(0.62f))
                   .fill(brassDisc({top.fX, top.fY - th - 0.055f * kR},
                                   0.075f * kR, 0.78f))
-                  .translateY(withFrom(-26.0f, 0.0f,
-                                       ramp(tMater * 1000 + 260, 900,
-                                            ease::outBack())))
-                  .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000 + 260, 600))));
+                  .translateY(animate(from(-26.0f).to(0.0f),
+                                      ramp(tMater * 1000 + 260, 900,
+                                           ease::outBack())))
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   ramp(tMater * 1000 + 260, 600))));
     }
     return g;
   }
@@ -1690,7 +1718,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .strokeFill = Fill::color(hex(0x3a2a10, 0.85f)),
                     .dashIntervals = {2.0f, 6.0f}})
                 .background(shadow(hex(0x2a1d08, 0.5f), {4, 5}, 7))
-                .opacity(withFrom(0.0f, 1.0f, ramp(tPin * 1000 + 200, 600))));
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 ramp(tPin * 1000 + 200, 600))));
 
     // the pin and its horse
     g.child(disc({kCx, kCy}, 0.040f * kR)
@@ -1702,7 +1731,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                     .highlight = hex(0xfff0c4, 0.7f),
                     .shadow = hex(0x2a1d08, 0.6f)})
                 .background(shadow(hex(0x2a1d08, 0.5f), {2, 3}, 5))
-                .opacity(withFrom(0.0f, 1.0f, ramp(tPin * 1000, 420))));
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tPin * 1000, 420))));
     return g;
   }
 
@@ -2083,9 +2112,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
     g.child(box()
                 .rect(SkRect::MakeXYWH(c.fX - r * 0.97f, c.fY - 5, 2 * r * 0.97f, 10))
                 .transformOrigin(0.5f, 0.5f)
-                .rotate(withFrom(0.0f, -25.5f,
-                                 ramp(tChaucer * 1000 + 200, 900,
-                                      ease::outBack())))
+                .rotate(animate(from(0.0f).to(-25.5f),
+                                ramp(tChaucer * 1000 + 200, 900,
+                                     ease::outBack())))
                 .fill(brass(SkRect::MakeLTRB(c.fX - r, c.fY - 5, c.fX + r,
                                              c.fY + 5),
                             0.76f))
@@ -2095,9 +2124,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
       g.child(box()
                   .rect(SkRect::MakeXYWH(c.fX + s * r * 0.90f - 5, c.fY - 16, 10, 32))
                   .transformOriginPx({5.0f - s * r * 0.90f, 16})
-                  .rotate(withFrom(0.0f, -25.5f,
-                                   ramp(tChaucer * 1000 + 200, 900,
-                                        ease::outBack())))
+                  .rotate(animate(from(0.0f).to(-25.5f),
+                                  ramp(tChaucer * 1000 + 200, 900,
+                                       ease::outBack())))
                   .fill(brassDisc(c, r, 0.80f))
                   .foreground(stroke(1.0f, Fill::color(hex(0x2a1d08, 0.6f)))));
     g.child(disc(c, 8).outline(shapes::circle()).fill(brassDisc(c, 8, 0.82f)));
@@ -2273,9 +2302,9 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                   .rect(SkRect::MakeXYWH(bx + (bw / 12.0f) * (float)i, by - h, w, h))
                   .fill(Fill::color(span > 30 ? hex(0x8c2f22, 0.72f)
                                               : hex(0x241c15, 0.62f)))
-                  .scaleY(withFrom(0.0f, 1.0f,
-                                   ramp(tYear * 1000 + (float)i * 45, 520,
-                                        ease::outBack())))
+                  .scaleY(animate(from(0.0f).to(1.0f),
+                                  ramp(tYear * 1000 + (float)i * 45, 520,
+                                       ease::outBack())))
                   .transformOrigin(0.5f, 1.0f));
       g.child(text(toU8(std::string(kSigns[i]).substr(0, 3)),
                    type(faceLimb, 10, hex(0x6b5a44), 0.5f))
@@ -2419,7 +2448,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                    .key("case")
                    .corners({3})
                    .fill(Fill::color(kCase))
-                   .opacity(withFrom(0.0f, 1.0f, ramp(tGround * 1000, 700))));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    ramp(tGround * 1000, 700))));
     root.child(box()
                    .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
                    .key("vignette")
@@ -2428,7 +2458,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                             {{0.0f, hex(0x33405a, 0.55f)},
                                              {0.62f, hex(0x1d222d, 0.0f)},
                                              {1.0f, hex(0x080a10, 0.75f)}}))
-                   .opacity(withFrom(0.0f, 1.0f, ramp(tGround * 1000, 900))));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    ramp(tGround * 1000, 900))));
     // the contact shadow
     root.child(box()
                    .rect(SkRect::MakeXYWH(kCx - kMaterR * 1.02f, kCy + kMaterR * 0.86f, kMaterR * 2.04f, kMaterR * 0.30f))
@@ -2437,7 +2468,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                    .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, hex(0x05070c, 0.75f)},
                                              {1.0f, hex(0x05070c, 0.0f)}}))
-                   .opacity(withFrom(0.0f, 1.0f, ramp(tMater * 1000, 900))));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    ramp(tMater * 1000, 900))));
 
     root.child(titleStrip());
     root.child(limb());

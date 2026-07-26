@@ -2706,6 +2706,95 @@ TEST(ComposeMotion, WithFromColorSweepsOnMount) {
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
 
+// ---------------------------------------------------------------------------
+// The §32 authoring grammar: animate(from(a).to(b)) / animate(through({…}))
+// are the intent spelling of the withFrom/withKeyframes pair. The tests
+// above keep the legacy spellings honest; these prove the new one builds
+// the identical value — the engine never learns which was written.
+
+TEST(ComposeMotion, AnimateBuildsTheSameTransitionedAsTheLegacyBuilders) {
+  const Transition spec{200ms, &choreograph::easeNone, 40ms};
+  const Transitioned<float> legacy = withFrom(0.0f, 1.0f, spec);
+  const Transitioned<float> phrased = animate(from(0.0f).to(1.0f), spec);
+  EXPECT_EQ(phrased.value, legacy.value);
+  ASSERT_TRUE(phrased.from.has_value());
+  EXPECT_EQ(*phrased.from, *legacy.from);
+  EXPECT_EQ(phrased.spec.duration, legacy.spec.duration);
+  EXPECT_EQ(phrased.spec.delay, legacy.spec.delay);
+  EXPECT_FLOAT_EQ(phrased.spec.easing()(0.25f), legacy.spec.easing()(0.25f));
+  EXPECT_TRUE(phrased.waypoints.empty());
+
+  const std::vector<std::pair<std::chrono::milliseconds, float>> path{
+      {0ms, 40.0f}, {200ms, -20.0f}, {400ms, 0.0f}};
+  const Transitioned<float> legacyPath =
+      withKeyframes<float>(path, &choreograph::easeNone);
+  const Transitioned<float> phrasedPath =
+      animate(through(path), &choreograph::easeNone);
+  EXPECT_EQ(phrasedPath.value, legacyPath.value);
+  ASSERT_TRUE(phrasedPath.from.has_value());
+  EXPECT_EQ(*phrasedPath.from, *legacyPath.from);
+  EXPECT_EQ(phrasedPath.waypoints, legacyPath.waypoints);
+  EXPECT_EQ(phrasedPath.spec.duration, legacyPath.spec.duration);
+  // The ease is the one field animate() forwards that withKeyframes
+  // writes itself — dropping it would default to easeOutQuad silently.
+  EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f),
+                  legacyPath.spec.easing()(0.25f));
+}
+
+TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
+  // A nested braced list is a non-deduced context, which is why
+  // withKeyframes had to be told `<float>`. Compiling with no explicit
+  // template argument IS the test.
+  const Transitioned<float> t =
+      animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
+  ASSERT_EQ(t.waypoints.size(), 2u);
+  EXPECT_EQ(t.waypoints.front().second, 0.0f);
+  EXPECT_EQ(t.waypoints.back().second, 1.0f);
+  ASSERT_TRUE(t.from.has_value());
+  EXPECT_EQ(*t.from, 0.0f);
+  EXPECT_EQ(t.value, 1.0f);
+  EXPECT_EQ(t.spec.duration, 100ms);
+}
+
+TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
+  Host host;
+  auto tree = [] {
+    return box().child(box()
+                           .width(80)
+                           .height(80)
+                           .fill(red())
+                           .opacity(animate(from(0.0f).to(1.0f),
+                                            {200ms, &choreograph::easeNone})));
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK); // enters invisible
+  host.frame(0.1);                              // half the linear ramp
+  const SkColor mid = host.pixel(40, 40);
+  EXPECT_GT(SkColorGetR(mid), 90u);
+  EXPECT_LT(SkColorGetR(mid), 165u);
+  EXPECT_EQ(SkColorGetG(mid), 0u);
+  host.frame(0.2); // settled
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+
+  host.composer.render(tree()); // identical re-describe prunes clean
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(ComposeMotion, AnimateColorSweepsOnMount) {
+  Host host;
+  host.composer.render(box().child(
+      box().width(80).height(80).fill(Animatable<Fill>(
+          animate(from(Fill::color({1, 1, 1, 1})).to(red()),
+                  {200ms, &choreograph::easeNone})))));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE); // the declared "from"
+  host.frame(0.3);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
 TEST(ComposeTrim, WrapModeCrossesTheSeam) {
   // A wrap window crossing the cycle seam must paint exactly the union of
   // its two clamp pieces — direction-agnostic pixel containment.

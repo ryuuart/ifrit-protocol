@@ -72,21 +72,36 @@ template <typename T> struct Transitioned {  // value + spec, plus optional
   /* from, waypoints */                      // waypoints (see below)
 };
 template <typename T> Transitioned<T> with(T value, Transition spec);
-// Mount entrances: play from → to when the node first appears (the CSS
-// animation-on-enter); afterwards behaves exactly like with(to, spec).
-template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec);
-// Mount keyframe path: absolute (time, value) waypoints — the damped-
-// overshoot entrances one ramp can't shape.
-template <typename T> Transitioned<T> withKeyframes(
-    std::vector<std::pair<std::chrono::milliseconds, T>> frames,
-    choreograph::EaseFn ease = ...);
+// animate() is COMPOSER-MANUFACTURED motion: the composer runs the clock,
+// as against a bound Output, where you do. Both forms are MOUNT
+// choreography — they play when the node first appears (the CSS
+// animation-on-enter) and afterwards behave exactly like with(to, spec).
+template <typename T> From<T> from(T value);          // .to(target) completes
+template <typename T> Transitioned<T> animate(FromTo<T> ft,
+                                              Transition spec = {});
+// Keyframe path: absolute (time, value) waypoints — the damped-overshoot
+// entrances one ramp can't shape; `ease` applies per segment, a leading
+// time > 0 holds the first value. through() takes a float path with no
+// template argument (a nested braced list is a non-deduced context, which
+// is what forced withKeyframes<float>); through<T>({...}) for other types.
+Waypoints<float> through(
+    std::initializer_list<std::pair<std::chrono::milliseconds, float>>);
+template <typename T> Transitioned<T> animate(Waypoints<T> w,
+                                              choreograph::EaseFn ease = ...);
+  .opacity(animate(from(0.0f).to(1.0f), {400ms}))
+  .translateX(animate(through({{0ms, 40.f}, {200ms, -20.f}, {400ms, 0.f}})))
+// Legacy spellings, retained indefinitely: withFrom(a, b, spec) is
+// animate(from(a).to(b), spec); withKeyframes<T>(frames, ease) is
+// animate(through(frames), ease).
 
-template <typename T> class PropValue;  // T: float, SkColor4f, Fill…
+template <typename T> class Animatable; // T: float, SkColor4f, Fill…
+template <typename T> using PropValue = Animatable<T>;  // legacy spelling;
+                                        // existing signatures keep it
 // Holds a plain T, a Transitioned<T>, a const ch::Output<T>*, or a
 // SHAPED binding (below). Stored COMPACTLY, not as a std::variant:
 // constants and bindings inline, the fat payloads (Transitioned's
 // from/waypoints/spec; a binding's map) boxed out-of-line and sharing
-// one pointer since they are mutually exclusive — eight PropValue<float>s
+// one pointer since they are mutually exclusive — eight Animatable<float>s
 // ride every node's paint props, so this is the ElementNode
 // hot-base/boxed-rarities rule applied to the property type itself
 // (see DESIGN.md).
@@ -243,7 +258,7 @@ Element &transition(Transition);           // node default applied to any
 Element &staggerChildren(std::chrono::milliseconds each,
                          Stagger::From = Stagger::From::Start);
                                            // GSAP container stagger: child
-                                           // subtrees' withFrom() entrances
+                                           // subtrees' animate() entrances
                                            // delay by order·each (End =
                                            // bottom-up, Center = ripple)
 
@@ -302,8 +317,8 @@ snapping*. The lifecycle rules, stated once:
   cancel/reset/cleanup API to call or forget.
 - **Mount applies values directly** — plain values and `with()` don't
   transition on first appearance (the CSS rule). Entrances are
-  EXPLICIT: `withFrom(from, to, spec)` plays its ramp on mount,
-  `withKeyframes()` plays a waypoint path, and `staggerChildren()`
+  EXPLICIT: `animate(from(a).to(b), spec)` plays its ramp on mount,
+  `animate(through({...}))` plays a waypoint path, and `staggerChildren()`
   cascades a container's entrances — afterwards all behave like
   `with()` (retarget-from-current). `snapshot()`/`measure()` render
   the settled end values.
