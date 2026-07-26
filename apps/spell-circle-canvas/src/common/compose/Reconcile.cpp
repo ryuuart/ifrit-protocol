@@ -191,7 +191,8 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
          a->connectFrom == b->connectFrom && a->connectTo == b->connectTo &&
          a->bandAround == b->bandAround &&
          a->bandFormation == b->bandFormation &&
-         a->spanFitKeys == b->spanFitKeys;
+         a->spanFitKeys == b->spanFitKeys &&
+         a->borrowedPathKeys == b->borrowedPathKeys;
 }
 
 bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
@@ -772,8 +773,9 @@ void Composer::Impl::indexKeys(Instance &inst) {
     // A borrowed band spine and a spans::fit() gap are the same kind of
     // question a connector asks — "where did that keyed node land" — so
     // they ride the SAME flat derive list rather than growing a phase.
-    const bool isBorrowed =
-        !derive.bandAround.empty() || !derive.spanFitKeys.empty();
+    const bool isBorrowed = !derive.bandAround.empty() ||
+                            !derive.spanFitKeys.empty() ||
+                            !derive.borrowedPathKeys.empty();
     if (isBorrowed && !isConnector && !isRail)
       routedInstances.push_back(&inst);
     if (isConnector || isRail) {

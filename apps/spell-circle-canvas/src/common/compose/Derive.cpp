@@ -130,6 +130,28 @@ void Composer::Impl::deriveRoute(Instance &inst) {
     }
   }
 
+  // strand::from(key): the keyed PATHS a decoration borrows, in this
+  // node's local space. Same walk, same cycle guard as every other borrow.
+  if (!derive->borrowedPathKeys.empty()) {
+    std::vector<std::pair<std::string, SkPath>> paths;
+    paths.reserve(derive->borrowedPathKeys.size());
+    const SkRect own = absoluteRect(inst);
+    for (const std::string &key : derive->borrowedPathKeys) {
+      auto it = byKey.find(key);
+      if (it == byKey.end() || borrowIsCyclic(inst, it->second))
+        continue;
+      const SkRect target = absoluteRect(*it->second);
+      paths.emplace_back(
+          key, resolvedShapeOf(*it->second)
+                   .makeTransform(SkMatrix::Translate(
+                       target.left() - own.left(), target.top() - own.top())));
+    }
+    if (paths != inst.borrowedPaths) {
+      inst.borrowedPaths = std::move(paths);
+      inst.markPaintDirtyUp();
+    }
+  }
+
   // spans::fit(key): the boxes a stroke pass sizes its gap from.
   if (!derive->spanFitKeys.empty()) {
     std::vector<std::pair<std::string, SkRect>> rects;

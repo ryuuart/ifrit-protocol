@@ -1090,7 +1090,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                               elapsed(),
                               contentScale,
                               ticker.active(),
-                              &fonts};
+                              &fonts,
+                              inst.borrowedPaths.empty()
+                                  ? nullptr
+                                  : &inst.borrowedPaths};
 
   // wipe(): a directional reveal, clipping the WHOLE node — decorations
   // included, because a reveal reveals. Unlike clipContent this is not a
@@ -1423,7 +1426,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       const PaintContext passCtx{
           paintCtx.size,     detail::spanPath(paintCtx.outline, claims[i]),
           paintCtx.elapsedSeconds, paintCtx.contentScale,
-          paintCtx.animating, paintCtx.fonts};
+          paintCtx.animating, paintCtx.fonts, paintCtx.borrowed};
       node.strokeData->passes[i].what.paint(canvas, passCtx);
     }
   }

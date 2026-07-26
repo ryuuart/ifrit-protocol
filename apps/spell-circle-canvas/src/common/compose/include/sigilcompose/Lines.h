@@ -581,13 +581,21 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
 
 } // namespace detail
 
-/** CORNER BRACKETS: keep only the arc within @p arm px of each corner, so a
- *  rectangle becomes four L-shaped marks and nothing else. The reticle, the
- *  selection handle, the crop mark, the Blade-Runner/Alien target frame —
- *  and until now every one of them in the corpus was four hand-placed
- *  Elements per frame, which is 4 nodes that do not follow the shape when
- *  it changes. This follows ANY silhouette: chamfer the box and the
- *  brackets land on the chamfers. */
+/** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
+ *  corner, so a rectangle becomes four L-shaped marks and nothing else. The
+ *  reticle, the selection handle, the crop mark, the Blade-Runner/Alien
+ *  target frame — and until now every one of them in the corpus was four
+ *  hand-placed Elements per frame, which is 4 nodes that do not follow the
+ *  shape when it changes. This follows ANY silhouette: chamfer the box and
+ *  the brackets land on the chamfers.
+ *
+ *  One capability, four spellings before the stroke grammar: this,
+ *  `cornerGaps` below, `decorations::brackets` and
+ *  `decorations::gappedRule` — the audit's item 10. All four are retained
+ *  (§27) and all four run this one scan. The grammar's spelling is
+ *  `spans::corners(arm)`, which CLAIMS the runs on the element's real
+ *  boundary instead of returning a path that replaces its shape; reach for
+ *  that first, and for these when you want the geometry itself. */
 inline SkPath cornerBrackets(const SkPath &src, float arm,
                              float angleDeg = 30.0f) {
   return detail::cornerWindows(src, arm, true, angleDeg);
@@ -595,7 +603,11 @@ inline SkPath cornerBrackets(const SkPath &src, float arm,
 
 /** The complement: a rule that STOPS SHORT of every corner, leaving @p gap
  *  px of paper at each. The printer's open-corner box rule; also how a
- *  technical drawing keeps a frame from fighting its own dimension lines. */
+ *  technical drawing keeps a frame from fighting its own dimension lines.
+ *
+ *  The grammar's spelling is `spans::edges(gap)` — same scan, claimed on
+ *  the element's own boundary. Retained (§27); see cornerBrackets above for
+ *  the four-spellings note. */
 inline SkPath cornerGaps(const SkPath &src, float gap,
                          float angleDeg = 30.0f) {
   return detail::cornerWindows(src, gap, false, angleDeg);

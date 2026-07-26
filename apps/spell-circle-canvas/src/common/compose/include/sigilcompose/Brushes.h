@@ -48,6 +48,7 @@
 
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -85,6 +86,13 @@ struct LayeredBrush {
     for (const StrokeLayer &layer : layers)
       reach = std::max(reach, layer.width * 0.5f + layer.blurSigma * 3.0f);
     return reach;
+  }
+  /** The widest layer's full mark (see PathFormat::reach). */
+  float reach() const {
+    float widest = 0;
+    for (const StrokeLayer &layer : layers)
+      widest = std::max(widest, layer.width + layer.blurSigma * 3.0f);
+    return widest;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
@@ -324,6 +332,20 @@ public:
   }
   GeometryOp(ops::PathOp fn) // NOLINT: escape hatch, never prunes
       : m_apply(std::move(fn)) {}
+  /** A Shaper IS a geometry op — the seam value under its taught name.
+   *  This adaptor is what lets `.shaped(v)` and the legacy `.op(v)` share
+   *  one pipeline instead of two. */
+  GeometryOp(Shaper s) // NOLINT: implicit by design
+      : m_bleed(s.bleed()) {
+    m_held = s;
+    m_equals = [](const std::any &a, const std::any &b) {
+      return std::any_cast<const Shaper &>(a) ==
+             std::any_cast<const Shaper &>(b);
+    };
+    m_apply = [held = std::move(s)](const SkPath &p) {
+      return held.shape(p);
+    };
+  }
 
   SkPath apply(const SkPath &p) const { return m_apply ? m_apply(p) : p; }
   float bleed() const { return m_bleed; }
@@ -383,6 +405,289 @@ struct Offset {
 
 } // namespace ops
 
+// ---------------------------------------------------------------------------
+// THE BRUSH KINDS AND COMPOSITES (ROADMAP §33 stage two)
+//
+// A brush is what PAINTS. There are exactly four KINDS — the leaf tools —
+// and two COMPOSITES, which combine any brushes at all, including other
+// composites. That is the whole taxonomy; everything else on this shelf is
+// a value built out of it.
+//
+//   kinds       brush::solid   brush::Pattern   brush::Scatter   brush::Art
+//   composites  brush::layers(…)                brush::weave(…)
+//
+// The KINDS are the types that were already here under mechanism names;
+// `brush::` is where they are taught, and the old spellings keep
+// compiling (§27). `solid` replaces `PathFormat` — "path format" names
+// the implementation, and `pen` was rejected because it implies
+// calligraphy, which is a profile, not a kind.
+
+namespace brush {
+
+/** THE plain stroke: a width, a paint, and optional dash/stamp/effect.
+ *  Successor to `PathFormat`, which is the same type under its old
+ *  mechanism name. */
+using Solid = PathFormat;
+/** `brush::solid(width, fill[, align])` — the one-line spelling.
+ *  Designated initialisers still work through `brush::Solid{…}`. */
+inline Solid solid(float width, Fill fill,
+                   PathFormat::Align align = PathFormat::Align::Center) {
+  Solid s;
+  s.width = width;
+  s.strokeFill = std::move(fill);
+  s.align = align;
+  return s;
+}
+
+/** One strand of a composite: WHERE it runs and WHAT paints it.
+ *
+ *  A pair, deliberately — two parallel lists matched by index was the
+ *  first shape tried and it reproduced §10d's defect exactly (add a
+ *  strand, silently shift every brush). One strand is one value. */
+struct Strand {
+  StrandPath path;
+  Decoration brush;
+  bool operator==(const Strand &o) const {
+    return path == o.path && brush == o.brush;
+  }
+};
+
+/** THE COMPOSITE. `brush::weave(...)` and `brush::layers(...)` are two
+ *  author intents over this one machine:
+ *
+ *  **`layers` == `weave` with coincident self-strands.** Coincident
+ *  strands produce no crossings, so the rule never fires and list order
+ *  applies everywhere — which IS what "fixed order, bottom-up" means.
+ *  Both words are kept because they name different intents (the
+ *  `alternate` == `sequence({Over, Under})` precedent), and neither is a
+ *  special case in the code below.
+ *
+ *  Composites NEST: any strand's brush may be another composite, so a
+ *  braid painted by layers, or a whole braid used as one strand of a
+ *  bigger weave, needs no new vocabulary. */
+struct Weave {
+  std::vector<Strand> strands;
+  /** How discovered crossings resolve. Default is list order — see
+   *  CrossingRule. There is ONE of these; pins go on it via
+   *  `.except(i, order)`, never as stacked entries. */
+  CrossingRule crossing;
+  /** Override the mark half-width the repair region is built from, in px.
+   *  0 (the default) asks each strand's brush — `Decoration::reach()` —
+   *  which is the right answer for everything that reports one.
+   *
+   *  A strand whose brush is a bare PaintProgram reports reach 0 (it has no
+   *  width to declare), and the repair clamps that to a 2 px tube — far too
+   *  thin for most custom marks. **Set `patch` explicitly on a weave whose
+   *  strands are custom programs.**
+   *
+   *  WHAT THE REPAIR DOES, honestly: for every crossing the rule decides
+   *  against list order, the over-strand is repainted through the region
+   *  where the two marks overlap (`crossingPatch`), bounded by THE KNOT'S
+   *  OWN TERRITORY — half the arc distance to its nearest neighbouring
+   *  crossing on the tighter of the two strands (measured around the
+   *  cycle, on a closed strand).
+   *
+   *  That bound is not a margin, it is what keeps a braid a braid: without
+   *  it the neighbouring overlap regions touch, merge into one, and the
+   *  first crossing's patch owns the whole run. The cost is that a repair
+   *  reaches only half way to the next knot. So with OPAQUE strand brushes
+   *  the repair is exact WHERE A CROSSING HAS ROOM — and adjacent shallow
+   *  crossings each own only half the distance between them, so the
+   *  under-strand can show between two close knots.
+   *
+   *  With TRANSLUCENT strands it double-covers: the over-strand's alpha is
+   *  composited twice inside the patch, so the crossing reads darker than
+   *  the strand does elsewhere. That is not a bug in the patch size — it is
+   *  the patch MODEL, and it is one of the two named hard cases ROADMAP §33
+   *  pins for the element-level crossover pass (the other being several
+   *  crossings over one region). **Weaves want opaque inks until that pass
+   *  lands.** */
+  float patch = 0.0f;
+
+  bool operator==(const Weave &o) const {
+    return strands == o.strands && crossing == o.crossing &&
+           patch == o.patch;
+  }
+  bool animated() const {
+    for (const Strand &s : strands)
+      if (s.brush.animated())
+        return true;
+    return false;
+  }
+  float bleed() const {
+    float worst = 0;
+    for (const Strand &s : strands)
+      worst = std::max(worst, s.path.reach() + s.brush.bleed());
+    return worst;
+  }
+  /** The widest mark any strand paints, off its own path. */
+  float reach() const {
+    float worst = 0;
+    for (const Strand &s : strands)
+      worst = std::max(worst, s.path.reach() + s.brush.reach());
+    return worst;
+  }
+  /** Forwarded so the element can register the derive borrows without
+   *  looking inside a type-erased brush (BorrowingDecoration). */
+  std::vector<std::string> borrows() const {
+    std::vector<std::string> keys;
+    for (const Strand &s : strands) {
+      if (s.path.source() == StrandPath::Source::Borrowed)
+        keys.push_back(s.path.key());
+      for (const std::string &nested : s.brush.borrows())
+        keys.push_back(nested);
+    }
+    return keys;
+  }
+
+  void paint(SkCanvas &c, const PaintContext &ctx) const {
+    if (strands.empty())
+      return;
+    // 1. Resolve every strand's geometry. A relative strand is a
+    //    displacement of the boundary in the (along, across) frame the
+    //    band owns; an absolute one brings its own path — and if NO
+    //    strand is relative, the boundary is simply an unpainted host.
+    std::vector<SkPath> paths;
+    paths.reserve(strands.size());
+    for (const Strand &s : strands) {
+      switch (s.path.source()) {
+      case StrandPath::Source::Relative:
+        paths.push_back(s.path.profile().max() == 0.0f
+                            ? ctx.outline
+                            : profileOffset(ctx.outline, s.path.profile()));
+        break;
+      case StrandPath::Source::Borrowed:
+        paths.push_back(ctx.borrowedPath(s.path.key()));
+        break;
+      case StrandPath::Source::Authored:
+        paths.push_back(s.path.path());
+        break;
+      }
+    }
+
+    const auto paintStrand = [&](size_t i) {
+      const PaintContext sub{ctx.size,        paths[i],
+                             ctx.elapsedSeconds, ctx.contentScale,
+                             ctx.animating,   ctx.fonts,
+                             ctx.borrowed};
+      strands[i].brush.paint(c, sub);
+    };
+
+    // 2. List order first — the whole picture, correct wherever nothing
+    //    crosses, which is every layers() and most of any weave.
+    for (size_t i = 0; i < paths.size(); ++i)
+      paintStrand(i);
+
+    // 3. Repair the crossings the rule disagrees with. Crossings are
+    //    DISCOVERED, never authored.
+    const std::vector<Crossing> crossings = discoverCrossings(paths);
+    if (crossings.empty())
+      return;
+    const auto reachOf = [&](size_t i) {
+      // The MARK's full width, not the cull's bleed(): an Align::Inner
+      // stroke bleeds zero while painting a mark `width` wide, and a
+      // region derived from bleed() was measurably too small.
+      return patch > 0 ? patch : std::max(strands[i].brush.reach(), 1.0f);
+    };
+
+    // Each strand's arc length, so a crossing's `along` fractions convert to
+    // px — which is what bounds one knot's patch away from its neighbours'.
+    // Also whether the strand is a CYCLE, because on a closed contour the
+    // fractions 0.02 and 0.98 are neighbours, not opposites.
+    std::vector<float> lengths(paths.size(), 0.0f);
+    std::vector<char> cyclic(paths.size(), 0);
+    for (size_t i = 0; i < paths.size(); ++i) {
+      SkContourMeasureIter it(paths[i], false);
+      int contours = 0;
+      bool lastClosed = false;
+      while (sk_sp<SkContourMeasure> m = it.next()) {
+        lengths[i] += m->length();
+        lastClosed = m->isClosed();
+        ++contours;
+      }
+      // ONE closed contour, and no more: with several contours the `along`
+      // parameter runs them end to end, so its two ends are not adjacent
+      // and wrapping would be a lie.
+      cyclic[i] = (contours == 1 && lastClosed) ? 1 : 0;
+    }
+    // THE KNOT'S TERRITORY: half the arc distance to the nearest adjacent
+    // crossing, on either strand, whichever is closer. Without it the
+    // lenses of an ordinary braid touch, pathops merges them into ONE
+    // contour, and crossing 0's patch owns the whole run — the weave then
+    // reads as a single strand laid on top of the others.
+    const auto positionOn = [](const Crossing &x, size_t strandIndex) {
+      return x.a == strandIndex ? x.alongA : x.alongB;
+    };
+    const auto territoryOf = [&](const Crossing &x) {
+      float limit = std::numeric_limits<float>::max();
+      for (const size_t s : {x.a, x.b}) {
+        const float mine = positionOn(x, s);
+        for (const Crossing &other : crossings) {
+          if (&other == &x || (other.a != s && other.b != s))
+            continue;
+          float delta = std::abs(positionOn(other, s) - mine);
+          // On a CYCLE the seam is not a boundary: two knots at 0.02 and
+          // 0.98 sit 4% apart, not 96%. Without this, crossings straddling
+          // the seam read as maximally distant, the bound vanishes, and
+          // the lenses merge again — two overlapping rings put both knots
+          // in one patch and painted the whole thing in one colour.
+          //
+          // Conditional on closedness, because wrapping an OPEN strand
+          // whose crossings sit near its two ends would over-clip: those
+          // ends really are far apart.
+          if (cyclic[s])
+            delta = std::min(delta, 1.0f - delta);
+          const float gap = delta * lengths[s];
+          if (gap > 0.01f)
+            limit = std::min(limit, gap * 0.5f);
+        }
+      }
+      // No neighbour on either strand: the lens needs no bound, and a
+      // number large enough to contain it is the honest spelling of that.
+      if (limit == std::numeric_limits<float>::max())
+        limit = 1e6f;
+      return limit;
+    };
+
+    for (const Crossing &x : crossings) {
+      const Order order = crossing.decide(x);
+      const size_t top = order == Order::Over ? x.a : x.b;
+      // `b` painted later, so it is already on top. Nothing to do.
+      if (top == x.b)
+        continue;
+      c.save();
+      c.clipPath(crossingPatch(paths[x.a], reachOf(x.a), paths[x.b],
+                               reachOf(x.b), x.at, territoryOf(x)),
+                 true);
+      paintStrand(top);
+      c.restore();
+    }
+  }
+};
+
+/** FIXED ORDER, bottom-up: the first brush paints first, the last on top.
+ *  Formally a weave of coincident self-strands (see Weave), which is why
+ *  double and triple lines are `layers` plus offset shapers and never
+ *  element duplication. */
+inline Weave layers(std::vector<Decoration> stack) {
+  Weave w;
+  w.strands.reserve(stack.size());
+  for (Decoration &d : stack)
+    w.strands.push_back(Strand{strand::self(), std::move(d)});
+  return w;
+}
+/** PER-CROSSING order: strands that may trade sides, and a rule for who
+ *  passes over whom where they meet. */
+inline Weave weave(std::vector<Strand> strands,
+                   CrossingRule rule = crossing::alternate()) {
+  Weave w;
+  w.strands = std::move(strands);
+  w.crossing = std::move(rule);
+  return w;
+}
+
+} // namespace brush
+
 /** THE BRUSH: one composable value — a geometry PIPELINE over the outline
  *  (ops applied in order, the SkComposePathEffect idea as data) feeding
  *  ordered paint LEGS (any Decoration: a lines::Line, a LayeredBrush
@@ -414,6 +719,16 @@ struct Brush {
   std::vector<GeometryOp> pipeline;
   std::vector<Leg> legs;
 
+  /** THE geometry-deviation seam: any comparable value with
+   *  `SkPath shape(const SkPath &) const`. Stock shapers are kit values
+   *  (`kit::brush::shapers::wave/jitter/offset`), peers of anything you
+   *  write — there is deliberately no sugar method over this. */
+  Brush &shaped(Shaper s) {
+    pipeline.push_back(GeometryOp(std::move(s)));
+    return *this;
+  }
+  /** Legacy spelling of shaped() — retained indefinitely (§27). `op` and
+   *  `GeometryOp` name the mechanism; a shaper names what it does. */
   Brush &op(GeometryOp g) {
     pipeline.push_back(std::move(g));
     return *this;
@@ -431,6 +746,29 @@ struct Brush {
       if (l.dec.animated())
         return true;
     return false;
+  }
+  /** The widest mark any leg paints, plus the pipeline's own reach. */
+  float reach() const {
+    float shared = 0;
+    for (const GeometryOp &g : pipeline)
+      shared += g.bleed();
+    float worst = 0;
+    for (const Leg &l : legs) {
+      float legReach = l.dec.reach();
+      for (const GeometryOp &g : l.ops)
+        legReach += g.bleed();
+      worst = std::max(worst, legReach);
+    }
+    return shared + worst;
+  }
+  /** A leg may be a composite that borrows keyed paths; forward them so
+   *  the element registers the derive borrow (BorrowingDecoration). */
+  std::vector<std::string> borrows() const {
+    std::vector<std::string> keys;
+    for (const Leg &l : legs)
+      for (const std::string &k : l.dec.borrows())
+        keys.push_back(k);
+    return keys;
   }
   float bleed() const {
     float shared = 0;
@@ -456,7 +794,8 @@ struct Brush {
         legPath = g.apply(legPath);
       const PaintContext restyled{ctx.size,        std::move(legPath),
                                   ctx.elapsedSeconds, ctx.contentScale,
-                                  ctx.animating,   ctx.fonts};
+                                  ctx.animating,   ctx.fonts,
+                                  ctx.borrowed};
       l.dec.paint(c, restyled);
     }
   }
@@ -475,11 +814,16 @@ struct Restyled {
 
   bool animated() const { return inner.animated(); }
   float bleed() const { return inner.bleed() + extraBleed; }
+  float reach() const { return inner.reach(); }
+  /** Forwarded, or a wrapped weave's strand::from(key) would never be
+   *  registered for the derive pass (BorrowingDecoration). */
+  std::vector<std::string> borrows() const { return inner.borrows(); }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     PaintContext restyled{ctx.size,        op ? op(ctx.outline) : ctx.outline,
                           ctx.elapsedSeconds, ctx.contentScale,
-                          ctx.animating,   ctx.fonts};
+                          ctx.animating,   ctx.fonts,
+                          ctx.borrowed};
     inner.paint(c, restyled);
   }
 };
@@ -1285,4 +1629,24 @@ inline ArtBrush artAlong(Element art, float height = 0,
 }
 
 } // namespace brushes
+
+// ---------------------------------------------------------------------------
+// The remaining brush KINDS, taught under `brush::` (see the taxonomy note
+// above). Aliases, not new types — the old spellings keep compiling (§27),
+// and nothing about their behaviour changes.
+
+namespace brush {
+/** A mark built from CELLS repeated along the boundary (the cell is an
+ *  element — anything paints it). The other mechanism from a shaper: a
+ *  shaper bends ONE continuous mark, a pattern builds the mark out of
+ *  pieces. Legacy spelling: `brushes::PatternBrush`. */
+using Pattern = brushes::PatternBrush;
+/** Cells strewn NEAR the boundary rather than laid along it.
+ *  Legacy spelling: `brushes::ScatterBrush`. */
+using Scatter = brushes::ScatterBrush;
+/** An element stretched ALONG the boundary in its (along, across) space.
+ *  Legacy spelling: `brushes::ArtBrush`. */
+using Art = brushes::ArtBrush;
+} // namespace brush
+
 } // namespace sigil::compose

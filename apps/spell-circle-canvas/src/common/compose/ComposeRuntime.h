@@ -81,6 +81,9 @@ struct Instance {
   // spans::fit(key): the keyed boxes, in this node's local space, in the
   // order the element declared them.
   std::vector<std::pair<std::string, SkRect>> spanFitRects;
+  // strand::from(key): the keyed paths, in this node's local space —
+  // handed to decorations as PaintContext::borrowed.
+  std::vector<std::pair<std::string, SkPath>> borrowedPaths;
   // Animated span endpoints (two per term, per pass, in declaration
   // order). A vector rather than the fixed Slot array because the count
   // is a property of the description, not of the kernel.

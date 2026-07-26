@@ -130,6 +130,11 @@ struct PathFormat {
            : align == Align::Outer ? width
                                    : width * 0.5f;
   }
+  /** How wide the MARK is either side of the outline — which is NOT
+   *  bleed(): an Inner stroke escapes the shape by nothing while painting
+   *  a mark `width` px wide inside it. Anything asking where the mark IS
+   *  (a weave's crossing repair) needs this number. */
+  float reach() const { return width; }
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
   bool animated() const {
@@ -467,6 +472,9 @@ struct Border {
     const float heaviest = std::max(width, cornerWidth);
     return std::max(0.0f, heaviest * 0.5f - inset);
   }
+  /** The mark's own width (see PathFormat::reach) — independent of inset,
+   *  which moves the mark rather than widening it. */
+  float reach() const { return std::max(width, cornerWidth); }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     // `width` is the RUN's width, and Weighted mode has a second width for
@@ -533,7 +541,13 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
   return Border{.width = width, .fill = std::move(fill), .inset = inset};
 }
 
-/** CORNER BRACKETS: four L-shaped marks and nothing else — the reticle,
+/** Legacy spelling — retained indefinitely (§27). The stroke grammar says
+ *  this as `.stroke(spans::corners(arm), brush::solid(width, fill))`: a
+ *  pass that CLAIMS the corner runs, on the node's real boundary, leaving
+ *  `spans::rest()` free to dress everything else. Same corner scan
+ *  underneath (lines::detail::findCorners), same pixels.
+ *
+ *  CORNER BRACKETS: four L-shaped marks and nothing else — the reticle,
  *  the selection handle, the crop mark, the target frame. `arm` is the
  *  length of each leg in px of arc length. */
 inline Border brackets(float width, Fill fill, float arm = 18.0f,
@@ -546,7 +560,10 @@ inline Border brackets(float width, Fill fill, float arm = 18.0f,
                 .cornerAngleDeg = angleDeg};
 }
 
-/** A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */
+/** Legacy spelling — retained indefinitely (§27); the grammar says
+ *  `.stroke(spans::edges(gap), brush::solid(width, fill))`.
+ *
+ *  A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */
 inline Border gappedRule(float width, Fill fill, float gap = 14.0f,
                          float inset = 0.0f, float angleDeg = 30.0f) {
   return Border{.width = width,

@@ -708,6 +708,11 @@ struct EdgeSlice {
   Decoration inner{PaintProgram{}};
   float step = 3.0f;
 
+  /** Forwarded, or an inner weave's strand::from(key) would never be
+   *  registered for the derive pass (BorrowingDecoration). */
+  std::vector<std::string> borrows() const { return inner.borrows(); }
+  float reach() const { return inner.reach(); }
+
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     PaintContext local = ctx;
     local.outline = edges(ctx.outline, mask, step);
@@ -748,6 +753,11 @@ inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {
 struct Inset {
   float px = 0;
   Decoration inner{PaintProgram{}};
+
+  /** Forwarded, or an inner weave's strand::from(key) would never be
+   *  registered for the derive pass (BorrowingDecoration). */
+  std::vector<std::string> borrows() const { return inner.borrows(); }
+  float reach() const { return inner.reach(); }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     PaintContext local = ctx;
