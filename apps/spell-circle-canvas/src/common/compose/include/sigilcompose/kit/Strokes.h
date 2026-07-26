@@ -10,11 +10,17 @@
  * whose only include path is compose's PUBLIC headers, so a kit value
  * cannot reach ComposeInternal.h even by accident.
  *
- * What is deliberately NOT here: PRESETS. `cased`, `railway`, `rope`,
- * `GlossContour` and their relatives are compositions with craft names,
- * and they belong in external loadable kits (`stroke_atlas` stays the
- * in-repo specimen page). Standing check: a preset whose name is craft
- * jargon over a plain composition gets demoted — the `cased` treatment.
+ * PRESETS live at the bottom, under `kit::brush::presets::`, and they are
+ * a DIFFERENT tier from everything above: a shaper is a peer of something
+ * you would write against a seam, a preset is a finished composition with
+ * a craft name. The end state §33 rules for them is an EXTERNAL loadable
+ * kit; no such mechanism is built, and the four that came out of core with
+ * R2 (`filament`, `circuit`, `rope`, `pulse`) had to leave `brushes::`,
+ * because that namespace dies with R3. So they sit here, in their own
+ * scope, saying what they are — one move, not two, and the second move is
+ * a change of home rather than a change of name. Standing check unchanged:
+ * a preset whose name is craft jargon over a plain composition gets
+ * demoted (the `cased` treatment).
  */
 
 #include "sigilcompose/Brushes.h"
@@ -63,6 +69,13 @@ namespace shapers {
  *  rather than deriving one, and the reason a wave profile on a very short
  *  or very long spine will not have the wavelength you asked for. The
  *  SHAPER reading (`shape()`) has a real path and is exact. */
+/** NOTE THE THIRD MEMBER. `ops::Wave`'s third is `bool zigzag`; this
+ *  one's is `float phase`. `Wave{4, 28, true}` therefore means two
+ *  different drawings in the two spellings — a smooth wave at phase 1 as
+ *  a kit shaper, a ZIGZAG as an `ops::` struct — and it compiles both
+ *  ways. Porting a positional `ops::Wave` to a kit shaper has to read the
+ *  third argument; that is exactly the trap that made `Zigzag` its own
+ *  value rather than a flag here. */
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
   bool operator==(const Wave &) const = default;
@@ -118,8 +131,62 @@ struct Offset {
   }
 };
 
+/** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
+ *  `shapes::rounded()`, which rounds an OUTLINE GENERATOR's result: this
+ *  rounds whatever path the brush pipeline is carrying, so it softens a
+ *  displaced zigzag or an offset rail, not just a silhouette.
+ *
+ *  The twin of `ops::Rounded`, and the reason it exists: §33 wanted
+ *  `brush::ops` demoted to internal once the lowercase lambda family died,
+ *  and could not, because `Rounded` and `Square` had no taught spelling —
+ *  demoting the family would have deleted two capabilities with nothing to
+ *  say instead. */
+struct Rounded {
+  float radius = 6.0f;
+  bool operator==(const Rounded &) const = default;
+  SkPath shape(const SkPath &p) const { return ops::Rounded{radius}.apply(p); }
+};
+
+/** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
+ *  the Greek meander key, a stepped circuit trace. Wave's sibling, and the
+ *  other half of what unblocks the `ops::` demotion. */
+struct Square {
+  float amplitude = 5.0f, wavelength = 32.0f;
+  bool operator==(const Square &) const = default;
+  float bleed() const { return std::abs(amplitude); }
+  SkPath shape(const SkPath &p) const {
+    return ops::Square{amplitude, wavelength}.apply(p);
+  }
+};
+
+/** THE SAME OSCILLATION WITH CORNERS: `Wave` sampled as straight runs
+ *  between its extremes rather than a curve — the drawn zigzag, the
+ *  saw edge, the seismograph line.
+ *
+ *  Its own value rather than a `zigzag` flag on `Wave`, because Wave is
+ *  ALSO read as a profile (`across()`) and a flag that the profile reading
+ *  ignored would be a silent asymmetry. Found by the R2 port: the
+ *  `ops::` demotion turned out to need THREE twins, not the two §33
+ *  named — `ops::Wave{.zigzag = true}` was the third gap, and it had a
+ *  live corpus site (the gallery's pipeline trio). */
+struct Zigzag {
+  float amplitude = 4.0f, wavelength = 24.0f;
+  bool operator==(const Zigzag &) const = default;
+  float bleed() const { return std::abs(amplitude); }
+  SkPath shape(const SkPath &p) const {
+    return lines::displace(p, amplitude, wavelength, true);
+  }
+};
+
 inline Wave wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Wave{amplitude, wavelength, phase};
+}
+inline Zigzag zigzag(float amplitude = 4.0f, float wavelength = 24.0f) {
+  return Zigzag{amplitude, wavelength};
+}
+inline Rounded rounded(float radius = 6.0f) { return Rounded{radius}; }
+inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
+  return Square{amplitude, wavelength};
 }
 inline Jitter jitter(float segLength = 8.0f, float deviation = 2.0f,
                      uint32_t seed = 7) {
@@ -202,4 +269,135 @@ inline sigil::compose::shapes::OutlineFn ring(float innerRatio = 0.6f) {
 }
 } // namespace shapes
 
+// ---------------------------------------------------------------------------
+// kit::brush::presets — finished compositions with craft names
+//
+// Peers of the shapers in TIER MECHANICS (free functions over the public
+// API, nothing reaches inside) and NOT peers of them in kind: a shaper is
+// vocabulary, a preset is a finished drawing. They are scoped apart so the
+// difference is visible at every call site — `kit::brush::shapers::wave`
+// is a word, `kit::brush::presets::rope` is a picture of Path of Exile's
+// rope. All four moved here from core's `brushes::` in R2 (ROADMAP §33),
+// unchanged: same layers, same numbers, same references.
+
+namespace brush {
+namespace presets {
+
+/** Ori-style organic filament (REFERENCES.md §5): four strokes bottom-up —
+ *  wide additive glow, mid glow, bright core, white center. Scale sets the
+ *  envelope (1.0 → 14px envelope over a 2.5px core). */
+inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
+                             SkColor4f core = {0.875f, 0.965f, 1.0f, 1},
+                             float scale = 1.0f) {
+  SkColor4f g18 = glow, g45 = glow, c90 = core;
+  g18.fA = 0.18f;
+  g45.fA = 0.45f;
+  c90.fA = 0.90f;
+  return LayeredBrush{{
+      {14 * scale, g18, 8 * scale, {}, 0, SkBlendMode::kPlus},
+      {7 * scale, g45, 3 * scale, {}, 0, SkBlendMode::kPlus},
+      {2.5f * scale, c90},
+      {1 * scale, {1, 1, 1, 0.7f}},
+  }};
+}
+
+/** FUI circuit trace (REFERENCES.md §5). Tiers: 0 = data (1px, 55%),
+ *  1 = main (2px, 85%), 2 = power (4px + 8px under-glow). Pair with an
+ *  octilinear-ish router with 45° chamfers for the full look. */
+inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
+                            int tier = 1) {
+  SkColor4f c = color;
+  LayeredBrush b;
+  if (tier >= 2) {
+    SkColor4f under = color;
+    under.fA = 0.15f;
+    b.layers.push_back({8, under, 4});
+    c.fA = 1.0f;
+    b.layers.push_back({4, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  } else if (tier == 1) {
+    c.fA = 0.85f;
+    b.layers.push_back({2, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  } else {
+    c.fA = 0.55f;
+    b.layers.push_back({1, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  }
+  return b;
+}
+
+/** Path of Exile's rope connector, 3-state (REFERENCES.md §5 — palette
+ *  ladder verified against Path of Building): counter-dashed strand layers
+ *  read as rope; Active adds the warm halo and specular ridge. state:
+ *  0 Normal, 1 Intermediate (hover-path), 2 Active.
+ *
+ *  `scale` is the zoom the rope is drawn at — every width, dash and blur
+ *  moves together, the way the game's own line art does. The default is
+ *  the widely-spaced study; a dense cluster wants ~0.6. */
+inline LayeredBrush rope(int state, float scale = 1.0f) {
+  struct P { SkColor4f body, ridge; };
+  static constexpr P kStates[3] = {
+      {{0.227f, 0.200f, 0.165f, 1}, {0.341f, 0.286f, 0.227f, 1}}, // #3A332A/#57493A
+      {{0.420f, 0.353f, 0.251f, 1}, {0.553f, 0.459f, 0.314f, 1}}, // #6B5A40/#8D7550
+      {{0.541f, 0.447f, 0.282f, 1}, {0.780f, 0.659f, 0.420f, 1}}, // #8A7248/#C7A86B
+  };
+  const P &p = kStates[state < 0 ? 0 : state > 2 ? 2 : state];
+  SkColor4f bodyLit = {p.body.fR * 1.15f, p.body.fG * 1.15f,
+                       p.body.fB * 1.15f, 1};
+  SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f,
+                        p.ridge.fB * 1.3f, 0.6f};
+  const float k = scale <= 0 ? 1.0f : scale;
+  LayeredBrush b;
+  if (state >= 2)
+    b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k}); // halo
+  b.layers.push_back(
+      {11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});   // strand
+  b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k}); // counter
+  b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k}); // ridge
+  return b;
+}
+
+/** The §5 pulse-travel profile as a brush: plus-blended halo, colored
+ *  body, white-hot core. Claim a SHORT window of a rail
+ *  (`spans::wrap(&phase, &phaseEnd)`) and march the window along it —
+ *  the energy packet on any connector. */
+inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
+                          SkColor4f core = {1, 1, 1, 0.9f},
+                          float scale = 1.0f) {
+  SkColor4f body = halo;
+  body.fA = std::min(1.0f, halo.fA * 2.2f);
+  return LayeredBrush{{
+      {12 * scale, halo, 5 * scale, {}, 0, SkBlendMode::kPlus},
+      {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
+      {2 * scale, core},
+  }};
+}
+
+} // namespace presets
+} // namespace brush
+
 } // namespace sigil::compose::kit
+
+// ---------------------------------------------------------------------------
+// The legacy spellings, kept alive to R3.
+//
+// R2 moved the BODIES out of core; deleting the NAMES is R3's job, and
+// doing it a phase early is exactly what the alias-first law (§27) exists
+// to prevent. They are using-declarations rather than forwarding wrappers
+// so the default arguments cannot drift from the definitions.
+//
+// They live HERE, in the kit, and not in core's `Brushes.h`, because the
+// tier boundary is structural: SigilComposeKit links compose's public
+// headers and nothing goes the other way, so a core header cannot name a
+// kit value. The consequence, stated so nobody rediscovers it: reaching
+// `brushes::filament` now means including `<sigilcompose/kit/Strokes.h>`.
+// Every corpus site already does.
+namespace sigil::compose::brushes {
+/** Legacy spelling of kit::brush::presets::filament — dies in R3. */
+using kit::brush::presets::filament;
+/** Legacy spelling of kit::brush::presets::circuit — dies in R3. */
+using kit::brush::presets::circuit;
+/** Legacy spelling of kit::brush::presets::rope — dies in R3. */
+using kit::brush::presets::rope;
+/** Legacy spelling of kit::brush::presets::pulse — dies in R3. */
+using kit::brush::presets::pulse;
+} // namespace sigil::compose::brushes

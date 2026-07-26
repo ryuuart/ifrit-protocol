@@ -163,14 +163,25 @@ struct DeriveData {
   std::vector<std::string> borrowedPathKeys;
 };
 
-/** One span-qualified stroke pass (Element::stroke(where, what, name)).
- *  The unqualified whole-boundary form stays an ordinary foreground —
- *  it overlays and never claims, so old scenes cannot become overlap
- *  errors (the §27 alias-first law). */
+/** One span-qualified pass — Element::stroke(where, what, name) or
+ *  Element::background(where, what, name). The unqualified whole-boundary
+ *  forms stay ordinary foregrounds/backgrounds — they overlay and never
+ *  claim, so old scenes cannot become overlap errors (the §27 alias-first
+ *  law).
+ *
+ *  ONE ledger, two z-halves. `half` says only WHERE the pass paints;
+ *  claims, the no-overlap law, append order and rest() read the whole
+ *  list, because they are statements about ONE boundary and a boundary
+ *  does not have two of itself. */
 struct StrokePass {
+  enum class Half : uint8_t {
+    Background, ///< with the backgrounds, below the fill and the children
+    Foreground, ///< with the foregrounds, above the children
+  };
   Spans where;
   Decoration what;
   std::string name;
+  Half half = Half::Foreground;
 };
 
 struct StrokeData {

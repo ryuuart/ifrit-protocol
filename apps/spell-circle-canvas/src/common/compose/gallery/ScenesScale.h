@@ -84,7 +84,7 @@ struct UiParticleScene final : Scene {
   }
   Element shout(const ChipTheme &t, std::u8string label, int spikes) {
     return box().width(kSprite - 4).height(kSprite - 4)
-        .outline(starburstOutline(spikes, 0.32f))
+        .shape(starburstOutline(spikes, 0.32f))
         .fill(sigil::compose::util::radialGradient(
             {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
             {{1.0f, 0.92f, 0.55f, 1}, t.fill}))
@@ -94,7 +94,7 @@ struct UiParticleScene final : Scene {
   }
   Element seal(const ChipTheme &t, std::u8string label, float lobe) {
     return box().width(kSprite - 8).height(kSprite - 8)
-        .outline(scallopOutline(lobe))
+        .shape(scallopOutline(lobe))
         .fill(Fill::color(t.fill))
         .foreground(sigil::compose::util::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center).justify(Justify::Center)

@@ -116,98 +116,15 @@ struct LayeredBrush {
   }
 };
 
-namespace brushes {
-
-/** Ori-style organic filament (REFERENCES.md §5): four strokes bottom-up —
- *  wide additive glow, mid glow, bright core, white center. Scale sets the
- *  envelope (1.0 → 14px envelope over a 2.5px core). */
-inline LayeredBrush filament(SkColor4f glow = {0.435f, 0.847f, 1.0f, 1},
-                             SkColor4f core = {0.875f, 0.965f, 1.0f, 1},
-                             float scale = 1.0f) {
-  SkColor4f g18 = glow, g45 = glow, c90 = core;
-  g18.fA = 0.18f;
-  g45.fA = 0.45f;
-  c90.fA = 0.90f;
-  return LayeredBrush{{
-      {14 * scale, g18, 8 * scale, {}, 0, SkBlendMode::kPlus},
-      {7 * scale, g45, 3 * scale, {}, 0, SkBlendMode::kPlus},
-      {2.5f * scale, c90},
-      {1 * scale, {1, 1, 1, 0.7f}},
-  }};
-}
-
-/** FUI circuit trace (REFERENCES.md §5). Tiers: 0 = data (1px, 55%),
- *  1 = main (2px, 85%), 2 = power (4px + 8px under-glow). Pair with an
- *  octilinear-ish router with 45° chamfers for the full look. */
-inline LayeredBrush circuit(SkColor4f color = {0.208f, 0.878f, 0.824f, 1},
-                            int tier = 1) {
-  SkColor4f c = color;
-  LayeredBrush b;
-  if (tier >= 2) {
-    SkColor4f under = color;
-    under.fA = 0.15f;
-    b.layers.push_back({8, under, 4});
-    c.fA = 1.0f;
-    b.layers.push_back({4, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  } else if (tier == 1) {
-    c.fA = 0.85f;
-    b.layers.push_back({2, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  } else {
-    c.fA = 0.55f;
-    b.layers.push_back({1, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  }
-  return b;
-}
-
-/** Path of Exile's rope connector, 3-state (REFERENCES.md §5 — palette
- *  ladder verified against Path of Building): counter-dashed strand layers
- *  read as rope; Active adds the warm halo and specular ridge. state:
- *  0 Normal, 1 Intermediate (hover-path), 2 Active.
- *
- *  `scale` is the zoom the rope is drawn at — every width, dash and blur
- *  moves together, the way the game's own line art does. The default is
- *  the widely-spaced study; a dense cluster wants ~0.6. */
-inline LayeredBrush rope(int state, float scale = 1.0f) {
-  struct P { SkColor4f body, ridge; };
-  static constexpr P kStates[3] = {
-      {{0.227f, 0.200f, 0.165f, 1}, {0.341f, 0.286f, 0.227f, 1}}, // #3A332A/#57493A
-      {{0.420f, 0.353f, 0.251f, 1}, {0.553f, 0.459f, 0.314f, 1}}, // #6B5A40/#8D7550
-      {{0.541f, 0.447f, 0.282f, 1}, {0.780f, 0.659f, 0.420f, 1}}, // #8A7248/#C7A86B
-  };
-  const P &p = kStates[state < 0 ? 0 : state > 2 ? 2 : state];
-  SkColor4f bodyLit = {p.body.fR * 1.15f, p.body.fG * 1.15f,
-                       p.body.fB * 1.15f, 1};
-  SkColor4f ridgeLit = {p.ridge.fR * 1.3f, p.ridge.fG * 1.3f,
-                        p.ridge.fB * 1.3f, 0.6f};
-  const float k = scale <= 0 ? 1.0f : scale;
-  LayeredBrush b;
-  if (state >= 2)
-    b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k}); // halo
-  b.layers.push_back(
-      {11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
-  b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});   // strand
-  b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k}); // counter
-  b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k}); // ridge
-  return b;
-}
-
-/** The §5 pulse-travel profile as a brush: plus-blended halo, colored
- *  body, white-hot core. Stroke it on a SHORT trim window of a rail
- *  (trim(&phase, &phaseEnd)) and march the window along the route —
- *  the energy packet on any connector. */
-inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
-                          SkColor4f core = {1, 1, 1, 0.9f},
-                          float scale = 1.0f) {
-  SkColor4f body = halo;
-  body.fA = std::min(1.0f, halo.fA * 2.2f);
-  return LayeredBrush{{
-      {12 * scale, halo, 5 * scale, {}, 0, SkBlendMode::kPlus},
-      {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
-      {2 * scale, core},
-  }};
-}
-
-} // namespace brushes
+// The four LayeredBrush PRESETS that used to sit here — filament(),
+// circuit(), rope(), pulse() — moved to kit::brush::presets:: in R2
+// (kit/Strokes.h) unchanged. They were compositions with craft names
+// living in the CORE, under a namespace that dies with R3.
+//
+// Their LEGACY spellings (`brushes::filament` and the other three) still
+// resolve until R3 — as using-declarations at the bottom of
+// kit/Strokes.h, because the tier boundary means a core header cannot
+// name a kit value. R2 moved the bodies; R3 deletes the names.
 
 // ---------------------------------------------------------------------------
 // The Illustrator brush model — a brush is a PIPELINE: geometry ops over the
@@ -353,20 +270,26 @@ namespace ops {
 // The struct forms — comparable, prunable, designated-init friendly, and
 // the ONLY spelling now that the lowercase lambdas are gone.
 //
-// PUBLIC, deliberately, though §33's plan was to demote `ops::` to
-// internal once the lambdas died: the corpus spells these ~35 times, and
-// the taught seam that would replace them (`.shaped(value)` over
-// `kit::brush::shapers`) covers wave/jitter/offset only. `Rounded` and
-// `Square` have no kit twin, so demoting the family would delete two
-// capabilities with nothing to say instead — which §27 forbids. The
-// demotion is blocked on that gap, not on taste; a kit shaper for each is
-// what unblocks it.
+// STILL PUBLIC, and the reason changed with R2. The gap §33 named — no
+// kit twin for `Rounded` or `Square` — is closed, and so is the third one
+// the port found (`Wave{.zigzag = true}`): `kit::brush::shapers::` now
+// ships `Rounded`, `Square` and `Zigzag` beside wave/jitter/offset, every
+// struct here has a taught twin, and all 21 corpus `.op()` sites are
+// `.shaped()`. **The PIPELINE seam is unblocked.**
+//
+// What holds the family public is the PER-LEG suffix: `Brush::leg` takes
+// `std::vector<GeometryOp>` and there is no shaper-typed overload, so a
+// leg op cannot be written as a kit value without an explicit
+// `Shaper(...)` wrap (two user-defined conversions do not chain). Until
+// `leg(Decoration, std::vector<Shaper>)` exists, these structs are the
+// only spelling for it, and the corpus uses them there — see
+// `ScenesNetwork.h`'s asymmetric casing and `thunder_fulu`'s dry rails.
 
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f;
   bool zigzag = false;
   bool operator==(const Wave &) const = default;
-  float bleed() const { return amplitude; }
+  float bleed() const { return std::abs(amplitude); }
   SkPath apply(const SkPath &p) const {
     return lines::displace(p, amplitude, wavelength, zigzag);
   }
@@ -411,7 +334,7 @@ struct Sketchy {
 struct Square { // boxy: battlement/meander-key displacement
   float amplitude = 5.0f, wavelength = 32.0f;
   bool operator==(const Square &) const = default;
-  float bleed() const { return amplitude; }
+  float bleed() const { return std::abs(amplitude); }
   SkPath apply(const SkPath &p) const {
     return lines::displaceSquare(p, amplitude, wavelength);
   }

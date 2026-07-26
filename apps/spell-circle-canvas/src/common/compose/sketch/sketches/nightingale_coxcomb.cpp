@@ -45,7 +45,7 @@
 //   patterns::grain()     plate tone + the ink-density wander inside a band
 //   Material::blend()     wash + stipple + blot + density, one fill value
 //   glyphfx::typeOn()     the pen writing the title and the legend
-//   trim() / scale() / withFrom()  the whole 13.6 s reading order
+//   spans::upTo / scale / animate  the whole 13.6 s reading order
 //   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH, because
 //                         Compose has no text-on-path (see arcRun below)
 //
@@ -334,8 +334,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
               .centerAt(at)
               .rotate(rotate)
               .transformOrigin(0.5f, 0.5f)
-              .opacity(withFrom(0.0f, 1.0f,
-                                ramp(delayMs + (float)i * 16.0f, 180.0f))));
+              .opacity(animate(from(0.0f).to(1.0f),
+                               ramp(delayMs + (float)i * 16.0f, 180.0f))));
     }
   }
 
@@ -363,11 +363,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
           box()
               .inset(0)
               .key(std::string(tag) + "spoke" + std::to_string(i))
-              .outline(spoke(len / rMax, (float)i * 30.0f))
-              .stroke(stroke(0.7f, Fill::color(kInkSoft)))
-              .trim(0.0f, withFrom(0.0f, 1.0f,
-                                   ramp(spokeSec * 1000.0f + (float)i * 16.0f,
-                                        220.0f))));
+              .shape(spoke(len / rMax, (float)i * 30.0f))
+              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                  ramp(spokeSec * 1000.0f + (float)i * 16.0f,
+                                       220.0f))), stroke(0.7f, Fill::color(kInkSoft)))
+              );
     }
 
     for (int m = 0; m < 12; ++m) {
@@ -395,12 +395,12 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
         wheelBox.child(
             discBox(local, r)
                 .key(std::string(tag) + band.name + std::to_string(m))
-                .outline(shapes::sector(skia0, 30.0f))
+                .shape(shapes::sector(skia0, 30.0f))
                 .fill(*band.mat)
                 .stroke(stroke(1.0f, Fill::color(kInk)))
                 .transformOrigin(0.5f, 0.5f)
-                .scale(withFrom(0.002f, 1.0f,
-                                ramp(delay, 620.0f, ch::easeOutExpo)))
+                .scale(animate(from(0.002f).to(1.0f),
+                               ramp(delay, 620.0f, ch::easeOutExpo)))
                 // perf-pass: each band's litho fill (Material::blend of
                 // wash+speckle+grain+blot) is a static picture that replays
                 // every shader every frame (~0.8ms x ~24 bands ~= 19ms floor
@@ -424,7 +424,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
           10.0f;
       wheelBox.child(discBox(local, rim)
                          .key(std::string(tag) + "flash" + std::to_string(m))
-                         .outline(shapes::arc(skia0 + 1.0f, 28.0f))
+                         .shape(shapes::arc(skia0 + 1.0f, 28.0f))
                          .stroke(stroke(2.4f, Fill::color(hex(0xc8a24a, 0.9f))))
                          .opacity(&flash[flashBase + m]));
     }
@@ -436,7 +436,7 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                  const ch::Output<float> *alpha, const char *key) {
     return discBox(centre, rMax)
         .key(key)
-        .outline(spoke(1.0f, 0.0f))
+        .shape(spoke(1.0f, 0.0f))
         .stroke(stroke(1.4f, Fill::color(hex(0xd8b45c))))
         .background(shadow(hex(0xd8b45c, 0.5f), {0, 0}, 9))
         .transformOrigin(0.5f, 0.5f)
@@ -511,7 +511,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     GlyphFx t1;
     t1.effect = glyphfx::typeOn();
     t1.stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40};
-    t1.progress = withFrom(0.0f, 1.0f, ramp(tTitle1 * 1000, 700, ch::easeNone));
+    t1.progress =
+        animate(from(0.0f).to(1.0f), ramp(tTitle1 * 1000, 700, ch::easeNone));
     root.child(text(toU8("DIAGRAM of the CAUSES of MORTALITY"), title1)
                    .key("title1")
                    .glyphFx(std::move(t1))
@@ -521,7 +522,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     GlyphFx t2;
     t2.effect = glyphfx::typeOn();
     t2.stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40};
-    t2.progress = withFrom(0.0f, 1.0f, ramp(tTitle2 * 1000, 400, ch::easeNone));
+    t2.progress =
+        animate(from(0.0f).to(1.0f), ramp(tTitle2 * 1000, 400, ch::easeNone));
     root.child(text(toU8("in the ARMY in the EAST."), title2)
                    .key("title2")
                    .glyphFx(std::move(t2))
@@ -537,24 +539,25 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                      .height(1)
                      .fill(Fill::color(kInk))
                      .transformOrigin(0.0f, 0.5f)
-                     .scale(withFrom(0.0f, 1.0f,
-                                     ramp(tTitle2 * 1000 + 220 + (float)i * 60,
-                                          420, ch::easeOutQuint))));
+                     .scale(animate(from(0.0f).to(1.0f),
+                                    ramp(tTitle2 * 1000 + 220 + (float)i * 60,
+                                         420, ch::easeOutQuint))));
 
     // ---- the two diagram captions -----------------------------------
     const auto capNum = type(faceGrotesque, 24, kInk);
     const auto capText = type(faceGrotesque, 21, kInk, 0.4f);
-    auto caption = [&](const char *num, const char *label, float cx,
-                       float numX, float startSec, const char *key) {
+    auto caption = [&](const char *num, const char *label, float cx, float numX,
+                       float startSec, const char *key) {
       root.child(text(toU8(num), capNum)
                      .key(std::string(key) + "n")
                      .centerAt({numX, 40})
-                     .opacity(withFrom(0.0f, 1.0f, ramp(startSec * 1000, 320))));
+                     .opacity(animate(from(0.0f).to(1.0f),
+                                      ramp(startSec * 1000, 320))));
       root.child(text(toU8(label), capText)
                      .key(std::string(key) + "t")
                      .centerAt({cx, 78})
-                     .opacity(withFrom(0.0f, 1.0f,
-                                       ramp(startSec * 1000 + 90, 320))));
+                     .opacity(animate(from(0.0f).to(1.0f),
+                                      ramp(startSec * 1000 + 90, 320))));
       root.child(box()
                      .left(cx - 140)
                      .top(94)
@@ -562,9 +565,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                      .height(1)
                      .fill(Fill::color(kInkSoft))
                      .transformOrigin(0.0f, 0.5f)
-                     .scale(withFrom(0.0f, 1.0f,
-                                     ramp(startSec * 1000 + 180, 380,
-                                          ch::easeOutQuint))));
+                     .scale(animate(
+                         from(0.0f).to(1.0f),
+                         ramp(startSec * 1000 + 180, 380, ch::easeOutQuint))));
     };
     caption("1.", "APRIL 1854 to MARCH 1855.", 1320, 1489, tCap1, "cap1");
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
@@ -623,21 +626,21 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
     // ---- the dashed leader between the two wheels -------------------
     PathFormat dash = stroke(1.1f, Fill::color(kInk));
     dash.dashIntervals = {7.0f, 5.0f};
-    root.child(box()
-                   .inset(0)
-                   .key("leader")
-                   .fill(Fill::none())
-                   .outline([](SkSize) {
-                     SkPathBuilder p;
-                     p.moveTo(202, 398);
-                     p.lineTo(614, 522);
-                     p.lineTo(1024, 374);
-                     return p.detach();
-                   })
-                   .stroke(dash)
-                   .trim(0.0f, withFrom(0.0f, 1.0f,
-                                        ramp(tLeader * 1000, 620,
-                                             ch::easeOutQuad))));
+    root.child(
+        box()
+            .inset(0)
+            .key("leader")
+            .fill(Fill::none())
+            .shape([](SkSize) {
+              SkPathBuilder p;
+              p.moveTo(202, 398);
+              p.lineTo(614, 522);
+              p.lineTo(1024, 374);
+              return p.detach();
+            })
+            .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                ramp(tLeader * 1000, 620, ch::easeOutQuad))), dash)
+            );
 
     // ---- the engraved-hand legend -----------------------------------
     const auto script = type(faceScript, 27, kInk);
@@ -645,9 +648,9 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
       GlyphFx pen;
       pen.effect = glyphfx::typeOn();
       pen.stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 30};
-      pen.progress = withFrom(
-          0.0f, 1.0f,
-          ramp(tLegend * 1000 + (float)i * 200.0f, 660, ch::easeNone));
+      pen.progress =
+          animate(from(0.0f).to(1.0f),
+                  ramp(tLegend * 1000 + (float)i * 200.0f, 660, ch::easeNone));
       root.child(text(toU8(kLegendText[i].text), script)
                      .key("leg" + std::to_string(i))
                      .glyphFx(std::move(pen))
@@ -660,8 +663,8 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
                     type(faceScript, 20, kInkSoft))
                    .key("imprint")
                    .centerAt({1712, 1004})
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     ramp(tLegend * 1000 + 2500, 600))));
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    ramp(tLegend * 1000 + 2500, 600))));
 
     // ---- the index needles ------------------------------------------
     root.child(needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"));

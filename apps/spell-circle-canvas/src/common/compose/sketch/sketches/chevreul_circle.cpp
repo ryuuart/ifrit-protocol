@@ -94,7 +94,7 @@
 //   re-describing the whole plate every frame (CHEVREUL_REDESCRIBE=1):
 //       paint 43.5 ms. Removing ONE node — the 584x584 plate-tone wash,
 //       a patterns::grain under .cache(Cache::Texture) whose shape is an
-//       .outline(shapes::circle()) lambda — takes that to 0.10 ms.
+//       .shape(shapes::circle()) lambda — takes that to 0.10 ms.
 //       43.4 of 43.5 ms is one Texture bake being thrown away every frame
 //       because an outline() callable can never compare (ROADMAP §3).
 //   the 78 non-pruning onPath limb runs (CHEVREUL_NOLIMB=1), which is the
@@ -900,7 +900,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
         tint[i] = quadrantCell(corrected[0], k + 1, t + 1);
         fr[i] = quadFrame;
       }
-    quadPool->touch();
+    quadPool->commit();
   }
 
   void buildVerifyLines() {
@@ -992,22 +992,22 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
 
     // the panel's own shadow, attached FIRST so the fill paints over it
     g.child(disc(kC, kRSweepOut + 6)
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .background(styles::dropShadow(hex(0x3A352D, 0.30f), {3, 3}, 8))
                 .fill(Fill::color(kPaper)));
 
     // ---- the limb's tint and its two engraved circles ---------------
     g.child(disc(kC, kRLimbOut)
-                .outline(shapes::annulus(kRLimbIn / kRLimbOut))
+                .shape(shapes::annulus(kRLimbIn / kRLimbOut))
                 .fill(Fill::color(kWell))
                 .opacity(bind(&demo).window(0.15f, 0.19f)));
     for (float r : {kRLimbIn, kRLimbOut})
       g.child(disc(kC, r)
                   .key(fmt("limb%.0f", r))
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .fill(Fill::none())
-                  .stroke(stroke(1.0f, Fill::color(kRule)))
-                  .trim(0.0f, bind(&demo).window(0.14f, 0.20f)));
+                  .stroke(spans::upTo(bind(&demo).window(0.14f, 0.20f)),
+                          stroke(1.0f, Fill::color(kRule))));
 
     // ---- the 72 couleurs franches -----------------------------------
     // Drawn with a 0.25 deg overlap: with no overlap the antialiased edges
@@ -1019,7 +1019,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       const float lo = 0.005f + 0.0021f * (float)n;
       g.child(disc(kC, kRColour)
                   .key("sector" + std::to_string(n))
-                  .outline(shapes::sector(sectorStart(n) - 0.125f,
+                  .shape(shapes::sector(sectorStart(n) - 0.125f,
                                           kSectorDeg + 0.25f, kInner))
                   .fill(Fill::color(corrected[(size_t)n]))
                   .transformOrigin(0.5f, 0.5f)
@@ -1027,7 +1027,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                   .scale(bind(&demo)
                              .window(lo, lo + 0.014f)
                              .map(ch::EaseFn(ease::outBack(1.2f)))
-                             .to(0.86f, 1.0f)));
+                             .target(0.86f, 1.0f)));
     }
 
     // the plate's seventy-two white radii: ONE decoration, not 72 elements.
@@ -1038,7 +1038,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       h.holeFraction = kInner * 0.70f;
       g.child(disc(kC, kRColour)
                   .key("radii")
-                  .outline(shapes::annulus(kInner))
+                  .shape(shapes::annulus(kInner))
                   .fill(Fill::none())
                   .foreground(h)
                   .opacity(bind(&demo).window(0.16f, 0.20f)));
@@ -1048,7 +1048,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // toned. Clipped to the wheel, cached as a texture.
     if (!std::getenv("CHEVREUL_NOTONE"))
       g.child(disc(kC, kRColour)
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .fill(Fill::none())
                   .foreground(decorations::wash(plateTone,
                                                 SkBlendMode::kMultiply, 0.055f))
@@ -1062,20 +1062,20 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // the plate's own title makes.
     g.child(disc(kC, kRSweepOut)
                 .key("sweepring")
-                .outline(shapes::annulus(kRSweepIn / kRSweepOut))
+                .shape(shapes::annulus(kRSweepIn / kRSweepOut))
                 .fill(sweepRing)
                 .opacity(bind(&demo).window(0.17f, 0.22f)));
 
     // ---- the medallion ----------------------------------------------
     const float rMed = kRColour * kInner;
     g.child(disc(kC, rMed + 3)
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
                                          {{0.0f, hex(0x8C8578, 0.0f)},
                                           {0.72f, hex(0x8C8578, 0.0f)},
                                           {1.0f, hex(0x8C8578, 0.22f)}})));
     g.child(disc(kC, rMed)
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .fill(Fill::color(kPaper))
                 .stroke(stroke(1.0f, Fill::color(kRule))));
     {
@@ -1165,7 +1165,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                   .height(Dim(2 * kRLimbOut))
                   .key("div" + std::to_string(n))
                   .fill(Fill::none())
-                  .outline([bd](SkSize s) {
+                  .shape([bd](SkSize s) {
                     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
                     SkPathBuilder p;
                     p.moveTo(cx + std::cos(bd) * kRLimbIn,
@@ -1202,10 +1202,10 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     g.child(disc(kC, kRColour)
                 .key("diam")
                 .fill(Fill::none())
-                .outline(diameter())
+                .shape(diameter())
                 .stroke(stroke(1.2f, Fill::color(kRed)))
                 .transformOrigin(0.5f, 0.5f)
-                .rotate(bind(&demo).window(0.18f, 0.30f).to(0.0f, 180.0f))
+                .rotate(bind(&demo).window(0.18f, 0.30f).target(0.0f, 180.0f))
                 .opacity(bind(&demo).window(0.18f, 0.30f).map(pulses(1))));
 
     // ---- the "161 years of paper" inset ------------------------------
@@ -1349,14 +1349,14 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       g.child(at(bb.left(), bb.top(), bb.width(), bb.height())
                   .key("chord" + std::to_string(n))
                   .fill(Fill::none())
-                  .outline([a0, b0](SkSize) {
+                  .shape([a0, b0](SkSize) {
                     SkPathBuilder p;
                     p.moveTo(a0);
                     p.lineTo(b0);
                     return p.detach();
                   })
-                  .stroke(stroke(0.8f, Fill::color(hex(0x8C8578, 0.85f))))
-                  .trim(0.0f, bind(&demo).window(lo, lo + 0.012f)));
+                  .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
+                          stroke(0.8f, Fill::color(hex(0x8C8578, 0.85f)))));
     }
     // the 72 points, each in its own colour
     for (int n = 0; n < 72; ++n) {
@@ -1364,7 +1364,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
       const float lo = 0.005f + 0.0021f * (float)n;
       g.child(disc(A, 3.5f)
                   .key("labpt" + std::to_string(n))
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .fill(Fill::color(corrected[(size_t)n]))
                   .stroke(stroke(0.4f, Fill::color(hex(0x221F1A, 0.5f))))
                   .transformOrigin(0.5f, 0.5f)
@@ -1373,7 +1373,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // the centroid — the piece's whole argument
     g.child(disc(P(v.centA, v.centB), 9.0f)
                 .key("centroid")
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(stroke(1.6f, Fill::color(kRed)))
                 .transformOrigin(0.5f, 0.5f)

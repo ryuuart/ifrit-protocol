@@ -121,7 +121,7 @@ struct BeethovenScene final : Scene {
         box().width(2 * rMid).height(2 * rMid)
             .inset(C.x() - rMid, C.y() - rMid,
                    bp::kPlateW - C.x() - rMid, bp::kPlateH - C.y() - rMid)
-            .outline([canvasStart](SkSize s) {
+            .shape([canvasStart](SkSize s) {
               SkPathBuilder b;
               b.addArc(SkRect::MakeWH(s.width(), s.height()), canvasStart,
                        359.9f);
@@ -134,7 +134,7 @@ struct BeethovenScene final : Scene {
       // The §7 motion rule: durations double per ring, linear sweeps.
       const auto duration =
           std::chrono::milliseconds(120 << std::min(ring, 5));
-      e.trim(0.0f, with(span, {duration, &choreograph::easeNone}));
+      e.trim(0.0f, animate(to(span), {duration, &choreograph::easeNone}));
     }
     return e;
   }

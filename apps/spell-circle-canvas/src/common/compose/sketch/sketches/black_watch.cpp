@@ -853,7 +853,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       panel.child(
           at(0, (float)i * kPx, kClothW, kPx)
               .fill(pickMat[(size_t)(col * 4 + phase)])
-              .opacity(bind(&loom).from(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
+              .opacity(bind(&loom).source(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
     }
 
     // the shutter: the warp beams on left-to-right. There is no .wipe(), and
@@ -864,7 +864,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
             .fill(kWell)
             .transformOrigin(1.0f, 0.5f)
             .scaleX(
-                bind(&loom).from(0.0f, kBeamEnd).invert().clamp(0.0f, 1.0f)));
+                bind(&loom).source(0.0f, kBeamEnd).invert().clamp(0.0f, 1.0f)));
 
     // the five cloths. Pixel-identical to the woven picks at palette 0, so
     // the hand-off at the end of the weaving beat is invisible; then each
@@ -879,7 +879,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     for (const Turn &t : turns)
       panel.child(at(0, 0, kClothW, kClothH)
                       .fill(clothMat[(size_t)t.pal])
-                      .opacity(bind(&loom).from(t.a, t.b).clamp(0.0f, 1.0f)));
+                      .opacity(bind(&loom).source(t.a, t.b).clamp(0.0f, 1.0f)));
 
     // the surface, above the weave: rib shadow, then yarn tooth. These are
     // siblings rather than decorations, and not for the reason a study would
@@ -910,7 +910,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
         panel.child(at(x - 0.5f, 0, 1, kClothH)
                         .fill(kRed)
                         .opacity(bind(&loom)
-                                     .from(kWeaveEnd, kProveEnd)
+                                     .source(kWeaveEnd, kProveEnd)
                                      .map(plateau(0.25f))
                                      .scale(0.8f)));
       }
@@ -919,11 +919,11 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
     panel.child(at(0, 0, kClothW, 2)
                     .fill(kRed)
                     .translateY(bind(&loom)
-                                    .from(kBeamEnd, kWeaveEnd)
-                                    .to(0.0f, kClothH)
+                                    .source(kBeamEnd, kWeaveEnd)
+                                    .target(0.0f, kClothH)
                                     .clamp(0.0f, kClothH))
                     .opacity(bind(&loom)
-                                 .from(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
+                                 .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
                                  .map(plateau(0.03f))));
     return panel;
   }
@@ -955,17 +955,17 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
         if (x > kClothX + kClothW)
           continue;
         g.child(at(x - 6, kBarY - 11, 12, 10)
-                    .outline(shapes::polygon(3, 180))
+                    .shape(shapes::polygon(3, 180))
                     .fill(kRed)
                     .transformOrigin(0.5f, 1.0f)
                     .scale(bind(&loom)
-                               .from(kWeaveEnd, kWeaveEnd + 0.035f)
+                               .source(kWeaveEnd, kWeaveEnd + 0.035f)
                                .map(backOut())));
         if (rep == 0)
           g.child(centred(i == 0 ? "PIVOT  B/9" : "PIVOT  B/3",
                           mn(8, kRed, 0.8f), x - 45, kBarY - 26, 90)
                       .opacity(bind(&loom)
-                                   .from(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
+                                   .source(kWeaveEnd + 0.01f, kWeaveEnd + 0.045f)
                                    .clamp(0.0f, 1.0f)));
       }
 
@@ -1031,7 +1031,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
                                      (float)kDrawN;
       g.child(at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
                   .fill(C(0x9A3324, 0.30f))
-                  .opacity(bind(&loom).from(a, b).map(plateau(0.35f))));
+                  .opacity(bind(&loom).source(a, b).map(plateau(0.35f))));
     }
     // drawdown — the cloth itself, at 12 px per thread, kNearest
     g.child(
@@ -1124,7 +1124,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       auto mark = [&](float a, float b) {
         return at(kColX, y - 2, 5, 22)
             .fill(kRed)
-            .opacity(bind(&loom).from(a, b).map(plateau(0.12f)));
+            .opacity(bind(&loom).source(a, b).map(plateau(0.12f)));
       };
       g.child(mark(spans[r][0] - 0.012f, spans[r][1] + 0.012f));
       if (r == 0)
@@ -1161,8 +1161,8 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
                              .opacity(0.85f)));
       g.child(centred(kNames[i], ty(serifIt(), 13, kInk), x, y0 + sh + 6, sw)
                   .opacity(bind(&loom)
-                               .from(0.63f + (float)i * 0.022f,
-                                     0.66f + (float)i * 0.022f)
+                               .source(0.63f + (float)i * 0.022f,
+                                       0.66f + (float)i * 0.022f)
                                .clamp(0.0f, 1.0f)));
     }
     g.child(label("“The Cockburn Collection (1810-15) includes four specimens "
@@ -1272,7 +1272,7 @@ struct BlackWatch : sigil::compose::sketch::Sketch {
       const bool okLine = s.size() > 2 && s.compare(s.size() - 2, 2, "OK") == 0;
       Element row =
           at(x0, y0 + (float)i * lh, 450, 13)
-              .opacity(bind(&loom).from(w0, w0 + 0.011f).clamp(0.0f, 1.0f));
+              .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f, 1.0f));
       row.child(text(U(okLine ? s.substr(0, s.size() - 2) : s),
                      mn(9.5f, kInk, 0.1f)));
       if (okLine)

@@ -32,7 +32,7 @@
  * re-records on layout change re-crisp the edges.
  *
  * The SDF paints the node's LOOK; hit-testing and clipping still use the
- * node's geometry — pair with `.outline(shapes::star(...))` when hits/clips
+ * node's geometry — pair with `.shape(shapes::star(...))` when hits/clips
  * should match the silhouette.
  */
 

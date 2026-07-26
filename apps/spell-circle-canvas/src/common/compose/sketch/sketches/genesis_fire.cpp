@@ -325,8 +325,8 @@ Element panel(float height, int order) {
       .corners({5})
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(withFrom(0.0f, 1.0f, {.duration = 300ms}))
-      .translateX(withFrom(14.0f, 0.0f, {.duration = 300ms}))
+      .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms}))
+      .translateX(animate(from(14.0f).to(0.0f), {.duration = 300ms}))
       .key(std::string("panel") + std::to_string(order));
 }
 
@@ -629,7 +629,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         tn[i] = {0, 0, 0, 0};
       }
     }
-    abPool->touch();
+    abPool->commit();
   }
 
   /** Fig. 2's 149 ring marks: per-instance frame + tint rewritten every
@@ -654,7 +654,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         sc[i] = 1.0f + 0.5f * k;
       }
     }
-    planPool->touch();
+    planPool->commit();
   }
 
   // =========================================================================
@@ -712,7 +712,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     planAtlas->cell(box()
                         .width(3.2f)
                         .height(3.2f)
-                        .outline(shapes::circle())
+                        .shape(shapes::circle())
                         .stroke(stroke(0.7f, Fill::color(hex(0x2E3A46)),
                                        PathFormat::Align::Inner)),
                     {4, 4});
@@ -768,7 +768,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
   Element starField() {
     return box()
         .inset(0)
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 700ms, .delay = 340ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
         .child(instancing::instances(starAtlas, starPool,
                                      instancing::Mode::Data,
                                      SkBlendMode::kPlus));
@@ -796,7 +796,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     // the asterism, drawn on
     g.child(box()
                 .inset(0)
-                .outline([&, bx, by, bw, bh](SkSize) {
+                .shape([&, bx, by, bw, bh](SkSize) {
                   SkPathBuilder b;
                   auto P = [&](int i) {
                     return SkPoint{bx + kStars[i].u * bw,
@@ -812,30 +812,32 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   b.lineTo(P(3));
                   return b.detach();
                 })
-                .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
-                .trim(0.0f, withFrom(0.0f, 1.0f,
-                                     {.duration = 620ms, .delay = 1300ms}))
+                .stroke(
+                    spans::upTo(animate(from(0.0f).to(1.0f),
+                                        {.duration = 620ms, .delay = 1300ms})),
+                    stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
                 .key("asterism"));
 
     for (int i = 0; i < 8; ++i) {
       const SkPoint p = at(i);
       const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
       const bool sol = i == 7;
-      g.child(disc(p, rad * 2.0f)
-                  .fill(Material::radialUnit(
-                      {0.5f, 0.5f}, 0.707f,
-                      {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
-                       {0.22f, sol ? hex(0xFFF4D8, 0.9f) : hex(0xD9E4FF, 0.85f)},
-                       {1.0f, {1, 1, 1, 0}}}))
-                  .blend(SkBlendMode::kPlus)
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    {.duration = 500ms, .delay = 1200ms})));
-      g.child(t(kStars[i].name, mono(7.0f, sol ? kCyan : hex(0x9FB0CC, 0.85f),
-                                     1.1f))
+      g.child(
+          disc(p, rad * 2.0f)
+              .fill(Material::radialUnit(
+                  {0.5f, 0.5f}, 0.707f,
+                  {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
+                   {0.22f, sol ? hex(0xFFF4D8, 0.9f) : hex(0xD9E4FF, 0.85f)},
+                   {1.0f, {1, 1, 1, 0}}}))
+              .blend(SkBlendMode::kPlus)
+              .opacity(animate(from(0.0f).to(1.0f),
+                               {.duration = 500ms, .delay = 1200ms})));
+      g.child(t(kStars[i].name,
+                mono(7.0f, sol ? kCyan : hex(0x9FB0CC, 0.85f), 1.1f))
                   .left(p.fX + rad + 5.0f)
                   .top(p.fY - 5.0f)
-                  .opacity(withFrom(0.0f, 1.0f,
-                                    {.duration = 400ms, .delay = 1500ms})));
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   {.duration = 400ms, .delay = 1500ms})));
     }
     // Smith's joke, verified in the header block.
     const SkPoint s = at(7);
@@ -850,8 +852,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                 .top(s.fY + 12)
                 .column()
                 .gap(1)
-                .opacity(withFrom(0.0f, 1.0f,
-                                  {.duration = 400ms, .delay = 1600ms}))
+                .opacity(animate(from(0.0f).to(1.0f),
+                                 {.duration = 400ms, .delay = 1600ms}))
                 .child(t("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)",
                          mono(7.0f, kCyan, 0.9f)))
                 .child(t("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"",
@@ -877,12 +879,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
 
     return box()
         .inset(0)
-        .outline(limbOutline())
+        .shape(limbOutline())
         .clip(true)
         .fill(std::move(ground))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 520ms, .delay = 420ms}))
-        .translateY(withFrom(12.0f, 0.0f,
-                             {.duration = 520ms,
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
+        .translateY(animate(from(12.0f).to(0.0f), {.duration = 520ms,
                               .ease = &ch::easeOutCubic,
                               .delay = 420ms}))
         // Duff's local light. ONE Output (loopU) shaped into px.
@@ -924,7 +925,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                   return 0.0f;
                 })));
     g.child(disc(impact, 520)
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .stroke(stroke(2.0f, Fill::color(hex(0xFFB070, 0.85f))))
                 .blend(SkBlendMode::kPlus)
                 .scale(bind(&loopU).map([](float v) {
@@ -951,13 +952,13 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
             .top(12)
             .width(184)
             .height(184)
-            .outline(shapes::circle())
+            .shape(shapes::circle())
             .clip(true)
             .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.55f)),
                            PathFormat::Align::Inner))
             // the expanding wavefront ring — same Output, unit scale
             .child(disc({34, 106}, 124)
-                       .outline(shapes::circle())
+                       .shape(shapes::circle())
                        .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.75f))))
                        .scale(bind(&loopU)
                                   .scale(10.0f / (float)kFrontCrossSeconds)
@@ -974,8 +975,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .corners({6})
         .fill(hex(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 340ms, .delay = 900ms}))
-        .scale(withFrom(0.94f, 1.0f, {.duration = 340ms,
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
+        .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
                                       .ease = ease::outBack(1.70158f),
                                       .delay = 900ms}))
         .child(std::move(inner))
@@ -985,7 +986,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                    .top(12 + 106 - 2)
                    .width(4)
                    .height(4)
-                   .outline(shapes::circle())
+                   .shape(shapes::circle())
                    .fill(hex(0xFFFFFF, 0.95f)))
         // rim caption on a curved baseline
         .child(t("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI",
@@ -1007,7 +1008,8 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .left(24)
         .top(236)
         .width(300)
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 300ms, .delay = 1050ms}));
+        .opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1050ms}));
   }
 
   /** §3's motion-blur construction, magnified 3x. */
@@ -1071,7 +1073,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .corners({6})
         .fill(hex(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 340ms, .delay = 1150ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 1150ms}))
         .child(t("MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7" "3",
                  ui(8.5f, kCyan, 1.7f))
                    .shrink(0))
@@ -1096,7 +1098,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .bottom(14)
         .column()
         .gap(2)
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 300ms, .delay = 1250ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1250ms}))
         .child(slot("fieldStat"))
         .child(t("888\xc3\x97" "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO "
                  "RASTER THE DEMO WAS COMPUTED FOR",
@@ -1137,12 +1139,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .child(stageCaption().zIndex(6))
         .child(box()
                    .inset(0)
-                   .stroke(stroke(1.5f, Fill::color(kKeyline),
+                   .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                               {.duration = 520ms,
+                                                .ease = &ch::easeOutCubic,
+                                                .delay = 260ms})),
+                           stroke(1.5f, Fill::color(kKeyline),
                                   PathFormat::Align::Inner))
-                   .trim(0.0f, withFrom(0.0f, 1.0f,
-                                        {.duration = 520ms,
-                                         .ease = &ch::easeOutCubic,
-                                         .delay = 260ms}))
                    .zIndex(9));
   }
 
@@ -1180,8 +1182,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                        .height(7)
                        .fill(c)
                        .transformOrigin(0.0f, 0.5f)
-                       .scaleX(withFrom(0.0f, frac,
-                                        {.duration = 420ms,
+                       .scaleX(animate(from(0.0f).to(frac), {.duration = 420ms,
                                          .ease = ease::outBack(1.2f),
                                          .delay = 1200ms}));
     if (key)
@@ -1269,10 +1270,10 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                              .shrink(0)
                              .fill(Material::solid(overlap(n)))
                              .transformOrigin(0.5f, 1.0f)
-                             .scaleY(withFrom(0.0f, 1.0f,
-                                              {.duration = 220ms,
-                                               .ease = ease::outBack(1.70158f),
-                                               .delay = 1500ms})));
+                             .scaleY(animate(from(0.0f).to(1.0f),
+                                             {.duration = 220ms,
+                                              .ease = ease::outBack(1.70158f),
+                                              .delay = 1500ms})));
       const bool key = n == 5 || n == 20 || n == 111;
       labels.push_back(t(std::to_string(n).c_str(),
                          mono(7.0f, key ? kBone : kSteelDim, 0.2f))
@@ -1394,8 +1395,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
     GlyphFx fx;
     fx.effect = glyphfx::rise(22);
     fx.stagger = {.eachMs = 26, .durationMs = 460};
-    fx.progress = withFrom(0.0f, 1.0f,
-                           {.duration = 850ms,
+    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 850ms,
                             .ease = &ch::easeNone,
                             .delay = 120ms});
     return box()
@@ -1403,12 +1403,12 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
         .height(102)
         .shrink(0)
         .gap(4)
-        .child(t("TECHNIQUE STUDY 03 \xc2\xb7 STOCHASTIC PARTICLE SYSTEMS",
-                 ui(11.5f, kSteel, 2.7f))
-                   .opacity(withFrom(0.0f, 1.0f, {.duration = 260ms}))
-                   .translateY(withFrom(8.0f, 0.0f, {.duration = 260ms})))
-        .child(t("THE GENESIS DEMO, 1982",
-                 type(heavyFace(), 46, kBone, -0.4f))
+        .child(
+            t("TECHNIQUE STUDY 03 \xc2\xb7 STOCHASTIC PARTICLE SYSTEMS",
+              ui(11.5f, kSteel, 2.7f))
+                .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
+        .child(t("THE GENESIS DEMO, 1982", type(heavyFace(), 46, kBone, -0.4f))
                    .key("title")
                    .glyphFx(std::move(fx)))
         .child(t("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
@@ -1417,15 +1417,11 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                  "dir. Alvy Ray Smith \xc2\xb7 Star Trek II, Paramount, "
                  "June 4, 1982",
                  ui(11.0f, kSteel, 0.1f))
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 240ms, .delay = 420ms})))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 240ms, .delay = 420ms})))
         .child(box().grow(1))
-        .child(box()
-                   .height(1)
-                   .shrink(0)
-                   .fill(kKeyline)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 400ms, .delay = 320ms})));
+        .child(box().height(1).shrink(0).fill(kKeyline).opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 320ms})));
   }
 
   Element describe() {

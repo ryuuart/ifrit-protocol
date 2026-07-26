@@ -145,8 +145,8 @@
 //   ops::Sketchy         every asterism join, and the paper's own edge
 //   shapes::parametric   the disc's radial DEC scale and the graticule
 //   shapes::annulus / sector / circle / spiral
-//   brushes::Ribbon + widthFn   the archer, keyed to distance/fullLength
-//   brushes::ScatterBrush   the roll's contact replication marks
+//   brush::Ribbon + widthFn   the archer, keyed to distance/fullLength
+//   brush::Scatter   the roll's contact replication marks
 //   patterns::grain (anisotropic) + Cache::Texture   the mulberry ground
 //   decorations::brackets/gappedRule   with an EXPLICIT angleDeg — the
 //                        disc's 28-fold division turns 12.86° per vertex
@@ -187,6 +187,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -1267,15 +1268,15 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
    *  shape and paid 365 ms for a full render(); this one is cheap because
    *  nothing below re-measures.) */
   bool settled = false;
-  PropValue<float> gate(float t0, float t1) const {
-    if (settled) return PropValue<float>(1.0f);
-    return PropValue<float>(bind(&scribe).window(t0, t1));
+  Animatable<float> gate(float t0, float t1) const {
+    if (settled) return Animatable<float>(1.0f);
+    return Animatable<float>(bind(&scribe).window(t0, t1));
   }
   /** A mark that comes and GOES: gone in the settled state. */
-  PropValue<float> flash(float t0, float t1, float t2) const {
-    if (settled) return PropValue<float>(0.0f);
-    return PropValue<float>(
-        bind(&scribe).from(t0, t1).clamp(0, 1).scale(1.0f).offset(0.0f)
+  Animatable<float> flash(float t0, float t1, float t2) const {
+    if (settled) return Animatable<float>(0.0f);
+    return Animatable<float>(
+        bind(&scribe).source(t0, t1).clamp(0, 1).scale(1.0f).offset(0.0f)
             .clamp(0, 1));
   }
 
@@ -1416,7 +1417,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (!p.onPaper) t.fA = 1.0f - f;
       tint[(size_t)i] = t;
     }
-    pool->touch();
+    pool->commit();
   }
 
   // =========================================================================
@@ -1551,24 +1552,32 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     }
 
     // top and bottom rules — unequal, per lines::Rails
-    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kBandH))
-                .outline([](SkSize s) {
-                  SkPathBuilder b;
-                  b.moveTo(0, 1.5f);
-                  b.lineTo(s.width(), 1.5f);
-                  b.moveTo(0, s.height() - 1.5f);
-                  b.lineTo(s.width(), s.height() - 1.5f);
-                  return b.detach();
-                })
-                .stroke(Brush{}
-                            .op(ops::Sketchy{.segLength = 34, .deviation = 0.9f,
-                                             .seed = 3326})
-                            .leg(lines::Rails{.rails = {
-                                     {.offset = 0, .width = 1.9f,
-                                      .fill = Fill::color(hex(0x6b573c, 0.62f))},
-                                     {.offset = 4.5f, .width = 0.55f,
-                                      .fill = Fill::color(hex(0x6b573c, 0.34f)),
-                                      .dash = {9, 6}}}})));
+    g.child(
+        box()
+            .left(0)
+            .top(0)
+            .width(Dim(w))
+            .height(Dim(kBandH))
+            .shape([](SkSize s) {
+              SkPathBuilder b;
+              b.moveTo(0, 1.5f);
+              b.lineTo(s.width(), 1.5f);
+              b.moveTo(0, s.height() - 1.5f);
+              b.lineTo(s.width(), s.height() - 1.5f);
+              return b.detach();
+            })
+            .stroke(
+                Brush{}
+                    .shaped(kit::brush::shapers::Jitter{
+                        .segLength = 34, .deviation = 0.9f, .seed = 3326})
+                    .leg(lines::Rails{
+                        .rails = {{.offset = 0,
+                                   .width = 1.9f,
+                                   .fill = Fill::color(hex(0x6b573c, 0.62f))},
+                                  {.offset = 4.5f,
+                                   .width = 0.55f,
+                                   .fill = Fill::color(hex(0x6b573c, 0.34f)),
+                                   .dash = {9, 6}}}})));
     return g;
   }
 
@@ -1589,19 +1598,26 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                  .opacity(gate(tFold0 - 0.4f, tFold0 + 1.1f));
 
     // the ruled frame — a hand-drawn rectangle, brackets at the corners
-    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(kFrameH))
+    g.child(box()
+                .left(0)
+                .top(0)
+                .width(Dim(w))
+                .height(Dim(kFrameH))
                 .stroke(Brush{}
-                            .op(ops::Sketchy{.segLength = 30, .deviation = 1.1f,
-                                             .seed = (uint32_t)(600 + k)})
-                            .leg(lines::Line{.width = 1.25f,
-                                             .fill = Fill::color(hex(0x4a3b28, 0.78f))}))
-                .foreground(decorations::brackets(2.0f, Fill::color(kInk), 15.0f,
-                                                  0.0f, 30.0f)));
+                            .shaped(kit::brush::shapers::Jitter{
+                                .segLength = 30,
+                                .deviation = 1.1f,
+                                .seed = (uint32_t)(600 + k)})
+                            .leg(lines::Line{
+                                .width = 1.25f,
+                                .fill = Fill::color(hex(0x4a3b28, 0.78f))}))
+                .foreground(decorations::brackets(2.0f, Fill::color(kInk),
+                                                  15.0f, 0.0f, 30.0f)));
 
     // the equator — the one line whose position the paper says varies ±5°
     const float yEq = (mapGcDec(k) + 45.0f) / kDecPerMm * kPxMm;
     g.child(box().left(0).top(yEq - 1).width(Dim(w)).height(Dim(2))
-                .outline([](SkSize s) {
+                .shape([](SkSize s) {
                   SkPathBuilder b; b.moveTo(0, 1); b.lineTo(s.width(), 1);
                   return b.detach();
                 })
@@ -1643,7 +1659,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (std::abs(dRa) > 23.0f) continue;
       const float x = w * 0.5f + dRa / kRaPerMm * kPxMm;
       g.child(box().left(x - 6).top(0).width(Dim(12)).height(Dim(kFrameH))
-                  .outline([](SkSize sz) {
+                  .shape([](SkSize sz) {
                     SkPathBuilder b;
                     b.moveTo(sz.width() * 0.5f, 0);
                     b.lineTo(sz.width() * 0.5f, sz.height());
@@ -1687,10 +1703,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         const float gy = 5.0f + (float)gI * 9.1f +
                          std::sin((float)(c * 13 + gI * 5)) * 0.8f;
         if (gy > kFrameH - 22) break;
-        g.child(box().left(cx - 3.9f).top(gy).width(Dim(7.8f))
+        g.child(box()
+                    .left(cx - 3.9f)
+                    .top(gy)
+                    .width(Dim(7.8f))
                     .height(Dim(6.2f))
                     .fill(Fill::color(hex(0x241d15, 0.80f)))
-                    .outline(shapes::blob((uint32_t)(k * 97 + c * 13 + gI), 0.42f, 7)));
+                    .shape(shapes::blob((uint32_t)(k * 97 + c * 13 + gI), 0.42f,
+                                        7)));
       }
     }
     return g;
@@ -1710,14 +1730,19 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                  .opacity(gate(tFold0 - 0.2f, tFold0 + 1.4f));
 
     // the limb: a heavy outer rule and a hairline inner one
-    g.child(box().left(0).top(0).width(Dim(d)).height(Dim(d))
-                .outline(shapes::circle())
-                .stroke(Brush{}
-                            .op(ops::Sketchy{.segLength = 22, .deviation = 1.0f,
-                                             .seed = 1300})
-                            .leg(lines::heavyHairHeavy(1.7f, 0.5f,
-                                                       Fill::color(hex(0x3a2e1e, 0.86f)),
-                                                       5.0f))));
+    g.child(
+        box()
+            .left(0)
+            .top(0)
+            .width(Dim(d))
+            .height(Dim(d))
+            .shape(shapes::circle())
+            .stroke(
+                Brush{}
+                    .shaped(kit::brush::shapers::Jitter{
+                        .segLength = 22, .deviation = 1.0f, .seed = 1300})
+                    .leg(lines::heavyHairHeavy(
+                        1.7f, 0.5f, Fill::color(hex(0x3a2e1e, 0.86f)), 5.0f))));
 
     // the DEC rings, at the published 5.10 °/cm — parametric, not stamped
     for (int dec = 60; dec <= 85; dec += 5) {
@@ -1725,7 +1750,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       if (rr <= 3 || rr >= rOut - 1) continue;
       g.child(box().left(rOut - rr).top(rOut - rr).width(Dim(rr * 2))
                   .height(Dim(rr * 2))
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .stroke(PathFormat{.width = 0.5f,
                                      .strokeFill = Fill::color(hex(0x5d4c37, 0.30f)),
                                      .dashIntervals = {3, 5}}));
@@ -1737,7 +1762,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int m = 0; m < 28; ++m) {
       const float ang = kAzGain * wrap180(xiuRa[(size_t)m] - 278.0f);
       g.child(box().left(0).top(0).width(Dim(d)).height(Dim(d))
-                  .outline([ang, rOut](SkSize) {
+                  .shape([ang, rOut](SkSize) {
                     SkPathBuilder b;
                     const float a = ang * kD;
                     b.moveTo(rOut + std::cos(a) * rOut * 0.14f,
@@ -1764,19 +1789,19 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // puts the centre at DEC +87.6°, so the +700 pole sits 4.7 mm away.
     const float poleOff = (90.0f - kDiscCenDec) / kPolPerMm * kPxMm;
     g.child(box().left(rOut - 5).top(rOut - 5).width(Dim(10)).height(Dim(10))
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .stroke(PathFormat{.width = 0.7f,
                                    .strokeFill = Fill::color(hex(0x4a3b28, 0.7f))}));
     g.child(box().left(rOut - 3.2f).top(rOut - poleOff - 3.2f)
                 .width(Dim(6.4f)).height(Dim(6.4f))
-                .outline(shapes::star(4, 0.34f))
+                .shape(shapes::star(4, 0.34f))
                 .fill(Fill::color(kTrace))
                 .opacity(gate(tProj - 1.4f, tProj - 0.4f)));
     // "a RED NON-ENCIRCLED star, slightly erased, could be the Pole star"
     // (Table 5, row 15, Beiji). Drawn erased, drawn unnamed, not resolved.
     g.child(box().left(rOut - poleOff * 0.45f - 4.0f)
                 .top(rOut - poleOff * 0.7f - 4.0f).width(Dim(8)).height(Dim(8))
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .fill(Fill::color(hex(0xa8382a, 0.34f)))
                 .opacity(gate(tFold1, tFold1 + 0.8f)));
     return g;
@@ -1878,14 +1903,18 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (size_t i = 0; i < astArt.size(); ++i) {
       const AstArt &A = astArt[i];
       // the node's box is the ASTERISM's box, never the plate's
-      g.child(box().left(A.box.left()).top(A.box.top())
-                  .width(Dim(A.box.width())).height(Dim(A.box.height()))
-                  .outline([p = A.local](SkSize) { return p; })
-                  .trim(0.0f, gate(A.t0, A.t0 + 0.9f))
-                  .stroke(Brush{}
-                              .op(ops::Sketchy{.segLength = 13.0f,
-                                               .deviation = 0.85f,
-                                               .seed = (uint32_t)(i * 31 + 7)})
+      g.child(box()
+                  .left(A.box.left())
+                  .top(A.box.top())
+                  .width(Dim(A.box.width()))
+                  .height(Dim(A.box.height()))
+                  .shape([p = A.local](SkSize) { return p; })
+                  .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
+                          Brush{}
+                              .shaped(kit::brush::shapers::Jitter{
+                                  .segLength = 13.0f,
+                                  .deviation = 0.85f,
+                                  .seed = (uint32_t)(i * 31 + 7)})
                               .leg(lines::Line{.width = 1.05f,
                                                .fill = Fill::color(A.ink),
                                                .capSize = 0.0f})));
@@ -1952,7 +1981,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       // the audit's own ring. Transient on a clean row; PERMANENT on the six
       // documented defects, so the settled plate carries exactly the errata.
       g.child(box().left(c.fX - 30).top(c.fY - 30).width(Dim(60))
-                  .height(Dim(60)).outline(shapes::circle())
+                  .height(Dim(60)).shape(shapes::circle())
                   .opacity(r.defect ? gate(t, t + 0.3f)
                                     : flash(t, t + 0.3f, t + 3.0f))
                   .stroke(PathFormat{.width = 1.1f,
@@ -1983,7 +2012,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         g.child(box().left(std::min(lx, c.fX)).top(ly + 10)
                     .width(Dim(std::abs(lx - c.fX) + 4))
                     .height(Dim(c.fY - ly - 10))
-                    .outline([](SkSize sz) {
+                    .shape([](SkSize sz) {
                       SkPathBuilder b;
                       b.moveTo(sz.width(), 0);
                       b.lineTo(0, sz.height());
@@ -2037,7 +2066,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       float len = 0;
       for (size_t j = 1; j < b.pts.size(); ++j) len += SkPoint::Distance(b.pts[j - 1], b.pts[j]);
       const float w0 = b.w0;
-      brushes::Ribbon rib;
+      brush::Ribbon rib;
       rib.fill = Fill::color(hex(0x241d15, 0.90f));
       rib.step = 2.0f;
       rib.widthMax = w0 * 1.9f;
@@ -2045,33 +2074,48 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         const float t = len > 0 ? s.distance / len : 0.0f;
         return w0 * (0.55f + 0.75f * std::exp(-9.0f * t) + 0.35f * t);
       };
-      g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
-                  .outline([p](SkSize) { return p; })
-                  .trim(0.0f, gate(tArch + 0.05f * (float)i,
-                                                   tArch + 0.05f * (float)i + 0.55f))
-                  .stroke(rib));
+      g.child(box()
+                  .left(0)
+                  .top(0)
+                  .width(Dim(w))
+                  .height(Dim(h))
+                  .shape([p](SkSize) { return p; })
+                  .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
+                                           tArch + 0.05f * (float)i + 0.55f)),
+                          rib));
     }
     // the bow and the arrow
-    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
-                .outline([](SkSize) {
+    g.child(
+        box()
+            .left(0)
+            .top(0)
+            .width(Dim(w))
+            .height(Dim(h))
+            .shape([](SkSize) {
+              SkPathBuilder b;
+              b.moveTo(34, 8);
+              b.cubicTo(-10, 56, -10, 126, 34, 176);
+              b.moveTo(34, 8);
+              b.lineTo(20, 92);
+              b.lineTo(34, 176);
+              return b.detach();
+            })
+            .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
+                    lines::Line{.width = 1.9f,
+                                .fill = Fill::color(hex(0x241d15, 0.88f))}));
+    g.child(box()
+                .left(0)
+                .top(0)
+                .width(Dim(w))
+                .height(Dim(h))
+                .shape([](SkSize) {
                   SkPathBuilder b;
-                  b.moveTo(34, 8);
-                  b.cubicTo(-10, 56, -10, 126, 34, 176);
-                  b.moveTo(34, 8);
-                  b.lineTo(20, 92);
-                  b.lineTo(34, 176);
+                  b.moveTo(140, 90);
+                  b.lineTo(6, 92);
                   return b.detach();
                 })
-                .trim(0.0f, gate(tArch + 0.45f, tArch + 1.0f))
-                .stroke(lines::Line{.width = 1.9f,
-                                    .fill = Fill::color(hex(0x241d15, 0.88f))}));
-    g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h))
-                .outline([](SkSize) {
-                  SkPathBuilder b; b.moveTo(140, 90); b.lineTo(6, 92);
-                  return b.detach();
-                })
-                .trim(0.0f, gate(tArch + 0.75f, tArch + 1.15f))
-                .stroke(lines::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
+                .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
+                        lines::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
     g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
                  type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
                 .left(-18).top(h - 12).width(Dim(300))
@@ -2116,15 +2160,22 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
         pb.moveTo(30, y + 10);
         pb.lineTo(50, y + 34);
       }
-      g.child(box().left(0).top(0).width(Dim(68)).height(Dim(kBandH - 88))
-                  .outline([p = pb.detach()](SkSize) { return p; })
-                  .trim(0.0f, gate(tArch + 0.9f + (float)i * 0.08f,
-                                                   tArch + 1.4f + (float)i * 0.08f))
-                  .stroke(Brush{}
-                              .op(ops::Sketchy{.segLength = 9.0f, .deviation = 0.7f,
-                                               .seed = seed})
-                              .leg(lines::Line{.width = 1.9f,
-                                               .fill = Fill::color(hex(0x241d15, 0.78f))})));
+      g.child(
+          box()
+              .left(0)
+              .top(0)
+              .width(Dim(68))
+              .height(Dim(kBandH - 88))
+              .shape([p = pb.detach()](SkSize) { return p; })
+              .stroke(spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
+                                       tArch + 1.4f + (float)i * 0.08f)),
+                      Brush{}
+                          .shaped(kit::brush::shapers::Jitter{.segLength = 9.0f,
+                                                              .deviation = 0.7f,
+                                                              .seed = seed})
+                          .leg(lines::Line{
+                              .width = 1.9f,
+                              .fill = Fill::color(hex(0x241d15, 0.78f))})));
     }
     return g;
   }
@@ -2149,7 +2200,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int c = 0; c < 26; ++c) {
       const float cx = lw - 24.0f - (float)c * 24.0f;
       g.child(box().left(cx - 7).top(6).width(Dim(14)).height(Dim(9))
-                  .outline(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
+                  .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
                   .fill(Fill::color(hex(0x33291c, 0.85f))));
     }
     for (int c = 0; c < 80; ++c) {
@@ -2171,7 +2222,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float dcx = atlasRight - discCentreS() * mm;
       const float dr = lh * 0.34f;
       g.child(box().left(dcx - dr).top(lh * 0.5f - dr).width(Dim(dr * 2))
-                  .height(Dim(dr * 2)).outline(shapes::circle())
+                  .height(Dim(dr * 2)).shape(shapes::circle())
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(hex(0x2a2118, 0.9f))}));
     }
@@ -2222,7 +2273,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int ring = 10; ring <= 30; ring += 10) {
       const float rr = (float)ring * pxPerDeg;
       g.child(box().left(cx - rr).top(cy - rr).width(Dim(rr * 2))
-                  .height(Dim(rr * 2)).outline(shapes::circle())
+                  .height(Dim(rr * 2)).shape(shapes::circle())
                   .stroke(PathFormat{.width = 0.5f,
                                      .strokeFill = Fill::color(hex(0x8a7458, 0.30f)),
                                      .dashIntervals = {2, 5}}));
@@ -2235,10 +2286,15 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const SkPoint q = plot(ra, dec);
       (e == 2000) ? tb.moveTo(q) : tb.lineTo(q);
     }
-    g.child(box().left(0).top(0).width(Dim(S)).height(Dim(S))
-                .outline([t = tb.detach()](SkSize) { return t; })
-                .trim(0.0f, gate(tPrec0, tPrec1))
-                .stroke(lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
+    g.child(
+        box()
+            .left(0)
+            .top(0)
+            .width(Dim(S))
+            .height(Dim(S))
+            .shape([t = tb.detach()](SkSize) { return t; })
+            .stroke(spans::upTo(gate(tPrec0, tPrec1)),
+                    lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
     // the whole 26,000-year circle, faint, for context
     SkPathBuilder wb;
     for (int e = -24000; e <= 4000; e += 250) {
@@ -2249,7 +2305,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       (wb.countPoints() == 0) ? wb.moveTo(q) : wb.lineTo(q);
     }
     g.child(box().left(0).top(0).width(Dim(S)).height(Dim(S))
-                .outline([t = wb.detach()](SkSize) { return t; })
+                .shape([t = wb.detach()](SkSize) { return t; })
                 .stroke(PathFormat{.width = 0.7f,
                                    .strokeFill = Fill::color(hex(0x8a7458, 0.45f)),
                                    .dashIntervals = {3, 4}}));
@@ -2263,7 +2319,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (const Ref &r : refs) {
       const SkPoint q = plot(r.ra, r.dec);
       g.child(box().left(q.fX - 3).top(q.fY - 3).width(Dim(6)).height(Dim(6))
-                  .outline(shapes::circle()).fill(Fill::color(kCinnabar)));
+                  .shape(shapes::circle()).fill(Fill::color(kCinnabar)));
       g.child(text(toU8(r.name), type(faceMono, 7.4f, hex(0x9a8a68)))
                   .left(q.fX + r.lx).top(q.fY + r.ly).width(Dim(60)));
     }
@@ -2272,11 +2328,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       poleAt(700.0f, ra, dec);
       const SkPoint q = plot(ra, dec);
       g.child(box().left(q.fX - 6).top(q.fY - 6).width(Dim(12)).height(Dim(12))
-                  .outline(shapes::star(4, 0.30f)).fill(Fill::color(kTrace))
+                  .shape(shapes::star(4, 0.30f)).fill(Fill::color(kTrace))
                   .opacity(gate(tPrec1 - 0.4f, tPrec1 + 0.3f)));
     }
     g.child(box().left(cx - 3).top(cy - 3).width(Dim(6)).height(Dim(6))
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .stroke(PathFormat{.width = 0.9f,
                                    .strokeFill = Fill::color(hex(0xe0cfa6, 0.8f))}));
     g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hex(0x6d6249)))
@@ -2309,7 +2365,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // three Outputs in the tick loop.
     const float bw = 430.0f;
     g.child(box().left(0).top(112).width(Dim(bw)).height(Dim(9))
-                .outline([](SkSize sz) {
+                .shape([](SkSize sz) {
                   SkPathBuilder b;
                   b.moveTo(0, 0); b.lineTo(0, sz.height());
                   b.moveTo(0, sz.height() * 0.5f);
@@ -2330,14 +2386,14 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 .left(bw - 40).top(124).width(Dim(40))
                 .textAlign(sigil::weave::TextAlignment::kEnd));
     g.child(box().left(-4).top(107).width(Dim(8)).height(Dim(19))
-                .outline(shapes::polygon(3, 180.0f))
+                .shape(shapes::polygon(3, 180.0f))
                 .fill(Fill::color(kCinnabar))
                 .translateX(settled
-                                ? PropValue<float>(0.0f)
-                                : PropValue<float>(bind(&scribe)
+                                ? Animatable<float>(0.0f)
+                                : Animatable<float>(bind(&scribe)
                                                        .window(tPrec0, tPrec1)
                                                        .invert()
-                                                       .to(0.0f, bw))));
+                                                       .target(0.0f, bw))));
     g.child(text(toU8("13.00 Julian centuries \xc2\xb7 the sky slides 18.5\xc2\xb0 in RA"),
                  type(faceMono, 8.4f, hex(0xc9a35c)))
                 .left(0).top(136).width(Dim(430)));
@@ -2365,7 +2421,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float xr = segX(seg, s0) - segLo(seg);
       if (xr < -6 || xl > segHi(seg) - segLo(seg) + 6) continue;
       g.child(box().left(xl).top(y).width(Dim(xr - xl)).height(Dim(11))
-                  .outline([](SkSize sz) {
+                  .shape([](SkSize sz) {
                     SkPathBuilder b;
                     b.moveTo(0, 0); b.lineTo(0, sz.height());
                     b.moveTo(0, sz.height() * 0.5f);
@@ -2403,7 +2459,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     for (int i = 0; i < 2; ++i) {
       const float x = 8.0f + (float)i * (w - 16.0f);
       g.child(box().left(x - 9).top(0).width(Dim(18)).height(Dim(h))
-                  .outline([](SkSize s) {
+                  .shape([](SkSize s) {
                     SkPathBuilder b;
                     b.moveTo(s.width() * 0.5f, 0);
                     for (float y = 0; y < s.height(); y += 22.0f) {
@@ -2458,7 +2514,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float lo = pl.lo, hi = pl.hi;
       const bool merc = pl.merc;
       p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph))
-                  .outline([lo, hi, merc, pw, ph](SkSize) {
+                  .shape([lo, hi, merc, pw, ph](SkSize) {
                     // the departure curve, self-normalised
                     float ys[81];
                     float sx = 0, sy = 0, sxx = 0, sxy = 0;
@@ -2581,7 +2637,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                      type(faceHan ? faceHan : faceSerif, 10.4f, schoolInk(r.col)))
                     .left(160).top(-2).width(Dim(64)));
       row.child(box().left(232).top(3.4f).width(Dim(8)).height(Dim(8))
-                    .outline(shapes::circle())
+                    .shape(shapes::circle())
                     .fill(Fill::color(schoolInk(r.col)))
                     .stroke(PathFormat{.width = 0.8f,
                                        .strokeFill = Fill::color(kInk)}));
@@ -2724,7 +2780,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     const float barMm = 100.0f;
     g.child(box().left(96).top(1546).width(Dim(barMm * kPxMm))
                 .height(Dim(7))
-                .outline([](SkSize s) {
+                .shape([](SkSize s) {
                   SkPathBuilder b;
                   b.moveTo(0, 6); b.lineTo(0, 0); b.lineTo(s.width(), 0);
                   b.lineTo(s.width(), 6);
@@ -2758,7 +2814,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                    .key("grat")
                    .opacity(gate(tSky - 0.6f, tSky + 0.6f))
                    .zIndex(-1)
-                   .outline([](SkSize s) {
+                   .shape([](SkSize s) {
                      SkPathBuilder b;
                      for (int i = 0; i <= 12; ++i) {
                        const float x = s.width() * (float)i / 12.0f;
@@ -2850,7 +2906,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
     // draw and there is no second concentric pass.
     atlas = std::make_shared<instancing::Atlas>(3.0f);
     auto dot = [](SkColor4f fill, bool ring) {
-      auto e = box().width(11).height(11).outline(shapes::circle());
+      auto e = box().width(11).height(11).shape(shapes::circle());
       if (fill.fA > 0) e.fill(Fill::color(fill));
       if (ring)
         e.stroke(PathFormat{.width = 1.15f,

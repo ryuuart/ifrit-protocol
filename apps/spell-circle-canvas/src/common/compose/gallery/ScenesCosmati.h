@@ -232,9 +232,9 @@ struct CosmatiScene final : Scene {
     // rasterized once.
     Element el = stack().width(Dim(r * 2)).height(Dim(r * 2)).centerAt(at)
                      .cache(Cache::Texture)
-                     .opacity(withFrom(0.0f, 1.0f, {380ms, &ch::easeOutQuad,
+                     .opacity(animate(from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad,
                                                     delay}))
-                     .scale(withFrom(0.86f, 1.0f, {520ms, &ch::easeOutQuint,
+                     .scale(animate(from(0.86f).to(1.0f), {520ms, &ch::easeOutQuint,
                                                    delay}));
     // the bed
     el.child(box().inset(0).corners({r})
@@ -246,11 +246,11 @@ struct CosmatiScene final : Scene {
                                           PathFormat::Align::Inner)));
     // two ring courses of lozenges, counter-phased
     el.child(box().inset(0)
-                 .outline(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
+                 .shape(cs::lozengeRing(12, r * 0.56f, r * 0.90f, 0.0f))
                  .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 40))
                  .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
     el.child(box().inset(0)
-                 .outline(cs::lozengeRing(8, r * 0.30f, r * 0.54f,
+                 .shape(cs::lozengeRing(8, r * 0.30f, r * 0.54f,
                                           0.3926991f))
                  .fill(cs::stone(cs::kGiallo, cs::kGialloLo, 12))
                  .stroke(util::stroke(0.8f, Fill::color(cs::kMortar))));
@@ -270,26 +270,27 @@ struct CosmatiScene final : Scene {
     using namespace std::chrono_literals;
     const int periods = std::max(2, (int)std::round(w / (h * 1.5f)));
     const std::chrono::milliseconds delay{420 + 70 * seed};
-    Element band = stack().width(Dim(w)).height(Dim(h))
-                       .centerAt({x, y}).rotate(degrees)
+    Element band = stack()
+                       .width(Dim(w))
+                       .height(Dim(h))
+                       .centerAt({x, y})
+                       .rotate(degrees)
                        .cache(Cache::Texture)
-                       .opacity(withFrom(0.0f, 1.0f,
-                                         {360ms, &ch::easeOutQuad, delay}));
+                       .opacity(animate(from(0.0f).to(1.0f),
+                                        {360ms, &ch::easeOutQuad, delay}));
     band.child(box().inset(0)
                    .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 8))
                    .foreground(util::stroke(1.4f, Fill::color(cs::kMarble),
                                             PathFormat::Align::Inner)));
     band.child(box().inset(0)
-                   .outline(cs::guillocheStrand((float)periods, 0.0f,
+                   .shape(cs::guillocheStrand((float)periods, 0.0f,
                                                 h * 0.26f))
-                   .trim(0.0f, &lay)
-                   .stroke(util::stroke(h * 0.20f,
+                   .stroke(spans::upTo(&lay), util::stroke(h * 0.20f,
                                         Fill::color(cs::kGiallo))));
     band.child(box().inset(0)
-                   .outline(cs::guillocheStrand((float)periods, 3.14159265f,
+                   .shape(cs::guillocheStrand((float)periods, 3.14159265f,
                                                 h * 0.26f))
-                   .trim(0.0f, &lay)
-                   .stroke(util::stroke(h * 0.20f,
+                   .stroke(spans::upTo(&lay), util::stroke(h * 0.20f,
                                         Fill::color(cs::kSerpentine))));
     // the discs the strands plait around
     for (int i = 0; i < periods; ++i) {
@@ -315,21 +316,24 @@ struct CosmatiScene final : Scene {
     // gradients. Static once it has entered, so bake it: on GPU the
     // difference is noise, on the CPU raster backend it is the difference
     // between 12 fps and 100.
-    Element q = stack().width(Dim(side)).height(Dim(side))
-                    .left(x).top(y)
+    Element q = stack()
+                    .width(Dim(side))
+                    .height(Dim(side))
+                    .left(x)
+                    .top(y)
                     .cache(Cache::Texture)
-                    .opacity(withFrom(0.0f, 1.0f,
-                                      {420ms, &ch::easeOutQuad, delay}));
+                    .opacity(animate(from(0.0f).to(1.0f),
+                                     {420ms, &ch::easeOutQuad, delay}));
     q.child(box().inset(0).fill(Material::solid(cs::kMortar)));
     const int cols = 11, rows = 11;
     q.child(box().inset(0)
-                .outline(cs::triangleCourse(cols, rows, 0))
+                .shape(cs::triangleCourse(cols, rows, 0))
                 .fill(cs::stone(cs::kPorphyry, cs::kPorphyryLo, 18)));
     q.child(box().inset(0)
-                .outline(cs::triangleCourse(cols, rows, 1))
+                .shape(cs::triangleCourse(cols, rows, 1))
                 .fill(cs::stone(cs::kMarble, cs::kMarbleLo, 52)));
     q.child(box().inset(0)
-                .outline(cs::triangleCourse(cols, rows, 2))
+                .shape(cs::triangleCourse(cols, rows, 2))
                 .fill(cs::stone(cs::kSerpentine, cs::kSerpentineLo, 34)));
     q.child(box().inset(0)
                 .foreground(util::stroke(2.0f, Fill::color(cs::kMarble),
@@ -444,7 +448,7 @@ struct CosmatiScene final : Scene {
                          .width(Dim(210.0f))
                          .height(Dim(cs::kFieldSide + 80))
                          .rotate(14.0f)
-                         .translateX(bind(&rake).to(-260, cosmati::kW + 260))
+                         .translateX(bind(&rake).target(-260, cosmati::kW + 260))
                          .fill(Material::linear(
                              {0, 0}, {210, 0},
                              {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
@@ -500,8 +504,8 @@ struct CosmatiScene final : Scene {
                          .staggerChildren(60ms);
     for (const Quarry &q : kQuarries)
       legend.child(box().row().alignItems(Align::Center).gap(9)
-                       .opacity(withFrom(0.0f, 1.0f, {320ms}))
-                       .translateX(withFrom(-14.0f, 0.0f, {400ms}))
+                       .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+                       .translateX(animate(from(-14.0f).to(0.0f), {400ms}))
                        .child(box().width(Dim(20.0f)).height(Dim(13.0f))
                                   .fill(cs::stone(q.hi, q.lo, 34))
                                   .foreground(util::stroke(

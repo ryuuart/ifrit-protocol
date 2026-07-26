@@ -179,7 +179,7 @@
 //     against the other, so the two rows of dots interleave down the link.
 //     Per-rail offset, width, fill, dash AND dashPhase in one value — the
 //     whole point of Rails and the reason nothing before it could do this.
-//   * a brushes::Ribbon body under the rails whose widthFn takes the band to
+//   * a brush::Ribbon body under the rails whose widthFn takes the band to
 //     40% at both endpoints, so a link reads as drawn FROM star TO star. The
 //     mod's quad cannot taper; a printed chart always does.
 //   * shapes::star(4, 0.24, 0.16) for the glyphs, which is not a departure at
@@ -198,7 +198,7 @@
 // THE ANISOTROPY REPORT — the predicted break, measured, and it is real
 //                          (just not on this artefact)
 //
-// The brief predicted brushes::Ribbon would compute its normal in the parent's
+// The brief predicted brush::Ribbon would compute its normal in the parent's
 // transformed space and horizontal links would come out THINNER than vertical
 // ones under the 1.375x cell. There is no 1.375x cell (correction 1), so the
 // question moved to a scratch probe — eight identical 12 px bands, four plain
@@ -552,13 +552,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       Element art = box()
                         .width(1.5f * r.mag)
                         .height(1.5f * r.mag)
-                        .outline(shapes::star(4, 0.26f, 0.14f))
+                        .shape(shapes::star(4, 0.26f, 0.14f))
                         .fill(Fill::color(at::mul(at::kFieldStar, 1.0f, r.alpha)));
       p.child(box()
                   .inset(-60)
                   .key(std::string("field") + std::to_string(i))
-                  .outline(shapes::lissajous(r.a, r.b, r.delta, 1600))
-                  .stroke(brushes::ScatterBrush{
+                  .shape(shapes::lissajous(r.a, r.b, r.delta, 1600))
+                  .stroke(brush::Scatter{
                       .art = std::move(art),
                       .spacing = r.spacing,
                       .seed = 8000u + (uint32_t)i * 37u,
@@ -644,7 +644,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // The band's own soft shoulder, tapered to 40% at both ends so the link
     // reads as drawn FROM star TO star. Two Ribbons: a wide bloom and the
     // sprite's own 12-px body.
-    brushes::Ribbon bloom;
+    brush::Ribbon bloom;
     bloom.fill = Fill::color(at::mul(col, 1.0f, 0.055f));
     bloom.widthStart = bloom.widthEnd = band * 2.1f;
     bloom.step = 6.0f;
@@ -654,7 +654,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       return band * 2.1f * (0.40f + 0.60f * std::sqrt(k));
     };
 
-    brushes::Ribbon body;
+    brush::Ribbon body;
     body.fill = Fill::color(at::mul(col, 1.0f, 0.135f));
     body.widthStart = body.widthEnd = band;
     body.step = 4.0f;
@@ -671,7 +671,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     return box()
         .rect(SkRect::MakeXYWH(box2.left(), box2.top(), std::max(box2.width(), 1.0f), std::max(box2.height(), 1.0f)))
         .key(std::string("lk") + std::to_string(key) + "_" + std::to_string(pass))
-        .outline([p0, p1](SkSize) {
+        .shape([p0, p1](SkSize) {
           SkPathBuilder p;
           p.moveTo(p0);
           p.lineTo(p1);
@@ -715,7 +715,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // the glyph
     grp.child(box()
                   .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
-                  .outline(shapes::star(4, 0.24f, 0.16f))
+                  .shape(shapes::star(4, 0.24f, 0.16f))
                   .fill(Fill::color(at::mul(col, 1.35f, 0.92f))));
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
@@ -724,7 +724,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     grp.child(box()
                   .rect(SkRect::MakeXYWH((side - cr) * 0.5f, (side - cr) * 0.5f, cr, cr))
                   .blend(SkBlendMode::kPlus)
-                  .outline(shapes::circle())
+                  .shape(shapes::circle())
                   .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.85f})));
     return grp;
   }
@@ -739,7 +739,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     Element e = box()
                     .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), at::g(at::kCellW), at::g(at::kCellH)))
                     .key(std::string("cell") + std::to_string(i))
-                    .outline(shapes::chamfered(at::g(4.0f), shapes::Corner::All))
+                    .shape(shapes::chamfered(at::g(4.0f), shapes::Corner::All))
                     .foreground(decorations::brackets(
                         1.5f, Fill::color(at::mul(at::kGilt, 1.0f, 0.62f)),
                         at::g(14.0f)))
@@ -758,13 +758,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
           Fill::color(at::mul(at::kGilt, 1.0f, 0.85f)));
       e.foreground(shapes::onEdges(
           shapes::Edge::Left,
-          Decoration(brushes::ScatterBrush{.art = std::move(tick),
+          Decoration(brush::Scatter{.art = std::move(tick),
                                            .spacing = pitch,
                                            .alignToPath = true,
                                            .reach = at::g(4.0f)})));
       e.foreground(shapes::onEdges(
           shapes::Edge::Left,
-          Decoration(brushes::ScatterBrush{.art = std::move(longTick),
+          Decoration(brush::Scatter{.art = std::move(longTick),
                                            .spacing = pitch * 5.0f,
                                            .alignToPath = true,
                                            .reach = at::g(8.0f)})));
@@ -782,7 +782,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                     .rect(SkRect::MakeXYWH(at::gx(guiX), at::gy(guiY), at::g(30), at::g(15)))
                     .key(k)
                     .transformOrigin(0.5f, 0.5f)
-                    .outline(shapes::arrow(0.34f, 0.42f))
+                    .shape(shapes::arrow(0.34f, 0.42f))
                     .rotate(flip ? 180.0f : 0.0f)
                     .fill(Material::linearUnit({0, 0}, {0, 1},
                                                {{0.0f, at::kOlive},
@@ -813,7 +813,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       rail.child(box()
                      .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y), at::g(w), at::g(15)))
                      .key(std::string("bmk") + std::to_string(i))
-                     .outline(shapes::notched(at::g(9.0f), at::g(4.0f),
+                     .shape(shapes::notched(at::g(9.0f), at::g(4.0f),
                                               shapes::Corner::TopRight |
                                                   shapes::Corner::BottomRight))
                      .fill(Material::linearUnit(
@@ -889,7 +889,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     k.child(box()
                 .rect(SkRect::MakeXYWH(x, y - 6.0f, 216.0f, 2.0f))
                 .key("magrule")
-                .outline([](SkSize s2) {
+                .shape([](SkSize s2) {
                   SkPathBuilder p;
                   p.moveTo(0, 1);
                   p.lineTo(s2.width(), 1);
@@ -912,7 +912,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                   .height(r)
                   .centerAt({cx, y + 26.0f})
                   .key(std::string("mk") + std::to_string(d))
-                  .outline(shapes::star(4, 0.24f, 0.16f))
+                  .shape(shapes::star(4, 0.24f, 0.16f))
                   .fill(Fill::color(at::mul(at::kInk, 1.0f, 0.88f))));
       k.child(label(std::to_string(d), cx - 3.0f, y + 46.0f, 11.0f,
                     at::mul(at::kGilt, 1.05f, 0.78f), 0.6f, true));
@@ -942,7 +942,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                   .key(std::string("fb") + std::to_string(i))
                   .transformOrigin(0.5f, 1.0f)
                   .scaleY(bind(&bright[(size_t)i])
-                              .from(0.3875f, 0.7375f)
+                              .source(0.3875f, 0.7375f)
                               .scale(0.78f)
                               .offset(0.22f))
                   .fill(Fill::color(at::mul(at::kInk, 1.0f, 0.72f))));
@@ -979,7 +979,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     g2.child(box()
                  .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
                  .key(std::string("col") + std::to_string(ci))
-                 .outline([a0, a1](SkSize) {
+                 .shape([a0, a1](SkSize) {
                    // an elbow: out along the bearing, then flat into the
                    // caption — the leader a draughtsman draws, not a chord
                    SkPathBuilder pb;
@@ -1072,7 +1072,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(x, y, at::kGuiW * k, at::kGuiH * k))
                 .key("offframe")
-                .outline(shapes::chamfered(7.0f, shapes::Corner::All))
+                .shape(shapes::chamfered(7.0f, shapes::Corner::All))
                 .foreground(decorations::weightedCorners(
                     0.7f, 2.0f, Fill::color(at::mul(at::kGilt, 1.0f, 0.42f)),
                     16.0f)));
@@ -1135,14 +1135,14 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                 .height(26.0f)
                 .centerAt(pivot)
                 .key("pivotx")
-                .outline(shapes::star(4, 0.06f, 0.0f))
+                .shape(shapes::star(4, 0.06f, 0.0f))
                 .fill(Fill::color(at::mul(at::kGilt, 1.4f, 0.95f))));
     m.child(box()
                 .width(11.0f)
                 .height(11.0f)
                 .centerAt(centre)
                 .key("truec")
-                .outline(shapes::circle())
+                .shape(shapes::circle())
                 .foreground(decorations::border(
                     1.0f, Fill::color(at::mul(at::kInk, 1.0f, 0.45f)))));
     m.child(scrimLabel("pivot 40,40", pivot.fX - 102.0f, pivot.fY - 26.0f, 10.0f,
@@ -1162,7 +1162,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(at::gx(15) + 5, 5, at::g(at::kGuiW - 30) - 10, at::kCanvasH - 10))
                 .key("plateframe")
-                .outline(shapes::chamfered(26.0f, shapes::Corner::All))
+                .shape(shapes::chamfered(26.0f, shapes::Corner::All))
                 .style(decorations::doubleBorder(
                     decorations::weightedCorners(
                         1.0f, 3.2f, Fill::color(at::mul(at::kGilt, 1.0f, 0.55f)),
@@ -1181,7 +1181,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(34.0f, 56.0f, 500.0f, 3.0f))
                 .key("headrule")
-                .outline([](SkSize s2) {
+                .shape([](SkSize s2) {
                   SkPathBuilder p;
                   p.moveTo(0, 1.5f);
                   p.lineTo(s2.width(), 1.5f);
@@ -1209,7 +1209,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(ex, ey - 8.0f, 496.0f, 2.0f))
                 .key("noterule")
-                .outline([](SkSize s2) {
+                .shape([](SkSize s2) {
                   SkPathBuilder p;
                   p.moveTo(0, 1);
                   p.lineTo(s2.width(), 1);
@@ -1359,9 +1359,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       for (int li = 0; li < c.linkCount; ++li)
         for (int pass = 0; pass < 2; ++pass) {
           const int d = divisors[(size_t)(pass * c.linkCount + li)] - at::kDivMin;
-          chartLinks.child(place(linkPass(c, li, pass, lkKey++)
-                                     .trim(0.0f, withFrom(0.0f, 1.0f, {520ms}))
-                                     .opacity(bind(&bright[(size_t)d]))));
+          chartLinks.child(
+              place(linkPass(c, li, pass, lkKey++)
+                        .trim(0.0f, animate(from(0.0f).to(1.0f), {520ms}))
+                        .opacity(bind(&bright[(size_t)d]))));
         }
 
       // Stars. The star loop runs after both connection laps, so it picks up
@@ -1370,7 +1371,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         const int d =
             divisors[(size_t)(2 * c.linkCount + si - 1)] - at::kDivMin;
         chartStars.child(place(starEl(c, si, stKey++)
-                                   .scale(withFrom(0.0f, 1.0f, {380ms}))
+                                   .scale(animate(from(0.0f).to(1.0f), {380ms}))
                                    .opacity(bind(&bright[(size_t)d]))));
       }
       links.child(std::move(chartLinks));

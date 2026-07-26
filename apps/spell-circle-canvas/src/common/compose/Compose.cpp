@@ -273,6 +273,19 @@ Element &Element::stroke(Decoration brush) {
   return foreground(std::move(brush));
 }
 Element &Element::stroke(Spans where, Decoration what, std::string name) {
+  return addSpanPass(std::move(where), std::move(what), std::move(name),
+                     (int)detail::StrokePass::Half::Foreground);
+}
+Element &Element::background(Spans where, Decoration what, std::string name) {
+  return addSpanPass(std::move(where), std::move(what), std::move(name),
+                     (int)detail::StrokePass::Half::Background);
+}
+/** The one body both span-qualified slots share — see StrokePass: the two
+ *  halves differ only in where the mark lands, so everything upstream of
+ *  the paint (the fit() borrows, the claim ledger, the pass list) is one
+ *  thing and must stay one thing. */
+Element &Element::addSpanPass(Spans where, Decoration what, std::string name,
+                              int half) {
   // A fit() term borrows another element's resolved box, so the keys ride
   // into DeriveData where the ONE derive-registration walk finds them —
   // the flowAround pattern, not a second phase.
@@ -280,8 +293,9 @@ Element &Element::stroke(Spans where, Decoration what, std::string name) {
     if (t.rule == Spans::Rule::Fit && !t.key.empty())
       m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
   claimBorrows(what);
-  m_node->strokeData.ensure().passes.push_back(
-      detail::StrokePass{std::move(where), std::move(what), std::move(name)});
+  m_node->strokeData.ensure().passes.push_back(detail::StrokePass{
+      std::move(where), std::move(what), std::move(name),
+      (detail::StrokePass::Half)half});
   return *this;
 }
 Element &Element::echo(SkVector offset, SkColor4f color) {
@@ -935,28 +949,37 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
   return detail::bandRegion(spine, width, formation);
 }
 
+Spans &Spans::offset(Animatable<float> by) {
+  for (size_t i = 0; i < terms.size(); ++i)
+    terms[i].offset = i + 1 < terms.size() ? by : std::move(by);
+  return *this;
+}
+
 std::vector<Span> Spans::resolve(const SpanInput &in) const {
   std::vector<Span> out;
   if (!in.outline)
     return out;
+  // begin, end, offset per term — the order Instance::spanAnims and
+  // spanEndpoints() both walk. The offset is ADDED to both ends before the
+  // interval is read, which is exactly what trim() does with its third
+  // argument (Paint.cpp's trim block: s0 = start + off, e0 = end + off).
+  auto at = [&](size_t i, float fallback) {
+    return in.values && in.values->size() > i ? (*in.values)[i] : fallback;
+  };
   for (size_t t = 0; t < terms.size(); ++t) {
     const Term &term = terms[t];
     switch (term.rule) {
     case Rule::Range: {
-      const float a =
-          in.values && in.values->size() > t * 2 ? (*in.values)[t * 2] : 0.0f;
-      const float b = in.values && in.values->size() > t * 2 + 1
-                          ? (*in.values)[t * 2 + 1]
-                          : 1.0f;
+      const float off = at(t * 3 + 2, 0.0f);
+      const float a = at(t * 3, 0.0f) + off;
+      const float b = at(t * 3 + 1, 1.0f) + off;
       out.push_back({a, b});
       break;
     }
     case Rule::Wrap: {
-      const float a =
-          in.values && in.values->size() > t * 2 ? (*in.values)[t * 2] : 0.0f;
-      const float b = in.values && in.values->size() > t * 2 + 1
-                          ? (*in.values)[t * 2 + 1]
-                          : 1.0f;
+      const float off = at(t * 3 + 2, 0.0f);
+      const float a = at(t * 3, 0.0f) + off;
+      const float b = at(t * 3 + 1, 1.0f) + off;
       // The same three cases TrimMode::Wrap resolves, and deliberately in
       // the same order: the RAW difference decides emptiness and fullness
       // (a window driven to [1.1, 1.35] is still a quarter of the cycle),

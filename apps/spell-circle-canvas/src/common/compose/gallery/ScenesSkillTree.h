@@ -17,9 +17,9 @@
 //                         This is what makes a passive tree READ as orbits
 //                         rather than as an arbitrary node soup.
 //   the 3-state law ..... every edge is Normal / Intermediate / Active --
-//                         brushes::rope(state, zoom) is the verified PoE
-//                         ladder (#3A332A -> #6B5A40 -> #8A7248 + halo);
-//                         Active needs BOTH ends allocated, Intermediate
+//                         kit::brush::presets::rope(state, zoom) is the
+//                         verified PoE ladder (#3A332A -> #6B5A40 -> #8A7248 +
+//                         halo); Active needs BOTH ends allocated, Intermediate
 //                         exactly one, and the whole rope scales with the
 //                         cluster's zoom the way the game's line art does
 //   frame ladder ........ four node chromes, not one: minor circle,
@@ -36,8 +36,8 @@
 //                         the mod-1 wrap across the path seam in two pieces
 //   draw-on entrance .... the allocated spine (a real shortest path through
 //                         the graph, notable -> keystone) enters with
-//                         trim(0, withFrom(0 -> 1, 900ms))
-//   pulse-travel ........ stock brushes::pulse() rides that spine
+//                         stroke(spans::upTo(animate(0 -> 1, 900ms)), …)
+//   pulse-travel ........ stock kit::brush::presets::pulse() rides that spine
 //   search pulse ........ Daripher's Passive-Skill-Tree lights matched
 //                         nodes with a sin-driven alpha; ours rings them
 //   selection ring ...... and rotates an ornament ring around the selected
@@ -54,6 +54,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkPathBuilder.h>
 
@@ -311,7 +312,7 @@ struct SkillTreeScene final : Scene {
                             nullptr, 4));
     parent.child(box().width(Dim(dia + 10)).height(Dim(dia + 10))
                      .centerAt(at)
-                     .outline(pt::notchRing(8, 0.72f, 1.0f))
+                     .shape(pt::notchRing(8, 0.72f, 1.0f))
                      .stroke(util::stroke(
                          1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
                                             alloc ? 0.9f : 0.5f})))
@@ -319,7 +320,7 @@ struct SkillTreeScene final : Scene {
     // The well is never empty in the real thing — a cast sigil sits in it.
     parent.child(box().width(Dim(dia * 0.50f)).height(Dim(dia * 0.50f))
                      .centerAt(at)
-                     .outline(shapes::star(4, 0.34f))
+                     .shape(shapes::star(4, 0.34f))
                      .fill(Material::solid({ring.fR, ring.fG, ring.fB,
                                             alloc ? 0.95f : 0.6f}))
                      .zIndex(4));
@@ -335,13 +336,13 @@ struct SkillTreeScene final : Scene {
     parent.child(box().width(Dim(dia)).height(Dim(dia))
                      .centerAt(at)
                      .key(nodeKey(i))
-                     .outline(shapes::polygon(4))
+                     .shape(shapes::polygon(4))
                      .fill(Material::solid(pt::kSocket))
                      .stroke(util::stroke(1.8f, Fill::color(ring)))
                      .zIndex(3));
     parent.child(box().width(Dim(dia * 0.42f)).height(Dim(dia * 0.42f))
                      .centerAt(at)
-                     .outline(shapes::polygon(4))
+                     .shape(shapes::polygon(4))
                      .fill(Material::solid(
                          {ring.fR, ring.fG, ring.fB, 0.75f}))
                      .zIndex(4));
@@ -366,7 +367,7 @@ struct SkillTreeScene final : Scene {
     parent.child(box().width(Dim(dia)).height(Dim(dia))
                      .centerAt(at)
                      .key(nodeKey(i))
-                     .outline(shapes::polygon(8, 22.5f))
+                     .shape(shapes::polygon(8, 22.5f))
                      .fill(Material::radial({dia * 0.5f, dia * 0.5f},
                                             dia * 0.62f,
                                             {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
@@ -375,20 +376,20 @@ struct SkillTreeScene final : Scene {
                      .zIndex(3));
     parent.child(box().width(Dim(dia - 11)).height(Dim(dia - 11))
                      .centerAt(at)
-                     .outline(shapes::polygon(8, 22.5f))
+                     .shape(shapes::polygon(8, 22.5f))
                      .stroke(util::stroke(
                          1.2f, Fill::color({ring.fR, ring.fG, ring.fB, 0.6f})))
                      .zIndex(4));
     parent.child(box().width(Dim(dia + 16)).height(Dim(dia + 16))
                      .centerAt(at)
-                     .outline(pt::notchRing(16, 0.86f, 1.0f))
+                     .shape(pt::notchRing(16, 0.86f, 1.0f))
                      .stroke(util::stroke(
                          1.3f, Fill::color({ring.fR, ring.fG, ring.fB, 0.55f})))
                      .zIndex(4));
     // A keystone's plate carries the heaviest sigil in the tree.
     parent.child(box().width(Dim(dia * 0.60f)).height(Dim(dia * 0.60f))
                      .centerAt(at)
-                     .outline(shapes::star(6, 0.40f))
+                     .shape(shapes::star(6, 0.40f))
                      .fill(Material::radial(
                          {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
                          {{0.0f, {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
@@ -407,7 +408,7 @@ struct SkillTreeScene final : Scene {
     parent.child(box().width(Dim(dia)).height(Dim(dia))
                      .centerAt(at)
                      .key(nodeKey(i))
-                     .outline(shapes::polygon(4))
+                     .shape(shapes::polygon(4))
                      .stroke(util::stroke(2.0f, Fill::color(ring)))
                      .zIndex(3));
   }
@@ -438,7 +439,7 @@ struct SkillTreeScene final : Scene {
           continue;
         root.child(box().width(Dim(r * 2)).height(Dim(r * 2))
                        .centerAt({g.x, g.y})
-                       .outline(pt::circleOutline())
+                       .shape(pt::circleOutline())
                        .stroke(util::stroke(
                            1.0f, Fill::color({pt::kPewter.fR, pt::kPewter.fG,
                                               pt::kPewter.fB, 0.30f})))
@@ -465,14 +466,17 @@ struct SkillTreeScene final : Scene {
     if (best < 0)
       return;
     const treedata::Group &g = treedata::kGroups[best];
-    root.child(box().width(Dim(bestR * 2)).height(Dim(bestR * 2))
-                   .centerAt({g.x, g.y})
-                   .outline(pt::circleOutline())
-                   .trim(0.92f, 1.06f, &ringPhase, TrimMode::Wrap)
-                   .stroke(brushes::pulse(
-                       {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
-                       {1, 1, 1, 0.75f}, 0.72f))
-                   .zIndex(2));
+    root.child(
+        box()
+            .width(Dim(bestR * 2))
+            .height(Dim(bestR * 2))
+            .centerAt({g.x, g.y})
+            .shape(pt::circleOutline())
+            .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
+                    kit::brush::presets::pulse(
+                        {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
+                        {1, 1, 1, 0.75f}, 0.72f))
+            .zIndex(2));
   }
 
   /** Every link is a rail. Same-group/same-orbit pairs get that group's
@@ -491,7 +495,7 @@ struct SkillTreeScene final : Scene {
       }
       root.child(rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
                      .inset(0)
-                     .stroke(brushes::rope(state, pt::kRopeScale))
+                     .stroke(kit::brush::presets::rope(state, pt::kRopeScale))
                      .zIndex(1));
     }
   }
@@ -563,16 +567,17 @@ struct SkillTreeScene final : Scene {
     // curves same-radius pairs anyway — a single focus would be a lie.
     root.child(rail(anchors)
                    .inset(0)
-                   .trim(0.0f, withFrom(0.0f, 1.0f, {900ms}))
-                   .stroke(brushes::rope(2, pt::kRopeScale))
+                   .stroke(spans::upTo(animate(from(0.0f).to(1.0f), {900ms})),
+                           kit::brush::presets::rope(2, pt::kRopeScale))
                    .zIndex(2));
-    root.child(rail(anchors)
-                   .inset(0)
-                   .trim(&pulseS, &pulseE)
-                   .stroke(brushes::pulse({pt::kHalo.fR, pt::kHalo.fG,
-                                           pt::kHalo.fB, 0.35f},
-                                          {1, 1, 1, 0.9f}, 1.25f))
-                   .zIndex(2));
+    root.child(
+        rail(anchors)
+            .inset(0)
+            .stroke(spans::range(&pulseS, &pulseE),
+                    kit::brush::presets::pulse(
+                        {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
+                        {1, 1, 1, 0.9f}, 1.25f))
+            .zIndex(2));
   }
 
   /** Matched nodes get a breathing green ring; the selected node gets a
@@ -586,7 +591,7 @@ struct SkillTreeScene final : Scene {
       const float d = pt::diameterOf(n.kind) + 13;
       root.child(box().width(Dim(d)).height(Dim(d))
                      .centerAt({n.x, n.y})
-                     .outline(pt::circleOutline())
+                     .shape(pt::circleOutline())
                      .opacity(&searchPulse)
                      .stroke(util::stroke(
                          1.6f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
@@ -598,7 +603,7 @@ struct SkillTreeScene final : Scene {
     root.child(box().width(Dim(d)).height(Dim(d))
                    .centerAt({sel.x, sel.y})
                    .rotate(&selectSpin)
-                   .outline(shapes::star(12, 0.82f))
+                   .shape(shapes::star(12, 0.82f))
                    .stroke(util::stroke(
                        1.2f, Fill::color({pt::kHalo.fR, pt::kHalo.fG,
                                           pt::kHalo.fB, 0.55f})))
@@ -633,8 +638,8 @@ struct SkillTreeScene final : Scene {
                 1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG, pt::kGold.fB,
                                    0.45f})))
             .zIndex(7)
-            .opacity(withFrom(0.0f, 1.0f, {420ms}))
-            .translateY(withFrom(10.0f, 0.0f, {520ms}))
+            .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+            .translateY(animate(from(10.0f).to(0.0f), {520ms}))
             .child(text(toU8(detail->name), pt::type(17, pt::kHalo, 2.4f)))
             .child(text(toU8(detail->kind), pt::type(9.5f, pt::kAsh, 3.2f))
                        .margin(0, 3, 0, 0))
@@ -714,8 +719,8 @@ struct SkillTreeScene final : Scene {
     auto swatch = [&](int state, const char *label) {
       return box().row().alignItems(Align::Center).gap(8)
           .child(box().width(Dim(44.0f)).height(Dim(14.0f))
-                     .outline(pt::hline())
-                     .stroke(brushes::rope(state, 0.8f)))
+                     .shape(pt::hline())
+                     .stroke(kit::brush::presets::rope(state, 0.8f)))
           .child(text(toU8(label), pt::type(11, pt::kAsh, 0.8f)));
     };
     root.child(box().row().gap(20).alignItems(Align::Center)

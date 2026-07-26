@@ -1191,7 +1191,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
                                 PathFormat::Align::Inner));
       a.child(at(box(), 2, 3, 7, 6)
                   .fill(Fill::color(fade(kGold, 0.9f)))
-                  .outline([up](SkSize s) {
+                  .shape([up](SkSize s) {
                     SkPathBuilder b;
                     if (up) {
                       b.moveTo(s.width() * 0.5f, 0);
@@ -1333,7 +1333,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
     g.child(at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink"));
     Element figNode =
         at(box(), inkX, 309 - 267, pose.inkWidth, 128);
-    figNode.outline(figure(pose));
+    figNode.shape(figure(pose));
     // PathFormat exposes no cap or join, so these open contours end square and
     // mitre at the joints — fine for a 1998 blit, and noted in the report.
     figNode.stroke(util::stroke(n(1.15f), Fill::color(kInk),

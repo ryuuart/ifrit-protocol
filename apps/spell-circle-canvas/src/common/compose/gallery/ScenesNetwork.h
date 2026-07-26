@@ -3,22 +3,22 @@
 // sketch/sketches/transit.cpp: one metro map, twelve constructions,
 // every route a different brush:
 //
-//   EMBER LINE ...... Brush{ ops::Rounded } + lines::cased leg -- the classic
-//                     two-rail metro pair (rounding from the PIPELINE, the
-//                     router stays sharp)
+//   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased leg --
+//                     the classic two-rail metro pair (rounding from the
+//                     PIPELINE, the router stays sharp)
 //   STEEL SPUR ...... lines::railwayCarto LayerStyle -- osm-carto's verified
 //                     dark line + white 50%-duty dash overlay (NOT ties)
 //   CURRENT LINE .... lines::Line with midCap chevrons + terminal arrow --
 //                     the polylinedecorator repeat pattern
 //   SMOKEWATER ...... the TfL Thames rule: a pale octilinear band ~3.9x the
 //                     route weight with thin per-leg ops::Offset bank edges
-//   NIGHT BUS ....... asymmetric casing from ops::Offset legs -- amber dashed
-//                     bus lane right of travel, thin curb left
-//   ORBITAL ......... Brush{ Line leg + ScatterBrush leg } on a circle --
+//   NIGHT BUS ....... asymmetric casing from shapers::Offset pipelines --
+//                     amber dashed bus lane right of travel, thin curb left
+//   ORBITAL ......... Brush{ Line leg + brush::Scatter leg } on a circle --
 //                     station stamps INSTANCED along the route
 //   TWIN SERVICE .... shared running as alternating two-color dashes
 //   CABLEWAY ........ PathFormat::stampPath rings on a support cable
-//   MILLBROOK ....... brushes::taper -- the topographic source->mouth ribbon
+//   MILLBROOK ....... brush::taper -- the topographic source->mouth ribbon
 //   PIPELINE TRIO ... identical points, three geometry ops (wave/zig/boxy)
 //
 // Stations are centerAt() SDF discs (bone fill, ink border); the interchange
@@ -35,6 +35,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkPathBuilder.h>
 
@@ -159,7 +160,7 @@ struct NightNetworkScene final : Scene {
     //    the Brush pipeline rounds, then the leg lays two rails whose
     //    dashes/params share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
-    emberBrush.op(ops::Rounded{12.0f});
+    emberBrush.shaped(kit::brush::shapers::Rounded{12.0f});
     emberBrush.leg(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
     // -- 3. CURRENT LINE: the section-9 decorator pattern -- repeated
@@ -189,23 +190,23 @@ struct NightNetworkScene final : Scene {
                           .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
               {ops::Offset{.px = -routeW * 1.95f}});
 
-    // -- 5. NIGHT BUS: asymmetric casing from ops::Offset legs. Positive
+    // -- 5. NIGHT BUS: asymmetric casing from shapers::Offset. Positive
     //    offset = RIGHT of travel (mapbox line-offset semantics): amber
     //    dashed bus lane one side, thin bone curb the other. One Brush per
     //    side -- the pipeline applies to ALL legs, so per-side treatments
     //    are separate strokes.
     lines::Line roadbed{.width = 13.0f, .fill = Fill::color(nn::kAsphalt)};
     Brush busLane;
-    busLane.op(ops::Offset{.px = 9.5f});
+    busLane.shaped(kit::brush::shapers::Offset{.px = 9.5f});
     busLane.leg(lines::Line{.width = 3.0f,
                             .fill = Fill::color(nn::kAmber),
                             .dashIntervals = {13, 9}});
     Brush curb;
-    curb.op(ops::Offset{.px = -8.5f});
+    curb.shaped(kit::brush::shapers::Offset{.px = -8.5f});
     curb.leg(lines::Line{.width = 1.3f,
                          .fill = Fill::color({0.85f, 0.86f, 0.90f, 0.75f})});
 
-    // -- 6. ORBITAL: line leg + ScatterBrush leg -- real components
+    // -- 6. ORBITAL: line leg + brush::Scatter leg -- real components
     //    INSTANCED along the route (snapshot-baked once, replayed per
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
     Element ringStamp =
@@ -216,7 +217,7 @@ struct NightNetworkScene final : Scene {
                                  .borderColor = {0.30f, 0.18f, 0.48f, 1}}));
     Brush orbital;
     orbital.leg(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
-    orbital.leg(brushes::ScatterBrush{.art = ringStamp,
+    orbital.leg(brush::Scatter{.art = ringStamp,
                                       .spacing = 74.6f,
                                       .alignToPath = false,
                                       .reach = 12.0f});
@@ -253,15 +254,15 @@ struct NightNetworkScene final : Scene {
     //    (drawn mouth->source, wide->narrow), in the map's own octilinear
     //    grammar per the Thames rule.
     Brush creek;
-    creek.leg(brushes::taper(2.2f, 9.0f,
+    creek.leg(brush::taper(2.2f, 9.0f,
                              Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
 
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
     //    only the geometry op differs (squiggly / zigzag / boxy). The
     //    whole point of the pipeline: restyle the line, never the route.
-    auto demoRun = [](GeometryOp op, SkColor4f c) {
+    auto demoRun = [](Shaper op, SkColor4f c) {
       Brush b;
-      b.op(std::move(op));
+      b.shaped(std::move(op));
       b.leg(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
       return b;
     };
@@ -311,17 +312,17 @@ struct NightNetworkScene final : Scene {
         // ---- the cased metro pair ----
         .child(rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
                     routers::octilinear(0))
-                   .inset(0).trim(0.0f, &emberReveal)
-                   .stroke(emberBrush).zIndex(4))
+                   .inset(0)
+                   .stroke(spans::upTo(&emberReveal), emberBrush).zIndex(4))
         // ---- the one-way line ----
         .child(rail({{"cy_w"}, {"cy1"}, {"hub"}, {"cy2"}, {"cy_e"}},
                     routers::octilinear(8))
-                   .inset(0).trim(0.0f, &cyanReveal)
-                   .stroke(current).zIndex(4))
+                   .inset(0)
+                   .stroke(spans::upTo(&cyanReveal), current).zIndex(4))
         // ---- the orbital ring with instanced stations ----
         .child(box().width(190).height(190).centerAt({436, 320})
-                   .outline(shapes::arc(0.0f, 359.9f))
-                   .trim(0.0f, &ringReveal).stroke(orbital).zIndex(5))
+                   .shape(shapes::arc(0.0f, 359.9f))
+                   .stroke(spans::upTo(&ringReveal), orbital).zIndex(5))
         // ---- twin service (bottom-right strip) ----
         .child(rail({{"tw_w"}, {"tw1"}, {"tw_e"}}, routers::octilinear(9))
                    .inset(0).stroke(twin).zIndex(2))
@@ -332,11 +333,11 @@ struct NightNetworkScene final : Scene {
         .child(rail({{"ck_s"}, {"ck2"}, {"ck1"}, {"ck_m"}},
                     routers::octilinear(10)) // source->mouth: narrow->wide
                    .inset(0).stroke(creek).zIndex(1))
-        // ---- ARTLINE: the SkVertices art warp (brushes::artAlong) — one
+        // ---- ARTLINE: the SkVertices art warp (brush::artAlong) — one
         // leaf-vine cell stretched and BENT along the S-curve; rigid
         // stamps can't follow this curvature continuously ----
         .child(box().inset(58, 452, nn::kW - 430, nn::kH - 548)
-                   .outline([](SkSize sz) {
+                   .shape([](SkSize sz) {
                      SkPathBuilder b;
                      b.moveTo(0, sz.height() * 0.72f);
                      b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
@@ -347,32 +348,32 @@ struct NightNetworkScene final : Scene {
                                sz.width() * 1.0f, sz.height() * 0.35f);
                      return b.detach();
                    })
-                   .foreground(brushes::artAlong(nn::vineArt(), 14, 5))
+                   .foreground(brush::artAlong(nn::vineArt(), 14, 5))
                    .zIndex(3))
         // ---- the saltmarsh: Sk2D lattice hatch on a blob field ----
         .child(box().width(120).height(74).centerAt({760, 524})
-                   .outline(shapes::blob(7, 0.16f))
+                   .shape(shapes::blob(7, 0.16f))
                    .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
                    .background(lines::hatch(
                        Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
                    .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----
         .child(box().inset(49, 554, nn::kW - 232, nn::kH - 581)
-                   .outline(demoPath)
-                   .stroke(demoRun(ops::Wave{.amplitude = 4, .wavelength = 28},
+                   .shape(demoPath)
+                   .stroke(demoRun(kit::brush::shapers::Wave{.amplitude = 4,
+                                                             .wavelength = 28},
                                    nn::kCyan))
                    .zIndex(3))
         .child(box().inset(49, 580, nn::kW - 232, nn::kH - 607)
-                   .outline(demoPath)
-                   .stroke(demoRun(ops::Wave{.amplitude = 4,
-                                             .wavelength = 28,
-                                             .zigzag = true},
+                   .shape(demoPath)
+                   .stroke(demoRun(kit::brush::shapers::Zigzag{
+                                       .amplitude = 4, .wavelength = 28},
                                    nn::kAmber))
                    .zIndex(3))
         .child(box().inset(49, 606, nn::kW - 232, nn::kH - 633)
-                   .outline(demoPath)
-                   .stroke(demoRun(ops::Square{.amplitude = 4,
-                                               .wavelength = 28},
+                   .shape(demoPath)
+                   .stroke(demoRun(kit::brush::shapers::Square{
+                                       .amplitude = 4, .wavelength = 28},
                                    nn::kViolet))
                    .zIndex(3))
         // ---- waypoint pins (invisible) ----

@@ -211,8 +211,8 @@ struct GerstnerGridScene final : Scene {
           box().key("col" + std::to_string(i))
               .left(x).top(0)
               .width(Dim(colW)).height(Dim(g::kFieldH))
-              .opacity(withFrom(0.0f, 1.0f, {320ms, &ch::easeOutQuad}))
-              .translateY(withFrom(9.0f, 0.0f, {420ms, &ch::easeOutQuint}))
+              .opacity(animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad}))
+              .translateY(animate(from(9.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
               .fill(Material::solid({g::kRed.fR, g::kRed.fG, g::kRed.fB,
                                      0.045f}));
       // the copy, flowed to this measure
@@ -276,7 +276,7 @@ struct GerstnerGridScene final : Scene {
     Element row = box().key("sum").row().alignItems(Align::Center).gap(10)
                       .left(g::kFieldX)
                       .top(g::kFieldY + g::kFieldH + 16)
-                      .opacity(withFrom(0.0f, 1.0f, {300ms}))
+                      .opacity(animate(from(0.0f).to(1.0f), {300ms}))
                       .child(text(toU8("58 ="),
                                   g::type(13, g::kInkSoft, 1.2f, 600)))
                       .child(text(toU8(c.arithmetic),

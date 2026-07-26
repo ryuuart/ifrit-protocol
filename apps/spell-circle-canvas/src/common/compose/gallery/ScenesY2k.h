@@ -193,7 +193,7 @@ inline Element chromeSquare(SkColor4f fill) {
 /** White starburst glint (shapes::star, thin 4-point). */
 inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
   return box().width(size).height(size)
-      .outline(shapes::star(4, 0.10f))
+      .shape(shapes::star(4, 0.10f))
       .fill(Fill::color({1, 1, 1, alpha}))
       .rotate(rotationDeg)
       .zIndex(3);
@@ -323,8 +323,8 @@ struct Y2kChromeScene final : Scene {
 
     Element wordmark =
         box().key("wordmark")
-            .translateY(withFrom(14.0f, 0.0f, {550ms, &ch::easeOutQuint}))
-            .opacity(withFrom(0.0f, 1.0f, {400ms}))
+            .translateY(animate(from(14.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
+            .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(plate)
             // (the preset's own sliver rides the plate BEHIND the type now —
             // the duplicate over-type sliver was the strikethrough)
@@ -347,7 +347,7 @@ struct Y2kChromeScene final : Scene {
         box().row().justify(Justify::Center).padding(0, 24)
             .margin(0, -12, 0, -24)
             .cache(Cache::Texture)
-            .opacity(withFrom(0.0f, 1.0f, {400ms}))
+            .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(text(toU8("\xc2\xb7 t h e   f u t u r e   i s   "
                              "c h r o m e \xc2\xb7"),
                         yc::type(14, yc::C(0x0F86C8), 2.5f, 650))
@@ -359,8 +359,8 @@ struct Y2kChromeScene final : Scene {
     Element pills =
         box().row().justify(Justify::Center).gap(22).margin(0, 18, 0, 0)
             .key("pills")
-            .translateY(withFrom(12.0f, 0.0f, {550ms, &ch::easeOutQuint}))
-            .opacity(withFrom(0.0f, 1.0f, {400ms}))
+            .translateY(animate(from(12.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
+            .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(yc::gelPill("ENTER  PORTAL", yc::C(0x1E8FFF)))
             .child(yc::gelPill("HOT  LINKS", yc::C(0xE03A3A)))
             .child(yc::gelPill("GUESTBOOK", yc::C(0x2AA84F)));
@@ -368,7 +368,7 @@ struct Y2kChromeScene final : Scene {
     // ---- the A/B card: hand-built recipe vs the preset --------------------
     Element abCard =
         box().row().justify(Justify::Center).margin(0, 16, 0, 0)
-            .opacity(withFrom(0.0f, 1.0f, {500ms}))
+            .opacity(animate(from(0.0f).to(1.0f), {500ms}))
             .child(
                 box().row().gap(28).padding(16, 10).corners({8})
                     .fill(Fill::color({1, 1, 1, 0.30f}))
@@ -435,7 +435,7 @@ struct Y2kChromeScene final : Scene {
                         .child(box().grow(1))
                         // 3D groove rule - the <hr> of the period
                         .child(box().height(2).margin(4, 0, 4, 10)
-                                   .opacity(withFrom(0.0f, 1.0f, {500ms}))
+                                   .opacity(animate(from(0.0f).to(1.0f), {500ms}))
                                    .fill(Material::linear(
                                        {0, 0}, {0, 2},
                                        {{0.0f, yc::C(0x8F969D)},
@@ -445,7 +445,7 @@ struct Y2kChromeScene final : Scene {
                         // footer: preset orb, caption, 1998 plastic button
                         .child(
                             box().row().alignItems(Align::End).key("footer")
-                                .opacity(withFrom(0.0f, 1.0f, {500ms}))
+                                .opacity(animate(from(0.0f).to(1.0f), {500ms}))
                                 .child(yc::gelOrb())
                                 .child(
                                     box().column().margin(14, 0, 0, 4).gap(3)

@@ -45,7 +45,7 @@ struct OrganicScene final : Scene {
                            0.45f - 0.25f * hue, 0.5f};
       chaos.child(box().width(70 + (float)(i % 5) * 26)
                       .height(60 + (float)(i % 4) * 24)
-                      .outline(shapes::blob((uint32_t)(100 + i), 0.35f,
+                      .shape(shapes::blob((uint32_t)(100 + i), 0.35f,
                                             5 + i % 6))
                       .fill(Fill::color(tint))
                       .blend(SkBlendMode::kPlus));
@@ -55,7 +55,7 @@ struct OrganicScene final : Scene {
     ContourWalk stampWalk;
     stampWalk.spacing = 46.0f;
     stampWalk.stamp = box().width(18).height(18)
-                          .outline(shapes::star(4, 0.4f))
+                          .shape(shapes::star(4, 0.4f))
                           .fill(Fill::color({1.0f, 0.71f, 0.42f, 0.9f}))
                           .foreground(util::stroke(
                               1.2f, Fill::color({1, 0.9f, 0.75f, 1})));
@@ -64,7 +64,7 @@ struct OrganicScene final : Scene {
             .inset((w - 300) / 2, (h - 300) / 2, (w - 300) / 2,
                    (h - 300) / 2)
             .zIndex(3)
-            .outline(shapes::rounded(shapes::star(7, 0.62f), 14))
+            .shape(shapes::rounded(shapes::star(7, 0.62f), 14))
             .fill(Fill::color({0.96f, 0.42f, 0.29f, 0.92f}))
             .rotate(&spin).scale(&pulse)
             .foreground(stampWalk)
@@ -87,7 +87,7 @@ struct OrganicScene final : Scene {
     auto moon = [&](const char *key, uint32_t seed, float l, float t) {
       return box().key(key).width(90).height(90)
           .inset(l, t, w - l - 90, h - t - 90).zIndex(2)
-          .outline(shapes::blob(seed, 0.28f, 7))
+          .shape(shapes::blob(seed, 0.28f, 7))
           .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
           .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
     };

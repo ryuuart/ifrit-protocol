@@ -457,8 +457,8 @@ struct AeroDesktopScene final : Scene {
     return stack().inset(0)
         .transformOrigin((ad::kWX + ad::kWW * 0.5f) / ad::kW,
                          (ad::kWY + ad::kWH * 0.5f) / ad::kH)
-        .scale(withFrom(0.96f, 1.0f, {220ms}))
-        .opacity(withFrom(0.0f, 1.0f, {180ms}))
+        .scale(animate(from(0.96f).to(1.0f), {220ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {180ms}))
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)
         .child(box()
                    .inset(ad::kWX - 34, ad::kWY - 30,

@@ -1002,3 +1002,178 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
   EXPECT_EQ(b.first, 0) << b.first << " of " << b.second
                         << " knots wrong at amp 4 / wl 30 / ink 5";
 }
+
+// ---------------------------------------------------------------------------
+// R2: the three twins that unblock the `brush::ops` demotion (ROADMAP §33).
+//
+// §33 said the demotion was blocked until `Rounded` and `Square` had kit
+// shapers. The R2 port found a THIRD gap — `ops::Wave{.zigzag = true}`,
+// with a live corpus site and no kit spelling. All three are here, and
+// each is tested the only way that matters for a rename: the kit value
+// produces the SAME PATH as the `ops::` struct it replaces.
+
+TEST(ComposeKitStrokes, TheThreeNewTwinsProduceTheSamePathAsTheirOpsStructs) {
+  SkPathBuilder b;
+  b.moveTo(10, 10);
+  b.lineTo(160, 10);
+  b.lineTo(160, 120);
+  b.lineTo(10, 120);
+  b.close();
+  const SkPath src = b.detach();
+
+  // (Named locals rather than braced temporaries inline: a designated
+  // aggregate inside EXPECT_* hands the macro its commas.)
+  const kit::brush::shapers::Square kitSquare{5, 26};
+  const kit::brush::shapers::Zigzag kitZigzag{4, 28};
+  const kit::brush::shapers::Wave kitWave{4, 28};
+  const ops::Square opsSquare{5, 26};
+  const ops::Wave opsZigzag{4, 28, true};
+
+  EXPECT_TRUE(kit::brush::shapers::Rounded{9.0f}.shape(src) ==
+              ops::Rounded{9.0f}.apply(src));
+  EXPECT_TRUE(kitSquare.shape(src) == opsSquare.apply(src));
+  EXPECT_TRUE(kitZigzag.shape(src) == opsZigzag.apply(src));
+  // …and Zigzag is NOT Wave: the flag it replaces changed the drawing.
+  EXPECT_FALSE(kitZigzag.shape(src) == kitWave.shape(src));
+}
+
+TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
+  static_assert(ShaperScheme<kit::brush::shapers::Rounded>);
+  static_assert(ShaperScheme<kit::brush::shapers::Square>);
+  static_assert(ShaperScheme<kit::brush::shapers::Zigzag>);
+  EXPECT_TRUE(Shaper(kit::brush::shapers::rounded(6)) ==
+              Shaper(kit::brush::shapers::rounded(6)));
+  EXPECT_FALSE(Shaper(kit::brush::shapers::rounded(6)) ==
+               Shaper(kit::brush::shapers::rounded(7)));
+  // Different KINDS never compare equal even at equal numbers — the type
+  // is part of the value, which is what keeps a re-described brush honest.
+  EXPECT_FALSE(Shaper(kit::brush::shapers::square(4, 28)) ==
+               Shaper(kit::brush::shapers::zigzag(4, 28)));
+}
+
+TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
+  // WP3 moved filament/circuit/rope/pulse from `brushes::` to
+  // `kit::brush::presets::`. "Unchanged" is the whole claim, so it is
+  // asserted the only way that settles it: against a HAND-BUILT copy of
+  // the layer stack core shipped, transcribed from the pre-move source.
+  // `LayeredBrush` has a defaulted `==`, so this compares every field of
+  // every layer — width, colour, blur, dash, phase, blend, the lot.
+  // Counting layers and spot-checking one width would pass on a preset
+  // whose colours had all been halved.
+  using kit::brush::presets::circuit;
+  using kit::brush::presets::filament;
+  using kit::brush::presets::pulse;
+  using kit::brush::presets::rope;
+
+  const SkColor4f glow{0.435f, 0.847f, 1.0f, 1};
+  const SkColor4f core{0.875f, 0.965f, 1.0f, 1};
+  SkColor4f g18 = glow, g45 = glow, c90 = core;
+  g18.fA = 0.18f;
+  g45.fA = 0.45f;
+  c90.fA = 0.90f;
+  const LayeredBrush wantFilament{{
+      {14, g18, 8, {}, 0, SkBlendMode::kPlus},
+      {7, g45, 3, {}, 0, SkBlendMode::kPlus},
+      {2.5f, c90},
+      {1, {1, 1, 1, 0.7f}},
+  }};
+  EXPECT_TRUE(filament() == wantFilament);
+
+  // circuit: three tiers, three different stacks, and tier 2 is the only
+  // one that lays down two layers (an under-glow beneath the trace).
+  const SkColor4f teal{0.208f, 0.878f, 0.824f, 1};
+  SkColor4f data = teal, main = teal, power = teal, under = teal;
+  data.fA = 0.55f;
+  main.fA = 0.85f;
+  power.fA = 1.0f;
+  under.fA = 0.15f;
+  // (Named locals, not braced temporaries inline: an aggregate inside
+  // EXPECT_* hands the macro its commas.)
+  const LayeredBrush wantData{{{1, data, 0, {}, 0, SkBlendMode::kSrcOver,
+                                false}}};
+  const LayeredBrush wantMain{{{2, main, 0, {}, 0, SkBlendMode::kSrcOver,
+                                false}}};
+  const LayeredBrush wantPower{
+      {{8, under, 4}, {4, power, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
+  EXPECT_TRUE(circuit(teal, 0) == wantData);
+  EXPECT_TRUE(circuit(teal, 1) == wantMain);
+  EXPECT_TRUE(circuit(teal, 2) == wantPower);
+  EXPECT_TRUE(circuit() == circuit(teal, 1)) << "the shipped defaults";
+
+  // rope: the palette ladder, verified against Path of Building, plus the
+  // Active state's halo. `scale` multiplies every width, dash and blur.
+  const SkColor4f body{0.541f, 0.447f, 0.282f, 1};
+  const SkColor4f ridge{0.780f, 0.659f, 0.420f, 1};
+  const SkColor4f bodyLit{body.fR * 1.15f, body.fG * 1.15f, body.fB * 1.15f, 1};
+  const SkColor4f ridgeLit{ridge.fR * 1.3f, ridge.fG * 1.3f, ridge.fB * 1.3f,
+                           0.6f};
+  const LayeredBrush wantActive{{
+      {18, {1.0f, 0.788f, 0.439f, 0.13f}, 6},
+      {11, body, 0, {}, 0, SkBlendMode::kSrcOver, false},
+      {7, ridge, 0, {7, 5}, 0},
+      {7, bodyLit, 0, {7, 5}, 6},
+      {2, ridgeLit, 0, {7, 5}, 3},
+  }};
+  EXPECT_TRUE(rope(2) == wantActive);
+  // The state index CLAMPS rather than reading off the end of the table.
+  EXPECT_TRUE(rope(9) == wantActive);
+  EXPECT_TRUE(rope(-3) == rope(0));
+  EXPECT_FALSE(rope(0) == rope(1)) << "the three states are three palettes";
+
+  const SkColor4f halo{1.0f, 0.79f, 0.44f, 0.35f};
+  SkColor4f pulseBody = halo;
+  pulseBody.fA = std::min(1.0f, halo.fA * 2.2f);
+  const LayeredBrush wantPulse{{
+      {12, halo, 5, {}, 0, SkBlendMode::kPlus},
+      {5, pulseBody, 2, {}, 0, SkBlendMode::kPlus},
+      {2, {1, 1, 1, 0.9f}},
+  }};
+  EXPECT_TRUE(pulse() == wantPulse);
+}
+
+TEST(ComposeKitPresets, TheLEGACYSpellingsStillResolveUntilR3) {
+  // R2 moved the bodies; R3 deletes the names. Until then `brushes::X`
+  // must still compile AND still mean the same value — the alias-first
+  // law (§27), which the first cut of WP3 broke by deleting the four
+  // names a phase early.
+  EXPECT_TRUE(brushes::filament() == kit::brush::presets::filament());
+  EXPECT_TRUE(brushes::circuit() == kit::brush::presets::circuit());
+  EXPECT_TRUE(brushes::rope(2) == kit::brush::presets::rope(2));
+  EXPECT_TRUE(brushes::pulse() == kit::brush::presets::pulse());
+  // …including through their DEFAULT arguments, which is why these are
+  // using-declarations and not hand-written forwarders.
+  EXPECT_TRUE(brushes::rope(1, 0.6f) == kit::brush::presets::rope(1, 0.6f));
+  const SkColor4f teal{0.2f, 0.9f, 0.8f, 1};
+  EXPECT_TRUE(brushes::circuit(teal, 2) ==
+              kit::brush::presets::circuit(teal, 2));
+}
+
+TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
+  // bleed() grows the recording cull, so a NEGATIVE one shrinks it and
+  // clips the mark it was supposed to protect. A negative amplitude is a
+  // perfectly legal wave — it starts the other way — and three of the
+  // five oscillating values used to hand back the raw number while two
+  // took abs(). One rule now, across core and kit.
+  // (Named locals: a braced aggregate inside EXPECT_* hands the macro its
+  // commas.)
+  const ops::Wave opsWave{-6.0f, 24.0f};
+  const ops::Square opsSquare{-5.0f, 32.0f};
+  const kit::brush::shapers::Wave kitWave{-4.0f, 20.0f};
+  const kit::brush::shapers::Square kitSquare{-5.0f, 26.0f};
+  const kit::brush::shapers::Zigzag kitZigzag{-4.0f, 28.0f};
+  EXPECT_FLOAT_EQ(opsWave.bleed(), 6.0f);
+  EXPECT_FLOAT_EQ(opsSquare.bleed(), 5.0f);
+  EXPECT_FLOAT_EQ(kitWave.bleed(), 4.0f);
+  EXPECT_FLOAT_EQ(kitSquare.bleed(), 5.0f);
+  EXPECT_FLOAT_EQ(kitZigzag.bleed(), 4.0f);
+  // …and the type-erased seams read the same number through.
+  EXPECT_FLOAT_EQ(Shaper(kitWave).bleed(), 4.0f);
+  EXPECT_FLOAT_EQ(GeometryOp(opsWave).bleed(), 6.0f);
+  // A negative amplitude still DRAWS — it is the same wave, half a cycle
+  // over — so this is a cull fix and not a clamp on the value.
+  SkPathBuilder b;
+  b.moveTo(10, 60);
+  b.lineTo(190, 60);
+  const SkPath line = b.detach();
+  EXPECT_FALSE(kitWave.shape(line).isEmpty());
+}

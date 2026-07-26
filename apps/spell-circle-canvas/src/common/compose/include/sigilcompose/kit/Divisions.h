@@ -39,7 +39,7 @@
  * ## What this is NOT
  *
  * Not a linear tick ladder along an edge. `astral_tome.cpp:777-796` does
- * that in twelve lines with `brushes::ScatterBrush{.spacing = pitch,
+ * that in twelve lines with `brush::Scatter{.spacing = pitch,
  * .alignToPath = true}`, which is already the right tool and already
  * ships. `EXTRACT.md §5.7` rejected a tick-ladder component on that
  * evidence and it was right about the linear case. The radial case it did
@@ -69,7 +69,7 @@ struct Span {
  *      // thaumonomicon's brass rose: 72 divisions, every sixth reaching
  *      // further in. One node instead of a loop.
  *      box().rect(fig.box())
- *           .outline(kit::ticks({.divisions = 72,
+ *           .shape(kit::ticks({.divisions = 72,
  *                                .mark = {.inner = 0.96f, .outer = 1.0f},
  *                                .longEvery = 6,
  *                                .longMark = {.inner = 0.91f, .outer = 1.0f}}))

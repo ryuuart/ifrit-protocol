@@ -239,7 +239,7 @@ Element organicPanel(SkSize size) {
   for (int i = 0; i < 12; ++i)
     chaos.child(box().width(80 + (float)(i % 5) * 24)
                     .height(64 + (float)(i % 4) * 22)
-                    .outline(shapes::blob((uint32_t)(300 + i), 0.34f,
+                    .shape(shapes::blob((uint32_t)(300 + i), 0.34f,
                                           5 + i % 6))
                     .fill(Fill::color({0.3f + 0.04f * (float)i, 0.18f,
                                        0.42f - 0.02f * (float)i, 0.55f}))
@@ -248,14 +248,14 @@ Element organicPanel(SkSize size) {
   ContourWalk stampWalk;
   stampWalk.spacing = 44.0f;
   stampWalk.stamp = box().width(16).height(16)
-                        .outline(shapes::star(4, 0.4f))
+                        .shape(shapes::star(4, 0.4f))
                         .fill(Fill::color({1.0f, 0.72f, 0.4f, 0.95f}));
   auto sigilStar =
       box().key("sigil").width(280).height(280)
           .inset((w - 280) / 2, (h - 280) / 2 - 20, (w - 280) / 2,
                  (h - 280) / 2 + 20)
           .absolute().zIndex(3)
-          .outline(shapes::rounded(shapes::star(7, 0.62f), 12))
+          .shape(shapes::rounded(shapes::star(7, 0.62f), 12))
           .fill(Fill::color({0.95f, 0.42f, 0.28f, 0.95f}))
           .foreground(stampWalk)
           .child(layout(layouts::Radial{.radiusFraction = 0.5f}).inset(0)
@@ -264,7 +264,7 @@ Element organicPanel(SkSize size) {
                        for (int i = 0; i < 10; ++i)
                          beads.push_back(
                              box().width(14).height(14)
-                                 .outline(shapes::polygon(3 + i % 4))
+                                 .shape(shapes::polygon(3 + i % 4))
                                  .fill(Fill::color(
                                      {0.2f, 0.1f, 0.14f, 0.9f})));
                        return beads;
@@ -298,7 +298,7 @@ Element organicPanel(SkSize size) {
   auto moon = [&](const char *key, uint32_t seed, float l, float t) {
     return box().key(key).width(84).height(84)
         .inset(l, t, w - l - 84, h - t - 84).absolute().zIndex(2)
-        .outline(shapes::blob(seed, 0.28f, 7))
+        .shape(shapes::blob(seed, 0.28f, 7))
         .fill(Fill::color({0.36f, 0.62f, 0.66f, 0.95f}))
         .foreground(util::stroke(2, Fill::color({0.8f, 1, 1, 0.6f})));
   };
@@ -469,7 +469,7 @@ int main(int argc, char **argv) {
         stack().fill(Fill::color({0.05f, 0.06f, 0.1f, 1}))
             .child(box().key("hero").width(180).height(180)
                        .inset(80, 100, 460, 140).absolute()
-                       .outline(shapes::star(5))
+                       .shape(shapes::star(5))
                        .fill(Fill::color({0.95f, 0.42f, 0.28f, 1})))
             .child(box().key("side").width(140).height(90)
                        .inset(420, 150, 160, 180).absolute().corners({16})

@@ -881,7 +881,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the ruling — straight, and stopping 7% short of both rims
     g.child(box()
                 .inset(0)
-                .outline([phi](SkSize) { return generatrices(phi, 7); })
+                .shape([phi](SkSize) { return generatrices(phi, 7); })
                 .foreground(add(1.5f, dim(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
@@ -892,7 +892,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
                       float w, float t0, float t1, const char *key) {
       g.child(box()
                   .inset(0)
-                  .outline([c, a, b, tilt, t0, t1](SkSize) {
+                  .shape([c, a, b, tilt, t0, t1](SkSize) {
                     return ellipsePath(c, a, b, tilt, t0, t1);
                   })
                   .foreground(add(w, col, 0.0f, dot))
@@ -917,7 +917,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // waist centred on 498.
     g.child(box()
                 .inset(0)
-                .outline([](SkSize) {
+                .shape([](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
                   b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
@@ -1071,7 +1071,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // Bounded to the eye's own box so the bake is 0.05 MP, not 0.73.
     root.child(box()
                    .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-                   .outline([](SkSize s) {
+                   .shape([](SkSize s) {
                      return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
                                          92.0f);
                    })
@@ -1088,7 +1088,7 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the bars. No corner anywhere — the bars simply overhang them.
     root.child(box()
                    .inset(0)
-                   .outline([](SkSize) {
+                   .shape([](SkSize) {
                      SkPathBuilder b;
                      b.moveTo(kBodyL, kBarTopB - 4);
                      b.lineTo(kBodyL + 8, kBarBotT + 4);
@@ -1109,14 +1109,14 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // structure.
     root.child(box()
                    .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL, kBarTopB - kBarTopT))
-                   .outline(barOutline(kShearTop))
+                   .shape(barOutline(kShearTop))
                    .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("barTop"));
     root.child(box()
                    .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL, kBarBotB - kBarBotT))
-                   .outline(barOutline(kShearBot))
+                   .shape(barOutline(kShearBot))
                    .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)

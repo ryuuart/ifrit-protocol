@@ -132,6 +132,7 @@ std::vector<const PropValue<float> *> spanEndpoints(const ElementNode &node) {
     for (const Spans::Term &term : pass.where.terms) {
       out.push_back(&term.begin);
       out.push_back(&term.end);
+      out.push_back(&term.offset);
     }
   return out;
 }

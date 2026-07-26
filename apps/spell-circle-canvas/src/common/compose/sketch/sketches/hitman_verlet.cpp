@@ -375,8 +375,8 @@ Element panel(float height, const char *heading, int order) {
       .fill(kPanel)
       .clip(true)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(withFrom(0.0f, 1.0f, {.duration = 300ms}))
-      .translateX(withFrom(14.0f, 0.0f, {.duration = 300ms}))
+      .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms}))
+      .translateX(animate(from(14.0f).to(0.0f), {.duration = 300ms}))
       .key(std::string("panel") + std::to_string(order))
       .child(t(heading, ui(9.5f, kSteel, 1.9f)).height(Dim(12)).shrink(0));
 }
@@ -394,9 +394,8 @@ Element stageInset(float x, float y, float w, float h, int order) {
       .corners({5})
       .fill(hex(0x101116, 0.88f))
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(withFrom(0.0f, 1.0f, {.duration = 340ms, .delay = 900ms}))
-      .scale(withFrom(0.94f, 1.0f,
-                      {.duration = 340ms,
+      .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
+      .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
                        .ease = ease::outBack(1.70158f),
                        .delay = 900ms}))
       .key(std::string("inset") + std::to_string(order));
@@ -1079,7 +1078,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
       const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
       tint[i] = errColor(e, f);
     }
-    barPool->touch();
+    barPool->commit();
   }
 
   // =========================================================================
@@ -1088,7 +1087,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   Element worldBox() {
     return box()
         .inset(0)
-        .stroke(stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.45f)),
+        .stroke(spans::upTo(animate(to(1.0f), {.duration = 620ms,
+                                               .ease = ch::easeOutCubic,
+                                               .delay = 240ms})),
+                stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.45f)),
                        PathFormat::Align::Inner))
         .child(box() // the cube's top wall — real, just not interesting
                    .left(Dim(0))
@@ -1102,9 +1104,6 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                      f.dashIntervals = {4.0f, 5.0f};
                      return f;
                    }()))
-        .trim(0.0f, with(1.0f, {.duration = 620ms,
-                                .ease = ch::easeOutCubic,
-                                .delay = 240ms}))
         .key("worldbox");
   }
 
@@ -1115,7 +1114,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     const float floorTop = kStage - kCapsule * kUnit;
     return box()
         .inset(0)
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 400ms, .delay = 520ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 520ms}))
         .child(box()
                    .left(Dim(0))
                    .top(Dim(floorTop))
@@ -1137,14 +1136,14 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                    .fill(hex(0x6FA8DC, 0.5f)))
         // The bump, drawn to the paper's own Fig. 4 scale, with the
         // drafting-section hatch as a foreground — a generator, not a
-        // texture. A box().outline(shapes::polygon(3)) INSCRIBES, which is
+        // texture. A box().shape(shapes::polygon(3)) INSCRIBES, which is
         // the wrong shape; the three points go in directly.
         .child(box()
                    .left(Dim(kBumpA.fX * kUnit))
                    .top(Dim(kStage - kBumpB.fY * kUnit))
                    .width(Dim((kBumpC.fX - kBumpA.fX) * kUnit))
                    .height(Dim(kBumpB.fY * kUnit))
-                   .outline([](SkSize s) {
+                   .shape([](SkSize s) {
                      SkPathBuilder p;
                      p.moveTo(0, s.height());
                      p.lineTo(s.width() * 0.5f, 0);
@@ -1296,7 +1295,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .corners({5})
         .fill(hex(0x101116, 0.88f))
         .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 340ms, .delay = 980ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 980ms}))
         .key("strip")
         .child(t("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs custom()",
                  ui(7.5f, kSteel, 0.9f))
@@ -1364,8 +1363,8 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
           .child(box()
                      .height(Dim(7))
                      .fill(kRampCol[i])
-                     .scaleX(withFrom(0.0f, 1.0f,
-                                      {.duration = 200ms, .delay = 1500ms}))
+                     .scaleX(animate(from(0.0f).to(1.0f),
+                                     {.duration = 200ms, .delay = 1500ms}))
                      .transformOrigin(0.0f, 0.5f))
           .child(t(label, mono(6.5f, kTick, 0.2f)));
     };
@@ -1380,7 +1379,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .corners({4})
         .fill(hex(0x101116, 0.86f))
         .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(withFrom(0.0f, 1.0f, {.duration = 300ms, .delay = 1440ms}))
+        .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1440ms}))
         .key("legend")
         .child(box()
                    .row()
@@ -1655,11 +1654,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         f.dashIntervals = {3.5f, 3.0f};
       return box()
           .inset(0)
-          .outline(curve(approx))
-          .stroke(f)
-          .trim(0.0f, with(1.0f, {.duration = 520ms,
+          .shape(curve(approx))
+          .stroke(spans::upTo(animate(to(1.0f), {.duration = 520ms,
                                   .ease = ch::easeOutCubic,
-                                  .delay = 1400ms}));
+                                  .delay = 1400ms})), f)
+          ;
     };
     auto bar = [&](int i, const char *label, float h) {
       return box()
@@ -1673,8 +1672,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
                      .width(Dim(30))
                      .height(Dim(h))
                      .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
-                     .scaleY(withFrom(0.0f, 1.0f,
-                                      {.duration = 220ms,
+                     .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
                                        .ease = ease::outBack(1.70158f),
                                        .delay = 1600ms}))
                      .transformOrigin(0.5f, 1.0f))
@@ -1888,7 +1886,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
     GlyphFx fx;
     fx.effect = glyphfx::rise(22.0f);
     fx.stagger = {.eachMs = 24, .durationMs = 440};
-    fx.progress = withFrom(0.0f, 1.0f, {.duration = 1100ms,
+    fx.progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
                                         .ease = ch::easeOutQuad,
                                         .delay = 120ms});
     return box()
@@ -1896,28 +1894,26 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
         .height(Dim(100))
         .shrink(0)
         .gap(3)
-        .child(t("TECHNIQUE STUDY 04 \xc2\xb7 STATE AND CONTACT",
-                 ui(10.0f, kSteel, 2.6f))
-                   .opacity(withFrom(0.0f, 1.0f, {.duration = 260ms}))
-                   .translateY(withFrom(8.0f, 0.0f, {.duration = 260ms})))
-        .child(t("THE HITMAN RAGDOLL, 2000", type(heavyFace(), 42, kBone, -0.3f))
-                   .key("title")
-                   .glyphFx(std::move(fx)))
+        .child(
+            t("TECHNIQUE STUDY 04 \xc2\xb7 STATE AND CONTACT",
+              ui(10.0f, kSteel, 2.6f))
+                .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
+                .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
+        .child(
+            t("THE HITMAN RAGDOLL, 2000", type(heavyFace(), 42, kBone, -0.3f))
+                .key("title")
+                .glyphFx(std::move(fx)))
         .child(t("Thomas Jakobsen, IO Interactive \xe2\x80\x94 \"Advanced "
                  "Character Physics\", GDC 2001 \xc2\xb7 shipped in Hitman: "
                  "Codename 47 (Eidos, 19 Nov 2000, Glacier engine, DirectX "
                  "7.0a) \xc2\xb7 every stick coloured by its LIVE constraint "
                  "error",
                  ui(10.5f, kSteel, 0.1f))
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 240ms, .delay = 400ms})))
+                   .opacity(animate(from(0.0f).to(1.0f),
+                                    {.duration = 240ms, .delay = 400ms})))
         .child(box().grow(1))
-        .child(box()
-                   .height(Dim(1))
-                   .shrink(0)
-                   .fill(kKeyline)
-                   .opacity(withFrom(0.0f, 1.0f,
-                                     {.duration = 400ms, .delay = 320ms})));
+        .child(box().height(Dim(1)).shrink(0).fill(kKeyline).opacity(
+            animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 320ms})));
   }
 
   Element describe() {
@@ -2019,10 +2015,10 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
 
     dotAtlas = std::make_shared<instancing::Atlas>(2.0f);
     cellDot = dotAtlas->cell(
-        box().outline(shapes::circle()).fill(kBone), {5, 5});
+        box().shape(shapes::circle()).fill(kBone), {5, 5});
     cellPin = dotAtlas->cell(
         box()
-            .outline(shapes::circle())
+            .shape(shapes::circle())
             .fill(kBone)
             .stroke(stroke(1.2f, Fill::color(kRed), PathFormat::Align::Inner)),
         {7, 7});

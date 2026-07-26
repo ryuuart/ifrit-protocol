@@ -76,7 +76,7 @@ Descriptions are built, copied, and compared every render, so their
 layout is a design rule. `ElementNode` keeps inline only fields every
 kind touches; everything rare or kind-specific lives in out-of-line
 value-semantic `Box<T>` blocks — absent costs one null pointer.
-`PropValue` applies the same rule per property: a compact class, not a
+`Animatable` applies the same rule per property: a compact class, not a
 variant; the fat `Transitioned` payload boxes out-of-line. A
 `static_assert(sizeof(ElementNode) <= 768)` in `Composer.cpp` enforces
 it structurally: **new rare or kind-specific state goes in a block,
@@ -134,7 +134,7 @@ CSS's model, simplified and explicit:
 ## Animation — one engine, two write paths, named grammars
 
 The substrate is single: choreograph Outputs stepped by one Ticker,
-unified at every property by `PropValue`. Exactly two ways to change
+unified at every property by `Animatable`. Exactly two ways to change
 the screen:
 
 1. **Describe** — structure and discrete state: `render()` /
@@ -153,9 +153,9 @@ Everything the API offers is one of these, wearing a grammar. The map
 | --- | --- | --- |
 | `transition`/`with`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
 | bare `Output*` / shaped `bind()` | bind | continuous scrubbing, data-driven values |
-| `animated()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
+| `animates()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
 | `spans::upTo` on a stroke pass, `wipe` (legacy `trim`) | either | reveals |
-| `glyphFx` + PropValue progress | either | per-glyph typography |
+| `glyphFx` + Animatable progress | either | per-glyph typography |
 | `custom()` + `Cache::None` + `elapsedSeconds` | floor | immediate-mode escape hatch |
 | pool `Mode::Live` / `Mode::Data` | the two paths verbatim | instanced masses |
 
@@ -175,7 +175,7 @@ advance-invariant weight.
 
 ## Caching — automatic because provable
 
-Declared volatility (bindings, transitions, `animated()` schemes, live
+Declared volatility (bindings, transitions, `animates()` schemes, live
 leaves) makes "static" a decidable property of a subtree, not a
 heuristic. The tiers:
 
@@ -249,7 +249,7 @@ layout schemes, routers, leaves) without changing kernel semantics.
 
 The **kernel** is `Element`/components/`Composer`; Yoga flex +
 `stack()`; stacking paint (zIndex/opacity/blend/transform/clip); the
-text/image/custom leaves; `key` + `memo`; `PropValue`/`Transition` and
+text/image/custom leaves; `key` + `memo`; `Animatable`/`Transition` and
 the reconciled-vs-bound write paths; automatic caching; the stroke
 grammar (`shape`, the `stroke(where, what)` slot over `spans::`,
 `band`/`across`, and the `Profile` seam) — plus the
@@ -323,7 +323,7 @@ a third.
   do-not-build list — frame/coordinate value, lattice resolver, ring
   band, ringLabel, leaderTo, tick ladder, legend row, icon set,
   palette/theme layer, timeline DSL, label() widget — lives with its
-  evidence in archive/EXTRACT.md; inline `outline()` lambdas are the
+  evidence in archive/EXTRACT.md; inline `shape()` lambdas are the
   escape hatch *working*.
 - **Anything read live must participate in reconciler equality** or a
   pruned node reads stale values forever; incomparable callables

@@ -565,7 +565,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void bakePips() {
     Element filled =
-        box().outline(chevron())
+        box().shape(chevron())
             .fill(Material::linear({0, 0}, {0, kPipH},
                                    {{0.0f, hex(0xC8DADA)},
                                     {0.42f, hex(0x92AAAC)},
@@ -573,7 +573,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                     {1.0f, hex(0xB0C6C8)}}))
             .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
                            PathFormat::Align::Inner));
-    Element empty = box().outline(chevron()).stroke(
+    Element empty = box().shape(chevron()).stroke(
         stroke(1.2f, Fill::color(alpha(kCyan, 0.30f)),
                PathFormat::Align::Inner));
     pipFilled = pips->cell(std::move(filled), {kPipW, kPipH});
@@ -597,7 +597,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                   0.66f + 0.34f * art.ring.fB, 1.0f}
                       : SkColor4f{1, 1, 1, 1};
       }
-      pool->touch();
+      pool->commit();
       pipPools[(size_t)r] = std::move(pool);
     }
   }
@@ -640,7 +640,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
         box()
             .key("plate")
             .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-            .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+            .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
             .fill(Material::blend(
                 {{Material::solid(kBody), SkBlendMode::kSrcOver},
                  // unit-square ramp: the lift is authored against the box,
@@ -663,7 +663,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // shader, so ds2 keeps a live floor and does not fully clear the gate.)
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-                   .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+                   .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .fill(grain)
                    .opacity(0.07f)
                    .blend(SkBlendMode::kOverlay)
@@ -673,7 +673,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // frame: a soft plus-blended halo under a crisp cyan keyline
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-                   .outline(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+                   .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
                    .stroke(LayeredBrush{{
                        {14, alpha(kCyan, 0.09f), 8, {}, 0, SkBlendMode::kPlus},
                        {5, alpha(kCyan, 0.22f), 2.6f, {}, 0,
@@ -685,14 +685,14 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // the inner contour: a thin line whose dipped centre IS the header rule
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX + kInset, kPY + kInset, kPW - 2 * kInset, kPH - 2 * kInset))
-                   .outline(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
+                   .shape(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
                                        kInnerShoulderR))
                    .stroke(stroke(1.1f, Fill::color(alpha(kCyan, 0.55f))))
                    .zIndex(6));
     // and a dotted echo just inside it (the frame's second, ticked pass)
     root.child(box()
                    .rect(SkRect::MakeXYWH(kPX + kInset + 7, kPY + kInset + 7, kPW - 2 * kInset - 14, kPH - 2 * kInset - 14))
-                   .outline(panelInner(kInnerCut - 4, kInnerDip - 7,
+                   .shape(panelInner(kInnerCut - 4, kInnerDip - 7,
                                        kInnerShoulderL - 7,
                                        kInnerShoulderR - 7))
                    .stroke(PathFormat{.width = 1.0f,
@@ -706,19 +706,19 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
   // header
 
   void header(Element &root) {
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kPX, kPY + 20, kPW, kRuleY - kPY - 22))
-                   .alignItems(Align::Center).justify(Justify::Center)
-                   .zIndex(7)
-                   .child(text(toU8("CONTACT BEAM"), type(31, kTitle, 0.10f))
-                              .key("title")
-                              .glyphFx(GlyphFx{
-                                  .effect = glyphfx::typeOn(),
-                                  .stagger = {.eachMs = 26,
-                                              .durationMs = 190},
-                                  .progress = withFrom(0.0f, 1.0f, {760ms})})
-                              .effect(styles::textGlow(alpha(kCyan, 0.5f),
-                                                       5.0f))));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kPX, kPY + 20, kPW, kRuleY - kPY - 22))
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .zIndex(7)
+            .child(text(toU8("CONTACT BEAM"), type(31, kTitle, 0.10f))
+                       .key("title")
+                       .glyphFx(GlyphFx{
+                           .effect = glyphfx::typeOn(),
+                           .stagger = {.eachMs = 26, .durationMs = 190},
+                           .progress = animate(from(0.0f).to(1.0f), {760ms})})
+                       .effect(styles::textGlow(alpha(kCyan, 0.5f), 5.0f))));
 
     // under the rule: the repair caption at left, and at right the RIG's
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
@@ -733,11 +733,11 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     // gauge's own track — the most obvious call there is — silently
     // disappears at the natural value.
     root.child(box().rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-                   .outline(shapes::sector(0, 359.99f, 0.58f))
+                   .shape(shapes::sector(0, 359.99f, 0.58f))
                    .fill(Material::solid(alpha(kCyan, 0.18f)))
                    .zIndex(7));
     root.child(box().rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
-                   .outline(shapes::sector(-90, 360 * 0.78f, 0.58f))
+                   .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
                    .fill(Material::solid(alpha(kCyan, 0.9f)))
                    .zIndex(7));
     root.child(box().at({gaugeX + 34, kRuleY + 13})
@@ -816,7 +816,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
               .key(std::string(c.tag) + "e" + std::to_string(i))
               .inset(0)
-              .trim(0.0f, withFrom(0.0f, 1.0f, {620ms}))
+              .trim(0.0f, animate(from(0.0f).to(1.0f), {620ms}))
               .stroke(LayeredBrush{{{7.0f, alpha(kCyan, 0.075f), 3.4f, {}, 0,
                                      SkBlendMode::kPlus}}})
               .stroke(lines::cased(1.2f,
@@ -848,16 +848,18 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
       const float boxSize = sdf::minBoxFor(st, dia);
       layer.child(box()
                       .key(c.key(i))
-                      .width(Dim(boxSize)).height(Dim(boxSize))
+                      .width(Dim(boxSize))
+                      .height(Dim(boxSize))
                       .centerAt(at)
                       .fill(std::move(m))
-                      .opacity(withFrom(0.0f, 1.0f, {260ms}))
-                      .scale(withFrom(
-                          0.72f, 1.0f,
+                      .opacity(animate(from(0.0f).to(1.0f), {260ms}))
+                      .scale(animate(
+                          from(0.72f).to(1.0f),
                           Transition{.duration = 260ms,
-                                     .ease = [](float t) {
-                                       return choreograph::easeOutBack(t);
-                                     }}))
+                                     .ease =
+                                         [](float t) {
+                                           return choreograph::easeOutBack(t);
+                                         }}))
                       .zIndex(typed ? 3 : 2));
 
       if (!typed)
@@ -867,9 +869,9 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
       layer.child(box()
                       .width(Dim(dia + 24)).height(Dim(dia + 24))
                       .centerAt(at)
-                      .outline(burst(24, 0.72f))
+                      .shape(burst(24, 0.72f))
                       .stroke(stroke(0.9f, Fill::color(alpha(kCyan, 0.20f))))
-                      .opacity(withFrom(0.0f, 1.0f, {320ms}))
+                      .opacity(animate(from(0.0f).to(1.0f), {320ms}))
                       .zIndex(4));
       layer.child(box()
                       .width(Dim(dia * 0.42f)).height(Dim(dia * 0.42f))
@@ -882,7 +884,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
       layer.child(text(toU8(art.label),
                        type(c.labelSize, alpha(kCyan, 0.78f), 0.11f))
                       .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
-                      .opacity(withFrom(0.0f, 1.0f, {320ms}))
+                      .opacity(animate(from(0.0f).to(1.0f), {320ms}))
                       .zIndex(5));
     }
     root.child(std::move(layer));
@@ -904,7 +906,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .child(text(toU8(slots),
                                type(9.5f, alpha(kCyan, 0.4f), 0.18f, false))));
     root.child(box().rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, 280.0f, 1.0f))
-                   .outline(hline())
+                   .shape(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
                    .zIndex(8));
   }
@@ -922,13 +924,13 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .child(text(toU8(s.label),
                                type(14, alpha(kCyan, 0.95f), 0.10f))))
         .child(box().width(Dim(9.0f)).height(Dim(9.0f)).margin(13, 0, 13, 0)
-                   .outline(shapes::polygon(12))
+                   .shape(shapes::polygon(12))
                    .fill(Material::radial({4.5f, 4.5f}, 5.0f,
                                           {{0.0f, art.ring},
                                            {1.0f, art.fill}})))
         .child(box().width(Dim(barW)).height(Dim(kPipH))
-                   .opacity(withFrom(0.0f, 1.0f, {320ms}))
-                   .translateX(withFrom(-16.0f, 0.0f, {380ms}))
+                   .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+                   .translateX(animate(from(-16.0f).to(0.0f), {380ms}))
                    .child(instancing::instances(pips, pipPools[(size_t)r])))
         .child(box().grow(1))
         .child(box().width(Dim(84.0f))
@@ -944,7 +946,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
                  {scanField(alpha(kCyan, 0.05f), 3.0f),
                   SkBlendMode::kScreen}}))
-            .outline(chamfer(12))
+            .shape(chamfer(12))
             .zIndex(7)
             .column().padding(20, 12).gap(3)
             .staggerChildren(70ms, Stagger::From::Start);
@@ -967,15 +969,15 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(std::move(card));
 
     root.child(box().rect(SkRect::MakeXYWH(kLegX - 8, kBandY - 8, kLegW + 16, kBandH + 16))
-                   .outline(cornerBrackets(26))
+                   .shape(cornerBrackets(26))
                    .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
     root.child(box().rect(SkRect::MakeXYWH(kLegX + 16, kBandY + 32, kLegW - 32, 1.0f))
-                   .outline(hline())
+                   .shape(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
     root.child(box().rect(SkRect::MakeXYWH(kLegX + kLegW - 108, kBandY + 14, 1.0f, kBandH - 28))
-                   .outline(vline())
+                   .shape(vline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
                    .zIndex(8));
   }
@@ -987,7 +989,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     root.child(
         box().key("counter")
             .rect(SkRect::MakeXYWH(kCntX, kBandY, kCntW, kBandH))
-            .outline(chamfer(12))
+            .shape(chamfer(12))
             .fill(Material::blend(
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
                  {scanField(alpha(kCyan, 0.05f), 3.0f),
@@ -996,7 +998,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
             .zIndex(7)
             .child(box().width(Dim(112.0f)).height(Dim(21.0f))
                        .alignItems(Align::Center).justify(Justify::Center)
-                       .outline(chamfer(6))
+                       .shape(chamfer(6))
                        .stroke(stroke(1.0f,
                                       Fill::color(alpha(kCyan, 0.45f))))
                        .child(text(toU8("NODES"),
@@ -1011,7 +1013,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                        {0.45f, hex(0x7E6318)},
                                        {1.0f, kBrassDk}})))
                        .child(box().rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
-                                  .outline(shapes::squircle(2.0f))
+                                  .shape(shapes::squircle(2.0f))
                                   .fill(Material::linear(
                                       {0, 0}, {52, 27},
                                       {{0.0f, kBrassHi},
@@ -1021,7 +1023,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                                       1.0f,
                                       Fill::color(hex(0xF3DC94, 0.75f)))))
                        .child(box().rect(SkRect::MakeXYWH(22.0f, 8.0f, 24.0f, 13.0f))
-                                  .outline(shapes::squircle(2.0f))
+                                  .shape(shapes::squircle(2.0f))
                                   .stroke(stroke(
                                       1.3f,
                                       Fill::color(hex(0x74590F, 0.9f))))))
@@ -1030,7 +1032,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                        .transition({.duration = 200ms})));
 
     root.child(box().rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16, kBandH + 16))
-                   .outline(cornerBrackets(22))
+                   .shape(cornerBrackets(22))
                    .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
                    .zIndex(8));
   }
@@ -1040,7 +1042,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
 
   void hints(Element &root) {
     root.child(box().rect(SkRect::MakeXYWH(kPX + 32, kHintY, kPW - 64, 1.0f))
-                   .outline(hline())
+                   .shape(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.36f))))
                    .zIndex(8));
 
@@ -1134,7 +1136,7 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
     auto holo = box().inset(0)
                     .translateX(&jitterX)
                     .opacity(&holoAlpha)
-                    .scale(withFrom(0.955f, 1.0f, {380ms}))
+                    .scale(animate(from(0.955f).to(1.0f), {380ms}))
                     .transformOriginPx({kW * 0.5f, kH * 0.5f})
                     .zIndex(2);
     plate(holo);
