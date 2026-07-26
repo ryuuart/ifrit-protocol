@@ -169,7 +169,10 @@ inline void warnNoCornersFound(float sharpestDeg, float angleDeg) {
   seen.push_back(key);
   SkDebugf("lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
            "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
-           "brackets/gappedRule/weightedCorners will draw nothing here. A "
+           "brackets/gappedRule/weightedCorners and spans::corners() will "
+           "draw nothing here, and spans::edges() (their complement) will "
+           "claim the WHOLE boundary instead of stopping short of "
+           "anything. A "
            "regular n-gon turns 360/n per vertex, which puts EVERY polygon "
            "above 12 sides under the 30\xc2\xb0 default (a 20-gon turns "
            "18\xc2\xb0). Pass a smaller angleDeg, e.g. %.0ff.\n",

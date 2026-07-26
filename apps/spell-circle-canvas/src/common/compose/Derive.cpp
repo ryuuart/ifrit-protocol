@@ -76,8 +76,78 @@ bool Composer::Impl::deriveFlow(Instance &inst) {
   return relayout;
 }
 
+namespace {
+
+/** The shape a laid-out instance actually occupies, in its OWN space —
+ *  the same answer the painter builds, so a borrowed spine and the
+ *  element it was borrowed from can never disagree. */
+SkPath resolvedShapeOf(Instance &inst) {
+  const ElementNode &node = *inst.desc;
+  const SkSize size{YGNodeLayoutGetWidth(inst.yoga),
+                    YGNodeLayoutGetHeight(inst.yoga)};
+  if (node.deriveData && !inst.connectorPath.isEmpty())
+    return inst.connectorPath;
+  if (node.shapeFn)
+    return node.shapeFn(size);
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(size.width(), size.height()));
+  return b.detach();
+}
+
+/** The forward-only law, as the other derive borrows spell it: the target
+ *  must not be this node or anything under it. Borrowing a DESCENDANT's
+ *  geometry is the cycle — the child's box depends on this node's, so the
+ *  shape would feed itself. (deriveFlow and the rail path carry the same
+ *  three lines; this is the third copy of the SAME rule, kept together
+ *  with them rather than invented differently.) */
+bool borrowIsCyclic(const Instance &inst, Instance *target) {
+  for (Instance *p = target; p; p = p->parent)
+    if (p == &inst)
+      return true;
+  return false;
+}
+
+} // namespace
+
 void Composer::Impl::deriveRoute(Instance &inst) {
   const DeriveData *derive = &*inst.desc->deriveData;
+
+  // band(around(key)): the spine is another element's resolved shape,
+  // moved into this node's local space.
+  if (!derive->bandAround.empty()) {
+    SkPath spine;
+    auto it = byKey.find(derive->bandAround);
+    if (it != byKey.end() && !borrowIsCyclic(inst, it->second)) {
+      const SkRect own = absoluteRect(inst);
+      const SkRect target = absoluteRect(*it->second);
+      spine = resolvedShapeOf(*it->second)
+                  .makeTransform(SkMatrix::Translate(
+                      target.left() - own.left(), target.top() - own.top()));
+    }
+    if (spine != inst.bandSpine) {
+      inst.bandSpine = std::move(spine);
+      inst.markPaintDirtyUp();
+    }
+  }
+
+  // spans::fit(key): the boxes a stroke pass sizes its gap from.
+  if (!derive->spanFitKeys.empty()) {
+    std::vector<std::pair<std::string, SkRect>> rects;
+    rects.reserve(derive->spanFitKeys.size());
+    const SkRect own = absoluteRect(inst);
+    for (const std::string &key : derive->spanFitKeys) {
+      auto it = byKey.find(key);
+      if (it == byKey.end() || borrowIsCyclic(inst, it->second))
+        continue;
+      SkRect target = absoluteRect(*it->second);
+      target.offset(-own.left(), -own.top());
+      rects.emplace_back(key, target);
+    }
+    if (rects != inst.spanFitRects) {
+      inst.spanFitRects = std::move(rects);
+      inst.markPaintDirtyUp();
+    }
+  }
 
   if (!derive->connectFrom.empty() && !derive->connectTo.empty()) {
     auto fromIt = byKey.find(derive->connectFrom);

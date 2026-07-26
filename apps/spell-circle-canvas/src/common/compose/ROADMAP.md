@@ -1744,7 +1744,10 @@ back during the rounds). This is the settled model:
   intentionally overlay others. REVEALS are span animation
   (`spans::upTo(animate(...))`) — uniform across every brush kind;
   **`Element::trim()` is REMOVED** (overloaded word; its jobs move to
-  spans). Stroke pass names are LOCAL to their element (inspection +
+  spans) — *read, per the stage-one note below, as REMOVED FROM THE
+  TAUGHT SURFACE: alias-first (§27) keeps the method and its machinery
+  compiling indefinitely under a legacy one-line doc, and an actual
+  deletion is a corpus sweep the designer has not cleared.* Stroke pass names are LOCAL to their element (inspection +
   intra-element reference) — never a global query key; the
   second-identity-system law holds.
 - BRUSH = what paints. KINDS are the leaf tools: `brush::solid`
@@ -1845,6 +1848,100 @@ solved here):
 **Before any code**: the paper probe — rewrite ds2_bench and
 thaumonomicon's stroke code in this grammar and read it. Then
 alias-first migration, per §27.
+
+**STAGE ONE SHIPPED 2026-07-26 — the structural core.** The paper probe
+ran first and found no defect in the ruling; it found two large wins
+(`spans::corners` deletes ds2_bench's 11-line corner-bracket generator;
+`spans::edges` deletes thaumonomicon's 10-line "rect minus corners"
+generator — both also restore a node's REAL box to `bounds()`/`hitTest`,
+which was being corrupted to buy a stroke shape), one clean 39-site
+rename, and ONE constraint the ruling had not spelled out:
+
+> **An unqualified `.stroke(what)` overlays and does not CLAIM.** Every
+> `.stroke()` call in both probe files is whole-boundary, and four
+> elements stack two of them; under a literal reading of "claims must not
+> overlap" every stacked-stroke element in the corpus becomes an error,
+> which §27 forbids. So claims (and the no-overlap law) belong to
+> span-QUALIFIED passes; the unqualified form stays first-class and
+> non-claiming. Resolved toward alias-first, as the law requires.
+
+Landed: `outline()` → **`shape()`** (alias-first, `outline()` compiles
+forever); the **stroke slot** `.stroke(where, what[, name])` with the
+`spans::` factories range/upTo/corners/edges/every/at/fit/rest, `|`
+union, append order, LOUD overlap diagnostic (it names both passes, the
+shared run, AND the composite-brush fix — the probe found that message
+is the only place an author learns the N-pass reveal rule), bare
+`rest()` and `rest("name")`; **reveals as span animation**
+(`spans::upTo(Animatable<float>)`, pixel-parity with `trim()`, whose doc
+is now the legacy one-liner — the method and its machinery stay);
+`spans::fit(key, margin)` through the existing derive pass (the
+flowAround pattern, same flat edge-store walk, no new phase); **`band()`**
+with `across()`, `.centered()/.outward()/.inward()`, `around(key)`
+spines, and `bandPointAt()` as the (along, across) space; the **profile
+seam** (`float across(float along)` + REQUIRED `float max()`, comparable,
+type-erased) with `strand::self()`/`strand::offset(px)` as the core
+presets and `max()` wired into the paint cull — which makes the
+silent-clip trap (§25/audit I9) structurally impossible **for band and
+profile geometry**. `Ribbon` itself still carries its own
+`widthFn`/`widthMax` pair and is unmigrated; moving it onto the profile
+seam is stage-two work, and until then the trap is closed on the new
+path only.
+
+One judgement recorded: `Spans` is a CLOSED comparable value (a Rule +
+term list), not an open seam. The seam convention governs shapers,
+profiles and crossing rules — values whose point is that users write new
+ones; a span is an interval set, so kit values (`kit::spans::brackets`)
+are compositions of core terms. Widening it later is additive.
+
+**Review residue (stage two)** — the confirming review's non-blocking
+findings, recorded so they are not rediscovered:
+
+- **The perpendicular-sign split is older than this work.** The band's
+  `across` is positive LEFT of travel (outward on a clockwise path),
+  matching `TextPath::offset`, which has always read that way; but
+  `lines::offsetAlong` and `lines::Rail::offset` are positive RIGHT of
+  travel. So the KERNEL says left and the LINES extension says right, and
+  has since before the profile seam existed. All five band/profile doc
+  sites now state the sign and name the conflict. Stage two shares the
+  `Profile` value between bands and strands and must pick one.
+- **No per-instance span cache.** `resolveSpans` re-walks the boundary
+  three or four times per paint (measure, corner scan, extract) with
+  nothing held between frames. Fine at the corpus's pass counts; the
+  place to fix it is an `Instance`-side cache keyed on (outline identity,
+  resolved endpoints), i.e. the same shape as `outlineCache`.
+- **`Spans` equality is term-ORDER-sensitive; `resolve()` is not.**
+  `corners(8) | at(0,4)` and `at(0,4) | corners(8)` claim the same runs
+  but compare unequal, so a describe that reorders terms produces a
+  spurious patch. Never a wrong picture — only a lost prune.
+- **There is no seam-crossing span.** `spans::range` clamps, so
+  Wrap-mode marching ants and the orbiting comet remain `trim()`'s job.
+  If spans are ever to retire trim outright, a wrapping range is the
+  missing piece.
+- **`rest("unknown")` and `fit("unknown")` are silent** — they resolve to
+  nothing, matching the `flowAround` precedent for an unresolved key.
+  Now documented rather than changed; a diagnostic would have to be the
+  whole family's at once.
+- **`band` shadows locals** at `Brushes.h:1138` and `LayerStyles.h:450`.
+  Same friction family as §32's `from`: a short, good noun in a
+  header-only library collides with local variables in the same
+  namespace. Not a defect; a naming cost to price if it spreads.
+- **Two of the new tests assert less than their names claim.**
+  `AnimatedRevealDrawsOnAndDeclaresVolatility` proves the reveal advances
+  but never checks the volatility half, and
+  `FitSizesAGapFromKeyedContent` needs a second `frame()` before the
+  derive answer lands — whether that is correct derive timing or a
+  one-frame lag worth closing is unresolved.
+
+**Stage two holds**: `brush::solid`/`Pattern`/`Scatter`/`Art` as named
+KINDS; the `layers` and `weave` COMPOSITES with the strand pair, the
+crossing rule ladder and `.except()`; `strands::braid`; `.shaped(value)`
+as the one geometry-deviation seam plus the death of the sugar methods;
+`kit::` as a separate CMake library (the structural tier boundary) with
+`kit::brush::shapers::*`, `kit::shapes::ring`, `kit::spans::brackets`;
+the `brush::ops` internal-only demotion; and the migration of
+`decorations::brackets`/`gappedRule` and `lines::cornerBrackets`/
+`cornerGaps` onto span passes (audit item 10 — they already share the
+one corner scanner, so this is a doc-and-sugar move, not a rewrite).
 
 A full-surface discovery pass (2026-07-25) swept
 every authoring header for names that say mechanism instead of

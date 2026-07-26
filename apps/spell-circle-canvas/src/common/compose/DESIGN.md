@@ -80,7 +80,8 @@ value-semantic `Box<T>` blocks — absent costs one null pointer.
 variant; the fat `Transitioned` payload boxes out-of-line. A
 `static_assert(sizeof(ElementNode) <= 768)` in `Composer.cpp` enforces
 it structurally: **new rare or kind-specific state goes in a block,
-never the base.** (2752 → 688 bytes; STRESS_TESTS.)
+never the base.** (2752 → 688 bytes at the §15 split; 744 today with
+the stroke block, guard ≤ 768; STRESS_TESTS.)
 
 ## The pipeline — five phases, procedural entry at each
 
@@ -105,9 +106,12 @@ cached, and animated by the same rules.
 
 **Derive is flat.** Each render rebuilds — beside the key index — the
 edge store: routed nodes and flowing text as flat lists in tree order,
-plus a back-index from anchor key to routes. No tree recursion; a tree
-with no derived content pays nothing; `routesAt(key)` answers in
-O(routes at that node).
+plus a back-index from anchor key to routes. Everything that asks
+"where did that keyed node land" rides the SAME list — `flowAround`,
+`connector`/`rail`, a band's borrowed spine (`around(key)`), a stroke
+pass's `spans::fit(key)` — rather than growing a phase. No tree
+recursion; a tree with no derived content pays nothing; `routesAt(key)`
+answers in O(routes at that node).
 
 ## Stacking and compositing
 
@@ -150,7 +154,7 @@ Everything the API offers is one of these, wearing a grammar. The map
 | `transition`/`with`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
 | bare `Output*` / shaped `bind()` | bind | continuous scrubbing, data-driven values |
 | `animated()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
-| `trim`/`wipe` PropValues | either | reveals |
+| `spans::upTo` on a stroke pass, `wipe` (legacy `trim`) | either | reveals |
 | `glyphFx` + PropValue progress | either | per-glyph typography |
 | `custom()` + `Cache::None` + `elapsedSeconds` | floor | immediate-mode escape hatch |
 | pool `Mode::Live` / `Mode::Data` | the two paths verbatim | instanced masses |
@@ -246,7 +250,9 @@ layout schemes, routers, leaves) without changing kernel semantics.
 The **kernel** is `Element`/components/`Composer`; Yoga flex +
 `stack()`; stacking paint (zIndex/opacity/blend/transform/clip); the
 text/image/custom leaves; `key` + `memo`; `PropValue`/`Transition` and
-the reconciled-vs-bound write paths; automatic caching — plus the
+the reconciled-vs-bound write paths; automatic caching; the stroke
+grammar (`shape`, the `stroke(where, what)` slot over `spans::`,
+`band`/`across`, and the `Profile` seam) — plus the
 element-surface conveniences that landed on `Element` itself (`trim`,
 `wipe`, `echo`, `style`, `textFill`/`textStroke`, `glyphFx`,
 `variationDrive`, `staggerChildren`, `hitTestable`, `sampling`).

@@ -142,6 +142,32 @@ struct DeriveData {
   Router router;
   std::vector<Anchor> railAnchors; // rail(): ordered waypoints
   RailRouter railRouter;
+  // band(): the spine is guide DATA — either authored here, or borrowed
+  // from a keyed element's resolved shape by the derive pass. The width
+  // profile's presence is what makes this node a band.
+  std::function<SkPath(SkSize)> bandSpine;
+  std::string bandAround;
+  std::optional<Across> bandWidth;
+  Formation bandFormation = Formation::Centered;
+  // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
+  // resolved to this node's local space per frame (the flowAround
+  // pattern applied to a boundary). Declared here rather than beside the
+  // passes so the ONE derive registration walk sees them.
+  std::vector<std::string> spanFitKeys;
+};
+
+/** One span-qualified stroke pass (Element::stroke(where, what, name)).
+ *  The unqualified whole-boundary form stays an ordinary foreground —
+ *  it overlays and never claims, so old scenes cannot become overlap
+ *  errors (the §27 alias-first law). */
+struct StrokePass {
+  Spans where;
+  Decoration what;
+  std::string name;
+};
+
+struct StrokeData {
+  std::vector<StrokePass> passes;
 };
 
 struct FxData {
@@ -214,13 +240,40 @@ struct ElementNode {
   Box<DeriveData> deriveData;
   Box<FxData> fxData;
   Box<MaterialData> materialData;
-  Box<MemoData> memoData; // present ⇔ this is a memo shell
+  Box<StrokeData> strokeData; // span-qualified stroke passes (rare)
+  Box<MemoData> memoData;     // present ⇔ this is a memo shell
 
   std::vector<Element> children;
 
   bool isMemo() const { return (bool)memoData; }
   bool hasTrim() const { return fxData && fxData->hasTrim; }
+  bool hasStrokePasses() const {
+    return strokeData && !strokeData->passes.empty();
+  }
+  const Across *bandWidth() const {
+    return deriveData && deriveData->bandWidth ? &*deriveData->bandWidth
+                                               : nullptr;
+  }
 };
+
+/** Clamp to [0,1], drop empties, sort and merge — the one normal form
+ *  every span answer is in, so overlap tests and complements are honest
+ *  interval arithmetic and not a pile of special cases. */
+std::vector<Span> normalizeSpans(std::vector<Span> spans);
+/** Everything in [0,1] the input does not cover (already normalized). */
+std::vector<Span> complementSpans(const std::vector<Span> &spans);
+/** Do these two normalized sets share more than float noise? Returns the
+ *  first shared run, or nullopt. */
+std::optional<Span> spansOverlap(const std::vector<Span> &a,
+                                 const std::vector<Span> &b);
+/** The sub-geometry of `src` covered by `spans` (fractions of the path's
+ *  TOTAL arc length — SkTrimPathEffect's coordinate, so a span reveal and
+ *  a trim of the same numbers describe the same run). */
+SkPath spanPath(const SkPath &src, const std::vector<Span> &spans);
+/** The region a spine sweeps at `width` across it, on `formation`'s side.
+ *  Empty when the profile is zero everywhere. */
+SkPath bandRegion(const SkPath &spine, const Across &width,
+                  Formation formation);
 
 /** Constant, binding, or transitioned — flattened for the reconciler. */
 template <typename T> struct ResolvedProp {

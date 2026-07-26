@@ -175,14 +175,38 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
     return false;
   if (!a)
     return true;
-  // Incomparable callables → conservative inequality.
+  // Incomparable callables → conservative inequality. A band's SPINE is
+  // one of them (same rule as shapeFn); a band borrowed by key is a
+  // comparable value and prunes.
   if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
-      b->railRouter)
+      b->railRouter || a->bandSpine || b->bandSpine)
+    return false;
+  if (a->bandWidth.has_value() != b->bandWidth.has_value())
+    return false;
+  if (a->bandWidth && !(*a->bandWidth == *b->bandWidth))
     return false;
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
-         a->connectFrom == b->connectFrom && a->connectTo == b->connectTo;
+         a->connectFrom == b->connectFrom && a->connectTo == b->connectTo &&
+         a->bandAround == b->bandAround &&
+         a->bandFormation == b->bandFormation &&
+         a->spanFitKeys == b->spanFitKeys;
+}
+
+bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
+  if ((bool)a != (bool)b)
+    return false;
+  if (!a)
+    return true;
+  if (a->passes.size() != b->passes.size())
+    return false;
+  for (size_t i = 0; i < a->passes.size(); ++i) {
+    const StrokePass &x = a->passes[i], &y = b->passes[i];
+    if (x.name != y.name || !(x.where == y.where) || !(x.what == y.what))
+      return false;
+  }
+  return true;
 }
 
 bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
@@ -235,6 +259,32 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
   return true; // ->recipe is handled with the fill compare in propsEqual
 }
 
+} // namespace
+
+/** A Spans value compares like any other description — and its animated
+ *  endpoints compare through the SAME comparator every animated property
+ *  uses, which is why this body lives here rather than in the header.
+ *  (§33's comparable-values law: anything an author hands the library
+ *  participates in reconciler equality, or a pruned node reads a stale
+ *  reveal forever.) */
+bool Spans::operator==(const Spans &other) const {
+  if (terms.size() != other.terms.size())
+    return false;
+  for (size_t i = 0; i < terms.size(); ++i) {
+    const Term &a = terms[i], &b = other.terms[i];
+    if (a.rule != b.rule || a.arm != b.arm || a.angleDeg != b.angleDeg ||
+        a.duty != b.duty || a.margin != b.margin || a.count != b.count ||
+        a.index != b.index || a.key != b.key)
+      return false;
+    if (a.rule == Rule::Range &&
+        (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end)))
+      return false;
+  }
+  return true;
+}
+
+namespace {
+
 bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind != b.kind || a.key != b.key)
     return false;
@@ -263,6 +313,8 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       a.bakeScale != b.bakeScale)
     return false;
   if (!fxEqual(a.fxData, b.fxData))
+    return false;
+  if (!strokeEqual(a.strokeData, b.strokeData))
     return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
@@ -717,6 +769,13 @@ void Composer::Impl::indexKeys(Instance &inst) {
     const bool isConnector =
         !derive.connectFrom.empty() && !derive.connectTo.empty();
     const bool isRail = derive.railAnchors.size() >= 2;
+    // A borrowed band spine and a spans::fit() gap are the same kind of
+    // question a connector asks — "where did that keyed node land" — so
+    // they ride the SAME flat derive list rather than growing a phase.
+    const bool isBorrowed =
+        !derive.bandAround.empty() || !derive.spanFitKeys.empty();
+    if (isBorrowed && !isConnector && !isRail)
+      routedInstances.push_back(&inst);
     if (isConnector || isRail) {
       routedInstances.push_back(&inst);
       if (isConnector) {

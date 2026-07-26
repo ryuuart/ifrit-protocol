@@ -1420,6 +1420,166 @@ Effect, and `<sigilcompose/Ocio.h>` bakes an OCIO display/view or
 colorspace conversion to an F16 3D-LUT Effect — OCIO is bake/export
 tooling; the realtime path carries only the LUT sample.
 
+## The stroke grammar — the words, and where a stroke goes
+
+The five words, so the rest of this file can use them precisely
+(ROADMAP §33; stage one shipped 2026-07-26):
+
+| Word | Is | Spelled |
+| --- | --- | --- |
+| **shape** | the region an element occupies | `.shape(path)` |
+| **line** | an element whose shape is an open path | `.shape(hline())` |
+| **band** | a shape derived around a spine | `band(spine, across(px))` |
+| **stroke** | the slot that dresses a boundary | `.stroke([where,] what)` |
+| **brush** | what paints | `Brush`, `PathFormat`, `LayeredBrush`… |
+
+"Frame" and "border" are not concepts — they are strokes of a boundary.
+"Bounding box" is query-side vocabulary (`Composer::bounds`), never a
+shape.
+
+**`outline()` is now `shape()`.** The old name read as a drawn LINE —
+the thing `stroke()` does — and the call sites showed it:
+`.outline(chevron()).fill(ramp)` filled an "outline", and
+`.outline(shape).stroke(brush)` put two halves of one idea under one
+word. `outline()` still compiles and always will (§27); `PaintContext::
+outline` keeps its name, because there it genuinely IS the path a
+decoration traces.
+
+### `.stroke(where, what[, name])`
+
+```cpp
+.stroke(brush)                                   // the whole boundary
+.stroke(spans::corners(18), stroke(2, ink))      // reticle corners
+.stroke(spans::edges(14), stroke(1, ink))        // a rule with open corners
+.stroke(spans::upTo(animate(from(0.f).to(1.f), {600ms})), wire)  // draws on
+.stroke(spans::fit("title", 6), glow, "gap")     // sized from keyed content
+.stroke(spans::rest(), stroke(1, ink))           // …and everything else
+```
+
+`where` is a `spans::` value; `|` unions them. Repeated calls **append**,
+in declaration order — the decoration law.
+
+**Ordering, precisely:** the unqualified strokes paint FIRST (they are
+foregrounds and share that list), then the span passes in their own
+declaration order. Within each group declaration order holds; between the
+groups the unqualified ones are underneath. Interleaving the two by call
+order is not expressible today — if a span pass has to sit *under* a
+whole-boundary one, make the whole-boundary one a span pass too
+(`spans::every(1)`) so both are in one list.
+
+The factories:
+
+| Factory | Claims |
+| --- | --- |
+| `spans::range(a, b)` | `[a, b]` of the boundary's total arc length |
+| `spans::upTo(t)` | `range(0, t)` — **the reveal** |
+| `spans::corners(arm[, angleDeg])` | `arm` px either side of every tangent break |
+| `spans::edges(arm[, angleDeg])` | the runs between the breaks |
+| `spans::every(n[, duty])` | `n` equal slots, each claiming its leading `duty` |
+| `spans::at(i, n)` | one slot of `n` |
+| `spans::fit(key[, margin])` | the run a keyed element covers (derive phase) |
+| `spans::rest()` | whatever the other claiming passes left |
+| `spans::rest("name")` | one named pass's complement (may overlay) |
+
+**One boundary, one mark.** Span-qualified passes CLAIM, and two claims
+that overlap are a mistake with no sensible rendering, so the library
+says so out loud, naming both passes and the shared run. To layer two
+marks on one run, make them ONE pass with a composite brush
+(`Brush{}.leg(a).leg(b)`, or a `LayeredBrush`) — that is the ruled
+answer to double and triple lines everywhere, and it is why the reveal
+below is a property of a pass rather than of a node.
+
+**The unqualified `.stroke(what)` does not claim.** It overlays the whole
+boundary, so stacked strokes (a halo under a keyline) stay legal and
+never collide. Naming a `where` is what turns a pass into a claim.
+
+`name` is LOCAL to the element — inspection, and the `rest("name")`
+reference. It is never a query key; a second identity system is exactly
+what the query side refuses.
+
+**Reveals are span animation.** `spans::upTo(t)` takes any
+`Animatable<float>` — a constant, an `animate(...)` entrance, or a bound
+Output — so one spelling reveals every brush kind. `Element::trim()` is
+the legacy spelling of the same idea and still compiles; what it cannot
+do is reveal ONE pass of several, which is why it moved.
+
+**`spans::corners()` supersedes four spellings.** `decorations::brackets`
+/ `decorations::gappedRule` and `lines::cornerBrackets` /
+`lines::cornerGaps` are one capability under four names (the audit's item
+10); they all still work, and they now all run the same scan the spans
+do. `cornerAngleDeg`'s surprise is unchanged and documented below.
+
+A corner sitting ON the boundary's seam (fraction 0) resolves as TWO
+adjacent intervals — the same split a seam-crossing trim window takes.
+The pieces butt exactly, so nothing shows.
+
+### `band(spine, across(px))`
+
+```cpp
+band(shapes::circle(), across(22)).inward().fill(brass)
+band(around("dial"), across(14)).stroke(spans::edges(6), rule)
+band(spine, across(myTaper)).centered().child(text(…))
+```
+
+A band is an ordinary element — it lays out, hosts children, fills,
+clips and takes stroke passes like any other shape. What it adds is a
+DERIVED shape: it owns an `(along, across)` space over its spine, `along`
+a fraction of arc length and `across` px on the normal.
+`bandPointAt(spine, along, across)` is that space, addressable.
+
+**A band does NOT hit-test as its shape.** `hitTest` consults `shapeFn`,
+and a band's silhouette is derived instead, so a band hits as its layout
+box. Fixing that is the pinned organic-shape hit-testing pass (ROADMAP
+§33, pinned pass 4), not stage-one work.
+
+**Positive `across` is to the LEFT of travel** — in screen space (y down)
+that is OUTSIDE a clockwise path, which is SkPath's own direction for
+rects and circles, so `.outward()` exits the shape.
+
+This is the **negation** of `lines::offsetAlong` and `lines::Rail::offset`,
+which offset to the RIGHT of travel — **and the split predates the band.**
+`TextPath::offset` has always been left-of-travel-is-outward, so the
+kernel says left and the `Lines` extension says right; the band follows
+the kernel. Stage two shares the `Profile` value between bands and strands
+and has to reconcile the two, so do not assume a profile means the same
+side in both places yet.
+
+The spine is an incomparable callable, like `shape()`'s: `memo()` such a
+node (or keep the generator pointer-stable) to prune it while its size
+and inputs are unchanged.
+
+Formation is explicit — `.centered()` (default), `.outward()`,
+`.inward()`. There is no defensible default beyond "both", and on a
+closed clockwise path (SkPath's own rect and circle direction) outward
+is outside.
+
+The spine is guide DATA, never an element. **Paths are data; only
+elements render** — a path participates as an element's shape, as
+borrowed geometry (`around(key)`, resolved in the derive phase), or as
+pure guide data in no tree (band spines, `TextPath`, `AlongPath`).
+
+### The profile seam
+
+`across()` takes a px constant or a `Profile`: any comparable value with
+
+```cpp
+float across(float along) const;   // px LEFT of travel, along ∈ [0,1]
+float max() const;                 // REQUIRED
+bool operator==(const P &) const;  // REQUIRED (comparable-values law)
+```
+
+`max()` is required, and that is the seam's whole point: a varying width
+whose reach is unknown can only be clipped silently (the Ribbon
+`widthFn`/`widthMax` trap, ROADMAP §25). The library grows the paint cull
+by it, so nothing a profile draws is truncated behind your back.
+
+Core ships the two profiles everything else is measured against —
+`strand::self()` (across ≡ 0, the boundary itself) and
+`strand::offset(px)` (a parallel; parallels are rails and never cross).
+The oscillating family lives in the kit, per the tier rule. The profile
+is SHARED vocabulary: a band's taper, a weave strand's path and the
+future ribbon width are one value.
+
 ## The Brush engine (lines as expressive as fills)
 
 A `Brush` is ONE comparable value: an ordered **geometry pipeline** over
