@@ -174,16 +174,25 @@ static void BM_Draw_GraphiteRecord(benchmark::State &state) {
     return;
   }
   WebView &view = benchView();
+  // A separate recorder, deliberately: this bench snaps and DROPS the
+  // accumulated recording (executing hundreds of thousands of full-screen
+  // draws would saturate the GPU and poison the benchmarks that follow),
+  // and a dropped snap burns an ID in the recorder's ordered-recording
+  // chain — under fRequireOrderedRecordings every later insert from that
+  // recorder fails silently (src/sigilweave/docs/graphite_ordering_audit
+  // .md). Static, not scoped: WebView caches its Graphite wrap keyed on
+  // the raw Recorder*, so a per-invocation recorder freed and reallocated
+  // at the same address would cache-hit on a dangling key.
+  static std::unique_ptr<skgpu::graphite::Recorder> recorder =
+      graphite().context()->makeRecorder(
+          SkiaGraphiteContext::makeRecorderOptions());
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
-      graphite().recorder(),
+      recorder.get(),
       SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
   for (auto _ : state)
     view.draw(*surface->getCanvas(),
               SkRect::MakeWH(kViewWidth, kViewHeight));
-  // Snap and DROP the accumulated recording: executing hundreds of
-  // thousands of full-screen draws would saturate the GPU and poison the
-  // benchmarks that follow.
-  graphite().recorder()->snap();
+  recorder->snap();
 }
 BENCHMARK(BM_Draw_GraphiteRecord);
 
