@@ -43,6 +43,13 @@ a study shipped wrong.
   in the whole corpus; `revision()` zero. Candidates `changed()` /
   `commit()`. Churn 1 — free, and a correctness win. `Pool`/`Atlas`
   themselves: correct jargon, DOCUMENT (100+ sites).
+  **AUDITED 2026-07-27 — this entry's premise is STALE**: the corpus
+  has 14 touch() sites and revision() self-bumps on add()/clear()/
+  resize() and every place:: generator; explicit touch() is needed
+  only for span mutation in Data mode, and every author who used that
+  path called it. Zero live bugs, zero stale-lane renders. The rename
+  remains the designer's call; the audit means it is taste, not
+  correctness.
 - **M7 `sdf::Shape::p0/p1/p2`** public uniform slots — hide behind the
   factories. Churn 0.
 - **M8 lower value**: `console::LineRing` (author has a *log*),
