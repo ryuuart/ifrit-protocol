@@ -26,8 +26,9 @@ namespace compose_gallery {
 namespace sketch = sigil::compose::sketch;
 
 /** One study's gallery identity. `key` is the sketch file's stem and the
- *  key SIGIL_SKETCH_STATIC registered it under; `name` is what the sidebar
- *  shows, what `--scene` matches, and what the capture is named. */
+ *  key SIGIL_SKETCH_STATIC registered it under — it is also what the
+ *  headless capture is named (registryName(), ROADMAP §22); `name` is what
+ *  the sidebar shows and what `--scene` matches (the stem matches too). */
 struct StudyInfo {
   const char *key;
   const char *name;
