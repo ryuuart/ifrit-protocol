@@ -1026,6 +1026,13 @@ meant hand-tuning panel height against font size × line count.
 
 ## 22. Two names for one identity, and it contaminates the guard
 
+CLOSED 2026-07-27 (9339996): headless captures are written under the
+REGISTRY name via `registryName()` — the selector spelling is the
+capture spelling by construction. Blast radius: all 33 study plates
+renamed to their stems, plus the three catalog scenes whose display
+name had drifted (tilemap, nineslice, ui_particles). Nothing in-repo
+consumed the old spellings.
+
 Five instances in one program of a change landing on one path and not its
 sibling — four corner scanners, `Promotion::Filtered`'s four causes,
 the GPU `showStats`, a sweep tool whose model of the API predated
@@ -1045,7 +1052,13 @@ on captures that had succeeded.
 The cheap general fix is to write the PNG under the REGISTRY name, or to
 expose the mapping so that nothing downstream has to guess.
 
-## 23. `SkRect::join` early-outs on an empty rect, and a single point IS an empty rect
+## 23. `SkRect::join` early-outs on an empty rect, and a single point IS an empty rect — CLOSED
+
+CLOSED 2026-07-27, confirm-and-close: the corpus sweep found exactly
+one join-accumulation site (minard_1869.cpp:2641 — seed-with-first,
+one of this entry's own two remedies, safe), dunhuang's original
+pattern removed entirely, penrose's MakeEmpty values dead
+(setBounds replaces). No live bugs, no latent traps.
 
 Not a compose gap, and it cost `dunhuang_star_chart` a full render.
 Accumulating a bounding box point by point —
