@@ -838,7 +838,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .outline([](SkSize s) {
-                  return ops::sketchy(46.0f, 2.6f, 1356)(
+                  return ops::Sketchy{46.0f, 2.6f, 1356}.apply(
                       shapes::chamfered(17.0f)(s));
                 })
                 // linearUnit, not linear: linear() is in NODE PIXELS, so
@@ -876,14 +876,14 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // hammer lands on the CORNER, and the flat it leaves straddles both legs
     // instead of lying along one of them. Audited by rendering the same
     // frame with Outgoing forced — the six facets rotate 13 to 35 degrees
-    // (half the chamfer's own turn, perturbed by ops::sketchy) and nothing
+    // (half the chamfer's own turn, perturbed by ops::Sketchy) and nothing
     // snaps into or out of alignment, because a stubby lozenge at elongation
     // 1.4 has no strong axis to align. So the value stands, and now it is
     // stated rather than inherited.
     g.child(box()
                 .inset(0)
                 .outline([](SkSize s) {
-                  return ops::sketchy(38.0f, 3.1f, 46)(
+                  return ops::Sketchy{38.0f, 3.1f, 46}.apply(
                       shapes::chamfered(17.0f)(s));
                 })
                 .fill(Fill::none())
@@ -1391,7 +1391,8 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       mp.child(box()
                    .inset(0)
                    .outline([](SkSize s) {
-                     return ops::sketchy(14.0f, 1.4f, 7)(shapes::chamfered(5.0f)(s));
+                     return ops::Sketchy{14.0f, 1.4f, 7}.apply(
+                         shapes::chamfered(5.0f)(s));
                    })
                    .fill(Material::linearUnit(
                        {0.18f, 0.0f}, {0.88f, 1.0f},

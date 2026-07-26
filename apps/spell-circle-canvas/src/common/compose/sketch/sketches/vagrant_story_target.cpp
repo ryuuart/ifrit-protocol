@@ -125,7 +125,7 @@
 //    (solid casing, dotted core).
 //  * Bracket-only card frames: decorations::brackets and decorations::gappedRule
 //    on chamfered outlines. No rounded rect anywhere on this canvas.
-//  * ops::sketchy is deliberately absent. This is an instrument, not a page.
+//  * ops::Sketchy is deliberately absent. This is an instrument, not a page.
 //    ops::Wave appears on exactly one thing: the damage-number pop.
 //
 // -----------------------------------------------------------------------------

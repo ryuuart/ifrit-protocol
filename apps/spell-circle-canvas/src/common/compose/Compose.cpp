@@ -15,8 +15,10 @@
 #include <include/core/SkShader.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <include/core/SkTypes.h> // SkDebugf — the slot-rename diagnostic
 
 #include <algorithm>
+#include <set>
 
 namespace sigil::compose {
 
@@ -374,6 +376,21 @@ Element &Element::zIndex(int z) { m_node->paint.zIndex = z; return *this; }
 // ---- identity, caching, transitions --------------------------------------
 
 Element &Element::key(std::string_view k) {
+  // A slot's NAME is its key — one field, two spellings — so this call
+  // RENAMES the mount and renderSlot() on the original name then no-ops
+  // into a W x 0 layout. §26b bought the diagnosis on the renderSlot side
+  // (it names this trap in its message); this is the same warning on the
+  // side that CAUSES it, where the caller still has both names in hand.
+  if (m_node->kind == Kind::Slot && !m_node->key.empty() && m_node->key != k) {
+    static std::set<std::string> warned; // once per rename, not per frame
+    if (warned.insert(m_node->key + "->" + std::string(k)).second)
+      SkDebugf("[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "
+               "renderSlot(\"%s\") will no longer find it and the mount will "
+               "lay out at zero on its content axis. A slot is named once, "
+               "by slot().\n",
+               (int)k.size(), k.data(), m_node->key.c_str(),
+               m_node->key.c_str());
+  }
   m_node->key = std::string(k);
   return *this;
 }

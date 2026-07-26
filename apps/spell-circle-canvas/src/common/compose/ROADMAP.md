@@ -2068,11 +2068,15 @@ audit file):
    ever). Behind §32's probe.
 4. `Material::linear` vs `linearUnit` — corpus wants unit-space 8:1;
    alias in, never redefine (§27).
-5. One word for declared volatility (five spellings today) + wire or
-   delete the dead `PaintContext::animating`.
-6. Delete the lowercase `ops::` lambda family — case-only distinction
-   with opposite pruning; `ops::rounded` has zero uses and collides
-   with `shapes::rounded`.
+5. One word for declared volatility (five spellings today). (The
+   "dead `PaintContext::animating`" half is REFUTED 2026-07-27 — the
+   field is assigned `ticker.active()` at both constructions; see the
+   audit file's M4 correction. The word question stands.)
+6. Delete the lowercase `ops::` lambda family — EXECUTED 2026-07-27:
+   wave/zigzag/rounded/sketchy deleted, 8 sites ported; `PathOp`/
+   `chain`/`debug` kept as the documented escape hatch. The
+   `brush::ops` demotion stays REFUSED until `Rounded`/`Square` have
+   kit-shaper twins (§27).
 7. The corner family — `Corner::All == 15` and `Corners{15}` both
    compile, one letter apart, meaning opposite things.
 8. Name the derive phase as one family (flowAround/connector/rail/

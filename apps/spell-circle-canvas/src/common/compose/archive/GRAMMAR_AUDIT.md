@@ -39,6 +39,16 @@ a study shipped wrong.
   never assigned; Brushes.h:459/482 copy false forward. Every custom()
   reads false forever. Wire it (volatility is already computed) or
   delete it. VERIFIED 2026-07-25.
+  **AUDITED 2026-07-26 — this entry's premise is WRONG**: the field IS
+  assigned. Both kernel constructions pass `ticker.active()`
+  (Paint.cpp:1092 and :1630, since `b02c98e`/`3f858cf3`), and the three
+  Brushes.h wrappers copy that VALUE forward, not a constant — a custom()
+  program painted while anything is moving reads true. What is true is
+  that nothing in the library reads it, which is how it read as dead from
+  the declaration alone. Neither the wire nor the delete is owed; the
+  field is documented at its declaration now and pinned by a test
+  (`ComposePaint.AnimatingReportsTheTickersState`). The `= false` default
+  is the honest answer outside a composer, where there is no ticker.
 - **M6 `Pool::touch()`** — the MANDATORY Data-mode step, called once
   in the whole corpus; `revision()` zero. Candidates `changed()` /
   `commit()`. Churn 1 — free, and a correctness win. `Pool`/`Atlas`

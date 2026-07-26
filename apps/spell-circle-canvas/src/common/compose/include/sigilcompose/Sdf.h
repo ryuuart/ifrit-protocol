@@ -49,24 +49,58 @@ namespace sigil::compose::sdf {
 
 enum class Kind : uint8_t { RoundBox, Circle, Star };
 
-/** A silhouette, sized by the node's box (minus the style's reserved pad). */
+struct Style;
+struct Shape;
+inline Shape roundBox(float radius);
+inline Shape circle();
+inline Shape star(int points, float pointiness);
+inline Material material(const Shape &shape, const Style &style);
+
+/** A silhouette, sized by the node's box (minus the style's reserved pad).
+ *  Built through the factories below — the per-kind parameters are the
+ *  shader's uP0..uP2 slots, which mean something different in each kind
+ *  and are only valid as the factory packs them (star's `pointiness` is
+ *  clamped into [2, points]; a raw triple is not a shape). The factories
+ *  were already the only spelling in the corpus (audit M7). */
 struct Shape {
+private:
   Kind kind = Kind::RoundBox;
+public:
+
+private:
   float p0 = 0, p1 = 0, p2 = 0; // per-kind params (uniforms uP0..uP2)
+
+  friend Shape roundBox(float radius);
+  friend Shape circle();
+  friend Shape star(int points, float pointiness);
+  friend Material material(const Shape &shape, const Style &style);
 };
 
 /** Rounded box inscribed in the node (radius in px, clamped to half-size). */
-inline Shape roundBox(float radius) { return {Kind::RoundBox, radius, 0, 0}; }
+inline Shape roundBox(float radius) {
+  Shape s;
+  s.kind = Kind::RoundBox;
+  s.p0 = radius;
+  return s;
+}
 
 /** Circle inscribed in the node's box. */
-inline Shape circle() { return {Kind::Circle, 0, 0, 0}; }
+inline Shape circle() {
+  Shape s;
+  s.kind = Kind::Circle;
+  return s;
+}
 
 /** N-pointed star (IQ sdStar). `pointiness` is IQ's m ∈ [2, points]:
  *  m = points is the regular polygon, values toward 2 sharpen the arms —
  *  the multi-pointed chaotic-star primitive, exact at any zoom. */
 inline Shape star(int points, float pointiness) {
   const float n = (float)std::max(points, 3);
-  return {Kind::Star, n, std::clamp(pointiness, 2.0f, n), 0};
+  Shape s;
+  s.kind = Kind::Star;
+  s.p0 = n;
+  s.p1 = std::clamp(pointiness, 2.0f, n);
+  return s;
 }
 
 /** How the silhouette is dressed — every field is a shader uniform.

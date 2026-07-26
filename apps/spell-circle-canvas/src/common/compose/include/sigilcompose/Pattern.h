@@ -74,17 +74,28 @@ public:
   }
 
   /** Change the seed → drop the bake → the next material() REGENERATES.
-   *  Identity flows through: the reconciler sees one changed recipe. */
+   *  Identity flows through: the reconciler sees one changed recipe.
+   *
+   *  COPY-ON-WRITE, like `Material::uniform`: a Pattern is a VALUE whose
+   *  every other setter (scale/rotate/offset/sampling) is per-object, so
+   *  re-rolling a COPY must not re-roll the pattern it was copied from —
+   *  which is what a shared recipe did, silently dropping the original's
+   *  bake and re-generating every element that still drew the old tile
+   *  (audit E5). Holding the ONE Pattern and re-seeding it is unchanged:
+   *  nothing else references the state, so nothing is copied. */
   Pattern &seed(uint32_t s) {
     if (m_state && m_state->seed != s) {
+      detachState();
       m_state->seed = s;
       m_state->baked.reset();
     }
     return *this;
   }
-  /** Swap the element tile (element-tile patterns' regeneration). */
+  /** Swap the element tile (element-tile patterns' regeneration).
+   *  Copy-on-write for the same reason as seed(). */
   Pattern &retile(Element tileTree) {
     if (m_state) {
+      detachState();
       tileTree.width(m_state->size.width()).height(m_state->size.height());
       m_state->tree = std::move(tileTree);
       m_state->baked.reset();
@@ -145,6 +156,15 @@ private:
     uint32_t seed = 1;
     sk_sp<SkImage> baked; // the memoized tile; reset regenerates
   };
+
+  /** The copy-on-write step (Material::detachLive's shape): a recipe
+   *  shared with another Pattern is cloned before it is edited. The clone
+   *  keeps the bake — the caller drops it right after, and retile()/seed()
+   *  are the only editors. */
+  void detachState() {
+    if (m_state && m_state.use_count() > 1)
+      m_state = std::make_shared<State>(*m_state);
+  }
 
   Material bake(sigil::weave::FontContext *fonts) const {
     if (!m_state)

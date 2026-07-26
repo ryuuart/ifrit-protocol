@@ -1454,6 +1454,34 @@ TEST(ComposePattern, HeldPatternPrunesReseedRegenerates) {
   EXPECT_TRUE(host.composer.dirty());
 }
 
+TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
+  // A Pattern is a VALUE — scale/rotate/offset/sampling are all per-object
+  // — but seed() and retile() edited the SHARED recipe, so re-rolling a
+  // copy dropped the original's bake and regenerated every element still
+  // drawing the old tile (audit E5). Copy-on-write, Material::uniform's
+  // answer to the same aliasing.
+  Pattern base = patterns::speckle(64, 40, 1, 3, {{1, 1, 1, 1}});
+  base.seed(11);
+  auto plate = [&] {
+    Host host(64, 64);
+    host.composer.render(
+        box().child(box().width(64).height(64).fill(base.material())));
+    host.frame();
+    std::vector<SkColor> px;
+    for (int y = 0; y < 64; y += 3)
+      for (int x = 0; x < 64; x += 3)
+        px.push_back(host.pixel(x, y));
+    return px;
+  };
+  const std::vector<SkColor> before = plate();
+
+  Pattern copy = base;
+  copy.seed(99);
+  EXPECT_EQ(base.currentSeed(), 11u) << "the copy re-rolled the original";
+  EXPECT_EQ(copy.currentSeed(), 99u);
+  EXPECT_EQ(plate(), before) << "and dropped its bake with it";
+}
+
 TEST(ComposePattern, ElementTreeAsTile) {
   // Patterns are compositions: an element tree (two boxes) as the tile.
   Pattern duo = Pattern::tile(
@@ -2039,6 +2067,28 @@ TEST(ComposePaint, ContentScaleReportsHostScale) {
   host.composer.draw(canvas);
   canvas.restore();
   EXPECT_FLOAT_EQ(seen, 2.0f);
+}
+
+TEST(ComposePaint, AnimatingReportsTheTickersState) {
+  // Filed as dead surface ("declared false, never assigned" — audit M4).
+  // It is assigned: Paint.cpp hands every paint program `ticker.active()`,
+  // and the Brushes.h wrappers copy that forward rather than a constant.
+  // Nothing in the library READS it, which is what made it look dead, so
+  // this test is the thing that keeps the field honest — a paint program
+  // is the only consumer there has ever been.
+  Host host;
+  bool seen = false;
+  host.composer.render(
+      box().child(box().width(40).height(40).fill(red()).opacity(
+              animate(from(0.0f).to(1.0f), {400ms})))
+          .child(custom([&seen](SkCanvas &, const PaintContext &ctx) {
+                   seen = ctx.animating;
+                 }).width(10).height(10).cache(Cache::None)));
+  host.frame(0.016);
+  EXPECT_TRUE(seen) << "an entrance is running: the ticker is active";
+  for (int i = 0; i < 40; ++i)
+    host.frame(0.016); // 640 ms — well past the 400 ms entrance
+  EXPECT_FALSE(seen) << "and false again once nothing is moving";
 }
 
 // ---------------------------------------------------------------------------
@@ -2741,6 +2791,36 @@ TEST(ComposeMotion, AnimateBuildsTheSameTransitionedAsTheLegacyBuilders) {
   // writes itself — dropping it would default to easeOutQuad silently.
   EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f),
                   legacyPath.spec.easing()(0.25f));
+}
+
+// A GUARD, not a reproduction: against the old code `value` was
+// indeterminate, so this could have passed by stack luck.
+TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
+  // An empty path is a degenerate ask, and the answer to it used to be
+  // whatever was on the stack: Transitioned<T>::value was
+  // DEFAULT-initialized, so `withKeyframes<float>({})` filled `from`,
+  // `spec` and `waypoints` with nothing and left `value` indeterminate —
+  // a float property reading garbage, once, silently (§32 review REV-11).
+  // Value-initialized now: an empty path settles at zero.
+  const Transitioned<float> empty = withKeyframes<float>({});
+  EXPECT_EQ(empty.value, 0.0f);
+  EXPECT_FALSE(empty.from.has_value());
+  EXPECT_TRUE(empty.waypoints.empty());
+
+  const std::vector<std::pair<std::chrono::milliseconds, float>> none;
+  const Transitioned<float> phrased = animate(through(none));
+  EXPECT_EQ(phrased.value, 0.0f);
+
+  // And through the property slot: the node paints AT that determinate
+  // value rather than at a number nobody chose.
+  Host host;
+  host.composer.render(box().child(box()
+                                       .width(80)
+                                       .height(80)
+                                       .fill(red())
+                                       .opacity(withKeyframes<float>({}))));
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK); // opacity 0, not garbage
 }
 
 TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
@@ -4805,7 +4885,7 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
   Host host;
   host.composer.render(straightRun(brushes::restyle(
-      ops::wave(8, 24), util::stroke(2, green()), 12)));
+      ops::Wave{8, 24}, util::stroke(2, green()), 12)));
   host.frame();
   int offAxis = 0;
   for (int x = 30; x < 170; x += 2)
@@ -4820,7 +4900,7 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
 TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
   Host host, plain;
   host.composer.render(straightRun(
-      brushes::restyle(ops::sketchy(8, 3.0f, 11), util::stroke(2, green()))));
+      brushes::restyle(ops::Sketchy{8, 3.0f, 11}, util::stroke(2, green()))));
   plain.composer.render(straightRun(util::stroke(2, green())));
   host.frame();
   plain.frame();
@@ -6152,6 +6232,44 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   EXPECT_NEAR(last.x(), 320, 1.0f);
 }
 
+TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
+  // `spacing` is Interval-mode SUGAR: it fills in for an interval the
+  // author did not set. It used to do that by comparing the interval
+  // against 24 — the same 24 that was its default — so an author who
+  // typed `.interval = 24` got `spacing` instead, silently (audit I8).
+  // `interval` is an optional now, so "unset" is not a number and cannot
+  // be typed by accident.
+  auto stamps = [](std::optional<float> interval, float spacing) {
+    Host host;
+    brushes::ScatterBrush b;
+    b.art = box().width(6).height(6).fill(red());
+    b.spacing = spacing;
+    b.place = {brushes::Placement::Mode::Interval, interval};
+    b.alignToPath = false;
+    host.composer.render(box().child(
+        box().absolute().inset(20, 20, 20, 20).outline([](SkSize s) {
+          SkPathBuilder p;
+          p.moveTo(0, 0);
+          p.lineTo(s.width(), 0);
+          return p.detach();
+        }).stroke(std::move(b))));
+    host.frame();
+    int runs = 0;
+    bool inRun = false;
+    for (int x = 0; x < 200; ++x) {
+      const bool ink = host.pixel(x, 20) == SK_ColorRED;
+      runs += ink && !inRun;
+      inRun = ink;
+    }
+    return runs;
+  };
+  // 160 px of contour: ~7 stamps at 24 px, ~2 at 80 px.
+  EXPECT_EQ(stamps(24.0f, 80.0f), stamps(24.0f, 24.0f))
+      << "an explicit 24 means 24, whatever spacing says";
+  EXPECT_GT(stamps(24.0f, 80.0f), stamps(std::nullopt, 80.0f))
+      << "and unset still takes spacing";
+}
+
 TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
   // Vertex family reads the path's actual verbs — stamps sit ON the bends.
   Host host;
@@ -6427,7 +6545,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto trace = brushes::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
   auto cord = brushes::rope(1, 1.0f);
   // OP FIRST, decoration second — the order API.md originally got wrong.
-  auto restyled = brushes::restyle(ops::sketchy(8.0f, 2.0f, 7),
+  auto restyled = brushes::restyle(ops::Sketchy{8.0f, 2.0f, 7},
                                    util::stroke(1.0f, ink), 8.0f);
 
   lines::Hatch hatch;
@@ -9071,6 +9189,44 @@ TEST(ComposeSlots, ASlotSurvivesItsContentCarryingTheSameKey) {
 
   // And a slot's name still answers bounds(), so the two indexes coexist.
   EXPECT_TRUE(host.composer.bounds("readout").has_value());
+}
+
+TEST(ComposeSlots, KeyOnASlotRenamesItAndSaysSoOnce) {
+  // The other half of §26b's trap. A slot's NAME is its key — one field —
+  // so `.key()` on a slot renames the mount, renderSlot() on the original
+  // name no-ops, and the symptom is a W x 0 layout rather than an error.
+  // §26b diagnosed it from the renderSlot side; this is the warning at the
+  // call that CAUSES it, where both names are still in hand.
+  ::testing::internal::CaptureStderr();
+  {
+    Host quiet(200, 200);
+    quiet.composer.render(box().child(slot("gauges").absolute().inset(0)));
+    quiet.composer.renderSlot("gauges", box().absolute().inset(0).fill(red()));
+    quiet.frame();
+    EXPECT_GT(SkColorGetR(quiet.pixel(100, 100)), 180);
+  }
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "naming a slot once must be silent";
+
+  ::testing::internal::CaptureStderr();
+  Element renamed = slot("dials").key("panel");
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("dials"), std::string::npos) << log;
+  EXPECT_NE(log.find("panel"), std::string::npos) << log;
+
+  // Once per rename, not per frame — the same call in a describe loop
+  // must not print sixty lines a second.
+  ::testing::internal::CaptureStderr();
+  (void)slot("dials").key("panel");
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
+
+  // And the warning is telling the truth: the mount answers to the NEW
+  // name only.
+  Host host(200, 200);
+  host.composer.render(box().child(renamed.absolute().inset(0)));
+  host.composer.renderSlot("panel", box().absolute().inset(0).fill(green()));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
 }
 
 TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {

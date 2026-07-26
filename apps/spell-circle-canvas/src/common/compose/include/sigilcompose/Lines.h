@@ -441,7 +441,7 @@ inline SkPath offsetAlong(const SkPath &src, float offset, float step = 4.0f) {
  *  and a dash pattern shipped SOLID for the whole of run 1 and the study
  *  corpus never caught it.
  *
- *  Hairline is the rec to use, the same one `ops::sketchy` settled on for
+ *  Hairline is the rec to use, the same one `ops::Sketchy` settled on for
  *  its own (unrelated) reason. Returns the input unchanged when the
  *  pattern is empty or Skia declines. */
 inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,

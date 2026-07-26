@@ -501,7 +501,7 @@ Weave buildWeave(float rNorm) {
 shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
                           float seg = 26.0f, float dev = 0.34f) {
   return [base = std::move(base), seed, seg, dev](SkSize s) {
-    return ops::sketchy(seg, dev, seed)(base(s));
+    return ops::Sketchy{seg, dev, seed}.apply(base(s));
   };
 }
 

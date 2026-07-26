@@ -623,7 +623,13 @@ void Composer::Impl::patchChildren(Instance &inst,
     }
     ++childOrdinal;
     Instance &placed = *inst.children.back();
-    // Stack children overlap: absolute unless they positioned themselves.
+    // Stack children overlap: EVERY child is absolute, unconditionally.
+    // This runs after mount()/patch() applied the child's own layout props,
+    // so it is the last write and a child cannot opt out — which is the
+    // container's contract, not an oversight: a stack whose children could
+    // individually rejoin the flex flow would lay out as neither. What a
+    // child DOES keep is its insets — `.top(12).right(12)` inside a stack
+    // pins that corner, because absolute is exactly the mode insets need.
     if (inst.desc->kind == Kind::Stack)
       YGNodeStyleSetPositionType(placed.yoga, YGPositionTypeAbsolute);
     YGNodeInsertChild(inst.yoga, placed.yoga, YGNodeGetChildCount(inst.yoga));
@@ -650,7 +656,6 @@ void Composer::Impl::patchChildren(Instance &inst,
 void Composer::Impl::applyLayoutProps(Instance &inst) {
   const LayoutProps &l = inst.desc->layout;
   YGNodeRef n = inst.yoga;
-  const bool isStack = inst.desc->kind == Kind::Stack;
 
   YGNodeStyleSetFlexDirection(n, l.row ? YGFlexDirectionRow
                                        : YGFlexDirectionColumn);
@@ -705,7 +710,8 @@ void Composer::Impl::applyLayoutProps(Instance &inst) {
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
   YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
 
-  (void)isStack;
+  // The node's OWN position type. A stack child's is overwritten right
+  // after this, in patchChildren() — see the note there.
   YGNodeStyleSetPositionType(n, l.absolute ? YGPositionTypeAbsolute
                                            : YGPositionTypeRelative);
   if (l.hasInsets) {
