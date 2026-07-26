@@ -14,6 +14,7 @@
 #include <include/core/SkSurface.h>
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -9524,4 +9525,332 @@ TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
   ASSERT_TRUE(host.composer.bounds("d").has_value());
   EXPECT_EQ(*host.composer.bounds("d"), r);
   EXPECT_EQ(host.pixel(100, 50), SK_ColorRED);
+}
+
+// ---------------------------------------------------------------------------
+// The stroke grammar (ROADMAP §33 stage one): shape(), spans, band().
+
+namespace {
+
+/** The boundary of a plain box, as the painter builds it. */
+std::function<SkPath(SkSize)> rectSpine() {
+  return [](SkSize s) {
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeWH(s.width(), s.height()));
+    return b.detach();
+  };
+}
+
+/** How much of [0,1] a span set covers. */
+float coverage(const std::vector<Span> &spans) {
+  float total = 0;
+  for (const Span &s : spans)
+    total += s.end - s.begin;
+  return total;
+}
+
+/** Do two claim sets share more than float noise? (The library's own
+ *  overlap test is internal; this is the same predicate, spelled here so
+ *  the test asserts the PROPERTY rather than the implementation.) */
+bool disjoint(const std::vector<Span> &a, const std::vector<Span> &b) {
+  for (const Span &x : a)
+    for (const Span &y : b)
+      if (std::min(x.end, y.end) - std::max(x.begin, y.begin) > 1e-4f)
+        return false;
+  return true;
+}
+
+SkPath unitBox() {
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(100, 100));
+  return b.detach();
+}
+
+} // namespace
+
+TEST(ComposeShapeRename, ShapeAndOutlineDescribeTheSameNode) {
+  // Alias-first (§27): the old spelling keeps compiling AND keeps working.
+  auto draw = [](bool useLegacySpelling) {
+    Host host(200, 200);
+    Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
+    if (useLegacySpelling)
+      e.outline(shapes::circle());
+    else
+      e.shape(shapes::circle());
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    std::vector<SkColor> out;
+    for (int x = 10; x < 130; x += 5)
+      out.push_back(host.pixel(x, 70));
+    return out;
+  };
+  EXPECT_EQ(draw(false), draw(true));
+}
+
+TEST(ComposeSpans, CornersAndEdgesPartitionTheBoundary) {
+  // The claim algebra, read directly: corners() and edges() are one scan
+  // seen two ways, so together they cover the boundary exactly once. This
+  // is the four-way duplicate the audit filed (decorations::brackets /
+  // gappedRule / lines::cornerBrackets / cornerGaps) answered as one
+  // vocabulary.
+  const SkPath boundary = unitBox();
+  SpanInput in;
+  in.outline = &boundary;
+  const std::vector<Span> corners = spans::corners(20).resolve(in);
+  const std::vector<Span> edges = spans::edges(20).resolve(in);
+  // Five intervals for four corners: the corner ON the seam (fraction 0)
+  // has its window split there, exactly as a seam-crossing trim window
+  // is. The two pieces are adjacent, so the MEASURE is still four arms.
+  EXPECT_EQ(corners.size(), 5u);
+  EXPECT_NEAR(coverage(corners), 4 * 40.0f / 400.0f, 1e-3f);
+  EXPECT_NEAR(coverage(corners) + coverage(edges), 1.0f, 1e-3f);
+  EXPECT_TRUE(disjoint(corners, edges));
+}
+
+TEST(ComposeSpans, EveryAndAtAreTheSameLadder) {
+  const SkPath boundary = unitBox();
+  SpanInput in;
+  in.outline = &boundary;
+  EXPECT_NEAR(coverage(spans::every(4).resolve(in)), 1.0f, 1e-3f);
+  EXPECT_NEAR(coverage(spans::every(4, 0.5f).resolve(in)), 0.5f, 1e-3f);
+  const std::vector<Span> one = spans::at(1, 4).resolve(in);
+  ASSERT_EQ(one.size(), 1u);
+  EXPECT_NEAR(one[0].begin, 0.25f, 1e-4f);
+  EXPECT_NEAR(one[0].end, 0.5f, 1e-4f);
+  // Union is a set operation, not a list: two adjacent slots merge.
+  const std::vector<Span> two = (spans::at(0, 4) | spans::at(1, 4)).resolve(in);
+  ASSERT_EQ(two.size(), 1u);
+  EXPECT_NEAR(two[0].end, 0.5f, 1e-4f);
+}
+
+TEST(ComposeSpans, CornerPassMarksOnlyTheCorners) {
+  Host host(200, 200);
+  host.composer.render(
+      stack().child(box()
+                        .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                        .stroke(spans::corners(20),
+                                util::stroke(6, red()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 20), SK_ColorRED) << "10px along the top edge";
+  EXPECT_EQ(host.pixel(70, 20), SK_ColorBLACK) << "the middle of a run";
+  EXPECT_EQ(host.pixel(20, 30), SK_ColorRED) << "and down the left edge";
+}
+
+TEST(ComposeSpans, PassesAppendAndRestFillsTheGaps) {
+  // Two calls, no arithmetic: the corners get one mark and everything
+  // else gets the other. This is thaumonomicon's innerRule() (a ten-line
+  // "rect minus corners" path generator) as two lines.
+  Host host(200, 200);
+  host.composer.render(
+      stack().child(box()
+                        .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                        .stroke(spans::corners(20), util::stroke(6, red()))
+                        .stroke(spans::rest(), util::stroke(6, green()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 20), SK_ColorRED);
+  EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "rest() took the run";
+}
+
+TEST(ComposeSpans, OverlappingClaimsAreSaidOutLoud) {
+  // The no-overlap law. The message is the ONLY place an author learns
+  // that layering two marks on one run is a composite brush, so it must
+  // actually fire.
+  ::testing::internal::CaptureStderr();
+  {
+    Host host(200, 200);
+    host.composer.render(
+        stack().child(box()
+                          .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                          .stroke(spans::every(1), util::stroke(4, red()),
+                                  "halo")
+                          .stroke(spans::upTo(0.5f), util::stroke(2, green()),
+                                  "keyline")));
+    host.frame();
+  }
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("halo"), std::string::npos) << log;
+  EXPECT_NE(log.find("keyline"), std::string::npos) << log;
+}
+
+TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
+  // §27 alias-first: the whole-boundary form does not claim, so the
+  // corpus's stacked strokes (a halo under a keyline) stay legal.
+  ::testing::internal::CaptureStderr();
+  {
+    Host host(200, 200);
+    host.composer.render(
+        stack().child(box()
+                          .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                          .stroke(util::stroke(8, red()))
+                          .stroke(util::stroke(3, green()))));
+    host.frame();
+    EXPECT_EQ(host.pixel(70, 20), SK_ColorGREEN) << "the second stroke wins";
+  }
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
+}
+
+TEST(ComposeSpans, RevealMatchesTrimPixelForPixel) {
+  // The reveal moved from the node to the pass; the same numbers must
+  // still describe the same run.
+  auto draw = [](bool useLegacyTrim) {
+    Host host(200, 200);
+    Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
+    if (useLegacyTrim)
+      e.trim(0.0f, 0.4f).stroke(util::stroke(6, red()));
+    else
+      e.stroke(spans::upTo(0.4f), util::stroke(6, red()));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    std::vector<SkColor> out;
+    for (int x = 15; x < 130; x += 3)
+      out.push_back(host.pixel(x, 20));
+    for (int y = 15; y < 130; y += 3)
+      out.push_back(host.pixel(120, y));
+    return out;
+  };
+  const std::vector<SkColor> spanned = draw(false);
+  EXPECT_EQ(spanned, draw(true));
+  // …and it is a genuine partial reveal, not "everything" or "nothing":
+  // 0.4 of a 400px perimeter is the whole top edge and 60px of the right.
+  const size_t inked = (size_t)std::count_if(
+      spanned.begin(), spanned.end(),
+      [](SkColor c) { return c != SK_ColorBLACK; });
+  EXPECT_GT(inked, 0u);
+  EXPECT_LT(inked, spanned.size());
+}
+
+TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
+  Host host(200, 200);
+  host.composer.render(
+      stack().child(box()
+                        .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                        .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                                    {400ms})),
+                                util::stroke(6, red()))));
+  host.frame(0.02);
+  auto inked = [&] {
+    int n = 0;
+    for (int x = 15; x < 130; ++x)
+      if (host.pixel(x, 20) == SK_ColorRED)
+        ++n;
+    return n;
+  };
+  const int early = inked();
+  host.frame(0.3);
+  EXPECT_GT(inked(), early) << "the reveal did not advance";
+}
+
+TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
+  // The derive pass, applied to a boundary: the pass claims exactly the
+  // run the keyed element covers (the flowAround pattern).
+  Host host(200, 200);
+  host.composer.render(
+      stack()
+          .child(box().key("lbl").rect(SkRect::MakeXYWH(40, 10, 30, 20)))
+          .child(box()
+                     .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                     .stroke(spans::fit("lbl", 0.0f),
+                             util::stroke(6, red()))));
+  host.frame();
+  host.frame(); // derive resolves against the first layout
+  EXPECT_EQ(host.pixel(55, 20), SK_ColorRED) << "under the label";
+  EXPECT_EQ(host.pixel(100, 20), SK_ColorBLACK) << "away from it";
+}
+
+TEST(ComposeSpans, SpanValuesParticipateInReconcilerEquality) {
+  EXPECT_TRUE(spans::corners(18) == spans::corners(18));
+  EXPECT_FALSE(spans::corners(18) == spans::corners(19));
+  EXPECT_FALSE(spans::corners(18) == spans::edges(18));
+  EXPECT_TRUE(spans::upTo(0.4f) == spans::upTo(0.4f));
+  EXPECT_FALSE(spans::upTo(0.4f) == spans::upTo(0.5f));
+  EXPECT_TRUE(spans::fit("a", 2) == spans::fit("a", 2));
+  EXPECT_FALSE(spans::fit("a", 2) == spans::fit("b", 2));
+}
+
+TEST(ComposeBand, ProfilesAreComparableAndReflexive) {
+  // The seam REQUIRES equality (std::equality_comparable in
+  // ProfileScheme), and a value that does not compare equal to itself
+  // makes every description containing it patch forever — including the
+  // default-constructed one, which is why the empty case is asserted.
+  EXPECT_TRUE(strand::offset(4) == strand::offset(4));
+  EXPECT_FALSE(strand::offset(4) == strand::offset(5));
+  EXPECT_FALSE(strand::offset(0) == strand::self());
+  EXPECT_TRUE(strand::self() == strand::self());
+  EXPECT_TRUE(Profile() == Profile()) << "two empty profiles are one nothing";
+  EXPECT_FALSE(Profile() == strand::self());
+  EXPECT_TRUE(across(6) == across(6));
+  EXPECT_FALSE(across(6) == across(7));
+}
+
+TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
+  auto draw = [](Formation f) {
+    Host host(200, 200);
+    Element b = band(rectSpine(), across(10)).rect(
+        SkRect::MakeXYWH(20, 20, 100, 100));
+    if (f == Formation::Outward)
+      b.outward();
+    else if (f == Formation::Inward)
+      b.inward();
+    else
+      b.centered();
+    host.composer.render(stack().child(b.fill(red())));
+    host.frame();
+    return std::pair<SkColor, SkColor>{host.pixel(70, 16), host.pixel(70, 24)};
+  };
+  const auto centred = draw(Formation::Centered);
+  EXPECT_EQ(centred.first, SK_ColorRED) << "centered straddles the spine";
+  EXPECT_EQ(centred.second, SK_ColorRED);
+  const auto out = draw(Formation::Outward);
+  EXPECT_EQ(out.first, SK_ColorRED);
+  EXPECT_EQ(out.second, SK_ColorBLACK);
+  const auto in = draw(Formation::Inward);
+  EXPECT_EQ(in.first, SK_ColorBLACK);
+  EXPECT_EQ(in.second, SK_ColorRED);
+}
+
+TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
+  SkPathBuilder b;
+  b.moveTo(0, 50);
+  b.lineTo(100, 50);
+  const SkPath spine = b.detach();
+  EXPECT_EQ(bandPointAt(spine, 0.0f, 0), SkPoint::Make(0, 50));
+  EXPECT_EQ(bandPointAt(spine, 0.5f, 0), SkPoint::Make(50, 50));
+  EXPECT_EQ(bandPointAt(spine, 1.0f, 0), SkPoint::Make(100, 50));
+  // across is px on the normal, positive to the LEFT of travel: y is
+  // down, so travelling +x, positive across goes UP the screen. That is
+  // the NEGATION of lines::offsetAlong's right-of-travel convention —
+  // asserted here precisely so the two signs cannot drift apart
+  // unnoticed while stage two reconciles them.
+  EXPECT_EQ(bandPointAt(spine, 0.5f, 10), SkPoint::Make(50, 40));
+  EXPECT_EQ(bandPointAt(spine, 0.5f, -10), SkPoint::Make(50, 60));
+}
+
+TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
+  // max() is REQUIRED by the seam precisely so this cannot be a silent
+  // clip: a Picture-cached node's cull is grown by the profile's reach,
+  // and an outward band draws entirely OUTSIDE its layout box.
+  Host host(200, 200);
+  host.composer.render(stack().child(band(rectSpine(), across(20))
+                                         .outward()
+                                         .rect(SkRect::MakeXYWH(60, 60, 40, 40))
+                                         .cache(Cache::Picture)
+                                         .fill(red())));
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 45), SK_ColorRED) << "15px outside the box";
+  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK) << "and not inside it";
+}
+
+TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
+  Host host(200, 200);
+  host.composer.render(
+      stack().child(band(rectSpine(), across(16))
+                        .rect(SkRect::MakeXYWH(30, 30, 80, 80))
+                        .stroke(spans::every(1), util::stroke(4, green()))));
+  host.frame();
+  int inked = 0;
+  for (int x = 0; x < 200; ++x)
+    for (int y = 0; y < 200; ++y)
+      if (host.pixel(x, y) == SK_ColorGREEN)
+        ++inked;
+  EXPECT_GT(inked, 100) << "a band takes a stroke pass like any shape";
 }

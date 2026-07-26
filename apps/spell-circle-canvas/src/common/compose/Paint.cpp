@@ -177,6 +177,127 @@ void collectGroupScalars(const Instance &inst, bool root,
 } // namespace
 
 // ---------------------------------------------------------------------------
+// Stroke passes: resolving each pass's claim, and saying so when two
+// claims collide.
+
+namespace {
+
+std::string passLabel(const detail::StrokePass &pass, size_t index) {
+  if (!pass.name.empty())
+    return "\"" + pass.name + "\"";
+  return "#" + std::to_string(index);
+}
+
+/** One boundary, one mark: two claims on the same run is a mistake with
+ *  no sensible rendering, so it is said out loud once per shape of the
+ *  problem. Layering two marks on ONE run is a composite brush, and the
+ *  message says so — that is the only place an author learns it. */
+void warnOverlappingClaims(const std::string &a, const std::string &b,
+                           Span shared) {
+  static std::vector<std::string> seen;
+  const std::string key = a + "|" + b;
+  for (const std::string &k : seen)
+    if (k == key)
+      return;
+  if (seen.size() >= 16)
+    return;
+  seen.push_back(key);
+  SkDebugf("compose: stroke passes %s and %s both claim %.3f–%.3f of the "
+           "same boundary. One boundary, one mark: spans partition it, they "
+           "do not stack. To layer two marks on one run, make them ONE pass "
+           "with a composite brush (Brush{}.leg(a).leg(b), or a "
+           "LayeredBrush); to keep them apart, give the second pass a "
+           "disjoint span (or spans::rest()).\n",
+           a.c_str(), b.c_str(), shared.begin, shared.end);
+}
+
+} // namespace
+
+std::vector<std::vector<Span>>
+detail::Instance::resolveSpans(const SkPath &outline) const {
+  std::vector<std::vector<Span>> out;
+  const ElementNode &node = *desc;
+  if (!node.hasStrokePasses())
+    return out;
+  const std::vector<StrokePass> &passes = node.strokeData->passes;
+  out.resize(passes.size());
+
+  // Every animatable endpoint, resolved for this frame, in the order the
+  // description declared them — the order spanAnims is indexed by.
+  std::vector<float> values;
+  values.reserve(spanAnims.size());
+  size_t slot = 0;
+  for (const StrokePass &pass : passes)
+    for (const Spans::Term &term : pass.where.terms) {
+      const AnimatedFloat *a =
+          slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
+      values.push_back(resolveFloatAt(a, term.begin));
+      ++slot;
+      const AnimatedFloat *b =
+          slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
+      values.push_back(resolveFloatAt(b, term.end));
+      ++slot;
+    }
+
+  SpanInput in;
+  in.outline = &outline;
+  in.fitRects = &spanFitRects;
+
+  size_t valueBase = 0;
+  for (size_t i = 0; i < passes.size(); ++i) {
+    std::vector<float> mine(values.begin() + (long)valueBase,
+                            values.begin() +
+                                (long)(valueBase + passes[i].where.valueCount()));
+    valueBase += passes[i].where.valueCount();
+    in.values = &mine;
+    out[i] = passes[i].where.resolve(in);
+  }
+
+  // rest(): the complement, resolved AFTER the claims it is defined
+  // against. Bare rest() takes everything the other CLAIMING passes left;
+  // rest("name") is one named pass's complement and may overlay.
+  for (size_t i = 0; i < passes.size(); ++i) {
+    if (!passes[i].where.hasRest())
+      continue;
+    std::vector<Span> against;
+    bool named = false;
+    for (const Spans::Term &term : passes[i].where.terms) {
+      if (term.rule != Spans::Rule::Rest || term.key.empty())
+        continue;
+      named = true;
+      for (size_t j = 0; j < passes.size(); ++j)
+        if (passes[j].name == term.key)
+          against.insert(against.end(), out[j].begin(), out[j].end());
+    }
+    if (!named)
+      for (size_t j = 0; j < passes.size(); ++j)
+        if (j != i && !passes[j].where.hasRest())
+          against.insert(against.end(), out[j].begin(), out[j].end());
+    std::vector<Span> rest =
+        complementSpans(normalizeSpans(std::move(against)));
+    // A pass may union rest() with explicit terms; keep both.
+    rest.insert(rest.end(), out[i].begin(), out[i].end());
+    out[i] = normalizeSpans(std::move(rest));
+  }
+
+  // The no-overlap law, over the CLAIMING passes only. An unqualified
+  // stroke never gets here (it is an ordinary foreground), so no existing
+  // scene can become an error — the §27 alias-first law.
+  for (size_t i = 0; i < passes.size(); ++i) {
+    if (passes[i].where.hasRest())
+      continue;
+    for (size_t j = i + 1; j < passes.size(); ++j) {
+      if (passes[j].where.hasRest())
+        continue;
+      if (std::optional<Span> shared = spansOverlap(out[i], out[j]))
+        warnOverlappingClaims(passLabel(passes[i], i), passLabel(passes[j], j),
+                              *shared);
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Volatility & caching
 
 bool Composer::Impl::computeVolatile(Instance &inst) {
@@ -187,6 +308,29 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       return true;
     return inst.anims[slot] && inst.anims[slot]->value.isConnected();
   };
+  // Span passes: an animated reveal rebuilds the pass's geometry, and an
+  // animated brush repaints it. Both are CONTENT volatility, like trim —
+  // and deliberately kept out of the scalar/live-material memos, which
+  // compare a fixed list of floats and cannot see a span claim.
+  const bool spanVolatile = [&] {
+    if (!node.hasStrokePasses())
+      return false;
+    size_t slot = 0;
+    bool live = false;
+    for (const StrokePass &pass : node.strokeData->passes) {
+      live |= pass.what.animated();
+      for (const Spans::Term &term : pass.where.terms)
+        for (const PropValue<float> *v : {&term.begin, &term.end}) {
+          if (v->binding())
+            live = true;
+          else if (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
+                   inst.spanAnims[slot]->value.isConnected())
+            live = true;
+          ++slot;
+        }
+    }
+    return live;
+  }();
   // Paint-only volatility: transforms and opacity apply OUTSIDE the node's
   // content (in paint()'s matrix/layer stack), so a node animated only here
   // still replays its content picture — a spinning ornament re-records
@@ -238,6 +382,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.kind == Kind::Image && imageAssetOf(node) &&
       imageAssetOf(node)->animated())
     ownContent = true;
+  ownContent |= spanVolatile;
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
   // can sit still for a long time inside a running motion (§17).
@@ -287,6 +432,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     opaqueToTheMemo = true;
   if (node.textData && node.textData->driveValue)
     opaqueToTheMemo = true;
+  opaqueToTheMemo |= spanVolatile;
 
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
@@ -382,6 +528,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       other |= boundOrRunning(Instance::kGlyphProgress, g->progress);
     if (node.textData && node.textData->driveValue)
       other = true;
+    other |= spanVolatile;
     if (other)
       inst.liveMatOnly = false;
   }
@@ -410,6 +557,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       other = true;
     if (node.textData && node.textData->driveValue)
       other = true;
+    other |= spanVolatile;
     inst.scalarMemo = !other;
   }
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
@@ -721,6 +869,15 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   if (node.fxData)
     for (const Decoration &d : node.fxData->overlays)
       bleed = std::max(bleed, d.bleed());
+  if (node.strokeData)
+    for (const detail::StrokePass &pass : node.strokeData->passes)
+      bleed = std::max(bleed, pass.what.bleed());
+  // A band reaches profile.max() px off its spine, and the profile is
+  // REQUIRED to know that number — which is the whole reason `max()` is
+  // part of the seam. Without it a varying width could only be clipped
+  // silently (the Ribbon widthFn trap, §25).
+  if (const Across *band = node.bandWidth())
+    bleed = std::max(bleed, band->profile.max());
   for (const Echo &e : echoesOf(node))
     bleed = std::max(
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
@@ -736,6 +893,21 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
     SkRect route = inst.connectorPath.getBounds();
     route.outset(bleed + 8.0f, bleed + 8.0f);
     local.join(route);
+  }
+  // A BAND is the same problem: the bleed above covers the width axis, but
+  // a BORROWED spine (band(around(key))) can sit anywhere relative to this
+  // node's own box, so the cull has to hold the spine itself — exactly the
+  // routed case one paragraph up, and for the same reason.
+  if (const Across *band = node.bandWidth()) {
+    const SkPath spine =
+        node.deriveData->bandSpine
+            ? node.deriveData->bandSpine({rect.width(), rect.height()})
+            : inst.bandSpine;
+    if (!spine.isEmpty()) {
+      SkRect swept = spine.getBounds();
+      swept.outset(bleed + band->profile.max(), bleed + band->profile.max());
+      local.join(swept);
+    }
   }
   return local;
 }
@@ -798,10 +970,21 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   const bool routed = node.deriveData &&
                       (!node.deriveData->connectFrom.empty() ||
                        !node.deriveData->railAnchors.empty());
-  const bool customShape = node.shapeFn && !routed;
+  const Across *bandWidth = node.bandWidth();
+  const bool customShape = (node.shapeFn || bandWidth) && !routed;
   SkPath outlinePath;
   if (routed) {
     outlinePath = inst.connectorPath; // derive phase routed it
+  } else if (bandWidth) {
+    // A BAND's shape is derived: the region its spine sweeps at the
+    // profile's width, on the declared side. The spine is guide data
+    // (authored here) or borrowed geometry (derive resolved it).
+    const SkPath spine =
+        node.deriveData->bandSpine
+            ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
+            : inst.bandSpine;
+    outlinePath = detail::bandRegion(spine, *bandWidth,
+                                     node.deriveData->bandFormation);
   } else if (customShape) {
     outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});
   } else {
@@ -1225,6 +1408,26 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     for (const Decoration &decoration : node.foregrounds)
       decoration.paint(canvas, paintCtx);
 
+  // Span-qualified stroke passes, in declaration order, in the same slot
+  // as the unqualified strokes they append to. Each one paints against
+  // the sub-geometry it CLAIMED, so a brush that knows nothing about
+  // spans (a PathFormat, a Brush, a PatternBrush) dresses part of a
+  // boundary with no new vocabulary.
+  if (emitChildren && node.hasStrokePasses()) {
+    const std::vector<std::vector<Span>> claims =
+        inst.resolveSpans(paintCtx.outline);
+    for (size_t i = 0; i < node.strokeData->passes.size() && i < claims.size();
+         ++i) {
+      if (claims[i].empty())
+        continue;
+      const PaintContext passCtx{
+          paintCtx.size,     detail::spanPath(paintCtx.outline, claims[i]),
+          paintCtx.elapsedSeconds, paintCtx.contentScale,
+          paintCtx.animating, paintCtx.fonts};
+      node.strokeData->passes[i].what.paint(canvas, passCtx);
+    }
+  }
+
   if (wiped)
     canvas.restore();
 
@@ -1386,7 +1589,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&
-      node.foregrounds.empty() &&
+      node.foregrounds.empty() && !node.hasStrokePasses() &&
       (!node.fxData || (node.fxData->overlays.empty() &&
                         !node.fxData->hasWipe)) &&
       !layerEffectOf(node) &&
@@ -2233,6 +2436,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
               !node.backgrounds.empty() || !node.foregrounds.empty() ||
+              node.hasStrokePasses() ||
               (node.fxData && !node.fxData->overlays.empty()) ||
               layerEffectOf(node) || memoized)) {
     // (liveMatOnly bare boxes DO record — the memo's point is replaying

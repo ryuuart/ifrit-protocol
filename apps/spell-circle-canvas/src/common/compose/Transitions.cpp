@@ -28,21 +28,39 @@ float detail::Instance::resolveFloat(Slot slot,
   return v.transitioned()->value;
 }
 
+float detail::Instance::resolveFloatAt(const AnimatedFloat *anim,
+                                       const PropValue<float> &v) const {
+  if (const choreograph::Output<float> *binding = v.binding()) {
+    if (const BoundFloat *shape = v.boundMap())
+      return shape->apply(binding->value());
+    return binding->value();
+  }
+  if (anim && anim->started)
+    return anim->value.value();
+  if (const float *plain = v.plain())
+    return *plain;
+  return v.transitioned()->value;
+}
+
 namespace {
 
-/** Starts (or retargets) a ramp on `slot` when the plain target changed.
- *  Returns true if a motion is running. */
-bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
-                     const PropValue<float> &prevValue,
-                     const PropValue<float> &nextValue,
-                     const std::optional<Transition> &nodeDefault) {
+/** Starts (or retargets) a ramp held in `slotAnim` when the plain target
+ *  changed. Returns true if a motion is running. The slot is passed as
+ *  the HELD MOTION rather than as an index because the span endpoints'
+ *  count is a property of the description, not of the kernel — one body,
+ *  two storages (the fixed property array and the span vector). */
+bool transitionFloatAt(Composer::Impl &impl, Instance &inst,
+                       std::unique_ptr<AnimatedFloat> &slotAnim,
+                       const PropValue<float> &prevValue,
+                       const PropValue<float> &nextValue,
+                       const std::optional<Transition> &nodeDefault) {
   ResolvedProp<float> prev = resolveProp(prevValue, nodeDefault);
   ResolvedProp<float> next = resolveProp(nextValue, nodeDefault);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the plain description forever (resolveFloat
   // prefers a started anim), so the snap paths disconnect it.
   auto snapAnim = [&] {
-    if (auto &anim = inst.anims[slot]; anim && anim->started) {
+    if (auto &anim = slotAnim; anim && anim->started) {
       anim->value.disconnect();
       anim->started = false;
     }
@@ -56,7 +74,7 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
     return false; // binding → constant: snap (no meaningful "from")
   }
 
-  auto &anim = inst.anims[slot];
+  auto &anim = slotAnim;
   // A running motion already headed at this exact target keeps flying —
   // an unrelated prop patch mid-entrance must not restart it (and must
   // never re-hold its delay).
@@ -94,6 +112,30 @@ bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
   return true;
 }
 
+/** The fixed-property spelling of the same operation. */
+bool transitionFloat(Composer::Impl &impl, Instance &inst, Instance::Slot slot,
+                     const PropValue<float> &prevValue,
+                     const PropValue<float> &nextValue,
+                     const std::optional<Transition> &nodeDefault) {
+  return transitionFloatAt(impl, inst, inst.anims[slot], prevValue, nextValue,
+                           nodeDefault);
+}
+
+/** Every animatable span endpoint of a node's stroke passes, in
+ *  declaration order — the order Instance::spanAnims is indexed by, and
+ *  the order SpanInput::values arrives in. */
+std::vector<const PropValue<float> *> spanEndpoints(const ElementNode &node) {
+  std::vector<const PropValue<float> *> out;
+  if (!node.strokeData)
+    return out;
+  for (const StrokePass &pass : node.strokeData->passes)
+    for (const Spans::Term &term : pass.where.terms) {
+      out.push_back(&term.begin);
+      out.push_back(&term.end);
+    }
+  return out;
+}
+
 } // namespace
 
 /** Mount entrances: a withFrom() value plays `from → value` when the node
@@ -105,14 +147,15 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   if (liveOnly)
     return;
 
-  auto entrance = [&](Instance::Slot slot, const PropValue<float> &v) {
+  auto entranceAt = [&](std::unique_ptr<AnimatedFloat> &slotAnim,
+                        const PropValue<float> &v) {
     const Transitioned<float> *tr = v.transitioned();
     if (!tr)
       return;
     // withKeyframes(): the multi-segment mount path — checked BEFORE the
     // from==value guard (a shake 0→−20→0 starts and ends equal).
     if (tr->waypoints.size() >= 2) {
-      auto &anim = inst.anims[slot];
+      auto &anim = slotAnim;
       if (!anim)
         anim = std::make_unique<AnimatedFloat>();
       const float first = tr->waypoints.front().second;
@@ -138,7 +181,7 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
     }
     if (!tr->from || *tr->from == tr->value)
       return;
-    auto &anim = inst.anims[slot];
+    auto &anim = slotAnim;
     if (!anim)
       anim = std::make_unique<AnimatedFloat>();
     anim->value = *tr->from;
@@ -153,6 +196,9 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
     motion.then<choreograph::RampTo>(
         tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
         tr->spec.easing());
+  };
+  auto entrance = [&](Instance::Slot slot, const PropValue<float> &v) {
+    entranceAt(inst.anims[slot], v);
   };
   entrance(Instance::kOpacity, node.paint.opacity);
   entrance(Instance::kTx, node.paint.translateX);
@@ -172,6 +218,15 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   }
   if (node.textData && node.textData->glyphFx)
     entrance(Instance::kGlyphProgress, node.textData->glyphFx->progress);
+  // Span reveals: `.stroke(spans::upTo(animate(...)), brush)` is a mount
+  // entrance like any other — the reveal is a property of the PASS, so
+  // its motions live in a per-description vector rather than a slot.
+  {
+    const std::vector<const PropValue<float> *> ends = spanEndpoints(node);
+    inst.spanAnims.resize(ends.size());
+    for (size_t i = 0; i < ends.size(); ++i)
+      entranceAt(inst.spanAnims[i], *ends[i]);
+  }
 
   // Color fill entrance: from → to through the kFillLerp progress.
   if (node.paint.fill) {
@@ -247,6 +302,32 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
       transitionFloat(*this, inst, Instance::kGlyphProgress,
                       pg ? pg->progress : kFullProgress,
                       ng ? ng->progress : kFullProgress, nd);
+    }
+  }
+
+  // Span reveals. The endpoint list is positional, so a description that
+  // changes the SHAPE of its pass list (a pass added, a term added) drops
+  // the running motions rather than carrying them onto endpoints that now
+  // mean something else — the same rule keys enforce for whole nodes.
+  {
+    const std::vector<const PropValue<float> *> prevEnds = spanEndpoints(prev);
+    const std::vector<const PropValue<float> *> nextEnds = spanEndpoints(next);
+    if (prevEnds.size() != nextEnds.size()) {
+      inst.spanAnims.clear();
+      inst.spanAnims.resize(nextEnds.size());
+      // Settled values show through (resolveFloatAt falls back to the
+      // description); an ENTRANCE is a mount thing, and this node is not
+      // mounting.
+    } else {
+      // applyMountTransitions sizes this vector — and it RETURNS EARLY on a
+      // liveOnly composer (snapshot/measure), so a patch is the first thing
+      // to touch it there. Size it here too rather than indexing an empty
+      // vector.
+      if (inst.spanAnims.size() != nextEnds.size())
+        inst.spanAnims.resize(nextEnds.size());
+      for (size_t i = 0; i < nextEnds.size(); ++i)
+        transitionFloatAt(*this, inst, inst.spanAnims[i], *prevEnds[i],
+                          *nextEnds[i], nd);
     }
   }
 

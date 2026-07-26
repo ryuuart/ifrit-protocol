@@ -775,6 +775,234 @@ struct LayerStyle {
 };
 
 // ---------------------------------------------------------------------------
+// The stroke grammar — WHERE a stroke goes (ROADMAP §33, stage one)
+//
+// The words: SHAPE is the region an element occupies (Element::shape);
+// LINE is an element whose shape is an open path; BAND is a derived shape
+// around a spine (band(), below); STROKE is the slot that dresses a
+// boundary, and BRUSH is what paints. "Frame" and "border" are not
+// concepts — they are strokes of a boundary; "bounding box" is
+// query-side vocabulary (Composer::bounds), never a shape.
+
+/** One claimed run of a boundary, as fractions of its TOTAL arc length —
+ *  every contour end to end, which is the coordinate SkTrimPathEffect
+ *  uses and therefore the one `trim()` always spoke. */
+struct Span {
+  float begin = 0.0f, end = 1.0f;
+  bool operator==(const Span &) const = default;
+};
+
+/** What a Spans value is resolved against. `fitRects` are the derive
+ *  pass's answers for spans::fit(), keyed; `values` holds the resolved
+ *  animatable endpoints in declaration order (two per term), which is how
+ *  a reveal can be a transition or a binding without Spans knowing about
+ *  either. */
+struct SpanInput {
+  const SkPath *outline = nullptr;
+  const std::vector<std::pair<std::string, SkRect>> *fitRects = nullptr;
+  const std::vector<float> *values = nullptr;
+};
+
+/** WHERE a stroke pass goes: a comparable value built by the `spans::`
+ *  factories and combined with `|` (union).
+ *
+ *  Deliberately a CLOSED vocabulary rather than an open seam. The seam
+ *  convention (one named required member, §33) governs shapers, profiles
+ *  and crossing rules — things whose whole point is that a user writes
+ *  new ones. A span is an interval set: kit values (kit::spans::brackets)
+ *  are COMPOSITIONS of these terms, not new kinds, so nothing is lost and
+ *  the value stays trivially prunable. Widening it later is additive. */
+class Spans {
+public:
+  enum class Rule : uint8_t {
+    Range,   ///< [begin, end] outright — and upTo(t) is range(0, t)
+    Corners, ///< a window of `arm` px either side of every tangent break
+    Edges,   ///< everything EXCEPT within `arm` px of a break
+    Every,   ///< `count` equal slots, each claiming its leading `duty`
+    At,      ///< one slot (`index`) of `count`
+    Fit,     ///< the run the keyed element covers, grown by `margin` px
+    Rest,    ///< the complement (see Element::stroke)
+  };
+  /** One term of the union. Only the members its Rule reads are
+   *  meaningful; the rest keep their defaults so the value compares. */
+  struct Term {
+    Rule rule = Rule::Range;
+    Animatable<float> begin = 0.0f, end = 1.0f;
+    float arm = 0.0f;         ///< Corners/Edges: px of arc length
+    float angleDeg = 30.0f;   ///< Corners/Edges: the tangent break that counts
+    float duty = 1.0f;        ///< Every: fraction of each slot claimed
+    float margin = 0.0f;      ///< Fit: px grown around the keyed content
+    int count = 1, index = 0; ///< Every/At
+    std::string key;          ///< Fit: the content key; Rest: the pass name
+  };
+  std::vector<Term> terms;
+
+  /** Structural equality, defined beside the reconciler's own property
+   *  comparator so an animated endpoint compares the way every other
+   *  animated property does (declared here, defined in Reconcile.cpp). */
+  bool operator==(const Spans &other) const;
+
+  /** Resolve to intervals. Rest terms return nothing — the complement
+   *  needs the element's OTHER passes and is computed by the painter. */
+  std::vector<Span> resolve(const SpanInput &in) const;
+  /** How many floats `SpanInput::values` must carry (two per term). */
+  size_t valueCount() const { return terms.size() * 2; }
+  bool hasRest() const {
+    for (const Term &t : terms)
+      if (t.rule == Rule::Rest)
+        return true;
+    return false;
+  }
+};
+
+/** Union. `spans::corners(18) | spans::at(0, 4)` is one pass. */
+inline Spans operator|(Spans a, const Spans &b) {
+  a.terms.insert(a.terms.end(), b.terms.begin(), b.terms.end());
+  return a;
+}
+
+/** The span factories — the WHERE half of `.stroke(where, what)`. */
+namespace spans {
+/** `[begin, end]` of the boundary's arc length. Both ends take the full
+ *  Animatable treatment (constant, `animate(...)`, or a bound Output). */
+Spans range(Animatable<float> begin, Animatable<float> end);
+/** THE REVEAL: `range(0, end)`. `spans::upTo(animate(from(0.f).to(1.f),
+ *  {600ms}))` is a stroke that DRAWS ON, and a bound Output scrubs it —
+ *  uniform across every brush, which is what `trim()` never was (it was a
+ *  node-level property that happened to reveal). */
+Spans upTo(Animatable<float> end);
+/** A window of `arm` px of arc length either side of every tangent break
+ *  — the four corner L's, and the reticle bracket vocabulary. Follows any
+ *  silhouette: chamfer the shape and the marks move to the chamfers.
+ *  `angleDeg` is what counts as a break; a regular n-gon turns 360/n per
+ *  vertex, so nothing above 12 sides clears the 30° default (Border's
+ *  cornerAngleDeg doctrine — the scan warns rather than adapting). */
+Spans corners(float arm, float angleDeg = 30.0f);
+/** The complement of corners(): the runs BETWEEN the breaks, stopping
+ *  `arm` px short of each — the rule with open corners. */
+Spans edges(float arm, float angleDeg = 30.0f);
+/** `count` equal slots around the boundary, each claiming the leading
+ *  `duty` of its own slot. `duty == 1` tiles the boundary completely. */
+Spans every(int count, float duty = 1.0f);
+/** One slot of `count` — `every()`'s singular. Positional, so it moves
+ *  when the geometry changes; use it on settled compositions. */
+Spans at(int index, int count);
+/** The run the KEYED element covers, grown by `margin` px: a gap sized
+ *  from content, resolved in the derive phase against that element's
+ *  resolved box (the flowAround pattern, applied to a boundary). */
+Spans fit(std::string_view key, float margin = 0.0f);
+/** Everything this element's other CLAIMING passes left over. */
+Spans rest();
+/** The complement of ONE named pass — and, unlike bare rest(), allowed
+ *  to overlay other passes on purpose. */
+Spans rest(std::string_view passName);
+} // namespace spans
+
+// ---------------------------------------------------------------------------
+// The profile seam — how far a mark sits ACROSS its spine
+
+/** A profile value: `float across(float along) const`, `float max()
+ *  const`, and EQUALITY.
+ *
+ *  `max()` is REQUIRED, and that is the point of the seam: a varying width
+ *  whose reach is unknown can only be clipped silently (the Ribbon widthFn
+ *  trap, ROADMAP §25). Equality is required for the other half of the same
+ *  argument — a profile is read live, and §33's comparable-values law says
+ *  anything an author hands the library participates in reconciler
+ *  equality or a pruned node reads it stale forever. An incomparable
+ *  callable is not a profile; write a struct.
+ *
+ *  `along` is a fraction of the spine's arc length; `across` is px on its
+ *  normal, positive to the LEFT of travel — see bandPointAt for the sign
+ *  and for why it is the negation of lines::offsetAlong's. */
+template <typename P>
+concept ProfileScheme = std::equality_comparable<P> &&
+    requires(const P &p, float along) {
+      { p.across(along) } -> std::convertible_to<float>;
+      { p.max() } -> std::convertible_to<float>;
+    };
+
+/** Type-erased comparable profile — Decoration's pattern on the width
+ *  seam. SHARED vocabulary: a band's taper, a weave strand's path and the
+ *  future ribbon width are all one value. */
+class Profile {
+public:
+  template <ProfileScheme P>
+  Profile(P scheme) // NOLINT: implicit by design (across(myTaper))
+      : m_max((float)scheme.max()) {
+    // The concept requires equality, so every profile keeps a comparator —
+    // there is no conservatively-unequal fallback here, unlike Decoration.
+    m_held = scheme;
+    m_equals = [](const std::any &a, const std::any &b) {
+      return std::any_cast<const P &>(a) == std::any_cast<const P &>(b);
+    };
+    m_across = [s = std::move(scheme)](float along) { return s.across(along); };
+  }
+  Profile() = default;
+
+  float across(float along) const { return m_across ? m_across(along) : 0.0f; }
+  /** The widest this profile ever reaches — what bleed and cull are
+   *  computed from, so nothing it draws is silently truncated. */
+  float max() const { return m_max; }
+  bool operator==(const Profile &o) const {
+    // Reflexive on the DEFAULT-CONSTRUCTED value too: two empty profiles
+    // are the same nothing, and a value that does not compare equal to
+    // itself makes every containing description patch forever.
+    if (!m_equals || !o.m_equals)
+      return !m_equals && !o.m_equals;
+    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+  }
+
+private:
+  float m_max = 0.0f;
+  std::function<float(float)> m_across;
+  std::any m_held;
+  std::function<bool(const std::any &, const std::any &)> m_equals;
+};
+
+/** The CORE profile presets. The oscillating family (`wave`, and `braid`
+ *  built on it) is kit, per the tier rule — core holds the seam and the
+ *  two profiles every other one is measured against. */
+namespace strand {
+/** across ≡ 0: the boundary itself. */
+struct Self {
+  float across(float) const { return 0.0f; }
+  float max() const { return 0.0f; }
+  bool operator==(const Self &) const = default;
+};
+/** across ≡ px: a parallel. Parallels are rails — they never cross. */
+struct Offset {
+  float px = 0.0f;
+  float across(float) const { return px; }
+  float max() const { return std::abs(px); }
+  bool operator==(const Offset &) const = default;
+};
+inline Profile self() { return Profile(Self{}); }
+inline Profile offset(float px) { return Profile(Offset{px}); }
+} // namespace strand
+
+/** The band's width, named at the call site: `band(spine, across(22))`.
+ *  Takes a constant or any Profile (a taper, a kit oscillation). */
+struct Across {
+  Profile profile;
+  bool operator==(const Across &) const = default;
+};
+inline Across across(float px) { return Across{strand::offset(px)}; }
+inline Across across(Profile p) { return Across{std::move(p)}; }
+
+/** Which side of the spine the band occupies. Explicit because the
+ *  offset-path lineage has no defensible default beyond "both". */
+enum class Formation : uint8_t { Centered, Outward, Inward };
+
+/** A band spine borrowed from another element's resolved shape, through
+ *  the derive phase: `band(around("dial"), across(14))`. */
+struct Around {
+  std::string key;
+  bool operator==(const Around &) const = default;
+};
+inline Around around(std::string_view key) { return Around{std::string(key)}; }
+
+// ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
 
 struct Dim {
@@ -996,14 +1224,18 @@ public:
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
-  /** Trim the node's painted outline to the [start, end] fraction of its
+  /** Legacy spelling of the span reveal — retained indefinitely (§27);
+   *  new code writes `.stroke(spans::upTo(t), brush)`, which reveals a
+   *  named PASS instead of the whole node and works for every brush kind.
+   *  Trim the node's painted outline to the [start, end] fraction of its
    *  arc length (the Lottie/sksg Trim Path — SkTrimPathEffect underneath).
    *  Applies to the fill surface and every outline-following decoration
    *  (PathFormat strokes, ContourWalk), so a stroked border with
-   *  `.trim(0, with(1.0f, {600ms}))` DRAWS ON, and a connector's wire can
-   *  reveal along its route. Both ends take the full PropValue treatment —
-   *  plain, with() transitions, or ch::Output bindings (bound/animating trim
-   *  is content volatility: the node paints live while moving). `offset`
+   *  `.trim(0, animate(from(0.f).to(1.f), {600ms}))` DRAWS ON, and a
+   *  connector's wire can reveal along its route. Both ends take the full
+   *  Animatable treatment — plain, animate() transitions, or ch::Output
+   *  bindings (bound/animating trim is content volatility: the node paints
+   *  live while moving). `offset`
    *  shifts both ends and takes the full PropValue treatment too — under
    *  TrimMode::Wrap, bind it to a wrapping phase Output and a fixed
    *  window marches around a closed outline forever (marching ants, the
@@ -1017,14 +1249,33 @@ public:
   Element &trim(PropValue<float> start, PropValue<float> end,
                 PropValue<float> offset = 0.0f,
                 TrimMode mode = TrimMode::Clamp);
-  /** Custom outline: a path generator over the node's laid-out size,
-   *  in local coordinates. Overrides corners() as the node's shape —
-   *  the fill surface, clip(), and every outline-following decoration
-   *  (PathFormat strokes, ContourWalk) trace it. Spiky dialogs,
-   *  scalloped frames, any non-rectangular chrome. Like custom(), the
-   *  generator is an incomparable callable — memo() such a node (or keep it
-   *  pointer-stable) to prune it while its size and inputs are unchanged. */
-  Element &outline(std::function<SkPath(SkSize)> shape);
+  /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
+   *  coordinates. Overrides corners() — the fill surface, clip(), every
+   *  stroke pass and every outline-following decoration (PathFormat,
+   *  ContourWalk) trace it. Spiky dialogs, scalloped frames, any
+   *  non-rectangular chrome.
+   *
+   *  Renamed from `outline()` (which still compiles, below): the old name
+   *  read as a DRAWN LINE — the thing `stroke()` does — and call sites
+   *  showed it, `.outline(chevron()).fill(ramp)` filling an "outline" and
+   *  `.outline(shape).stroke(brush)` putting two halves of one idea under
+   *  one word. A shape is a region; a stroke is a mark on its boundary.
+   *
+   *  Like custom(), the generator is an incomparable callable — memo()
+   *  such a node (or keep it pointer-stable) to prune it while its size
+   *  and inputs are unchanged. */
+  Element &shape(std::function<SkPath(SkSize)> path);
+  /** Legacy spelling of shape() — retained indefinitely (§27). */
+  Element &outline(std::function<SkPath(SkSize)> path) {
+    return shape(std::move(path));
+  }
+  /** BAND FORMATION: which side of the spine the band occupies.
+   *  `.centered()` is the default and straddles it; `.outward()` and
+   *  `.inward()` take one side (the offset-path lineage). No effect on a
+   *  node that is not a band(). */
+  Element &centered();
+  Element &outward();
+  Element &inward();
   /** Clip fill, content, and children to the node's shape. Decorations
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
    *  glows keep their reach); hit-testing still bounds the subtree. */
@@ -1121,10 +1372,44 @@ public:
   Element &background(Decoration d);
   Element &foreground(Decoration d);
   /** fill's peer (the Photoshop/Illustrator mental model): dress the
-   *  node's OUTLINE with a brush — a PathFormat, a layered brush stack,
-   *  any decoration that strokes. Pure sugar for foreground(), named for
-   *  what it means at the call site. */
+   *  node's whole BOUNDARY with a brush — a PathFormat, a layered brush
+   *  stack, any decoration that strokes.
+   *
+   *  This form does not CLAIM: it overlays the whole boundary, so
+   *  repeated calls stack the way the decoration law says (two strokes
+   *  are two rings) and never collide. Naming a `where` (below) is what
+   *  turns a pass into a claim on part of the boundary. */
   Element &stroke(Decoration brush);
+  /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
+   *
+   *      .stroke(spans::corners(18), stroke(2, ink))          // reticle
+   *      .stroke(spans::edges(14), stroke(1, ink))            // open corners
+   *      .stroke(spans::upTo(animate(from(0.f).to(1.f), {600ms})), wire)
+   *
+   *  Repeated calls APPEND, in declaration order — the decoration law.
+   *  ORDERING, precisely: the unqualified strokes paint FIRST (they are
+   *  foregrounds and share that list), then the span passes in their own
+   *  declaration order. Within each group declaration order holds;
+   *  between the groups the unqualified ones are underneath. Interleaving
+   *  the two by call order is not expressible today — if a span pass has
+   *  to sit UNDER a whole-boundary one, make the whole-boundary one a
+   *  span pass too (`spans::every(1)`) so both are in one list.
+   *
+   *  Span-qualified passes CLAIM the runs they resolve to, and two claims
+   *  that overlap are a mistake the library says out loud (naming both
+   *  passes and the overlapping run): one boundary, one mark. Layering
+   *  two marks on one run is a composite BRUSH, not two passes — today
+   *  `Brush{}.leg(a).leg(b)` or a LayeredBrush.
+   *
+   *  Two exceptions, both deliberate: bare `spans::rest()` claims
+   *  whatever the other passes left over (so a rule and its bracket
+   *  corners are two calls and no arithmetic), and `spans::rest("name")`
+   *  is the complement of ONE named pass and may overlay the others.
+   *
+   *  `name` is LOCAL to this element — for inspection and for the
+   *  `rest("name")` reference. It is never a query key: a second identity
+   *  system is exactly what the query side refuses (DESIGN §Queries). */
+  Element &stroke(Spans where, Decoration what, std::string name = {});
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
    *  node in aqua gel / y2k chrome / any bundled treatment. Composable
@@ -1425,6 +1710,59 @@ using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
  *  `.trim(0, with(1.0f, {800ms}))` DRAWS ITSELF. Position it
  *  absolute().inset(0) over the nodes it threads (like connector()). */
 Element rail(std::vector<Anchor> anchors, RailRouter router = {});
+
+/** A BAND: the shape a spine sweeps out at a given width across it.
+ *
+ *      band(shapes::circle(), across(22)).inward().fill(brass)
+ *      band(around("dial"), across(14)).stroke(spans::edges(6), rule)
+ *
+ *  It is an ordinary element in every way that matters — it lays out,
+ *  hosts children, fills, clips and takes stroke passes like any other
+ *  shape. What it adds is that its shape is DERIVED: it owns an
+ *  (along, across) space over its spine, `along` a fraction of arc length
+ *  and `across` px on the normal (see bandPointAt for the sign), and
+ *  `across(...)` takes a Profile, so a taper is the same value a strand
+ *  or a ribbon width uses.
+ *
+ *  It does NOT hit-test as its shape: hitTest consults shapeFn, and a
+ *  band's silhouette is derived instead, so a band hits as its LAYOUT
+ *  BOX. That is the pinned organic-shape hit-testing pass (§33), not a
+ *  band defect to work around here.
+ *
+ *  An authored spine is an incomparable callable, exactly like shape()'s
+ *  generator — memo() such a node (or keep the generator pointer-stable)
+ *  to prune it while its size and inputs are unchanged. A borrowed spine
+ *  (`around(key)`) is a comparable value and prunes on its own.
+ *
+ *  Formation is explicit: `.centered()` (the default) straddles the
+ *  spine, `.outward()` and `.inward()` take one side. The spine is guide
+ *  DATA, never an element — a path participates as an element's shape, as
+ *  borrowed geometry (`around(key)`, resolved in the derive phase), or as
+ *  pure guide data in no tree, and this is the third case.
+ *
+ *  The profile's `max()` is what the paint cull grows by, so a band whose
+ *  width varies is never silently clipped. */
+Element band(std::function<SkPath(SkSize)> spine, Across width);
+Element band(Around spine, Across width);
+
+/** The band's own (along, across) space, addressable: `along` is a
+ *  fraction of the spine's total arc length, `across` is px on the normal.
+ *
+ *  **Positive `across` is to the LEFT of travel**, which in screen space
+ *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for
+ *  rects and circles, so `.outward()` exits the shape.
+ *
+ *  That is the NEGATION of `lines::offsetAlong` and `lines::Rail::offset`,
+ *  both of which offset RIGHT of travel. The split is not new and the band
+ *  did not invent it: `TextPath::offset` (this header, above) has always
+ *  been left-of-travel-is-outward, so the KERNEL says left and the LINES
+ *  extension says right. The band follows the kernel. Stage two shares the
+ *  Profile value between bands and strands and has to reconcile the two —
+ *  until then, do not assume a profile means the same side in both.
+ *
+ *  The one place the two coordinates are spelled out, so a caller placing
+ *  content on a band and the band's own geometry cannot disagree. */
+SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx);
 
 /** One-shot element render: reconciles, lays out, and records the
  *  paint into a picture. With an empty @p maxSize the tree takes its

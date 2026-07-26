@@ -77,6 +77,14 @@ struct Instance {
          connectorTo = SkRect::MakeEmpty();
   std::vector<SkPoint> railPoints;     // last resolved rail waypoints
   SkPath routedHitPath;                // stroke-expanded route (hit testing)
+  SkPath bandSpine;                    // band(around(key)): borrowed spine
+  // spans::fit(key): the keyed boxes, in this node's local space, in the
+  // order the element declared them.
+  std::vector<std::pair<std::string, SkRect>> spanFitRects;
+  // Animated span endpoints (two per term, per pass, in declaration
+  // order). A vector rather than the fixed Slot array because the count
+  // is a property of the description, not of the kernel.
+  std::vector<std::unique_ptr<AnimatedFloat>> spanAnims;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -260,6 +268,14 @@ struct Instance {
 
   ~Instance();
   float resolveFloat(Instance::Slot slot, const PropValue<float> &v) const;
+  /** The same resolution over an explicitly-held motion — the span
+   *  endpoints, whose count the description decides. One body: a bound
+   *  Output wins, then a running ramp, then the plain value. */
+  float resolveFloatAt(const AnimatedFloat *anim,
+                       const PropValue<float> &v) const;
+  /** Resolve every stroke pass's claimed runs for this frame, with
+   *  rest() complements applied. Empty when the node has no passes. */
+  std::vector<std::vector<Span>> resolveSpans(const SkPath &outline) const;
 
   /** A change here stales every ancestor's recording too.
    *
