@@ -147,7 +147,7 @@ Everything the API offers is one of these, wearing a grammar. The map
 
 | Grammar | Path | Owns |
 | --- | --- | --- |
-| `transition`/`with`/`withFrom`/`withKeyframes`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
+| `transition`/`with`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
 | bare `Output*` / shaped `bind()` | bind | continuous scrubbing, data-driven values |
 | `animated()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
 | `trim`/`wipe` PropValues | either | reveals |
@@ -319,6 +319,21 @@ a third.
   be changed compatibly** — the test is whether any existing caller's
   *output* changes (the `cornerAlign` doctrine, ROADMAP §27; audit
   recipe: flip it in a scratch copy and diff).
+- **The grammar names the author's intent, never the mechanism**
+  (priority set 2026-07-25; ruling refined in ROADMAP §33). An author
+  animating thinks one principle — a value over time on a property —
+  and the first word at the call site names the OWNER of the motion:
+  `animate()` is composer-manufactured (entrances, keyframe paths);
+  a DRIVEN property keeps the data spelling (`&out`, shaped `bind()`
+  — the bare overloads are retained BY DESIGN: driven is data
+  updating, animation a side effect); a surface that RUNS ITSELF
+  declares volatility (its declaration word is still open). Mechanism
+  names (`PropValue`) stay internal. The grep test is two honest
+  searches: `animate(` finds every authored motion; `bind(` and bound
+  fields find everything data-driven. The wall and ruling are ROADMAP
+  §32; the full-surface audit is §33. Its cheapest test, applied to
+  every new name: **when a doc comment's job is to distinguish two
+  names, that is the rename ticket.**
 - **Qt identifier ban** in every exported header (`emit`, `signals`,
   `slots`, `foreach`, `forever`, `Q_*`); the sketch rsp is Qt-free and
   blind — after editing headers, syntax-check a Qt TU.

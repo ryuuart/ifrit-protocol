@@ -41,9 +41,10 @@
  *    sites. Extracting it would make the NON-pruning path one word shorter
  *    than the pruning path (`Compose.h`'s value-decoration guidance), which
  *    is an incentive pointed the wrong way.
- *  - A reveal-timeline DSL. 168 `withFrom(0, 1, ramp(...))` sites, and a
- *    `Timeline`/`cue` value saves zero lines — it is a rename with a new
- *    type to learn. `ramp()` ships; the grammar does not.
+ *  - A reveal-timeline DSL. 168 `animate(from(0.f).to(1.f), ramp(...))`
+ *    sites, and a `Timeline`/`cue` value saves zero lines — it is a
+ *    rename with a new type to learn. `ramp()` ships; the grammar does
+ *    not.
  */
 
 #include "sigilcompose/Compose.h"

@@ -1,11 +1,15 @@
 #pragma once
 
 /** @file
- * SigilCompose stock pattern generators — seeded PatternPrograms over the
- * Pattern seam. Each returns a Pattern: `.material()` fills anything,
- * `.seed(n)` re-rolls the seeded ones, `.rotate()/.scale()` remap without
- * rebaking. The reference-grounded generators (girih tessellation, halftone
- * ramps in the Persona grammar, chrome ramps) build on these primitives.
+ * SigilCompose stock pattern generators. TWO return types live here,
+ * and the call shape differs: the baked-tile generators return a
+ * `Pattern` (`.material()` fills anything, `.seed(n)` re-rolls the
+ * seeded ones, `.rotate()/.scale()` remap without rebaking), while the
+ * shader-field generators — `halftoneRamp`, `noise`, `grain`, the
+ * most-used entries in the file — return a `Material` directly (no
+ * `.material()` call; they are SkSL fields, not tiles). The
+ * reference-grounded generators (girih tessellation, halftone ramps in
+ * the Persona grammar, chrome ramps) build on these primitives.
  */
 
 #include "sigilcompose/Material.h" // halftoneRamp is a Material (SkSL)
