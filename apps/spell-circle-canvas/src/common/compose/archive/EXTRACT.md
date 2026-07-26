@@ -1,5 +1,13 @@
 # EXTRACT — what the corpus built by hand, and what the layer above should be
 
+> **ARCHIVED 2026-07-25.** A completed audit: its recommendations
+> shipped as `Studio.h`, `kit/`, `Element::rect/at`, `console::panel`,
+> `debug::check`, and the dead-`.absolute()` deletion. Kept for its
+> evidence (the counts) and its rejections (§5, the do-not-build list —
+> summarized in `../DESIGN.md` §Growth rules). Known self-corrections
+> stand in place: §4.6 proposes `TextPath::atDeg`, §5.4/§7 withdraw it;
+> §2.4's clock hole was closed by `Ticker::elapsed()` (ROADMAP, closed).
+
 Phase-2 inventory, merged and arbitrated. This supersedes the separate
 sketch and gallery inventories; where they disagreed, the disagreement is
 resolved here **against the source**, and the resolution is shown.

@@ -164,9 +164,13 @@ struct BevelEmboss {
 
 /** Color / Gradient / Pattern Overlay: any Material over the shape with a
  *  blend mode and opacity — Photoshop's three overlay styles are one value
- *  here because Material is already polymorphic. (Overlay materials should
- *  be static or live — a geometry-dependent SDF material would resolve
- *  without context here.) */
+ *  here because Material is already polymorphic.
+ *
+ *  Overlay materials must be STATIC. This scheme declares no volatility
+ *  and resolves without context, so a LIVE material freezes into the
+ *  cached picture and never repaints, and a geometry-dependent one
+ *  resolves at zero size. For either, `decorations::wash` is the
+ *  material-valued pass that declares both. */
 struct Overlay {
   Material material;
   SkBlendMode blend = SkBlendMode::kSrcOver;

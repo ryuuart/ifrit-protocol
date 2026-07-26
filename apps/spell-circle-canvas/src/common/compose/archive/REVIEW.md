@@ -1,5 +1,12 @@
 # SigilCompose — first-principles review & direction
 
+> **ARCHIVED 2026-07-25.** A completed campaign: the first-principles
+> review whose phased plan (§12) has fully landed except the authoring
+> path. **The API sections below (§4–§6) describe PRE-LANDING designs —
+> `route()`, the Material constructor list, the `instances()` signature
+> all differ from what shipped. Do not build from this file.** The
+> surviving rules live in `../DESIGN.md`; the surface is `../API.md`.
+
 Companion to `DESIGN.md` (current architecture), `API.md` (current surface),
 `STRESS_TESTS.md` (acceptance numbers). This is a **review pass**: what
 Compose is, the one structural tension it has, and a concrete direction to

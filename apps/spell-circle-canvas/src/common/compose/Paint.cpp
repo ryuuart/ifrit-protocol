@@ -137,8 +137,8 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
  *     paintContent and are gathered like everyone else's.
  *
  *  Cost is one traversal of the subtree per frame, reading a handful of
- *  floats per node: ~2000 reads for kumiko's 523 strips, against the 111 ms
- *  it is deciding whether to skip. */
+ *  floats per node: ~2000 reads for kumiko's 523 strips, against the 113 ms
+ *  of GPU work (ROADMAP §29) it is deciding whether to skip. */
 void collectGroupScalars(const Instance &inst, bool root,
                          std::vector<float> &out) {
   const ElementNode &node = *inst.desc;

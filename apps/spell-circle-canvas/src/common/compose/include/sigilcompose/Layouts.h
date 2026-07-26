@@ -99,9 +99,6 @@ struct AlongPath {
   }
 };
 
-/** Seeded chaotic placement: children scatter over the container on a
- *  jittered grid — deterministic per seed (same seed, same chaos,
- *  fully cacheable), never escaping the container. */
 /** The Müller-Brockmann MODULAR grid (Grid Systems in Graphic Design):
  *  columns × rows of modules separated by gutters; each child occupies a
  *  cell SPAN (col, row, colSpan, rowSpan) — spans are given per child in
@@ -188,7 +185,6 @@ struct Diagonal {
   }
 };
 
-/** One sticker-scatter slot (see stickerScatter()). */
 /* `StickerSlot` / `stickerScatter` lived here and are DELETED.
  *
  * They are the corpus's worked example of the wrong abstraction, and the
@@ -205,7 +201,7 @@ struct Diagonal {
  * The general rule it earns: a scheme belongs here when the placement is
  * a FUNCTION the author would otherwise write out (a radial ring, a
  * modular grid, a baseline rhythm), and does not when the placement IS
- * the design decision. See ROADMAP.md and EXTRACT.md. */
+ * the design decision. See ROADMAP.md and archive/EXTRACT.md. */
 
 struct BaselineGrid {
   /** The editorial baseline rhythm (Müller-Brockmann): children stack
@@ -240,6 +236,9 @@ struct BaselineGrid {
   }
 };
 
+/** Seeded chaotic placement: children scatter over the container on a
+ *  jittered grid — deterministic per seed (same seed, same chaos,
+ *  fully cacheable), never escaping the container. */
 struct Scatter {
   uint32_t seed = 1;
   float jitter = 0.6f; // 0 = regular grid, 1 = up to half a cell off

@@ -1,11 +1,18 @@
 #pragma once
 
 /** @file
- * SigilCompose brushes — the LINE vocabulary between elements, grounded in
- * real game linework (REFERENCES.md §5): a brush is a LAYERED STROKE STACK
- * (widths, colors, blurs, dashes, blends, bottom-up) applied to the node's
- * outline — a rail's route, a connector's wire, a border. Every brush is a
- * comparable VALUE (defaulted equality → prunes), attached with `.stroke()`.
+ * SigilCompose brushes — the LINE vocabulary between elements, applied to
+ * the node's outline (a rail's route, a connector's wire, a border) and
+ * attached with `.stroke()`. Two families over ONE seam:
+ *  - the LAYERED STROKE STACK (widths, colors, blurs, dashes, blends,
+ *    bottom-up) — the measured game-linework grammars of REFERENCES.md §5;
+ *  - the ILLUSTRATOR PIPELINE model (`Brush`: geometry ops over the path
+ *    feeding paint legs) and its archetypes — Scatter, Pattern, Ribbon,
+ *    Art.
+ *
+ * Equality: a brush of comparable parts is a comparable VALUE (defaulted
+ * equality → prunes). A mod fn or a width fn is the documented exception —
+ * incomparable callables never prune, so memo the host.
  *
  * The stock set transcribes measured grammars:
  *  - filament(): Ori's 4-layer additive glow (envelope 4–6× core — THE
@@ -203,8 +210,8 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
 //   Pattern brush  → brushes::PatternBrush (side/corner/start/end tiles,
 //                    integer-fit stretch — the Illustrator tile semantics)
 //   Calligraphic   → brushes::Ribbon (variable-width fill; nib angle)
-//   Art brush      → a one-tile PatternBrush stretched over the run (true
-//                    arc warping is queued on SkVertices)
+//   Art brush      → brushes::ArtBrush (one cell continuously bent along
+//                    the contour via SkVertices; `artAlong()`)
 
 namespace ops {
 
@@ -654,7 +661,11 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  with seeded jitter and the StampMod hook. The art bakes ONCE via
  *  snapshot() (its own decorations and all) and replays per slot. Keep
  *  the art Element pointer-stable across renders to prune; a mod fn makes
- *  the value incomparable (memo the host). */
+ *  the value incomparable (memo the host).
+ *
+ *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in PatternBrush): build
+ *  the brush ONCE and keep it, because a fresh value per describe re-bakes
+ *  everything, every frame. ROADMAP §16 is the open fix. */
 struct ScatterBrush {
   Element art;
   float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
@@ -734,9 +745,14 @@ struct PatternBrush {
   Element side;
   std::optional<Element> start, end, corner;
   float advance = 0;           ///< tile length along the path (0 → intrinsic)
-  float cornerAngleDeg = 35.0f; ///< PER-SAMPLE tangent break — gently
-                                ///< ROUNDED corners intentionally take no
-                                ///< corner tile (no hard break exists)
+  /** PER-SAMPLE tangent break — gently ROUNDED corners intentionally take
+   *  no corner tile (no hard break exists).
+   *
+   *  35° here against 30° in the other corner scanners is a deliberate
+   *  FREEZE, not a drift: a default that encodes a judgement about the
+   *  caller's art cannot be changed compatibly, because the test is
+   *  whether any existing caller's OUTPUT changes (ROADMAP §27). */
+  float cornerAngleDeg = 35.0f;
   /** Arc length a corner tile RESERVES on each adjacent run, px. 0 uses the
    *  corner art's own width.
    *
@@ -1161,7 +1177,11 @@ inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
  *  art smoothly, where a stamp run breaks into rigid segments. One
  *  drawVertices per contour. `stationPx` is warp fidelity: one strip
  *  station per N arc-px (6 px follows tight metro curves; loosen for
- *  long gentle paths). */
+ *  long gentle paths).
+ *
+ *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in PatternBrush): build
+ *  the brush ONCE and keep it, because a fresh value per describe re-bakes
+ *  the texture every frame. ROADMAP §16 is the open fix. */
 struct ArtBrush {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)

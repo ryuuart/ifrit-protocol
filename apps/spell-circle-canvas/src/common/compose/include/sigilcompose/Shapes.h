@@ -357,9 +357,6 @@ inline OutlineFn parallelogram(float skewDeg) {
 }
 
 // ---------------------------------------------------------------------------
-// Wrappers
-
-// ---------------------------------------------------------------------------
 // Parametric curves
 //
 // Everything above generates a closed SHAPE from parameters. A curve
@@ -375,9 +372,9 @@ inline OutlineFn parallelogram(float skewDeg) {
 // thing everywhere.
 //
 // They are still incomparable callables, so a node carrying one still
-// re-records on every render() (ROADMAP.md §3). Naming the families is
-// the half that could land tonight; making them comparable VALUES is the
-// half that changes Element::outline()'s signature.
+// re-records on every render(). Naming the families LANDED; making them
+// comparable VALUES is the half that changes Element::outline()'s
+// signature (ROADMAP.md §3).
 
 /** Samples @p f over t ∈ [t0, t1] into a polyline. @p f returns UNIT
  *  coordinates (±1 spans the box); @p samples is the segment count, and
@@ -490,6 +487,9 @@ inline OutlineFn trochoid(float R, float r, float d, bool inside = false,
       },
       0.0f, turns * 2.0f * SK_FloatPI, samples);
 }
+
+// ---------------------------------------------------------------------------
+// Wrappers — generators over generators
 
 /** Wraps any outline generator so every sharp corner rounds with a
  *  consistent radius — corners() for arbitrary silhouettes:

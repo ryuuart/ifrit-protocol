@@ -14,9 +14,11 @@
  *  - The POOL is yours: plain struct-of-arrays (position / rotation /
  *    uniform scale / tint / frame). Mutate it directly or copy in from an
  *    EnTT view — the ECS stays on YOUR side of the seam.
- *  - Stamping is `SkCanvas::drawAtlas` + RSXform: rotation + UNIFORM
- *    scale + translation only, by design. Skew or non-uniform cells are
- *    per-node content — use real elements for those.
+ *  - Stamping is ONE `gpuimg::drawSpriteAtlas` call (RSXform semantics,
+ *    decomposed on every backend — GpuImage.h): rotation + uniform scale
+ *    + translation, plus two opt-in lanes — `sizes()` for per-instance
+ *    NON-UNIFORM scale and `texWindows()` for a per-sprite UV window.
+ *    Skew stays per-node content — use real elements for that.
  *
  * Two modes, matching the kernel's two write paths:
  *  - Mode::Data (default): the element carries the pool's revision;
@@ -24,7 +26,8 @@
  *    cached picture replays; a touched one repaints once.
  *  - Mode::Live: a Cache::None leaf that reads the pool every frame —
  *    the particle path (mutate from a ticker steppable; nothing else to
- *    declare). Measured at ~3.7 ns/sprite on Graphite (STRESS_TESTS.md).
+ *    declare). Measured at 10k Live sprites in 0.18 ms on Graphite —
+ *    ~18 ns/sprite, ~200× over raster replay (STRESS_TESTS.md).
  *
  * Past kCullThreshold instances, stamping culls against the local clip
  * (data-level, arithmetic) before building the draw arrays — the
@@ -372,8 +375,9 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
     return;
   // All-white tints modulate to identity — skip the colors lane entirely
   // (the untinted path is the common one for UI sprites). drawSpriteAtlas
-  // is the backend-portable form: native drawAtlas on raster, decomposed
-  // to one drawVertices on Graphite (whose drawAtlas is an empty stub).
+  // is the backend-portable form: always ONE decomposed drawVertices, on
+  // every backend — Graphite's native drawAtlas is an empty stub, and a
+  // picture recorded on raster must replay there (GpuImage.h).
   gpuimg::drawSpriteAtlas(canvas, atlas.gpuCache, atlas.image(),
                           xforms.data(), tex.data(),
                           tinted ? colors.data() : nullptr, xforms.size(),

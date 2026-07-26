@@ -6,11 +6,13 @@
  * The kit is a layer ON TOP of SigilCompose that changes none of it: no
  * new `ElementNode` state, no new reconciler equality, no new paint path.
  * Every component here is a free function or a designated-init aggregate
- * over the shipped API, which is what makes the bar different from
- * `EXTRACT.md`'s. A wrong entry in the core API is permanent — the corpus
- * has a monument to that in `layouts::stickerScatter`, which has zero
- * users, was refused in writing by the one scene that wanted it, and
- * concedes why in its own doc comment. A wrong kit component is simply not
+ * over the shipped API, which is what makes the bar different from the
+ * core extraction test's (DESIGN.md §Growth rules; evidence in
+ * `archive/EXTRACT.md`). A wrong entry in the core API is permanent — the
+ * corpus's monument to that is the `stickerScatter` DELETION RECORD in
+ * `Layouts.h`: zero users, refused in writing by the one scene that
+ * wanted it, then deleted; the record outlived the code because the
+ * record is what the code was worth. A wrong kit component is simply not
  * included by the next study and costs nothing.
  *
  * The bar that IS enforced here: **three or more real hand-rolls in the

@@ -53,9 +53,10 @@ So: reproduce the wall before building the fix, and prefer a probe that
 reads pixels back to an argument that sounds right. Every NEVER REAL below
 was settled in minutes by a twenty-line sketch.
 
-Companion documents: `DESIGN.md` (architecture), `API.md` (surface),
-`STRESS_TESTS.md` (the acceptance catalog and the measured numbers),
-`REVIEW.md` (the earlier first-principles pass this extends).
+Companion documents: `DESIGN.md` (the design canon — where the rules
+live), `API.md` (surface), `STRESS_TESTS.md` (the acceptance catalog and
+the measured numbers), `archive/REVIEW.md` (the earlier first-principles
+pass this extends).
 
 ---
 
@@ -700,6 +701,11 @@ things at once.
   one**; the doc has been corrected rather than the promise quietly kept.
   Wanted: an optional `measure()` consulted by the container's Yoga
   measure func.
+- **A scheme returns rects, and real placement is (rect, rotation,
+  phase).** The corpus's figures that wanted per-instance rotation or
+  entrance delay hand-placed instead of writing a scheme — which is why
+  `Radial` succeeds at exactly its stated case and nothing reaches for
+  it beyond that. (Filed from the corpus audit, archive/EXTRACT.md §1.1.)
 
 ### The two entries filed beside this one, MEASURED — one is wrong and the other is not what it said
 
@@ -1402,8 +1408,8 @@ not.** The value of the reference ladder is that somebody CHOSE it.
 > decision. Parameterising a judgement produces something that can only
 > be right by accident, and it costs a maintained API forever.
 
-The header keeps that paragraph where the code was. `EXTRACT.md` §1.2
-carries the long version.
+The header keeps that paragraph where the code was. `archive/EXTRACT.md`
+§1.2 carries the long version.
 
 ## 25. Ten documentation defects, and what they say about doc tests
 
@@ -1895,6 +1901,40 @@ The general lesson is §29's: this was invisible for the whole program
 because the gate was raster, and the one scene where a picture's shaders
 dominate is the one that a raster gate flatters and a GPU punishes.
 
+### Handoff record (2026-07-22; full session detail in archive/HANDOFF.md)
+
+Shipped and pixel-verified; **NOT TIMED — no performance number exists
+for `Cache::Group`.** The 23× above is the per-strip experiment's
+hypothesis (itself not pixel-safe), never a Group result. The one
+baseline taken (kumiko 111.88 GPU) is QUARANTINED — contended machine;
+do not use it, or use it as half of a pair. Verified: the drop-on-tick
+memo (asserted with a positive control that defeats the drop and
+requires the test to FAIL), pixel identity on kumiko at seven phases
+across the full loop against a stripped copy of the same sketch.
+Outstanding measurements: before/after back-to-back on a quiet machine,
+same commit and thermal state; the **feature-present-but-not-opted-in**
+middle point (separates "helps kumiko" from "taxes everyone"); CPU
+raster (the bandwidth risk — a large bake is SAMPLED every frame
+whether or not it re-bakes; the 0-writes proxy proves nothing about
+bandwidth); the untried stretch scenes (sigillum_aemeth, thunder_fulu,
+thaumonomicon).
+
+What the next person must not assume:
+
+1. **"Byte-identical" is not achievable in general** — every pixel test
+   over opaque BLACK is blind to isolation error (srcOver's destination
+   term vanishes). Over a lit ground the honest residual is 1847/57600
+   px at peak 2/255, and exactly 0 when the reference is itself
+   isolated in a layer. That is the standard Group holds — and
+   `Cache::Texture` and promotion always had the same property.
+2. **Do not remove the bake-rect clip** in the group branch of
+   `Paint.cpp` (peak 12 → 2 on content that overruns its canvas).
+3. **`groupRootOK` stays out of `memoized`** in `computeVolatile` — a
+   volatile group root must fall through to LIVE paint, not replay a
+   stale picture no over-black test would catch.
+4. **The refusal list in the header is tested** — any new limit added
+   to that doc comment needs a case in the refusal tests (§28).
+
 ## Host and tooling
 
 - ~~**A guest crash surfaces only as exit 139.**~~ **CLOSED** — handlers
@@ -1912,6 +1952,13 @@ dominate is the one that a raster gate flatters and a GPU punishes.
 - **`SketchContext` dangles if captured by reference in a steppable.** It
   is a per-frame value the host rebuilds. Now documented in
   `sketch/README.md`; making it non-copyable would be better.
+- Small open items (2026-07-22 handoff): **persona menu**'s selection
+  wedge occludes the "EQUIP" label — a spacing decision wanting a P3R
+  reference (the real menu pushes neighbours clear), not a paint bug;
+  **stroke_atlas** still carries ~40 dead `.absolute()` calls (1,327
+  removed corpus-wide; a bare `.absolute()` with NO adjacent edge setter
+  is load-bearing — check before deleting); the residual 1-LSB
+  background diff on y2k/aero is flagged benign, untreated.
 
 ## 31. A still is a CLAIM about an animation — and the harness was choosing it
 
@@ -1973,3 +2020,25 @@ worth showing. Only `black watch` has been given a declaration so far
 Determinism made the captures reproducible. This makes them
 *representative*. They are not the same property, and the corpus spent its
 whole life with only the first one.
+
+**Audit result (2026-07-22, complete — all 56 pairs; full percentage
+table in archive/HANDOFF.md §2).** Sweeps at t=6.0 s and t=7.0 s,
+diffed pairwise: **52 of 56 scenes are in motion when the gallery
+photographs them.** Only four are settled: beethoven, fallout2
+charsheet, penrose paving, stock materials. Range: daemon console 98.7%
+of pixels differing down to stroke atlas 0.03%. Differing does NOT mean
+wrong — the per-scene judgement is the remaining task, by taxonomy:
+
+- **Continuous ambient motion** (daemon console, ui_particles,
+  flourish) — any frame is representative; leave alone.
+- **Discrete named states** (black_watch's five registered shade
+  families) — exactly one is canonical; capturing another makes the
+  plate assert something false. These need `ctx.captureAt()`.
+- **Entrances that settle into a hold** — capture in the hold. Check
+  the 5–35% band first; that range is where a large but non-ambient
+  change lives (thaumonomicon 58.9, ds2 bench 66.8, xcom 49.3, and
+  eva magi defense 50.1 are the discrete-state suspects above it).
+
+Only black_watch declares its beat so far (7.2 s — loom 0.90, inside
+the Modern hold; it is also the audit's control, straddling the
+Weathered/Modern boundary at 33.1%).

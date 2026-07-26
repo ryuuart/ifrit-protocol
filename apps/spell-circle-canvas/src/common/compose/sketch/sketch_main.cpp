@@ -150,8 +150,11 @@ int runBench(sigil::compose::sketch::SketchHost &host,
   const SkColor background = host.background().toSkColor();
 
   // Forces the pixels to exist. On raster this is already true when
-  // draw() returns; the readback keeps the number honest if a GPU capture
-  // backend is ever wired in behind the same call.
+  // draw() returns, and `--bench` is raster BY CONSTRUCTION — the surface
+  // above is SkSurfaces::Raster, so nothing can sit behind this call; the
+  // readback is cheap insurance. A GPU bench needs its own surface path,
+  // and could not reuse the per-node profile below, which measures
+  // op-RECORDING time there.
   SkBitmap probe;
   probe.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   const auto flush = [&] { (void)surface->readPixels(probe.pixmap(), 0, 0); };
@@ -335,8 +338,8 @@ int runBench(sigil::compose::sketch::SketchHost &host,
                   "  ##  once in setup() and bind choreograph::Outputs, or\n"
                   "  ##  memo() the subtrees whose props did not change.\n");
     }
-    std::printf("  ##  If it cannot be fixed, it goes in PERF_LEDGER.md\n"
-                "  ##  with this number.\n"
+    std::printf("  ##  If it cannot be fixed, it goes in ROADMAP.md —\n"
+                "  ##  the ledger of walls — with this number.\n"
                 "  ####################################################\n");
   }
   std::fflush(stdout);

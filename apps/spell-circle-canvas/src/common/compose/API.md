@@ -233,9 +233,11 @@ Element &cache(Cache);                     // OVERRIDE only — see Caching:
                                            // picture-cached automatically
 Element &bakeScale(float);                 // Cache::Texture only, 0.1–1: bake
                                            // at a reduced raster scale, blit
-                                           // up — for planes whose content is
-                                           // soft anyway (blurred glass);
-                                           // never for sharp text/hairlines
+                                           // up. ALMOST ALWAYS the wrong
+                                           // lever (see Caching): only for
+                                           // frequently RE-baking soft
+                                           // content; never sharp text/
+                                           // hairlines, never bake-once nodes
 Element &transition(Transition);           // node default applied to any
                                            // plain-constant prop change
 Element &staggerChildren(std::chrono::milliseconds each,
@@ -499,7 +501,10 @@ It was succeeding, and not helping.
 The composer measures what each node's paint actually costs and, once a
 node has been expensive for several consecutive frames, bakes that
 subtree once into a raster image and blits it thereafter. On by
-default; `Composer::setAutoTexturePromotion(false)` globally,
+default **on CPU raster only — OFF by default on Graphite/GPU**, where
+the per-node profiler measures op *recording*, not GPU execution, and
+promotion measured inert (ROADMAP §29; `--no-promotion` for A/B).
+`Composer::setAutoTexturePromotion(false)` globally,
 `.cache(Cache::Picture)` per node ("record, and never promote").
 
 Three kinds of node are eligible:
@@ -907,8 +912,11 @@ overlap, made explicit):
 ```cpp
 Element stack();   // children share the stack's box; each positions
                    // itself via alignSelf/inset; painted in
-                   // (zIndex, declaration order); sized to the largest
-                   // child unless given explicit dims
+                   // (zIndex, declaration order). SIZING TRAP: stack()
+                   // makes children absolute, and absolute children
+                   // never contribute intrinsic size (Yoga law) — an
+                   // unsized stack is W×0 in flex, 0×0 absolute
+                   // (measured, ROADMAP §10d). Give it dims or grow.
 ```
 
 Ordering and blending semantics stay the DESIGN.md stacking model, now
@@ -1100,13 +1108,17 @@ concept DecorationScheme =
         // the single declared-volatility rule shared by decorations,
         // effects, and bound properties alike.
 
-Element &background(DecorationScheme auto);   // below content, stackable
-Element &foreground(DecorationScheme auto);   // above children, stackable
+Element &background(Decoration);   // below the FILL, stackable (the
+Element &foreground(Decoration);   // type-erased Decoration wraps any
+                                   // DecorationScheme); above children
 ```
 
-**Primitives, not a zoo.** Concrete treatments (dashes, stamps, 9-slice
-frames) are *data* over four general primitives — the kit deliberately
-stops here:
+**Primitives at the seam, a vocabulary on the shelf.** Concrete
+treatments (dashes, stamps, 9-slice frames) are *data* over four
+general primitives — the SEAM stops here. The Brush engine
+(Brushes/Lines/LayerStyles/Patterns, below) is the first-class
+vocabulary built *over* these primitives — a later, deliberate
+decision (lines as expressive as fills), not a widening of the seam:
 
 ```cpp
 // 1. Fill — paint anything. Color and gradients are conveniences; the
@@ -1319,8 +1331,12 @@ frame** in the tartan study; `.cache(Cache::Texture)` on two grain layers
 took the frame **624 ms → 28 ms, 22×**.
 
 So: a large node filled with a generated material wants `Cache::Texture`
-explicitly, whenever its content is static. The rule of thumb is area —
-a swatch does not care, a full-canvas wash does.
+explicitly, whenever its content is static. The rule of thumb is area
+of **painted** pixels, not node box — a swatch does not care, a
+full-canvas wash does, and a mostly-empty node is the exception that
+proves it: texture-caching a sparse list REGRESSED 48% (blitting empty
+pixels costs more than skipping them — STRESS_TESTS phase 1; leave
+sparse regions on Auto).
 
 `Material` (`<sigilcompose/Material.h>`) supersedes the kernel's
 three-case `Fill` as the *authoring* value for `fill()` — and for

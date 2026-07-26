@@ -792,7 +792,8 @@ struct Line {
       // dash geometry with a FILL stroke rec, which Skia's dash effect
       // explicitly refuses (see dashGeometry above), so filterPath returned
       // false and the rails came out SOLID. Every `lines::cased(...)` with
-      // a dash pattern in the corpus is a solid double rule.
+      // a dash pattern in the corpus SHIPPED as a solid double rule for the
+      // whole of run 1; run-1 captures of those scenes are stale.
       const SkPath dashedBody = dashGeometry(
           body, SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
       SkPaint p = stroke;
