@@ -70,7 +70,9 @@ public:
                                int height, size_t rowBytes) = 0;
 
   /** Runs @p painter with an SkCanvas targeting @p texture through the
-   *  driver's own Graphite context, then flushes that work. */
+   *  driver's own Graphite context, then flushes that work. Returns false
+   *  if the frame did not render (no surface, empty recording, or a
+   *  failed Graphite insert). */
   virtual bool paintTexture(void *texture, int width, int height,
                             const std::function<void(SkCanvas &)> &painter) = 0;
 

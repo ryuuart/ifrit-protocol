@@ -470,7 +470,28 @@ bool UltralightMetalDriver::paintTexture(
     return false;
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
-  m_state->skiaContext->insertRecording(info);
+  const skgpu::graphite::InsertStatus status =
+      m_state->skiaContext->insertRecording(info);
+  if (!status) {
+    // Once per process: a failed insert means this WebImage frame never
+    // rendered. This recorder comes from the bare makeRecorder() on the
+    // driver's own Context and never opts into ordered recordings (audit
+    // site 13), so the guard here is for kAddCommandsFailed-class internal
+    // failures, not chain breaks
+    // (src/sigilweave/docs/graphite_ordering_audit.md).
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      std::fprintf(stderr,
+                   "[SigilScry:warning] Graphite insertRecording failed "
+                   "(status %d%s%s); WebImage frames will not render\n",
+                   static_cast<int>(
+                       static_cast<skgpu::graphite::InsertStatus::V>(status)),
+                   status.message().empty() ? "" : ": ",
+                   status.message().c_str());
+    }
+    return false;
+  }
   m_state->skiaContext->submit();
   return true;
 }
