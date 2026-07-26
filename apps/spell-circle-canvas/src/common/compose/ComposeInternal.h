@@ -154,6 +154,13 @@ struct DeriveData {
   // pattern applied to a boundary). Declared here rather than beside the
   // passes so the ONE derive registration walk sees them.
   std::vector<std::string> spanFitKeys;
+  // strand::from(key): the keyed PATHS a decoration borrows, declared by
+  // the decoration itself (BorrowingDecoration) because a Decoration is
+  // type-erased by the time the element holds it. Kept apart from
+  // spanFitKeys on purpose: a rect borrow is one absoluteRect() call, a
+  // path borrow re-evaluates the target's shape generator, so the two
+  // costs are not paid for each other.
+  std::vector<std::string> borrowedPathKeys;
 };
 
 /** One span-qualified stroke pass (Element::stroke(where, what, name)).

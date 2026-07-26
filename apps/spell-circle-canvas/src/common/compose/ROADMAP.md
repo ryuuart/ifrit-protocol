@@ -1921,10 +1921,37 @@ findings, recorded so they are not rediscovered:
   nothing, matching the `flowAround` precedent for an unresolved key.
   Now documented rather than changed; a diagnostic would have to be the
   whole family's at once.
-- **`band` shadows locals** at `Brushes.h:1138` and `LayerStyles.h:450`.
-  Same friction family as §32's `from`: a short, good noun in a
-  header-only library collides with local variables in the same
-  namespace. Not a defect; a naming cost to price if it spreads.
+- **NAMESPACE FRICTION, now three sightings.** A short, good noun at
+  `sigil::compose` scope collides with corpus code: (1) §32's `from`,
+  (2) `band` shadowing locals at `Brushes.h:1138` and
+  `LayerStyles.h:450`, and (3) stage two's `Weave`/`Strand`, which
+  `sigillum_aemeth.cpp:442` already owns — that one was a HARD ERROR (9
+  ambiguous references) and forced the composite type into
+  `namespace brush`. The move then bit inside the kit, where `brush::`
+  means `kit::brush`, so `kit::strands::braid` has to spell
+  `sigil::compose::brush::Strand` and name its brush parameter `ink`.
+  Three sightings is a pattern, not friction; it wants a ruling before
+  stage three adds more nouns.
+- **`discoverCrossings` is uncached — O(P^2 M^2) per paint, and now
+  MEASURED.** Every paint of a weave re-flattens its strands and re-tests
+  every segment pair. The braid regression test (two strands over a
+  1000 px spine, ~500 flatten samples each, 50 and 66 knots) takes
+  **33 s in Debug** — four discovery passes. That is unoptimised-build
+  cost and Release will be far cheaper, but the shape is quadratic in
+  both strand count and sample count and it is the first thing any real
+  weave will hit. Caching per Instance was evaluated and REFUSED as
+  not-small: a `Weave` is a `Decoration`, so it has no Instance; caching
+  would mean plumbing a mutable cache handle through the const
+  `PaintContext`, which is a design change, not an optimisation. **There
+  is still no `compose_bench` weave arm** — add it before choosing a fix.
+- **`Decoration` is 136 B** (104 before stage two): +24 for the borrows
+  vector, +8 for `reach` and padding. `ElementNode` is unchanged at 744 —
+  decorations live in vectors, never inline.** Storing the keys on demand instead was evaluated and
+  REFUSED: the only cheaper store is a thunk over `m_scheme`, and
+  `m_scheme` is populated only for equality-comparable schemes — a
+  non-comparable borrowing scheme would silently lose its keys, trading a
+  size win for a correctness hole. The per-frame cost of the extra 32 B is
+  unmeasured for the same reason as above (no weave bench arm).
 - **Two of the new tests assert less than their names claim.**
   `AnimatedRevealDrawsOnAndDeclaresVolatility` proves the reveal advances
   but never checks the volatility half, and
@@ -1932,16 +1959,71 @@ findings, recorded so they are not rediscovered:
   derive answer lands — whether that is correct derive timing or a
   one-frame lag worth closing is unresolved.
 
-**Stage two holds**: `brush::solid`/`Pattern`/`Scatter`/`Art` as named
-KINDS; the `layers` and `weave` COMPOSITES with the strand pair, the
-crossing rule ladder and `.except()`; `strands::braid`; `.shaped(value)`
-as the one geometry-deviation seam plus the death of the sugar methods;
-`kit::` as a separate CMake library (the structural tier boundary) with
-`kit::brush::shapers::*`, `kit::shapes::ring`, `kit::spans::brackets`;
-the `brush::ops` internal-only demotion; and the migration of
-`decorations::brackets`/`gappedRule` and `lines::cornerBrackets`/
-`cornerGaps` onto span passes (audit item 10 — they already share the
-one corner scanner, so this is a doc-and-sugar move, not a rewrite).
+**STAGE TWO SHIPPED 2026-07-26 — kinds, composites, strands, crossings,
+the shaper seam, the kit library.** Landed:
+
+- **KINDS under `brush::`** — `solid` (= `PathFormat`, whose name was the
+  mechanism), `Pattern`/`Scatter`/`Art` (= the `brushes::*Brush` types).
+  Aliases, not new types: no behaviour change, every legacy spelling
+  compiles, `brush::solid(w, fill)` is the one-line form.
+- **COMPOSITES** `brush::layers(...)` / `brush::weave(...)` over ONE
+  `Weave` value. `layers == weave` with coincident self-strands is
+  literal, not an analogy — there is no special case in the code, and the
+  test asserts identical pixels from both spellings.
+- **Strand PAIR** `{.path, .brush}`, with `StrandPath` covering the
+  relative family (any `Profile`, in the band's left-of-travel frame via
+  the new public `profileOffset()`) and the absolute family
+  (`strand::from(key)` through the derive pass, `strand::path(SkPath)`).
+  Absolute-only leaves the boundary an unpainted host — tested.
+- **Crossings DISCOVERED** by `discoverCrossings()`, numbered along the
+  boundary, with the rule ladder as one comparable `CrossingRule`
+  (`alternate()` == `sequence({Over, Under})`, generic `sequence`,
+  `pairs()` with cycles, and a user value whose one named member is
+  `decide(const Crossing&)`), pins composing via `.except(i, order)` onto
+  a single `.crossing` field. Pins are positional and the field's doc says
+  so.
+- **`.shaped(value)`** as the one geometry-deviation seam (`SkPath
+  shape(const SkPath&) const` + equality); `Brush::op`/`GeometryOp`/`ops::`
+  retained as the legacy spelling, with a `Shaper`→`GeometryOp` adaptor so
+  both share ONE pipeline rather than two.
+- **`SigilComposeKit` as a separate CMake library** whose only include
+  path is compose's public headers — `kit::brush::shapers::wave/jitter/
+  offset`, `kit::profile::wave`, `kit::strands::braid`,
+  `kit::spans::brackets`, `kit::shapes::ring`. Presets stay out.
+- **Audit item 10 closed** as the doc-and-sugar move: all four corner
+  spellings keep compiling and now carry legacy one-liners pointing at
+  `spans::corners`/`spans::edges`.
+
+Two implementation findings worth keeping, both from tests that failed
+first:
+
+1. **Strict-interior intersection was wrong.** Symmetric geometry — two
+   diagonals of a square, a horizontal met by verticals — puts a genuine
+   crossing EXACTLY on a flattening sample boundary, and a strict test
+   discarded every one. The discriminator that actually separates a
+   crossing from a MEETING is transversality (does the other strand pass
+   through, or only touch), and it rejects a shared polygon vertex for the
+   right reason instead of by accident.
+2. **A constant profile must delegate to `lines::offsetAlong`.** The naive
+   sample-and-displace walk offsets a corner point along ONE edge's normal
+   and leaves a spur on the inside of every rectangle; `offsetAlong`
+   already finds real vertices and joins them properly. `profileOffset`
+   detects constancy by sampling and delegates, negating the sign at that
+   one seam — flipping `offsetAlong` itself would be a §27 breach.
+
+**NOT DONE, and API.md was wrong about it (now corrected):** the
+`brush::ops` internal-only demotion did NOT happen. `ops::` remains the
+pre-existing PUBLIC escape hatch; demoting it is coupled to deleting its
+lowercase incomparable lambda family (audit item 6), and both are deferred
+to the C-batch. `.shaped()` is the taught spelling and `ops::`/`GeometryOp`
+are documented as the legacy one, which is all stage two actually
+delivered here.
+
+**Stage three / open**: the lowercase incomparable `ops::` lambda family
+and the `brush::ops` demotion (audit item 6, C-batch); `Ribbon`'s migration onto the profile seam (its
+`widthFn`/`widthMax` pair is the last silent-clip trap); the
+perpendicular-sign reconciliation (kernel says left, `Lines` says right);
+and the four pinned passes, unchanged.
 
 A full-surface discovery pass (2026-07-25) swept
 every authoring header for names that say mechanism instead of

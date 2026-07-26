@@ -8,6 +8,9 @@
 
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkImageFilter.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathUtils.h>
+#include <include/pathops/SkPathOps.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkImageFilters.h>
@@ -237,15 +240,30 @@ Element &Element::hitTestable(bool enabled) {
   return *this;
 }
 
+/** Register whatever a decoration says it borrows (BorrowingDecoration)
+ *  so the derive pass answers it. Every slot that takes a Decoration goes
+ *  through here — a borrow that only some slots honoured would be the
+ *  sibling-path failure family all over again. */
+void Element::claimBorrows(const Decoration &d) {
+  if (d.borrows().empty())
+    return;
+  detail::DeriveData &derive = m_node->deriveData.ensure();
+  for (const std::string &key : d.borrows())
+    derive.borrowedPathKeys.push_back(key);
+}
+
 Element &Element::overlay(Decoration d) {
+  claimBorrows(d);
   m_node->fxData.ensure().overlays.push_back(std::move(d));
   return *this;
 }
 Element &Element::background(Decoration d) {
+  claimBorrows(d);
   m_node->backgrounds.push_back(std::move(d));
   return *this;
 }
 Element &Element::foreground(Decoration d) {
+  claimBorrows(d);
   m_node->foregrounds.push_back(std::move(d));
   return *this;
 }
@@ -259,6 +277,7 @@ Element &Element::stroke(Spans where, Decoration what, std::string name) {
   for (const Spans::Term &t : where.terms)
     if (t.rule == Spans::Rule::Fit && !t.key.empty())
       m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+  claimBorrows(what);
   m_node->strokeData.ensure().passes.push_back(
       detail::StrokePass{std::move(where), std::move(what), std::move(name)});
   return *this;
@@ -268,10 +287,14 @@ Element &Element::echo(SkVector offset, SkColor4f color) {
   return *this;
 }
 Element &Element::style(LayerStyle s) {
-  for (Decoration &d : s.under)
+  for (Decoration &d : s.under) {
+    claimBorrows(d);
     m_node->backgrounds.push_back(std::move(d));
-  for (Decoration &d : s.over)
+  }
+  for (Decoration &d : s.over) {
+    claimBorrows(d);
     m_node->foregrounds.push_back(std::move(d));
+  }
   return *this;
 }
 Element &Element::effect(Effect e) {
@@ -738,70 +761,142 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
   return out.detach();
 }
 
+/** One of a band's two rails, as a Profile — so the rail is built by
+ *  profileOffset and gets the SAME corner repair a relative strand gets.
+ *  Formation is folded in here rather than at the sample site, which is
+ *  what lets the two rails be two ordinary profiles.
+ *
+ *  `slice` remaps this contour's own [0,1] onto its span of the WHOLE
+ *  spine, so a multi-contour spine keeps one continuous parameterisation
+ *  even though the rails are built one contour at a time (which is what
+ *  keeps the region from bridging between contours). */
+struct BandRail {
+  Profile base;
+  Formation formation = Formation::Centered;
+  bool outer = true;
+  float sliceStart = 0.0f, sliceSpan = 1.0f;
+  bool operator==(const BandRail &) const = default;
+  float max() const { return base.max(); }
+  float across(float along) const {
+    const float w = base.across(sliceStart + along * sliceSpan);
+    switch (formation) {
+    case Formation::Centered: return outer ? w * 0.5f : -w * 0.5f;
+    case Formation::Outward:  return outer ? w : 0.0f;
+    case Formation::Inward:   return outer ? 0.0f : -w;
+    }
+    return 0.0f;
+  }
+};
+
+/** Uniform arc-length samples of a rail, in ONE forward walk.
+ *
+ *  The first version asked bandPointAt per sample, and bandPointAt
+ *  re-measures the whole path every call — quadratic, and measured at
+ *  700 ms for an r=550 ring against 3 ms for the same outline stroked.
+ *  The contours are collected once and the cursor only moves forward. */
+std::vector<SkPoint> sampleRail(const SkPath &rail, int steps) {
+  std::vector<SkPoint> out;
+  std::vector<sk_sp<SkContourMeasure>> contours;
+  float total = 0;
+  SkContourMeasureIter iter(rail, false);
+  while (sk_sp<SkContourMeasure> m = iter.next()) {
+    total += m->length();
+    contours.push_back(std::move(m));
+  }
+  if (total <= 0 || contours.empty())
+    return out;
+  out.reserve((size_t)steps + 1);
+  size_t at = 0;
+  float consumed = 0;
+  for (int k = 0; k <= steps; ++k) {
+    const float want = total * (float)k / (float)steps;
+    while (at + 1 < contours.size() &&
+           want > consumed + contours[at]->length()) {
+      consumed += contours[at]->length();
+      ++at;
+    }
+    SkPoint pos;
+    const float d =
+        std::clamp(want - consumed, 0.0f, contours[at]->length());
+    if (contours[at]->getPosTan(d, &pos, nullptr))
+      out.push_back(pos);
+  }
+  return out;
+}
+
+/** The contours of a path, each as its own path — so a rail pair can be
+ *  zipped and CLOSED per contour instead of chained into one run. */
+std::vector<std::pair<SkPath, float>> splitContours(const SkPath &path) {
+  std::vector<std::pair<SkPath, float>> out;
+  SkContourMeasureIter iter(path, false);
+  while (sk_sp<SkContourMeasure> m = iter.next()) {
+    const float len = m->length();
+    if (len <= 0)
+      continue;
+    SkPathBuilder b;
+    (void)m->getSegment(0, len, &b, true);
+    if (m->isClosed())
+      b.close();
+    out.emplace_back(b.detach(), len);
+  }
+  return out;
+}
+
 SkPath bandRegion(const SkPath &spine, const Across &width,
                   Formation formation) {
   const float reach = width.profile.max();
   if (spine.isEmpty() || reach <= 0)
     return SkPath();
-  SkPathBuilder out;
   float total = 0;
   measureContours(spine, &total);
   if (total <= 0)
     return SkPath();
-  SkContourMeasureIter iter(spine, false);
+
+  // PER CONTOUR, and that is load-bearing: a single moveTo/lineTo chain
+  // across all contours closed ONCE bridges between them with a filled
+  // chord, so two concentric ring spines came out as a filled disc.
+  //
+  // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
+  // constant width then rides lines::offsetAlong's corner repair (real
+  // vertices, arc outside a turn, miter inside) instead of a naive
+  // sample-and-displace that leaves a spur on the inside of every
+  // rectangle.
+  //
+  // Sign and frame: positive `across` is LEFT of travel, which with y down
+  // is OUTSIDE a clockwise path — SkPath's own direction for rects and
+  // circles, so `.outward()` exits the shape. profileOffset owns that
+  // convention, including the negation against lines::offsetAlong
+  // (right-of-travel); see bandPointAt for why the two differ and that the
+  // split predates the band.
+  SkPathBuilder out;
   float consumed = 0;
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    // `along` is a fraction of the WHOLE spine, so the cursor advances for
-    // every contour including the ones the walk gives up on — a degenerate
-    // contour that did not advance it would shift the profile of every
-    // contour after it.
-    const float base = consumed;
+  for (const auto &[contour, len] : splitContours(spine)) {
+    const float sliceStart = total > 0 ? consumed / total : 0.0f;
+    const float sliceSpan = total > 0 ? len / total : 1.0f;
     consumed += len;
-    if (len <= 0)
+
+    const SkPath outerRail = profileOffset(
+        contour, Profile(BandRail{width.profile, formation, true, sliceStart,
+                                 sliceSpan}));
+    const SkPath innerRail = profileOffset(
+        contour, Profile(BandRail{width.profile, formation, false, sliceStart,
+                                  sliceSpan}));
+    if (outerRail.isEmpty() || innerRail.isEmpty())
       continue;
-    const int steps = std::max(8, (int)std::ceil(len / 2.0f));
-    std::vector<SkPoint> left, right;
-    left.reserve((size_t)steps + 1);
-    right.reserve((size_t)steps + 1);
-    for (int k = 0; k <= steps; ++k) {
-      const float d = len * (float)k / (float)steps;
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan))
-        continue;
-      const float along = total > 0 ? (base + d) / total : 0.0f;
-      const float w = width.profile.across(along);
-      // Positive `across` is to the LEFT of travel, which in screen space
-      // (y down) puts it OUTSIDE a clockwise path — SkPath's own direction
-      // for rects and circles, so `.outward()` exits the shape.
-      //
-      // This is the NEGATION of lines::offsetAlong, whose documented and
-      // implemented convention is right-of-travel ((-tan.y, +tan.x)) — but
-      // it MATCHES TextPath::offset, which has always been
-      // left-of-travel-is-outward. The kernel says left, the Lines
-      // extension says right, and that split predates the band; the band
-      // follows the kernel. Stage two shares the Profile value between
-      // bands and strands and has to reconcile the two signs.
-      const SkVector n{tan.y(), -tan.x()};
-      float inner = 0, outer = w;
-      if (formation == Formation::Centered) {
-        inner = -w * 0.5f;
-        outer = w * 0.5f;
-      } else if (formation == Formation::Inward) {
-        inner = -w;
-        outer = 0;
-      }
-      right.push_back({pos.fX + n.x() * outer, pos.fY + n.y() * outer});
-      left.push_back({pos.fX + n.x() * inner, pos.fY + n.y() * inner});
-    }
-    if (right.size() < 2)
+
+    // Zip by arc length rather than by index: offsetAlong inserts join
+    // geometry, so the two rails do not share a point count.
+    const int steps = std::max(16, (int)std::ceil(len / 2.0f));
+    const std::vector<SkPoint> outerPts = sampleRail(outerRail, steps);
+    const std::vector<SkPoint> innerPts = sampleRail(innerRail, steps);
+    if (outerPts.size() < 2 || innerPts.size() < 2)
       continue;
-    out.moveTo(right.front());
-    for (size_t k = 1; k < right.size(); ++k)
-      out.lineTo(right[k]);
-    for (size_t k = left.size(); k-- > 0;)
-      out.lineTo(left[k]);
+
+    out.moveTo(outerPts.front());
+    for (size_t k = 1; k < outerPts.size(); ++k)
+      out.lineTo(outerPts[k]);
+    for (size_t k = innerPts.size(); k-- > 0;)
+      out.lineTo(innerPts[k]);
     out.close();
   }
   return out.detach();
@@ -968,6 +1063,340 @@ SkPoint bandPointAt(const SkPath &spine, float along, float acrossPx) {
     consumed += len;
   }
   return {0, 0};
+}
+
+SkPath profileOffset(const SkPath &spine, const Profile &profile) {
+  if (spine.isEmpty())
+    return SkPath();
+  float total = 0;
+  measureContours(spine, &total);
+  if (total <= 0)
+    return SkPath();
+  // A CONSTANT profile is a parallel, and lines::offsetAlong already does
+  // parallels exactly — it finds the real vertices and joins them (arc
+  // outside a turn, miter inside) instead of chording across. The naive
+  // sample-and-displace walk below cannot: at a hard corner it offsets one
+  // sampled point along ONE edge's normal, which leaves a spur on the
+  // inside of every rectangle. Rather than grow a second corner repair
+  // (the sibling-path failure family), delegate.
+  //
+  // The sign is negated because offsetAlong is RIGHT of travel and this
+  // seam is LEFT (see bandPointAt); flipping offsetAlong would be a §27
+  // breach, so the conversion lives here, once.
+  //
+  // Constancy is detected by SAMPLING, and that is a real limitation, not
+  // a rounding detail: a stepped profile whose period divides the sample
+  // spacing reads as constant. Sampled at 97 points (prime, so no profile
+  // whose period is a simple fraction aligns with it) offset by half a
+  // step (so a value read exactly at 0, 1/2, 1 cannot be the whole basis).
+  // A profile that defeats this still gets a correct-shaped answer — the
+  // exact-corner parallel — just not the varying one it asked for. If that
+  // ever bites, the honest fix is a `constant()` query on the Profile
+  // seam, which is additive.
+  {
+    const float first = profile.across(0.5f / 97.0f);
+    bool constant = true;
+    for (int k = 1; k < 97 && constant; ++k)
+      constant = profile.across(((float)k + 0.5f) / 97.0f) == first;
+    if (constant)
+      return first == 0.0f ? spine : lines::offsetAlong(spine, -first);
+  }
+  SkPathBuilder out;
+  SkContourMeasureIter iter(spine, false);
+  float consumed = 0;
+  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+    const float len = contour->length();
+    const float base = consumed;
+    consumed += len;
+    if (len <= 0)
+      continue;
+    const int steps = std::max(8, (int)std::ceil(len / 2.0f));
+    bool started = false;
+    for (int k = 0; k <= steps; ++k) {
+      const float d = len * (float)k / (float)steps;
+      SkPoint pos;
+      SkVector tan;
+      if (!contour->getPosTan(d, &pos, &tan))
+        continue;
+      // The band's frame: positive across is LEFT of travel, which with y
+      // down is outside a clockwise path. One body for the band's rails
+      // and a relative strand, so the two cannot drift apart.
+      const float w = profile.across(total > 0 ? (base + d) / total : 0.0f);
+      const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
+      if (!started) {
+        out.moveTo(at);
+        started = true;
+      } else {
+        out.lineTo(at);
+      }
+    }
+    if (started && contour->isClosed())
+      out.close();
+  }
+  return out.detach();
+}
+
+// ---------------------------------------------------------------------------
+// Crossing discovery
+//
+// Crossings are DISCOVERED, never authored: the strands are flattened and
+// every pair of segments is tested for a PROPER crossing. "Proper" is
+// load-bearing — coincident strands (which is what layers() is) and
+// endpoint touches (a shared polygon vertex) are meetings, not crossings,
+// and reporting them would put a knot at every corner of every rectangle.
+
+namespace {
+
+struct Flat {
+  std::vector<SkPoint> points;
+  std::vector<float> at; // cumulative arc length at each point
+  float length = 0;
+};
+
+Flat flatten(const SkPath &path) {
+  Flat f;
+  SkContourMeasureIter iter(path, false);
+  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+    const float len = contour->length();
+    if (len <= 0)
+      continue;
+    const int steps = std::max(2, (int)std::ceil(len / 2.0f));
+    for (int k = 0; k <= steps; ++k) {
+      const float d = len * (float)k / (float)steps;
+      SkPoint pos;
+      if (!contour->getPosTan(d, &pos, nullptr))
+        continue;
+      f.points.push_back(pos);
+      f.at.push_back(f.length + d);
+    }
+    f.length += len;
+    // A break between contours: repeat the last point so the segment loop
+    // below can skip the join (a chord between two contours is not a
+    // strand and must not manufacture crossings). Guarded because a
+    // contour whose every getPosTan failed appends nothing at all.
+    if (!f.points.empty()) {
+      f.points.push_back(f.points.back());
+      f.at.push_back(f.length);
+    }
+  }
+  return f;
+}
+
+/** The point on a flattened strand at arc length `s`. */
+SkPoint pointAtArc(const Flat &f, float s) {
+  if (f.points.empty())
+    return {0, 0};
+  s = std::clamp(s, 0.0f, f.length);
+  for (size_t k = 0; k + 1 < f.at.size(); ++k) {
+    if (s > f.at[k + 1])
+      continue;
+    const float span = f.at[k + 1] - f.at[k];
+    const float w = span > 1e-6f ? (s - f.at[k]) / span : 0.0f;
+    return {f.points[k].fX + (f.points[k + 1].fX - f.points[k].fX) * w,
+            f.points[k].fY + (f.points[k + 1].fY - f.points[k].fY) * w};
+  }
+  return f.points.back();
+}
+
+/** Does one strand change sides of the other's local direction at `hit`? */
+bool changesSides(const Flat &other, float sOther, SkPoint hit, SkVector dir) {
+  const float delta = 3.0f;
+  const SkPoint before = pointAtArc(other, sOther - delta);
+  const SkPoint after = pointAtArc(other, sOther + delta);
+  const auto side = [&](SkPoint q) {
+    return dir.x() * (q.fY - hit.fY) - dir.y() * (q.fX - hit.fX);
+  };
+  return side(before) * side(after) < 0.0f;
+}
+
+/** Do these two strands genuinely CROSS at `hit`, or only meet there?
+ *
+ *  BOTH directions are tested, and that is the point: asking only "does B
+ *  change sides of A" is order-asymmetric, so an A endpoint landing on B's
+ *  interior answered yes while the mirror case answered no — the same
+ *  meeting classified two ways depending on which strand happened to be
+ *  indexed first. A crossing is a symmetric property and is tested as one.
+ *
+ *  This is also what keeps a rectangle's corners from each becoming a knot:
+ *  at a shared vertex the neighbours sit on one side (or collinear), so at
+ *  least one of the two tests fails. */
+bool crossesTransversally(const Flat &fa, float sA, const Flat &fb, float sB,
+                          SkPoint hit, SkVector aDir, SkVector bDir) {
+  return changesSides(fb, sB, hit, aDir) && changesSides(fa, sA, hit, bDir);
+}
+
+} // namespace
+
+std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
+  std::vector<Crossing> found;
+  if (strands.size() < 2)
+    return found;
+  std::vector<Flat> flats;
+  flats.reserve(strands.size());
+  for (const SkPath &p : strands)
+    flats.push_back(flatten(p));
+
+  for (size_t a = 0; a < strands.size(); ++a)
+    for (size_t b = a + 1; b < strands.size(); ++b) {
+      // COINCIDENT strands never cross. This is the layers() case, and
+      // testing it by path identity is exact where it matters most.
+      if (strands[a] == strands[b])
+        continue;
+      const Flat &fa = flats[a];
+      const Flat &fb = flats[b];
+      for (size_t i = 0; i + 1 < fa.points.size(); ++i) {
+        const SkPoint p0 = fa.points[i], p1 = fa.points[i + 1];
+        const SkVector r{p1.fX - p0.fX, p1.fY - p0.fY};
+        if (r.length() <= 1e-6f)
+          continue; // the contour join
+        for (size_t j = 0; j + 1 < fb.points.size(); ++j) {
+          const SkPoint q0 = fb.points[j], q1 = fb.points[j + 1];
+          const SkVector sv{q1.fX - q0.fX, q1.fY - q0.fY};
+          if (sv.length() <= 1e-6f)
+            continue;
+          const float denom = r.x() * sv.y() - r.y() * sv.x();
+          // Parallel or collinear: no transversal crossing. Two copies of
+          // one path land here for every corresponding segment.
+          if (std::abs(denom) < 1e-9f)
+            continue;
+          const SkVector d{q0.fX - p0.fX, q0.fY - p0.fY};
+          const float t = (d.x() * sv.y() - d.y() * sv.x()) / denom;
+          const float u = (d.x() * r.y() - d.y() * r.x()) / denom;
+          // CLOSED intervals, then a transversality test.
+          //
+          // Strict interiors were the first thing tried and they are wrong:
+          // symmetric geometry — two diagonals of a square, a horizontal
+          // met by verticals on a regular sampling grid — puts a genuine
+          // crossing EXACTLY on a sample boundary, and a strict test threw
+          // every one of them away. So accept the endpoints and then ask
+          // the question that actually distinguishes the two cases: does
+          // the other strand pass THROUGH, or does it merely touch?
+          const float eps = 1e-3f;
+          if (t < -eps || t > 1.0f + eps || u < -eps || u > 1.0f + eps)
+            continue;
+          const SkPoint hit{p0.fX + r.x() * t, p0.fY + r.y() * t};
+          const float sA = fa.at[i] + (fa.at[i + 1] - fa.at[i]) * t;
+          const float sB = fb.at[j] + (fb.at[j + 1] - fb.at[j]) * u;
+          if (!crossesTransversally(fa, sA, fb, sB, hit, r, sv))
+            continue;
+          Crossing x;
+          x.a = a;
+          x.b = b;
+          x.at = hit;
+          x.alongA = fa.length > 0 ? sA / fa.length : 0.0f;
+          x.alongB = fb.length > 0 ? sB / fb.length : 0.0f;
+          // Sampling can report one meeting from two adjacent segment
+          // pairs; keep the first and drop its neighbours.
+          bool duplicate = false;
+          for (const Crossing &seen : found)
+            if (seen.a == x.a && seen.b == x.b &&
+                std::abs(seen.at.fX - x.at.fX) < 1.5f &&
+                std::abs(seen.at.fY - x.at.fY) < 1.5f) {
+              duplicate = true;
+              break;
+            }
+          if (!duplicate)
+            found.push_back(x);
+        }
+      }
+    }
+
+  // Numbered ALONG THE BOUNDARY: ascending by position on the lower-indexed
+  // strand, then by strand pair, so the order is deterministic and a
+  // positional pin means the same knot on every frame the geometry holds.
+  std::sort(found.begin(), found.end(), [](const Crossing &l, const Crossing &r) {
+    if (l.alongA != r.alongA)
+      return l.alongA < r.alongA;
+    if (l.a != r.a)
+      return l.a < r.a;
+    return l.b < r.b;
+  });
+  for (size_t i = 0; i < found.size(); ++i)
+    found[i].index = i;
+  return found;
+}
+
+SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
+                     float reachB, SkPoint at, float maxRadius) {
+  const auto tube = [](const SkPath &path, float reach) {
+    SkPaint p;
+    p.setStyle(SkPaint::kStroke_Style);
+    // `reach` is the mark's FULL width, and the tube is twice it. That is
+    // deliberately conservative: alignment can put the whole mark on ONE
+    // side of the path (Align::Inner/Outer), so a tube of exactly the mark
+    // width, centred on the path, would miss half of it. The cost is a
+    // lens up to 2x larger than the true overlap — harmless with opaque
+    // inks, and bounded by maxRadius either way.
+    p.setStrokeWidth(std::max(reach, 0.5f) * 2.0f);
+    p.setStrokeCap(SkPaint::kRound_Cap);
+    p.setStrokeJoin(SkPaint::kRound_Join);
+    return skpathutils::FillPathWithPaint(path, p);
+  };
+  // The knot's OWN territory. Without this the neighbouring lenses of an
+  // ordinary braid touch, pathops merges them into one contour, and the
+  // first crossing's patch claims the entire run.
+  SkPathBuilder territoryBuilder;
+  territoryBuilder.addCircle(at.fX, at.fY,
+                             std::max(maxRadius, 1.0f));
+  const SkPath territory = territoryBuilder.detach();
+
+  SkPath overlap, lens;
+  if (Op(tube(a, reachA), tube(b, reachB), kIntersect_SkPathOp, &overlap) &&
+      !overlap.isEmpty() &&
+      Op(overlap, territory, kIntersect_SkPathOp, &lens) && !lens.isEmpty()) {
+    // The intersection holds EVERY overlap of the two strands, which is one
+    // component per crossing. Keep the component this crossing is in, so a
+    // strand pair that meets several times repairs each meeting on its own
+    // terms rather than repainting all of them at the first.
+    SkPathBuilder mine;
+    bool found = false;
+    SkPath::Iter iter(lens, false);
+    SkPathBuilder run;
+    bool runOpen = false;
+    const auto flushRun = [&] {
+      if (!runOpen)
+        return;
+      SkPath contour = run.detach();
+      SkRect bounds = contour.getBounds();
+      bounds.outset(0.5f, 0.5f);
+      if (bounds.contains(at.fX, at.fY)) {
+        mine.addPath(contour);
+        found = true;
+      }
+      runOpen = false;
+    };
+    SkPoint pts[4];
+    for (SkPath::Verb verb = iter.next(pts); verb != SkPath::kDone_Verb;
+         verb = iter.next(pts)) {
+      switch (verb) {
+      case SkPath::kMove_Verb:
+        flushRun();
+        run.moveTo(pts[0]);
+        runOpen = true;
+        break;
+      case SkPath::kLine_Verb: run.lineTo(pts[1]); break;
+      case SkPath::kQuad_Verb: run.quadTo(pts[1], pts[2]); break;
+      case SkPath::kConic_Verb:
+        run.conicTo(pts[1], pts[2], iter.conicWeight());
+        break;
+      case SkPath::kCubic_Verb: run.cubicTo(pts[1], pts[2], pts[3]); break;
+      case SkPath::kClose_Verb: run.close(); break;
+      default: break;
+      }
+    }
+    flushRun();
+    if (found)
+      return mine.detach();
+    return lens; // the point missed every component's box — repair it all
+  }
+  // Degenerate or non-overlapping: a disc sized for the perpendicular case
+  // is the best available answer and is what the exact form replaced. Still
+  // bounded by the knot's own territory.
+  SkPathBuilder disc;
+  disc.addCircle(at.fX, at.fY,
+                 std::min(std::max({reachA, reachB, 3.0f}) + 1.0f,
+                          std::max(maxRadius, 1.0f)));
+  return disc.detach();
 }
 
 Element band(std::function<SkPath(SkSize)> spine, Across width) {

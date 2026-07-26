@@ -266,15 +266,24 @@ is nonetheless the canonical three-line host loop; start there).
 never decisions. Everything else is an **extension**:
 `Shapes`/`Layouts`/`Routers`/`Web`, the Brush engine
 (`Brushes`/`Lines`/`LayerStyles`/`Patterns`), `Sdf`, `Kinetic`,
-`Console`, `Instances`, `GpuImage`, `kit/` (Frame, Divisions,
-Legibility, PixelType).
+`Console`, `Instances`, `GpuImage`. The **kit** is a tier of its own and
+now a separate CMake library (`SigilComposeKit` — Frame, Divisions,
+Legibility, PixelType, Strokes) whose only include path is compose's
+PUBLIC headers, so the tier boundary is structural rather than
+conventional (`kit/BoundaryProbe.cpp` is its negative control). PRESETS
+are not kit: craft-named compositions belong in external loadable kits.
 
 Decorations stay **primitives, not a zoo** at the seam — Fill,
 PathFormat, Slice, ContourWalk over one `PaintContext` whose `outline`
 is the load-bearing idea (routes and shapes share one dressing
 vocabulary). The Brush/Lines/LayerStyles shelf is the *vocabulary
 built over those primitives* — first-class values by later decision
-(REFERENCES-grounded lines-as-fills), not a reversal of the seam.
+(REFERENCES-grounded lines-as-fills), not a reversal of the seam. Over
+them the brush vocabulary is closed and small: four KINDS
+(`brush::solid`/`Pattern`/`Scatter`/`Art`) and two COMPOSITES
+(`brush::layers`, `brush::weave` — formally ONE machine, two author
+intents), with `.shaped()` the one geometry-deviation seam, `Profile` the
+one width seam, and `CrossingRule` the one over/under seam.
 
 **Instancing**: masses are a leaf, not a tree. Atlas of baked cells +
 user-owned SoA Pool + one stamp per frame; EnTT stays on the user's

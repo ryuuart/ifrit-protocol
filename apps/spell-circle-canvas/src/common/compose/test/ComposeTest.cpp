@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -9808,6 +9809,58 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
   EXPECT_EQ(in.second, SK_ColorRED);
 }
 
+TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
+  // A single moveTo/lineTo chain across every contour, closed once, fills
+  // the gap between them with a chord — two concentric ring spines came out
+  // as a filled disc. The rails are zipped and closed PER CONTOUR.
+  Host host(400, 400);
+  host.composer.render(stack().child(
+      band([](SkSize s) {
+             SkPathBuilder b;
+             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
+             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
+             return b.detach();
+           },
+           across(12))
+          .inset(0)
+          .fill(red())));
+  host.frame();
+  EXPECT_EQ(host.pixel(200, 46), SK_ColorRED) << "the outer ring";
+  EXPECT_EQ(host.pixel(200, 136), SK_ColorRED) << "the inner ring";
+  // Between the two rings, and inside the inner one: paper.
+  EXPECT_EQ(host.pixel(200, 90), SK_ColorBLACK)
+      << "the gap between the rings was bridged";
+  EXPECT_EQ(host.pixel(200, 200), SK_ColorBLACK)
+      << "the middle was filled";
+}
+
+TEST(ComposeBand, ConstructionIsLinearInSpineLength) {
+  // sampleRail asked bandPointAt per sample, and bandPointAt re-measures the
+  // whole path every call — quadratic. Measured at 700 ms for an r=550 ring.
+  // The guard is a wall-clock ceiling, deliberately loose enough to survive a
+  // contended machine and tight enough that the quadratic form cannot pass.
+  auto ring = [](float r) {
+    return [r](SkSize s) {
+      SkPathBuilder b;
+      b.addCircle(s.width() * 0.5f, s.height() * 0.5f, r);
+      return b.detach();
+    };
+  };
+  const auto build = [&](float r) {
+    Host host(1400, 1400);
+    const auto t0 = std::chrono::steady_clock::now();
+    host.composer.render(
+        stack().child(band(ring(r), across(14)).inset(0).fill(red())));
+    host.frame();
+    return std::chrono::duration<double, std::milli>(
+               std::chrono::steady_clock::now() - t0)
+        .count();
+  };
+  const double big = build(550.0f);
+  EXPECT_LT(big, 250.0) << "r=550 band took " << big << " ms — the quadratic "
+                           "construction measured 700 ms here";
+}
+
 TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
   SkPathBuilder b;
   b.moveTo(0, 50);
@@ -9853,4 +9906,413 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
       if (host.pixel(x, y) == SK_ColorGREEN)
         ++inked;
   EXPECT_GT(inked, 100) << "a band takes a stroke pass like any shape";
+}
+
+#include <type_traits>
+
+// ---------------------------------------------------------------------------
+// Stage two: brush kinds, composites, strands, crossings, the shaper seam.
+
+namespace {
+
+/** Two straight strands that cross once, as raw geometry. */
+SkPath diagonal(SkPoint a, SkPoint b) {
+  SkPathBuilder p;
+  p.moveTo(a);
+  p.lineTo(b);
+  return p.detach();
+}
+
+} // namespace
+
+TEST(ComposeCrossings, CoincidentStrandsNeverCross) {
+  // This is what layers() IS, so it has to be exact: N copies of one path
+  // meet everywhere and cross nowhere.
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(80, 60));
+  const SkPath rect = b.detach();
+  EXPECT_TRUE(discoverCrossings({rect, rect}).empty());
+  EXPECT_TRUE(discoverCrossings({rect, rect, rect}).empty());
+}
+
+TEST(ComposeCrossings, SharedCornersAreMeetingsNotCrossings) {
+  // A rectangle's own corners are two edges touching at an endpoint. A
+  // discovery pass that counted them would put a knot at every corner of
+  // every frame in the corpus.
+  SkPathBuilder a;
+  a.addRect(SkRect::MakeWH(80, 60));
+  SkPathBuilder c;
+  c.addRect(SkRect::MakeXYWH(80, 60, 80, 60)); // touches at one point only
+  EXPECT_TRUE(discoverCrossings({a.detach(), c.detach()}).empty());
+}
+
+TEST(ComposeCrossings, ProperCrossingsAreFoundAndNumberedAlongTheBoundary) {
+  const SkPath down = diagonal({0, 0}, {100, 100});
+  const SkPath up = diagonal({0, 100}, {100, 0});
+  const std::vector<Crossing> one = discoverCrossings({down, up});
+  ASSERT_EQ(one.size(), 1u);
+  EXPECT_EQ(one[0].a, 0u);
+  EXPECT_EQ(one[0].b, 1u);
+  EXPECT_NEAR(one[0].at.fX, 50.0f, 2.0f);
+  EXPECT_NEAR(one[0].at.fY, 50.0f, 2.0f);
+  EXPECT_EQ(one[0].index, 0u);
+
+  // Numbering is positional along the lowest-indexed strand, so a horizontal
+  // strand crossed by two verticals numbers them left to right.
+  const SkPath across = diagonal({0, 50}, {100, 50});
+  const std::vector<Crossing> two =
+      discoverCrossings({across, diagonal({70, 0}, {70, 100}),
+                         diagonal({30, 0}, {30, 100})});
+  ASSERT_EQ(two.size(), 2u);
+  EXPECT_LT(two[0].alongA, two[1].alongA);
+  EXPECT_EQ(two[0].index, 0u);
+  EXPECT_EQ(two[1].index, 1u);
+  EXPECT_EQ(two[0].b, 2u) << "the x=30 strand is met first";
+}
+
+TEST(ComposeCrossings, TheRuleLadderClimbs) {
+  Crossing c0, c1, c2;
+  c0.index = 0; c0.a = 0; c0.b = 1;
+  c1.index = 1; c1.a = 0; c1.b = 1;
+  c2.index = 2; c2.a = 1; c2.b = 2;
+
+  // Rung 0 — list order: the later strand is on top, so `a` is under.
+  EXPECT_EQ(CrossingRule{}.decide(c0), Order::Under);
+
+  // Rung 1 — alternate IS sequence({Over, Under}).
+  const CrossingRule alt = crossing::alternate();
+  EXPECT_EQ(alt, crossing::sequence({Order::Over, Order::Under}));
+  EXPECT_EQ(alt.decide(c0), Order::Over);
+  EXPECT_EQ(alt.decide(c1), Order::Under);
+
+  // Rung 2 — a generic repeating pattern.
+  const CrossingRule three =
+      crossing::sequence({Order::Over, Order::Over, Order::Under});
+  EXPECT_EQ(three.decide(c0), Order::Over);
+  EXPECT_EQ(three.decide(c1), Order::Over);
+  EXPECT_EQ(three.decide(c2), Order::Under);
+
+  // Rung 3 — strand dominance, including a CYCLE (the Penrose case:
+  // 0 over 1, 1 over 2, 2 over 0, which no layer order can express).
+  const CrossingRule cyclic = crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
+  EXPECT_EQ(cyclic.decide(c0), Order::Over);  // 0 over 1
+  EXPECT_EQ(cyclic.decide(c2), Order::Over);  // 1 over 2
+  Crossing c20;
+  c20.a = 0; c20.b = 2;
+  EXPECT_EQ(cyclic.decide(c20), Order::Under); // 2 over 0
+}
+
+namespace {
+/** Strand 0 over strand 1 at every crossing — used where the point is that
+ *  the REPAIR works, not which rule chose it. */
+struct EveryCrossingRedOnTop {
+  bool operator==(const EveryCrossingRedOnTop &) const = default;
+  Order decide(const Crossing &) const { return Order::Over; }
+};
+
+/** Rung 4: a user rule is a comparable value with the seam's one named
+ *  member — never a bare lambda, because a rule is read live. */
+struct EverySecondStrandWins {
+  size_t winner = 1;
+  bool operator==(const EverySecondStrandWins &) const = default;
+  Order decide(const Crossing &c) const {
+    return c.a == winner ? Order::Over : Order::Under;
+  }
+};
+} // namespace
+
+TEST(ComposeCrossings, CustomRulesAreComparableValues) {
+  static_assert(CrossingScheme<EverySecondStrandWins>);
+  const CrossingRule mine = EverySecondStrandWins{1};
+  Crossing c;
+  c.a = 1; c.b = 2;
+  EXPECT_EQ(mine.decide(c), Order::Over);
+  EXPECT_TRUE(mine == CrossingRule(EverySecondStrandWins{1}));
+  EXPECT_FALSE(mine == CrossingRule(EverySecondStrandWins{2}));
+  EXPECT_FALSE(mine == crossing::alternate());
+}
+
+TEST(ComposeCrossings, PinsComposeOntoTheBaseRule) {
+  // One .crossing field: a pin layers over whatever rule is already there
+  // rather than becoming a second entry.
+  CrossingRule rule = crossing::alternate();
+  rule.except(0, Order::Under).except(3, Order::Over);
+  Crossing c;
+  c.a = 0; c.b = 1;
+  c.index = 0;
+  EXPECT_EQ(rule.decide(c), Order::Under) << "pinned against alternate";
+  c.index = 1;
+  EXPECT_EQ(rule.decide(c), Order::Under) << "base rule still runs";
+  c.index = 2;
+  EXPECT_EQ(rule.decide(c), Order::Over);
+  c.index = 3;
+  EXPECT_EQ(rule.decide(c), Order::Over) << "second pin";
+  // Re-pinning the same index REPLACES it (one answer per crossing).
+  rule.except(0, Order::Over);
+  c.index = 0;
+  EXPECT_EQ(rule.decide(c), Order::Over);
+  // …and a pinned rule is still a comparable value.
+  CrossingRule same = crossing::alternate();
+  same.except(0, Order::Over).except(3, Order::Over);
+  EXPECT_TRUE(rule == same);
+  EXPECT_FALSE(rule == crossing::alternate());
+}
+
+TEST(ComposeComposites, LayersIsWeaveWithCoincidentSelfStrands) {
+  // FORMALLY one machine. Same pixels from both spellings, and the layers
+  // form really is a weave of self-strands.
+  const brush::Weave stacked = brush::layers(
+      {brush::solid(8, red()), brush::solid(3, green())});
+  ASSERT_EQ(stacked.strands.size(), 2u);
+  EXPECT_EQ(stacked.strands[0].path, StrandPath(strand::self()));
+  EXPECT_EQ(stacked.strands[1].path, StrandPath(strand::self()));
+
+  const brush::Weave woven = brush::weave(
+      {brush::Strand{strand::self(), brush::solid(8, red())},
+       brush::Strand{strand::self(), brush::solid(3, green())}},
+      CrossingRule{});
+
+  auto draw = [](const brush::Weave &w) {
+    Host host(200, 200);
+    host.composer.render(
+        stack().child(box().rect(SkRect::MakeXYWH(40, 40, 100, 100)).stroke(w)));
+    host.frame();
+    std::vector<SkColor> out;
+    for (int x = 30; x < 150; x += 3)
+      out.push_back(host.pixel(x, 40));
+    return out;
+  };
+  const std::vector<SkColor> layered = draw(stacked);
+  EXPECT_EQ(layered, draw(woven));
+  // Bottom-up: the last brush in the list is the one you see.
+  EXPECT_EQ(layered[(layered.size() / 2)], SK_ColorGREEN);
+}
+
+TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
+  // Two authored strands crossing once. Under list order the second is on
+  // top; alternate() says the FIRST passes over at crossing 0, so the
+  // repair patch must put strand 0's colour at the meeting.
+  auto draw = [](CrossingRule rule) {
+    Host host(200, 200);
+    brush::Weave w = brush::weave(
+        {brush::Strand{strand::path(diagonal({20, 20}, {180, 180})),
+                brush::solid(9, red())},
+         brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
+                brush::solid(9, green())}},
+        std::move(rule));
+    host.composer.render(stack().child(box().inset(0).stroke(w)));
+    host.frame();
+    return host.pixel(100, 100);
+  };
+  EXPECT_EQ(draw(CrossingRule{}), SK_ColorGREEN) << "list order: later on top";
+  EXPECT_EQ(draw(crossing::alternate()), SK_ColorRED) << "rule flipped it";
+  CrossingRule pinned = crossing::alternate();
+  pinned.except(0, Order::Under);
+  EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
+}
+
+TEST(ComposeComposites, TheRepairCoversShallowCrossingsAndInnerStrokes) {
+  // The disc this replaced under-covered twice over. At a SHALLOW angle the
+  // two marks overlap in a long lens whose extent goes as reach/sin(theta),
+  // so a disc sized for the perpendicular case left the under-strand
+  // showing straight across the over-strand. And an Align::Inner stroke
+  // reports bleed() == 0, so the derived radius was nonsense for it.
+  //
+  // Both are checked by sampling ALONG the over-strand through the meeting:
+  // every sample must be the over-strand's colour.
+  //
+  // The two strands are one segment rotated by +/- half the crossing angle
+  // about the centre — NOT a shared dx with dy = dx*tan(angle), which sends
+  // the coordinates to infinity at 90 degrees (it hung the first draft).
+  auto interruptions = [](float degrees, PathFormat::Align align) {
+    Host host(400, 400);
+    const float half = degrees * 0.5f * 3.14159265f / 180.0f;
+    const float len = 180.0f;
+    const SkPoint mid{200, 200};
+    const SkVector dirA{std::cos(half), std::sin(half)};
+    const SkVector dirB{std::cos(-half), std::sin(-half)};
+    const auto through = [&](SkVector d) {
+      return diagonal({mid.fX - d.x() * len, mid.fY - d.y() * len},
+                      {mid.fX + d.x() * len, mid.fY + d.y() * len});
+    };
+    brush::Weave w = brush::weave(
+        {brush::Strand{strand::path(through(dirA)), util::stroke(9, red(), align)},
+         brush::Strand{strand::path(through(dirB)),
+                       util::stroke(9, green(), align)}},
+        crossing::alternate()); // strand 0 (red) passes OVER at crossing 0
+    host.composer.render(stack().child(box().inset(0).stroke(w)));
+    host.frame();
+    int wrong = 0;
+    for (int i = -40; i <= 40; ++i) {
+      const int x = (int)std::lround(mid.fX + dirA.x() * (float)i);
+      const int y = (int)std::lround(mid.fY + dirA.y() * (float)i);
+      if (host.pixel(x, y) != SK_ColorRED)
+        ++wrong;
+    }
+    return wrong;
+  };
+  EXPECT_EQ(interruptions(90.0f, PathFormat::Align::Center), 0)
+      << "even the perpendicular case exceeded the old derived radius";
+  EXPECT_EQ(interruptions(45.0f, PathFormat::Align::Center), 0);
+  EXPECT_EQ(interruptions(12.5f, PathFormat::Align::Center), 0)
+      << "12.5 degrees: the disc's measured failure";
+  // (Align::Inner is checked separately, below: it is meaningless on an OPEN
+  // strand — an open rail has no inside — so this geometry cannot show it.)
+}
+
+TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
+  // The f-caveat, directly: bleed() is the CULL's number and an Align::Inner
+  // stroke escapes the node by nothing while painting a mark `width` wide.
+  // A repair region derived from bleed() was therefore nonsense for it.
+  const Decoration inner = util::stroke(9, red(), PathFormat::Align::Inner);
+  EXPECT_EQ(inner.bleed(), 0.0f) << "unchanged: it escapes nothing";
+  EXPECT_EQ(inner.reach(), 9.0f) << "…but the mark is 9px wide";
+  const Decoration centred = util::stroke(9, red());
+  EXPECT_EQ(centred.bleed(), 4.5f);
+  EXPECT_EQ(centred.reach(), 9.0f);
+
+  // And it repairs: two CLOSED strands (where Inner is meaningful) — two
+  // overlapping circles, which meet at TWO points — stroked Inner, with the
+  // rule against list order.
+  auto circle = [](float cx, float cy, float r) {
+    SkPathBuilder p;
+    p.addCircle(cx, cy, r);
+    return p.detach();
+  };
+  Host host(400, 400);
+  brush::Weave w = brush::weave(
+      {brush::Strand{strand::path(circle(160, 200, 90)),
+                     util::stroke(9, red(), PathFormat::Align::Inner)},
+       brush::Strand{strand::path(circle(240, 200, 90)),
+                     util::stroke(9, green(), PathFormat::Align::Inner)}},
+      CrossingRule(EveryCrossingRedOnTop{}));
+  host.composer.render(stack().child(box().inset(0).stroke(w)));
+  host.frame();
+  // Walk the red circle's stroke band through the upper crossing region.
+  int red = 0, green = 0;
+  for (int i = 0; i < 360; ++i) {
+    const float a = (float)i * 3.14159265f / 180.0f;
+    const int x = (int)std::lround(160 + std::cos(a) * 86.0f);
+    const int y = (int)std::lround(200 + std::sin(a) * 86.0f);
+    const SkColor c = host.pixel(x, y);
+    if (c == SK_ColorRED)
+      ++red;
+    else if (c == SK_ColorGREEN)
+      ++green;
+  }
+  EXPECT_GT(red, 300) << "the over-strand should own its whole ring";
+  EXPECT_EQ(green, 0) << "the under-strand still shows through the mark";
+}
+
+TEST(ComposeStrands, AbsoluteOnlyLeavesTheBoundaryUnpainted) {
+  // "With only absolute strands the boundary is an unpainted host."
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().rect(SkRect::MakeXYWH(40, 40, 100, 100))
+          .stroke(brush::weave({brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
+                                       brush::solid(6, red())}},
+                               CrossingRule{}))));
+  host.frame();
+  EXPECT_EQ(host.pixel(90, 40), SK_ColorRED) << "the authored strand paints";
+  EXPECT_EQ(host.pixel(140, 90), SK_ColorBLACK)
+      << "the boundary itself is only a host";
+}
+
+TEST(ComposeStrands, RelativeStrandsRideTheBandsFrame) {
+  // A relative strand is a displacement in the (along, across) frame the
+  // BAND owns — positive across is LEFT of travel, i.e. outside a
+  // clockwise path. Same convention, one body (profileOffset).
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(100, 100));
+  const SkPath rect = b.detach();
+  const SkPath out = profileOffset(rect, strand::offset(10));
+  const SkPath in = profileOffset(rect, strand::offset(-10));
+  EXPECT_GT(out.getBounds().width(), rect.getBounds().width());
+  EXPECT_LT(in.getBounds().width(), rect.getBounds().width());
+  // self() is the boundary itself.
+  EXPECT_EQ(strand::self().max(), 0.0f);
+}
+
+TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
+  Host host(200, 200);
+  host.composer.render(
+      stack()
+          .child(box().key("guide").rect(SkRect::MakeXYWH(60, 20, 80, 40)))
+          .child(box().rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                     .stroke(brush::weave({brush::Strand{strand::from("guide"),
+                                                  brush::solid(6, red())}},
+                                          CrossingRule{}))));
+  host.frame();
+  host.frame(); // derive resolves against the first layout
+  // The guide's own box outline, painted in the host's local space.
+  EXPECT_EQ(host.pixel(100, 20), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, 60), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, 120), SK_ColorBLACK) << "nothing else moved";
+}
+
+TEST(ComposeBrushKinds, TheKindsAreTheOldTypesUnderTaughtNames) {
+  // Naming alignment only — no behaviour change, and the legacy spellings
+  // are the SAME types (§27).
+  static_assert(std::is_same_v<brush::Solid, PathFormat>);
+  static_assert(std::is_same_v<brush::Pattern, brushes::PatternBrush>);
+  static_assert(std::is_same_v<brush::Scatter, brushes::ScatterBrush>);
+  static_assert(std::is_same_v<brush::Art, brushes::ArtBrush>);
+  const brush::Solid a = brush::solid(2, red());
+  const PathFormat b = util::stroke(2, red());
+  EXPECT_TRUE(a == b) << "one value, two spellings";
+}
+
+TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
+  // A CYCLE has no far end: two knots at along 0.02 and 0.98 sit 4% apart,
+  // not 96%. Treating the fractions as linear made crossings that straddle
+  // the seam read as maximally distant, which vanished the territory bound
+  // and let the two lenses merge — both knots of two overlapping rings then
+  // came out in ONE colour.
+  //
+  // The reviewer's repro, exactly: r=100 at (200,200) crossed by r=13 at
+  // (288,200). Both strands closed, and BOTH neighbours across their seams.
+  auto circle = [](float cx, float cy, float r) {
+    SkPathBuilder p;
+    p.addCircle(cx, cy, r);
+    return p.detach();
+  };
+  const SkPath big = circle(200, 200, 100);
+  const SkPath small = circle(288, 200, 13);
+
+  Host host(400, 400);
+  host.composer.render(stack().child(
+      box().inset(0).stroke(brush::weave(
+          {brush::Strand{strand::path(big), util::stroke(6, red())},
+           brush::Strand{strand::path(small), util::stroke(6, green())}},
+          crossing::alternate()))));
+  host.frame();
+
+  const std::vector<Crossing> knots = discoverCrossings({big, small});
+  ASSERT_EQ(knots.size(), 2u) << "the two rings meet twice";
+  // alternate(): ordinal 0 puts strand 0 (red) over, ordinal 1 puts strand
+  // 1 (green) over. Both knots one colour is the defect.
+  EXPECT_EQ(host.pixel((int)std::lround(knots[0].at.fX),
+                       (int)std::lround(knots[0].at.fY)),
+            SK_ColorRED);
+  EXPECT_EQ(host.pixel((int)std::lround(knots[1].at.fX),
+                       (int)std::lround(knots[1].at.fY)),
+            SK_ColorGREEN)
+      << "the second knot was swallowed by the first knot's patch";
+}
+
+TEST(ComposeComposites, CompositesNest) {
+  // "Composites NEST": a strand painted by layers, a whole weave used as
+  // one strand of a bigger one. No new vocabulary needed for either.
+  Host host(200, 200);
+  const brush::Weave inner =
+      brush::layers({brush::solid(9, red()), brush::solid(3, green())});
+  host.composer.render(stack().child(
+      box().rect(SkRect::MakeXYWH(40, 40, 100, 100))
+          .stroke(brush::weave({brush::Strand{strand::self(), inner},
+                                brush::Strand{strand::offset(12),
+                                       brush::solid(2, blue())}},
+                               CrossingRule{}))));
+  host.frame();
+  EXPECT_EQ(host.pixel(90, 40), SK_ColorGREEN) << "the nested layers' top";
+  EXPECT_EQ(host.pixel(90, 28), SK_ColorBLUE) << "the offset strand, outside";
 }

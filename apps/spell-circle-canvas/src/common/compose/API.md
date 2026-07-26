@@ -1576,9 +1576,199 @@ by it, so nothing a profile draws is truncated behind your back.
 Core ships the two profiles everything else is measured against —
 `strand::self()` (across ≡ 0, the boundary itself) and
 `strand::offset(px)` (a parallel; parallels are rails and never cross).
+
+**The two `offset`s mean opposite sides, and will until the reconciliation.**
+`strand::offset(px)` is LEFT of travel (the band's frame, outside a
+clockwise path); `kit::brush::shapers::offset(px)` is RIGHT of travel,
+because it wraps `lines::offsetAlong` unchanged (§27). The split predates
+both — `TextPath::offset` has always been left-of-travel — so the kernel
+says left and the `Lines` extension says right. Both members say so at the
+call site.
 The oscillating family lives in the kit, per the tier rule. The profile
 is SHARED vocabulary: a band's taper, a weave strand's path and the
 future ribbon width are one value.
+
+### The brush taxonomy — four kinds, two composites
+
+A brush is what PAINTS. That is the whole vocabulary:
+
+| | Spelled | Legacy spelling |
+| --- | --- | --- |
+| **kind** | `brush::solid(w, fill)` / `brush::Solid{…}` | `PathFormat`, `util::stroke` |
+| **kind** | `brush::Pattern` — the mark built from CELLS | `brushes::PatternBrush` |
+| **kind** | `brush::Scatter` — cells strewn NEAR the mark | `brushes::ScatterBrush` |
+| **kind** | `brush::Art` — an element stretched ALONG it | `brushes::ArtBrush` |
+| **composite** | `brush::layers({a, b, …})` — fixed order, bottom-up | — |
+| **composite** | `brush::weave({strands…}, rule)` — per-crossing order | — |
+
+The kinds are the types that were already here under mechanism names;
+`brush::` is where they are taught and the old names keep compiling.
+`solid` replaces `PathFormat` because "path format" names the
+implementation — and `pen` was rejected because it implies calligraphy,
+which is a *profile*, not a kind.
+
+Composites take ANY brush, including other composites, so a strand
+painted by `layers` and a whole braid used as one strand of a bigger weave
+need no new vocabulary.
+
+**`layers` == `weave` with coincident self-strands.** Not an analogy — one
+machine. Coincident strands produce no crossings, so the rule never fires
+and list order applies everywhere, which is exactly "fixed order,
+bottom-up". Both words are kept because they name two author intents (the
+`alternate` == `sequence({Over, Under})` precedent). This is why double and
+triple lines are `layers` plus offset shapers and **never** element
+duplication.
+
+### Strands — where a composite's marks run
+
+```cpp
+Strand{strand::self(),        ink}      // on the boundary
+Strand{strand::offset(4),     ink}      // parallel to it — never crosses
+Strand{kit::profile::wave(6, 40), ink}  // oscillating — THE braid primitive
+Strand{strand::from("dial"),  ink}      // a keyed element's resolved path
+Strand{strand::path(myPath),  ink}      // authored geometry
+```
+
+One strand is one PAIR of `{path, brush}`. Two parallel lists matched by
+index was the first shape tried and it reproduced §10d's defect exactly
+(add a strand, silently shift every brush).
+
+Two families. **Relative** strands are displacements of the stroked
+boundary in its `(along, across)` frame — *the same frame a band owns*, so
+positive `across` is LEFT of travel — and any `Profile` is one, including
+a custom value handed straight to `.path`. **Absolute** strands bring their
+own geometry: `strand::from(key)` borrows through the derive phase (same
+flat edge-store walk, same cycle guard as `connector` and `flowAround`),
+and `strand::path(p)` is authored (SkPath is comparable, so it prunes).
+
+**With only absolute strands the boundary is an unpainted host** — nothing
+runs on it. That is a real and useful shape of composite, not a mistake.
+
+**Crossings are found on strand PATHS, not on painted marks.** A wavy
+*mark* — `Brush{}.shaped(kit::brush::shapers::wave(...))` — does not weave,
+because the strand's path is still straight and the deviation happens inside
+the brush. A wavy *path* — `Strand{kit::profile::wave(...), ink}` — does.
+That is the difference between shaping a mark and moving a strand, and it is
+why the braid primitive is a profile rather than a shaper.
+
+### Crossings — who passes over whom
+
+**Crossings are DISCOVERED, never authored.** `discoverCrossings()` finds
+them by path intersection and numbers them along the boundary. Two things
+are deliberately *not* crossings: coincident strands (which is what
+`layers` is) and endpoint touches — a rectangle's own corner is two edges
+meeting, and counting it would put a knot at every corner of every frame.
+The discriminator is transversality: does the other strand pass *through*,
+or only touch?
+
+The rule ladder, one comparable value — climb only as far as needed:
+
+```cpp
+crossing::alternate()                     // == sequence({Over, Under})
+crossing::sequence({Over, Over, Under})   // any repeating pattern
+crossing::pairs({{0,1},{1,2},{2,0}})      // dominance; CYCLES are the point
+MyRule{}                                  // your value: Order decide(const Crossing&)
+```
+
+`Order` reads against `Crossing::a`, which is always the lower strand
+index, so `Over` means "strand `a` passes over strand `b`". The default is
+list order. A user rule is a comparable value with the seam's one named
+member — never a bare lambda, because a rule is read live and an
+incomparable one never prunes.
+
+**Pins compose onto the base rule** via `.except(index, order)`. There is
+ONE `.crossing` field; pins are not stacked entries.
+
+```cpp
+brush::weave(kit::strands::braid(3, 8, 44, ink),
+             crossing::alternate().except(7, Order::Under))
+```
+
+**Pins are POSITIONAL.** The index is a position in the discovered order,
+so a stable *rule* survives a geometry change and a pin does not — move a
+strand and pin 7 lands on a different knot. Use rules while a composition
+is still moving; use pins only once it is settled and you are correcting
+one knot by eye.
+
+**What the repair does, honestly.** For every crossing the rule decides
+against list order, the over-strand is repainted through the region where
+the two marks overlap — the intersection of the two paths stroked to their
+own reach, which is correct at any angle (a disc is not: marks meeting at
+12° overlap in a long lens, and a disc sized for the perpendicular case
+leaves the under-strand showing straight across the over-strand).
+
+That region is bounded by **the knot's own territory**: each crossing is
+repaired only within half the arc distance to its nearest neighbouring
+crossing on the tighter of the two strands — measured *around the cycle* on
+a closed strand, where the fractions 0.02 and 0.98 are neighbours rather
+than opposites. The bound is not a margin. Without it the neighbouring
+overlap regions touch, pathops merges them into one, and the first
+crossing's patch owns the whole run — an ordinary braid then reads as a
+single strand laid on top of the others.
+
+So with **opaque** strand brushes the repair is exact *where a crossing has
+room*. Adjacent shallow crossings each own only half the distance between
+them, so the under-strand can show between two close knots. Widen the
+strands' spacing, or the angle between them, if that shows.
+
+With **translucent** strands it double-covers: the over-strand's alpha
+composites twice inside the patch, so the crossing reads darker than the
+strand does elsewhere. That is the patch MODEL, not the patch size, and it
+is one of the two named hard cases ROADMAP §33 pins for the element-level
+crossover pass (the other being several crossings over one region).
+**Weaves want opaque inks until that pass lands.**
+
+Only the rule VALUES are shared with that pinned pass (§33, pinned pass 1).
+Its API is undecided; this vocabulary is not.
+
+### `.shaped(value)` — the one geometry-deviation seam
+
+```cpp
+Brush{}.shaped(kit::brush::shapers::wave(5, 24))
+       .shaped(kit::brush::shapers::jitter(8, 2, 21))
+       .leg(brush::solid(3, ink));
+```
+
+Any comparable value with `SkPath shape(const SkPath &) const`, plus an
+optional `bleed()`. SkPath in, SkPath out — dash and width are path
+operations, and every deviation the corpus wanted was expressible that way.
+
+There are deliberately **no sugar methods** over this seam. Stock shapers
+are kit values, peers of anything you write; `Brush::op()` and
+`GeometryOp`/`ops::` are the legacy spelling and keep compiling, but they
+name the mechanism.
+
+`ops::` is **still public** — it is the pre-existing escape hatch, and both
+its internal-only demotion and the deletion of its lowercase incomparable
+lambda family (the audit's item 6) are deferred to the C-batch. Prefer
+`.shaped()` with a comparable value; reach for `ops::` only for a one-off
+lambda you accept will never prune.
+
+The two mechanisms, named: a **shaper** bends the ONE continuous mark
+(wave, zigzag, jitter — no tile exists); a **pattern** builds the mark out
+of CELLS (and the cell is an element, so anything paints it).
+
+### The kit tier is a separate library
+
+`kit::` is `SigilComposeKit`, its own CMake target whose only include path
+is compose's PUBLIC headers. The tier boundary is therefore structural,
+not conventional: a kit header cannot reach `ComposeInternal.h` even by
+accident. `kit/BoundaryProbe.cpp` is the negative control — built on
+demand, expected to fail.
+
+```cpp
+kit::brush::shapers::wave / jitter / offset   // the ONE geometry seam
+kit::profile::wave(amp, wavelength, phase)    // core ships self/offset only
+kit::strands::braid(n, amp, wavelength, ink)  // n waves at phase k/n
+kit::spans::brackets(arm)                     // a composition of core terms
+kit::shapes::ring(innerRatio)                 // "annulus" rejected as jargon
+```
+
+PRESETS are **not** kit. `cased`, `railway`, `rope`, `GlossContour` and
+their relatives are compositions with craft names and belong in external
+loadable kits; `sketch/sketches/stroke_atlas.cpp` stays the in-repo
+specimen page. Standing check: a preset whose name is craft jargon over a
+plain composition gets demoted — the `cased` treatment.
 
 ## The Brush engine (lines as expressive as fills)
 

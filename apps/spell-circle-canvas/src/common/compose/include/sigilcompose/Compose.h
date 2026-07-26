@@ -534,6 +534,25 @@ struct PaintContext {
   float contentScale = 1.0f;
   bool animating = false;
   sigil::weave::FontContext *fonts = nullptr;
+  /** Paths this node BORROWED from keyed elements in the derive phase, in
+   *  its own local space — what `strand::from(key)` reads. Null outside a
+   *  composer, or when the node borrowed nothing. Non-owning: valid for
+   *  the duration of the paint call only.
+   *
+   *  A decoration declares what it borrows (see BorrowingDecoration
+   *  below) so the element can register the keys without introspecting a
+   *  type-erased value; the derive pass then resolves them on the same
+   *  flat edge-store walk connectors and flowAround ride. */
+  const std::vector<std::pair<std::string, SkPath>> *borrowed = nullptr;
+
+  /** The borrowed path for `key`, or an empty path. */
+  SkPath borrowedPath(const std::string &key) const {
+    if (borrowed)
+      for (const auto &[k, p] : *borrowed)
+        if (k == key)
+          return p;
+    return SkPath();
+  }
 };
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
@@ -704,6 +723,34 @@ concept BleedingDecoration = requires(const D &d) {
   { d.bleed() } -> std::convertible_to<float>;
 };
 
+/** Optional on a DecorationScheme: the FULL width of the MARK it paints,
+ *  across the outline it dresses.
+ *
+ *  Distinct from `bleed()`, which is the CULL's number — how far the paint
+ *  escapes the node's box. An `Align::Inner` stroke bleeds ZERO (it never
+ *  leaves the shape) while painting a mark `width` px wide, so a repair
+ *  region derived from bleed() was measurably too small. Anything that
+ *  needs to know where a mark IS, rather than how far it escapes, asks
+ *  this. Over-reporting is safe; under-reporting is not. */
+template <typename D>
+concept ReachingDecoration = requires(const D &d) {
+  { d.reach() } -> std::convertible_to<float>;
+};
+
+/** Optional on a DecorationScheme: element keys whose resolved PATHS this
+ *  decoration needs (a weave's `strand::from(key)`). The element collects
+ *  them at build time and the derive pass answers them into
+ *  PaintContext::borrowed — the third borrow on one flat walk, beside
+ *  flowAround and connector/rail, rather than a fourth mechanism.
+ *
+ *  Declared rather than introspected because a Decoration is type-erased
+ *  by then: the element cannot look inside the value, so the value says
+ *  so. Composites forward their children's keys. */
+template <typename D>
+concept BorrowingDecoration = requires(const D &d) {
+  { d.borrows() } -> std::convertible_to<std::vector<std::string>>;
+};
+
 /** Type-erased decoration: the kernel seam extension primitives
  *  (PathFormat, Slice, ContourWalk — see Decorations.h) plug into. A
  *  bare PaintProgram works too. */
@@ -722,6 +769,20 @@ public:
             return (float)scheme.bleed();
           else
             return 0.0f;
+        }()),
+        m_reach([&] {
+          if constexpr (ReachingDecoration<D>)
+            return (float)scheme.reach();
+          else if constexpr (BleedingDecoration<D>)
+            return (float)scheme.bleed(); // the best available answer
+          else
+            return 0.0f;
+        }()),
+        m_borrows([&]() -> std::vector<std::string> {
+          if constexpr (BorrowingDecoration<D>)
+            return scheme.borrows();
+          else
+            return {};
         }()) {
     // Value-comparable schemes (PathFormat, Slice, Shadow…) retain a
     // comparator so the reconciler can prune a static decorated node with no
@@ -746,6 +807,12 @@ public:
   }
   bool animated() const { return m_animated; }
   float bleed() const { return m_bleed; }
+  /** FULL width of the mark this decoration paints, across the outline it
+   *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
+  float reach() const { return m_reach; }
+  /** Keyed elements whose resolved paths this decoration reads (see
+   *  BorrowingDecoration). Empty for everything that borrows nothing. */
+  const std::vector<std::string> &borrows() const { return m_borrows; }
 
   /** Structural equality for the no-memo prune: true only when both wrap the
    *  same value-comparable scheme type and those values compare equal. A bare
@@ -759,6 +826,8 @@ public:
 private:
   bool m_animated = false;
   float m_bleed = 0.0f;
+  float m_reach = 0.0f;
+  std::vector<std::string> m_borrows;
   PaintProgram m_paint;
   std::any m_scheme;
   std::function<bool(const std::any &, const std::any &)> m_equals;
@@ -970,7 +1039,14 @@ struct Self {
   float max() const { return 0.0f; }
   bool operator==(const Self &) const = default;
 };
-/** across ≡ px: a parallel. Parallels are rails — they never cross. */
+/** across ≡ px: a parallel. Parallels are rails — they never cross.
+ *
+ *  **Positive is LEFT of travel** (outside a clockwise path) — the band's
+ *  frame, which this shares by ruling. Note that
+ *  `kit::brush::shapers::offset` is the OPPOSITE sign: it wraps
+ *  `lines::offsetAlong`, whose convention is right-of-travel and which is
+ *  not being flipped (§27). The split predates both (see bandPointAt) and
+ *  its reconciliation is open. */
 struct Offset {
   float px = 0.0f;
   float across(float) const { return px; }
@@ -1001,6 +1077,343 @@ struct Around {
   bool operator==(const Around &) const = default;
 };
 inline Around around(std::string_view key) { return Around{std::string(key)}; }
+
+// ---------------------------------------------------------------------------
+// The shaper seam — the ONE way geometry deviates
+
+/** A shaper value: `SkPath shape(const SkPath &) const`, plus equality.
+ *
+ *  It bends the ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an
+ *  offset. That is the whole of the geometry-deviation vocabulary: the
+ *  other mechanism (a PATTERN, which builds the mark out of cells) is a
+ *  brush kind, not a shaper, and the two were worth naming apart.
+ *
+ *  SkPath in, SkPath out, because dash and width are path operations —
+ *  proved by the fact that every op the corpus wanted was expressible
+ *  that way. `bleed()` is optional and declares how far the deviation
+ *  reaches (a wave's amplitude), so a cull can hold it.
+ *
+ *  There are no sugar methods over this seam. Stock shapers are kit
+ *  values (`kit::brush::shapers::`), peers of anything you write — which
+ *  is the point of a seam and the reason `jittered()`-style convenience
+ *  was refused. */
+template <typename S>
+concept ShaperScheme = std::equality_comparable<S> &&
+    requires(const S &s, const SkPath &p) {
+      { s.shape(p) } -> std::convertible_to<SkPath>;
+    };
+
+/** Type-erased comparable shaper. Also accepts the legacy `apply()`
+ *  spelling (Brushes.h's GeometryOp family) so §27 holds. */
+class Shaper {
+public:
+  template <ShaperScheme S>
+  Shaper(S scheme) // NOLINT: implicit by design (.shaped(myWave))
+      : m_bleed([&] {
+          if constexpr (requires { { scheme.bleed() } -> std::convertible_to<float>; })
+            return (float)scheme.bleed();
+          else
+            return 0.0f;
+        }()) {
+    m_held = scheme;
+    m_equals = [](const std::any &a, const std::any &b) {
+      return std::any_cast<const S &>(a) == std::any_cast<const S &>(b);
+    };
+    m_shape = [s = std::move(scheme)](const SkPath &p) { return s.shape(p); };
+  }
+  Shaper() = default;
+
+  SkPath shape(const SkPath &p) const { return m_shape ? m_shape(p) : p; }
+  float bleed() const { return m_bleed; }
+  bool operator==(const Shaper &o) const {
+    if (!m_equals || !o.m_equals)
+      return !m_equals && !o.m_equals;
+    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+  }
+
+private:
+  float m_bleed = 0.0f;
+  std::function<SkPath(const SkPath &)> m_shape;
+  std::any m_held;
+  std::function<bool(const std::any &, const std::any &)> m_equals;
+};
+
+// ---------------------------------------------------------------------------
+// Strands — WHERE a composite's marks run
+
+/** Where one strand of a composite runs. Two families:
+ *
+ *  RELATIVE — a displacement of the stroked boundary in its (along,
+ *  across) frame, **the same frame a band owns** (across positive to the
+ *  LEFT of travel; see bandPointAt). Any Profile is one: `strand::self()`
+ *  rides the boundary, `strand::offset(px)` runs parallel, and a custom
+ *  profile value is accepted here directly.
+ *
+ *  ABSOLUTE — `strand::from(key)` borrows a keyed element's resolved path
+ *  through the derive phase, and `strand::path(p)` is authored geometry
+ *  (SkPath is comparable, so it prunes). **With only absolute strands the
+ *  boundary is an unpainted host** — nothing runs on it, which is a real
+ *  and useful shape of composite.
+ *
+ *  Paths are DATA: a path participates as an element's shape, as borrowed
+ *  geometry, or as pure guide data in no tree. This is the third case. */
+class StrandPath {
+public:
+  enum class Source : uint8_t { Relative, Borrowed, Authored };
+
+  StrandPath() = default;
+  StrandPath(Profile p) // NOLINT: implicit by design (.path = strand::self())
+      : m_source(Source::Relative), m_profile(std::move(p)) {}
+  static StrandPath borrowed(std::string key) {
+    StrandPath s;
+    s.m_source = Source::Borrowed;
+    s.m_key = std::move(key);
+    return s;
+  }
+  static StrandPath authored(SkPath path) {
+    StrandPath s;
+    s.m_source = Source::Authored;
+    s.m_path = std::move(path);
+    return s;
+  }
+
+  Source source() const { return m_source; }
+  const Profile &profile() const { return m_profile; }
+  const std::string &key() const { return m_key; }
+  const SkPath &path() const { return m_path; }
+  /** How far off the boundary this strand can run — 0 for the absolute
+   *  family, whose geometry is its own. */
+  float reach() const {
+    return m_source == Source::Relative ? m_profile.max() : 0.0f;
+  }
+  bool operator==(const StrandPath &o) const {
+    return m_source == o.m_source && m_profile == o.m_profile &&
+           m_key == o.m_key && m_path == o.m_path;
+  }
+
+private:
+  Source m_source = Source::Relative;
+  Profile m_profile;
+  std::string m_key;
+  SkPath m_path;
+};
+
+namespace strand {
+/** Borrow a keyed element's resolved path (derive phase, cycle-guarded
+ *  like every other borrow). */
+inline StrandPath from(std::string_view key) {
+  return StrandPath::borrowed(std::string(key));
+}
+/** Authored geometry, in the host element's local space. */
+inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
+} // namespace strand
+
+/** Displace a path in its own (along, across) frame — the primitive
+ *  behind a relative strand, and the band's frame exactly: `along` is a
+ *  fraction of total arc length, positive `across` is LEFT of travel
+ *  (outside a clockwise path). NOT `lines::offsetAlong`, which offsets
+ *  RIGHT of travel and stays as it is (§27); the two conventions are
+ *  documented at bandPointAt and their reconciliation is open. */
+SkPath profileOffset(const SkPath &spine, const Profile &profile);
+
+// ---------------------------------------------------------------------------
+// Crossings — WHICH mark is on top where two strands meet
+
+/** Who is on top. Read against a Crossing's `a`, which is always the
+ *  LOWER strand index, so the question is well-posed: Over means strand
+ *  `a` passes over strand `b`. */
+enum class Order : uint8_t { Over, Under };
+
+/** One discovered crossing. **Crossings are never authored** — they are
+ *  found by path intersection and numbered along the boundary. */
+struct Crossing {
+  /** ORDINAL in the discovered list, 0-based: the crossings are sorted by
+   *  `alongA` (position on the lower-indexed strand) and then numbered.
+   *  It is NOT a coordinate in any parameterisation and NOT stable under
+   *  a change of geometry — add a strand or move one and the same knot may
+   *  take a different ordinal. This is the number `CrossingRule::except()`
+   *  pins, which is exactly why pins are documented as positional. */
+  size_t index = 0;
+  /** Strand indices, always `a < b` — `b` is the one list order paints
+   *  later, i.e. on top when nothing says otherwise. */
+  size_t a = 0, b = 0;
+  SkPoint at{0, 0};
+  /** Where the crossing falls along each strand, as fractions of that
+   *  strand's arc length. */
+  float alongA = 0.0f, alongB = 0.0f;
+  bool operator==(const Crossing &) const = default;
+};
+
+/** A crossing rule value: `Order decide(const Crossing &) const`, plus
+ *  equality — the seam convention's one named required member. Never a
+ *  bare lambda: a rule is read live, so it must prune. */
+template <typename D>
+concept CrossingScheme = std::equality_comparable<D> &&
+    requires(const D &d, const Crossing &c) {
+      { d.decide(c) } -> std::convertible_to<Order>;
+    };
+
+/** The rule ladder, as ONE comparable value. Climb only as far as the
+ *  composition needs:
+ *
+ *      crossing::alternate()                    // == sequence({Over, Under})
+ *      crossing::sequence({Over, Over, Under})  // any repeating pattern
+ *      crossing::pairs({{0,1},{1,2},{2,0}})     // dominance, cyclic allowed
+ *      MyRule{}                                 // your own decide() value
+ *
+ *  and pin exceptions onto whatever you chose with `.except(i, order)`.
+ *
+ *  The default is LIST ORDER: later strands pass over earlier ones. That
+ *  is what makes `layers` and `weave` formally one machine. */
+class CrossingRule {
+public:
+  CrossingRule() = default;
+  template <CrossingScheme D>
+  CrossingRule(D scheme) // NOLINT: implicit by design (.crossing = MyRule{})
+      : m_kind(Kind::Custom) {
+    m_held = scheme;
+    m_equals = [](const std::any &x, const std::any &y) {
+      return std::any_cast<const D &>(x) == std::any_cast<const D &>(y);
+    };
+    m_decide = [s = std::move(scheme)](const Crossing &c) {
+      return s.decide(c);
+    };
+  }
+
+  static CrossingRule sequence(std::vector<Order> pattern) {
+    CrossingRule r;
+    r.m_kind = Kind::Sequence;
+    r.m_pattern = std::move(pattern);
+    return r;
+  }
+  static CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
+    CrossingRule r;
+    r.m_kind = Kind::Pairs;
+    r.m_dominance = std::move(dominance);
+    return r;
+  }
+
+  /** Pin ONE crossing, layered over whatever rule this already is.
+   *
+   *  **Pins are POSITIONAL**: the index is a position in the discovered
+   *  order, so a stable RULE survives a geometry change and a pin does
+   *  not — move a strand and pin 3 lands on a different meeting. Use
+   *  rules while a composition is still moving, and pins only once it is
+   *  settled and you are correcting one knot by eye.
+   *
+   *  Pins compose onto the base rule and never stack as separate
+   *  entries: there is one `.crossing` field, and this is how it takes
+   *  exceptions. */
+  CrossingRule &except(size_t index, Order order) {
+    for (auto &pin : m_pins)
+      if (pin.first == index) {
+        pin.second = order;
+        return *this;
+      }
+    m_pins.emplace_back(index, order);
+    return *this;
+  }
+
+  Order decide(const Crossing &c) const {
+    for (const auto &pin : m_pins)
+      if (pin.first == c.index)
+        return pin.second;
+    switch (m_kind) {
+    case Kind::Sequence:
+      if (!m_pattern.empty())
+        return m_pattern[c.index % m_pattern.size()];
+      break;
+    case Kind::Pairs:
+      for (const auto &[over, under] : m_dominance) {
+        if (over == (int)c.a && under == (int)c.b)
+          return Order::Over;
+        if (over == (int)c.b && under == (int)c.a)
+          return Order::Under;
+      }
+      break;
+    case Kind::Custom:
+      if (m_decide)
+        return m_decide(c);
+      break;
+    case Kind::ListOrder:
+      break;
+    }
+    // List order: `b` is later in the list, so `a` is underneath.
+    return Order::Under;
+  }
+
+  bool operator==(const CrossingRule &o) const {
+    if (m_kind != o.m_kind || m_pattern != o.m_pattern ||
+        m_dominance != o.m_dominance || m_pins != o.m_pins)
+      return false;
+    if (m_kind != Kind::Custom)
+      return true;
+    if (!m_equals || !o.m_equals)
+      return !m_equals && !o.m_equals;
+    return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
+  }
+
+private:
+  enum class Kind : uint8_t { ListOrder, Sequence, Pairs, Custom };
+  Kind m_kind = Kind::ListOrder;
+  std::vector<Order> m_pattern;
+  std::vector<std::pair<int, int>> m_dominance;
+  std::vector<std::pair<size_t, Order>> m_pins;
+  std::function<Order(const Crossing &)> m_decide;
+  std::any m_held;
+  std::function<bool(const std::any &, const std::any &)> m_equals;
+};
+
+namespace crossing {
+/** Over, under, over, under — the plain-weave rule, and formally just
+ *  `sequence({Over, Under})`. Both words are kept because they name two
+ *  author intents over one machine (the layers/weave precedent). */
+inline CrossingRule alternate() {
+  return CrossingRule::sequence({Order::Over, Order::Under});
+}
+inline CrossingRule sequence(std::vector<Order> pattern) {
+  return CrossingRule::sequence(std::move(pattern));
+}
+/** Strand DOMINANCE: `{{over, under}, …}`. Cycles are legal and are the
+ *  point — `{{0,1},{1,2},{2,0}}` is the impossible-braid rule Penrose
+ *  tilings and heraldic knots are full of. */
+inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
+  return CrossingRule::pairs(std::move(dominance));
+}
+} // namespace crossing
+
+/** Every crossing among a set of strand paths, numbered along the
+ *  boundary (ascending by position on the lowest-indexed strand
+ *  involved). Only PROPER crossings count: coincident strands and
+ *  endpoint touches (a shared polygon vertex) are meetings, not
+ *  crossings, and reporting them would put a knot at every corner.
+ *
+ *  Public because the rule VALUES are shared with the pinned
+ *  element-level crossover pass — its API is undecided, this vocabulary
+ *  is not. */
+std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands);
+
+/** The region where two strands' MARKS actually overlap at one crossing:
+ *  the intersection of the two paths stroked to their own reach, reduced to
+ *  the component containing `at` and bounded by @p maxRadius px around it.
+ *
+ *  Exact at any angle, which a disc is not — two marks meeting at 12° overlap
+ *  in a long lens whose extent along each strand goes as reach/sin(theta),
+ *  and a disc sized for the perpendicular case leaves the under-strand
+ *  showing straight across the over-strand's mark.
+ *
+ *  `maxRadius` is not a safety margin, it is REQUIRED for correctness on any
+ *  ordinary braid. Once reach/sin(theta) approaches the spacing between
+ *  knots, the neighbouring lenses touch and pathops merges them into ONE
+ *  contour — at which point the first crossing's patch owns the whole run
+ *  and the weave degenerates to "one strand on top" (measured: a 3px/40px
+ *  braid in 6px ink got 25 of 50 knots wrong). Pass half the arc distance to
+ *  the adjacent crossing so each knot can only ever claim its own half.
+ *
+ *  Falls back to a disc when the intersection is empty (degenerate or
+ *  non-overlapping input). */
+SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
+                     float reachB, SkPoint at, float maxRadius);
 
 // ---------------------------------------------------------------------------
 // Layout values (Yoga semantics, 1:1)
@@ -1605,6 +2018,12 @@ public:
       : m_node(std::move(n)) {}
 
 private:
+  /** Register a decoration's declared derive borrows (see
+   *  BorrowingDecoration). Called by EVERY slot that takes a Decoration —
+   *  a borrow honoured by only some of them would be the sibling-path
+   *  failure family again. */
+  void claimBorrows(const Decoration &d);
+
   /** Copy-on-write handle: Element stays a cheap value, but fluent mutation
    *  can never alter another copy or a description retained by Composer. */
   struct NodeHandle {
