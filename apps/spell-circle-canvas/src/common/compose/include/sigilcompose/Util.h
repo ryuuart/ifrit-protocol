@@ -1,9 +1,10 @@
 #pragma once
 
 /** @file
- * SigilCompose util tier — deliberately-demoted sugar a user could
- * write themselves (see DESIGN.md "Kernel and extensions"). Depends
- * only on the kernel + decoration primitives; optional by definition.
+ * SigilCompose util tier — deliberately-demoted sugar a user could write
+ * themselves (see DESIGN.md "Kernel, util, extensions — the weight
+ * budget"). Depends only on the kernel + decoration primitives; optional
+ * by definition.
  */
 
 #include "sigilcompose/Compose.h"

@@ -3,8 +3,8 @@
 /** @file
  * SigilCompose decoration primitives — the extension over the kernel's
  * Decoration seam (see API.md "Primitives, not a zoo"). Concrete
- * treatments are data over three general primitives, each a thin value
- * struct over machinery Skia ships:
+ * treatments are data over the seam's primitives BEYOND the kernel's Fill
+ * (Compose.h) — each a thin value struct over machinery Skia ships:
  *
  *  - PathFormat: format any stroke along the node's outline — width and
  *    paint plus an optional dash pattern, a stamped path repeated along
@@ -14,6 +14,9 @@
  *  - ContourWalk: walk the outline by arc length and run a draw program
  *    at each sample, the canvas pre-positioned at the sample with x
  *    along the tangent — the general procedural border.
+ *
+ * The vocabulary values built OVER them (Wash over Fill, Border over
+ * PathFormat) are the shelf's later decision, not a wider seam.
  *
  * All are DecorationScheme values: attach with .background()/.foreground().
  */
@@ -57,11 +60,6 @@ struct PathFormat {
 
   /** Dash on/off intervals in px (empty → solid). */
   std::vector<SkScalar> dashIntervals;
-  /** Stroke cap and join on the paint itself. The card illustration of
-   *  the Fallout 2 study is ~30 open contours of line art; every one of
-   *  them ended square and mitred at the joints because this paint was
-   *  built and never asked. Distinct from `lines::Line`'s join item,
-   *  which is about the OFFSET CONTOUR rather than the stroke paint. */
   /** A Material for the stroke, superseding `strokeFill` when set.
    *
    *  `fill()` takes a Material — unit-square authoring, structural
@@ -72,6 +70,12 @@ struct PathFormat {
    *  twice, once per return type, with the world→node conversion done by
    *  hand in both. */
   std::optional<Material> strokeMaterial;
+  /** Stroke cap and join on the paint itself. The card illustration of
+   *  the Fallout 2 study is ~30 open contours of line art; every one of
+   *  them ended square and mitred at the joints because this paint was
+   *  built and never asked. Distinct from `lines::Rail::join`, which is
+   *  per-rail and shapes that rail's own OFFSET CURVE rather than this
+   *  stroke on the node's outline. */
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
   float dashPhase = 0.0f;
@@ -213,9 +217,10 @@ struct Slice {
   std::shared_ptr<const sigil::image::ImageAsset> asset;
   std::vector<int> xDivs;
   std::vector<int> yDivs;
-  /** drawImageLattice takes the image DIRECTLY — on Graphite a raster
-   *  image must promote first or the lattice silently vanishes (the
-   *  invisible-nine-slice finding). Excluded from equality. */
+  /** Graphite stubs the native lattice op EMPTY, so it must never be
+   *  recorded: `gpuimg::drawLattice` decomposes on every backend and
+   *  promotes raster sources through this cache (the invisible-nine-slice
+   *  finding). Excluded from equality. */
   std::shared_ptr<gpuimg::Promoted> gpuCache =
       std::make_shared<gpuimg::Promoted>();
   /** How the slices sample. Linear is right for a soft frame and wrong
@@ -328,27 +333,9 @@ struct ContourWalk {
   std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
 };
 
-/** Paints a decoration against geometry you built yourself, inside a
- *  `custom()` program.
- *
- *  The whole brush vocabulary — `PathFormat` with its stroke alignment,
- *  dashes, stamps and its own trim window; `lines::Line`; `Brush`;
- *  `shapes::inset` — reads only `PaintContext::outline`. So none of it
- *  is actually restricted to a node's own shape, and geometry that
- *  changes per frame (a simulated rope, a live EQ curve, a plotted
- *  signal) can wear all of it:
- *
- *      custom([&](SkCanvas &c, const PaintContext &ctx) {
- *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
- *      }).cache(Cache::None)
- *
- *  Spelled out because the roadmap recorded the opposite — that live
- *  geometry in `custom()` forfeits the decoration vocabulary along with
- *  pruning — and a researcher caught it by reading the source rather than
- *  the list. It was a discoverability gap wearing a capability gap's
- *  clothes, which is the fourth of those this program has found. */
 /** Floods the node's OUTLINE with a Material through a blend mode — the
- *  material-valued decoration the primitive set was missing.
+ *  material-valued decoration built over the Fill primitive: vocabulary,
+ *  not a fifth primitive.
  *
  *  `Element::overlay()` puts a layer over the fill and under the
  *  children; `foreground()` puts one over everything. But `foreground()`
@@ -414,14 +401,14 @@ struct Wash {
  *  corner scan `PatternBrush` already ran), and an ordinary dashed stroke:
  *
  *      .foreground(decorations::brackets(2, ink, 18))     // reticle corners
+ *      .foreground(decorations::border(1, ink, 6))        // inset rule
+ *      .foreground(decorations::gappedRule(1, ink, 14))   // open corners
  *
  *  Each corner helper takes a trailing `angleDeg`. It is the last
  *  parameter because it is usually the default — but WITHOUT it the
  *  helpers could not reach `Border::cornerAngleDeg` at all, so an n-gon
  *  bezel (18 degrees per vertex on a 20-gon, under the 30 default) had no
  *  spelling short of building the Border by hand.
- *      .foreground(decorations::border(1, ink, 6))        // inset rule
- *      .foreground(decorations::gappedRule(1, ink, 14))   // open corners
  *
  *  It follows any silhouette, so chamfering the node's outline puts the
  *  brackets on the chamfers with no further instruction. */
@@ -597,6 +584,25 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
                          Decoration(std::move(inner))}};
 }
 
+/** Paints a decoration against geometry you built yourself, inside a
+ *  `custom()` program.
+ *
+ *  The whole brush vocabulary — `PathFormat` with its stroke alignment,
+ *  dashes, stamps and its own trim window; `lines::Line`; `Brush`;
+ *  `shapes::inset` — reads only `PaintContext::outline`. So none of it
+ *  is actually restricted to a node's own shape, and geometry that
+ *  changes per frame (a simulated rope, a live EQ curve, a plotted
+ *  signal) can wear all of it:
+ *
+ *      custom([&](SkCanvas &c, const PaintContext &ctx) {
+ *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
+ *      }).cache(Cache::None)
+ *
+ *  Spelled out because the roadmap recorded the opposite — that live
+ *  geometry in `custom()` forfeits the decoration vocabulary along with
+ *  pruning — and a researcher caught it by reading the source rather than
+ *  the list. It was a discoverability gap wearing a capability gap's
+ *  clothes, which is the fourth of those this program has found. */
 inline void paintOn(SkCanvas &canvas, const PaintContext &ctx, SkPath outline,
                     const Decoration &decoration) {
   PaintContext local = ctx;

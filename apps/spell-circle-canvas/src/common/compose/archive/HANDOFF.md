@@ -1,5 +1,14 @@
 # Handoff — SigilCompose study program
 
+> **ARCHIVED 2026-07-25.** A session snapshot (2026-07-22). Its live
+> payloads moved: standing rules → `../DESIGN.md` §Doctrine;
+> Cache::Group verification record and must-not-assume list →
+> `../ROADMAP.md` §30; the capture-audit result and triage taxonomy →
+> `../ROADMAP.md` §31; small open items → `../ROADMAP.md` Host and
+> tooling. The referenced STATUS.md lived in the job workspace and no
+> longer exists. The full 56-scene diff table below remains the only
+> copy.
+
 Written 2026-07-22 at the token limit. Everything below is either
 committed or explicitly marked as in-flight. Workspace:
 `/Users/long/.claude/jobs/440b1a2b/tmp/run2/`.

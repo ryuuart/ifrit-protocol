@@ -105,8 +105,10 @@ struct SketchContext {
   }
 
   /** Declare the scene time a STILL of this sketch should be taken at —
-   *  the moment the piece is most itself. Only stills honor it; the live
-   *  host and the timing table are untouched.
+   *  the moment the piece is most itself. GALLERY stills honor it; the
+   *  live host and the timing table are untouched. ComposeSketch's own
+   *  `--frame` does NOT consult it: that path warms to `--at` and takes
+   *  its moment from there (aligning the two is open).
    *
    *  Reach for it whenever the sketch has beats: an entrance that settles
    *  into a hold, a cycle that visits several states, a reveal. The gallery

@@ -532,12 +532,6 @@ struct Stagger {
   bool operator==(const Stagger &) const = default;
 };
 
-/** Kinetic text: attach to a text() element with Element::glyphFx(). The
- *  master `progress` takes the full PropValue treatment — plain, with()
- *  transitions (retarget-safe), or a ch::Output binding (loops: bind a
- *  wrapping phase). While progress moves the node paints live; settled
- *  kinetic text caches like any static leaf. All glyphs render through
- *  batched RSXform draws — one draw per (font, color), never per glyph. */
 /** Text whose BASELINE is a path (`Element::onPath`).
  *
  *  The run is shaped once — real kerning, real ligatures, real advances —
@@ -604,6 +598,12 @@ struct TextPath {
   // (Reconcile.cpp, textEqual) — the same rule the derive callables get.
 };
 
+/** Kinetic text: attach to a text() element with Element::glyphFx(). The
+ *  master `progress` takes the full PropValue treatment — plain, with()
+ *  transitions (retarget-safe), or a ch::Output binding (loops: bind a
+ *  wrapping phase). While progress moves the node paints live; settled
+ *  kinetic text caches like any static leaf. All glyphs render through
+ *  batched RSXform draws — one draw per (font, color), never per glyph. */
 struct GlyphFx {
   GlyphEffectFn effect;
   Stagger stagger;
@@ -779,8 +779,12 @@ struct Echo {
  *  bake is taken only while every bound transform, opacity and content
  *  scalar below the node is holding the value it held last frame, and is
  *  dropped on the frame any of them ticks. So an entrance animation plays
- *  live and the settled assembly costs one blit — measured on
- *  `kumiko_asanoha`, 111.9 → 5.5 ms of GPU work.
+ *  live and the settled assembly costs one blit — pixel-verified on
+ *  `kumiko_asanoha` (byte-identical at seven phases across its 6.4 s
+ *  loop), where the lattice reads `[group]` at ~0.49 ms of RECORDING time
+ *  on a node that was 523 live pictures, with 0 cache writes in steady
+ *  state. **No GPU work-ms number exists for Group yet**: the
+ *  before/after pair has not been taken (ROADMAP §30).
  *
  *  It REFUSES, permanently and loudly (one line to stderr), any subtree
  *  carrying volatility a float comparison cannot see: a live material
@@ -988,22 +992,15 @@ public:
    *  did not, so the fix was discoverable only by diffing two signatures.
    *  No effect on non-image leaves. */
   Element &sampling(SkSamplingOptions options);
-  /** Decoration layers: backgrounds paint below content/children (in
-   *  declaration order), foregrounds above; repeated calls APPEND (the
-   *  Photoshop stacked-strokes model — two stroke() calls are two rings).
-   *  fill() is the transitionable first background; custom() is a box
-   *  with one background program. Decorations dress the OUTLINE: clip()
-   *  does not clip them (it bounds fill/content/children only), so outer
-   *  strokes and shadows survive on clipped nodes. */
-  /** A decoration painted OVER the fill and UNDER the content and
-   *  children — the slot between the two that did not exist.
-   *
-   *  `background()` hides beneath the fill and `foreground()` paints
-   *  above the children, so a textured button greys out its own label:
-   *  hazard stripes over the surface but under the digit, a scanline
-   *  field over a panel but under its readout, a paper tooth over the
-   *  stock but under the ink. The workaround was a sibling stack, which
-   *  costs a node and loses the outline. */
+  // ---- decoration layers ----
+  // Backgrounds paint below content/children (in declaration order),
+  // foregrounds above; fill() is the transitionable first background,
+  // custom() a box with one background program.
+  // Repeated calls APPEND (the Photoshop stacked-strokes model — two
+  // stroke() calls are two rings).
+  // Decorations dress the OUTLINE: clip() does not clip them (it bounds
+  // fill/content/children only), so outer strokes and shadows survive on
+  // clipped nodes.
   /** A directional REVEAL: shows the fraction of the node lying before a
    *  moving edge travelling at @p angleDeg (0 = left-to-right, 90 = top
    *  to bottom, and any angle between).
@@ -1021,16 +1018,6 @@ public:
    *  never relayouts, and it covers the node's decorations too, because a
    *  reveal reveals. */
   Element &wipe(float angleDeg, PropValue<float> fraction);
-  /** A decoration painted OVER the fill and UNDER the content and
-   *  children — the slot between the two.
-   *
-   *  `background()` hides beneath the FILL, which the header below does
-   *  not say and which sends a first attempt at bevelled chrome back as
-   *  flat slabs: 31 bevels all drawing, underneath their own surfaces.
-   *  `foreground()` paints above the children, so a textured button greys
-   *  out its own label. This is the layer that 100% of bevelled chrome
-   *  actually wants. (Its doc comment was orphaned once already, by an
-   *  insertion above it — hence the belt and braces.) */
   /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
    *
    *  `hitTest` returns any keyed node whose box contains the point,
@@ -1043,6 +1030,17 @@ public:
    *  Children are still tested — this excludes the node's own box, not
    *  its subtree. */
   Element &hitTestable(bool enabled);
+  /** A decoration painted OVER the fill and UNDER the content and
+   *  children — the slot between the two that did not exist.
+   *
+   *  `background()` hides beneath the FILL (an opaque fill covers it —
+   *  the trap that sent a first attempt at bevelled chrome back as flat
+   *  slabs, 31 bevels all drawing underneath their own surfaces), and
+   *  `foreground()` paints above the children, so a textured button
+   *  greys out its own label. This slot is what hazard stripes over a
+   *  surface but under the digit, scanlines over a panel but under its
+   *  readout, and 100% of bevelled chrome actually want. The workaround
+   *  was a sibling stack, which costs a node and loses the outline. */
   Element &overlay(Decoration d);
   /** A decoration painted BENEATH the fill (the CSS box-shadow
    *  ordering) — shadows, ground textures, anything the surface sits on
@@ -1143,10 +1141,8 @@ public:
   /** Text leaves only: flow this paragraph around the keyed node's
    *  resolved bounds (SigilWeave ExclusionFlow), with @p margin px of
    *  standoff. Resolved as a bounded second layout pass; a reference
-   *  to self or a descendant is ignored (cycle guard). */
-  /** Text-only: flow this paragraph around the keyed element's resolved
-   *  bounds (derive phase). Call repeatedly to weave around several
-   *  elements; `margin` applies to all of them. */
+   *  to self or a descendant is ignored (cycle guard). Call repeatedly
+   *  to weave around several elements. */
   Element &flowAround(std::string_view key, float margin = 0.0f);
 
   // ---- content ----
@@ -1184,14 +1180,6 @@ public:
    *  wins when both are set (kinetic text draws its own buckets). */
   Element &textFill(Material m);
 
-  /** Text leaves only: lay the run out along a PATH instead of a line.
-   *  See TextPath. Single-line runs; the node's own box still sizes the
-   *  path, so give it the box the curve should be inscribed in
-   *  (`util::disc`-style: width(2r).height(2r).centerAt(centre)).
-   *
-   *  Interacts with the rest of the text surface the way you would hope:
-   *  the style's underlays, overlays and decorations all still draw, and
-   *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.
    *
@@ -1205,6 +1193,14 @@ public:
    *  fills the letterforms — and with the style's own underlays and
    *  overlays, which it joins rather than replaces. */
   Element &textStroke(float width, Fill fill);
+  /** Text leaves only: lay the run out along a PATH instead of a line.
+   *  See TextPath. Single-line runs; the node's own box still sizes the
+   *  path, so give it the box the curve should be inscribed in
+   *  (`util::disc`-style: width(2r).height(2r).centerAt(centre)).
+   *
+   *  Interacts with the rest of the text surface the way you would hope:
+   *  the style's underlays, overlays and decorations all still draw, and
+   *  glyphFx() wins if both are set (kinetic text draws its own buckets). */
   Element &onPath(TextPath spec);
 
   // ---- identity, caching, transitions ----
@@ -1212,11 +1208,16 @@ public:
   Element &cache(Cache c);
   /** Texture-bake resolution multiplier (Cache::Texture only; 0.1–1).
    *  The bake rasterizes at `factor` times the device scale and the blit
-   *  scales it back up with linear sampling — Chrome's reduced
-   *  raster-scale trade, for planes whose content is soft anyway
-   *  (blurred glass, watercolor shader walls): bakeScale(0.5f) quarters
-   *  the pixels each re-bake evaluates. Sharp text or 1px hairlines do
-   *  NOT belong under a reduced bake. */
+   *  scales it back up with linear sampling.
+   *
+   *  ALMOST ALWAYS THE WRONG LEVER — it cheapens the BAKE and taxes
+   *  every BLIT (an upscaling resample, paid forever), which is
+   *  backwards for the bake-once/blit-every-frame node Cache::Texture
+   *  exists for. One study removed it from six nodes and went mean
+   *  11.07 → 4.31 ms. Reach for it only when something forces FREQUENT
+   *  re-bakes (a live material stepping at its own rate, a resizing
+   *  node) AND the content is soft enough to survive the resample.
+   *  Sharp text or 1px hairlines never belong under a reduced bake. */
   Element &bakeScale(float factor);
   Element &transition(Transition t); // node default for plain constants
   /** GSAP-style container stagger: child i's subtree enters with an EXTRA
@@ -1363,12 +1364,6 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
-/** One-shot intrinsic measurement: what size would this element take?
- *  Runs the same reconcile+layout as snapshot() and returns the root's
- *  resolved size without painting. The sizing primitive behind
- *  content-fit chrome (marquees, tooltips, badges): measure the content,
- *  then describe the real tree with the answer. Same sampling rules as
- *  snapshot() — bindings at current values, no transitions. */
 /** A face's vertical metrics at a given size, without laying anything out.
  *
  *  The most-used missing primitive in the study program, and the reason
@@ -1398,6 +1393,12 @@ struct TextMetrics {
 TextMetrics metrics(const sigil::weave::TextStyle &style,
                     sigil::weave::FontContext &fonts);
 
+/** One-shot intrinsic measurement: what size would this element take?
+ *  Runs the same reconcile+layout as snapshot() and returns the root's
+ *  resolved size without painting. The sizing primitive behind
+ *  content-fit chrome (marquees, tooltips, badges): measure the content,
+ *  then describe the real tree with the answer. Same sampling rules as
+ *  snapshot() — bindings at current values, no transitions. */
 SkSize measure(Element root, sigil::weave::FontContext &fonts,
                SkSize maxSize = SkSize::MakeEmpty());
 
@@ -1435,7 +1436,10 @@ public:
 
   /** Layout viewport in canvas-space px; percent dims resolve here.
    *  The root element always fills the viewport (its own width/height
-   *  are ignored, like the CSS root) — size content via children. */
+   *  are ignored, like the CSS root) — size content via children.
+   *  An EMPTY size means INTRINSIC instead: the root sizes to its
+   *  content and its own dims ARE respected (Layout.cpp) — the rule the
+   *  snapshot()/measure() path runs under. */
   void setSize(SkSize size);
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
@@ -1633,7 +1637,11 @@ public:
    *  profiling is off. */
   const std::vector<NodeCost> &profile() const;
 
-  /** AUTOMATIC TEXTURE PROMOTION (on by default).
+  /** AUTOMATIC TEXTURE PROMOTION (on by default on CPU raster; OFF by
+   *  default on a Graphite/GPU surface — the cost model that drives it
+   *  measures op-RECORDING time, which describes raster and not GPU,
+   *  and promotion measured inert there; see ComposeRuntime.h and
+   *  ROADMAP §29. This setter overrides in both directions).
    *
    *  A `Cache::Auto` subtree that is provably static already caches as an
    *  SkPicture — and a picture records the DRAW CALLS, so replaying it

@@ -7,22 +7,27 @@
  * kernel's three-case `Fill` as the authoring value for `fill()`; `Fill`
  * stays as the low-level {none,color,shader} carrier the reconciler stores.
  *
- * A Material is either STATIC or LIVE:
+ * A Material sits in one of three volatility tiers:
  *  - STATIC (solid, gradient ramp, image/sprite, blend, sksl with only
  *    constant uniforms): resolves eagerly to a color or shader, so it
  *    collapses to a `Fill` (toFill()) and rides the kernel's existing
  *    caching/prune/paint path unchanged.
- *  - LIVE (an sksl() material with at least one ch::Output-bound uniform):
- *    carries the runtime-effect recipe and is re-resolved every frame from
- *    the current uniform values (resolve()); its node is declared volatile
- *    exactly like a bound fill, so it paints live and never freezes into a
- *    cache. This is what makes `.uniform(name, &output)` actually drive
- *    pixels — see the note on uniform() below.
+ *  - GEOMETRY (an sksl() material declaring only `uResolution`): resolves
+ *    when the node RECORDS and caches between layouts — it depends on the
+ *    box, not on the clock (see geometryDependent()).
+ *  - LIVE (an sksl() material with a ch::Output-bound uniform, or one
+ *    reading `uTime`/`uContentScale`): carries the runtime-effect recipe
+ *    and is re-resolved every frame from the current values (resolve());
+ *    its node is declared volatile exactly like a bound fill, so it paints
+ *    live and never freezes into a cache. This is what makes
+ *    `.uniform(name, &output)` actually drive pixels — see the note on
+ *    uniform() below.
  *
- * The material vocabulary (solid/mix/ramp/image/blend) mirrors the MaterialX
- * standard library so a MaterialX document importer is a clean later addition;
+ * The material vocabulary mirrors MaterialX's solid/mix/ramp/image/blend
+ * atoms so a MaterialX document importer is a clean later addition;
  * no MaterialX dependency is pulled — we own the SkSL/SkShader backend. The
- * OCIO working-space / view transform is a Composer output stage (color::View),
+ * OCIO working-space / view transform is a Composer output stage
+ * (`Composer::setView` + `ocio::display` — <sigilcompose/Ocio.h>),
  * orthogonal to Material the way SigilLoader is to SigilImage.
  */
 

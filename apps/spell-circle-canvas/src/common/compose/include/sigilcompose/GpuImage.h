@@ -8,12 +8,14 @@
  * — found as invisible nine-slice frames and instance stamps in the GPU
  * gallery, pinned by compose_gpu_test's DirectPrimitiveMatrix.
  *
- * On raster canvases these call the native primitives unchanged. On
- * Graphite (canvas.recorder() != null) they decompose:
+ * These decompose on EVERY backend, and never call the native ops — a
+ * picture recorded on a raster canvas must be able to replay on Graphite,
+ * where a recorded native lattice/atlas op silently vanishes:
  *  - lattice → per-cell drawImageRect (NinePatch alternating bands),
  *  - atlas   → one drawVertices quad list sampling the promoted sheet.
- * Raster source images promote through a per-owner cache (Graphite also
- * performs no implicit uploads for direct image use).
+ * `canvas.recorder()` gates only TEXTURE PROMOTION: raster source images
+ * promote through a per-owner cache because Graphite performs no implicit
+ * uploads for direct image use.
  */
 
 #include <include/core/SkBlendMode.h>

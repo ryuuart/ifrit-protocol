@@ -9,7 +9,8 @@
  * changes none of it. No new `ElementNode` state, no new reconciler
  * equality, no new paint path — every kit component is a free function or
  * an aggregate over the shipped API. That inverts the risk that governs
- * `<sigilcompose/Layouts.h>` and `EXTRACT.md`: a wrong entry in the core
+ * `<sigilcompose/Layouts.h>` and the extraction test (DESIGN.md §Growth
+ * rules; evidence in `archive/EXTRACT.md`): a wrong entry in the core
  * API is permanent, so the bar there is brutal, while a wrong kit
  * component is simply not `#include`d by the next study and costs nothing.
  *
