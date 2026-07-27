@@ -277,13 +277,14 @@ SIGIL_SKETCH(MySketch)
   > check that covers this.
 - Symbols resolve from the **host executable**, which force-loads the
   full SDK archives (`-force_load` + `-export_dynamic`) so any compose /
-  textflow / image / tick call a sketch makes is present. The one
-  exception is Skia: vcpkg builds it with hidden visibility, so its
-  symbols cannot be re-exported — sketch dylibs therefore link
-  `libskia.a` directly (the linker pulls only referenced objects, which
-  keeps builds fast). Practical consequence: the sketch carries its own
-  copies of the Skia code it calls; objects passed to the host stay
-  self-consistent through their vtables.
+  textflow / image / tick call a sketch makes is present. Skia is in that
+  set too now. It used to be the exception: Skia builds with hidden
+  visibility, so the host could not re-export it and sketch dylibs linked
+  `libskia.a` themselves — leaving two Skia images in one process. The
+  registry port now carries a `default-visibility` feature (requested in
+  `vcpkg.json`) that drops `-fvisibility=hidden`, so Skia re-exports like
+  everything else and a sketch carries none of its own: the dylib went
+  from 9.3 MB to 379 KB and no longer defines `SkString::gEmptyRec`.
 - macOS-first, like the repo's GPU paths; the Linux/Windows port mirrors
   this with `--whole-archive`/`/WHOLEARCHIVE` and default dylib symbol
   semantics.
@@ -306,8 +307,10 @@ registration, since nothing references it), which is why the gallery's
 study list needs no copy of the sketch: the file you hot-reload and the
 scene the gallery shows are the same file.
 
-Two consequences worth knowing. The split-Skia rule does not apply to a
-statically linked sketch — it shares the host's Skia — so a sketch can
-pass the gallery and still break the dylib path; `compose_sketch_stock`
-remains the guard for that. And a sketch declares its canvas from inside
+One consequence worth knowing: a sketch declares its canvas from inside
 `setup()`, so a host cannot know the size until after it has run.
+
+The split-Skia rule that used to sit here — a statically linked sketch
+shares the host's Skia, so it could pass the gallery and still break the
+dylib path — no longer distinguishes the two. Both paths now run against
+the single Skia image in the host.
