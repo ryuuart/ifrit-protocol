@@ -101,12 +101,16 @@ if(APPLE)
   target_link_options(ComposeSketch PRIVATE "LINKER:-export_dynamic")
   # Sketches may call ANY part of the SDK, not just what the host's own
   # TUs reference — force the full archives into the executable so
-  # -undefined dynamic_lookup always resolves. (Skia is the exception:
-  # vcpkg builds it hidden-visibility, so sketches link its archive
-  # directly — see EXTRA below.)
+  # -undefined dynamic_lookup always resolves. Skia is in that list now
+  # too: the registry port's `default-visibility` feature (requested in
+  # vcpkg.json) drops Skia's -fvisibility=hidden, which is what makes the
+  # host able to re-export it. Until then a sketch had to link libskia.a
+  # itself, leaving two Skia images in the process whose objects could not
+  # be exchanged — see the split-Skia note on compose_sketch_stock below.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
                               SigilLoader SigilMotion SigilWeave
-                              SigilWeavePorts)
+                              SigilWeavePorts
+                              unofficial::skia::skia)
     target_link_options(ComposeSketch PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
   endforeach()
@@ -126,7 +130,9 @@ add_custom_command(
     -DANCHOR=${CMAKE_CURRENT_LIST_DIR}/SketchAnchor.cpp
     -DCONFIG=$<CONFIG>
     -DOUT=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
-    -DEXTRA=$<TARGET_FILE:unofficial::skia::skia>
+    # No EXTRA: the host force_loads Skia and re-exports it, so a sketch
+    # resolves Skia through -undefined dynamic_lookup like the rest of the
+    # SDK. Linking the archive here is what used to split Skia in two.
     -P ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
   DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
           ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
@@ -143,14 +149,18 @@ add_test(NAME compose_sketch_smoke
     ${CMAKE_CURRENT_LIST_DIR}/sketches/hello.cpp
     --frame ${CMAKE_BINARY_DIR}/compose_sketch_smoke.png)
 
-# The split-Skia guard. A sketch dylib links libskia.a directly (vcpkg
-# builds Skia hidden-visibility, so its symbols cannot be re-exported from
-# the host), which means SkRuntimeEffect::MakeForShader builds the SkSL AST
-# in the SKETCH's Skia image while getRPProgram and the inliner run in the
-# HOST's — virtual dispatch across that boundary faults on PAC. Stock SkSL
-# materials must therefore keep main() monolithic and must not break a loop
-# against a uniform. This sketch PAINTS one of each of them, so a shader
-# that violates the rule segfaults here instead of in someone's sketch.
+# Paints one of every stock SkSL material, so a material that cannot compile
+# or draw fails here rather than in someone's sketch.
+#
+# This began life as the split-Skia guard, from when a sketch dylib linked
+# libskia.a itself: SkRuntimeEffect::MakeForShader then built the SkSL AST in
+# the SKETCH's Skia image while getRPProgram and the inliner ran in the HOST's,
+# and virtual dispatch across that boundary faulted on PAC — so stock materials
+# had to keep main() monolithic and not break a loop against a uniform. That
+# boundary is gone: skia[default-visibility] lets the host re-export Skia, the
+# sketch resolves it through -undefined dynamic_lookup like every other SDK
+# library, and only one Skia image is loaded. The rule it enforced no longer
+# applies; the coverage is still worth keeping.
 add_test(NAME compose_sketch_stock
   COMMAND ComposeSketch
     ${CMAKE_CURRENT_LIST_DIR}/sketches/stock_materials.cpp

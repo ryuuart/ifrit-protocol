@@ -8,8 +8,8 @@
     {
       "kind": "git",
       "repository": "/Users/long/REI/sigil-vcpkg-registry",
-      "baseline": "8cbb53e33a51d3fec5b6ab3635b02fc7ea4d9076",
-      "packages": ["choreograph"]
+      "baseline": "d9f31304786d8e478320b8057bea50ac154b36f1",
+      "packages": ["choreograph", "skia"]
     }
   ]
 }

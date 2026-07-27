@@ -30,6 +30,7 @@
       "name": "skia",
       "features": [
         "avif",
+        "default-visibility",
         "graphite",
         "jpeg",
         "png",
