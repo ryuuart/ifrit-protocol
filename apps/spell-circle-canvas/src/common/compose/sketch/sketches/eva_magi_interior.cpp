@@ -169,7 +169,7 @@
 //   brush::Pattern          the portrait's hollow-ring bead runs and
 //                                  arrowhead chevron runs; built ONCE as
 //                                  members (the bake cache lives in the value)
-//   brush::Ribbon (widthFn-free) the neuron dendrites, tapered
+//   brush::Ribbon (no width Profile) the neuron dendrites, tapered
 //   shapes::polygon / chamfered    the hex lattice (cornerAngleDeg passed
 //                                  EXPLICITLY everywhere); the hatch plate
 //   shapes::parametric             the portrait's boundary conics

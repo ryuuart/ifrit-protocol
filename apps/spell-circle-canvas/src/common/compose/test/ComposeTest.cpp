@@ -12,7 +12,10 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkRRect.h>
+#include <include/core/SkStrokeRec.h>
 #include <include/core/SkSurface.h>
+#include <include/effects/SkTrimPathEffect.h>
 
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -1122,7 +1125,7 @@ TEST(ComposeRail, ReRoutesWhenAnchorMoves) {
 }
 
 TEST(ComposeRail, DrawsOnWithTrim) {
-  // Composition, not new machinery: trim() on a rail = the self-drawing
+  // Composition, not new machinery: a span gate on a rail = the self-drawing
   // subway line. A bound reveal advances with no render() calls.
   choreograph::Output<float> reveal{0.05f};
   Host host;
@@ -1132,7 +1135,7 @@ TEST(ComposeRail, DrawsOnWithTrim) {
           .child(station("b", 170, 40))
           .child(rail({{"a"}, {"b"}})
                      .absolute().inset(0)
-                     .trim(0.0f, &reveal)
+                     .mask(by::spans(spans::upTo(&reveal)))
                      .foreground(railLine())));
   host.frame();
   EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK); // reveal stops at ~x=28
@@ -1238,14 +1241,14 @@ TEST(ComposeRail, HitsNearPathOnlyNotItsLayoutBox) {
 
 // ---- Trim Path (draw-on reveals) -------------------------------------------
 
-TEST(ComposeTrim, PartialOutlineStrokesOnlyRevealedStretch) {
-  // trim(0, 0.2) on a square + stroked outline: only the first 20% of the
-  // perimeter (the top edge) is dressed; right/bottom stay bare. The fill
-  // and every outline decoration trace the trimmed path.
+TEST(ComposeMask, PartialOutlineStrokesOnlyRevealedStretch) {
+  // mask(by::spans(upTo(0.2))) on a square + stroked outline: only the
+  // first 20% of the perimeter is dressed; right/bottom stay bare. The
+  // fill and every outline decoration trace the CUT path.
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).inset(0, 0, 100, 100).absolute()
-          .trim(0.0f, 0.2f)
+          .mask(by::spans(spans::upTo(0.2f)))
           .foreground(sigil::compose::util::stroke(4, green()))));
   host.frame();
   // Perimeter order (measured): left → top → right → bottom. First 20% ≈
@@ -1255,14 +1258,14 @@ TEST(ComposeTrim, PartialOutlineStrokesOnlyRevealedStretch) {
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK); // bottom edge bare
 }
 
-TEST(ComposeTrim, TransitionDrawsOn) {
-  // The draw-on border: trim end transitioned 0 → 1 reveals the perimeter
-  // over time (retarget-safe like every transitioned prop).
+TEST(ComposeMask, TransitionDrawsOn) {
+  // The draw-on border: a span gate's end transitioned 0 → 1 reveals the
+  // perimeter over time (retarget-safe like every transitioned prop).
   Host host;
   auto tree = [](Animatable<float> end) {
     return box().child(
         box().key("b").width(100).height(100).inset(0, 0, 100, 100).absolute()
-            .trim(0.0f, std::move(end))
+            .mask(by::spans(spans::upTo(std::move(end))))
             .foreground(sigil::compose::util::stroke(4, green())));
   };
   host.composer.render(tree(0.001f));
@@ -1276,14 +1279,14 @@ TEST(ComposeTrim, TransitionDrawsOn) {
   EXPECT_EQ(host.pixel(50, 99), SK_ColorGREEN);
 }
 
-TEST(ComposeTrim, BoundTrimRevealsWithoutRender) {
-  // A bound trim end is content volatility: mutate the Output, no render(),
-  // and the reveal advances — the self-drawing wire primitive.
+TEST(ComposeMask, BoundGateRevealsWithoutRender) {
+  // A bound gate end is content volatility: mutate the Output, no
+  // render(), and the reveal advances — the self-drawing wire primitive.
   choreograph::Output<float> end{0.2f};
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).inset(0, 0, 100, 100).absolute()
-          .trim(0.0f, &end)
+          .mask(by::spans(spans::upTo(&end)))
           .foreground(sigil::compose::util::stroke(4, green()))));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
@@ -2881,20 +2884,20 @@ TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
 
-TEST(ComposeTrim, WrapModeCrossesTheSeam) {
+TEST(ComposeMask, WrapWindowCrossesTheSeam) {
   // A wrap window crossing the cycle seam must paint exactly the union of
-  // its two clamp pieces — direction-agnostic pixel containment.
-  auto strokedBox = [](Animatable<float> s, Animatable<float> e, TrimMode m) {
+  // its two clamped pieces — direction-agnostic pixel containment.
+  auto strokedBox = [](Spans where) {
     return box().child(box()
                            .absolute()
                            .inset(50, 50, 50, 50)
-                           .trim(std::move(s), std::move(e), 0.0f, m)
+                           .mask(by::spans(std::move(where)))
                            .foreground(util::stroke(6, green())));
   };
   Host wrap, pieceA, pieceB;
-  wrap.composer.render(strokedBox(0.9f, 1.15f, TrimMode::Wrap));
-  pieceA.composer.render(strokedBox(0.9f, 1.0f, TrimMode::Clamp));
-  pieceB.composer.render(strokedBox(0.0f, 0.15f, TrimMode::Clamp));
+  wrap.composer.render(strokedBox(spans::wrap(0.9f, 1.15f)));
+  pieceA.composer.render(strokedBox(spans::range(0.9f, 1.0f)));
+  pieceB.composer.render(strokedBox(spans::range(0.0f, 0.15f)));
   wrap.frame();
   pieceA.frame();
   pieceB.frame();
@@ -2913,13 +2916,14 @@ TEST(ComposeTrim, WrapModeCrossesTheSeam) {
   EXPECT_NEAR(wrapCount, unionCount, unionCount / 5.0 + 8);
 }
 
-TEST(ComposeTrim, WrapOffsetBindingMarchesTheWindow) {
+TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   Host host;
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().child(box()
                                        .absolute()
                                        .inset(50, 50, 50, 50)
-                                       .trim(0.0f, 0.25f, &phase, TrimMode::Wrap)
+                                       .mask(by::spans(spans::wrap(0.0f, 0.25f)
+                                                           .offset(&phase)))
                                        .foreground(util::stroke(6, green()))));
   host.frame();
   std::vector<SkIPoint> lit0;
@@ -3442,14 +3446,14 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   EXPECT_LT((float)still, 0.25f * (float)redNow.size());
 }
 
-TEST(ComposeTrim, WrapSeamIsOneContour) {
+TEST(ComposeMask, WrapSeamIsOneContour) {
   // A seam-crossing wrap window must be ONE contour: two pieces would
   // double-hit round caps / additive brushes at the joint.
   Host host;
   host.composer.render(box().child(box()
                                        .absolute()
                                        .inset(50, 50, 50, 50)
-                                       .trim(0.9f, 1.1f, 0.0f, TrimMode::Wrap)
+                                       .mask(by::spans(spans::wrap(0.9f, 1.1f)))
                                        .foreground(util::stroke(4, green()))));
   host.frame(); // renders — and the contour count proves the stitch:
   SkPathBuilder b;
@@ -4567,7 +4571,7 @@ namespace {
  *  0 -> 0.6 over 200 ms, then flat until 600 ms, then on to 1. The flat
  *  stretch is the whole point — it is a running motion whose value is not
  *  changing, which is the case the volatility model could not express. */
-Element trimmedRing(Cache mode) {
+Element gatedRing(Cache mode) {
   return box()
       .cache(Cache::None)
       .child(
@@ -4578,19 +4582,18 @@ Element trimmedRing(Cache mode) {
               .cache(mode)
               .shape(shapes::circle())
               .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
-              .trim(0.0f,
-                    animate(through({{std::chrono::milliseconds(0), 0.0f},
-                                     {std::chrono::milliseconds(200), 0.6f},
-                                     {std::chrono::milliseconds(600), 0.6f},
-                                     {std::chrono::milliseconds(800), 1.0f}}),
-                            &choreograph::easeNone),
-                    0.0f));
+              .mask(by::spans(spans::upTo(
+                  animate(through({{std::chrono::milliseconds(0), 0.0f},
+                                   {std::chrono::milliseconds(200), 0.6f},
+                                   {std::chrono::milliseconds(600), 0.6f},
+                                   {std::chrono::milliseconds(800), 1.0f}}),
+                          &choreograph::easeNone)))));
 }
 } // namespace
 
 TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
   Host host;
-  host.composer.render(trimmedRing(Cache::Auto));
+  host.composer.render(gatedRing(Cache::Auto));
   host.frame();
   for (int i = 0; i < 18; ++i)
     host.frame(1.0 / 60.0); // t ~ 0.30 s: inside the hold
@@ -4621,8 +4624,8 @@ TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
   // from scratch every frame by construction — so the two hosts differ in
   // nothing but whether the memo is allowed to hold.
   Host memo, truth;
-  memo.composer.render(trimmedRing(Cache::Auto));
-  truth.composer.render(trimmedRing(Cache::None));
+  memo.composer.render(gatedRing(Cache::Auto));
+  truth.composer.render(gatedRing(Cache::None));
   memo.frame();
   truth.frame();
   for (int i = 0; i < 60; ++i) { // a full second, over all three waypoints
@@ -5204,7 +5207,7 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN); // shadow past the box
 }
 
-TEST(ComposeTrim, OpenContourWrapKeepsTwoPieces) {
+TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
   // #31: stitching an OPEN contour's wrap window invented a chord.
   Host host;
   host.composer.render(box().child(
@@ -5217,7 +5220,7 @@ TEST(ComposeTrim, OpenContourWrapKeepsTwoPieces) {
             b.lineTo(s.width(), s.height() / 2);
             return b.detach();
           })
-          .trim(0.9f, 1.2f, 0.0f, TrimMode::Wrap)
+          .mask(by::spans(spans::wrap(0.9f, 1.2f)))
           .stroke(util::stroke(6, green()))));
   host.frame();
   EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN); // tail piece [0.9, 1]
@@ -7916,7 +7919,7 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
     return b.detach();
   };
 
-  // Node trimmed to the first 60% — one geometry, two windows on it:
+  // Node gated to the first 60% — one geometry, two windows on it:
   // a wide dim body over all of it, and a bright sliver at its head.
   PathFormat head = util::stroke(6, Fill::color({0, 1, 0, 1}));
   head.trimStart = 0.90f;
@@ -7924,7 +7927,7 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
   Host host(200, 200);
   host.composer.render(box().child(
       box().absolute().inset(0).shape(line).fill(Fill::none())
-          .trim(0.0f, 0.6f)
+          .mask(by::spans(spans::upTo(0.6f)))
           .foreground(util::stroke(3, Fill::color({1, 0, 0, 1})))
           .foreground(head)));
   host.frame();
@@ -8577,7 +8580,7 @@ TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
                            .width(160)
                            .height(160)
                            .fill(Fill::color({1, 0, 0, 1}))
-                           .wipe(angle, t));
+                           .mask(by::edge(angle, t)));
   };
 
   Host half(200, 200);
@@ -8617,7 +8620,7 @@ TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
   EXPECT_EQ(lit(none, 20, 180), 0);
 }
 
-TEST(ComposeFx, WipeIsBindableAndPaintOnly) {
+TEST(ComposeFx, EdgeGateIsBindableAndPaintOnly) {
   // Paint-only like the transforms: animating it never relayouts, and a
   // bound fraction repaints without a re-describe.
   Host host(200, 200);
@@ -8626,7 +8629,7 @@ TEST(ComposeFx, WipeIsBindableAndPaintOnly) {
                                        .absolute()
                                        .inset(20)
                                        .fill(Fill::color({1, 0, 0, 1}))
-                                       .wipe(0.0f, &reveal)));
+                                       .mask(by::edge(0.0f, &reveal))));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
 
@@ -8901,47 +8904,58 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
   EXPECT_NEAR(rules(/*vertical=*/false), 15, 2); // 120 / 8
 }
 
-TEST(ComposeBrushes, ARibbonWithAWidthFnMustDeclareItsReach) {
-  // bleed() grows the recording cull and cannot look inside a
-  // std::function, so a width function returning 166 on a ribbon whose
-  // widthStart/widthEnd are the defaults declared 10 px of reach and the
-  // band was silently CLIPPED. A flow map is exactly this shape —
-  // Minard's retreat band runs 166 px at Kowno — and the failure reads as
-  // a rendering bug rather than a missing declaration.
+namespace {
+/** A flow band's width law: 166 px at the start, 12 at the end. The shape
+ *  `widthFn` used to need a `std::function` and a hand-set `widthMax` for,
+ *  and the shape that proved the trap — Minard's retreat band runs 166 px
+ *  at Kowno on a ribbon whose default widthStart/widthEnd declare 10. */
+struct FlowLaw {
+  float start = 166.0f, end = 12.0f;
+  float across(float along) const { return start + (end - start) * along; }
+  float max() const { return std::max(start, end); }
+  bool operator==(const FlowLaw &) const = default;
+};
+} // namespace
+
+TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {
+  // bleed() grows the recording cull. It could not look inside the deleted
+  // `widthFn`, so a width function returning 166 on a ribbon whose
+  // widthStart/widthEnd were the defaults declared 10 px of reach and the
+  // band was silently CLIPPED — the failure read as a rendering bug rather
+  // than a missing declaration, and the fix was a second field
+  // (`widthMax`) that nobody had to set.
   //
-  // Asserted on bleed() directly. An earlier version of this test tried
-  // to observe the cull through rendered pixels and measured the same
-  // number either way, because what reaches the canvas also depends on
-  // cache-mode decisions the test was not pinning. Testing the contract
-  // that changed is the honest scope.
+  // On the profile seam `max()` is REQUIRED by the concept, so the number
+  // cannot go unsaid: the trap is structurally impossible, not merely
+  // documented. Asserted on bleed() directly — an earlier version of this
+  // test tried to observe the cull through rendered pixels and measured
+  // the same number either way, because what reaches the canvas also
+  // depends on cache-mode decisions the test was not pinning.
   brush::Ribbon plain;
   plain.widthStart = 12.0f;
   plain.widthEnd = 4.0f;
   EXPECT_FLOAT_EQ(plain.bleed(), 12.0f);
 
   brush::Ribbon flow = plain;
-  flow.widthFn = [](const PathSample &) { return 166.0f; };
-  // Undeclared: it can only report what it can see, which is the lie.
-  EXPECT_FLOAT_EQ(flow.bleed(), 12.0f);
-  // Declared: the reach is the truth, and the cull grows to match.
-  flow.widthMax = 166.0f;
-  EXPECT_FLOAT_EQ(flow.bleed(), 166.0f);
-  // A widthMax under the fixed widths never SHRINKS the reach.
-  flow.widthMax = 2.0f;
-  EXPECT_FLOAT_EQ(flow.bleed(), 12.0f);
+  flow.width = Profile(FlowLaw{});
+  EXPECT_FLOAT_EQ(flow.bleed(), 166.0f)
+      << "the profile knows its own reach; nobody had to declare it";
 
-  // And it participates in equality, so changing the declared reach
-  // repatches rather than pruning.
+  // A profile is not optional-with-a-fallback: once set it OWNS the reach,
+  // so the fixed widths underneath it never inflate the cull either.
+  flow.width = Profile(FlowLaw{2.0f, 2.0f});
+  EXPECT_FLOAT_EQ(flow.bleed(), 2.0f);
+
+  // And it participates in equality, so changing the law repatches.
   brush::Ribbon a = plain, b = plain;
-  b.widthMax = 166.0f;
+  b.width = Profile(FlowLaw{});
   EXPECT_FALSE(a == b);
 }
 
-TEST(ComposeFx, WipeOnAZeroMeasuredBoxRevealsRatherThanHides) {
+TEST(ComposeFx, EdgeGateOnAZeroMeasuredBoxRevealsRatherThanHides) {
   // A container of absolutely-positioned children measures zero, and a
-  // half-plane built from an empty box is empty — so `.wipe(90, 1.0)`, a
-  // FULL reveal, hid the whole subtree. A reveal at 1 must never hide
-  // anything.
+  // half-plane built from an empty box is empty — so a FULL reveal hid the
+  // whole subtree. A reveal at 1 must never hide anything.
   auto tree = [](bool withWipe) {
     Element outer = box().absolute().left(0).top(0); // no dims: measures 0
     outer.child(box()
@@ -8952,7 +8966,7 @@ TEST(ComposeFx, WipeOnAZeroMeasuredBoxRevealsRatherThanHides) {
                     .height(80)
                     .fill(Fill::color({1, 0, 0, 1})));
     if (withWipe)
-      outer.wipe(90.0f, 1.0f);
+      outer.mask(by::edge(90.0f, 1.0f));
     return box().child(std::move(outer));
   };
   auto ink = [](Host &host) {
@@ -9846,14 +9860,15 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
 }
 
-TEST(ComposeSpans, RevealMatchesTrimPixelForPixel) {
-  // The reveal moved from the node to the pass; the same numbers must
-  // still describe the same run.
+TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
+  // THE SUGAR LAW, in pixels: `stroke(where, what)` and
+  // `stroke(what).mask(parts::marks(), by::spans(where))` are one machine,
+  // so the same numbers describe the same run through both doors.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
     if (useLegacyTrim)
-      e.trim(0.0f, 0.4f).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::upTo(0.4f))).stroke(util::stroke(6, red()));
     else
       e.stroke(spans::upTo(0.4f), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -10679,9 +10694,6 @@ TEST(ComposeR1Ribbon, ProfileIsComparableAndBoundsItsOwnReach) {
   EXPECT_FALSE(a == b);
   // The trap the seam closes: bleed() can ask a profile how far it goes.
   EXPECT_FLOAT_EQ(a.bleed(), 20.0f);
-  brush::Ribbon legacy;
-  legacy.widthFn = [](const PathSample &) { return 166.0f; };
-  EXPECT_LT(legacy.bleed(), 166.0f) << "…which the callable pair cannot";
 }
 
 TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
@@ -10703,6 +10715,250 @@ TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED) << "on the spine";
   EXPECT_EQ(host.pixel(90, 84), SK_ColorRED) << "6px off it, inside 16 wide";
   EXPECT_EQ(host.pixel(90, 70), SK_ColorBLACK) << "20px off it, outside";
+}
+
+// ---- the widthFn → Profile migration --------------------------------------
+//
+// `widthFn`/`widthMax` are DELETED. The migration was approved knowing it
+// moves pixels — a profiled ribbon is `bandRegion()` (rails through
+// `profileOffset`, real corner joins on a constant law) and the deleted
+// lane sampled the contour and zipped two point lists — so the gate was a
+// designer reading before/after plates, not byte identity. What is pinned
+// HERE is everything the eye cannot check: that away from corners the two
+// constructions agree to the pixel, that the px key holds a law still
+// under a reveal, and that the comparability the old pair could never have
+// is real.
+
+namespace {
+/** The linear taper, spelled as a law on the profile seam. It is exactly
+ *  what `widthStart`/`widthEnd` mean, which is what lets the two
+ *  constructions be compared on the same picture. */
+struct TaperLaw {
+  float start = 30.0f, end = 10.0f;
+  float across(float along) const { return start + (end - start) * along; }
+  float max() const { return std::max(start, end); }
+  bool operator==(const TaperLaw &) const = default;
+};
+
+/** A law keyed in PX of arc length — the bridge the four ported corpus
+ *  sites take. A single 12 px-wide pulse `at` px from the spine's start,
+ *  over a 4 px floor: its POSITION is the whole assertion, because under a
+ *  reveal a fraction-keyed law would drag it along. */
+struct PulseAtPx {
+  float at = 40.0f, wide = 12.0f, tall = 24.0f, floorPx = 4.0f;
+  static constexpr bool alongIsPx = true;
+  float across(float px) const {
+    return std::abs(px - at) <= wide * 0.5f ? tall : floorPx;
+  }
+  float max() const { return std::max(tall, floorPx); }
+  bool operator==(const PulseAtPx &) const = default;
+};
+
+/** The same pulse keyed in FRACTION of the spine — the spelling the doc
+ *  warns against, kept here so the test can show the two diverge under a
+ *  reveal and agree without one. */
+struct PulseAtFraction {
+  float at = 0.4f, wide = 0.12f, tall = 24.0f, floorPx = 4.0f;
+  float across(float along) const {
+    return std::abs(along - at) <= wide * 0.5f ? tall : floorPx;
+  }
+  float max() const { return std::max(tall, floorPx); }
+  bool operator==(const PulseAtFraction &) const = default;
+};
+
+/** A 200 px node whose shape is a straight horizontal line at mid-height —
+ *  no corners anywhere, which is the point: it is where the two
+ *  constructions are supposed to agree. */
+Element straightRun(brush::Ribbon r) {
+  return box()
+      .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+      .shape([](SkSize s) {
+        SkPathBuilder p;
+        p.moveTo(20, s.height() * 0.5f);
+        p.lineTo(s.width() - 20, s.height() * 0.5f);
+        return p.detach();
+      })
+      .stroke(std::move(r));
+}
+
+/** Lit rows in column x — the painted band's thickness, measured. */
+int thicknessAt(Host &host, int x) {
+  int lit = 0;
+  for (int y = 0; y < 200; ++y)
+    if (host.pixel(x, y) != SK_ColorBLACK)
+      ++lit;
+  return lit;
+}
+
+/** The lit rows' centre in column x, or -1. */
+float centreAt(Host &host, int x) {
+  int lo = -1, hi = -1;
+  for (int y = 0; y < 200; ++y)
+    if (host.pixel(x, y) != SK_ColorBLACK) {
+      if (lo < 0)
+        lo = y;
+      hi = y;
+    }
+  return lo < 0 ? -1.0f : 0.5f * (float)(lo + hi);
+}
+} // namespace
+
+TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
+  // AWAY FROM CORNERS the profile lane and the deleted sample-and-zip lane
+  // draw the same band, and this quantifies "the same": the taper
+  // widthStart=30 → widthEnd=10 is the identical law spelled both ways, so
+  // any difference here is construction, not intent.
+  //
+  // The zip lane still exists — it is what widthStart/widthEnd have always
+  // used — so the comparison is live rather than historical.
+  auto measure = [](bool profiled) {
+    Host host(200, 200);
+    brush::Ribbon r;
+    r.fill = Fill::color({1, 0, 0, 1});
+    r.step = 2.0f;
+    if (profiled)
+      r.width = Profile(TaperLaw{30.0f, 10.0f});
+    else {
+      r.widthStart = 30.0f;
+      r.widthEnd = 10.0f;
+    }
+    host.composer.render(stack().child(straightRun(std::move(r))));
+    host.frame();
+    std::vector<std::pair<int, float>> out;
+    for (int x : {40, 70, 100, 130, 160})
+      out.push_back({thicknessAt(host, x), centreAt(host, x)});
+    return out;
+  };
+  const auto zipped = measure(false);
+  const auto profiled = measure(true);
+  ASSERT_EQ(zipped.size(), profiled.size());
+  for (size_t i = 0; i < zipped.size(); ++i) {
+    EXPECT_LE(std::abs(zipped[i].first - profiled[i].first), 1)
+        << "band thickness at sample " << i << ": zip " << zipped[i].first
+        << " vs profile " << profiled[i].first
+        << " — a straight run must not change width by construction";
+    EXPECT_NEAR(zipped[i].second, profiled[i].second, 0.6f)
+        << "the band's centreline moved at sample " << i;
+  }
+}
+
+TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
+  // THE BRIDGE, and the reason it is not a per-site adapter. A decoration
+  // under a reveal is handed the REVEALED contour, so `along` as a
+  // fraction is a fraction of what has been drawn SO FAR. Convert with the
+  // length the author measured and it is still wrong — the length being
+  // sampled is not the length authored. Only the paint-time consumer knows
+  // it, so the seam converts: `alongIsPx` makes `across` take arc-length px
+  // from the spine's start, which does not move.
+  //
+  // A pulse 40 px along a 160 px run is the assertion, because its
+  // POSITION is what slides.
+  auto pulseX = [](bool pxKeyed, float reveal) {
+    Host host(200, 200);
+    brush::Ribbon r;
+    r.fill = Fill::color({1, 0, 0, 1});
+    if (pxKeyed)
+      r.width = Profile(PulseAtPx{});
+    else
+      r.width = Profile(PulseAtFraction{});
+    // spans::upTo is the reveal; at 1.0 the whole spine is handed over.
+    Element revealed = box()
+                           .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+                           .shape([](SkSize s) {
+                             SkPathBuilder p;
+                             p.moveTo(20, s.height() * 0.5f);
+                             p.lineTo(s.width() - 20, s.height() * 0.5f);
+                             return p.detach();
+                           })
+                           .stroke(spans::upTo(reveal), std::move(r));
+    host.composer.render(stack().child(std::move(revealed)));
+    host.frame();
+    // the pulse is the widest column
+    int best = -1, bestT = 0;
+    for (int x = 21; x < 179; ++x) {
+      const int t = thicknessAt(host, x);
+      if (t > bestT) {
+        bestT = t;
+        best = x;
+      }
+    }
+    return std::pair<int, int>{best, bestT};
+  };
+
+  // Fully revealed, the two spellings are the SAME PICTURE: 40 px of a
+  // 160 px run is 0.25 — the fraction law's pulse sits at 0.4, so they are
+  // deliberately different laws, and what matters is each one's own
+  // behaviour as the reveal grows.
+  const auto pxFull = pulseX(true, 1.0f);
+  const auto pxHalf = pulseX(true, 0.55f);
+  ASSERT_GT(pxFull.second, 0);
+  ASSERT_GT(pxHalf.second, 0);
+  EXPECT_NEAR(pxFull.first, pxHalf.first, 2)
+      << "a px-keyed pulse must sit at the same place at any reveal: full "
+      << pxFull.first << " vs half " << pxHalf.first;
+
+  const auto frFull = pulseX(false, 1.0f);
+  const auto frHalf = pulseX(false, 0.55f);
+  ASSERT_GT(frFull.second, 0);
+  ASSERT_GT(frHalf.second, 0);
+  EXPECT_GT(std::abs(frFull.first - frHalf.first), 8)
+      << "…and a fraction-keyed one demonstrably SLIDES, which is the whole "
+         "reason the px key exists (full " << frFull.first << " vs half "
+      << frHalf.first << ")";
+}
+
+TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
+  // THE COMPARABILITY WIN, pinned. `Ribbon::operator==` used to end
+  // `&& !widthFn && !o.widthFn`, so a varying-width ribbon was unequal to
+  // ITSELF and its whole band re-recorded on every describe. Every one of
+  // the four px-keyed corpus laws is a plain struct now, so two identical
+  // descriptions compare equal and the node prunes.
+  brush::Ribbon a;
+  a.fill = Fill::color({1, 0, 0, 1});
+  a.width = Profile(PulseAtPx{});
+  brush::Ribbon b = a;
+  EXPECT_TRUE(a == b) << "identical laws must compare equal — the prune";
+  b.width = Profile(PulseAtPx{.at = 41.0f});
+  EXPECT_FALSE(a == b) << "…and a different law must NOT, or it reads stale";
+
+  // The px key is part of the value's TYPE, so two laws that differ only in
+  // how they are keyed can never silently compare equal.
+  brush::Ribbon c = a;
+  c.width = Profile(PulseAtFraction{});
+  EXPECT_FALSE(a == c);
+  EXPECT_TRUE(Profile(PulseAtPx{}).keyedInPx());
+  EXPECT_FALSE(Profile(PulseAtFraction{}).keyedInPx());
+
+  // max() is honoured whichever key it is: the cull grows to the law's own
+  // declared reach and nothing has to be told twice.
+  EXPECT_FLOAT_EQ(a.bleed(), 24.0f);
+  EXPECT_FLOAT_EQ(Profile(PulseAtPx{.tall = 90.0f}).max(), 90.0f);
+  // acrossAt is the consumer's call: a px law is evaluated at along*length,
+  // a fraction law ignores the length entirely.
+  EXPECT_FLOAT_EQ(Profile(PulseAtPx{}).acrossAt(0.25f, 160.0f), 24.0f);
+  EXPECT_FLOAT_EQ(Profile(PulseAtPx{}).acrossAt(0.25f, 320.0f), 4.0f);
+  EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 160.0f), 24.0f);
+
+  // And the prune OBSERVED, not inferred: an identical re-describe of a
+  // profiled ribbon must not re-record its picture.
+  {
+    Host host;
+    auto tree = [] {
+      brush::Ribbon r;
+      r.fill = Fill::color({1, 0, 0, 1});
+      r.width = Profile(PulseAtPx{});
+      return box().child(
+          box().width(120).height(120).shape(shapes::circle()).stroke(r));
+    };
+    host.composer.render(tree());
+    host.frame();
+    const auto recorded = host.composer.stats().picturesRecorded;
+    host.composer.render(tree());
+    host.frame();
+    EXPECT_EQ(host.composer.stats().picturesRecorded, recorded)
+        << "an identical profiled ribbon re-recorded — the prune is not real";
+  }
+  EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 999.0f), 24.0f);
 }
 
 // ---- the brush:: fold, now a deletion -------------------------------------
@@ -10774,16 +11030,20 @@ TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
 
 // ---- 7. the wrapping span (N7) ---------------------------------------------
 //
-// THE PARITY GATE. `spans::wrap` exists so that TrimMode::Wrap — the last
-// thing trim() could do that spans could not — has a span spelling. So the
-// tests are parity tests against trim, not "does it draw something".
+// THE PARITY GATE. `spans::wrap` exists so that wrap mode — the last thing
+// the deleted `trim()` could do that spans could not — has a span spelling.
+// The tests are parity tests, not "does it draw something": the legacy arm
+// was trim() until R4 deleted it, and is now the node-level gate that
+// replaced it — `mask(by::spans(...))`, whose geometry is trim's geometry.
+// The pixel expectations below were pinned against trim itself.
 
 TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(0.9f, 1.15f, 0.0f, TrimMode::Wrap).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::wrap(0.9f, 1.15f)))
+          .stroke(util::stroke(6, red()));
     else
       e.stroke(spans::wrap(0.9f, 1.15f), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -10812,7 +11072,7 @@ TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   Host trimmed(200, 200);
   trimmed.composer.render(stack().child(
       revealBox()
-          .trim(0.0f, kWindow, &phase, TrimMode::Wrap)
+          .mask(by::spans(spans::wrap(0.0f, kWindow).offset(&phase)))
           .stroke(util::stroke(6, red()))));
 
   Host spanned(200, 200);
@@ -10841,8 +11101,8 @@ TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(0.0f, kWindow, animate(from(0.0f).to(1.0f), {1000ms}),
-             TrimMode::Wrap)
+      e.mask(by::spans(spans::wrap(0.0f, kWindow)
+                           .offset(animate(from(0.0f).to(1.0f), {1000ms}))))
           .stroke(util::stroke(6, red()));
     else
       e.stroke(spans::wrap(animate(from(0.0f).to(1.0f), {1000ms}),
@@ -10868,7 +11128,7 @@ TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(a, b, 0.0f, TrimMode::Wrap).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::wrap(a, b))).stroke(util::stroke(6, red()));
     else
       e.stroke(spans::wrap(a, b), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -10941,10 +11201,13 @@ TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
 
 // ---- THE TRIM PARITY TABLE -------------------------------------------------
 //
-// Expressiveness parity is the gate for the R3 deletion: every capability of
-// Element::trim must have a spans spelling, or trim cannot be deleted. Each
-// row below is one capability, verified against trim() itself. The two rows
-// that do NOT close here are named in ROADMAP §33's R1 status note.
+// Expressiveness parity was the gate for deleting Element::trim: every
+// capability of it had to have a spelling, or trim could not go. Each row
+// below is one capability. The rows were verified against trim() itself
+// while it existed; R4 deleted it and the "legacy" arm of each row is now
+// the node-level gate that inherited its geometry, `mask(by::spans(...))`.
+// The rows therefore keep working as the SUGAR LAW's pixel proof: the pass
+// door and the node door describe one run.
 
 TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
   // Row: trim(start, end) with a NON-ZERO start — upTo() was only ever the
@@ -10953,7 +11216,8 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(0.15f, 0.55f).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::range(0.15f, 0.55f)))
+          .stroke(util::stroke(6, red()));
     else
       e.stroke(spans::range(0.15f, 0.55f), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -10967,13 +11231,14 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
 }
 
 TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
-  // Row: TrimMode::Clamp's defining behaviour — fractions outside [0,1]
-  // pin rather than wrap. normalizeSpans clamps the same way.
+  // Row: clamped behaviour — fractions outside [0,1] pin rather than
+  // wrap. normalizeSpans clamps the same way.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(-0.4f, 0.6f).stroke(util::stroke(6, red()));
+      e.mask(by::spans(spans::range(-0.4f, 0.6f)))
+          .stroke(util::stroke(6, red()));
     else
       e.stroke(spans::range(-0.4f, 0.6f), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -10988,7 +11253,9 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
   choreograph::Output<float> begin, end;
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().child(
-      revealBox().trim(&begin, &end).stroke(util::stroke(6, red()))));
+      revealBox()
+          .mask(by::spans(spans::range(&begin, &end)))
+          .stroke(util::stroke(6, red()))));
   spanned.composer.render(stack().child(revealBox().stroke(
       spans::range(&begin, &end), util::stroke(6, red()))));
   for (auto [b, e] : {std::pair{0.0f, 0.2f}, std::pair{0.3f, 0.9f},
@@ -11009,7 +11276,9 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   choreograph::Output<float> off;
   Host constTrim(200, 200), constSpan(200, 200);
   constTrim.composer.render(stack().child(
-      revealBox().trim(0.1f, 0.4f, 0.25f).stroke(util::stroke(6, red()))));
+      revealBox()
+          .mask(by::spans(spans::range(0.1f, 0.4f).offset(0.25f)))
+          .stroke(util::stroke(6, red()))));
   constSpan.composer.render(stack().child(revealBox().stroke(
       spans::range(0.1f + 0.25f, 0.4f + 0.25f), util::stroke(6, red()))));
   constTrim.frame();
@@ -11019,7 +11288,9 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
 
   Host boundTrim(200, 200), boundSpan(200, 200);
   boundTrim.composer.render(stack().child(
-      revealBox().trim(0.0f, 0.3f, &off).stroke(util::stroke(6, red()))));
+      revealBox()
+          .mask(by::spans(spans::upTo(0.3f).offset(&off)))
+          .stroke(util::stroke(6, red()))));
   boundSpan.composer.render(stack().child(revealBox().stroke(
       spans::range(bind(&off), bind(&off).offset(0.3f)),
       util::stroke(6, red()))));
@@ -11038,7 +11309,7 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(0.0f, animate(from(0.0f).to(1.0f), {800ms}))
+      e.mask(by::spans(spans::upTo(animate(from(0.0f).to(1.0f), {800ms}))))
           .stroke(util::stroke(6, red()));
     else
       e.stroke(spans::upTo(animate(from(0.0f).to(1.0f), {800ms})),
@@ -11055,8 +11326,8 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
 }
 
 TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
-  // Row: trim reveals EVERY outline-following decoration of a node at
-  // once. A span claims ONE pass — and two passes claiming the same run is
+  // Row: a node gate reveals EVERY outline-following decoration of the
+  // node at once. A span claims ONE pass — and two claiming the same run is
   // the LOUD error, whose message names the fix. So the N-decoration
   // reveal is spelled as one pass with a COMPOSITE brush, which is a
   // spelling, not a gap.
@@ -11078,14 +11349,16 @@ TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
 // without a test has not closed.
 
 TEST(ComposeR2Offset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
-  // THE ROW: `trim(&start, &end, &offset)` sums TWO independently-driven
-  // values into each endpoint. A bound endpoint holds ONE source pointer, so
+  // THE ROW: the deleted `trim(&start, &end, &offset)` summed TWO
+  // independently-driven values into each endpoint. A bound endpoint holds ONE source pointer, so
   // endpoint arithmetic cannot spell it — `Spans::offset()` is the third
   // live term, and this is the test that says the sum is the same sum.
   choreograph::Output<float> begin, end, off;
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().child(
-      revealBox().trim(&begin, &end, &off).stroke(util::stroke(6, red()))));
+      revealBox()
+          .mask(by::spans(spans::range(&begin, &end).offset(&off)))
+          .stroke(util::stroke(6, red()))));
   spanned.composer.render(stack().child(revealBox().stroke(
       spans::range(&begin, &end).offset(&off), util::stroke(6, red()))));
   for (auto [b, e, o] :
@@ -11110,7 +11383,7 @@ TEST(ComposeR2Offset, TheSummedEndpointWrapsLikeTrimDoes) {
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().child(
       revealBox()
-          .trim(&begin, &end, &off, TrimMode::Wrap)
+          .mask(by::spans(spans::wrap(&begin, &end).offset(&off)))
           .stroke(util::stroke(6, red()))));
   spanned.composer.render(stack().child(revealBox().stroke(
       spans::wrap(&begin, &end).offset(&off), util::stroke(6, red()))));
@@ -11163,14 +11436,15 @@ TEST(ComposeR2Offset, TheOffsetIsAComparableEndpointLikeTheOthers) {
 }
 
 TEST(ComposeR2Background, TrimmedBackgroundFollowerHasASpanSpelling) {
-  // THE OTHER ROW: trim() reveals a node's BACKGROUND-slot followers too,
-  // and a span pass could only ever paint above the children. The twin slot
+  // THE OTHER ROW: a node gate reveals BACKGROUND-slot followers too, and
+  // a span pass could only ever paint above the children. The twin slot
   // closes it — same claim, same brush, same z-half.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.trim(0.0f, 0.45f).background(util::stroke(6, red()));
+      e.mask(by::spans(spans::upTo(0.45f)))
+          .background(util::stroke(6, red()));
     else
       e.background(spans::upTo(0.45f), util::stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
@@ -11363,4 +11637,660 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
       << "a live stroke material on a span pass must declare isAnimated()";
   EXPECT_EQ(paintedPerFrame(false), 0u)
       << "…and a static one must still cache";
+}
+
+// ---------------------------------------------------------------------------
+// PHASE R4 — THE MASKING FAMILY
+//
+// `trim()` and `wipe()` are gone; one verb replaced both, and it is a
+// relation between two named factors: `parts::` says WHICH of a node's
+// paint outputs a mask reaches, `by::` says HOW that paint arrives.
+//
+// The eight tests S1–S8 below are the design's own sample set — eight real
+// corpus sites, chosen because each one broke a different candidate shape.
+// They are here as tests because a family designed against eight pictures
+// should be able to draw all eight, and because the shape that could not
+// draw one of them was rejected for exactly that.
+
+namespace {
+
+/** A 100×100 box at (20,20) whose boundary is the ring `boundaryRing`
+ *  samples, dressed with one red stroke. The masking family's fixture. */
+Element maskBox() {
+  return box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
+}
+
+/** How much red ink is anywhere in a 200×200 host. */
+int redInk(Host &host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
+  int n = 0;
+  for (int y = y0; y < y1; ++y)
+    for (int x = x0; x < x1; ++x)
+      if (SkColorGetR(host.pixel(x, y)) > 140 &&
+          SkColorGetG(host.pixel(x, y)) < 90)
+        ++n;
+  return n;
+}
+
+} // namespace
+
+// ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
+
+TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
+  // astral_tome's `linkPass()` returns an element carrying THREE strokes.
+  // The caller wants all three to draw on together and can reach none of
+  // them: this is the sample that fails any shape where the gate lives at
+  // the call site or inside the mark value, because the person who wants
+  // the gate is not the person who wrote the mark.
+  const auto helper = [] {
+    return maskBox()
+        .stroke(util::stroke(10, blue()))
+        .stroke(util::stroke(6, green()))
+        .stroke(util::stroke(2, red()));
+  };
+  Host all(200, 200), gated(200, 200);
+  all.composer.render(stack().child(helper()));
+  all.frame();
+  gated.composer.render(
+      stack().child(helper().mask(parts::marks(), by::spans(spans::upTo(0.4f)))));
+  gated.frame();
+  // Every one of the three is cut by the one call the CALLER wrote.
+  EXPECT_EQ(gated.pixel(40, 20), all.pixel(40, 20)) << "inside the window";
+  EXPECT_EQ(gated.pixel(120, 100), SK_ColorBLACK) << "past the window";
+  EXPECT_LT(inkedCount(boundaryRing(gated)), inkedCount(boundaryRing(all)));
+}
+
+// ---- S2 · the wet nib rides the head of the gate --------------------------
+
+TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
+  // thunder_fulu: a brush stroke writes itself at the scribe's pace with a
+  // wet pool at the NIB. The pool is a PathFormat with its own
+  // trimStart 0.93 — a fraction of what is written, not of the whole line,
+  // so it must ride the head of the node gate and needs no second node.
+  const auto line = [](SkSize s) {
+    SkPathBuilder b;
+    b.moveTo(0, s.height() * 0.5f);
+    b.lineTo(s.width(), s.height() * 0.5f);
+    return b.detach();
+  };
+  PathFormat wet = util::stroke(8, green());
+  wet.trimStart = 0.90f;
+  wet.trimEnd = 1.0f;
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().absolute().inset(0).shape(line).fill(Fill::none())
+          .stroke(util::stroke(4, red()))
+          .foreground(wet)
+          .mask(by::spans(spans::upTo(0.5f)))));
+  host.frame();
+  // The body reaches x≈100; nothing past it.
+  EXPECT_GT(redInk(host, 20, 95, 90, 105), 40);
+  EXPECT_EQ(redInk(host, 120, 95, 190, 105), 0);
+  // …and the nib sits at the HEAD OF THE REVEALED PART (x≈95), not at the
+  // head of the whole line (x≈190), which is the entire point.
+  int nib = 0, farEnd = 0;
+  for (int x = 88; x < 100; ++x)
+    nib += SkColorGetG(host.pixel(x, 100)) > 170;
+  for (int x = 170; x < 195; ++x)
+    farEnd += SkColorGetG(host.pixel(x, 100)) > 170;
+  EXPECT_GT(nib, 3);
+  EXPECT_EQ(farEnd, 0);
+}
+
+// ---- S3 · the retarget: one mask in both branches -------------------------
+
+TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
+  // ScenesBeethoven: phase 0 is unswept, phase 1 sweeps each arc over its
+  // measured span. `animate(to(span))` is RAMP-ON-CHANGE — it starts from
+  // the property's CURRENT value — so the gate must occupy the same
+  // animation slot in both branches or the motion mounts from zero and the
+  // ring blinks. maskAnims is positional, which is what makes this work.
+  const auto tree = [](int phase) {
+    Element e = maskBox().stroke(util::stroke(6, red()));
+    if (phase == 0)
+      e.mask(by::spans(spans::upTo(0.0001f)));
+    else
+      e.mask(by::spans(
+          spans::upTo(animate(to(0.5f), {400ms, &choreograph::easeNone}))));
+    return stack().child(std::move(e));
+  };
+  Host host(200, 200);
+  host.composer.render(tree(0));
+  host.frame();
+  const size_t unswept = inkedCount(boundaryRing(host));
+  EXPECT_LE(unswept, 2u) << "phase 0 is the 0.0001 nub and nothing else";
+  host.composer.render(tree(1));
+  host.frame(0.2); // halfway: a RAMP from 0, not a jump to 0.5
+  const size_t half = inkedCount(boundaryRing(host));
+  host.frame(0.25); // settled
+  const size_t settled = inkedCount(boundaryRing(host));
+  EXPECT_GT(half, unswept + 5u) << "the ramp started";
+  EXPECT_GT(settled, half) << "…and it retargeted rather than mounting";
+}
+
+// ---- S4 · a gate applied conditionally to an ALREADY-BUILT element --------
+
+TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
+  // twoadvanced_v4: the orbital ring draws on with the panel, but the
+  // still-frame capture shows it whole. §31's capture audit says this
+  // pattern recurs — so the conditional must survive as a conditional, on
+  // an element that already exists. A gate that lived in the mark value or
+  // in the slot call would force the `if` above construction, which is a
+  // re-authoring rather than a rename.
+  const auto build = [](bool still) {
+    Element ring = maskBox().stroke(util::stroke(6, red()));
+    if (!still)
+      ring.mask(by::spans(spans::upTo(0.25f)));
+    return stack().child(std::move(ring));
+  };
+  Host live(200, 200), shot(200, 200);
+  live.composer.render(build(false));
+  live.frame();
+  shot.composer.render(build(true));
+  shot.frame();
+  EXPECT_LT(inkedCount(boundaryRing(live)), inkedCount(boundaryRing(shot)));
+  EXPECT_GT(inkedCount(boundaryRing(shot)), 100u) << "the still is whole";
+}
+
+// ---- S5 · a span-qualified CLAIM under a whole-node gate ------------------
+
+TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
+  // The corners composition: reticle brackets that LIGHT UP AS A SWEEP
+  // REACHES THEM. The pass claims the corners; the mask gates the marks to
+  // [0, t]; the pass paints `corners ∩ upTo(t)`. One line, no re-authoring,
+  // and no second node.
+  const auto draw = [](float t) {
+    Host host(200, 200);
+    host.composer.render(stack().child(
+        maskBox()
+            .stroke(spans::corners(18), util::stroke(6, red()), "brk")
+            .mask(parts::marks(), by::spans(spans::upTo(t)))));
+    host.frame();
+    return inkedCount(boundaryRing(host));
+  };
+  const size_t none = draw(0.0f), quarter = draw(0.3f), all = draw(1.0f);
+  EXPECT_EQ(none, 0u) << "the sweep has not reached any bracket";
+  EXPECT_GT(quarter, 0u) << "…it reached some…";
+  EXPECT_LT(quarter, all) << "…and not all of them";
+  EXPECT_GT(all, 0u);
+
+  // AND THE CLAIM LEDGER READS THE UNMASKED BOUNDARY. Two passes that
+  // overlap are a description-level mistake; an overlap must not blink in
+  // and out between 0.3 and 0.7 of a transition because a gate was
+  // shrinking one of them. So a gated pair that overlaps says so at EVERY
+  // gate value, including 0.
+  testing::internal::CaptureStderr();
+  {
+    Host host(200, 200);
+    host.composer.render(stack().child(
+        maskBox()
+            .stroke(spans::range(0.0f, 0.5f), util::stroke(4, red()), "a")
+            .stroke(spans::range(0.3f, 0.8f), util::stroke(4, green()), "b")
+            .mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
+    host.frame();
+  }
+  EXPECT_NE(testing::internal::GetCapturedStderr().find("both claim"),
+            std::string::npos)
+      << "the no-overlap law must read the UNMASKED claims";
+}
+
+// ---- S6 · the directional wipe, over a lattice of children ---------------
+
+TEST(ComposeR4Mask, S6TheEdgeGateReachesTheChildren) {
+  // chevreul_circle's twelve grounds arrive and withdraw as a downward
+  // wipe. The CHILDREN are the point — an arc-length window has nothing to
+  // say about them, and this is the sample that says the family needs more
+  // than one gate kind.
+  const auto lattice = [](float t) {
+    Element g = box().absolute().left(20).top(20).width(160).height(160)
+                    .mask(by::edge(90.0f, t));
+    for (int i = 0; i < 4; ++i)
+      g.child(box().absolute().left(0).top((float)i * 40).width(160)
+                  .height(36).fill(red()));
+    return stack().child(std::move(g));
+  };
+  Host half(200, 200), whole(200, 200);
+  half.composer.render(lattice(0.5f));
+  half.frame();
+  whole.composer.render(lattice(1.0f));
+  whole.frame();
+  EXPECT_GT(redInk(half, 0, 20, 200, 95), 1000) << "the top half arrived";
+  EXPECT_EQ(redInk(half, 0, 105, 200, 190), 0) << "the bottom half has not";
+  EXPECT_GT(redInk(whole, 0, 105, 200, 190), 1000) << "…and at 1 it has";
+}
+
+// ---- S7 · the seal: a region gate, and its complement --------------------
+
+TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
+  // A portrait masked to a wax-seal silhouette. Nothing in the tree could
+  // express this: a study reached for `clipOut()` and `shapes::subtract` BY
+  // NAME, found neither, and dropped below the Compose seam to a raw
+  // SkPathOp. Both halves are terms here, and two masks INTERSECT — so a
+  // set difference is one node and two lines.
+  const SkRect seal = SkRect::MakeXYWH(20, 20, 60, 60);
+  Host inside(200, 200), outside(200, 200), diff(200, 200);
+  const auto plate = [] {
+    return box().absolute().left(20).top(20).width(100).height(100)
+        .fill(red());
+  };
+  inside.composer.render(
+      stack().child(plate().mask(by::shape(Region::rect(seal)))));
+  inside.frame();
+  outside.composer.render(
+      stack().child(plate().mask(by::outside(Region::rect(seal)))));
+  outside.frame();
+  // The gate is stated in the node's LOCAL space, so the seal covers
+  // (40,40)-(100,100) on the canvas.
+  EXPECT_GT(SkColorGetR(inside.pixel(70, 70)), 180) << "kept inside";
+  EXPECT_EQ(inside.pixel(110, 110), SK_ColorBLACK) << "…and only inside";
+  EXPECT_EQ(outside.pixel(70, 70), SK_ColorBLACK) << "the complement";
+  EXPECT_GT(SkColorGetR(outside.pixel(110, 110)), 180);
+  // THE SET DIFFERENCE: inside one region AND outside another, which is
+  // the picture the raw SkPathOp was written for.
+  diff.composer.render(stack().child(
+      plate()
+          .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 0, 80, 80))))
+          .mask(by::outside(Region::rect(SkRect::MakeXYWH(0, 0, 40, 40))))));
+  diff.frame();
+  EXPECT_EQ(diff.pixel(35, 35), SK_ColorBLACK) << "cut out of the middle";
+  EXPECT_GT(SkColorGetR(diff.pixel(70, 70)), 180) << "inside the outer";
+  EXPECT_EQ(diff.pixel(110, 110), SK_ColorBLACK) << "outside the outer";
+}
+
+TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
+  // …and soft-edged, which is the other half of the seal. `Console.h`
+  // prescribes `Material` + `kDstIn` as an IDIOM in a shipped header
+  // because it is not a feature; two more studies hand-roll kSrcIn. It is
+  // a feature now.
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().absolute().left(20).top(20).width(160).height(160).fill(red())
+          .mask(by::alpha(Material::linear({0, 0}, {160, 0},
+                                           {{0.0f, {1, 1, 1, 1}},
+                                            {1.0f, {1, 1, 1, 0}}})))));
+  host.frame();
+  // Opaque at the left of the ramp, gone at the right, monotone between.
+  EXPECT_GT(SkColorGetR(host.pixel(25, 100)), 200);
+  EXPECT_LT(SkColorGetR(host.pixel(175, 100)), 40);
+  EXPECT_GT(SkColorGetR(host.pixel(60, 100)), SkColorGetR(host.pixel(140, 100)));
+}
+
+// ---- S8 · per-mark granularity -------------------------------------------
+
+TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
+  // Hazard stripes wipe on while the bevel keyline STAYS. This is the
+  // sample that a whole-node-only family cannot draw: its workaround is a
+  // child node re-declaring the parent's shape, which is verbatim the
+  // thing `overlay()` was added to abolish ("costs a node and loses the
+  // outline").
+  const auto panel = [](float t) {
+    return stack().child(
+        box().absolute().left(20).top(20).width(160).height(160)
+            .overlay(util::stroke(20, red()), "hazard")
+            .foreground(util::stroke(4, green()), "keyline")
+            .mask(parts::named("hazard"), by::edge(0.0f, t)));
+  };
+  Host closed(200, 200), open(200, 200);
+  closed.composer.render(panel(0.0f));
+  closed.frame();
+  open.composer.render(panel(1.0f));
+  open.frame();
+  // Withheld — down to the leading sliver of the half-plane, which is
+  // exactly wipe()'s own geometry: the region at fraction 0 is one unit
+  // wide at the far edge, and the OUTER half of a 20 px stroke on the
+  // boundary reaches into it. That is the behaviour being preserved, not
+  // an approximation of it.
+  EXPECT_LT(redInk(closed), 30) << "the gated mark is withheld";
+  EXPECT_GT(redInk(open), 200) << "…and fully shown at 1";
+  // The SIBLING is untouched in both — that is the whole sample.
+  const auto greenInk = [](Host &h) {
+    int n = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        if (SkColorGetG(h.pixel(x, y)) > 170 && SkColorGetR(h.pixel(x, y)) < 90)
+          ++n;
+    return n;
+  };
+  EXPECT_GT(greenInk(closed), 200);
+  EXPECT_EQ(greenInk(closed), greenInk(open));
+}
+
+TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
+  // THE COMPOSITION THE DESIGNER ASKED FOR BY NAME: masks whose selections
+  // overlap INTERSECT, and each carries its OWN animation, so three masks
+  // may run at three rates on one node. If they shared a slot the second
+  // would retarget the first and this would be a race instead of a
+  // picture; maskAnims is indexed per mask, which is what makes it one.
+  choreograph::Output<float> slow{1.0f}, fast{1.0f};
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().absolute().left(20).top(20).width(160).height(160).fill(red())
+          .mask(by::edge(0.0f, &fast))    // from the left
+          .mask(by::edge(180.0f, &slow))  // …and from the right
+          .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))));
+  host.frame();
+  // All three open: the band the shape gate leaves is fully lit.
+  EXPECT_GT(redInk(host, 25, 65, 175, 155), 8000);
+  EXPECT_EQ(redInk(host, 0, 0, 200, 58), 0) << "the shape gate holds";
+  EXPECT_EQ(redInk(host, 0, 142, 200, 200), 0);
+
+  // Now drive them at DIFFERENT rates and pin the intersection at pixels:
+  // fast shows [left, 0.25], slow shows [0.5 from the right, right] — the
+  // two half-planes are disjoint, so their intersection is EMPTY, and no
+  // single-gate implementation can produce that answer.
+  fast = 0.25f;
+  slow = 0.25f;
+  host.frame();
+  EXPECT_EQ(redInk(host), 0) << "disjoint half-planes intersect to nothing";
+
+  // …and where they DO overlap, only the overlap paints.
+  fast = 0.75f; // shows x in [20, 140]
+  slow = 0.75f; // shows x in [60, 180]
+  host.frame();
+  EXPECT_EQ(redInk(host, 20, 60, 55, 150), 0) << "left of the slow edge";
+  EXPECT_GT(redInk(host, 70, 65, 130, 150), 2000) << "the overlap paints";
+  EXPECT_EQ(redInk(host, 145, 60, 180, 150), 0) << "right of the fast edge";
+}
+
+// ---- the intersection law, as arithmetic ---------------------------------
+
+TEST(ComposeR4Mask, StackedSpanGatesIntersectRatherThanUnion) {
+  // Union is spelled INSIDE a gate value (Spans::operator|); across masks
+  // there is only intersection, because two masks are two conditions and
+  // stacking them can only ever show less.
+  const auto ink = [](bool second) {
+    Host host(200, 200);
+    Element e = maskBox().stroke(util::stroke(6, red()));
+    e.mask(by::spans(spans::range(0.0f, 0.5f)));
+    if (second)
+      e.mask(by::spans(spans::range(0.3f, 1.0f)));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return inkedCount(boundaryRing(host));
+  };
+  const size_t one = ink(false), both = ink(true);
+  EXPECT_GT(one, 0u);
+  EXPECT_GT(both, 0u) << "[0.3,0.5] is not empty";
+  EXPECT_LT(both, one) << "the second mask can only narrow the first";
+}
+
+TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
+  // Pinned at pixels rather than at the helper, because the arithmetic is
+  // only worth anything if it reaches the boundary. maskBox()'s perimeter
+  // is 400 px and fraction 0 is the BOTTOM-LEFT corner running UP the left
+  // edge, so [0.25, 0.5] is exactly the top edge, left to right.
+  const auto topEdgeInk = [](Host &host, int x0, int x1) {
+    int n = 0;
+    for (int x = x0; x < x1; ++x)
+      if (host.pixel(x, 20) != SK_ColorBLACK)
+        ++n;
+    return n;
+  };
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      maskBox().stroke(util::stroke(6, red()))
+          .mask(by::spans(spans::range(0.0f, 0.5f)))    // left + top
+          .mask(by::spans(spans::range(0.3f, 1.0f)))));  // top's last 80%
+  host.frame();
+  // [0.3, 0.5] is the top edge from x = 40 to x = 120 and nothing else.
+  EXPECT_EQ(topEdgeInk(host, 22, 36), 0) << "before the intersection";
+  EXPECT_GT(topEdgeInk(host, 46, 114), 60) << "inside it";
+  EXPECT_EQ(host.pixel(20, 70), SK_ColorBLACK)
+      << "the left edge is in the FIRST mask and not the second";
+  EXPECT_EQ(host.pixel(120, 70), SK_ColorBLACK)
+      << "the right edge is in the SECOND and not the first";
+
+  // Two masks that share nothing show nothing — intersection, never union.
+  Host disjoint(200, 200);
+  disjoint.composer.render(stack().child(
+      maskBox().stroke(util::stroke(6, red()))
+          .mask(by::spans(spans::range(0.0f, 0.2f)))
+          .mask(by::spans(spans::range(0.6f, 0.8f)))));
+  disjoint.frame();
+  EXPECT_EQ(inkedCount(boundaryRing(disjoint)), 0u);
+}
+
+// ---- the sugar law, pinned -----------------------------------------------
+
+TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
+  // STATED AS LAW in Compose.h:
+  //     .stroke(where, what, name)
+  //        == .stroke(what, name).mask(parts::named(name), by::spans(where))
+  // Two doors, one machine — checked on a multi-run claim, where the two
+  // paths through the library are least likely to agree by accident.
+  const auto draw = [](bool sugar) {
+    Host host(200, 200);
+    Element e = maskBox();
+    if (sugar)
+      e.stroke(spans::corners(18), util::stroke(6, red()), "brk");
+    else
+      e.stroke(util::stroke(6, red()), "brk")
+          .mask(parts::named("brk"), by::spans(spans::corners(18)));
+    host.composer.render(stack().child(std::move(e)));
+    host.frame();
+    return boundaryRing(host);
+  };
+  const std::vector<SkColor> passDoor = draw(true);
+  EXPECT_EQ(draw(false), passDoor);
+  EXPECT_GT(inkedCount(passDoor), 5u);
+  EXPECT_LT(inkedCount(passDoor), passDoor.size());
+}
+
+TEST(ComposeR4Mask, ANamedMaskLeavesTheUnnamedMarksAlone) {
+  // parts::named() addresses ONE mark by its LOCAL label. A label that
+  // matches nothing selects nothing, silently — the same law as
+  // spans::rest("unknown") and spans::fit("unknown").
+  const auto draw = [](const char *label) {
+    Host host(200, 200);
+    host.composer.render(stack().child(
+        maskBox()
+            .stroke(util::stroke(6, red()), "outer")
+            .mask(parts::named(label), by::spans(spans::upTo(0.0f)))));
+    host.frame();
+    return inkedCount(boundaryRing(host));
+  };
+  EXPECT_EQ(draw("outer"), 0u) << "the named mark is gated";
+  EXPECT_GT(draw("typo"), 100u) << "…and a name that matches nothing is a "
+                                   "silent no-op, not a hidden node";
+}
+
+// ---- the memo repair (§3.6) ----------------------------------------------
+
+TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
+  // THE REPAIR. ContentScalars used to be a FIXED five-float struct, which
+  // is why a per-pass span reveal is excluded from the §17 memo by a
+  // written decision — and therefore why R2's 58 trim→spans ports each
+  // moved their node from the scalar memo to per-frame content volatility
+  // with a byte-identical plate ledger and nothing to catch it. A mask's
+  // gate scalars are a bounded per-node list, so they ride ContentScalars
+  // as a vector and an element-level gate keeps the memo.
+  //
+  // The probe is the same one §17 shipped with: a keyframe path with a
+  // HELD segment. A held gate must repaint NOTHING.
+  const auto ring = [] {
+    return box().cache(Cache::None).child(
+        box().width(120).height(120).key("ring")
+            .shape(shapes::circle())
+            .stroke(util::stroke(6.0f, Fill::color({1, 1, 1, 1})))
+            .mask(by::spans(spans::upTo(animate(
+                through({{std::chrono::milliseconds(0), 0.0f},
+                         {std::chrono::milliseconds(200), 0.6f},
+                         {std::chrono::milliseconds(600), 0.6f},
+                         {std::chrono::milliseconds(800), 1.0f}}),
+                &choreograph::easeNone)))));
+  };
+  Host host;
+  host.composer.render(ring());
+  host.frame();
+  for (int i = 0; i < 18; ++i)
+    host.frame(1.0 / 60.0); // t ≈ 0.30 s — inside the hold
+  unsigned duringHold = 0;
+  for (int i = 0; i < 15; ++i) {
+    host.frame(1.0 / 60.0);
+    duringHold += host.composer.stats().picturesRecorded;
+  }
+  EXPECT_EQ(duringHold, 0u) << "a held gate must repaint nothing";
+  // …and it is a memo, not a freeze: the ramp resumes and re-records.
+  unsigned afterHold = 0;
+  for (int i = 0; i < 12; ++i) {
+    host.frame(1.0 / 60.0);
+    afterHold += host.composer.stats().picturesRecorded;
+  }
+  EXPECT_GT(afterHold, 0u) << "…and re-record the moment the number ticks";
+}
+
+TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
+  // The other half of the same claim: a mask is read live, so it
+  // participates in reconciler equality. A re-describe with the SAME mask
+  // must prune; a re-describe with a different one must not.
+  const auto tree = [](float t) {
+    return stack().child(maskBox().key("m").stroke(util::stroke(6, red()))
+                             .mask(by::spans(spans::upTo(t))));
+  };
+  Host host(200, 200);
+  host.composer.render(tree(0.4f));
+  host.frame();
+  host.composer.render(tree(0.4f));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical mask prunes";
+  host.composer.render(tree(0.7f));
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u)
+      << "…and a different one does not, or a pruned node would reveal to "
+         "its first frame and stay there";
+}
+
+// ---- Region is a VALUE (the §3 wall) -------------------------------------
+
+TEST(ComposeR4Mask, RegionIsComparableFromDayOne) {
+  // The shape gate's obvious signature takes an OutlineFn — an
+  // incomparable std::function, which never prunes. That is not a
+  // hypothetical: it is the highest measured-impact item on the roadmap
+  // (43.4 of 43.5 ms on one un-prunable callable). Region is a closed,
+  // comparable value instead, and that is the whole reason the shape
+  // member could ship with the family rather than after it.
+  EXPECT_TRUE(Region::own() == Region::own());
+  EXPECT_TRUE(Region::rect(SkRect::MakeWH(4, 4)) ==
+              Region::rect(SkRect::MakeWH(4, 4)));
+  EXPECT_FALSE(Region::rect(SkRect::MakeWH(4, 4)) ==
+               Region::rect(SkRect::MakeWH(4, 5)));
+  EXPECT_FALSE(Region::rect(SkRect::MakeWH(4, 4)) ==
+               Region::oval(SkRect::MakeWH(4, 4)));
+  EXPECT_FALSE(Region::own() == Region::rect(SkRect::MakeWH(4, 4)));
+  SkPathBuilder a, b;
+  a.addRect(SkRect::MakeWH(3, 3));
+  b.addRect(SkRect::MakeWH(3, 3));
+  EXPECT_TRUE(Region::path(a.detach()) == Region::path(b.detach()));
+  // …and the gates built from them compare, which is what the reconciler
+  // actually asks.
+  EXPECT_TRUE(by::shape(Region::own()) == by::shape(Region::own()));
+  EXPECT_FALSE(by::shape(Region::own()) == by::outside(Region::own()));
+  EXPECT_FALSE(by::edge(0.0f, 0.5f) == by::edge(90.0f, 0.5f));
+  EXPECT_FALSE(by::edge(0.0f, 0.5f) == by::edge(0.0f, 0.6f));
+  EXPECT_FALSE(by::spans(spans::upTo(0.4f)) == by::edge(0.0f, 0.4f));
+  EXPECT_TRUE(by::spans(spans::upTo(0.4f)) == by::spans(spans::upTo(0.4f)));
+  // Parts too — a selection is a value you can look at, which was the
+  // designer's question ("I still don't get the shape [of selection]").
+  EXPECT_TRUE(parts::marks() == parts::marks());
+  EXPECT_FALSE(parts::marks() == parts::surface());
+  EXPECT_FALSE(parts::named("a") == parts::named("b"));
+  EXPECT_TRUE((parts::surface() | parts::content() | parts::children() |
+               parts::marks()) == parts::all());
+}
+
+// ---- the fold: what trim() and wipe() were -------------------------------
+
+TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
+  // The fold table, as behaviour. A boundary is a 1-D coordinate: the
+  // paint that TRACES it is the surface and the marks, and the content and
+  // children do not. So `mask(by::spans(...))` — the taught one-argument
+  // form, whose selection is parts::all() — is exactly the reveal the
+  // deleted trim() drew, and gating children with an arc-length window is
+  // not a picture and does nothing.
+  Host host(200, 200);
+  Element e = box().absolute().left(20).top(20).width(100).height(100)
+                  .fill(red())
+                  .mask(by::spans(spans::upTo(0.0f)));
+  e.child(box().absolute().left(10).top(10).width(40).height(40).fill(green()));
+  host.composer.render(stack().child(std::move(e)));
+  host.frame();
+  EXPECT_EQ(redInk(host), 0) << "the SURFACE is gated by a spans gate";
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorGREEN)
+      << "…and the CHILD is not: an arc-length window has nothing to say "
+         "about a child, so it says nothing";
+
+  // parts::surface() alone leaves the marks whole, and vice versa.
+  Host onlyMarks(200, 200), onlySurface(200, 200);
+  const auto both = [] {
+    return maskBox().fill(red()).stroke(util::stroke(6, green()));
+  };
+  onlyMarks.composer.render(stack().child(
+      both().mask(parts::marks(), by::spans(spans::upTo(0.0f)))));
+  onlyMarks.frame();
+  onlySurface.composer.render(stack().child(
+      both().mask(parts::surface(), by::spans(spans::upTo(0.0f)))));
+  onlySurface.frame();
+  EXPECT_GT(SkColorGetR(onlyMarks.pixel(70, 70)), 180) << "surface kept";
+  EXPECT_EQ(onlySurface.pixel(70, 70), SK_ColorBLACK) << "surface gated";
+  EXPECT_GT(SkColorGetG(onlySurface.pixel(20, 70)), 150) << "marks kept";
+}
+
+TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
+  // wipe(angle, t) is `mask(by::edge(angle, t))` and nothing else changed:
+  // same half-plane, same empty-box guard, same reach over decorations and
+  // children. This is the parity witness the corpus port rests on.
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().absolute().left(20).top(20).width(160).height(160).fill(red())
+          .stroke(util::stroke(6, green()))
+          .mask(by::edge(0.0f, 0.5f))));
+  host.frame();
+  // A reveal, not a squash: the edge lands at the box's MIDPOINT.
+  int edge = 0;
+  for (int x = 20; x < 180; ++x)
+    if (host.pixel(x, 100) != SK_ColorBLACK)
+      edge = x;
+  EXPECT_NEAR(edge, 100, 3);
+  // …and it covers the node's decorations too, because a reveal reveals.
+  EXPECT_EQ(host.pixel(178, 100), SK_ColorBLACK) << "the right stroke is gone";
+  EXPECT_NE(host.pixel(21, 100), SK_ColorBLACK) << "the left stroke is not";
+}
+
+TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
+  // THE TRIM-PARITY WITNESS THAT SURVIVES THE DELETION. trim() cut the
+  // outline with SkTrimPathEffect; the corpus port of the 17 holdouts is
+  // byte-identical only if the spans gate cuts the same path. So the
+  // expected geometry is built HERE, by SkTrimPathEffect itself, and drawn
+  // through a leaf that the masking family never touches.
+  const SkRect r = SkRect::MakeXYWH(20, 20, 100, 100);
+  // addRRect, not addRect: fraction 0 is the BOTTOM-LEFT corner because
+  // that is SkPath::addRRect's start index, and that convention is what
+  // every span answer and every trim() answer was always in.
+  SkPathBuilder pb;
+  pb.addRRect(SkRRect::MakeRect(SkRect::MakeWH(r.width(), r.height())));
+  const SkPath boundary = pb.detach();
+  for (auto [lo, hi] : {std::pair{0.0f, 0.4f}, std::pair{0.15f, 0.55f},
+                        std::pair{0.6f, 1.0f}}) {
+    SkPathBuilder dst;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    ASSERT_TRUE(SkTrimPathEffect::Make(lo, hi)->filterPath(&dst, boundary,
+                                                           &rec));
+    const SkPath want = dst.detach();
+
+    Host gated(200, 200), truth(200, 200);
+    gated.composer.render(stack().child(
+        maskBox().stroke(util::stroke(6, red()))
+            .mask(by::spans(spans::range(lo, hi)))));
+    gated.frame();
+    truth.composer.render(stack().child(
+        custom([want](SkCanvas &c, const PaintContext &) {
+          SkPaint p;
+          p.setAntiAlias(true);
+          p.setStyle(SkPaint::kStroke_Style);
+          p.setStrokeWidth(6);
+          p.setColor4f({1, 0, 0, 1}, nullptr);
+          c.drawPath(want, p);
+        }).rect(r)));
+    truth.frame();
+    EXPECT_EQ(boundaryRing(gated), boundaryRing(truth))
+        << "window " << lo << ".." << hi;
+  }
 }

@@ -754,10 +754,10 @@ axis are the same axis.
   the identical function to check its own output — which is the argument:
   a study that measures its reference should be able to measure itself
   with the same call.
-- **A `widthFn` Ribbon can never prune** — its `operator==` ends
-  `&& !widthFn && !o.widthFn`, so the whole band re-records per
-  `render()`. Same shape as §3, and the same fix would cover it: a
-  comparable value, or a key that participates in equality.
+- ~~**A `widthFn` Ribbon can never prune**~~ — CLOSED by the
+  widthFn→Profile migration (§33's dated note): every corpus law is a
+  comparable value now, keying is part of the type, and the prune is
+  pinned by test.
 - **`brushes::Ribbon` has no corner joins**, so a 14-corner route shows
   its facets.
 
@@ -2165,7 +2165,7 @@ designer's decision about a picture:
 | `namespace brushes` (the whole fold) | Brushes.h, and the four preset names in kit/Strokes.h | 0 corpus sites; tests only (deliberate `static_assert` identity arms, plus the preset-alias test) |
 | `animated()` on every scheme + `Decoration` | ~14 headers | deliberate parity arms only |
 | `Material::isLive()` | Material.h | 41 sites — **RULED in R3** (ruling 13): the fifth spelling of one idea, dead with the other four; `isAnimated()` is the word |
-| `Ribbon::widthFn` / `widthMax` | Brushes.h | **CONDEMNED, not deleted — see WP2 finding 2 and the R3 note** |
+| `Ribbon::widthFn` / `widthMax` | Brushes.h | ~~CONDEMNED~~ **DELETED 2026-07-26 — see the widthFn→Profile note at the end of this section** |
 | `Brush::op()` | Brushes.h | 0 corpus sites — every `.op()` is `.shaped()` |
 | `ops::` PUBLIC (the structs) | Brushes.h | **DONE in R3** — `layer(Decoration, vector<Shaper>)` closed the per-layer gap; the structs died, `ops::PathOp`/`chain`/`debug` stayed as the one documented mechanism door |
 | `lines::offsetAlong` / `Rail::offset` right-of-travel sign | Lines.h | **DONE in R3** — renamed `offsetAcross`/`across` and flipped, every call site negated, plates byte-identical |
@@ -2307,10 +2307,14 @@ solved here):
    this its own feature: translucent strands (patch double-cover)
    and multi-crossing over the same region. Touches perceived
    z-index — deferred on the designer's call.
-2. The masking family — `wipe()` is one member (a paint-only
+2. ~~The masking family — `wipe()` is one member (a paint-only
    directional mask, fraction Animatable), shape/alpha masks and the
    kit's alphaMask bake are others; the family was never designed as
-   one. Own review pass.
+   one. Own review pass.~~ **CLOSED 2026-07-27 — SHIPPED as R4.** The
+   review pass ran (four candidate shapes against one fixed eight-sample
+   set), the designer ratified candidate 1 with amendments, and
+   `mask(parts::…, by::…)` landed. `trim()` and `wipe()` are DELETED.
+   The note is at the end of this section.
 3. Material's own interface interrogation.
 4. Hit-testing organic shapes for text-flow / fill-pattern exclusion
    — rides the derive-export arc.
@@ -2352,10 +2356,9 @@ seam** (`float across(float along)` + REQUIRED `float max()`, comparable,
 type-erased) with `strand::self()`/`strand::offset(px)` as the core
 presets and `max()` wired into the paint cull — which makes the
 silent-clip trap (§25/audit I9) structurally impossible **for band and
-profile geometry**. `Ribbon` itself still carries its own
-`widthFn`/`widthMax` pair and is unmigrated; moving it onto the profile
-seam is stage-two work, and until then the trap is closed on the new
-path only.
+profile geometry**. `Ribbon` rode the profile seam in the widthFn→Profile migration
+(dated note below) — `widthFn`/`widthMax` are deleted and the trap is
+closed on every path.
 
 One judgement recorded: `Spans` is a CLOSED comparable value (a Rule +
 term list), not an open seam. The seam convention governs shapers,
@@ -2712,18 +2715,19 @@ and the pixels cannot move. Stated because it looks like a missed port.
 `TextPath::offset` was ALREADY left-of-travel and is untouched — it is the
 member that made the kernel right all along.
 
-### CONDEMNED, NOT DELETED — three, each with a doc comment saying so
+### CONDEMNED, NOT DELETED — three at the time; one has since closed
 
-1. **`Element::trim()`** + `TrimMode` + `FxData::trim*`. 17 sites remain
-   after R2, and 2 of them reveal a PAINTING FILL (`chaucer_astrolabe`'s
-   meridian bar, `sigillum_aemeth`'s brass wash), which the span
-   vocabulary has no spelling for. The replacement interface is a
-   separate designed piece of work; the method dies with it. Doc now
-   opens "CONDEMNED, and still here … Do not add call sites."
-2. **`Ribbon::widthFn` / `widthMax`.** Moving the corpus's 7 sites to the
-   profile lane is a RE-DRAW, not a rename (`bandRegion()` vs the
-   sample-and-zip walk), so it moves pixels by construction and needs a
-   designer reading 7 plates. Same doc treatment.
+1. ~~**`Element::trim()`** + `TrimMode` + `FxData::trim*`.~~ **CLOSED
+   2026-07-27 — DELETED**, together with `Element::wipe()`, by the
+   masking family (R4, the note at the end of this section). The
+   replacement interface it was waiting for is `mask(by::spans(…))`;
+   the two painting-fill sites were the two the designer had to look
+   at, and both were ruled on.
+2. ~~**`Ribbon::widthFn` / `widthMax`.**~~ **CLOSED 2026-07-26 — DELETED.**
+   The designer cleared the re-draw and read the plates; the migration,
+   the bridge decision and the per-scene verdicts are the
+   *widthFn→Profile* note at the end of this section. It was 8 sites in 4
+   sketches, not 7 in 5.
 3. **`decorations::brackets` / `gappedRule`.** NOT on the enumerated R3
    list, with live corpus sites (astral_tome ×5, stroke_atlas ×2) and a
    different construction from `spans::corners`/`edges` — deleting them
@@ -2792,3 +2796,396 @@ load. Any future ledger should carry the flag on both arms.
 - **ROADMAP.md and STRESS_TESTS.md keep their historical mentions** of
   the deleted names. They are records of what happened; API.md and the
   headers are the surface, and those are clean (`grep` is the audit).
+
+---
+
+## widthFn → Profile — SHIPPED 2026-07-26, the last condemned pair is gone
+
+R3 left `Ribbon::widthFn`/`widthMax` alive because the port is a RE-DRAW:
+the profile lane calls `bandRegion()` and the callable lane sampled the
+contour and zipped two point lists, so no amount of care makes it
+byte-identical. The designer cleared exactly that — **the gate was their
+eye on before/after plates, not byte identity** — and the pair is now
+DELETED, along with the sample-and-zip `widthFn` branch inside
+`Ribbon::paint`. `widthStart`/`widthEnd` and the nib are untouched.
+
+### The enumeration, fresh
+
+The R2 note's "19 sites in 5 sketches" and the R3 list's "7 ribbons" were
+both wrong. Counted by `grep`: **8 `widthFn` assignments + 8 `widthMax`
+assignments = 16 live sites in 4 sketches**, plus 2 deliberate test arms.
+The fifth "sketch" was `eva_magi_interior`, whose only mention is a header
+line saying its ribbons are widthFn-FREE.
+
+| site | law keyed on | under a reveal? | ported to |
+| --- | --- | --- | --- |
+| `astral_tome` 652 (bloom), 662 (body) | `fraction` | no | `at::LinkTaper` — fraction |
+| `dunhuang_star_chart` 2073 | `distance / authoredLen` | YES (`spans::upTo`) | `BonePress` — **px** |
+| `thunder_fulu` 697 | `distance / authoredLen` | YES (`trim`) | `StrokePress` — **px** |
+| `thunder_fulu` 704 | absolute `distance`, 75-span table | YES (`trim`) | `FootPress` — **px** |
+| `thunder_fulu` 1656, 1762 | `fraction` | no | `LawBand` — fraction |
+| `minard_1869` 1247 | absolute `distance` + a LIVE `ch::Output` | YES (`spans::upTo`) | `FlowWidth` — **px** |
+
+### THE BRIDGE: one adapter on the seam, not per site
+
+The blocker's second half was real. `Profile::across` is asked in
+FRACTIONS of arc length; four of the eight laws key on
+`PathSample::distance` **on purpose**, because a decoration under a reveal
+is handed the REVEALED contour and a fraction is a fraction of what has
+been drawn so far. `thunder_fulu` documents why: keyed to a fraction, the
+頓 press slides down the stroke as it writes.
+
+Three shapes were considered. A per-site "divide by the length I
+authored" adapter **cannot work** — under a reveal the length being
+sampled is not the length authored, which is the bug itself. Teaching
+`Ribbon` to hold a second px-keyed field is `widthFn` again. So the
+conversion went on the SEAM, where the measured length actually lives:
+
+```cpp
+struct MyLaw {
+  static constexpr bool alongIsPx = true;   // optional, one line
+  float across(float px) const;             // arc-length px from the start
+  float max() const;
+};
+```
+
+`Profile` reads the flag through a `PxKeyedProfileScheme` concept and
+exposes `acrossAt(along, lengthPx)` — the one call a consumer that has
+measured its spine makes. `profileOffset` (both the constancy sampler and
+the varying walk) and `BandRail` (which gained the whole spine's length)
+now go through it; `across(along)` still means "the law at its own key".
+**One adapter, because all four px sites want the identical thing** —
+absolute arc distance from the spine's start — and because the number
+needed to compute it is knowable only at paint. The four fraction-keyed
+sites take nothing: `across(along)` is literally their old
+`widthFn(s.fraction)`.
+
+The key is part of the scheme's TYPE, so `Profile` equality can never
+confuse two laws that differ only in how they are keyed.
+
+### THE PLATE LEDGER — 4 scenes, Release, `--no-promotion`
+
+All four are **self-stable**: re-rendered from the pristine binary they
+hash identically, so every difference below is attributable to the port.
+(This is the control the R3 ledger had to fight for; here it came free.)
+Baseline moment-plates were captured by materialising the HEAD versions of
+the seven touched files, building, rendering, and restoring — verified by
+SHA-256 on the way back.
+
+| scene | verdict |
+| --- | --- |
+| `dunhuang_star_chart` | **default plate BYTE-IDENTICAL.** The archer enters at t=26.0 and the default capture is t=6.0, so the port is invisible there — which is itself the evidence that nothing else moved. At its own moment (t=27.5, figure complete) **1648 px / 0.040%, maxDelta 83, 3 px over 64**, all of it edge antialiasing on the fifteen bones. The figure's shape, weight and press are unchanged |
+| `minard_1869` | **2053 px / 0.050%, maxDelta 15** on the default plate (the Hannibal band), **5266 px / 0.129%, maxDelta 189** at t=9.5 with the retreat band drawn. The high maxDelta is a black band on a light ground: any sub-pixel edge shift reads as ~190. Shape, risers and city registration are unchanged, and the sharp bends are clean in BOTH — the sketch's documented corner defect is a VARYING-width property and survives the port (`profileOffset` delegates to `lines::offsetAcross` only when the law is constant). Recorded in the sketch's header so nobody re-tests it by accident |
+| `thunder_fulu` | **14118 px / 0.382% (default), 24187 px / 0.654% at t=22.0** with the whole talisman written. The ink itself is edge antialiasing only — 起行收 lands where it did, the 頓 press does not move, the foot's 75-span table reads the same. Two of the row bands are the **caption strings**, the documented precedent: the plate PRINTS the API names it uses, so `Ribbon::widthFn` → `Ribbon::width` and "key the law to distance/fullLength" → "the profile is keyed in PX" change the drawing because the drawing is the text |
+| `astral_tome` | **THE ONE THAT NEEDS A LOOK: 234357 px / 6.510%, maxDelta 81.** Not a re-draw artefact — a DEFECT REPAIR the port uncovered, described below |
+
+### The astral_tome finding — a NaN was deleting a band
+
+`astral_tome`'s link law is `0.40 + 0.60·sqrt(sin(π·along))`. The literal
+`3.14159265f` rounds UP to 3.1415927, so `sin(π·1.0f)` is **-8.74e-08**,
+negative, and `sqrt` of it is **NaN**. Every construction samples the law
+at exactly `along == 1` (the zip walk's last sample is at `d == len`; the
+rail walk's is at `k == steps`), so one non-finite vertex entered the band
+path — and Skia draws **none** of a path that contains one. The bloom and
+the body were silently absent for the sketch's whole life, leaving only
+the rails; the plate's own header text describes a band nobody had seen.
+
+The port did not cause it and does not fix it by itself: it moved the
+sample positions, so **two** links started drawing while the rest stayed
+dark, which is how it was noticed. Isolated with a controlled probe (the
+same links on the surviving zip lane at CONSTANT width: all present), so
+the variable is the law, not the lane. Fixed in the law
+(`sqrt(std::max(k, 0.0f))`), and the plate now draws every link's bloom.
+**6.5% of the plate changes and all of it is the band appearing.**
+
+Filed as a hazard in API.md's traps list, because the failure mode
+generalises: a profile that returns a non-finite width does not pinch the
+band to nothing, it deletes the whole band, and nothing says why. The seam
+is NOT guarded — one line in `profileOffset` would turn this into a local
+pinch instead of a silent deletion, and that is a policy call for whoever
+owns the next robustness pass, not something to slip into a migration.
+
+### Tests
+
+Three new cases in `ComposeWidthProfile`, plus two rewritten:
+
+- **`StraightRunsAgreeWithTheLaneTheyReplaced`** — the equivalence claim,
+  quantified. The same taper (30→10) spelled both ways over a straight
+  spine agrees to **≤1 px of band thickness and ≤0.6 px of centreline** at
+  five stations. The surviving `widthStart`/`widthEnd` lane IS the zip
+  construction, so the comparison is live rather than historical.
+- **`APxKeyedLawStaysPutUnderAReveal`** — a 12 px pulse 40 px along a
+  160 px run, rendered at reveal 1.0 and 0.55. The px-keyed law's pulse
+  moves ≤2 px; the fraction-keyed twin moves >8 px, which is the trap
+  demonstrated rather than asserted.
+- **`TheLastNeverPruneRibbonsCanPruneNow`** — the comparability win
+  pinned: identical laws compare EQUAL (a `widthFn` ribbon's `operator==`
+  ended `&& !widthFn`, so it was unequal to itself and its whole band
+  re-recorded per describe), different laws compare unequal, the px key is
+  part of the type, `max()` is honoured, and `acrossAt` converts.
+- `ARibbonsReachIsDERIVEDFromItsProfile` (was
+  `ARibbonWithAWidthFnMustDeclareItsReach`) and
+  `ProfileIsComparableAndBoundsItsOwnReach` lost their legacy arms.
+
+### The gate
+
+Debug and Release both build clean; `ctest` green across all 14 suites;
+`sizeof(ElementNode)` guard unchanged. `Profile` grew one `bool` into
+existing padding — it is held in `Across`/`Box<>`, never inline in
+`ElementNode`.
+
+---
+
+## §33 R4 — THE MASKING FAMILY (2026-07-27)
+
+Pinned pass 2 closes here. `trim()` and `wipe()` are **deleted**; one verb
+replaced both, and it is the first appearance-gating surface in the library
+that was designed as a family rather than assembled from whatever each study
+needed next.
+
+### The finding the design rested on
+
+Seven mechanisms existed that made some of an element's paint not appear —
+`wipe`, `trim`, `stroke(Spans,…)`, `clip`, `PathFormat::trimStart/End`, the
+kit's A8 bake, and hand-rolled `kSrcIn`. **No two gated the same set and no
+two were the same value kind.** Read as a table it is not seven features, it
+is a scattering of PRE-MULTIPLIED CONSTANTS from a product of two
+vocabularies:
+
+- **SELECTION** — which of this element's paint outputs does the gate apply
+  to?
+- **GATE** — by what rule is that output cut?
+
+Every combination is a picture someone wants; the API offered four of the
+~24 cells, chosen by history. `clip()` and `trim()` were exact complements
+on the decorations/children axis and nobody chose that. Three of the four
+things an author would call a mask did not exist at all —
+`chaucer_astrolabe.cpp:976` reaches for `clipOut()` and `shapes::subtract`
+BY NAME, finds neither, and drops below the Compose seam to a raw
+`SkPathOp`; `Console.h:19` prescribes `Material` + `kDstIn` as an idiom in a
+SHIPPED HEADER because it is not a feature; two more studies hand-roll
+`kSrcIn`. And the family already failed DESIGN's own rename test: two of the
+seven were documented BY COMPARISON TO EACH OTHER.
+
+### The surface
+
+```cpp
+Element &mask(Gate with);              // taught default == parts::all()
+Element &mask(Parts what, Gate with);  // the granular form
+
+namespace parts { Parts all(), marks(), surface(), content(), children();
+                  Parts named(std::string_view); }
+Parts operator|(Parts, Parts);
+
+namespace by { Gate spans(Spans), edge(float, Animatable<float>),
+                    shape(Region), outside(Region), alpha(Material); }
+
+class Region { static Region own(), rect(SkRect), oval(SkRect), path(SkPath); };
+```
+
+plus an optional local `name` on the four unqualified mark slots
+(`foreground`/`overlay`/`background`/`stroke(Decoration)`), which is what
+`parts::named()` addresses. They are the SAME local names
+`stroke(Spans, what, name)` already carried — one element's own labels for
+its own marks, never a query key, no second identity system.
+
+### The rulings, and why each went the way it did
+
+**`by::`, not `gate::`** — the designer's amendment, and it earns itself at
+the call site: *mask by edge*, *mask by spans*, *mask by shape* is English,
+and `gate` was rejected as lock-implying. The one-argument `mask(by::…)` is
+the TAUGHT DEFAULT; the two-argument form exists so the family is closed
+rather than merely tidy, and 24 of the 25 corpus substitutions use the
+short one.
+
+**A gate is a SHOW set; the complement is a term, never a mode flag.**
+`by::outside(r)` is the word for the outside of a region, with
+`spans::rest()` as the precedent. Same argument that made `wrap` a term
+rather than a flag on `range`: a reader auditing a picture needs the call
+site to say which way round it is.
+
+**Stacked masks INTERSECT where their selections overlap.** Both must pass.
+Nesting already meant that everywhere else, and union is spelled inside one
+gate value (`Spans::operator|`), never across masks. **Each mask carries its
+OWN Animatable slots** — separately indexed, so three masks at three rates
+on one node is a picture rather than a race, and a retarget on the second
+retargets the second. That was a design requirement the designer asked for
+by name, and it is pinned at pixels
+(`ComposeR4Mask.S8PlusThreeMasksAtThreeRatesIntersectPerFrame`).
+
+**The claim ledger reads the UNMASKED boundary.** Span-pass claims resolve
+against the uncut outline and the gate intersects afterwards, so the
+no-overlap diagnostic is a statement about the description and never blinks
+in and out between 0.3 and 0.7 of a transition.
+
+**`stroke(Spans, d, name)` is STATED AS LAW to be sugar** for
+`stroke(d, name).mask(parts::named(name), by::spans(where))` — pixel-exact,
+pinned on a multi-run claim. The one thing the pass form does that the sugar
+does not is CLAIM its run and join the ledger; that is written down at both
+call sites. `clip()` likewise stays as sugar for the shape gate, on cost
+grounds (a `clipRRect` is much cheaper than a general path).
+
+**The shape gate takes a COMPARABLE `Region` from day one.** The obvious
+signature takes `shapes::OutlineFn` — an incomparable `std::function`, which
+never participates in reconciler equality and therefore never prunes. That
+is §3, the highest measured-impact item on this roadmap. A `Region` is a
+closed value (`SkPath` has structural equality, so `Region::path()` is a
+general escape hatch that still prunes), which is why the shape member could
+ship WITH the family instead of queued behind comparable outlines.
+
+### The cache repair — the part that is not a rename
+
+`Instance::ContentScalars` was a **fixed five-float struct**
+(`trimStart/trimEnd/trimOffset/wipe/glyph`), and that fixed size was the
+whole obstacle: it is why `spanVolatile` is excluded from the §17 scalar
+memo by a written decision in `Paint.cpp`, and therefore why **every one of
+R2's 58 `trim()` → `stroke(spans::…)` ports moved its node from the scalar
+memo to per-frame content volatility and out of `Cache::Group` eligibility.
+The plate ledger was byte-identical, so nothing caught it — byte-identity is
+a pixel gate, not a cost gate.**
+
+A mask's gate scalars are a bounded, per-node, resolvable-to-floats list, so
+`ContentScalars` now holds `{float glyph; std::vector<float> gates;}` and an
+element-level gate KEEPS the memo. A held keyframe on a masked node repaints
+nothing, verified by the same §17 probe that shipped with the memo
+(`ComposeR4Mask.AGatedNodeKeepsTheScalarMemoAndPrunes`). This is the
+structural reason selection lives in an ARGUMENT and not in the slot call or
+in the mark value: per-pass gate scalars land in the open `spanAnims` vector
+the memo cannot see. (Per-PASS span endpoints are still excluded — hoisting
+those is separate work, and this note is where it is filed.)
+
+An `alpha` gate on a LIVE material declares volatility and refuses both
+memos, exactly as a live material fill does.
+
+### Storage — ElementNode did not grow
+
+The masks live in `FxData`, the block whose two departed tenants they
+replace: `hasTrim/trimStart/trimEnd/trimOffset/trimMode` and
+`hasWipe/wipeAngleDeg/wipeFraction` are gone and one `std::vector<Mask>`
+took their place, so the rare-fields rule is honoured with a NET SHRINK of
+the block and no new `Box<>` pointer. `Instance::Slot` lost four entries
+(`kTrimStart`, `kTrimEnd`, `kTrimOffset`, `kWipe`) and gained none — the
+per-mask motions live in `maskAnims`, sized by the description like
+`spanAnims`. The `sizeof(ElementNode)` guard is unchanged and still
+asserting at 768 B.
+
+### STANDING NOTE — the namespace reservation
+
+The family lands **two** new concept namespaces (`parts::`, `by::`) into a
+codebase whose namespace-friction log in this section already stood at four
+sightings, two of them hard errors, and which says in as many words that it
+"wants a ruling before any further nouns land."
+
+The ruling handed down with the ratification was a NAMING ruling, recorded
+verbatim: *"the gate namespace is `by::` not `gate::` ('mask by edge'
+English; gate rejected as lock-implying)"*. The designer's
+namespace-REORGANIZATION reservation is recorded as standing and open: the
+LAYOUT of the concept namespaces (`parts::`/`by::` at `sigil::compose`
+scope, versus nesting them under a `mask::` or moving to free factories) is
+not settled by this pass and may be reorganised later. Both are closed
+vocabularies of factory functions with no call-site state, so a
+reorganisation is a mechanical spelling change across 25 corpus sites and
+one header — it must not be re-litigated as a design question when it comes
+up. `Region`'s factories deliberately avoided the problem entirely by being
+STATIC MEMBERS (`Region::own()`, `Region::path()`), the house pattern
+`Fill::color` and `Material::radial` already use; that is the shape to reach
+for if the ruling goes against new nouns.
+
+### The corpus port
+
+**17 `trim()` sites and 8 `wipe()` sites, plus the tests.** Two of the trim
+sites reveal a PAINTING FILL and were the two the designer had to look at:
+
+- **`chaucer_astrolabe.cpp:971` — the meridian, ported to `by::edge(90°)`,
+  and it is the ONE port in the corpus that moves pixels on purpose.** The
+  bar is a filled 2 × 2R rect with no stroke at all. An arc-length window
+  walks its PERIMETER, so the first half of the 520 ms ramp crawled up a
+  2 px-wide left edge enclosing no area — a ~260 ms dead beat and then a
+  snap, plus an invisible hairline taper. A meridian draws downward. This is
+  the measured bug the proposal predicted, repaired by the gate kind that
+  exists for it.
+- **`sigillum_aemeth.cpp:1226` — the pentagram, ported to
+  `parts::marks()`** per the amendment: the rails draw themselves, the
+  18%-alpha wash is simply there. The proposal measured the wash sweep at
+  ≤ 4 LSB over its own ground before the port.
+
+Every other site is a one-line substitution. `astral_tome`'s three-stroke
+`linkPass()` helper is the sample that decided the shape: the caller gates
+all three of a helper's marks with a property, and never has to change
+someone else's signature to do it.
+
+### Tests
+
+**20 new cases in `ComposeR4Mask`**, and the phase's ported arms.
+
+The eight design samples S1–S8 are tests, because a family designed against
+eight pictures should draw all eight and the shapes that were rejected were
+rejected for failing one: S1 a helper's three marks gated from outside it,
+S2 a decoration receiving the already-gated run (the wet nib rides the
+head), S3 the retarget across an if/else, S4 a gate applied to an
+already-built element (the still-frame conditional), S5 a claim under a gate
+resolving to the intersection — with the claim-ledger law checked in the
+same test, S6 the edge gate reaching a lattice of children, S7 the seal
+(region, its complement, and the two-mask SET DIFFERENCE the raw `SkPathOp`
+was written for) plus S7b the alpha gate, S8 one mark gated with its sibling
+untouched, and **S8+ the composition the designer asked about**: three masks
+at three rates, intersection pinned at pixels including the disjoint case
+that no single-gate implementation can produce.
+
+Then: the intersection law as pixels, the sugar law pixel-exact on a
+multi-run claim, the silent-no-op law for an unmatched name, the memo repair
+(the §17 held-keyframe probe) and its prune half, `Region`/`Gate`/`Parts`
+comparability, the fold behaviour (a spans gate reaches surface and marks
+and NOT the children), the edge gate as wipe's half-plane, and —
+
+**`TheGateGeometryIsTrimsGeometry`, the trim-parity witness that survives
+the deletion.** The expected geometry is built in the test by
+`SkTrimPathEffect` itself, exactly as `trim()` built it, and drawn through a
+`custom()` leaf the masking family never touches. Three windows, boundary
+ring compared. It is the one parity test that does not depend on `trim()`
+still existing, and it is what the 17-site port's byte-identity rests on.
+
+The historical parity suites (`ComposeR1TrimParity`, `ComposeR1Wrap`,
+`ComposeR2Offset`, `ComposeR2Background`) kept their names and their pixel
+expectations — those expectations were pinned against `trim()` while it
+existed — and their "legacy" arm is now the node-level gate that inherited
+its geometry. They therefore keep earning their keep as the sugar law's
+proof: the pass door and the node door describe one run.
+
+### THE GATE
+
+**Debug and Release both build clean**, warning-free, on a from-scratch pass
+with no edits in flight.
+
+**`ctest` green across all 14 suites in BOTH configurations** — Debug
+492.43 s, Release 33.80 s, 14/14 each. **423 cases in `compose_test`** (403
+before, +20 in `ComposeR4Mask`) across 81 suites; **47 in
+`compose_kit_test`**, unchanged. No test arm was deleted without a
+replacement: the phase RENAMED the suite that named a dead verb
+(`ComposeTrim` → `ComposeMask`, `ComposeFx.Wipe*` → `ComposeFx.EdgeGate*`)
+and re-pointed the legacy arm of every historical parity row at the gate
+that inherited trim()'s geometry, so the rows still compare two independent
+paths through the library.
+
+`sizeof(ElementNode)` is **744 B**, unchanged by this phase and still
+asserting under the 768 B guard — the masks replaced two field groups
+inside `FxData`, which is a `Box<>`, so the base struct never saw them.
+
+**THE PLATE LEDGER IS OPEN.** The 56-scene Release sweep is deliberately not
+run here: the working tree also carries the widthFn→Profile migration
+awaiting its own plate approval, so a baseline taken now is not a HEAD
+baseline and any byte-identity claim from it would be unattributable. The
+sweep runs after that commit lands, against the new HEAD.
+
+What it is expected to show, written down BEFORE it runs so the prediction
+is falsifiable:
+
+| set | expectation |
+| --- | --- |
+| 49 of 56 | **byte-identical.** The port is a spelling change: a `spans` gate cuts the outline through the same `spanPath`/full-coverage short-circuit trim used, and a whole-node `edge` gate is wipe's half-plane under wipe's own save/clip in wipe's own position |
+| `chladni_tab1`, `genesis_fire`, `hitman_verlet`, `ksp_mapview`, `slitscan_2001`, `black_watch` | **self-nondeterministic, the six already on record.** `black_watch` keeps its role as the control: its `.cpp` is untouched by this phase — including a now-stale comment ("there is no `.wipe()`") left in place ON PURPOSE so the control stays byte-identical to HEAD |
+| `chaucer_astrolabe` | **MOVES, predicted and bounded.** The meridian's `by::edge(90°)` repair. The bar reveals downward instead of crawling its own perimeter; the change is confined to one 2 × 2R node and is visible only while `tAzim + 820 ms` is ramping |
+| `sigillum_aemeth` | **may move by ≤ 4 LSB.** The pentagram's wash is no longer swept (`parts::marks()`), and the proposal measured that sweep at ≤ 4 LSB over its own ground. If the default capture is past `tInner + 1300 ms` the gate is settled and the plate is byte-identical; if it is mid-ramp, expect a bounded low-amplitude delta on the star only |
+
+Any scene outside those four rows moving is a defect, not a re-draw, and
+should be treated as one.

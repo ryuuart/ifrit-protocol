@@ -158,13 +158,29 @@ void collectGroupScalars(const Instance &inst, bool root,
     push(Instance::kSkewX, node.paint.skewX);
     push(Instance::kSkewY, node.paint.skewY);
   }
-  if (node.hasTrim()) {
-    push(Instance::kTrimStart, node.fxData->trimStart);
-    push(Instance::kTrimEnd, node.fxData->trimEnd);
-    push(Instance::kTrimOffset, node.fxData->trimOffset);
+  // Mask gates: the same argument, over the per-mask vector. Only LIVE
+  // values are pushed, so the vector's LENGTH still carries a motion
+  // connecting or disconnecting.
+  if (node.hasMasks()) {
+    size_t slot = 0;
+    for (const Mask &m : node.fxData->masks) {
+      const auto pushGate = [&](const Animatable<float> &v) {
+        const AnimatedFloat *a =
+            slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
+        if (v.binding() || (a && a->value.isConnected()))
+          out.push_back(inst.resolveFloatAt(a, v));
+        ++slot;
+      };
+      if (m.with.kind == Gate::Kind::Spans)
+        for (const Spans::Term &t : m.with.where.terms) {
+          pushGate(t.begin);
+          pushGate(t.end);
+          pushGate(t.offset);
+        }
+      else if (m.with.kind == Gate::Kind::Edge)
+        pushGate(m.with.fraction);
+    }
   }
-  if (node.fxData && node.fxData->hasWipe)
-    push(Instance::kWipe, node.fxData->wipeFraction);
   if (const GlyphFx *g = glyphFxOf(node))
     push(Instance::kGlyphProgress, g->progress);
   if (inst.anims[Instance::kFillLerp] &&
@@ -300,6 +316,78 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   return out;
 }
 
+std::vector<float> detail::Instance::resolveGateValues() const {
+  std::vector<float> values;
+  const ElementNode &node = *desc;
+  if (!node.hasMasks())
+    return values;
+  size_t slot = 0;
+  const auto push = [&](const Animatable<float> &v) {
+    const AnimatedFloat *a =
+        slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
+    values.push_back(resolveFloatAt(a, v));
+    ++slot;
+  };
+  for (const Mask &m : node.fxData->masks) {
+    if (m.with.kind == Gate::Kind::Spans)
+      for (const Spans::Term &t : m.with.where.terms) {
+        push(t.begin);
+        push(t.end);
+        push(t.offset);
+      }
+    else if (m.with.kind == Gate::Kind::Edge)
+      push(m.with.fraction);
+  }
+  return values;
+}
+
+// ---------------------------------------------------------------------------
+// The masking family, at paint
+//
+// A mask is (selection, gate). The gates fall into two mechanical classes
+// and the split is the whole implementation:
+//
+//  - SPANS cuts the BOUNDARY. It rewrites the path the selected
+//    outline-tracing outputs trace — the surface (fill + echoes) and the
+//    marks. Content and children do not trace a boundary, so a spans gate
+//    over them is not a picture and does nothing.
+//  - EDGE / SHAPE / ALPHA cut the PLANE. They wrap the selected outputs in
+//    a canvas clip (edge, shape) or a kDstIn coverage layer (alpha).
+//
+// Both classes intersect for free, and across each other: span sets
+// intersect as interval arithmetic, nested clips intersect by definition,
+// stacked kDstIn layers multiply coverage. Where a mask selects EVERYTHING
+// the plane gates are hoisted to wrap the whole node once rather than each
+// group — cheaper, and the only way a nested pair of antialiased clips
+// cannot compound its own edge.
+
+namespace {
+
+/** Does this span set claim the whole boundary? Then the boundary is
+ *  untouched — a settled reveal must draw the path it would have drawn
+ *  with no mask on it at all, bit for bit, or every settled plate in the
+ *  corpus moves. */
+bool claimsEverything(const std::vector<Span> &show) {
+  return show.size() == 1 && show[0].begin <= 1e-6f && show[0].end >= 1.0f - 1e-6f;
+}
+
+/** Apply a resolved SHOW set to a boundary. `cut`, when asked for, says
+ *  the geometry actually changed — which only the SURFACE needs, because
+ *  only the surface has a cheap rrect to fall out of. Decorations always
+ *  draw a path. */
+SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
+                   bool *cut = nullptr) {
+  if (claimsEverything(show))
+    return src;
+  if (cut)
+    *cut = true;
+  if (show.empty())
+    return SkPath();
+  return detail::spanPath(src, show);
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------
 // Volatility & caching
 
@@ -335,6 +423,42 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     }
     return live;
   }();
+  // Mask gates, split the way §3.6 requires. A gate whose animation is a
+  // BOUNDED LIST OF FLOATS (spans endpoints, an edge fraction) is
+  // memo-visible and joins scalarContent below; a gate driven by a LIVE
+  // MATERIAL is not a float and refuses both memos, exactly as a live
+  // material fill does. A shape gate is a static Region and moves nothing.
+  bool maskScalarLive = false, maskOpaque = false;
+  if (node.hasMasks()) {
+    size_t slot = 0;
+    const auto live = [&](const Animatable<float> &v) {
+      const AnimatedFloat *a =
+          slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
+      if (v.binding() || (a && a->value.isConnected()))
+        maskScalarLive = true;
+      ++slot;
+    };
+    for (const Mask &m : node.fxData->masks) {
+      switch (m.with.kind) {
+      case Gate::Kind::Spans:
+        for (const Spans::Term &t : m.with.where.terms) {
+          live(t.begin);
+          live(t.end);
+          live(t.offset);
+        }
+        break;
+      case Gate::Kind::Edge:
+        live(m.with.fraction);
+        break;
+      case Gate::Kind::Shape:
+        break;
+      case Gate::Kind::Alpha:
+        if (m.with.coverage && m.with.coverage->isAnimated())
+          maskOpaque = true;
+        break;
+      }
+    }
+  }
   // Paint-only volatility: transforms and opacity apply OUTSIDE the node's
   // content (in paint()'s matrix/layer stack), so a node animated only here
   // still replays its content picture — a spinning ornament re-records
@@ -387,19 +511,12 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       imageAssetOf(node)->animated())
     ownContent = true;
   ownContent |= spanVolatile;
+  ownContent |= maskOpaque;
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
   // can sit still for a long time inside a running motion (§17).
   bool scalarContent = false;
-  if (node.hasTrim()) { // moving trim rebuilds the painted geometry
-    scalarContent |= boundOrRunning(Instance::kTrimStart,
-                                    node.fxData->trimStart);
-    scalarContent |= boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd);
-    scalarContent |= boundOrRunning(Instance::kTrimOffset,
-                                    node.fxData->trimOffset);
-  }
-  if (node.fxData && node.fxData->hasWipe) // a moving reveal re-clips
-    scalarContent |= boundOrRunning(Instance::kWipe, node.fxData->wipeFraction);
+  scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
   if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
     scalarContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
   ownContent |= scalarContent;
@@ -408,10 +525,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
 
   // §30: what a SUBTREE VALUE MEMO can and cannot see. A group bake is held
   // by comparing floats, so every source of volatility in it must either BE
-  // a float this frame can read back (the transform slots, opacity, trim /
-  // wipe / glyph, the fill lerp) or arrive as a description change, which
-  // stales the group root through markPaintDirtyUp(). Everything listed here
-  // is neither: it moves pixels off the clock with no number to compare, and
+  // a float this frame can read back (the transform slots, opacity, the
+  // mask gates, glyph progress, the fill lerp) or arrive as a description
+  // change, which stales the group root through markPaintDirtyUp().
+  // Everything listed here is neither: it moves pixels off the clock with no number to compare, and
   // a group holding a bake across one of them would blit last second's
   // picture forever. Refused outright rather than approximated — this is the
   // whole risk of the feature, and it is the one place to be conservative.
@@ -437,6 +554,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.textData && node.textData->driveValue)
     opaqueToTheMemo = true;
   opaqueToTheMemo |= spanVolatile;
+  opaqueToTheMemo |= maskOpaque; // an alpha gate on a LIVE material
 
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
@@ -522,12 +640,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     if (node.kind == Kind::Image && imageAssetOf(node) &&
         imageAssetOf(node)->animated())
       other = true;
-    if (node.fxData && node.fxData->hasWipe)
-      other |= boundOrRunning(Instance::kWipe, node.fxData->wipeFraction);
-    if (node.hasTrim())
-      other |= boundOrRunning(Instance::kTrimStart, node.fxData->trimStart) ||
-               boundOrRunning(Instance::kTrimEnd, node.fxData->trimEnd) ||
-               boundOrRunning(Instance::kTrimOffset, node.fxData->trimOffset);
+    other |= maskScalarLive || maskOpaque;
     if (const GlyphFx *g = glyphFxOf(node))
       other |= boundOrRunning(Instance::kGlyphProgress, g->progress);
     if (node.textData && node.textData->driveValue)
@@ -537,7 +650,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       inst.liveMatOnly = false;
   }
   // §17: the same carve-out for animated SCALARS. A node whose content
-  // volatility is entirely trim/wipe/glyph keeps its recording and
+  // volatility is entirely mask gates and glyph progress keeps its
+  // recording and
   // re-records only when one of those numbers actually ticks — a keyframe
   // hold segment repaints nothing. Deliberately disjoint from liveMatOnly:
   // a node with BOTH a live material and an animated trim takes neither
@@ -879,7 +993,8 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   // A band reaches profile.max() px off its spine, and the profile is
   // REQUIRED to know that number — which is the whole reason `max()` is
   // part of the seam. Without it a varying width could only be clipped
-  // silently (the Ribbon widthFn trap, §25).
+  // silently — the trap the deleted `Ribbon::widthFn`/`widthMax` pair left
+  // open, §25.
   if (const Across *band = node.bandWidth())
     bleed = std::max(bleed, band->profile.max());
   for (const Echo &e : echoesOf(node))
@@ -959,10 +1074,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                   float leafOpacity, Phase phase) {
   const ElementNode &node = *inst.desc;
   // §15. The two halves of a node's paint, split at the children loop. A
-  // split bake is only ever offered to a node with no clip, no wipe and no
-  // layer effect — each of those WRAPS BOTH HALVES, so a bake of the prefix
-  // alone would have to reproduce the wrapper — which is why the phases can
-  // be a pair of skips over an otherwise untouched function.
+  // split bake is only ever offered to a node with no layer effect — that
+  // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
+  // reproduce it. A clip and a whole-node mask wrap both halves too, but
+  // both are opened and closed inside EACH phase, so the phases stay a pair
+  // of skips over an otherwise untouched function; the granular mask scopes
+  // below are each opened and closed inside the half they belong to.
   const bool emitOwn = phase != Phase::ChildrenOnly;
   const bool emitChildren = phase != Phase::OwnOnly;
   const SkRect bounds = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
@@ -999,81 +1116,83 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
 
   // (clip() applies AFTER the decorations' outline is settled — see below:
   // decorations dress the outline and stay unclipped; fill/content/children
-  // clip. The clip keeps the UNtrimmed shape — trim is a paint reveal.)
+  // clip. The clip keeps the UNMASKED shape — a mask is a paint reveal.)
   const SkPath clipShape = outlinePath;
 
-  // Trim Path: reveal [start, end] of the outline's arc length. Applied
-  // before PaintContext is built, so the fill and every outline-following
-  // decoration trace the trimmed path (draw-on borders, self-drawing wires).
-  bool trimmed = false;
-  if (node.hasTrim()) {
-    const float off =
-        inst.resolveFloat(Instance::kTrimOffset, node.fxData->trimOffset);
-    const float s0 =
-        inst.resolveFloat(Instance::kTrimStart, node.fxData->trimStart) + off;
-    const float e0 =
-        inst.resolveFloat(Instance::kTrimEnd, node.fxData->trimEnd) + off;
-    sk_sp<SkPathEffect> fx;
-    bool emptyWindow = false;
-    if (node.fxData->trimMode == TrimMode::Wrap) {
-      // The outline is a CYCLE: fractions wrap mod 1, and a window that
-      // crosses the seam keeps both pieces (inverted trim = the complement
-      // of the gap) — the marching-ants / orbiting-comet mode.
-      const float span = e0 - s0;
-      if (span <= 0.0f) {
-        emptyWindow = true;
-      } else if (span < 1.0f) {
-        const float s = s0 - std::floor(s0);
-        const float e = e0 - std::floor(e0);
-        if (s < e) {
-          fx = SkTrimPathEffect::Make(s, e);
-        } else if (s > e) {
-          // Seam-crossing window: stitch [s,1]+[0,e] into ONE contour per
-          // source contour (segment 2 appended without a moveTo — its
-          // start coincides with segment 1's end at the seam). Two pieces
-          // would double-hit round caps and additive halo brushes there.
-          SkPathBuilder stitched;
-          SkContourMeasureIter iter(outlinePath, false);
-          while (sk_sp<SkContourMeasure> contour = iter.next()) {
-            const float len = contour->length();
-            // Closed contours stitch into ONE run through the seam; OPEN
-            // contours have no seam — joining the pieces would invent a
-            // straight chord from the end back to the start.
-            // getSegment's bool says whether it appended anything; the
-            // emptiness check below already covers both calls, so the
-            // per-call answer is genuinely not interesting here.
-            (void)contour->getSegment(s * len, len, &stitched, true);
-            (void)contour->getSegment(0, e * len, &stitched,
-                                      !contour->isClosed());
-          }
-          SkPath stitchedPath = stitched.detach();
-          if (!stitchedPath.isEmpty()) {
-            outlinePath = std::move(stitchedPath);
-            trimmed = true;
-          }
-        }
-        // s == e with 0 < span < 1 is float noise on a full wrap; keep all.
-      } // span >= 1: the window covers the whole cycle — no trim.
-    } else {
-      float s = std::clamp(s0, 0.0f, 1.0f);
-      float e = std::clamp(e0, 0.0f, 1.0f);
-      if (e < s)
-        std::swap(s, e);
-      if (s > 0.0f || e < 1.0f)
-        fx = SkTrimPathEffect::Make(s, e);
-    }
-    if (emptyWindow) {
-      outlinePath.reset();
-      trimmed = true;
-    } else if (fx) {
-      SkPathBuilder dst;
-      SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-      if (fx->filterPath(&dst, outlinePath, &rec)) {
-        outlinePath = dst.detach();
-        trimmed = true;
+  // ---- the masking family, part 1: the BOUNDARY gates ---------------------
+  //
+  // Resolve each mask's gate once, then hand every paint output the version
+  // of the boundary its selection earns. Two outputs trace a boundary — the
+  // SURFACE (fill + echo re-stamps) and the MARKS (every decoration, every
+  // span pass) — so at most two cut paths exist, and in the overwhelmingly
+  // common case (`mask(by::spans(…))`, the whole node) they are the same
+  // path and are computed once.
+  //
+  // The claim ledger is deliberately resolved against the UNCUT boundary
+  // below: an overlap between two span passes is a description-level
+  // mistake, and it must not be a mistake that blinks in and out between
+  // 0.3 and 0.7 of a transition because a gate was shrinking one of them.
+  const std::vector<Mask> *masks =
+      node.hasMasks() ? &node.fxData->masks : nullptr;
+  const std::vector<float> gateValues =
+      masks ? inst.resolveGateValues() : std::vector<float>{};
+  // The SHOW set each of surface / marks is left with, as fractions of the
+  // whole boundary — absent when no spans gate selects it.
+  std::optional<std::vector<Span>> surfaceShow, marksShow;
+  // …and the per-NAMED-mark refinement, for masks that address one label.
+  std::vector<std::pair<std::string, std::vector<Span>>> namedShow;
+  if (masks) {
+    SpanInput gateIn;
+    gateIn.outline = &outlinePath;
+    gateIn.fitRects = &inst.spanFitRects;
+    size_t valueBase = 0;
+    for (const Mask &m : *masks) {
+      const size_t count = m.with.valueCount();
+      if (m.with.kind != Gate::Kind::Spans) {
+        valueBase += count;
+        continue;
+      }
+      const std::vector<float> mine(
+          gateValues.begin() + (long)std::min(valueBase, gateValues.size()),
+          gateValues.begin() +
+              (long)std::min(valueBase + count, gateValues.size()));
+      valueBase += count;
+      gateIn.values = &mine;
+      const std::vector<Span> show =
+          normalizeSpans(m.with.where.resolve(gateIn));
+      // THE INTERSECTION LAW: stacked masks both have to pass, so a second
+      // gate over the same target narrows the first, never widens it.
+      const auto narrow = [&](std::optional<std::vector<Span>> &slot) {
+        slot = slot ? intersectSpans(*slot, show) : show;
+      };
+      if (m.what.selects(Parts::kSurface))
+        narrow(surfaceShow);
+      if (m.what.selects(Parts::kMarks))
+        narrow(marksShow);
+      for (const std::string &label : m.what.names) {
+        auto it = std::find_if(namedShow.begin(), namedShow.end(),
+                               [&](const auto &e) { return e.first == label; });
+        if (it == namedShow.end())
+          namedShow.emplace_back(label, show);
+        else
+          it->second = intersectSpans(it->second, show);
       }
     }
   }
+  // `trimmed` says the SURFACE's geometry is no longer the corner box,
+  // which is what decides whether the fill draws a path or the cheap rrect.
+  bool cut = false;
+  const SkPath fullOutline = outlinePath;
+  SkPath surfacePath =
+      surfaceShow ? gateOutline(fullOutline, *surfaceShow, &cut) : fullOutline;
+  // …and the marks' boundary, which is the SAME OBJECT whenever one mask
+  // gates both — the overwhelmingly common case, and the reason a whole-node
+  // spans gate walks the boundary once rather than twice.
+  SkPath marksPath = !marksShow ? fullOutline
+                     : (surfaceShow && *marksShow == *surfaceShow)
+                         ? surfacePath
+                         : gateOutline(fullOutline, *marksShow);
+  const bool trimmed = cut;
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots.
@@ -1089,8 +1208,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     const SkRect content = recordBounds(inst);
     canvas.saveLayer(&content, &effectPaint);
   }
+  // The MARKS' boundary is what a decoration receives: every decoration
+  // dresses the outline, and a spans gate over the marks is a cut of that
+  // outline. The surface keeps its own (they are the same path, and the
+  // same object, whenever one mask gates both — the common case).
   const PaintContext paintCtx{{bounds.width(), bounds.height()},
-                              std::move(outlinePath),
+                              std::move(marksPath),
                               elapsed(),
                               contentScale,
                               ticker.active(),
@@ -1099,65 +1222,229 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                   ? nullptr
                                   : &inst.borrowedPaths};
 
-  // wipe(): a directional reveal, clipping the WHOLE node — decorations
-  // included, because a reveal reveals. Unlike clipContent this is not a
-  // containment rule, so it wraps everything below and restores at the
-  // end. `trim()` cannot express it (it walks the perimeter) and
-  // scaleX/scaleY squash rather than reveal.
-  bool wiped = false;
-  // A container of absolutely-positioned children measures ZERO, and a
-  // half-plane built from an empty box is empty — so `.wipe(90, 1.0)`, a
-  // FULL reveal, hid an entire subtree. A reveal at 1 must never hide
-  // anything, and an empty box has nothing to reveal along.
-  if (node.fxData && node.fxData->hasWipe && !bounds.isEmpty()) {
-    const float t = std::clamp(
-        inst.resolveFloat(Instance::kWipe, node.fxData->wipeFraction), 0.0f,
-        1.0f);
-    const float rad = node.fxData->wipeAngleDeg * SK_FloatPI / 180.0f;
+  // ---- the masking family, part 2: the PLANE gates ------------------------
+  //
+  // `by::edge` and `by::shape` are canvas clips; `by::alpha` is a kDstIn
+  // coverage layer. All three intersect for free — nested clips by
+  // definition, stacked kDstIn layers by multiplication.
+  //
+  // A gate whose selection is EVERYTHING is hoisted to wrap the whole node
+  // once, exactly where wipe()'s clip used to sit. That is not only the
+  // cheap path: applying one antialiased clip per paint group would
+  // compound its own edge coverage where the groups overlap, and the
+  // hoisted form is the one that reproduces wipe() bit for bit.
+  struct PlaneGate {
+    const Mask *mask = nullptr;
+    float fraction = 1.0f; // Edge
+  };
+  std::vector<PlaneGate> plane;
+  bool granularPlane = false;
+  if (masks) {
+    size_t valueBase = 0;
+    for (const Mask &m : *masks) {
+      if (m.with.kind != Gate::Kind::Spans) {
+        PlaneGate g;
+        g.mask = &m;
+        if (m.with.kind == Gate::Kind::Edge)
+          g.fraction =
+              valueBase < gateValues.size() ? gateValues[valueBase] : 1.0f;
+        plane.push_back(g);
+        granularPlane |= !m.what.isEverything();
+      }
+      valueBase += m.with.valueCount();
+    }
+  }
+
+  /** wipe()'s half-plane, verbatim: the region lying before a moving edge
+   *  at `angleDeg`, built in the edge's own frame and rotated into place —
+   *  {p : (p - mid)·d <= edge}. */
+  const auto edgeRegion = [&](float angleDeg, float t01) {
+    const float t = std::clamp(t01, 0.0f, 1.0f);
+    const float rad = angleDeg * SK_FloatPI / 180.0f;
     const float c = std::cos(rad), s = std::sin(rad);
     const SkPoint mid{bounds.centerX(), bounds.centerY()};
-    // Half-extent along the wipe direction, and a span wide enough to
-    // cover the box at any angle.
     const float reach =
         0.5f * (std::abs(bounds.width() * c) + std::abs(bounds.height() * s));
     const float wide =
         SkPoint{bounds.width(), bounds.height()}.length() * 0.5f + 1.0f;
     const float edge = -reach + 2.0f * reach * t;
-    // The revealed half-plane, built in the wipe's own frame and rotated
-    // into place: {p : (p - mid)·d <= edge}.
     SkPathBuilder b;
     b.addRect(SkRect::MakeLTRB(-reach - 1.0f, -wide, edge, wide));
-    SkMatrix m = SkMatrix::RotateDeg(node.fxData->wipeAngleDeg);
+    SkMatrix m = SkMatrix::RotateDeg(angleDeg);
     m.postTranslate(mid.x(), mid.y());
-    canvas.save();
-    canvas.clipPath(b.detach().makeTransform(m), true);
-    wiped = true;
-  }
+    return b.detach().makeTransform(m);
+  };
+
+  // One entry/exit pair. Region gates go on first (they commute with the
+  // coverage layers, so the order between the two kinds is free and this
+  // one keeps the layer pops simple); coverage layers are popped in
+  // reverse, each drawing its Material's alpha through kDstIn.
+  std::vector<SkPaint> coverStack;
+  const auto enterGates = [&](bool wholeNode, Parts::Bits cls,
+                              std::string_view label) -> int {
+    if (plane.empty())
+      return -1;
+    int base = -1;
+    const auto hit = [&](const Mask &m) {
+      if (m.what.isEverything() != wholeNode)
+        return false;
+      if (wholeNode)
+        return true;
+      return cls == Parts::kMarks ? m.what.selectsMark(label)
+                                  : m.what.selects(cls);
+    };
+    for (const PlaneGate &g : plane) {
+      const Mask &m = *g.mask;
+      if (!hit(m) || m.with.kind == Gate::Kind::Alpha)
+        continue;
+      if (base < 0)
+        base = canvas.getSaveCount();
+      if (m.with.kind == Gate::Kind::Edge) {
+        // A container of absolutely-positioned children measures ZERO, and
+        // a half-plane built from an empty box is empty — so a FULL reveal
+        // once hid an entire subtree. A reveal at 1 must never hide
+        // anything, and an empty box has nothing to reveal along.
+        if (bounds.isEmpty())
+          continue;
+        canvas.save();
+        canvas.clipPath(edgeRegion(m.with.angleDeg, g.fraction), true);
+      } else { // Shape — and its complement, the missing clipOut()
+        canvas.save();
+        canvas.clipPath(m.with.region.resolve(fullOutline),
+                        m.with.outside ? SkClipOp::kDifference
+                                       : SkClipOp::kIntersect,
+                        true);
+      }
+    }
+    for (const PlaneGate &g : plane) {
+      const Mask &m = *g.mask;
+      if (!hit(m) || m.with.kind != Gate::Kind::Alpha)
+        continue;
+      if (base < 0)
+        base = canvas.getSaveCount();
+      const SkRect layerBox = recordBounds(inst);
+      canvas.saveLayer(&layerBox, nullptr);
+      SkPaint cover;
+      cover.setAntiAlias(true);
+      cover.setBlendMode(SkBlendMode::kDstIn);
+      if (m.with.coverage) {
+        const Material &mat = *m.with.coverage;
+        const Fill f = (mat.isAnimated() || mat.geometryDependent())
+                           ? mat.resolve(paintCtx)
+                           : mat.toFill();
+        if (f.kind == Fill::Kind::Shader && f.shaderValue)
+          cover.setShader(f.shaderValue);
+        else if (f.kind == Fill::Kind::Color)
+          cover.setColor4f(f.colorValue, nullptr);
+        else
+          cover.setColor4f({0, 0, 0, 0}, nullptr); // Fill::none() shows nothing
+      }
+      coverStack.push_back(std::move(cover));
+    }
+    return base;
+  };
+  const auto leaveGates = [&](int base, size_t coverBase) {
+    while (coverStack.size() > coverBase) {
+      canvas.drawRect(recordBounds(inst), coverStack.back());
+      coverStack.pop_back();
+      canvas.restore();
+    }
+    if (base >= 0)
+      canvas.restoreToCount(base);
+  };
+  // The whole-node hoist, in wipe()'s old position.
+  const size_t hoistCover = coverStack.size();
+  const int hoistSaves = enterGates(true, Parts::kAll, {});
 
   // Span-qualified passes, resolved ONCE per paint however many halves
   // read them: the claim ledger is one ledger (StrokePass), and resolving
   // it twice would also re-walk the boundary three or four times for
   // nothing.
+  //
+  // THE CLAIM LEDGER READS THE UNMASKED BOUNDARY — `fullOutline`, not the
+  // cut path. A claim is a statement about where a mark goes; a gate is a
+  // statement about how much of it exists yet. Resolving claims against a
+  // shrinking boundary would make the no-overlap diagnostic a function of
+  // the clock.
   std::optional<std::vector<std::vector<Span>>> spanClaims;
   auto paintSpanHalf = [&](detail::StrokePass::Half half) {
     if (!node.hasStrokePasses())
       return;
     if (!spanClaims)
-      spanClaims = inst.resolveSpans(paintCtx.outline);
+      spanClaims = inst.resolveSpans(fullOutline);
     const std::vector<detail::StrokePass> &passes = node.strokeData->passes;
     for (size_t i = 0; i < passes.size() && i < spanClaims->size(); ++i) {
       if (passes[i].half != half || (*spanClaims)[i].empty())
         continue;
+      // …and the gate intersects the claim, which is the whole of
+      // `.stroke(spans::corners(18), brk).mask(parts::marks(), upTo(t))`:
+      // reticle brackets that light up as a sweep reaches them.
+      std::vector<Span> run = (*spanClaims)[i];
+      if (marksShow)
+        run = intersectSpans(run, *marksShow);
+      if (!passes[i].name.empty())
+        for (const auto &[label, show] : namedShow)
+          if (label == passes[i].name)
+            run = intersectSpans(run, show);
+      if (run.empty())
+        continue;
+      const size_t cover = coverStack.size();
+      const int saves = granularPlane
+                            ? enterGates(false, Parts::kMarks, passes[i].name)
+                            : -1;
       const PaintContext passCtx{
           paintCtx.size,
-          detail::spanPath(paintCtx.outline, (*spanClaims)[i]),
+          detail::spanPath(fullOutline, run),
           paintCtx.elapsedSeconds,
           paintCtx.contentScale,
           paintCtx.animating,
           paintCtx.fonts,
           paintCtx.borrowed};
       passes[i].what.paint(canvas, passCtx);
+      if (granularPlane)
+        leaveGates(saves, cover);
     }
+  };
+
+  /** Paint one unqualified mark, under whatever gates address it by name.
+   *  The common case — no named mask, no granular plane gate — is the
+   *  decoration's own paint call and nothing else. */
+  const auto paintMark = [&](const Decoration &d, detail::MarkSlot slot,
+                             size_t index) {
+    std::string_view label;
+    if (node.fxData)
+      for (const detail::MarkLabel &l : node.fxData->markNames)
+        if (l.slot == slot && l.index == index) {
+          label = l.name;
+          break;
+        }
+    const std::vector<Span> *refine = nullptr;
+    if (!label.empty())
+      for (const auto &[name, show] : namedShow)
+        if (name == label) {
+          refine = &show;
+          break;
+        }
+    const size_t cover = coverStack.size();
+    const int saves =
+        granularPlane ? enterGates(false, Parts::kMarks, label) : -1;
+    if (refine) {
+      std::vector<Span> run = *refine;
+      if (marksShow)
+        run = intersectSpans(run, *marksShow);
+      const PaintContext markCtx{paintCtx.size,
+                                 gateOutline(fullOutline, run),
+                                 paintCtx.elapsedSeconds,
+                                 paintCtx.contentScale,
+                                 paintCtx.animating,
+                                 paintCtx.fonts,
+                                 paintCtx.borrowed};
+      d.paint(canvas, markCtx);
+    } else {
+      d.paint(canvas, paintCtx);
+    }
+    if (granularPlane)
+      leaveGates(saves, cover);
   };
 
   // Background decorations paint beneath the fill (the CSS box-shadow
@@ -1165,11 +1452,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // are NEVER clipped — they dress the outline (shadows keep their
   // reach, outer strokes survive on clipped nodes; the aero-study fix).
   if (emitOwn) {
-    for (const Decoration &decoration : node.backgrounds)
-      decoration.paint(canvas, paintCtx);
+    for (size_t i = 0; i < node.backgrounds.size(); ++i)
+      paintMark(node.backgrounds[i], detail::MarkSlot::Background, i);
     // Span-qualified BACKGROUND passes land here, in the background half,
     // under the fill and therefore under the content and the children —
-    // the z-slot trim() revealed and a stroke pass could not reach.
+    // the z-slot the deleted trim() revealed and a stroke pass could not
+    // reach.
     paintSpanHalf(detail::StrokePass::Half::Background);
   }
 
@@ -1221,6 +1509,12 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     resolvedFill = fill;
   }
 
+  // The SURFACE — the fill and its echo re-stamps — under whatever gates
+  // select `parts::surface()`.
+  const size_t surfaceCover = coverStack.size();
+  const int surfaceSaves =
+      granularPlane && emitOwn ? enterGates(false, Parts::kSurface, {}) : -1;
+
   // Misprint echoes of the FILL SHAPE, under the real pass (bottom first).
   if (!echoesOf(node).empty() && resolvedFill &&
       resolvedFill->kind != Fill::Kind::None) {
@@ -1231,7 +1525,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       canvas.save();
       canvas.translate(e.offset.fX, e.offset.fY);
       if (customShape || trimmed)
-        canvas.drawPath(paintCtx.outline, stamp);
+        canvas.drawPath(surfacePath, stamp);
       else
         canvas.drawRRect(rrect, stamp);
       canvas.restore();
@@ -1252,19 +1546,24 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     if (leafOpacity < 1.0f)
       paint.setAlphaf(paint.getAlphaf() * leafOpacity);
     if (customShape || trimmed)
-      canvas.drawPath(paintCtx.outline, paint);
+      canvas.drawPath(surfacePath, paint);
     else
       canvas.drawRRect(rrect, paint);
   }
+  if (granularPlane && emitOwn)
+    leaveGates(surfaceSaves, surfaceCover);
 
   // Overlays: over the fill, under the content and children. The slot a
   // textured button needs so its own hazard stripe does not grey out its
   // label. Unclipped like the other decorations — they dress the outline.
   if (emitOwn && node.fxData)
-    for (const Decoration &decoration : node.fxData->overlays)
-      decoration.paint(canvas, paintCtx);
+    for (size_t i = 0; i < node.fxData->overlays.size(); ++i)
+      paintMark(node.fxData->overlays[i], detail::MarkSlot::Overlay, i);
 
-  // Content
+  // Content, under whatever gates select parts::content().
+  const size_t contentCover = coverStack.size();
+  const int contentSaves =
+      granularPlane && emitOwn ? enterGates(false, Parts::kContent, {}) : -1;
   if (emitOwn)
   switch (node.kind) {
   case Kind::Text:
@@ -1430,11 +1729,20 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     break;
   }
 
+  if (granularPlane && emitOwn)
+    leaveGates(contentSaves, contentCover);
+
   // Children in stacking order (each clean static child replays its own nested
   // picture — ancestor re-records don't repaint clean subtrees).
+  const size_t kidsCover = coverStack.size();
+  const int kidsSaves =
+      granularPlane && emitChildren ? enterGates(false, Parts::kChildren, {})
+                                    : -1;
   if (emitChildren)
     for (size_t index : inst.paintOrder)
       paint(*inst.children[index], canvas);
+  if (granularPlane && emitChildren)
+    leaveGates(kidsSaves, kidsCover);
 
   if (node.clipContent)
     canvas.restore(); // decorations below stay unclipped
@@ -1443,8 +1751,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // half and can never be in an own-paint bake. §15's spec originally read
   // "own paint is everything except the children"; it is not.
   if (emitChildren)
-    for (const Decoration &decoration : node.foregrounds)
-      decoration.paint(canvas, paintCtx);
+    for (size_t i = 0; i < node.foregrounds.size(); ++i)
+      paintMark(node.foregrounds[i], detail::MarkSlot::Foreground, i);
 
   // Span-qualified stroke passes, in declaration order, in the same slot
   // as the unqualified strokes they append to. Each one paints against
@@ -1454,8 +1762,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   if (emitChildren)
     paintSpanHalf(detail::StrokePass::Half::Foreground);
 
-  if (wiped)
-    canvas.restore();
+  leaveGates(hoistSaves, hoistCover);
 
   if (hasEffect)
     canvas.restore();
@@ -1616,8 +1923,8 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&
       node.foregrounds.empty() && !node.hasStrokePasses() &&
-      (!node.fxData || (node.fxData->overlays.empty() &&
-                        !node.fxData->hasWipe)) &&
+      (!node.fxData ||
+       (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
       !layerEffectOf(node) &&
       !backdropEffectOf(node) &&
       !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
@@ -1670,17 +1977,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // a recording made with these numbers is still exact while they hold.
   Instance::ContentScalars scalarsNow;
   if (inst.scalarMemo) {
-    if (node.hasTrim()) {
-      scalarsNow.trimStart =
-          inst.resolveFloat(Instance::kTrimStart, node.fxData->trimStart);
-      scalarsNow.trimEnd =
-          inst.resolveFloat(Instance::kTrimEnd, node.fxData->trimEnd);
-      scalarsNow.trimOffset =
-          inst.resolveFloat(Instance::kTrimOffset, node.fxData->trimOffset);
-    }
-    if (node.fxData && node.fxData->hasWipe)
-      scalarsNow.wipe =
-          inst.resolveFloat(Instance::kWipe, node.fxData->wipeFraction);
+    // §3.6's repair in one line: every mask gate's animated numbers, as a
+    // bounded per-node list. A masked node keeps the §17 memo — which is
+    // exactly what the 58 trim→spans ports gave up when the only
+    // element-level door closed.
+    scalarsNow.gates = inst.resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(node))
       scalarsNow.glyph =
           inst.resolveFloat(Instance::kGlyphProgress, g->progress);
@@ -1999,11 +2300,14 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   //    wrappers that is. An image filter applies to the UNION of own paint
   //    and children; filtering the own half alone and drawing the children
   //    over the result is a different picture.
-  //  - clipContent and wipe() are NOT excluded, and the spec this was
-  //    written from said they were. They wrap both halves, and the phase
-  //    flag skips only the CONTENT — the clip is opened and closed inside
+  //  - clipContent and a whole-node mask() are NOT excluded, and the spec
+  //    this was written from said clips were. They wrap both halves, and the
+  //    phase flag skips only the CONTENT — the clip is opened and closed
+  //    inside
   //    each phase, so both halves get the identical clip, in the identical
-  //    device geometry, and the composition is unchanged. That correction
+  //    device geometry, and the composition is unchanged. A GRANULAR mask
+  //    is narrower still: its scope is entered and left around one paint
+  //    group, inside the half that group belongs to. That correction
   //    is not academic: §15's own citation node, genesis_fire's regolith(),
   //    carries `.clip(true)` because it clips its disc to a limb outline —
   //    which is exactly WHY the disc is a child. Excluding clips would have

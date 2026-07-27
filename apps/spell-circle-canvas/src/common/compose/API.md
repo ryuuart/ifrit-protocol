@@ -210,12 +210,18 @@ Element &fill(Animatable<Fill>);           // colors/fills lerp via
                                            // steppable as the number.
 Element &fill(Material);                   // the richer authoring value —
                                            // see "Materials" below
-Element &background(Decoration); Element &foreground(Decoration);
-Element &overlay(Decoration);              // BETWEEN them: over the fill,
+// Every unqualified mark slot takes an optional LOCAL name — the label
+// `mask(parts::named(name), …)` addresses, same names and same law as
+// stroke(Spans, what, name).
+Element &background(Decoration, std::string name = {});
+Element &foreground(Decoration, std::string name = {});
+Element &overlay(Decoration, std::string name = {});
+                                           // BETWEEN them: over the fill,
                                            // under the content and children
                                            // — a hazard stripe that does
                                            // not grey out its own label
-Element &stroke(Decoration brush);         // foreground() named for what it
+Element &stroke(Decoration brush, std::string name = {});
+                                           // foreground() named for what it
                                            // means: dress the OUTLINE
 // The span-qualified slots: WHERE on the boundary, painted by WHAT. Twins
 // — one claim ledger, two z-halves (see "The stroke slot" below).
@@ -613,7 +619,8 @@ things are worth knowing:
   destination it would have found anyway.
 - **A layer effect on the node is the one disqualifier** among the
   wrappers — a filter applies to the union of own paint and children.
-  `clip()` and `wipe()` are fine: both halves take the identical clip.
+  `clip()` and a whole-node `mask()` are fine: both halves take the
+  identical clip.
 
 The authoring workaround is still worth knowing for the cases this
 cannot take (a rotated node, an effect): **lift the moving child out
@@ -728,15 +735,20 @@ bind(&out).source(lo,hi).map(ease).quantize(n).scale(s).offset(o)
 fill(&fillOutput)                            // ch::Output<Fill>, live
 
 // ---- paint order ----
-Element &overlay(Decoration);   // over the fill, UNDER content and children
+Element &overlay(Decoration, std::string name = {});  // over the fill,
+                                // UNDER content and children
 Element &sampling(SkSamplingOptions);        // image leaves; kNearest
 Slice::filter, Pattern::sampling             // the same knob on those two
 
-// ---- reveals ----
-Element &wipe(float angleDeg, Animatable<float> fraction);
-// A directional reveal at ANY angle, covering the node's decorations too.
-// trim() walks the PERIMETER (a wedge round the outline, not a growing
-// surface) and scaleX/scaleY SQUASH — a striped fill shows it instantly.
+// ---- masks (the appearance-gating family — see "The masking family") ----
+Element &mask(Gate with);                 // everything this node paints
+Element &mask(Parts what, Gate with);     // …or some of it; stacked masks
+                                          // INTERSECT, each with its own
+                                          // animation
+namespace parts { all, marks, surface, content, children, named(label) }
+namespace by    { spans(Spans), edge(angleDeg, fraction),
+                  shape(Region), outside(Region), alpha(Material) }
+// Region: own / rect / oval / path — a COMPARABLE value, never a callable.
 decorations::wash(Material, SkBlendMode, amount)   // material-valued
                                                    // decoration; comparable
 compose::metrics(style, fonts)  -> {ascent, descent, capHeight, xHeight,
@@ -1198,9 +1210,9 @@ Slice{.asset = frame, .xDivs = {...}, .yDivs = {...}};
 // which matters the moment an outline has more than one (a ring with a
 // hole, an edge set, a clipped trajectory). `distance` is the only
 // coordinate that runs monotonically across the whole walk. It is the
-// same trap `Ribbon::widthFn` documents: a law keyed to `fraction`
-// under a `trim()` is handed the REVEALED contour and slides as the
-// reveal grows — identical in a still, divergent only in motion.
+// same trap the `Profile` seam's px key exists for: a law keyed to
+// `fraction` under a mask is handed the REVEALED contour and slides
+// as the reveal grows — identical in a still, divergent only in motion.
 struct PathSample {
   SkPoint position;
   SkVector tangent;
@@ -1576,10 +1588,19 @@ what the query side refuses.
 
 **Reveals are span animation.** `spans::upTo(t)` takes any
 `Animatable<float>` — a constant, an `animate(...)` entrance, or a bound
-Output — so one spelling reveals every brush kind. `Element::trim()` is
-the older spelling of the same idea, CONDEMNED but still compiling (R3
-did not delete it — see ROADMAP §33's R3 note); what it cannot do is
-reveal ONE pass of several, which is why it moved.
+Output — so one spelling reveals every brush kind. The NODE-level
+spelling of the same idea is `.mask(by::spans(where))` (see "The masking
+family"), and the two are one machine — stated as law:
+
+```cpp
+.stroke(where, what, name)
+    == .stroke(what, name).mask(parts::named(name), by::spans(where))
+```
+
+identical pixels. The one thing the pass form does that the sugar does
+not is CLAIM its run and join the no-overlap ledger. (`Element::trim()`
+was the older node-level spelling; R4 deleted it — the masking family is
+its replacement.)
 
 **The same slot in the other z-half — `.background(where, what[, name])`.**
 Identical to `.stroke(where, what)` in every respect except where the mark
@@ -1597,7 +1618,7 @@ reads across both, and `rest()` complements both — a boundary does not
 have two of itself. `rest("name")` can name a pass in either half.
 
 **Marching ants — `spans::wrap`.** The seam-crossing window, the one
-thing `trim()` did that spans could not (`TrimMode::Wrap`):
+thing the deleted `trim()` needed a whole mode flag for:
 
 ```cpp
 .stroke(spans::wrap(bind(&phase), bind(&phase).offset(0.25f)), ants)
@@ -1696,13 +1717,39 @@ bool operator==(const P &) const;  // REQUIRED (comparable-values law)
 ```
 
 `max()` is required, and that is the seam's whole point: a varying width
-whose reach is unknown can only be clipped silently (the Ribbon
-`widthFn`/`widthMax` trap, ROADMAP §25). The library grows the paint cull
-by it, so nothing a profile draws is truncated behind your back.
+whose reach is unknown can only be clipped silently (the trap the deleted
+`Ribbon::widthFn`/`widthMax` pair left open, ROADMAP §25). The library
+grows the paint cull by it, so nothing a profile draws is truncated behind
+your back.
 
 Core ships the two profiles everything else is measured against —
 `strand::self()` (across ≡ 0, the boundary itself) and
 `strand::offset(px)` (a parallel; parallels are rails and never cross).
+
+**THE PX KEY — one optional line, and the seam's only mode.** `along` is a
+FRACTION of the spine by default. A scheme that declares
+
+```cpp
+static constexpr bool alongIsPx = true;   // optional
+```
+
+is handed arc-length PX from the spine's start instead, measured on the
+contour actually being painted (anchored reveals — upTo or a range
+starting at 0; a moving-begin window or wrap re-anchors the px origin
+to the revealed piece). Use it whenever the law must not move
+under a reveal: a decoration under `mask(by::spans(...))` / a span pass
+receives the
+REVEALED contour, so a fraction is a fraction of what has been drawn *so
+far* and a law keyed to it walks along the mark as it draws — identical in
+a still frame, wrong in motion.
+
+The conversion cannot live in your value, which is why it is on the seam:
+it needs the length of the contour being sampled, and under a reveal that
+is not the length you authored against. Consumers that have measured their
+spine (`profileOffset`, a band's rails) call `Profile::acrossAt(along,
+lengthPx)`; `Profile::keyedInPx()` answers which key a value uses, and the
+key is part of the scheme's TYPE, so two laws that differ only in it can
+never compare equal.
 
 The KIT ships the stock shapers, one per way of bending a mark:
 `kit::brush::shapers::wave` (smooth, and also readable as a profile),
@@ -1758,24 +1805,25 @@ comparable by design, so a closure can never be one — so `ops::PathOp`,
 mechanism and priced as one (it never prunes).
 
 **`brush::ribbon(profile, fill)` is the taught Ribbon constructor.** A
-`Ribbon`'s width now rides the shared `Profile` seam (`across(along)` +
-a REQUIRED `max()` + equality), which does three things `widthFn` /
-`widthMax` could not: `bleed()` asks the profile instead of trusting a
-second field nobody set, the value COMPARES so the node prunes, and the
-band is built by `bandRegion()` — so its rails go through
-`profileOffset` and pick up the real-vertex corner repair. `widthFn` /
-`widthMax` still work and still draw exactly what they always drew; a
-profiled ribbon is the new geometry, which is why it is a new field.
-`widthFn`/`widthMax` are CONDEMNED and were not deleted in R3: moving the
-corpus's 7 sites is a re-draw, not a rename (see ROADMAP §33's R3 note).
-**And it is a new PICTURE, which is why the corpus did not port.** The
-two lanes are different constructions — the profile lane calls
-`bandRegion()`, the `widthFn` lane samples the contour and zips two point
-lists — so moving a ribbon across is a re-draw, not a rename. There is a
-second reason as well: a `Profile` is asked in FRACTIONS of arc length,
-and every corpus `widthFn` keys on `PathSample::distance` deliberately,
-because under a reveal the decoration is handed the REVEALED contour and
-a fraction slides. Both facts are R3 blockers, recorded in ROADMAP §33.
+`Ribbon`'s width rides the shared `Profile` seam (`across(along)` + a
+REQUIRED `max()` + equality), which does three things the deleted
+`widthFn`/`widthMax` pair could not: `bleed()` asks the profile instead of
+trusting a second field nobody set, the value COMPARES so the node prunes
+(a `widthFn` ribbon's `operator==` ended `&& !widthFn`, so it was unequal
+to itself forever), and the band is built by `bandRegion()` — so its rails
+go through `profileOffset`, which picks up `lines::offsetAcross`'s
+real-vertex corner repair when the law is CONSTANT and takes the sampled
+walk when it varies.
+
+`widthStart`/`widthEnd` (linear taper) and `nibAngleDeg` (the calligraphic
+nib) are untouched and still take the sampled walk; a default-constructed
+`width` means "absent", and they apply exactly as before.
+
+**The port moved pixels, by construction and on purpose.** The two lanes
+were never the same drawing, so the corpus's 8 sites were migrated with a
+designer reading before/after plates rather than under a byte-identity
+gate — see ROADMAP §33's widthFn→Profile note for the plate ledger and for
+the px-vs-fraction bridge decision.
 `solid` replaces `PathFormat` because "path format" names the
 implementation — and `pen` was rejected because it implies calligraphy,
 which is a *profile*, not a kind.
@@ -1952,6 +2000,156 @@ R3 deleted, so the kit is the waypoint. `cased`, `railway`,
 specimen page. Standing check: a preset whose name is craft jargon over a
 plain composition gets demoted — the `cased` treatment.
 
+## The masking family
+
+**Appearance-gating is a relation between a SELECTION and a GATE**, and the
+two questions are independent:
+
+| axis | question | vocabulary |
+| --- | --- | --- |
+| `parts::` | **which** of this node's paint outputs does the mask reach? | `all` · `marks` · `surface` · `content` · `children` · `named(label)` |
+| `by::` | **how** does that paint arrive — by what rule is it cut? | `spans` · `edge` · `shape` / `outside` · `alpha` |
+
+```cpp
+.mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))  // draws on
+.mask(by::edge(90.f, bind(&sweep)))                       // a directional wipe
+.mask(by::shape(Region::path(seal)))                      // keep the silhouette
+.mask(by::outside(Region::rect(hole)))                    // …and the clipOut
+.mask(by::alpha(Material::linear(a, b, fade)))            // soft-edged coverage
+
+.mask(parts::named("hazard"), by::edge(0.f, &armTime))    // ONE mark
+.mask(parts::marks(), by::spans(spans::upTo(&sweep)))     // every mark, no fill
+```
+
+The one-argument form is the taught default and means `parts::all()`. It is
+what 24 of the 25 corpus sites write.
+
+### Why it is two words and not seven
+
+Before this, the library had seven mechanisms that each answered both
+questions at once, in one pre-multiplied token — and no two of them gated
+the same set or were the same value kind:
+
+| the old spelling | gated WHAT | gate VALUE |
+| --- | --- | --- |
+| `wipe(angle, t)` | everything, children included | a half-plane |
+| `trim(s, e, off, mode)` | fill + every decoration; NOT children | an arc window |
+| `stroke(Spans, …)` | exactly one pass | an arc window |
+| `clip()` | fill + content + children; NOT decorations | the node's own shape |
+
+`clip()` and `trim()` were exact complements on the decorations/children
+axis and nobody chose that. Three of the four things an author would call a
+mask — a region other than the node's own, a coverage source, a per-mark cut
+— did not exist at all: a study reached for `clipOut()` and
+`shapes::subtract` **by name**, found neither, and dropped below the Compose
+seam to a raw `SkPathOp`; a shipped header prescribes `Material` + `kDstIn`
+as an *idiom* because it is not a feature.
+
+### The fold table
+
+| was | is |
+| --- | --- |
+| `wipe(a, t)` | `mask(by::edge(a, t))` |
+| `trim(s, e)` | `mask(by::spans(spans::range(s, e)))` |
+| `trim(0, t)` | `mask(by::spans(spans::upTo(t)))` |
+| `trim(s, e, off)` | `mask(by::spans(spans::range(s, e).offset(off)))` |
+| `trim(s, e, off, Wrap)` | `mask(by::spans(spans::wrap(s, e).offset(off)))` |
+| `clip()` | `mask(parts::surface() \| parts::content() \| parts::children(), by::shape(Region::own()))` — kept as sugar, and as the cheap `clipRRect` path |
+| `stroke(where, what, name)` | `stroke(what, name).mask(parts::named(name), by::spans(where))` — kept as sugar, and it is the form that CLAIMS |
+| a hand-rolled `kSrcIn` overlay | `mask(by::alpha(material))` |
+| a raw `SkPathOp` set difference | `mask(by::shape(a))` + `mask(by::outside(b))` |
+
+`trim()` and `wipe()` are **deleted**. Nothing is condemned-but-compiling.
+
+### The two laws
+
+**1. A gate is a SHOW set.** `by::edge(90, 0.3)` shows 30%; `spans::upTo(t)`
+shows `[0, t]`. The complement is a **term**, never a mode flag —
+`by::outside(r)` is the word for the outside of a region, and
+`spans::rest()` was already the precedent. Photoshop's "mask" is
+white-shows-black-hides and therefore ambiguous in isolation; a reader
+auditing a picture reads which way round it is off the call site, the same
+argument that made `wrap` a term rather than a flag on `range`.
+
+**2. Stacked masks INTERSECT where their selections overlap.** Both must
+pass. Nesting already means this everywhere else — `clip()` inside `clip()`
+intersects, a span claim under a whole-node cut intersects — and **union is
+spelled inside one gate value** (`Spans::operator|`), never across masks.
+Two masks are two conditions; stacking them can only ever show less.
+
+```cpp
+.stroke(spans::corners(18), stroke(2, ink), "brk")
+.mask(parts::marks(), by::spans(spans::upTo(&sweep)))
+// the pass paints corners ∩ upTo(sweep): brackets that LIGHT UP as the
+// sweep reaches them. One line, no second node, no re-authoring.
+```
+
+**Each mask carries its own animation**, indexed per mask, so three masks on
+one node may run at three different rates and the intersection is exact per
+frame. That is a design requirement, not a side effect: if they shared a
+slot the second would retarget the first.
+
+**The claim ledger reads the UNMASKED boundary.** A span pass's claim is a
+statement about *where a mark goes*; a gate is a statement about *how much
+of it exists yet*. So the no-overlap diagnostic resolves claims against the
+uncut boundary — an overlap is a description-level mistake, and never a
+mistake that blinks in and out between 0.3 and 0.7 of a transition.
+
+### What each gate reaches, and what it does not
+
+A **spans** gate cuts the BOUNDARY, so it addresses the paint that traces
+one: the surface and the marks. Content and children do not trace a
+boundary, so an arc-length window over them is not a picture and does
+nothing — `mask(by::spans(...))` with the default `parts::all()` is
+therefore exactly the reveal `trim()` drew. **edge**, **shape** and
+**alpha** cut the PLANE and reach everything, `wipe()`'s reach.
+
+A selection that matches no mark selects nothing, silently — the same law as
+`spans::rest("unknown")` and `spans::fit("unknown")`.
+
+Some cells of the product are not pictures (`parts::children()` × a spans
+gate). The family accepts that and documents the sensible ones rather than
+adding a compatibility table, because a two-factor API is honest about a
+complexity that exists whether or not it is named.
+
+### Cost, and the cache class
+
+`spans` rides a path effect, `edge` and `shape` ride a canvas clip — all
+three are the cheap paths those mechanisms already used. **`alpha` costs a
+`saveLayer` per masked group** and is the expensive member.
+
+A mask whose selection is EVERYTHING is hoisted to wrap the whole node once,
+rather than per paint group. That is both the fast path and the exact one: a
+nested pair of antialiased clips would compound its own edge coverage.
+
+**A masked node keeps the §17 scalar memo.** A gate's animated numbers are a
+bounded, per-node, resolvable-to-floats list, so they ride `ContentScalars`
+and a held keyframe on a masked node repaints nothing. This is the whole
+reason the family's selection lives in an ARGUMENT rather than in the slot
+call or the mark value: per-pass gate scalars land in the open `spanAnims`
+vector, which is excluded from that memo by a written decision and which
+also disqualifies `Cache::Group`. (Per-PASS span endpoints are still
+excluded — closing that is separate work.)
+
+An `alpha` gate on a LIVE material (`uTime`, a bound uniform) declares
+volatility and refuses both memos, exactly as a live material fill does.
+
+### `Region` is a value, and that is load-bearing
+
+```cpp
+Region::own()          // the node's own silhouette — clip()'s region
+Region::rect(r)  Region::oval(r)  Region::path(p)
+```
+
+The obvious signature for a shape gate takes an `OutlineFn` — an
+incomparable `std::function`, which never participates in reconciler
+equality and therefore **never prunes**. That is not hypothetical: it is the
+highest measured-impact item on the roadmap (43.4 of 43.5 ms on one
+un-prunable callable). A `Region` is closed and comparable — `SkPath` has
+structural equality, so `Region::path()` is a general escape hatch that
+still prunes — and that is why the shape member could ship WITH the family
+instead of after it.
+
 ## The Brush engine (lines as expressive as fills)
 
 A `Brush` is ONE comparable value: an ordered **geometry pipeline** over
@@ -2104,13 +2302,22 @@ reconcile + layout + record pass. One study measured eighteen per frame.
 Build the brush once and keep it, or keep the art Elements
 pointer-stable and copy. `brush::Art` is the most expensive of the three.
 
-**2. `Ribbon::widthFn` — key it to `distance`, not to `fraction`, if the
-host can `trim()`.** A decoration under a trim is handed the REVEALED
-contour, so `fraction` is a fraction of what has been drawn *so far* and
-a width law keyed to it slides as the reveal grows. The two are identical
-in a still frame and diverge only in motion. And set `widthMax` whenever
-you set `widthFn`: `bleed()` cannot look inside a `std::function`, so an
-undeclared 166 px band declares 10 px of reach and is silently clipped.
+**2. A `Ribbon`'s width `Profile` — declare `alongIsPx` if the host can be
+MASKED.** A decoration under a span gate is handed the REVEALED contour, so a
+FRACTION is a fraction of what has been drawn *so far* and a width law
+keyed to it slides as the reveal grows. The two are identical in a still
+frame and diverge only in motion, which is the worst way for a bug to be
+visible. (The reach half of this trap is gone: `max()` is required, so a
+166 px band can no longer declare 10 px and be silently clipped.)
+
+**2b. A profile that returns a non-finite width deletes the WHOLE band.**
+One NaN vertex makes the built path non-finite and Skia draws none of it —
+so the band does not pinch, it vanishes, and nothing says why. Found the
+hard way: `sqrt(sin(3.14159265f * along))` is NaN at `along == 1`, because
+the float π rounds UP and the sine goes to -8.7e-08. Every construction
+samples the law at exactly 1, so an entire study's link bloom was
+invisible for its whole life (`astral_tome`, fixed 2026-07-26). Clamp
+inside the law; the seam does not guard it for you.
 
 **3. `shapers::Jitter` is ONE pass of `SkDiscretePathEffect`.** It jitters
 vertices; it does not bow the segments between them, so it is not the

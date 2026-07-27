@@ -145,7 +145,8 @@
 //   shapers::Jitter      every asterism join, and the paper's own edge
 //   shapes::parametric   the disc's radial DEC scale and the graticule
 //   shapes::annulus / sector / circle / spiral
-//   brush::Ribbon + widthFn   the archer, keyed to distance/fullLength
+//   brush::Ribbon + Profile   the archer, keyed in arc-length PX so the
+//                        brush press does not slide under the reveal
 //   brush::Scatter   the roll's contact replication marks
 //   patterns::grain (anisotropic) + Cache::Texture   the mulberry ground
 //   decorations::brackets/gappedRule   with an EXPLICIT angleDeg — the
@@ -1244,6 +1245,29 @@ SkColor4f schoolInk(char c) {
   }
 }
 
+/** THE ARCHER'S BRUSH PRESS, as a comparable px-keyed Profile.
+ *
+ *  `alongIsPx` is the whole reason this is not a fraction: every bone is
+ *  drawn under `spans::upTo(gate(...))`, so the contour the decoration is
+ *  handed grows as the figure draws. Keyed in px, `fullLen` is the length
+ *  the law was AUTHORED against and the heavy head stays at the start of
+ *  the bone instead of riding the reveal's leading edge.
+ *
+ *  max(): the law is 0.55 + 0.75·e^(-9t) + 0.35t on [0,1], monotone down
+ *  then up, so its peak is at t=0 — w0·1.30. The old `widthMax = w0·1.9`
+ *  was a guess with headroom; the seam takes the real number. */
+struct BonePress {
+  float fullLen = 1.0f;
+  float w0 = 1.0f;
+  static constexpr bool alongIsPx = true;
+  float across(float px) const {
+    const float t = fullLen > 0 ? px / fullLen : 0.0f;
+    return w0 * (0.55f + 0.75f * std::exp(-9.0f * t) + 0.35f * t);
+  }
+  float max() const { return w0 * 1.30f; }
+  bool operator==(const BonePress &) const = default;
+};
+
 } // namespace
 
 // ===========================================================================
@@ -2037,7 +2061,10 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                  .opacity(gate(tArch, tArch + 1.1f));
 
     // the figure — every mark a Ribbon over a real polyline, the width law
-    // keyed to distance/fullLength so the press does not slide under trim()
+    // keyed in PX of arc length (Profile + alongIsPx) so the press does not
+    // slide under the spans::upTo reveal each bone is drawn with. A fraction
+    // would be a fraction of the REVEALED bone and the heavy 起 head would
+    // walk down the limb as it draws.
     struct Bone { std::vector<SkPoint> pts; float w0; };
     const std::vector<Bone> bones = {
         // the cap, then the head
@@ -2069,11 +2096,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       brush::Ribbon rib;
       rib.fill = Fill::color(hex(0x241d15, 0.90f));
       rib.step = 2.0f;
-      rib.widthMax = w0 * 1.9f;
-      rib.widthFn = [len, w0](const PathSample &s) {
-        const float t = len > 0 ? s.distance / len : 0.0f;
-        return w0 * (0.55f + 0.75f * std::exp(-9.0f * t) + 0.35f * t);
-      };
+      rib.width = BonePress{len, w0};
       g.child(box()
                   .left(0)
                   .top(0)

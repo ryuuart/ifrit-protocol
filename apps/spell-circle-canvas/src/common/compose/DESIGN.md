@@ -154,7 +154,7 @@ Everything the API offers is one of these, wearing a grammar. The map
 | `transition`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
 | bare `Output*` / shaped `bind()` | bind | continuous scrubbing, data-driven values |
 | `isAnimated()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
-| `spans::upTo` on a stroke pass, `wipe` (`trim` condemned) | either | reveals |
+| `mask(parts::…, by::…)` — the masking family; `spans::upTo` on a stroke pass | either | reveals, wipes, region and coverage masks |
 | `glyphFx` + Animatable progress | either | per-glyph typography |
 | `custom()` + `Cache::None` + `elapsedSeconds` | floor | immediate-mode escape hatch |
 | pool `Mode::Live` / `Mode::Data` | the two paths verbatim | instanced masses |
@@ -252,9 +252,10 @@ The **kernel** is `Element`/components/`Composer`; Yoga flex +
 text/image/custom leaves; `key` + `memo`; `Animatable`/`Transition` and
 the reconciled-vs-bound write paths; automatic caching; the stroke
 grammar (`shape`, the `stroke(where, what)` slot over `spans::`,
-`band`/`across`, and the `Profile` seam) — plus the
-element-surface conveniences that landed on `Element` itself (`trim`,
-`wipe`, `echo`, `style`, `textFill`/`textStroke`, `glyphFx`,
+`band`/`across`, and the `Profile` seam); the
+masking family (`mask` over `parts::`/`by::`, `Region`) — plus the
+element-surface conveniences that landed on `Element` itself (`echo`,
+`style`, `textFill`/`textStroke`, `glyphFx`,
 `variationDrive`, `staggerChildren`, `hitTestable`, `sampling`).
 `Material` is kernel-adjacent by signature (`fill(Material)`) though it
 ships as a header — the polymorphic paint value compiling to ONE
@@ -359,6 +360,37 @@ a third.
   ruling are ROADMAP §32; the full-surface audit is §33. Its cheapest
   test, applied to every new name: **when a doc comment's job is to
   distinguish two names, that is the rename ticket.**
+- **APPEARANCE-GATING IS TWO FACTORS, AND BOTH ARE NAMED** (landed
+  2026-07-27; the masking family, ROADMAP §33's pinned pass 2, now the
+  shipped record). Every gate answers two independent questions —
+  *which of this node's paint?* and *by what rule is it cut?* — and the
+  library had seven mechanisms that each answered both at once in one
+  pre-multiplied token, so no two gated the same set or were the same
+  value kind, and three of the four masks an author would name did not
+  exist. One verb replaced them: `mask(parts::…, by::…)`, with
+  `mask(by::…)` (meaning *all of it*) as the taught default. `trim()`
+  and `wipe()` are DELETED, not aliased. Four rules generalise past
+  this family:
+  - **a gate is a SHOW set, and the complement is a term, never a mode
+    flag** (`by::outside`, `spans::rest`) — a reader auditing a picture
+    reads which way round it is off the call site;
+  - **stacking intersects; union is spelled inside one value** — two
+    conditions can only ever show less, and `Spans::operator|` is where
+    "or" lives;
+  - **each gate owns its animation slots**, so N gates on one node run
+    at N rates and the intersection is exact per frame — a shared slot
+    would make a stated design requirement a race;
+  - **element-level gate scalars ride `ContentScalars`**, so a masked
+    node keeps the §17 scalar memo. This is why selection lives in an
+    ARGUMENT and not in the slot call or the mark value: per-pass gate
+    scalars land in an open vector that the memo cannot see and that
+    disqualifies `Cache::Group`. Byte-identity is a pixel gate, not a
+    cost gate, and a whole ports campaign passed one while failing the
+    other.
+
+  The shape member shipped WITH the family only because it takes a
+  comparable `Region` value; the callable form would have hit the
+  un-prunable-callable wall that is item 2 of Direction below.
 - **PERPENDICULAR SIGN — ONE CONVENTION, STATED ONCE HERE.** Positive
   `across` is to the **LEFT of travel**, which in screen space (y down)
   is OUTSIDE a clockwise path — SkPath's own direction for rects and

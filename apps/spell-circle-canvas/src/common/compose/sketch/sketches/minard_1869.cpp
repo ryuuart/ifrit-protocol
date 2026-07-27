@@ -79,8 +79,8 @@
 //   second is the one that would kill it.
 //
 // THE ONE DELIBERATE DEVIATION, and it is a library finding, not a
-// drafting choice. `brush::Ribbon` with a `widthFn` is the primitive a
-// flow map is made of, and it has no corner join: the band is pos +- n*w/2
+// drafting choice. `brush::Ribbon` is the primitive a flow map is made of,
+// and a VARYING width still has no corner join: the band is pos +- n*w/2
 // per sample with nothing inserted where the tangent jumps, so the inner
 // edge self-intersects and the winding fill drops the inside of the bend.
 // At Wilna the advance band is 130 px wide on an 86 px leg and the hole is
@@ -89,6 +89,15 @@
 // spelled out — while the RETREAT band, 25 px on 100 px legs, is a real
 // Ribbon and works. The audit still measures the Ribbon band, and the
 // numbers are in the console: 64 px = 28.4 mm of Minard's paper.
+//
+// STILL TRUE AFTER THE widthFn→Profile PORT, and worth stating precisely
+// so nobody re-tests it by accident: `profileOffset` delegates to
+// `lines::offsetAcross` — real vertices, arc outside a turn, miter inside
+// — only when the profile is CONSTANT. A flow map's whole point is that it
+// is not, so this band takes the sampled walk either way and the deviation
+// stands. What the port DID buy here is the other half: the law is a
+// comparable value with a derived `max()`, so the band can prune and its
+// reach can no longer go undeclared.
 //
 // THREE LIBRARY DEFECTS THIS SKETCH FOUND, one of them silent and new:
 //   * FIXED SINCE, and the fix is worth knowing because the bug was
@@ -471,6 +480,41 @@ struct WidthProfile {
     return men[i];
   }
   float pxAt(float s) const { return bandPx(menAt(s)); }
+  bool operator==(const WidthProfile &) const = default;
+};
+
+/** THE FLOW BAND'S WIDTH, as a comparable Profile — and the sketch's own
+ *  trap (above) is exactly why it is PX-KEYED. `alongIsPx` makes the seam
+ *  hand `across` arc-length px measured from the spine's start, which is
+ *  the unit `WidthProfile::arc` is already in, so every riser stays at its
+ *  named city. Under the `spans::upTo(reveal)` the band is drawn with, a
+ *  fraction would be a fraction of the REVEALED route and every riser
+ *  would march east as the campaign advances.
+ *
+ *  `scale` is the LIVE 12.6% morph, read at paint. The profile compares on
+ *  the pointer, not on the value behind it — two bands reading the same
+ *  Output ARE the same law — and the node stays `Cache::None`, which is
+ *  the documented way to hold a value the reconciler cannot see change.
+ *  What the seam does buy here, which `widthFn` could not: a ribbon that
+ *  compares equal to ITSELF, so an identical re-describe prunes instead of
+ *  re-recording the whole band.
+ *
+ *  max(): the morph runs mmScale from kMmPer10k DOWN to kStatedMmPer10k
+ *  (1.1258 → 1.0), so the ratio never exceeds 1 and the widest the band
+ *  ever draws is `maxPx` exactly. The deleted `widthMax` carried a 1.2×
+ *  guess because nobody could derive this; the seam requires it. */
+struct FlowWidth {
+  WidthProfile prof;
+  const ch::Output<float> *scale = nullptr;
+  static constexpr bool alongIsPx = true;
+  float across(float px) const {
+    return prof.pxAt(px) *
+           ((scale ? scale->value() : kMmPer10k) / kMmPer10k);
+  }
+  float max() const { return prof.maxPx; }
+  bool operator==(const FlowWidth &o) const {
+    return prof == o.prof && scale == o.scale;
+  }
 };
 
 WidthProfile profileOf(const std::vector<Station> &st) {
@@ -947,7 +991,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                  type(faceScript, 30, kManuscript, 1.0f))
                 .at({40, 4})
                 .key("dedic")
-                .wipe(0.0f, beat(0.45f, 1.15f)));
+                .mask(by::edge(0.0f, beat(0.45f, 1.15f))));
     g.child(text(toU8("Ge Don 4182"), type(faceScript, 16, kManuscript, 0.4f))
                 .at({1218, 12})
                 .key("gedon")
@@ -1147,8 +1191,8 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     river({{1040, 300}, {1010, 330}, {980, 350}}, "arc", tHann + 1.0f);
     river({{1160, 430}, {1200, 452}, {1250, 462}}, "po", tHann + 1.05f);
 
-    // THE BAND — brush::Ribbon with a widthFn over the plate's own
-    // strengths. This is the primitive the whole sheet is made of.
+    // THE BAND — brush::Ribbon on the width Profile seam, over the plate's
+    // own strengths. This is the primitive the whole sheet is made of.
     const SkPath spine = polylineH(kHannibal);
     const WidthProfile prof = profileOfH(kHannibal);
     g.child(bandElement(spine, prof, kZone, "hband",
@@ -1228,25 +1272,21 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   // =======================================================================
   // NAPOLEON
 
-  /** One band: brush::Ribbon with a widthFn, on a node sized to the
-   *  ROUTE's bounding box so that Ribbon::widthMax is actually load
-   *  bearing (the band overflows that box by up to w/2 on each side). */
+  /** One band: brush::Ribbon on the width PROFILE seam, on a node sized to
+   *  the ROUTE's bounding box so that the profile's `max()` is actually
+   *  load bearing (the band overflows that box by up to w/2 on each
+   *  side). */
   Element bandElement(const SkPath &spine, const WidthProfile &prof,
                       SkColor4f colour, const std::string &key,
                       Animatable<float> reveal) {
     const SkRect bb = spine.getBounds();
     const SkPath local = spine.makeOffset(-bb.left(), -bb.top());
-    const WidthProfile p = prof;
-    // The width function reads a LIVE Output (the 12.6% morph), which
-    // Ribbon has no way to declare — hence Cache::None. See the gap list.
-    const ch::Output<float> *scale = &mmScale;
+    // The profile reads a LIVE Output (the 12.6% morph), which the
+    // reconciler cannot see change — hence Cache::None. See FlowWidth.
     brush::Ribbon r;
     r.fill = Fill::color(colour);
     r.step = 2.0f;
-    r.widthMax = prof.maxPx * 1.2f;
-    r.widthFn = [p, scale](const PathSample &s) {
-      return p.pxAt(s.distance) * (scale->value() / kMmPer10k);
-    };
+    r.width = FlowWidth{prof, &mmScale};
     return box()
         .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
         .shape([local](SkSize) { return local; })
@@ -1270,7 +1310,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
         .inset(0)
         .shape(pathFn(band))
         .fill(Material::solid(colour))
-        .wipe(wipeDeg, reveal)
+        .mask(by::edge(wipeDeg, reveal))
         .key(key);
   }
 
@@ -1340,8 +1380,9 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                    type(faceScript, 9.8f, jerome ? kInk : kInk, 0.02f))
                   .at({i == 3 ? 148.0f : 128.0f, kDivHN + 58 + 14.6f * (float)i})
                   .key("nleg" + std::to_string(i))
-                  .wipe(0.0f, beat(tLegend + 0.25f + 0.16f * (float)i,
-                                   tLegend + 0.55f + 0.16f * (float)i)));
+                  .mask(by::edge(0.0f,
+                                 beat(tLegend + 0.25f + 0.16f * (float)i,
+                                      tLegend + 0.55f + 0.16f * (float)i))));
     }
 
     // the rivers of the Russian panel
@@ -1621,7 +1662,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
                 .shape(pathFn(curvePath))
                 .stroke(util::stroke(1.2f, Fill::color(kInk)))
                 // right to left, the way the retreat runs
-                .wipe(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f))
+                .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
                 .key("tcurve"));
     // the hatched underside: short ticks hanging off the curve
     g.child(custom([curvePath](SkCanvas &c, const PaintContext &) {

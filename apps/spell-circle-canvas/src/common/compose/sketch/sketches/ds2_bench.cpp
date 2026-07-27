@@ -816,7 +816,8 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
           connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
               .key(std::string(c.tag) + "e" + std::to_string(i))
               .inset(0)
-              .trim(0.0f, animate(from(0.0f).to(1.0f), {620ms}))
+              .mask(by::spans(
+                  spans::upTo(animate(from(0.0f).to(1.0f), {620ms}))))
               .stroke(LayeredBrush{{{7.0f, alpha(kCyan, 0.075f), 3.4f, {}, 0,
                                      SkBlendMode::kPlus}}})
               .stroke(lines::cased(1.2f,

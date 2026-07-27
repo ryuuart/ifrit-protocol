@@ -670,7 +670,8 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
       lines::Rails rails = lines::rails(std::move(set));
       rails.offsetStep = 7.0f;
       e.stroke(std::move(rails));
-      e.trim(0.0f, animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)));
+      e.mask(by::spans(
+          spans::upTo(animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)))));
       return e;
     };
     g.child(disc({kRR, kRR}, rGreat * kR)
@@ -1223,8 +1224,14 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                      {.across = 3.2f,
                       .width = 0.8f,
                       .fill = Fill::color(hex(0xfbf0d0, 0.45f))}}))
-                .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                    ramp(tInner * 1000 + 500, 800)))
+                // THE MARKS, and not the wash under them: the rails draw
+                // themselves, the ground is simply there. Measured before
+                // the port: sweeping the 18%-alpha wash over its own ground
+                // moves ≤ 4 LSB, which is a picture nobody was reading.
+                .mask(parts::marks(),
+                      by::spans(spans::upTo(animate(
+                          from(0.0f).to(1.0f),
+                          ramp(tInner * 1000 + 500, 800)))))
                 .key("penta"));
     for (int k = 0; k < 5; ++k) {
       const float th = (float)k * 72.0f;

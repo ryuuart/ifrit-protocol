@@ -65,22 +65,25 @@
 //
 //   THE BRIEF PREDICTED brush::Ribbon takes a taper or a scalar and not an
 //   arbitrary w(s), "and if it cannot take a profile callback that is the
-//   gap to file". IT CAN — `Ribbon::widthFn` is
-//   `std::function<float(const PathSample&)>` and takes exactly this. The
-//   trap is one line further down: under `trim()` a decoration receives the
-//   ALREADY-TRIMMED outline, so `PathSample::fraction` is a fraction of the
-//   REVEALED contour, not of the stroke. Keying the profile to it makes the
-//   頓 bulge SLIDE along the stroke as it draws. Key it to
-//   `distance / fullLength` — a constant the sketch measures once — and the
-//   press stays where the brush puts it. That is the finding, and `widthMax`
-//   must be set by hand or the band is silently clipped.
+//   gap to file". IT CAN — `Ribbon::width` is a `Profile`, a comparable
+//   value with `across(along)` and a REQUIRED `max()`, and takes exactly
+//   this law. The trap is one line further down: under `trim()` a
+//   decoration receives the ALREADY-TRIMMED outline, so a FRACTION is a
+//   fraction of the REVEALED contour, not of the stroke. Keying the profile
+//   to it makes the 頓 bulge SLIDE along the stroke as it draws. Declare
+//   `static constexpr bool alongIsPx = true` and the seam hands the law
+//   arc-length px measured from the spine's start — divided by the length
+//   the sketch measured once, the press stays where the brush puts it.
+//   That is the finding, and it is why the px key exists at all. The band
+//   can no longer be silently clipped either: `max()` is required, so the
+//   old hand-set `widthMax` (a guess with headroom) is gone.
 //
 // THE FOOT IS ONE CONTOUR. 「符腳是最後步驟…必須聚精會神，一氣立斷，不得遲緩
 // 拖滯」 — the foot is the last step; total concentration, cut off in a
 // single breath, no slowing or dragging. So 急急如律令 — 9 + 9 + 6 + 9 + 5 =
 // THIRTY-EIGHT strokes — is built here as ONE PATH WITH ONE CONTOUR: the 38
 // medians chained end to end by 37 ligature spans, one Ribbon, one trim, one
-// reveal, no lift anywhere. Its widthFn carries a 75-span table so each
+// reveal, no lift anywhere. Its width Profile carries a 75-span table so each
 // stroke span gets its class weight and each ligature thins to 0.16 w₀. It
 // is the only mark on this plate that is a single contour, and it is written
 // at 0.034 s per stroke against the body's 0.240 — 7.1× — which is doctrine
@@ -102,8 +105,8 @@
 // contour. Every one is a brush::Ribbon over a real or derived median.
 //
 // BUILT FROM (the library, not by hand):
-//   brush::Ribbon + widthFn   every stroke on the plate; 起行收 over
-//                        distance/length, w₀ from the recovered class
+//   brush::Ribbon + Profile   every stroke on the plate; 起行收 over
+//                        arc-length px (alongIsPx), w₀ from the class
 //   Brush layers + shapers::Offset  飛白 as two dashed rails offset off the
 //                        stroke's own centreline — tangent-aligned by
 //                        construction, no per-stroke shader matrix
@@ -516,6 +519,78 @@ float widthLaw(float s) {
          0.55f * std::exp(-90.0f * d * d);
 }
 
+/** The law's peak, in units of w₀. It is widthLaw(0) = 1.15 + 0.62 exactly
+ *  (the 頓 gaussian is e^-69.7 there, i.e. nothing), and the law falls
+ *  immediately — so the 逆鋒 entry IS the maximum, which is the 1.77 the
+ *  comment above quotes. Every profile below reports it as `max()`, which
+ *  is the number `bleed()` grows the cull by; the deleted `widthMax` had
+ *  to be told it by hand and was set to a guess with headroom. */
+constexpr float kWidthLawMax = 1.77f;
+
+/** ONE STROKE'S WIDTH, as a comparable Profile keyed in PX of arc length.
+ *
+ *  `alongIsPx` is load-bearing and is the reason this sketch was the one
+ *  that documented the trap: every stroke is written under
+ *  `trim(0, bind(&scribe).window(t0, t1))`, so the decoration is handed
+ *  the REVEALED contour and a fraction is a fraction of what has been
+ *  drawn SO FAR. Keyed that way the 頓 press would slide down the stroke
+ *  as it writes; keyed in px against the length the stroke was AUTHORED
+ *  at, the press stays where the brush puts it. */
+struct StrokePress {
+  float fullLen = 1.0f;
+  float w0 = 6.0f;
+  static constexpr bool alongIsPx = true;
+  float across(float px) const {
+    return w0 * widthLaw(fullLen > 0 ? px / fullLen : 0.0f);
+  }
+  float max() const { return w0 * kWidthLawMax; }
+  bool operator==(const StrokePress &) const = default;
+};
+
+/** 一氣立斷 — THE FOOT, one contour of 75 spans (38 strokes and 37
+ *  ligatures) and no lift. Same px key, same reason; the table itself is
+ *  in absolute px along the contour, so nothing about it can be expressed
+ *  as a fraction of a reveal.
+ *
+ *  A span of zero width is the LIGATURE: the brush never leaves the
+ *  plate, it only lightens — so the floor is w₀·0.16 everywhere, and
+ *  that floor is also what the gaps between spans read. */
+struct FootPress {
+  std::vector<std::array<float, 3>> spans; // {d0, d1, w} — d in px
+  float w0 = 6.0f;
+  static constexpr bool alongIsPx = true;
+  float across(float px) const {
+    for (const std::array<float, 3> &sp : spans)
+      if (px >= sp[0] && px <= sp[1]) {
+        if (sp[2] <= 0.0f)
+          return w0 * 0.16f;
+        const float u = (px - sp[0]) / std::max(1e-3f, sp[1] - sp[0]);
+        return w0 * sp[2] * widthLaw(u);
+      }
+    return w0 * 0.16f;
+  }
+  float max() const {
+    float widest = 0.16f;
+    for (const std::array<float, 3> &sp : spans)
+      widest = std::max(widest, sp[2] * kWidthLawMax);
+    return w0 * widest;
+  }
+  bool operator==(const FootPress &) const = default;
+};
+
+/** The law PLOTTED — the specimen bands on the field-notes page. Keyed in
+ *  FRACTION, and that is right here: these two sit under an unqualified
+ *  stroke with no reveal on the node, so `along` is a fraction of the
+ *  whole spine every frame. They are also the reason the plate can print
+ *  the law: this is the same widthLaw the ink uses, drawn once across a
+ *  straight axis and once across each of the six class specimens. */
+struct LawBand {
+  float w0 = 21.0f;
+  float across(float along) const { return w0 * widthLaw(along); }
+  float max() const { return w0 * kWidthLawMax; }
+  bool operator==(const LawBand &) const = default;
+};
+
 /** Polyline → a smooth path through it (quads through the midpoints). The
  *  medians are sparse on purpose — 3 to 14 points for a whole stroke — so
  *  the smoothing is not decoration, it is what makes the centreline a
@@ -686,34 +761,14 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     brush::Ribbon rib;
     rib.fill = Fill::color(s.ink);
     rib.step = 2.2f;
-    rib.widthMax = s.w0 * 2.0f + 2.0f;
 
-    if (s.spans.empty()) {
-      const float len = s.len, w0 = s.w0;
-      // KEYED TO distance/len, NOT PathSample::fraction. Under trim() the
-      // decoration is handed the REVEALED contour, so `fraction` is a
-      // fraction of what has been drawn so far and the 頓 press would slide
-      // down the stroke as it writes.
-      rib.widthFn = [len, w0](const PathSample &p) {
-        return w0 * widthLaw(len > 0 ? p.distance / len : 0.0f);
-      };
-    } else {
-      // 一氣立斷 — the foot. One contour, 75 spans, no lift.
-      const std::vector<std::array<float, 3>> spans = s.spans;
-      const float w0 = s.w0;
-      rib.widthFn = [spans, w0](const PathSample &p) {
-        for (const std::array<float, 3> &sp : spans)
-          if (p.distance >= sp[0] && p.distance <= sp[1]) {
-            if (sp[2] <= 0.0f)
-              return w0 * 0.16f; // the ligature: the brush never leaves the
-                                 // plate, it only lightens
-            const float u = (p.distance - sp[0]) / std::max(1e-3f, sp[1] - sp[0]);
-            return w0 * sp[2] * widthLaw(u);
-          }
-        return w0 * 0.16f;
-      };
-      rib.widthMax = s.w0 * 2.4f;
-    }
+    // Both laws are PX-KEYED profiles — see StrokePress / FootPress for
+    // why the key is px and not a fraction, and for the max() the seam
+    // now derives instead of being told.
+    if (s.spans.empty())
+      rib.width = StrokePress{s.len, s.w0};
+    else
+      rib.width = FootPress{s.spans, s.w0}; // 一氣立斷 — the foot
 
     Brush brush;
     brush.layer(rib);
@@ -758,7 +813,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     wet.trimStart = 0.93f;
     wet.trimEnd = 1.0f;
     e.foreground(wet);
-    e.trim(0.0f, bind(&scribe).window(s.t0, s.t1));
+    e.mask(by::spans(spans::upTo(bind(&scribe).window(s.t0, s.t1))));
     return e;
   }
 
@@ -1653,10 +1708,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .stroke(brush::Ribbon{
                       .fill = Fill::color(hex(0xcf3018, 0.92f)),
                       .step = 1.5f,
-                      .widthFn = [](const PathSample &s) {
-                        return 21.0f * widthLaw(s.fraction);
-                      },
-                      .widthMax = 42.0f})
+                      .width = LawBand{21.0f}})
                   .key("lawband"));
       // STRIP 2 — w(s) plotted from a baseline, with the 1.0 reference
       const float cy = py + 6 + bh + 12, chh = ph - bh - 18;
@@ -1756,13 +1808,9 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   .height(56)
                   .shape([p = smoothPath(kSpec[c])](SkSize) { return p; })
                   .fill(Fill::none())
-                  .stroke(brush::Ribbon{
-                      .fill = Fill::color(kCinnabar),
-                      .step = 1.2f,
-                      .widthFn = [w0](const PathSample &s) {
-                        return w0 * widthLaw(s.fraction);
-                      },
-                      .widthMax = w0 * 2.0f})
+                  .stroke(brush::Ribbon{.fill = Fill::color(kCinnabar),
+                                        .step = 1.2f,
+                                        .width = LawBand{w0}})
                   .key(fmt("spec%d", c)));
       g.child(text(toU8(fmt("%s  %.3f em", kClsName[c], (double)w0ForClass(c))),
                    type(faceMono, 9.0f, hex(0xa48c5c)))
@@ -2030,11 +2078,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     logC.append(toU8(fmt("    shou (the cut)    w(1)    = %.2f w0",
                          (double)widthLaw(1.0f))),
                 3);
-    logC.append(toU8("  brush::Ribbon::widthFn takes exactly this law."), 2);
-    logC.append(toU8("  BUT under trim() a decoration is handed the REVEALED"), 0);
-    logC.append(toU8("  contour: PathSample::fraction is a fraction of what is"), 0);
-    logC.append(toU8("  drawn SO FAR, so key the law to distance/fullLength or"), 0);
-    logC.append(toU8("  the dun press SLIDES down the stroke as it writes."), 2);
+    logC.append(toU8("  brush::Ribbon::width takes exactly this law, as a"), 0);
+    logC.append(toU8("  comparable Profile. BUT under trim() a decoration is"), 0);
+    logC.append(toU8("  handed the REVEALED contour: a fraction is a fraction"), 0);
+    logC.append(toU8("  of what is drawn SO FAR, so the profile is keyed in PX"), 0);
+    logC.append(toU8("  or the dun press SLIDES down the stroke as it writes."), 2);
     logC.append(toU8(fmt("  tempo: foot %.3f s/stroke vs body %.3f = %.1fx",
                          (double)tFootEach, (double)tBodyEach,
                          (double)(tBodyEach / tFootEach))),
@@ -2141,8 +2189,8 @@ SIGIL_SKETCH(ThunderFulu)
 // p99 9.45 ms. At t = 3.0 it is 4.37 / 4.87.
 //
 // THE SHAPE THAT MADE IT CHEAP. 86 marks in 49 nodes (the foot's 38 strokes
-// are one node and one contour), every one carrying a Ribbon with a widthFn
-// and every one bound to the SAME Output through
+// are one node and one contour), every one carrying a Ribbon with a width
+// Profile and every one bound to the SAME Output through
 // `window(t0, t1)`, and the frame is still under 10 ms — because a stroke
 // that has not started trims to nothing and a stroke that is finished trims
 // to a constant, so almost every node is a plain cached fill on almost every

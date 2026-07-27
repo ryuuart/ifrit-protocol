@@ -1025,14 +1025,14 @@ Spans range(Animatable<float> begin, Animatable<float> end);
 /** THE SEAM-CROSSING RANGE: the boundary read as a CYCLE, so a window
  *  whose `begin` is past its `end` claims [begin,1] AND [0,end] — the
  *  marching-ants and orbiting-comet idiom, and the one thing `trim()`
- *  did that spans could not (`TrimMode::Wrap`).
+ *  did that the deleted `trim()` needed a whole mode flag for.
  *
  *      .stroke(spans::wrap(bind(&phase), bind(&phase).offset(0.25f)), ants)
  *
  *  Both ends take the full Animatable treatment, so the window marches by
  *  driving them; two shaped bindings on ONE Output are how a fixed-length
- *  window is spelled (that is trim's `offset` argument, as arithmetic on
- *  the endpoints rather than a third parameter).
+ *  window is spelled (the deleted trim()'s `offset` argument, as
+ *  arithmetic on the endpoints rather than a third parameter).
  *
  *  A DEDICATED TERM, not `range()` learning to wrap, for two reasons.
  *  (1) `range(0.9, 0.1)` compiles today and means the empty/reversed
@@ -1044,7 +1044,8 @@ Spans range(Animatable<float> begin, Animatable<float> end);
  *  term is cyclic. `wrap` names the intent; `range` stays the clamped
  *  interval it has always been.
  *
- *  Semantics match `TrimMode::Wrap` exactly, INCLUDING the degenerate
+ *  Semantics match the deleted trim()'s Wrap mode exactly, INCLUDING the
+ *  degenerate
  *  ends: `end - begin <= 0` claims nothing and `>= 1` claims the whole
  *  boundary (both read from the RAW endpoints, before the fractional
  *  wrap, which is why a window driven past 1.0 keeps its length). The
@@ -1085,18 +1086,252 @@ Spans rest(std::string_view passName);
 } // namespace spans
 
 // ---------------------------------------------------------------------------
+// THE MASKING FAMILY — `mask(by::…)` and `mask(parts::…, by::…)`
+//
+// Appearance-gating is a relation between a SELECTION and a GATE, and the
+// two questions are independent:
+//
+//   parts::  says WHICH of this node's paint outputs the mask applies to
+//   by::     says HOW that paint arrives — the rule by which it is cut
+//
+// Before this family the library had seven mechanisms that each answered
+// both questions at once, in one pre-multiplied token: wipe (everything ×
+// half-plane), trim (surface + marks × arc window), stroke(Spans,…) (one
+// pass × arc window), clip (surface + content + children × own shape). No
+// two gated the same set and no two were the same value kind, so three of
+// the four things an author would call a mask — a region other than the
+// node's own, a coverage source, a per-mark cut — did not exist at all and
+// were hand-rolled below the Compose seam. `trim()` and `wipe()` are both
+// GONE; every picture they drew is a `mask()`.
+//
+// TWO LAWS, and they are the whole semantics:
+//
+//  - **A gate is a SHOW set.** `by::edge(90, 0.3)` shows 30%;
+//    `spans::upTo(t)` shows [0,t]. The complement is a TERM, never a mode
+//    flag — `by::outside(r)` is the word for the outside of a region, and
+//    `spans::rest()` was already the precedent. A reader auditing a
+//    picture reads which way round it is off the call site.
+//  - **Stacked masks INTERSECT where their selections overlap.** Both must
+//    pass. Nesting already means this everywhere else (clip inside clip,
+//    a span claim under a whole-node cut), and UNION is spelled inside one
+//    gate value (`Spans::operator|`), never across gates. Each mask keeps
+//    its OWN animation slots, so three masks on one node may run at three
+//    different rates and the intersection is exact per frame.
+
+/** A COMPARABLE region in the node's own local space — the shape gate's
+ *  value, and deliberately a closed vocabulary rather than an
+ *  `std::function<SkPath(SkSize)>`.
+ *
+ *  The callable form is the wall this family would otherwise have hit:
+ *  an incomparable generator never participates in reconciler equality, so
+ *  a masked node never prunes (ROADMAP §3 is the highest measured-impact
+ *  item on the roadmap for exactly this reason — 43.4 of 43.5 ms on one
+ *  un-prunable callable). A Region is a value: it compares, it prunes, and
+ *  a mask built from one keeps the §17 scalar memo.
+ *
+ *  `own()` is the node's own shape — what `clip()` has always used, and
+ *  the reason clip() survives as sugar. */
+class Region {
+public:
+  enum class Kind : uint8_t {
+    Own,  ///< the node's own shape() / corners box
+    Rect, ///< a rectangle in local coordinates
+    Oval, ///< the oval inscribed in a local rectangle
+    Path, ///< an explicit local path (SkPath is a comparable value)
+  };
+
+  /** The node's own silhouette — clip()'s region, as a value. */
+  static Region own();
+  static Region rect(const SkRect &r);
+  static Region oval(const SkRect &bounds);
+  /** An explicit path in the node's LOCAL space. Comparable (SkPath has
+   *  structural equality), so this is the general escape hatch that still
+   *  prunes — unlike a generator. */
+  static Region path(SkPath p);
+
+  Kind kind() const { return m_kind; }
+  bool operator==(const Region &other) const;
+
+  /** The path this region covers, given the node's own silhouette. */
+  SkPath resolve(const SkPath &ownShape) const;
+
+private:
+  Kind m_kind = Kind::Own;
+  SkRect m_rect = SkRect::MakeEmpty();
+  SkPath m_path;
+};
+
+/** WHICH of a node's paint outputs a mask applies to — a small comparable
+ *  value, combined with `|`.
+ *
+ *  The outputs, in paint order (`Paint.cpp`'s own list):
+ *
+ *      backgrounds · background passes │ fill · echo │ overlays │
+ *      content │ children │ foregrounds · foreground passes
+ *
+ *  which collapse into four classes an author can name: the SURFACE (the
+ *  fill and its echoes), the MARKS (every decoration in every slot and
+ *  every span pass, across BOTH z-halves — a boundary does not have two of
+ *  itself), the CONTENT leaf, and the CHILDREN.
+ *
+ *  `named()` addresses ONE mark by the local label its slot call gave it.
+ *  Those are the same LOCAL names `stroke(Spans, what, name)` already
+ *  carries: for inspection and intra-element reference, never a query key
+ *  (DESIGN §Queries — one element's own labels for its own marks, not a
+ *  second identity system). A name that matches nothing selects nothing,
+ *  silently, exactly as `spans::rest("unknown")` and `spans::fit("unknown")`
+ *  do. */
+class Parts {
+public:
+  enum Bits : uint8_t {
+    kSurface = 1u << 0,
+    kMarks = 1u << 1,
+    kContent = 1u << 2,
+    kChildren = 1u << 3,
+    kAll = kSurface | kMarks | kContent | kChildren,
+  };
+  uint8_t bits = 0;
+  /** parts::named(): local mark labels, in declaration order. */
+  std::vector<std::string> names;
+
+  bool operator==(const Parts &) const = default;
+  bool selects(Bits what) const { return (bits & what) != 0; }
+  /** Does this selection reach a mark carrying `label` (possibly empty)? */
+  bool selectsMark(std::string_view label) const {
+    if (bits & kMarks)
+      return true;
+    if (label.empty())
+      return false;
+    for (const std::string &n : names)
+      if (n == label)
+        return true;
+    return false;
+  }
+  /** Everything this node paints — the one-argument mask()'s selection. */
+  bool isEverything() const { return (bits & kAll) == kAll; }
+};
+
+/** Union: `parts::content() | parts::surface()`. */
+inline Parts operator|(Parts a, const Parts &b) {
+  a.bits = (uint8_t)(a.bits | b.bits);
+  a.names.insert(a.names.end(), b.names.begin(), b.names.end());
+  return a;
+}
+
+/** The selection factories — the WHICH half of `mask(what, with)`. */
+namespace parts {
+/** Every output, children included. The one-argument `mask(by::…)` means
+ *  this, and it is what the docs lead with. */
+Parts all();
+/** Every decoration in every slot and every span pass, BOTH z-halves —
+ *  backgrounds, overlays, foregrounds, background passes, stroke passes. */
+Parts marks();
+/** The fill surface (and its echo re-stamps). */
+Parts surface();
+/** The text / image / custom leaf. */
+Parts content();
+Parts children();
+/** ONE mark, by the local name its slot call gave it. */
+Parts named(std::string_view name);
+} // namespace parts
+
+class Gate;
+
+/** The gate factories — the HOW half of `mask(what, with)`. Named `by::`
+ *  because the call site reads as English: mask by edge, mask by spans,
+ *  mask by shape. */
+namespace by {
+/** ARC LENGTH along the node's boundary — the existing `Spans` value,
+ *  unchanged, promoted from "where a pass goes" to "how much of this
+ *  exists yet". This is the gate `trim()` was.
+ *
+ *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
+ *
+ *  A boundary is a 1-D coordinate, so this gate addresses only the paint
+ *  that TRACES the boundary — the surface and the marks. Selecting
+ *  content or children with it is not a picture and does nothing. */
+Gate spans(Spans where);
+/** A MOVING STRAIGHT EDGE at `angleDeg` across the node's laid-out box,
+ *  showing the fraction lying before it (0 = left-to-right, 90 = top to
+ *  bottom, 180 = right-to-left, 270 = from the bottom). This is the gate
+ *  `wipe()` was, and it is the one that reveals a filled surface by
+ *  EXTENDING it: an arc-length window walks the perimeter instead, and
+ *  scaleX/scaleY squash. */
+Gate edge(float angleDeg, Animatable<float> fraction);
+/** A REGION of the node's local space, kept. `by::shape(Region::own())` is
+ *  what `clip()` does. */
+Gate shape(Region r);
+/** …and its complement: everything OUTSIDE the region — the `clipOut()` a
+ *  study reached for by name, found missing, and worked around with a raw
+ *  SkPathOp below the Compose seam. Two masks intersect, so a set
+ *  difference is `by::shape(a)` and `by::outside(b)` on one node. */
+Gate outside(Region r);
+/** A COVERAGE SOURCE: the selected paint keeps the Material's ALPHA — the
+ *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite),
+ *  and the feature behind the `Material` + `kDstIn` idiom three studies
+ *  and one shipped header prescribe by hand.
+ *
+ *  Costs a `saveLayer` per masked group, so it is the expensive member of
+ *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
+Gate alpha(Material coverage);
+} // namespace by
+
+/** HOW paint arrives past a mask — a comparable value built by the `by::`
+ *  factories. Only the members its Kind reads are meaningful; the rest
+ *  keep their defaults so the value compares. */
+class Gate {
+public:
+  enum class Kind : uint8_t { Spans, Edge, Shape, Alpha };
+  Kind kind = Kind::Spans;
+  Spans where;                       ///< Spans
+  float angleDeg = 0.0f;             ///< Edge
+  Animatable<float> fraction = 1.0f; ///< Edge
+  Region region;                     ///< Shape
+  bool outside = false;              ///< Shape: keep what is OUTSIDE
+  /** Alpha. Held out of line because Material is declared in its own
+   *  header, which includes this one. */
+  std::shared_ptr<const Material> coverage;
+
+  /** Structural equality, defined beside the reconciler's own property
+   *  comparator so an animated fraction compares the way every other
+   *  animated property does (declared here, defined in Reconcile.cpp). */
+  bool operator==(const Gate &other) const;
+  /** How many animatable floats this gate contributes, in the order
+   *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
+   *  offset), one for an Edge fraction, none for Shape or Alpha (a
+   *  Region is static and a Material animates itself). */
+  size_t valueCount() const;
+};
+
+/** One mask: a selection and a gate. */
+struct Mask {
+  Parts what;
+  Gate with;
+  bool operator==(const Mask &other) const {
+    return what == other.what && with == other.with;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // The profile seam — how far a mark sits ACROSS its spine
 
 /** A profile value: `float across(float along) const`, `float max()
  *  const`, and EQUALITY.
  *
  *  `max()` is REQUIRED, and that is the point of the seam: a varying width
- *  whose reach is unknown can only be clipped silently (the Ribbon widthFn
- *  trap, ROADMAP §25). Equality is required for the other half of the same
+ *  whose reach is unknown can only be clipped silently (the trap the
+ *  deleted `Ribbon::widthFn`/`widthMax` pair left open, ROADMAP §25).
+ *  Equality is required for the other half of the same
  *  argument — a profile is read live, and §33's comparable-values law says
  *  anything an author hands the library participates in reconciler
  *  equality or a pruned node reads it stale forever. An incomparable
  *  callable is not a profile; write a struct.
+ *
+ *  A profile that returns a NON-FINITE width deletes the whole band: one
+ *  NaN vertex makes the built path non-finite and Skia draws none of it,
+ *  silently. The seam does not guard it — clamp inside your law. (Found by
+ *  `astral_tome`, whose `sqrt(sin(pi*along))` is NaN at along == 1 because
+ *  the float pi rounds up; see ROADMAP §33's widthFn→Profile note.)
  *
  *  `along` is a fraction of the spine's arc length; `across` is px on its
  *  normal, positive to the LEFT of travel — the one convention; see
@@ -1108,6 +1343,33 @@ concept ProfileScheme = std::equality_comparable<P> &&
       { p.max() } -> std::convertible_to<float>;
     };
 
+/** THE PX KEY — optional, one line, and the whole bridge from the deleted
+ *  `Ribbon::widthFn` to this seam.
+ *
+ *  A scheme that declares `static constexpr bool alongIsPx = true` is
+ *  keyed in PX OF ARC LENGTH from the spine's start, not in fraction of
+ *  it. Consumers that have measured their spine (`profileOffset`, the
+ *  band's rails) hand it `along * lengthPx` through `Profile::acrossAt`;
+ *  nothing else about the seam changes, and a scheme that says nothing is
+ *  fraction-keyed as before.
+ *
+ *  WHY IT EXISTS. A decoration under a reveal (`spans::upTo`, `trim()`)
+ *  is handed the REVEALED contour, so a fraction is a fraction of what
+ *  has been drawn SO FAR and a law keyed to it SLIDES along the mark as
+ *  the reveal grows — identical in a still frame, wrong in motion, which
+ *  is the worst way for a bug to be visible. Absolute distance from the
+ *  start does not move. That is why the four px-keyed ribbons in the
+ *  corpus (thunder_fulu's 起行收 law and its 75-span foot, dunhuang's
+ *  archer bones, minard's flow band) key on distance ON PURPOSE, and the
+ *  conversion cannot live in the author's value: it needs the length of
+ *  the contour ACTUALLY being painted, which only the paint-time consumer
+ *  knows. So the seam converts, and it is one adapter for all of them —
+ *  see ROADMAP §33, the widthFn→Profile note. */
+template <typename P>
+concept PxKeyedProfileScheme = ProfileScheme<P> && requires {
+  { P::alongIsPx } -> std::convertible_to<bool>;
+};
+
 /** Type-erased comparable profile — Decoration's pattern on the width
  *  seam. SHARED vocabulary: a band's taper, a weave strand's path and the
  *  future ribbon width are all one value. */
@@ -1116,6 +1378,8 @@ public:
   template <ProfileScheme P>
   Profile(P scheme) // NOLINT: implicit by design (across(myTaper))
       : m_max((float)scheme.max()) {
+    if constexpr (PxKeyedProfileScheme<P>)
+      m_alongIsPx = P::alongIsPx;
     // The concept requires equality, so every profile keeps a comparator —
     // there is no conservatively-unequal fallback here, unlike Decoration.
     m_held = scheme;
@@ -1126,7 +1390,22 @@ public:
   }
   Profile() = default;
 
+  /** The law at `along`, IN THE PROFILE'S OWN KEY — a fraction of the
+   *  spine normally, px of arc length when `keyedInPx()`. A consumer that
+   *  has measured its spine should call `acrossAt` instead and never think
+   *  about which. */
   float across(float along) const { return m_across ? m_across(along) : 0.0f; }
+  /** The law at `along`, ALWAYS a fraction of the spine, given the spine's
+   *  measured length in px. The one call `profileOffset` and the band's
+   *  rails make: it is the bridge that lets a px-keyed law stay put under
+   *  a reveal (see PxKeyedProfileScheme). */
+  float acrossAt(float along, float lengthPx) const {
+    return across(m_alongIsPx ? along * lengthPx : along);
+  }
+  /** Is this profile's law keyed in px of arc length rather than in
+   *  fraction? Part of the value's TYPE, so it never differs between two
+   *  profiles that compare equal. */
+  bool keyedInPx() const { return m_alongIsPx; }
   /** The widest this profile ever reaches — what bleed and cull are
    *  computed from, so nothing it draws is silently truncated. */
   float max() const { return m_max; }
@@ -1141,6 +1420,7 @@ public:
 
 private:
   float m_max = 0.0f;
+  bool m_alongIsPx = false;
   std::function<float(float)> m_across;
   std::any m_held;
   std::function<bool(const std::any &, const std::any &)> m_equals;
@@ -1578,14 +1858,6 @@ enum class Justify : uint8_t {
   Start, Center, End, SpaceBetween, SpaceAround, SpaceEvenly
 };
 
-/** How trim() treats fractions outside [0,1]. Clamp (the default) pins
- *  them — a reveal saturates at the ends. Wrap treats the outline as a
- *  CYCLE: fractions wrap mod 1, and a window that crosses the seam draws
- *  both pieces — the marching-ants / orbiting-comet idiom. Pair with an
- *  animated `offset` to march a fixed-length window around a closed
- *  outline forever. */
-enum class TrimMode : uint8_t { Clamp, Wrap };
-
 /** One misprint pass: the node's own fill shape and text re-stamped at
  *  `offset` in a flat color, UNDER the real content. Repeated echoes
  *  stack in declaration order (bottom first). The registration-error
@@ -1764,40 +2036,6 @@ public:
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
-  /** CONDEMNED, and still here — the one legacy R3 did not delete.
-   *
-   *  New code writes `.stroke(spans::upTo(t), brush)`, which reveals a
-   *  named PASS instead of the whole node and works for every brush kind;
-   *  R2 ported 58 of 75 corpus trims to it. The 17 that remain are not a
-   *  porting backlog: 2 of them reveal a PAINTING FILL (a filled meridian
-   *  bar, a translucent wash under a stroke), which the span vocabulary
-   *  has no spelling for, and the rest are elements built across several
-   *  statements or wearing more than one outline follower. The
-   *  replacement interface for those is a separate designed piece of work
-   *  and this method dies with it, not before (ROADMAP §33, R3 note).
-   *  Do not add call sites.
-   *  Trim the node's painted outline to the [start, end] fraction of its
-   *  arc length (the Lottie/sksg Trim Path — SkTrimPathEffect underneath).
-   *  Applies to the fill surface and every outline-following decoration
-   *  (PathFormat strokes, ContourWalk), so a stroked border with
-   *  `.trim(0, animate(from(0.f).to(1.f), {600ms}))` DRAWS ON, and a
-   *  connector's wire can reveal along its route. Both ends take the full
-   *  Animatable treatment — plain, animate() transitions, or ch::Output
-   *  bindings (bound/animating trim is content volatility: the node paints
-   *  live while moving). `offset`
-   *  shifts both ends and takes the full Animatable treatment too — under
-   *  TrimMode::Wrap, bind it to a wrapping phase Output and a fixed
-   *  window marches around a closed outline forever (marching ants, the
-   *  orbiting comet); under Clamp (default) fractions pin to [0,1].
-   *  The wrap SEAM (fraction 0) is the outline's own start point — SkPath
-   *  convention (a corner box starts at its top-left; addCircle at
-   *  3 o'clock, clockwise); seam-crossing windows stitch into ONE contour
-   *  so caps and additive brushes never double-hit there. Clipping and
-   *  hit-testing keep the UNtrimmed shape — trim is a paint-phase reveal,
-   *  not a layout change. */
-  Element &trim(Animatable<float> start, Animatable<float> end,
-                Animatable<float> offset = 0.0f,
-                TrimMode mode = TrimMode::Clamp);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
    *  coordinates. Overrides corners() — the fill surface, clip(), every
    *  stroke pass and every outline-following decoration (PathFormat,
@@ -1823,8 +2061,59 @@ public:
   Element &inward();
   /** Clip fill, content, and children to the node's shape. Decorations
    *  are NOT clipped — they dress the outline (outer strokes, shadows,
-   *  glows keep their reach); hit-testing still bounds the subtree. */
+   *  glows keep their reach); hit-testing still bounds the subtree.
+   *
+   *  SUGAR, and stated as law so the two doors are one machine:
+   *
+   *      .clip()  ==  .mask(parts::surface() | parts::content() |
+   *                         parts::children(), by::shape(Region::own()))
+   *
+   *  Kept as its own word because 33 corpus sites spell it and because it
+   *  is the cheap path — a rounded box clips with `clipRRect`, where the
+   *  general shape gate has to build and clip a path. */
   Element &clip(bool on = true);
+
+  // ---- mask (the appearance-gating family) ----
+  /** THE FAMILY VERB, taught form: gate everything this node paints.
+   *
+   *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
+   *      .mask(by::edge(90.f, bind(&sweep)))
+   *      .mask(by::shape(Region::path(seal)))
+   *      .mask(by::alpha(Material::linear({0,0}, {0,h}, fadeStops)))
+   *
+   *  Sugar for `mask(parts::all(), with)`, and what 24 of the 25 sites
+   *  that used to spell `trim()` or `wipe()` write. A gate addresses the
+   *  paint it can address: an arc-length window means something to the
+   *  surface and the marks and nothing to the children, so `parts::all()`
+   *  with `by::spans()` is exactly the reveal `trim()` drew, and
+   *  `parts::all()` with `by::edge()` is exactly the reveal `wipe()` drew.
+   *
+   *  Paint-only and bindable, like the transforms: animating a mask never
+   *  relayouts, and hit-testing keeps the UNMASKED shape — a mask is a
+   *  paint-phase reveal, not a layout change. */
+  Element &mask(Gate with);
+  /** …and the granular form: gate SOME of what this node paints.
+   *
+   *      panel.overlay(hazardStripes, "hazard")
+   *           .foreground(bevelKeyline)
+   *           .mask(parts::named("hazard"), by::edge(0.f, &armTime));
+   *
+   *  Repeated calls APPEND (the decoration law), and masks whose
+   *  selections OVERLAP INTERSECT on the overlap — both gates must pass.
+   *  Each mask carries its own animation slots, so masks at three
+   *  different rates on one node is a picture, not a race: the
+   *  intersection is recomputed exactly, per frame.
+   *
+   *  Union is spelled INSIDE a gate value (`Spans::operator|`), never
+   *  across masks — two masks are two conditions, and stacking them can
+   *  only ever show less.
+   *
+   *  The one thing this cannot express that `stroke(where, what)` can: a
+   *  span pass CLAIMS its run and joins the no-overlap ledger, and a mask
+   *  does not. That ledger is deliberately read against the UNMASKED
+   *  boundary, so an overlap is a description-level mistake and never a
+   *  mistake that blinks in and out between 0.3 and 0.7 of a transition. */
+  Element &mask(Parts what, Gate with);
 
   // ---- paint ----
   /** A colour, a shader, a transition between colours, or a LIVE binding.
@@ -1869,23 +2158,6 @@ public:
   // Decorations dress the OUTLINE: clip() does not clip them (it bounds
   // fill/content/children only), so outer strokes and shadows survive on
   // clipped nodes.
-  /** A directional REVEAL: shows the fraction of the node lying before a
-   *  moving edge travelling at @p angleDeg (0 = left-to-right, 90 = top
-   *  to bottom, and any angle between).
-   *
-   *  `trim()` walks the PERIMETER, so on a filled shape 0→1 sweeps a
-   *  wedge round the outline instead of extending the surface, and
-   *  `scaleX`/`scaleY` SQUASH rather than reveal — a striped or textured
-   *  fill visibly compresses. Three studies met this and the last one's
-   *  workaround was the worst in the program: it left the retained tree
-   *  entirely, snapshotting each node at setup and replaying it under a
-   *  hand-written clipRect in a `custom(Cache::None)` leaf, forfeiting
-   *  decorations, hit-testing and pruning on twelve nodes at once.
-   *
-   *  Paint-only and bindable, like the transforms — animating a wipe
-   *  never relayouts, and it covers the node's decorations too, because a
-   *  reveal reveals. */
-  Element &wipe(float angleDeg, Animatable<float> fraction);
   /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
    *
    *  `hitTest` returns any keyed node whose box contains the point,
@@ -1908,13 +2180,18 @@ public:
    *  greys out its own label. This slot is what hazard stripes over a
    *  surface but under the digit, scanlines over a panel but under its
    *  readout, and 100% of bevelled chrome actually want. The workaround
-   *  was a sibling stack, which costs a node and loses the outline. */
-  Element &overlay(Decoration d);
+   *  was a sibling stack, which costs a node and loses the outline.
+   *
+   *  `name` is optional and LOCAL: it labels this mark so
+   *  `mask(parts::named(name), by::…)` can address it and nothing else.
+   *  Same names, same law as `stroke(Spans, what, name)` — inspection and
+   *  intra-element reference, never a query key. */
+  Element &overlay(Decoration d, std::string name = {});
   /** A decoration painted BENEATH the fill (the CSS box-shadow
    *  ordering) — shadows, ground textures, anything the surface sits on
    *  top of. If you want it over the surface but under the children, that
-   *  is `overlay()` above. */
-  Element &background(Decoration d);
+   *  is `overlay()` above. `name` labels the mark for `parts::named()`. */
+  Element &background(Decoration d, std::string name = {});
   /** THE BACKGROUND SLOT, span-qualified — `.stroke(where, what)`'s twin
    *  in the other z-half.
    *
@@ -1936,7 +2213,9 @@ public:
    *  ever paint above the children — the one capability the parity table
    *  could not close by spelling (ROADMAP §33). */
   Element &background(Spans where, Decoration what, std::string name = {});
-  Element &foreground(Decoration d);
+  /** A decoration painted OVER the children. `name` labels the mark for
+   *  `parts::named()`. */
+  Element &foreground(Decoration d, std::string name = {});
   /** fill's peer (the Photoshop/Illustrator mental model): dress the
    *  node's whole BOUNDARY with a brush — a PathFormat, a layered brush
    *  stack, any decoration that strokes.
@@ -1944,8 +2223,9 @@ public:
    *  This form does not CLAIM: it overlays the whole boundary, so
    *  repeated calls stack the way the decoration law says (two strokes
    *  are two rings) and never collide. Naming a `where` (below) is what
-   *  turns a pass into a claim on part of the boundary. */
-  Element &stroke(Decoration brush);
+   *  turns a pass into a claim on part of the boundary; naming a `name`
+   *  (here) is what lets a mask address this mark alone. */
+  Element &stroke(Decoration brush, std::string name = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
    *
    *      .stroke(spans::corners(18), stroke(2, ink))          // reticle
@@ -1972,9 +2252,22 @@ public:
    *  corners are two calls and no arithmetic), and `spans::rest("name")`
    *  is the complement of ONE named pass and may overlay the others.
    *
-   *  `name` is LOCAL to this element — for inspection and for the
-   *  `rest("name")` reference. It is never a query key: a second identity
-   *  system is exactly what the query side refuses (DESIGN §Queries). */
+   *  `name` is LOCAL to this element — for inspection, for the
+   *  `rest("name")` reference, and for `mask(parts::named(name), …)`. It is
+   *  never a query key: a second identity system is exactly what the query
+   *  side refuses (DESIGN §Queries).
+   *
+   *  THE SUGAR LAW, stated so the two doors are one machine:
+   *
+   *      .stroke(where, what, name)
+   *          ==  .stroke(what, name).mask(parts::named(name),
+   *                                       by::spans(where))
+   *
+   *  identical pixels, and the same value under the same intersection law
+   *  — a further `mask(parts::marks(), by::spans(upTo(t)))` cuts this pass
+   *  to `where ∩ upTo(t)`, which is how reticle brackets light up as a
+   *  sweep reaches them. The ONE thing the pass form does that the sugar
+   *  does not: it CLAIMS its run and joins the no-overlap ledger. */
   Element &stroke(Spans where, Decoration what, std::string name = {});
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
@@ -2192,6 +2485,12 @@ private:
   Element &addSpanPass(Spans where, Decoration what, std::string name,
                        int half);
 
+  /** Bind the optional LOCAL label an unqualified mark slot took to the
+   *  mark it just appended, for `parts::named()`. `slot` is a
+   *  detail::MarkSlot as an int, for the same reason addSpanPass takes
+   *  its half that way. */
+  void labelMark(int slot, size_t index, std::string name);
+
   /** Copy-on-write handle: Element stays a cheap value, but fluent mutation
    *  can never alter another copy or a description retained by Composer. */
   struct NodeHandle {
@@ -2303,7 +2602,8 @@ using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
  *  resolved in the derive phase and re-routed whenever an anchored node
  *  moves. The routed path becomes PaintContext::outline, so PathFormat
  *  strokes, ContourWalk stamps, and trim() all dress it — a rail with
- *  `.trim(0, with(1.0f, {800ms}))` DRAWS ITSELF. Position it
+ *  `.mask(by::spans(spans::upTo(with(1.0f, {800ms}))))` DRAWS ITSELF.
+ *  Position it
  *  absolute().inset(0) over the nodes it threads (like connector()). */
 Element rail(std::vector<Anchor> anchors, RailRouter router = {});
 

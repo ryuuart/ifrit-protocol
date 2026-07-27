@@ -739,8 +739,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       // equator — 12 x 24 ms is the full ring in ~290 ms.
                       // Settled at (0,1) the trim is a no-op (Paint.cpp:678
                       // skips the effect when s == 0 and e == 1).
-                      .trim(0.0f, animate(from(0.0f).to(1.0f), {.duration = 320ms,
-                                            .ease = &ch::easeOutQuad}));
+                      .mask(by::spans(spans::upTo(animate(
+                          from(0.0f).to(1.0f),
+                          {.duration = 320ms, .ease = &ch::easeOutQuad}))));
       if (!wire.allFar) {
         PathFormat nearRule;
         nearRule.width = wire.nearWeight * (ring ? 0.82f : 1.0f);
@@ -1700,7 +1701,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .centerAt(impact)
                 .key("chainring")
                 .shape(shapes::arc(-90.0f, 359.9f))
-                .trim(0.0f, bind(&chainSweep).clamp(0.0f, 1.0f))
+                .mask(by::spans(spans::upTo(bind(&chainSweep).clamp(0.0f, 1.0f))))
                 // A Brush with a per-LAYER shapers::Offset: the bright body on the
                 // route, a counter-dashed strand 6 px outside it. Two layers,
                 // one route, one value.

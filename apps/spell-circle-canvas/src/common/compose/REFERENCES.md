@@ -254,7 +254,7 @@ double 1:2:4:8:16 with u = 0.0140W, hairline gap 0.0033W):**
 
 Every end angle is an exact multiple of 11.25° (measured deviation <0.3°).
 Ink on paper `#F5F3EE`-ish. Skia mapping: drawArc(start=−a_end, sweep=
-a_end−a_start) — or stroked-circle outlines + trim().
+a_end−a_start) — or stroked-circle outlines + a span gate.
 
 **The modular-grid method (Grid Systems):** baseline pitch L from
 body/leading (10/12pt → L=12); type area in whole lines; field depth = n
