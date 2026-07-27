@@ -801,7 +801,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
         cardA[i] = op;
         growth[i] = g;
         // shadow state the sketch keeps in sync BY HAND — there is no
-        // "this Output, minus 0.008" PropValue form (see the gaps note).
+        // "this Output, minus 0.008" Animatable form (see the gaps note).
         penTip[i] = std::max(0.0f, g - 0.008f);
         penA[i] = op * std::clamp((1.0f - g) / 0.06f, 0.0f, 1.0f) *
                   std::clamp(g / 0.02f, 0.0f, 1.0f);

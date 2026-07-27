@@ -846,7 +846,7 @@ TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
   // uniform() on a material with no named uniforms (a solid) has nothing to
   // hook against: it is ignored, the material stays static and non-live.
   Material m = Material::solid({0, 1, 0, 1}).uniform("uK", 0.5f);
-  EXPECT_FALSE(m.isLive());
+  EXPECT_FALSE(m.isAnimated());
   EXPECT_TRUE(m.isSolid());
 }
 
@@ -869,9 +869,9 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   a.uniform("uK", &low);
   Material b = base;
   b.uniform("uK", &high);
-  EXPECT_FALSE(base.isLive()); // base untouched
-  EXPECT_TRUE(a.isLive());
-  EXPECT_TRUE(b.isLive());
+  EXPECT_FALSE(base.isAnimated()); // base untouched
+  EXPECT_TRUE(a.isAnimated());
+  EXPECT_TRUE(b.isAnimated());
 
   Host host;
   host.composer.render(
@@ -911,7 +911,7 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
       {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
   });
-  EXPECT_TRUE(m.isLive()); // inherited from the bound layer
+  EXPECT_TRUE(m.isAnimated()); // inherited from the bound layer
   Host host;
   host.composer.render(box().child(
       box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
@@ -934,7 +934,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
                "half4 main(float2 p) { return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
   Material m = Material::sksl(effect);
-  EXPECT_TRUE(m.isLive());
+  EXPECT_TRUE(m.isAnimated());
 
   sigil::motion::FrameClock clock;
   Host host;
@@ -1324,7 +1324,7 @@ TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
       SkString("uniform float uContentScale;"
                "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  EXPECT_TRUE(Material::sksl(effect).isLive());
+  EXPECT_TRUE(Material::sksl(effect).isAnimated());
 }
 
 TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
@@ -1337,7 +1337,7 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
        SkBlendMode::kPlus},
   });
   EXPECT_TRUE(m.geometryDependent()); // inherited from the SDF layer
-  EXPECT_FALSE(m.isLive());           // still cacheable
+  EXPECT_FALSE(m.isAnimated());           // still cacheable
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).inset(0, 0, 100, 100).absolute().fill(m)));
@@ -1696,7 +1696,7 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   Material m = Material::sksl(ukEffect(), {{"uTypo", 1.0f}});
   choreograph::Output<float> o{1.0f};
   m.uniform("uAlsoMissing", &o); // dropped → still not live
-  EXPECT_FALSE(m.isLive());
+  EXPECT_FALSE(m.isAnimated());
   Host host;
   host.composer.render(box().child(
       box().width(40).height(40).inset(0, 0, 160, 160).absolute().fill(m)));
@@ -2474,7 +2474,7 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
 }
 
 TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
-  // The master progress takes the full PropValue treatment: a with()
+  // The master progress takes the full Animatable treatment: a with()
   // transition animates the reveal and the node paints live while moving.
   Host host;
   auto tree = [](Animatable<float> progress) {
@@ -2724,7 +2724,7 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
 }
 
 // ---------------------------------------------------------------------------
-// Round-2 friction batch: withFrom entrances, trim wrap, per-side insets,
+// Round-2 friction batch: mount entrances, trim wrap, per-side insets,
 // overflow-safe recording, stroke align, measure(), presets, marquee.
 
 TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
@@ -2737,7 +2737,7 @@ TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
   host.frame(0.3);                              // ramp done
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 
-  // Re-describing the same withFrom() prunes clean — the entrance is a
+  // Re-describing the same entrance prunes clean — the entrance is a
   // mount thing, not a per-render restart.
   host.composer.render(
       box().child(box().width(80).height(80).fill(red()).opacity(
@@ -2759,38 +2759,42 @@ TEST(ComposeMotion, WithFromColorSweepsOnMount) {
 }
 
 // ---------------------------------------------------------------------------
-// The §32 authoring grammar: animate(from(a).to(b)) / animate(through({…}))
-// are the intent spelling of the withFrom/withKeyframes pair. The tests
-// above keep the legacy spellings honest; these prove the new one builds
-// the identical value — the engine never learns which was written.
+// The §32 authoring grammar: animate(from(a).to(b)) / animate(through({…})).
+// R3 deleted the with/withFrom/withKeyframes trio those used to forward
+// to, so what is pinned now is the VALUE each argument shape builds —
+// which is the only thing the engine ever saw.
 
-TEST(ComposeMotion, AnimateBuildsTheSameTransitionedAsTheLegacyBuilders) {
+TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
   const Transition spec{200ms, &choreograph::easeNone, 40ms};
-  const Transitioned<float> legacy = withFrom(0.0f, 1.0f, spec);
-  const Transitioned<float> phrased = animate(from(0.0f).to(1.0f), spec);
-  EXPECT_EQ(phrased.value, legacy.value);
-  ASSERT_TRUE(phrased.from.has_value());
-  EXPECT_EQ(*phrased.from, *legacy.from);
-  EXPECT_EQ(phrased.spec.duration, legacy.spec.duration);
-  EXPECT_EQ(phrased.spec.delay, legacy.spec.delay);
-  EXPECT_FLOAT_EQ(phrased.spec.easing()(0.25f), legacy.spec.easing()(0.25f));
-  EXPECT_TRUE(phrased.waypoints.empty());
+
+  const Transitioned<float> ramp = animate(to(1.0f), spec);
+  EXPECT_EQ(ramp.value, 1.0f);
+  EXPECT_FALSE(ramp.from.has_value()) << "to() alone is not an entrance";
+  EXPECT_TRUE(ramp.waypoints.empty());
+  EXPECT_EQ(ramp.spec.duration, 200ms);
+  EXPECT_EQ(ramp.spec.delay, 40ms);
+
+  const Transitioned<float> entrance = animate(from(0.0f).to(1.0f), spec);
+  EXPECT_EQ(entrance.value, 1.0f);
+  ASSERT_TRUE(entrance.from.has_value());
+  EXPECT_EQ(*entrance.from, 0.0f);
+  EXPECT_TRUE(entrance.waypoints.empty());
+  EXPECT_EQ(entrance.spec.duration, 200ms);
+  EXPECT_EQ(entrance.spec.delay, 40ms);
+  EXPECT_FLOAT_EQ(entrance.spec.easing()(0.25f), 0.25f);
 
   const std::vector<std::pair<std::chrono::milliseconds, float>> path{
       {0ms, 40.0f}, {200ms, -20.0f}, {400ms, 0.0f}};
-  const Transitioned<float> legacyPath =
-      withKeyframes<float>(path, &choreograph::easeNone);
   const Transitioned<float> phrasedPath =
       animate(through(path), &choreograph::easeNone);
-  EXPECT_EQ(phrasedPath.value, legacyPath.value);
+  EXPECT_EQ(phrasedPath.value, 0.0f);
   ASSERT_TRUE(phrasedPath.from.has_value());
-  EXPECT_EQ(*phrasedPath.from, *legacyPath.from);
-  EXPECT_EQ(phrasedPath.waypoints, legacyPath.waypoints);
-  EXPECT_EQ(phrasedPath.spec.duration, legacyPath.spec.duration);
-  // The ease is the one field animate() forwards that withKeyframes
-  // writes itself — dropping it would default to easeOutQuad silently.
-  EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f),
-                  legacyPath.spec.easing()(0.25f));
+  EXPECT_EQ(*phrasedPath.from, 40.0f);
+  EXPECT_EQ(phrasedPath.waypoints, path);
+  EXPECT_EQ(phrasedPath.spec.duration, 400ms);
+  // The ease is the one field the waypoint overload writes itself —
+  // dropping it would default to easeOutQuad silently.
+  EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f), 0.25f);
 }
 
 // A GUARD, not a reproduction: against the old code `value` was
@@ -2825,7 +2829,7 @@ TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
 
 TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
   // A nested braced list is a non-deduced context, which is why
-  // withKeyframes had to be told `<float>`. Compiling with no explicit
+  // The generic form has to be told `<float>`. Compiling with no explicit
   // template argument IS the test.
   const Transitioned<float> t =
       animate(through({{0ms, 0.0f}, {100ms, 1.0f}}));
@@ -3613,9 +3617,9 @@ TEST(ComposeLines, RailsCarryPerRailWidthFillAndDash) {
   // colours is inexpressible with Line, whatever the count.
   Host host;
   host.composer.render(straightRun(lines::rails({
-      {.offset = -10, .width = 6, .fill = green()},
-      {.offset = 0, .width = 2, .fill = red(), .dash = {6, 6}},
-      {.offset = 10, .width = 6, .fill = green()},
+      {.across = 10, .width = 6, .fill = green()},
+      {.across = 0, .width = 2, .fill = red(), .dash = {6, 6}},
+      {.across = -10, .width = 6, .fill = green()},
   })));
   host.frame();
   // Two heavy GREEN rails ten px either side of the route (y = 100)…
@@ -3704,8 +3708,8 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   // measured in one arc parameterisation and stay in register.
   Host host(300, 300);
   lines::Rails registered = lines::rails({
-      {.offset = -8, .width = 3, .fill = green(), .dash = {8, 8}},
-      {.offset = 8, .width = 3, .fill = green(), .dash = {8, 8}},
+      {.across = 8, .width = 3, .fill = green(), .dash = {8, 8}},
+      {.across = -8, .width = 3, .fill = green(), .dash = {8, 8}},
   });
   host.composer.render(circleRun(registered, 100));
   host.frame();
@@ -3722,14 +3726,14 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   EXPECT_GT(good.outerOn, 100) << "outer rail painted nothing";
   EXPECT_LT(good.outerOn, good.samples - 100) << "outer rail is SOLID";
 
-  // The workaround the corpus had to use: a Brush whose legs each carry an
-  // ops::Offset suffix. Correct geometry, sheared phase.
+  // The workaround the corpus had to use: a Brush whose layers each carry
+  // a shapers::Offset suffix. Correct geometry, sheared phase.
   Host naive(300, 300);
   lines::Line dashed{.width = 3, .fill = green(), .dashIntervals = {8, 8}};
-  Brush perLeg;
-  perLeg.leg(dashed, {ops::Offset{.px = -8, .step = 2}})
-      .leg(dashed, {ops::Offset{.px = 8, .step = 2}});
-  naive.composer.render(circleRun(perLeg, 100));
+  Brush perLayer;
+  perLayer.layer(dashed, {kit::brush::shapers::Offset{.px = 8, .step = 2}})
+      .layer(dashed, {kit::brush::shapers::Offset{.px = -8, .step = 2}});
+  naive.composer.render(circleRun(perLayer, 100));
   naive.frame();
   const RailScan sheared = scanRails(naive, 150, 150, 92, 108);
   EXPECT_GT(sheared.innerOn, 100); // the comparison must be dashed too, or
@@ -3773,8 +3777,8 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
     }
     return out;
   };
-  const auto inner = spans(lines::offsetAlong(dashed, -8.0f, 2.0f));
-  const auto outer = spans(lines::offsetAlong(dashed, 8.0f, 2.0f));
+  const auto inner = spans(lines::offsetAcross(dashed, 8.0f, 2.0f));
+  const auto outer = spans(lines::offsetAcross(dashed, -8.0f, 2.0f));
   ASSERT_GE(inner.size(), 30u) << "the centreline never dashed";
   ASSERT_EQ(inner.size(), outer.size())
       << "rails carry different dash COUNTS — they were dashed per-rail";
@@ -3818,8 +3822,8 @@ TEST(ComposeLines, RailsDashPhaseSlidesOneRailAgainstItsNeighbours) {
   // inner rail's marks fall in the outer rail's gaps.
   Host host;
   host.composer.render(straightRun(lines::rails({
-      {.offset = -6, .width = 3, .fill = green(), .dash = {8, 8}},
-      {.offset = 6,
+      {.across = 6, .width = 3, .fill = green(), .dash = {8, 8}},
+      {.across = -6,
        .width = 3,
        .fill = green(),
        .dash = {8, 8},
@@ -4887,7 +4891,7 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
   Host host;
   host.composer.render(straightRun(brush::restyle(
-      ops::Wave{8, 24}, util::stroke(2, green()), 12)));
+      kit::brush::shapers::Wave{8, 24}, util::stroke(2, green()), 12)));
   host.frame();
   int offAxis = 0;
   for (int x = 30; x < 170; x += 2)
@@ -4902,7 +4906,8 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
 TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
   Host host, plain;
   host.composer.render(straightRun(
-      brush::restyle(ops::Sketchy{8, 3.0f, 11}, util::stroke(2, green()))));
+      brush::restyle(kit::brush::shapers::Jitter{8, 3.0f, 11},
+                     util::stroke(2, green()))));
   plain.composer.render(straightRun(util::stroke(2, green())));
   host.frame();
   plain.frame();
@@ -6133,14 +6138,14 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
 }
 
 // ---------------------------------------------------------------------------
-// The unified Brush engine: geometry pipeline → paint legs, as ONE value.
+// The unified Brush engine: geometry pipeline → paint layers, as ONE value.
 
-TEST(ComposeBrushEngine, PipelineStylesEveryLeg) {
+TEST(ComposeBrushEngine, PipelineStylesEveryLayer) {
   Host host;
   Brush b;
   b.shaped(kit::brush::shapers::Wave{.amplitude = 8, .wavelength = 24})
-      .leg(util::stroke(2, green()))
-      .leg([] {
+      .layer(util::stroke(2, green()))
+      .layer([] {
         brush::Scatter s;
         s.art = box().width(6).height(6).fill(red());
         s.spacing = 40;
@@ -6152,8 +6157,8 @@ TEST(ComposeBrushEngine, PipelineStylesEveryLeg) {
   for (int x = 30; x < 170; x += 2)
     for (int dy : {-7, 7})
       off += host.pixel(x, 100 + dy) == SK_ColorGREEN;
-  EXPECT_GT(off, 10); // the stroke leg rides the waved pipeline
-  int reds = 0;       // and the scatter leg rides the SAME waved geometry
+  EXPECT_GT(off, 10); // the stroke layer rides the waved pipeline
+  int reds = 0;       // and the scatter layer rides the SAME waved geometry
   for (int x = 24; x < 176; ++x)
     for (int y = 84; y < 116; ++y)
       reds += host.pixel(x, y) == SK_ColorRED;
@@ -6166,7 +6171,7 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
     Brush b;
     b.shaped(kit::brush::shapers::Rounded{6})
         .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
-        .leg(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
+        .layer(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
     return box().child(box()
                            .absolute()
                            .inset(40, 40, 40, 40)
@@ -6186,7 +6191,7 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(300, 0);
-  const SkPath jittered = ops::Sketchy{8, 2, 11}.apply(b.detach());
+  const SkPath jittered = kit::brush::shapers::Jitter{8, 2, 11}.shape(b.detach());
   SkContourMeasureIter iter(jittered, false);
   float total = 0;
   bool anyClosed = false;
@@ -6198,13 +6203,13 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   EXPECT_LT(total, 400.0f); // a closed loop would be ~2× the 300px run
 }
 
-TEST(ComposeBrushEngine, PerLegOpsRideTheSharedPipeline) {
-  // One Brush, two legs offset to opposite sides — the asymmetric casing
-  // as a single material value.
+TEST(ComposeBrushEngine, PerLayerShapersRideTheSharedPipeline) {
+  // One Brush, two layers offset to opposite sides — the asymmetric casing
+  // as a single material value. Positive `px` is LEFT of travel.
   Host host;
   Brush b;
-  b.leg(util::stroke(3, green()), {ops::Offset{-12}})
-      .leg(util::stroke(3, blue()), {ops::Offset{12}});
+  b.layer(util::stroke(3, green()), {kit::brush::shapers::Offset{12}})
+      .layer(util::stroke(3, blue()), {kit::brush::shapers::Offset{-12}});
   host.composer.render(straightRun(std::move(b)));
   host.frame();
   EXPECT_EQ(host.pixel(100, 88), SK_ColorGREEN);  // left-of-travel rail
@@ -6216,7 +6221,7 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(320, 0);
-  const SkPath boxy = ops::Square{8, 80}.apply(b.detach());
+  const SkPath boxy = kit::brush::shapers::Square{8, 80}.shape(b.detach());
   // Plateaus hold ±8 for half-wavelength runs; endpoints return to 0.
   const SkRect bounds = boxy.getBounds();
   EXPECT_NEAR(bounds.top(), -8, 0.5f);
@@ -6358,7 +6363,7 @@ TEST(ComposeLines, OffsetAlongClampsNonPositiveStep) {
   const SkPath route = builder.detach();
 
   for (float step : {0.0f, -4.0f}) {
-    const SkPath shifted = lines::offsetAlong(route, 10.0f, step);
+    const SkPath shifted = lines::offsetAcross(route, -10.0f, step);
     ASSERT_FALSE(shifted.isEmpty()) << "step=" << step;
     EXPECT_NEAR(shifted.getBounds().top(), 60.0f, 0.01f);
     EXPECT_NEAR(shifted.getBounds().bottom(), 60.0f, 0.01f);
@@ -6530,8 +6535,8 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
 
   auto symmetric = lines::rails(3, 1.6f, ink, 5.0f);
   auto explicitSet =
-      lines::rails({{.offset = -3, .width = 1.6f, .fill = ink},
-                    {.offset = 0,
+      lines::rails({{.across = 3, .width = 1.6f, .fill = ink},
+                    {.across = 0,
                      .width = 0.6f,
                      .fill = ink,
                      .dash = {0.01f, 9.4f},
@@ -6546,26 +6551,26 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto trace = kit::brush::presets::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
   auto cord = kit::brush::presets::rope(1, 1.0f);
   // OP FIRST, decoration second — the order API.md originally got wrong.
-  auto restyled = brush::restyle(ops::Sketchy{8.0f, 2.0f, 7},
-                                   util::stroke(1.0f, ink), 8.0f);
+  auto restyled = brush::restyle(kit::brush::shapers::Jitter{8.0f, 2.0f, 7},
+                                 util::stroke(1.0f, ink), 8.0f);
 
   lines::Hatch hatch;
   choreograph::Output<float> pitch{6.0f}, angle{0.0f};
   hatch.spacingBinding = &pitch;
   hatch.angleBinding = &angle;
-  EXPECT_TRUE(hatch.animated()); // a binding IS the volatility declaration
+  EXPECT_TRUE(hatch.isAnimated()); // a binding IS the volatility declaration
 
-  ops::Wave wave{.amplitude = 3.5f, .wavelength = 22};
-  ops::Rounded rounded{};
-  ops::Sketchy sketchy{};
-  ops::Square square{};
-  ops::Offset offset{};
+  kit::brush::shapers::Wave wave{.amplitude = 3.5f, .wavelength = 22};
+  kit::brush::shapers::Rounded rounded{};
+  kit::brush::shapers::Jitter jitter{};
+  kit::brush::shapers::Square square{};
+  kit::brush::shapers::Offset offset{};
 
   (void)brackets; (void)gapped; (void)weighted; (void)doubled;
   (void)symmetric; (void)explicitSet;
   (void)ngon; (void)chamfer; (void)notch; (void)edges;
   (void)glow; (void)trace; (void)cord; (void)restyled;
-  (void)wave; (void)rounded; (void)sketchy; (void)square; (void)offset;
+  (void)wave; (void)rounded; (void)jitter; (void)square; (void)offset;
 }
 
 TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
@@ -6683,7 +6688,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   PathFormat marching{.width = 1.0f, .strokeFill = ink,
                       .dashIntervals = {6.0f, 4.0f}};
   marching.dashPhaseBinding = &phase;
-  EXPECT_TRUE(Decoration(marching).animated())
+  EXPECT_TRUE(Decoration(marching).isAnimated())
       << "a bound dash phase IS the volatility declaration";
 
   // ---- ContourWalk and PathSample --------------------------------------
@@ -6779,13 +6784,13 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // The liveness contract the cost model rests on: a material is "live"
   // only when something actually drives it, and `quantizeTime` is what
   // makes a live one cacheable between its ticks.
-  EXPECT_FALSE(flat.isLive());
-  EXPECT_FALSE(lin.isLive());
+  EXPECT_FALSE(flat.isAnimated());
+  EXPECT_FALSE(lin.isAnimated());
   Material timed = Material::sksl(heavyEffect(true));
-  EXPECT_TRUE(timed.isLive()) << "liveness is read off the DECLARATION of "
+  EXPECT_TRUE(timed.isAnimated()) << "liveness is read off the DECLARATION of "
                                  "uTime, not off whether anything drives it";
   timed.quantizeTime(10.0f);
-  EXPECT_TRUE(timed.isLive());
+  EXPECT_TRUE(timed.isAnimated());
 
   // A material is a value: it converts to a Fill, and it compares by
   // RECIPE — which is what lets a per-frame describe prune. That
@@ -7175,7 +7180,7 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/LayerStyles.h>
 
-TEST(ComposeBrushTail, ArtBrushWarpsArtAlongTheOutline) {
+TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
   Host host;
   // A straight horizontal outline through the node's middle: the warped
   // ribbon must be a horizontal band of the art's height around it.
@@ -8098,7 +8103,7 @@ TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
 }
 
 TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
-  // trimPhase took a bound Output and declared animated(); dashPhase was
+  // trimPhase took a bound Output and declared isAnimated(); dashPhase was
   // a plain float, so marching ants — the commonest animated-line idiom
   // in map and diagram UI — could only be had by re-describing every
   // frame, which defeats the pruning the library is built on. A study
@@ -9726,23 +9731,17 @@ SkPath unitBox() {
 
 } // namespace
 
-TEST(ComposeShapeRename, ShapeAndOutlineDescribeTheSameNode) {
-  // Alias-first (§27): the old spelling keeps compiling AND keeps working.
-  auto draw = [](bool useLegacySpelling) {
-    Host host(200, 200);
-    Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
-    if (useLegacySpelling)
-      e.outline(shapes::circle());
-    else
-      e.shape(shapes::circle());
-    host.composer.render(stack().child(std::move(e)));
-    host.frame();
-    std::vector<SkColor> out;
-    for (int x = 10; x < 130; x += 5)
-      out.push_back(host.pixel(x, 70));
-    return out;
-  };
-  EXPECT_EQ(draw(false), draw(true));
+TEST(ComposeShapeRename, ShapeOverridesTheBoxAndOutlineIsGone) {
+  // `outline()` was deleted in R3; `shape()` is the one spelling, and what
+  // it does is override the node's rect with a generated path.
+  Host host(200, 200);
+  Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
+  e.shape(shapes::circle());
+  host.composer.render(stack().child(std::move(e)));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 70), SK_ColorRED) << "inside the circle";
+  EXPECT_EQ(host.pixel(24, 24), SK_ColorBLACK)
+      << "the rect's corner is outside the shape";
 }
 
 TEST(ComposeSpans, CornersAndEdgesPartitionTheBoundary) {
@@ -10028,9 +10027,8 @@ TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
   EXPECT_EQ(bandPointAt(spine, 1.0f, 0), SkPoint::Make(100, 50));
   // across is px on the normal, positive to the LEFT of travel: y is
   // down, so travelling +x, positive across goes UP the screen. That is
-  // the NEGATION of lines::offsetAlong's right-of-travel convention —
-  // asserted here precisely so the two signs cannot drift apart
-  // unnoticed while stage two reconciles them.
+  // the same side lines::offsetAcross means — one convention since R3 —
+  // asserted here precisely so the two signs cannot drift apart again.
   EXPECT_EQ(bandPointAt(spine, 0.5f, 10), SkPoint::Make(50, 40));
   EXPECT_EQ(bandPointAt(spine, 0.5f, -10), SkPoint::Make(50, 60));
 }
@@ -10515,16 +10513,18 @@ size_t inkedCount(const std::vector<SkColor> &ring) {
 
 // ---- 1. animate(to(v), spec) ----------------------------------------------
 
-TEST(ComposeR1Animate, AnimateToIsTheChangeRampWithSaid) {
-  // The same Transitioned value, so the same motion — proved by describing
-  // a change and reading the property MID-RAMP, where a snap and a ramp
-  // differ. Both hosts get identical frames.
-  auto run = [](bool useLegacyWith) {
+TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
+  // Read the property MID-RAMP, where a snap and a ramp differ. The second
+  // arm describes the same value with no animate() at all, which must
+  // snap — that is the contrast the deleted with() arm used to provide.
+  auto run = [](bool plain) {
     Host host(200, 200);
     auto describe = [&](float opacity) {
       Element inner = box().width(100).height(100).fill(red());
-      inner.opacity(useLegacyWith ? with(opacity, Transition{200ms})
-                                  : animate(to(opacity), {200ms}));
+      if (plain)
+        inner.opacity(opacity);
+      else
+        inner.opacity(animate(to(opacity), {200ms}));
       return stack().child(std::move(inner));
     };
     host.composer.render(describe(1.0f));
@@ -10533,11 +10533,14 @@ TEST(ComposeR1Animate, AnimateToIsTheChangeRampWithSaid) {
     host.frame(0.1);                      // half way down the ramp
     return host.pixel(50, 50);
   };
-  const SkColor spanned = run(false);
-  EXPECT_EQ(spanned, run(true));
+  const SkColor ramped = run(false);
+  const SkColor snapped = run(true);
+  EXPECT_NE(ramped, snapped) << "animate(to(v)) must ramp where a bare "
+                                "value snaps";
   // …and it is genuinely mid-ramp, not "already gone" or "not started".
-  EXPECT_GT((int)SkColorGetR(spanned), 20);
-  EXPECT_LT((int)SkColorGetR(spanned), 235);
+  EXPECT_GT((int)SkColorGetR(ramped), 20);
+  EXPECT_LT((int)SkColorGetR(ramped), 235);
+  EXPECT_EQ((int)SkColorGetR(snapped), 0) << "the bare value is already there";
 }
 
 TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
@@ -10558,25 +10561,16 @@ TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
   EXPECT_LT(mountedOpacity(true), 60) << "from().to() is a mount entrance";
 }
 
-// ---- 2. animates() ---------------------------------------------------------
+// ---- 2. isAnimated() ---------------------------------------------------------
 
 namespace {
 
-/** Two schemes that paint identically and declare volatility with the two
- *  different words — the duck-typing the transition depends on. */
-struct SaysAnimates {
-  bool live = true;
-  bool animates() const { return live; }
-  void paint(SkCanvas &c, const PaintContext &) const {
-    SkPaint p;
-    p.setColor4f({1, 0, 0, 1}, nullptr);
-    c.drawRect(SkRect::MakeWH(40, 40), p);
-  }
-  bool operator==(const SaysAnimates &) const = default;
-};
+/** A scheme that declares volatility in THE word — R3 deleted the other
+ *  four (animated / animates / isLive / "volatile"), so there is exactly
+ *  one spelling left to duck-type. */
 struct SaysAnimated {
   bool live = true;
-  bool animated() const { return live; }
+  bool isAnimated() const { return live; }
   void paint(SkCanvas &c, const PaintContext &) const {
     SkPaint p;
     p.setColor4f({1, 0, 0, 1}, nullptr);
@@ -10584,41 +10578,42 @@ struct SaysAnimated {
   }
   bool operator==(const SaysAnimated &) const = default;
 };
+/** The same scheme spelling the R1/R2 word. It must NOT satisfy the
+ *  concept any more: a scheme that still says `animates()` is silently
+ *  static, and a static-by-accident live decoration is the exact defect
+ *  the one-word ruling exists to prevent. */
+struct SaysTheDeadWord {
+  bool live = true;
+  bool animates() const { return live; }
+  void paint(SkCanvas &, const PaintContext &) const {}
+  bool operator==(const SaysTheDeadWord &) const = default;
+};
 
 } // namespace
 
-TEST(ComposeR1Volatility, BothWordsDeclareVolatility) {
-  // The concept accepts either spelling for the length of the transition.
-  static_assert(AnimatingDecoration<SaysAnimates>);
+TEST(ComposeR3Volatility, OneWordDeclaresVolatilityAndTheOthersAreGone) {
   static_assert(AnimatedDecoration<SaysAnimated>);
-  EXPECT_TRUE(Decoration(SaysAnimates{true}).animates());
-  EXPECT_FALSE(Decoration(SaysAnimates{false}).animates());
-  EXPECT_TRUE(Decoration(SaysAnimated{true}).animates())
-      << "the legacy word must still be heard";
-  EXPECT_FALSE(Decoration(SaysAnimated{false}).animates());
-  // The legacy READER forwards to the new one, so nothing that asks the
-  // old question gets a different answer.
-  EXPECT_TRUE(Decoration(SaysAnimates{true}).animated());
+  static_assert(!AnimatedDecoration<SaysTheDeadWord>,
+                "the R1/R2 word must not be heard after R3");
+  EXPECT_TRUE(Decoration(SaysAnimated{true}).isAnimated());
+  EXPECT_FALSE(Decoration(SaysAnimated{false}).isAnimated());
+  // And the dead word declares nothing: it wraps, it paints, it is static.
+  EXPECT_FALSE(Decoration(SaysTheDeadWord{true}).isAnimated());
 }
 
-TEST(ComposeR1Volatility, LibrarySchemesDeclareWithTheNewWord) {
-  // The library's own schemes implement animates() as the PRIMARY, with
-  // animated() forwarding — so the two can never disagree.
+TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
   lines::Line line;
   choreograph::Output<float> phase;
   line.dashPhaseBinding = &phase;
-  EXPECT_TRUE(line.animates());
-  EXPECT_EQ(line.animates(), line.animated());
+  EXPECT_TRUE(line.isAnimated());
 
   PathFormat pf;
-  EXPECT_FALSE(pf.animates());
-  EXPECT_EQ(pf.animates(), pf.animated());
+  EXPECT_FALSE(pf.isAnimated());
 
-  // Material: the fifth spelling folded in. isLive() stays as the tier
-  // vocabulary; animates() is the declaration.
+  // Material: the fifth spelling folded in — isLive() is gone and the
+  // material answers the same question as every scheme, in the same word.
   const Material stat = Material::solid({1, 0, 0, 1});
-  EXPECT_FALSE(stat.animates());
-  EXPECT_EQ(stat.animates(), stat.isLive());
+  EXPECT_FALSE(stat.isAnimated());
 }
 
 // ---- 3. Bound::source / ::target -------------------------------------------
@@ -10627,10 +10622,10 @@ TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
   choreograph::Output<float> hp;
   hp = 25.0f;
   const BoundFloat named = bind(&hp).source(0, 100).target(-70, 170).value();
-  const BoundFloat legacy = bind(&hp).from(0, 100).to(-70, 170).value();
-  // Same arithmetic at several inputs, not just one.
+  // The stages spelled out by hand — what from()/to() (deleted in R3) did.
+  const BoundFloat manual = bind(&hp).source(0, 100).scale(240).offset(-70).value();
   for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
-    EXPECT_FLOAT_EQ(named.apply(v), legacy.apply(v)) << "at " << v;
+    EXPECT_FLOAT_EQ(named.apply(v), manual.apply(v)) << "at " << v;
   EXPECT_FLOAT_EQ(named.apply(0.0f), -70.0f);
   EXPECT_FLOAT_EQ(named.apply(100.0f), 170.0f);
 }
@@ -10657,8 +10652,8 @@ TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
   pool.commit();
   const uint64_t committed = pool.revision();
   EXPECT_NE(committed, after);
-  pool.touch(); // the legacy word does the same thing
-  EXPECT_NE(pool.revision(), committed);
+  pool.commit();
+  EXPECT_NE(pool.revision(), committed) << "each publish is its own revision";
 }
 
 // ---- 5. Ribbon on the profile seam ----------------------------------------
@@ -10675,23 +10670,23 @@ struct LinearTaper {
 } // namespace
 
 TEST(ComposeR1Ribbon, ProfileIsComparableAndBoundsItsOwnReach) {
-  brushes::Ribbon a;
+  brush::Ribbon a;
   a.width = Profile(LinearTaper{});
   a.fill = Fill::color({1, 0, 0, 1});
-  brushes::Ribbon b = a;
+  brush::Ribbon b = a;
   EXPECT_TRUE(a == b) << "a profiled ribbon PRUNES; a widthFn one never did";
   b.width = Profile(LinearTaper{20.0f, 6.0f});
   EXPECT_FALSE(a == b);
   // The trap the seam closes: bleed() can ask a profile how far it goes.
   EXPECT_FLOAT_EQ(a.bleed(), 20.0f);
-  brushes::Ribbon legacy;
+  brush::Ribbon legacy;
   legacy.widthFn = [](const PathSample &) { return 166.0f; };
   EXPECT_LT(legacy.bleed(), 166.0f) << "…which the callable pair cannot";
 }
 
 TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   Host host(200, 200);
-  brushes::Ribbon r;
+  brush::Ribbon r;
   r.width = Profile(strand::offset(16.0f)); // constant 16px wide
   r.fill = Fill::color({1, 0, 0, 1});
   host.composer.render(stack().child(
@@ -10710,22 +10705,21 @@ TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   EXPECT_EQ(host.pixel(90, 70), SK_ColorBLACK) << "20px off it, outside";
 }
 
-// ---- the brushes:: fold ----------------------------------------------------
+// ---- the brush:: fold, now a deletion -------------------------------------
 
-TEST(ComposeR1Brush, TheFoldIsAliasesAndNothingElse) {
-  static_assert(std::is_same_v<brush::Ribbon, brushes::Ribbon>);
-  static_assert(std::is_same_v<brush::Placement, brushes::Placement>);
-  static_assert(std::is_same_v<brush::StampMod, brushes::StampMod>);
-  static_assert(std::is_same_v<brush::CornerArt, brushes::CornerArt>);
-  static_assert(std::is_same_v<brush::CornerAlign, brushes::CornerAlign>);
-  static_assert(std::is_same_v<brush::Restyled, brushes::Restyled>);
-  const brushes::Ribbon legacy = brushes::taper(10, 2, red());
+TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
+  // R3 deleted `namespace brushes` outright and the *Brush suffixes with
+  // it: every kind answers to exactly one name, under `brush::`.
   const brush::Ribbon taught = brush::taper(10, 2, red());
-  EXPECT_TRUE(legacy == taught);
+  EXPECT_FLOAT_EQ(taught.widthStart, 10.0f);
   // The taught constructor is the PROFILE one.
   const brush::Ribbon profiled = brush::ribbon(strand::offset(9.0f), red());
   EXPECT_TRUE(profiled.hasProfile());
   EXPECT_FLOAT_EQ(profiled.bleed(), 9.0f);
+  // The kinds are values under the taught spelling, nothing else.
+  static_assert(std::is_default_constructible_v<brush::Pattern>);
+  static_assert(std::is_default_constructible_v<brush::Scatter>);
+  static_assert(std::is_default_constructible_v<brush::Art>);
 }
 
 // ---- 6. the derive family --------------------------------------------------
@@ -10928,20 +10922,20 @@ TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
 TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
   // The §27 break, enforced by the type system rather than by a warning:
   // there is no way to describe corner art with no stated alignment.
-  static_assert(!std::is_default_constructible_v<brushes::CornerArt>);
-  static_assert(!std::is_constructible_v<brushes::CornerArt, Element>);
-  static_assert(std::is_constructible_v<brushes::CornerArt, Element,
-                                        brushes::CornerAlign>);
+  static_assert(!std::is_default_constructible_v<brush::CornerArt>);
+  static_assert(!std::is_constructible_v<brush::CornerArt, Element>);
+  static_assert(std::is_constructible_v<brush::CornerArt, Element,
+                                        brush::CornerAlign>);
   // And the alignment participates in equality, so two brushes that differ
   // only in how their corners face do not prune into each other.
   const Element art = box().width(10).height(10).fill(red());
-  brushes::PatternBrush a, b;
+  brush::Pattern a, b;
   a.side = box().width(10).height(2).fill(red());
   b.side = a.side;
-  a.corner = brushes::CornerArt{art, brushes::CornerAlign::Bisector};
-  b.corner = brushes::CornerArt{art, brushes::CornerAlign::Outgoing};
+  a.corner = brush::CornerArt{art, brush::CornerAlign::Bisector};
+  b.corner = brush::CornerArt{art, brush::CornerAlign::Outgoing};
   EXPECT_FALSE(a == b);
-  b.corner = brushes::CornerArt{art, brushes::CornerAlign::Bisector};
+  b.corner = brush::CornerArt{art, brush::CornerAlign::Bisector};
   EXPECT_TRUE(a == b);
 }
 
@@ -11352,7 +11346,7 @@ TEST(ComposeR2Wrap, RestIsTheComplementOfBothOfWrapsRuns) {
 
 TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
   // The fourth pinned obligation. spanVolatile reads the PASS BRUSH's
-  // animates(), and the only arm of that never exercised was a live
+  // isAnimated(), and the only arm of that never exercised was a live
   // Material: a stroke whose colour comes from a uTime shader must repaint
   // every frame with no re-describe, exactly like a bound endpoint does.
   auto paintedPerFrame = [](bool live) {
@@ -11366,7 +11360,7 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
     return host.composer.stats().nodesPainted;
   };
   EXPECT_GT(paintedPerFrame(true), 0u)
-      << "a live stroke material on a span pass must declare animates()";
+      << "a live stroke material on a span pass must declare isAnimated()";
   EXPECT_EQ(paintedPerFrame(false), 0u)
       << "…and a static one must still cache";
 }

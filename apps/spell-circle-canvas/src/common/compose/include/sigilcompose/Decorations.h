@@ -138,12 +138,10 @@ struct PathFormat {
   float reach() const { return width; }
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
-  bool animates() const {
+  bool isAnimated() const {
     return trimPhase != nullptr || dashPhaseBinding != nullptr ||
-           (strokeMaterial && strokeMaterial->animates());
+           (strokeMaterial && strokeMaterial->isAnimated());
   }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -288,9 +286,7 @@ struct ContourWalk {
 
   std::optional<Element> stamp;
 
-  bool animates() const { return animatedWalk; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return animatedWalk; }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     if ((!draw && !stamp) || spacing <= 0)
@@ -373,9 +369,7 @@ struct Wash {
   bool operator==(const Wash &o) const {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
-  bool animates() const { return material.animates(); }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return material.isAnimated(); }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
     const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
@@ -410,7 +404,7 @@ struct Wash {
  *  `Border` is one comparable value over machinery that already existed —
  *  `lines::insetOutline` (the offset `shapes::Inset` had locked inside a
  *  decoration adaptor), `lines::cornerBrackets` / `lines::cornerGaps` (the
- *  corner scan `PatternBrush` already ran), and an ordinary dashed stroke:
+ *  corner scan `brush::Pattern` already ran), and an ordinary dashed stroke:
  *
  *      .foreground(decorations::brackets(2, ink, 18))     // reticle corners
  *      .foreground(decorations::border(1, ink, 6))        // inset rule
@@ -471,9 +465,7 @@ struct Border {
   SkPaint::Join join = SkPaint::kMiter_Join;
 
   bool operator==(const Border &) const = default;
-  bool animates() const { return dashPhaseBinding != nullptr; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return dashPhaseBinding != nullptr; }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -550,8 +542,12 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
   return Border{.width = width, .fill = std::move(fill), .inset = inset};
 }
 
-/** Legacy spelling — retained until the R3 deletion (ROADMAP §33) (§27). The stroke grammar says
- *  this as `.stroke(spans::corners(arm), brush::solid(width, fill))`: a
+/** CONDEMNED, and still here — one of the three legacies R3 did not
+ *  delete (with `Element::trim` and `Ribbon::widthFn`). The stroke grammar
+ *  says this as `.stroke(spans::corners(arm), brush::solid(width, fill))`,
+ *  and porting the corpus's sites to it is a sweep no designer has cleared
+ *  — the two paths are different constructions, so it moves pixels. Do
+ *  not add call sites (ROADMAP §33, R3 note). A
  *  pass that CLAIMS the corner runs, on the node's real boundary, leaving
  *  `spans::rest()` free to dress everything else. Same corner scan
  *  underneath (lines::detail::findCorners), same pixels.
@@ -569,8 +565,9 @@ inline Border brackets(float width, Fill fill, float arm = 18.0f,
                 .cornerAngleDeg = angleDeg};
 }
 
-/** Legacy spelling — retained until the R3 deletion (ROADMAP §33) (§27); the grammar says
- *  `.stroke(spans::edges(gap), brush::solid(width, fill))`.
+/** CONDEMNED with brackets() above — the grammar says
+ *  `.stroke(spans::edges(gap), brush::solid(width, fill))`, and the port
+ *  is an uncleared corpus sweep. Do not add call sites.
  *
  *  A rule that STOPS SHORT of every corner, leaving `gap` px of paper. */
 inline Border gappedRule(float width, Fill fill, float gap = 14.0f,

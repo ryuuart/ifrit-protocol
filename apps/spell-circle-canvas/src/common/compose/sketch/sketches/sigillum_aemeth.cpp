@@ -102,7 +102,7 @@
 //   brush::Ribbon       the calligraphic nib — the heptagon is RULED with
 //                         a quill, so its seven sides come out at seven
 //                         weights from one nib angle
-//   ops::Sketchy          every circle: a compass in a wax cake wanders
+//   shapers::Jitter       every circle: a compass in a wax cake wanders
 //   PathFormat trimStart/trimEnd   40 radial dividers that stop short of
 //                         both circles — interrupted rules, not chords
 //   TextPath::Orient::Radial    the 40 letters and their numerals, the 28
@@ -180,6 +180,7 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Studio.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -494,14 +495,14 @@ Weave buildWeave(float rNorm) {
   return w;
 }
 
-/** A compass in warm wax wanders. ops::Sketchy inside a Brush re-runs
+/** A compass in warm wax wanders. shapers::Jitter inside a Brush re-runs
  *  SkDiscretePathEffect over a 3900 px circle on EVERY PAINT, which during a
  *  trim reveal is every frame; baking the jitter into the OUTLINE instead
  *  runs it once at layout and leaves the reveal as pure geometry. */
 shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
                           float seg = 26.0f, float dev = 0.34f) {
   return [base = std::move(base), seed, seg, dev](SkSize s) {
-    return ops::Sketchy{seg, dev, seed}.apply(base(s));
+    return kit::brush::shapers::Jitter{seg, dev, seed}.shape(base(s));
   };
 }
 
@@ -657,10 +658,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                       .fill(Fill::none())
                       .key(key);
       std::vector<lines::Rail> set;
-      set.push_back({.offset = 0.0f,
+      set.push_back({.across = 0.0f,
                      .width = heavy,
                      .fill = grooveFill(rNorm * kR, heavy, 0.95f, 0.55f)});
-      lines::Rail inner{.offset = gap,
+      lines::Rail inner{.across = -gap,
                         .width = hair,
                         .fill = Fill::color(hex(0x4a3418, 0.72f))};
       if (dotted)
@@ -800,7 +801,7 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
     // BISECTOR of a right angle is 45 degrees off both, and the same 90-fold
     // symmetry that makes Outgoing corner-agnostic makes Bisector uniformly
     // wrong: not a tilt to notice, a saltire. This shipped at 0ea8aa3 (11:44)
-    // when PatternBrush had no `cornerAlign` and every corner behaved as
+    // when brush::Pattern had no `cornerAlign` and every corner behaved as
     // Outgoing; the scanner learned to bisect its own bracket at f706f5d
     // (12:03) and defaulted to Bisector, and nothing in this file changed.
     // So ask for the frame the art is drawn in, out loud.
@@ -844,10 +845,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                       .width = 0.9f,
                       .holeFraction = 0.70f})
                   .stroke(Brush{}
-                              .leg(PathFormat{
+                              .layer(PathFormat{
                                   .width = 1.5f,
                                   .strokeFill = Fill::color(hex(0x4a3418, 0.55f))})
-                              .leg(brush::Pattern{
+                              .layer(brush::Pattern{
                                   .side = sideTile,
                                   .corner = brush::CornerArt{
                                       crossTile,
@@ -914,10 +915,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .shape(wobbled(heptChords(rHept, 0.0f), 30, 30.0f, 0.45f))
                 .fill(Fill::none())
                 .stroke(Brush{}
-                            .leg(brush::calligraphic(
+                            .layer(brush::calligraphic(
                                 34.0f, 6.8f, Fill::color(hex(0x291a05, 0.95f)),
                                 0.22f))
-                            .leg(PathFormat{
+                            .layer(PathFormat{
                                 .width = 0.9f,
                                 .strokeFill = Fill::color(hex(0xf7e9c4, 0.35f)),
                                 .trimStart = 0.0f,
@@ -929,10 +930,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(heptChords(rNameHept - 0.043f, 0.0f))
                 .fill(Fill::none())
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 2.2f,
                                        .fill = Fill::color(hex(0x4a3418, 0.72f))},
-                                      {.offset = 5.0f,
+                                      {.across = -5.0f,
                                        .width = 0.8f,
                                        .fill = Fill::color(hex(0x4a3418, 0.45f)),
                                        .dash = {1.4f, 4.6f}}}))
@@ -1020,16 +1021,16 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
         cv.drawPath(p, body);
         decorations::paintOn(
             cv, ctx, p,
-            lines::rails({{.offset = -bandW * 0.5f,
+            lines::rails({{.across = bandW * 0.5f,
                            .width = 2.6f,
                            .fill = Fill::color(hex(0x241603, 1.0f))},
-                          {.offset = -bandW * 0.5f + 3.0f,
+                          {.across = bandW * 0.5f - 3.0f,
                            .width = 0.8f,
                            .fill = Fill::color(hex(0xfbf0d0, 0.55f))},
-                          {.offset = bandW * 0.5f,
+                          {.across = -bandW * 0.5f,
                            .width = 2.6f,
                            .fill = Fill::color(hex(0x241603, 1.0f))},
-                          {.offset = bandW * 0.5f - 3.0f,
+                          {.across = 3.0f - bandW * 0.5f,
                            .width = 0.8f,
                            .fill = Fill::color(hex(0x8a6c3c, 0.45f))}}));
       };
@@ -1180,10 +1181,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape(heptChords(rInnerHept, 0.0f))
                 .fill(Fill::none())
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 2.2f,
                                        .fill = Fill::color(hex(0x3f2c12, 0.88f))},
-                                      {.offset = -4.0f,
+                                      {.across = 4.0f,
                                        .width = 0.7f,
                                        .fill = Fill::color(hex(0xfbf0d0, 0.40f))}}))
                 .key("zabhept"));
@@ -1216,10 +1217,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
                 .fill(Fill::color(hex(0xe6cf9e, 0.18f)))
                 .stroke(lines::rails(
-                    {{.offset = 0.0f,
+                    {{.across = 0.0f,
                       .width = 3.0f,
                       .fill = Fill::color(hex(0x3f2c12, 0.92f))},
-                     {.offset = -3.2f,
+                     {.across = 3.2f,
                       .width = 0.8f,
                       .fill = Fill::color(hex(0xfbf0d0, 0.45f))}}))
                 .trim(0.0f, animate(from(0.0f).to(1.0f),
@@ -1434,10 +1435,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                   b.lineTo(w, 1);
                   return b.detach();
                 })
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 2.4f,
                                        .fill = Fill::color(hex(0xc7ab74, 0.75f))},
-                                      {.offset = 5.0f,
+                                      {.across = -5.0f,
                                        .width = 0.8f,
                                        .fill = Fill::color(hex(0xc7ab74, 0.40f)),
                                        .dash = {2.0f, 5.0f}}})));
@@ -1570,10 +1571,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                   })
                   .fill(Fill::none())
                   .stroke(lines::rails(
-                      {{.offset = -19.0f,
+                      {{.across = 19.0f,
                         .width = 0.9f,
                         .fill = Fill::color(hex(0x62b0dc, 0.60f))},
-                       {.offset = 19.0f,
+                       {.across = -19.0f,
                         .width = 0.9f,
                         .fill = Fill::color(hex(0x62b0dc, 0.60f))}}))
                   .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 360))));
@@ -1715,10 +1716,10 @@ struct SigillumAemeth : sigil::compose::sketch::Sketch {
                 })
                 .fill(Fill::none())
                 .stroke(lines::rails(
-                    {{.offset = 0.0f,
+                    {{.across = 0.0f,
                       .width = 1.8f,
                       .fill = Fill::color(hex(0xc7ab74, 0.55f))},
-                     {.offset = 4.0f,
+                     {.across = -4.0f,
                       .width = 0.7f,
                       .fill = Fill::color(hex(0xc7ab74, 0.30f)),
                       .dash = {1.6f, 4.4f}}})));

@@ -75,7 +75,7 @@ template <typename T> struct Transitioned {  // value + spec, plus optional
 // as against a bound Output, where you do. THE ARGUMENT SAYS WHICH KIND:
 //   to(v)          — RAMP ON CHANGE. No entrance; every later describe
 //                    that differs ramps instead of snapping, retargeting
-//                    from the current value. (Legacy spelling: with(v, spec).)
+//                    from the current value.
 //   from(a).to(b)  — a MOUNT ENTRANCE (the CSS animation-on-enter); after
 //                    it plays, the property behaves exactly like to(b).
 template <typename T> To<T> to(T value);
@@ -83,12 +83,11 @@ template <typename T> Transitioned<T> animate(To<T> t, Transition spec = {});
 template <typename T> From<T> from(T value);          // .to(target) completes
 template <typename T> Transitioned<T> animate(FromTo<T> ft,
                                               Transition spec = {});
-template <typename T> Transitioned<T> with(T value, Transition spec); // legacy
 // Keyframe path: absolute (time, value) waypoints — the damped-overshoot
 // entrances one ramp can't shape; `ease` applies per segment, a leading
 // time > 0 holds the first value. through() takes a float path with no
 // template argument (a nested braced list is a non-deduced context, which
-// is what forced withKeyframes<float>); through<T>({...}) for other types.
+// is what forces the generic form's <T>); through<T>({...}) otherwise.
 Waypoints<float> through(
     std::initializer_list<std::pair<std::chrono::milliseconds, float>>);
 template <typename T> Transitioned<T> animate(Waypoints<T> w,
@@ -96,14 +95,13 @@ template <typename T> Transitioned<T> animate(Waypoints<T> w,
   .opacity(animate(to(dimmed ? 0.4f : 1.0f), {180ms}))   // ramp on change
   .opacity(animate(from(0.0f).to(1.0f), {400ms}))        // mount entrance
   .translateX(animate(through({{0ms, 40.f}, {200ms, -20.f}, {400ms, 0.f}})))
-// Legacy spellings, retained until the R3 deletion (ROADMAP §33):
-// with(v, spec) is animate(to(v), spec); withFrom(a, b, spec) is
-// animate(from(a).to(b), spec); withKeyframes<T>(frames, ease) is
-// animate(through(frames), ease).
+// `with(v, spec)`, `withFrom(a, b, spec)` and `withKeyframes<T>(f, e)`
+// were the mechanism spellings of the three forms above. DELETED in R3
+// (ROADMAP §33); animate() is the one verb.
 
 template <typename T> class Animatable; // T: float, SkColor4f, Fill…
-template <typename T> using PropValue = Animatable<T>;  // legacy spelling;
-                                        // existing signatures keep it
+                                        // (`PropValue` was its mechanism
+                                        //  name; DELETED in R3)
 // Holds a plain T, a Transitioned<T>, a const ch::Output<T>*, or a
 // SHAPED binding (below). Stored COMPACTLY, not as a std::variant:
 // constants and bindings inline, the fat payloads (Transitioned's
@@ -121,9 +119,10 @@ template <typename T> using PropValue = Animatable<T>;  // legacy spelling;
 // opacity and a bar's scaleX at once — without a second Output per unit
 // and without the easing living in the tick loop.
 Bound bind(const ch::Output<float> *source);
-// Three stages, always in this order (the stage names are source/target;
-// from/to are their legacy spellings — they read as the endpoints of an
-// authored ramp, which is a different idea, ROADMAP §33 ruling 3):
+// Three stages, always in this order. The stage names are source/target;
+// `from`/`to` used to name them too and were DELETED in R3 — they read as
+// the endpoints of an authored ramp, which is a different idea entirely
+// (ROADMAP §33 ruling 3):
 //   1. source(lo, hi) normalise the SOURCE range onto [0,1]
 //   2. map(ease)      shape it — any ch::EaseFn, so all of ease:: fits
 //   3. quantize(n) snaps to n discrete levels (period-authentic widgets:
@@ -182,11 +181,13 @@ Element &corners(Corners);
 // corners() as the node's shape — fill, clip(), and every
 // outline-following decoration (PathFormat, ContourWalk) trace it.
 // Spiky shout dialogs, scalloped seals, any non-rectangular chrome.
-Element &shape(std::function<SkPath(SkSize)>);
-Element &outline(std::function<SkPath(SkSize)>);   // legacy spelling
+Element &shape(std::function<SkPath(SkSize)>);   // `outline()` DELETED (R3)
 Element &clip(bool = true);
-// Trim Path (Lottie/sksg) — THE LEGACY REVEAL, retained until the R3
-// deletion. It reveals the fill surface AND every outline-following
+// Trim Path (Lottie/sksg) — CONDEMNED, and one of the three legacies R3
+// did NOT delete (see the R3 note in ROADMAP §33: 2 of its 17 remaining
+// sites reveal a PAINTING FILL, which spans has no spelling for, so the
+// replacement interface is still to be designed).
+// It reveals the fill surface AND every outline-following
 // decoration at once, which is why it moved: a reveal belongs to a
 // PASS. `.stroke(spans::upTo(t), brush)` is the taught spelling,
 // `spans::wrap` is TrimMode::Wrap, and `.offset(o)` is the third
@@ -431,7 +432,7 @@ already draw.**
 
 "Cache as much as possible" is the policy, and the declared-volatility
 rule is what makes it *safe to automate*: because every source of
-change is declared (bindings, `animate()` transitions, `animates()`
+change is declared (bindings, `animate()` transitions, `isAnimated()`
 schemes, web/custom `Cache::None` leaves), "static" is a provable
 property of a subtree, not a heuristic guess. So:
 
@@ -723,7 +724,7 @@ full list with its citation counts; this is the surface.
 // ---- bindings you can shape ----
 bind(&out).source(lo,hi).map(ease).quantize(n).scale(s).offset(o)
           .target(lo,hi).invert().clamp(lo,hi)   // any float property
-          // (from/to are the legacy spellings of source/target)
+          // (from/to named these stages until R3 deleted them)
 fill(&fillOutput)                            // ch::Output<Fill>, live
 
 // ---- paint order ----
@@ -1138,7 +1139,7 @@ concept DecorationScheme =
     requires(const D &d, SkCanvas &canvas, const PaintContext &in) {
       { d.paint(canvas, in) };
     };  // PaintContext: the ONE paint-program context (see Elements).
-        // Optional `bool animates() const` → node repaints per frame —
+        // Optional `bool isAnimated() const` → node repaints per frame —
         // the single declared-volatility rule shared by decorations,
         // effects, and bound properties alike.
 
@@ -1221,7 +1222,7 @@ hand any primitive.
 
 **Caching stays sound**: decorations are values in the description
 (reconciled and hashed like everything else), painted inside the node's
-`Cache::Picture` recording; ones declaring `animates()` — or carrying
+`Cache::Picture` recording; ones declaring `isAnimated()` — or carrying
 bound `ch::Output` fields — demote their node to live painting while
 active, exactly the declared-volatility rule bound properties follow.
 
@@ -1239,11 +1240,13 @@ struct Effect {
                                                   // lighting, compose chains
   static Effect shader(sk_sp<SkRuntimeEffect> e,  // SkSL image filter: the
                        Uniforms u = {});          // node's layer is an input
-};                                       // optional animates() [legacy:
-                                           //   animated(); Material: isLive()]
-// The word is `animates()` everywhere a SCHEME declares volatility; the
-// corpus is ported and `animated()` dies with R3. Material::isLive() is
-// its own word and no ruling has retired it.
+};                                       // optional isAnimated()
+// `isAnimated()` is THE word — everywhere a scheme, an effect or a
+// Material declares volatility. R3 deleted the other four spellings
+// (`animated()`, R1's `animates()`, `Material::isLive()`, and the
+// node-level "volatile"). The `is` prefix is what makes it read as a
+// query: a cold read of `animates()` asks "animates WHAT?", and there is
+// no setter to confuse it with (ROADMAP §33 ruling 13).
 
 Element &effect(Effect);    // filters the node's own rendered layer
 Element &backdrop(Effect);  // filters what's already painted beneath
@@ -1504,8 +1507,8 @@ shape.
 the thing `stroke()` does — and the call sites showed it:
 `.outline(chevron()).fill(ramp)` filled an "outline", and
 `.outline(shape).stroke(brush)` put two halves of one idea under one
-word. `outline()` still compiles (§27) and dies with R3 — the corpus is
-ported. `PaintContext::outline` keeps its name, because there it
+word. `outline()` was DELETED in R3. `PaintContext::outline` keeps its
+name, because there it
 genuinely IS the path a decoration traces, and so does
 `ksp::Conic::outline` and anything else that means a path rather than an
 element's region.
@@ -1559,7 +1562,7 @@ The factories:
 that overlap are a mistake with no sensible rendering, so the library
 says so out loud, naming both passes and the shared run. To layer two
 marks on one run, make them ONE pass with a composite brush
-(`Brush{}.leg(a).leg(b)`, or a `LayeredBrush`) — that is the ruled
+(`Brush{}.layer(a).layer(b)`, or a `LayeredBrush`) — that is the ruled
 answer to double and triple lines everywhere, and it is why the reveal
 below is a property of a pass rather than of a node.
 
@@ -1574,8 +1577,9 @@ what the query side refuses.
 **Reveals are span animation.** `spans::upTo(t)` takes any
 `Animatable<float>` — a constant, an `animate(...)` entrance, or a bound
 Output — so one spelling reveals every brush kind. `Element::trim()` is
-the legacy spelling of the same idea and still compiles; what it cannot
-do is reveal ONE pass of several, which is why it moved.
+the older spelling of the same idea, CONDEMNED but still compiling (R3
+did not delete it — see ROADMAP §33's R3 note); what it cannot do is
+reveal ONE pass of several, which is why it moved.
 
 **The same slot in the other z-half — `.background(where, what[, name])`.**
 Identical to `.stroke(where, what)` in every respect except where the mark
@@ -1659,13 +1663,13 @@ box. Fixing that is the pinned organic-shape hit-testing pass (ROADMAP
 that is OUTSIDE a clockwise path, which is SkPath's own direction for
 rects and circles, so `.outward()` exits the shape.
 
-This is the **negation** of `lines::offsetAlong` and `lines::Rail::offset`,
-which offset to the RIGHT of travel — **and the split predates the band.**
-`TextPath::offset` has always been left-of-travel-is-outward, so the
-kernel says left and the `Lines` extension says right; the band follows
-the kernel. Stage two shares the `Profile` value between bands and strands
-and has to reconcile the two, so do not assume a profile means the same
-side in both places yet.
+**THIS IS THE ONE CONVENTION** — the whole library, no exceptions, stated
+once in DESIGN.md. `lines::` used to be the minority that meant the other
+side (`offsetAlong`, `Rail::offset`, `Line::offset`, and the kit's
+`shapers::Offset` through them). R3 flipped all of them, renaming each so
+the compiler found every call site and negating every argument so no
+picture moved (ROADMAP §33 ruling 5). A `Profile` now means the same side
+wherever it is read.
 
 The spine is an incomparable callable, like `shape()`'s: `memo()` such a
 node (or keep the generator pointer-stable) to prune it while its size
@@ -1706,16 +1710,14 @@ The KIT ships the stock shapers, one per way of bending a mark:
 meander key), `rounded` (soften every corner of the MARK — not
 `shapes::rounded`, which rounds a silhouette generator's result),
 `jitter` (the rough.js line), `offset` (the rail). Between them they
-cover every `ops::` struct, which is what makes `.shaped(value)` the
-taught spelling and `.op(GeometryOp)` the legacy one.
+absorbed every `ops::` struct, which is what let R3 delete that family
+and leave `.shaped(value)` as the only way into a brush pipeline.
 
-**The two `offset`s mean opposite sides, and will until the reconciliation.**
-`strand::offset(px)` is LEFT of travel (the band's frame, outside a
-clockwise path); `kit::brush::shapers::offset(px)` is RIGHT of travel,
-because it wraps `lines::offsetAlong` unchanged (§27). The split predates
-both — `TextPath::offset` has always been left-of-travel — so the kernel
-says left and the `Lines` extension says right. Both members say so at the
-call site.
+**Both `offset`s mean the same side.** `strand::offset(px)` and
+`kit::brush::shapers::offset(px)` are LEFT of travel, the band's frame,
+outside a clockwise path — as are `lines::offsetAcross`,
+`lines::Rail::across`, `lines::Line::across`, `Profile::across` and
+`TextPath::offset`. They disagreed until R3's sign port.
 The oscillating family lives in the kit, per the tier rule. The profile
 is SHARED vocabulary: a band's taper, a weave strand's path and the
 future ribbon width are one value.
@@ -1724,9 +1726,9 @@ future ribbon width are one value.
 
 A brush is what PAINTS. That is the whole vocabulary:
 
-| | Spelled | Legacy spelling |
+| | Spelled | Was (DELETED in R3) |
 | --- | --- | --- |
-| **kind** | `brush::solid(w, fill)` / `brush::Solid{…}` | `PathFormat`, `util::stroke` |
+| **kind** | `brush::solid(w, fill)` / `brush::Solid{…}` | `PathFormat`, `util::stroke` (both still ship) |
 | **kind** | `brush::Pattern` — the mark built from CELLS | `brushes::PatternBrush` |
 | **kind** | `brush::Scatter` — cells strewn NEAR the mark | `brushes::ScatterBrush` |
 | **kind** | `brush::Art` — an element stretched ALONG it | `brushes::ArtBrush` |
@@ -1734,28 +1736,26 @@ A brush is what PAINTS. That is the whole vocabulary:
 | **composite** | `brush::layers({a, b, …})` — fixed order, bottom-up | — |
 | **composite** | `brush::weave({strands…}, rule)` — per-crossing order | — |
 
-The kinds are the types that were already here under mechanism names;
-`brush::` is where they are taught and the old names keep compiling.
-
-**The `brushes::` fold (§33 ruling 10).** `brushes::` dies in R3, so
-everything AUTHORS spell in it has a `brush::` spelling now (the
-internals — `placementSamples()`, `drawStamp()`, the `CornerHit`
-re-export — get none and die in R3): the kinds above plus
+**`namespace brushes` is GONE (R3).** Everything authors spelled in it
+lives in `brush::` under ONE name: the kinds above (the `*Brush` suffixes
+went with the namespace — a type suffixed with its own scope was the
+two-names-for-one-identity defect §22 names), plus
 `brush::taper`/`calligraphic`/`ribbon` (Ribbon presets),
 `brush::artAlong`, `brush::Placement`/`StampMod`/`StampModFn`,
-`brush::CornerArt`/`CornerAlign`, and `brush::Restyled`/`restyle` (whose
-TAUGHT replacement is `.shaped(value)` — the alias exists so the fold is
-complete, not as an endorsement). **The two things that were NOT folded
-both moved in R2.** The four `LayeredBrush` presets
-(`filament`/`circuit`/`rope`/`pulse`) were PRESETS by the tier rule and
-did not belong in core under a taught namespace: they are
-`kit::brush::presets::` now, unchanged, in a scope that says what they
-are. And `ops::` is a pre-existing public escape hatch whose demotion is
-**half done**: `.shaped(kit::brush::shapers::…)` now covers every `ops::`
-struct — R2 added the `Rounded`, `Square` and `Zigzag` twins the demotion
-was waiting on and ported all 21 corpus `.op()` sites — but
-`Brush::leg(Decoration, std::vector<GeometryOp>)` still has no
-shaper-typed spelling, so the per-leg pipeline keeps `ops::` public.
+`brush::CornerArt`/`CornerAlign`, and `brush::Restyled`/`restyle`. The
+four `LayeredBrush` presets (`filament`/`circuit`/`rope`/`pulse`) were
+PRESETS by the tier rule and did not belong in core under a taught
+namespace: they are `kit::brush::presets::` and nothing else.
+
+**`ops::` is now ONE DOOR, and that is deliberate.** The comparable
+structs (`Wave`/`Rounded`/`Sketchy`/`Square`/`Offset`), `Brush::op()` and
+the `vector<GeometryOp>` per-layer suffix were all deleted: every one of
+them has a `kit::brush::shapers::` twin, and `Brush::layer(dec, {shaper…})`
+reaches them. What has NO replacement is the raw lambda — a `Shaper` is
+comparable by design, so a closure can never be one — so `ops::PathOp`,
+`ops::chain` and `ops::debug` survive, reachable through
+`brush::restyle(op, decoration)` and nowhere else, documented as a
+mechanism and priced as one (it never prunes).
 
 **`brush::ribbon(profile, fill)` is the taught Ribbon constructor.** A
 `Ribbon`'s width now rides the shared `Profile` seam (`across(along)` +
@@ -1766,6 +1766,8 @@ band is built by `bandRegion()` — so its rails go through
 `profileOffset` and pick up the real-vertex corner repair. `widthFn` /
 `widthMax` still work and still draw exactly what they always drew; a
 profiled ribbon is the new geometry, which is why it is a new field.
+`widthFn`/`widthMax` are CONDEMNED and were not deleted in R3: moving the
+corpus's 7 sites is a re-draw, not a rename (see ROADMAP §33's R3 note).
 **And it is a new PICTURE, which is why the corpus did not port.** The
 two lanes are different constructions — the profile lane calls
 `bandRegion()`, the `widthFn` lane samples the contour and zips two point
@@ -1897,7 +1899,7 @@ Its API is undecided; this vocabulary is not.
 ```cpp
 Brush{}.shaped(kit::brush::shapers::wave(5, 24))
        .shaped(kit::brush::shapers::jitter(8, 2, 21))
-       .leg(brush::solid(3, ink));
+       .layer(brush::solid(3, ink));
 ```
 
 Any comparable value with `SkPath shape(const SkPath &) const`, plus an
@@ -1905,15 +1907,15 @@ optional `bleed()`. SkPath in, SkPath out — dash and width are path
 operations, and every deviation the corpus wanted was expressible that way.
 
 There are deliberately **no sugar methods** over this seam. Stock shapers
-are kit values, peers of anything you write; `Brush::op()` and
-`GeometryOp`/`ops::` are the legacy spelling and keep compiling, but they
-name the mechanism.
+are kit values, peers of anything you write. `Brush::op()` and the
+`ops::` structs named the mechanism and were DELETED in R3; `.shaped()`
+is the only way into a pipeline, and `Brush::layer(dec, {shaper…})` the
+only way into a per-layer suffix.
 
-`ops::` is **still public** — it is the pre-existing escape hatch, and both
-its internal-only demotion and the deletion of its lowercase incomparable
-lambda family (the audit's item 6) are deferred to the C-batch. Prefer
-`.shaped()` with a comparable value; reach for `ops::` only for a one-off
-lambda you accept will never prune.
+The one thing a shaper cannot be is a raw lambda — a `Shaper` is
+comparable by design. So `ops::PathOp` survives as ONE door, reached
+through `brush::restyle(op, decoration)`. Reach for it only for a one-off
+closure you accept will never prune.
 
 The two mechanisms, named: a **shaper** bends the ONE continuous mark
 (wave, zigzag, jitter — no tile exists); a **pattern** builds the mark out
@@ -1944,7 +1946,7 @@ shapers in mechanics (free functions over the public API) and not peers
 in kind: a shaper is vocabulary, a preset is a finished drawing. §33's
 end state for presets is an EXTERNAL loadable kit; no such mechanism is
 built, and these four had to leave `brushes::` because that namespace
-dies with R3, so the kit is the waypoint. `cased`, `railway`,
+R3 deleted, so the kit is the waypoint. `cased`, `railway`,
 `GlossContour` and their relatives are still out;
 `sketch/sketches/stroke_atlas.cpp` stays the in-repo
 specimen page. Standing check: a preset whose name is craft jargon over a
@@ -1953,7 +1955,7 @@ plain composition gets demoted — the `cased` treatment.
 ## The Brush engine (lines as expressive as fills)
 
 A `Brush` is ONE comparable value: an ordered **geometry pipeline** over
-the node's outline feeding ordered **paint legs** — Illustrator's brush
+the node's outline feeding ordered **paint layers** — Illustrator's brush
 model (Calligraphic / Scatter / Pattern / Art) closed under composition,
 grounded in REFERENCES.md §9 (leaflet/mapbox/QGIS/tldraw conventions):
 
@@ -1961,23 +1963,21 @@ grounded in REFERENCES.md §9 (leaflet/mapbox/QGIS/tldraw conventions):
 element.stroke(Brush{}
     .shaped(kit::brush::shapers::Rounded{6})  // shapers, in order
     .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
-    .leg(lines::cased(3, ink, 5))             // any Decoration is a leg
-    .leg(brush::Scatter{.art = spark(), .spacing = 40},
-         {ops::Offset{.px = 6}}));            // per-leg suffix: still ops::
+    .layer(lines::cased(3, ink, 5))           // any Decoration is a layer
+    .layer(brush::Scatter{.art = spark(), .spacing = 40},
+           {kit::brush::shapers::Offset{.px = 6}}));  // per-layer suffix
 ```
+
+`layer()`, not `leg()` (ROADMAP §33 ruling 14, R3): a Brush's stacked
+marks are the same idea as `brush::layers(...)`, the fixed-order
+composite — the way a strand is the unit of a weave. `leg` named a
+mechanism nothing else in the grammar used.
 
 - **The pipeline takes SHAPERS** (`.shaped(value)`, any comparable value
   with `SkPath shape(const SkPath &) const`; stock ones under
-  `kit::brush::shapers::`). The **per-leg suffix** still takes
-  `ops::` values (`ops::Wave/Rounded/Sketchy/Square/Offset` —
-  designated-init structs with `apply(SkPath)`, optional `bleed()`),
-  because `leg()` has no shaper-typed overload.
-  `GeometryOp` type-erases them exactly like `Decoration` does paint
-  schemes — Skia seals `SkPathEffect` subclassing, so this is that seam
-  as data. An `ops::PathOp` converts too (never prunes) — assign a bare
-  lambda to an `ops::PathOp` variable first; a lambda literal does not
-  convert directly.
-- **Legs** are ordinary Decorations: `lines::Line` (parallel casings,
+  `kit::brush::shapers::`), and so does the **per-layer suffix** — one
+  seam, one word, since R3 closed the gap that kept `ops::` public.
+- **Layers** are ordinary Decorations: `lines::Line` (parallel casings,
   terminal/mid caps with the tip-at-endpoint convention, railway ties,
   dash that stays phase-registered across rails), `LayeredBrush` stacks
   (`kit::brush::presets::` filament/circuit/rope/pulse),
@@ -1990,7 +1990,7 @@ element.stroke(Brush{}
   prunes and caches as one value; animated legs declare volatility
   through; bleeds aggregate (pipeline reach + leg reach).
 
-**Corners are their own problem, and `PatternBrush` now handles them
+**Corners are their own problem, and `brush::Pattern` now handles them
 properly.** A corner tile reserves `cornerLength` of arc on each
 adjacent run (so side tiles butt against the elbow instead of sliding
 underneath it — set it whenever the corner art is bigger than the side
@@ -2091,17 +2091,18 @@ brush::ribbon(profile, fill)                // the seam form: comparable,
                                             // bounded, proper corners
 brush::Ribbon{.widthStart, .widthEnd, .nibAngleDeg, .width (Profile)}
 brush::restyle(op, inner, extraBleed)   // OP FIRST, then the decoration
-ops::Wave / Rounded / Sketchy / Square / Offset            // geometry ops
+                                        // (the ONE mechanism door)
+kit::brush::shapers::Wave / Zigzag / Rounded / Jitter / Square / Offset
 ```
 
-**1. A stamped brush caches its baked art in the VALUE.** `PatternBrush`,
-`ScatterBrush` and `ArtBrush` each hold their `snapshot()` in a
+**1. A stamped brush caches its baked art in the VALUE.** `brush::Pattern`,
+`brush::Scatter` and `brush::Art` each hold their `snapshot()` in a
 `shared_ptr` member. Copy the brush and the copy shares it; **construct**
 one and it gets an empty cache — so a brush built inside a per-frame
 describe re-bakes every tile every frame, and each bake is a full
 reconcile + layout + record pass. One study measured eighteen per frame.
 Build the brush once and keep it, or keep the art Elements
-pointer-stable and copy. `ArtBrush` is the most expensive of the three.
+pointer-stable and copy. `brush::Art` is the most expensive of the three.
 
 **2. `Ribbon::widthFn` — key it to `distance`, not to `fraction`, if the
 host can `trim()`.** A decoration under a trim is handed the REVEALED
@@ -2111,26 +2112,25 @@ in a still frame and diverge only in motion. And set `widthMax` whenever
 you set `widthFn`: `bleed()` cannot look inside a `std::function`, so an
 undeclared 166 px band declares 10 px of reach and is silently clipped.
 
-**3. `ops::Sketchy` is ONE pass of `SkDiscretePathEffect`.** It jitters
+**3. `shapers::Jitter` is ONE pass of `SkDiscretePathEffect`.** It jitters
 vertices; it does not bow the segments between them, so it is not the
 Rough.js construction on its own — Rough.js draws TWO passes, full and
 half deviation at different seeds. Compose two `restyle()`s (or two
-`Sketchy` legs) to match; no single call reproduces it. Note `restyle`
+`Jitter` layers) to match; no single call reproduces it. Note `restyle`
 takes the OP FIRST and the decoration second, and the WRAPPER is
 incomparable whatever op you hand it (it has no `operator==`) — memo the
 host node or keep it pointer-stable, or it never prunes.
 
-**Geometry ops are VALUES** (`ops::Wave{...}` etc., designated-init
-structs with `apply(SkPath)` and an optional `bleed()`), type-erased by
-`GeometryOp` exactly as `Decoration` type-erases paint schemes, because
-Skia seals `SkPathEffect` subclassing. A raw `ops::PathOp` lambda still
-converts — and never prunes. The lowercase factories that returned those
-lambdas (`ops::wave/zigzag/rounded/sketchy`) are DELETED: each duplicated
-its own capitalised struct one letter away with the opposite pruning
-behaviour, and `ops::rounded` collided with `shapes::rounded`. Spell the
-struct (`ops::Wave{a, w}`, `ops::Wave{a, w, true}` for the zigzag,
-`ops::Rounded{r}`, `ops::Sketchy{seg, dev, seed}`); `ops::PathOp` itself,
-with `chain()` and `debug()`, stays as the escape hatch.
+**Shapers are VALUES** (comparable structs with
+`SkPath shape(const SkPath &) const` and an optional `bleed()`),
+type-erased by `Shaper` exactly as `Decoration` type-erases paint
+schemes, because Skia seals `SkPathEffect` subclassing. R3 deleted the
+`ops::` structs that used to double them (`Wave`/`Rounded`/`Sketchy`/
+`Square`/`Offset`, spelled with `apply()` rather than `shape()`) after
+their kit twins were complete — the bodies moved to the twins unchanged.
+`ops::PathOp`, with `chain()` and `debug()`, is what remains: the raw
+incomparable lambda, reachable only through `brush::restyle`, kept
+because nothing else can carry a closure.
 
 **Live pitch and angle.** `lines::Hatch` takes `spacingBinding` and
 `angleBinding` (raw `const Output<float>*`, the same convention as
@@ -2180,7 +2180,7 @@ auto pool = std::make_shared<instancing::Pool>();
 pool->add({x, y}, gem, angleRad, scale, tint); // SoA: position / rotation /
 pool->positions(); pool->tints(); /*…*/        // scale / tint / frame spans
 pool->commit();                        // bulk-mutated? publish the edit
-                                       // (touch() is the legacy spelling)
+                                       // (`touch()` DELETED in R3)
 
 parent.child(box().width(w).height(h)          // the wrapper IS the
     .child(instancing::instances(atlas, pool,  // placement API

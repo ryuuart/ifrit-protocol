@@ -49,8 +49,8 @@
 //   lines::hatch/crosshatch/radialHatch/concentric
 //   kit::brush::shapers::wave/square/zigzag/rounded/jitter/offset
 //                        as Brush pipelines, through .shaped()
-//   Brush                .shaped() pipeline + multi-leg; the per-leg
-//                        suffix is still ops:: (no shaper-typed overload)
+//   Brush                .shaped() pipeline + multi-layer; the per-layer
+//                        suffix takes shapers too (R3 closed the gap)
 //   kit::brush::presets::filament/circuit/rope/pulse            LayeredBrush stacks
 //   brush::Ribbon      taper and calligraphic nib
 //   brush::Scatter/Pattern/Art/restyle
@@ -301,29 +301,29 @@ std::vector<Style> railStyles() {
   lines::Line offsetLine;
   offsetLine.width = 2.0f;
   offsetLine.fill = blue();
-  offsetLine.offset = 7.0f;
+  offsetLine.across = -7.0f;
 
   // …and the same family through lines::Rails, where each rail is its own
   // line. This is the group the old `parallels` count could not reach:
   // per-rail width, per-rail fill, per-rail dash, unequal gaps.
   lines::Rails inkRedInk = lines::rails({
-      {.offset = -5, .width = 2.4f, .fill = ink()},
-      {.offset = 0, .width = 0.7f, .fill = red()},
-      {.offset = 5, .width = 2.4f, .fill = ink()},
+      {.across = 5, .width = 2.4f, .fill = ink()},
+      {.across = 0, .width = 0.7f, .fill = red()},
+      {.across = -5, .width = 2.4f, .fill = ink()},
   });
   lines::Rails counterDashed = lines::rails({
-      {.offset = -4, .width = 2.0f, .fill = ink(), .dash = {9, 7}},
-      {.offset = 4,
+      {.across = 4, .width = 2.0f, .fill = ink(), .dash = {9, 7}},
+      {.across = -4,
        .width = 2.0f,
        .fill = ink(),
        .dash = {9, 7},
        .dashPhase = 8},
   });
   lines::Rails unequal = lines::rails({
-      {.offset = -9, .width = 1.0f, .fill = soft()},
-      {.offset = -3, .width = 3.0f, .fill = ink()},
-      {.offset = 4, .width = 1.6f, .fill = ink()},
-      {.offset = 8, .width = 0.8f, .fill = soft()},
+      {.across = 9, .width = 1.0f, .fill = soft()},
+      {.across = 3, .width = 3.0f, .fill = ink()},
+      {.across = -4, .width = 1.6f, .fill = ink()},
+      {.across = -8, .width = 0.8f, .fill = soft()},
   });
 
   return {
@@ -334,7 +334,7 @@ std::vector<Style> railStyles() {
       {"{.parallels=4, .gap=4}", quad},
       {"triple(1, ink, 5, coreFactor=4)  heavy/hair/heavy", heavyHair},
       {"cased(2,red,7) + dash{9,7}  rails stay in phase", dashedPair},
-      {"{.offset=7}  right of travel (mapbox line-offset)", offsetLine},
+      {"{.across=-7}  positive across is LEFT of travel", offsetLine},
       {"lines::quad(1.4, ink, 5)", lines::quad(1.4f, ink(), 5.0f)},
       {"lines::heavyHairHeavy(3, 0.6, ink, 6)",
        lines::heavyHairHeavy(3.0f, 0.6f, ink(), 6.0f)},
@@ -354,24 +354,24 @@ std::vector<Style> displacedStyles() {
 
   Brush square;
   square.shaped(kit::brush::shapers::Square{.amplitude = 5, .wavelength = 26})
-      .leg(lines::Line{.width = 1.6f, .fill = ink()});
+      .layer(lines::Line{.width = 1.6f, .fill = ink()});
 
   Brush sketch2;
-  sketch2.leg(lines::Line{.width = 1.3f, .fill = soft()},
-              {ops::Sketchy{.segLength = 9, .deviation = 2.0f, .seed = 7}})
-      .leg(lines::Line{.width = 1.3f, .fill = soft()},
-           {ops::Sketchy{.segLength = 9, .deviation = 1.0f, .seed = 41}});
+  sketch2.layer(lines::Line{.width = 1.3f, .fill = soft()},
+              {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 2.0f, .seed = 7}})
+      .layer(lines::Line{.width = 1.3f, .fill = soft()},
+           {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 1.0f, .seed = 41}});
 
   Brush waveOnCased;
   waveOnCased.shaped(kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
-      .leg(lines::cased(1.6f, red(), 5.0f));
+      .layer(lines::cased(1.6f, red(), 5.0f));
 
   return {
       {"lines::wavy(1.8, ink, 4, 18)", lines::wavy(1.8f, ink(), 4.0f, 18.0f)},
       {"wavy(...) then .zigzag = true", zig},
       {"Brush{}.shaped(kit::brush::shapers::Square{5,26})  battlement", square},
-      {"two ops::Sketchy legs, seeds 7 + 41  (rough.js)", sketch2},
-      {"shaped(shapers::Wave{3.5,30}).leg(cased(1.6,red,5))", waveOnCased},
+      {"two shapers::Jitter layers, seeds 7 + 41  (rough.js)", sketch2},
+      {"shaped(shapers::Wave{3.5,30}).layer(cased(1.6,red,5))", waveOnCased},
   };
 }
 
@@ -491,9 +491,9 @@ std::vector<Style> stampedStyles() {
   }
 
   return {
-      {"ScatterBrush{lozenge, 15px, seed 11, jitter}", seeds},
-      {"ScatterBrush{1.6x11 tick, 9px}  tick ladder", ladder},
-      {"PatternBrush{side = ringed cell, advance 11}", chain},
+      {"brush::Scatter{lozenge, 15px, seed 11, jitter}", seeds},
+      {"brush::Scatter{1.6x11 tick, 9px}  tick ladder", ladder},
+      {"brush::Pattern{side = ringed cell, advance 11}", chain},
       {"PathFormat{stampPath = leaf, stampAdvance 13}", vine},
   };
 }
@@ -662,15 +662,15 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       chev.capSize = 8.0f;
       Brush wavyRing;
       wavyRing.shaped(kit::brush::shapers::Wave{.amplitude = 4, .wavelength = 26})
-          .leg(lines::Line{.width = 1.4f, .fill = red()});
+          .layer(lines::Line{.width = 1.4f, .fill = red()});
       lines::Rails registered = lines::rails({
-          {.offset = -5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
-          {.offset = 5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
+          {.across = 5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
+          {.across = -5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
       });
 
       const std::vector<Ring> rings = {
           {160, -1.20f, "Rails{-5,+5, dash{10,8}} in register", registered},
-          {130, -1.00f, "shaped(shapers::Wave{4,26}).leg(1.4 red)", wavyRing},
+          {130, -1.00f, "shaped(shapers::Wave{4,26}).layer(1.4 red)", wavyRing},
           {100, -0.80f, "lines::railway(1.4, ink, 13, 9)",
            lines::railway(1.4f, ink(), 13.0f, 9.0f)},
           {70, -0.60f, "{.midCap=Arrow, .midSpacing=30}", chev},
@@ -762,11 +762,11 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                            lines::heavyHairHeavy(2.2f, 0.6f, ink(), 5.0f),
                            "heavyHairHeavy round a hairpin"));
       Brush hairSketch;
-      hairSketch.leg(lines::Line{.width = 1.3f, .fill = soft()},
-                     {ops::Sketchy{.segLength = 7, .deviation = 2.0f,
+      hairSketch.layer(lines::Line{.width = 1.3f, .fill = soft()},
+                     {kit::brush::shapers::Jitter{.segLength = 7, .deviation = 2.0f,
                                    .seed = 3}});
       plate.child(specimen(460, 1032, 150, 74, hairpin(), hairSketch,
-                           "ops::Sketchy on a hairpin"));
+                           "shapers::Jitter on a hairpin"));
     }
 
     // ---- VI. THE FIELDS --------------------------------------------------
@@ -818,7 +818,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
     plate.child(sectionTitle(56, 1300, "VII",
                              "THE FRAMES \xc2\xb7 BORDERS & CORNERS"));
     plate.child(call("decorations::Border \xc2\xb7 shapes::chamfered/notched "
-                     "\xc2\xb7 PatternBrush corner tiles \xe2\x80\x94 a frame "
+                     "\xc2\xb7 brush::Pattern corner tiles \xe2\x80\x94 a frame "
                      "is not a 1 px rounded rect",
                      9.0f, kInkSoft)
                     .absolute()
@@ -861,7 +861,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
       add("shapes::chamfered(14, Corner::AntiDiagonal)",
           shapes::chamfered(14.0f, shapes::Corner::AntiDiagonal),
           decorations::border(1.6f, ink()), 0.6f);
-      // Corner tiles: PatternBrush's real corner art.
+      // Corner tiles: brush::Pattern's real corner art.
       {
         brush::Pattern tiled;
         tiled.side = box().width(11).height(7).shape(hline()).stroke(
@@ -881,7 +881,7 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                                           brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
         tiled.reach = 16.0f;
-        add("PatternBrush{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
+        add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled, 0.9f);
       }
       {
         ContourWalk walk;
@@ -902,26 +902,26 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         scalloped
             .shaped(
                 kit::brush::shapers::Wave{.amplitude = 3.5f, .wavelength = 22})
-            .leg(lines::Line{.width = 1.4f, .fill = ink()});
+            .layer(lines::Line{.width = 1.4f, .fill = ink()});
         add("shaped(shapers::Wave{3.5,22}) on a closed rect",
             frameRect(8), scalloped, 1.4f);
       }
       {
         Brush drawn;
-        drawn.leg(lines::Line{.width = 1.3f, .fill = ink()},
-                  {ops::Sketchy{.segLength = 9, .deviation = 2.2f, .seed = 5}})
-            .leg(lines::Line{.width = 1.1f, .fill = soft()},
-                 {ops::Sketchy{.segLength = 9, .deviation = 1.1f, .seed = 23}});
-        add("two ops::Sketchy legs on a rect", frameRect(8), drawn, -1.8f);
+        drawn.layer(lines::Line{.width = 1.3f, .fill = ink()},
+                  {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 2.2f, .seed = 5}})
+            .layer(lines::Line{.width = 1.1f, .fill = soft()},
+                 {kit::brush::shapers::Jitter{.segLength = 9, .deviation = 1.1f, .seed = 23}});
+        add("two shapers::Jitter layers on a rect", frameRect(8), drawn, -1.8f);
       }
       add("shapes::onEdges(Top|Bottom, stroke(2))", frameRect(8),
           shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
                           util::stroke(2.0f, ink())),
           -1.2f);
       add("lines::Rails as a border (ink/red/ink)", frameRect(10),
-          lines::rails({{.offset = -3, .width = 1.6f, .fill = ink()},
-                        {.offset = 0, .width = 0.6f, .fill = red()},
-                        {.offset = 3, .width = 1.6f, .fill = ink()}}),
+          lines::rails({{.across = 3, .width = 1.6f, .fill = ink()},
+                        {.across = 0, .width = 0.6f, .fill = red()},
+                        {.across = -3, .width = 1.6f, .fill = ink()}}),
           0.5f);
       addStyle("doubleBorder(solid, dotted @7)", frameRect(8),
                decorations::doubleBorder(

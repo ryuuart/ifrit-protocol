@@ -1449,7 +1449,7 @@ struct GenesisFire : sigil::compose::sketch::Sketch {
                               .child(productionPanel())));
   }
 
-  /** The live census row. PropValue has no u8string case (ROADMAP §9), so
+  /** The live census row. Animatable has no u8string case (ROADMAP §9), so
    *  a number that ticks goes through a slot — which is the right answer
    *  and is cheap, but is not what the call site reaches for first. */
   Element liveRow() {

@@ -23,11 +23,11 @@
  * ## The actual hole, which this does not close
  *
  * All three studies bake because **`text()` takes a `std::u8string`, not a
- * `PropValue`** (`Compose.h`, verified) — so a live numeric readout cannot
+ * `Animatable`** (`Compose.h`, verified) — so a live numeric readout cannot
  * be a text node at all. `vagrant_story_target.cpp:409` says so in as many
  * words. Baking is the workaround, not the goal. That is a ROADMAP entry
  * and a mask helper will bury it if nobody says this out loud, so: **this
- * header is a workaround.** If `text()` ever takes a PropValue, two of the
+ * header is a workaround.** If `text()` ever takes a Animatable, two of the
  * three motivating uses go away.
  *
  * ## The four traps, all of them paid for once already

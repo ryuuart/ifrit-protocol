@@ -38,7 +38,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkStrokeRec.h> // ops::Rounded / ops::Sketchy filterPath
+#include <include/core/SkStrokeRec.h> // filterPath recs
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
@@ -119,24 +119,37 @@ struct LayeredBrush {
 // The four LayeredBrush PRESETS that used to sit here — filament(),
 // circuit(), rope(), pulse() — moved to kit::brush::presets:: in R2
 // (kit/Strokes.h) unchanged. They were compositions with craft names
-// living in the CORE, under a namespace that dies with R3.
-//
-// Their LEGACY spellings (`brushes::filament` and the other three) still
-// resolve until R3 — as using-declarations at the bottom of
-// kit/Strokes.h, because the tier boundary means a core header cannot
-// name a kit value. R2 moved the bodies; R3 deletes the names.
+// living in the CORE, under a namespace (`brushes::`) that R3 deleted.
+// Their old spellings went with it: `kit::brush::presets::filament` is
+// the name, and reaching it means including <sigilcompose/kit/Strokes.h>.
 
 // ---------------------------------------------------------------------------
-// The Illustrator brush model — a brush is a PIPELINE: geometry ops over the
-// path (the SkComposePathEffect idea, at our seam), then paint legs that
+// The Illustrator brush model — a brush is a PIPELINE: shapers over the
+// path (the SkComposePathEffect idea, at our seam), then paint LAYERS that
 // INSTANCE real components along the result, each with a programmatic
 // per-instance twist. Four Illustrator archetypes map onto three values:
-//   Scatter brush  → brushes::ScatterBrush (jittered instances + mod fn)
-//   Pattern brush  → brushes::PatternBrush (side/corner/start/end tiles,
+//   Scatter brush  → brush::Scatter (jittered instances + mod fn)
+//   Pattern brush  → brush::Pattern (side/corner/start/end tiles,
 //                    integer-fit stretch — the Illustrator tile semantics)
-//   Calligraphic   → brushes::Ribbon (variable-width fill; nib angle)
-//   Art brush      → brushes::ArtBrush (one cell continuously bent along
+//   Calligraphic   → brush::Ribbon (variable-width fill; nib angle)
+//   Art brush      → brush::Art (one cell continuously bent along
 //                    the contour via SkVertices; `artAlong()`)
+
+// ---------------------------------------------------------------------------
+// THE ONE MECHANISM DOOR
+//
+// `ops::` is what is LEFT of the escape hatch after R3, and it is left
+// deliberately. Everything else that lived here — the comparable structs
+// `Wave`/`Rounded`/`Sketchy`/`Square`/`Offset`, plus `Brush::op()` and the
+// `vector<GeometryOp>` per-layer suffix — was DELETED, because
+// `kit::brush::shapers::` now has a twin for every one of them and
+// `Brush::layer(dec, {shaper…})` reaches them (ROADMAP §33, R3).
+//
+// What has NO replacement is the RAW LAMBDA: a `Shaper` requires equality,
+// by design, so a one-off closure can never be one. That capability would
+// have vanished with nothing to say instead, so it stays — as exactly one
+// door, reached through `brush::restyle(op, decoration)`, documented as a
+// mechanism and priced as one (it never prunes).
 
 namespace ops {
 
@@ -145,24 +158,13 @@ namespace ops {
  *  seam is sealed in its public API. It can do anything, and it can never
  *  prune: an incomparable callable compares conservatively unequal, so a
  *  node wearing one re-records every render (memo the host, or keep it
- *  pointer-stable). Reach for it when neither a comparable `ops::` struct
- *  (below) nor a `kit::brush::shapers` value can say what you mean.
- *  Chain them with chain(); apply to any decoration with
- *  brushes::restyle(), which takes either form.
+ *  pointer-stable).
  *
- *  THE LOWERCASE FACTORIES ARE GONE (audit I6, deleted with this note):
- *  `ops::wave/zigzag/rounded/sketchy` each returned one of these lambdas
- *  doing exactly what its capitalised struct one letter away does —
- *  so which of the two an author typed silently decided whether the node
- *  could EVER prune, and `ops::rounded` additionally collided with
- *  `shapes::rounded`, which rounds a different thing. The comparable
- *  spellings, and the whole port:
- *
- *      ops::wave(a, w)         → ops::Wave{a, w}
- *      ops::zigzag(a, w)       → ops::Wave{a, w, true}
- *      ops::rounded(r)         → ops::Rounded{r}
- *      ops::sketchy(s, d, k)   → ops::Sketchy{s, d, k}
- *      op(path)                → Op{...}.apply(path) */
+ *  Reach for it only when no `kit::brush::shapers` value and no shaper you
+ *  could write yourself can say what you mean — a shaper is a comparable
+ *  struct with `SkPath shape(const SkPath &) const` and writing one is
+ *  four lines. Chain lambdas with chain(); apply to any decoration with
+ *  `brush::restyle()`, which is the only thing that takes one. */
 using PathOp = std::function<SkPath(const SkPath &)>;
 
 /** Dump the path's contour census (count/lengths/closedness/bounds) to
@@ -188,8 +190,8 @@ inline PathOp debug(const char *tag = "brush") {
 /** Chain escape-hatch ops left-to-right — compose like
  *  SkComposePathEffect. Lowercase and kept for the same reason as
  *  debug(): it is the PathOp family's own combinator, not a duplicate of
- *  a comparable value. Comparable ops chain by listing them —
- *  `Brush::op()` appends, and each `.leg()` carries its own list. */
+ *  a comparable value. Shapers chain by listing them — `Brush::shaped()`
+ *  appends, and each `.layer()` carries its own list. */
 inline PathOp chain(std::vector<PathOp> steps) {
   return [steps = std::move(steps)](const SkPath &p) {
     SkPath r = p;
@@ -202,43 +204,27 @@ inline PathOp chain(std::vector<PathOp> steps) {
 
 } // namespace ops
 
-/** Anything with `SkPath apply(const SkPath&) const` — a geometry op as a
- *  VALUE. Optional `float bleed() const` declares extra paint reach (wave
- *  amplitude, offset distance). Value-comparable ops keep the whole Brush
- *  prunable; an ops::PathOp converts too (conservatively unequal) — a
- *  bare lambda literal must be assigned to an ops::PathOp first (two
- *  user-defined conversions do not chain). */
-template <typename G>
-concept GeometryScheme = requires(const G &g, const SkPath &p) {
-  { g.apply(p) } -> std::convertible_to<SkPath>;
-};
-
-/** Type-erased comparable geometry op — Decoration's pattern applied to
- *  the path-transform seam (Skia seals SkPathEffect subclassing; this is
- *  our equivalent, as values). */
+/** What `brush::restyle()` carries: EITHER a comparable `Shaper` (the one
+ *  geometry seam, so a restyle of a stock shaper still prunes) OR a raw
+ *  `ops::PathOp` (the mechanism door, conservatively unequal forever). A
+ *  bare lambda literal must be assigned to an `ops::PathOp` first — two
+ *  user-defined conversions do not chain.
+ *
+ *  Nothing else builds one. `Brush`'s pipeline and its per-layer suffixes
+ *  are `Shaper` lists as of R3; the `apply()`-spelled `GeometryScheme`
+ *  concept it used to accept was the second word for `shape()` and died
+ *  with the `ops::` structs. */
 class GeometryOp {
 public:
-  template <GeometryScheme G>
-  GeometryOp(G scheme) // NOLINT: implicit by design
-      : m_bleed([&] {
-          if constexpr (requires { { scheme.bleed() } -> std::convertible_to<float>; })
-            return (float)scheme.bleed();
-          else
-            return 0.0f;
-        }()) {
-    if constexpr (std::equality_comparable<G>) {
-      m_held = scheme;
-      m_equals = [](const std::any &a, const std::any &b) {
-        return std::any_cast<const G &>(a) == std::any_cast<const G &>(b);
-      };
-    }
-    m_apply = [s = std::move(scheme)](const SkPath &p) { return s.apply(p); };
-  }
   GeometryOp(ops::PathOp fn) // NOLINT: escape hatch, never prunes
       : m_apply(std::move(fn)) {}
-  /** A Shaper IS a geometry op — the seam value under its taught name.
-   *  This adaptor is what lets `.shaped(v)` and the legacy `.op(v)` share
-   *  one pipeline instead of two. */
+  /** Any shaper VALUE, directly — `restyle(shapers::Wave{...}, dec)`. The
+   *  hop through Shaper cannot be implicit (two user-defined conversions
+   *  do not chain), so it is spelled here once. */
+  template <ShaperScheme S>
+  GeometryOp(S scheme) // NOLINT: implicit by design
+      : GeometryOp(Shaper(std::move(scheme))) {}
+  /** A Shaper IS a geometry op — the seam value under its taught name. */
   GeometryOp(Shaper s) // NOLINT: implicit by design
       : m_bleed(s.bleed()) {
     m_held = s;
@@ -265,89 +251,6 @@ private:
   std::function<bool(const std::any &, const std::any &)> m_equals;
 };
 
-namespace ops {
-
-// The struct forms — comparable, prunable, designated-init friendly, and
-// the ONLY spelling now that the lowercase lambdas are gone.
-//
-// STILL PUBLIC, and the reason changed with R2. The gap §33 named — no
-// kit twin for `Rounded` or `Square` — is closed, and so is the third one
-// the port found (`Wave{.zigzag = true}`): `kit::brush::shapers::` now
-// ships `Rounded`, `Square` and `Zigzag` beside wave/jitter/offset, every
-// struct here has a taught twin, and all 21 corpus `.op()` sites are
-// `.shaped()`. **The PIPELINE seam is unblocked.**
-//
-// What holds the family public is the PER-LEG suffix: `Brush::leg` takes
-// `std::vector<GeometryOp>` and there is no shaper-typed overload, so a
-// leg op cannot be written as a kit value without an explicit
-// `Shaper(...)` wrap (two user-defined conversions do not chain). Until
-// `leg(Decoration, std::vector<Shaper>)` exists, these structs are the
-// only spelling for it, and the corpus uses them there — see
-// `ScenesNetwork.h`'s asymmetric casing and `thunder_fulu`'s dry rails.
-
-struct Wave {
-  float amplitude = 4.0f, wavelength = 24.0f;
-  bool zigzag = false;
-  bool operator==(const Wave &) const = default;
-  float bleed() const { return std::abs(amplitude); }
-  SkPath apply(const SkPath &p) const {
-    return lines::displace(p, amplitude, wavelength, zigzag);
-  }
-};
-/** Round every corner (SkCornerPathEffect). Note `shapes::rounded()` is a
- *  different thing — it rounds an OUTLINE generator's result; this rounds
- *  whatever path the brush pipeline is carrying. */
-struct Rounded {
-  float radius = 6.0f;
-  bool operator==(const Rounded &) const = default;
-  SkPath apply(const SkPath &p) const {
-    SkPathBuilder out;
-    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  }
-};
-/** The hand-drawn jitter (SkDiscretePathEffect — the rough.js look;
- *  grounded params in REFERENCES.md §9: deviation ≈ 2). ONE pass: rough.js
- *  draws TWO, full + half deviation at different seeds, so the sketchy
- *  double-line is two legs (or two restyle()s), never one call. */
-struct Sketchy {
-  float segLength = 8.0f, deviation = 2.0f;
-  uint32_t seed = 7;
-  bool operator==(const Sketchy &) const = default;
-  float bleed() const { return deviation * 2; }
-  SkPath apply(const SkPath &p) const {
-    SkPathBuilder out;
-    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
-    // open contours — the transit study's phantom river channel (the
-    // return chord braided the real run under jitter divergence).
-    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
-    if (sk_sp<SkPathEffect> fx =
-            SkDiscretePathEffect::Make(segLength, deviation, seed);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  }
-};
-struct Square { // boxy: battlement/meander-key displacement
-  float amplitude = 5.0f, wavelength = 32.0f;
-  bool operator==(const Square &) const = default;
-  float bleed() const { return std::abs(amplitude); }
-  SkPath apply(const SkPath &p) const {
-    return lines::displaceSquare(p, amplitude, wavelength);
-  }
-};
-struct Offset {
-  float px = 0.0f;
-  float step = 4.0f;
-  bool operator==(const Offset &) const = default;
-  float bleed() const { return std::abs(px); }
-  SkPath apply(const SkPath &p) const { return lines::offsetAlong(p, px, step); }
-};
-
-} // namespace ops
 
 // ---------------------------------------------------------------------------
 // THE BRUSH KINDS AND COMPOSITES (ROADMAP §33 stage two)
@@ -452,14 +355,12 @@ struct Weave {
     return strands == o.strands && crossing == o.crossing &&
            patch == o.patch;
   }
-  bool animates() const {
+  bool isAnimated() const {
     for (const Strand &s : strands)
-      if (s.brush.animates())
+      if (s.brush.isAnimated())
         return true;
     return false;
   }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
   float bleed() const {
     float worst = 0;
     for (const Strand &s : strands)
@@ -635,112 +536,120 @@ inline Weave weave(std::vector<Strand> strands,
 } // namespace brush
 
 /** THE BRUSH: one composable value — a geometry PIPELINE over the outline
- *  (ops applied in order, the SkComposePathEffect idea as data) feeding
- *  ordered paint LEGS (any Decoration: a lines::Line, a LayeredBrush
- *  stack, Scatter/Pattern instancing, a Ribbon, a raw PathFormat). The
- *  Illustrator model, closed under composition:
+ *  (shapers applied in order, the SkComposePathEffect idea as data)
+ *  feeding ordered paint LAYERS (any Decoration: a lines::Line, a
+ *  LayeredBrush stack, Scatter/Pattern instancing, a Ribbon, a raw
+ *  PathFormat). The Illustrator model, closed under composition:
  *
  *    element.stroke(Brush{}
- *        .op(ops::Rounded{6})
- *        .op(ops::Wave{.amplitude = 3, .wavelength = 30})
- *        .leg(lines::cased(3, ink, 5))
- *        .leg(brushes::ScatterBrush{.art = spark(), .spacing = 40}));
+ *        .shaped(kit::brush::shapers::Rounded{6})
+ *        .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
+ *        .layer(lines::cased(3, ink, 5))
+ *        .layer(brush::Scatter{.art = spark(), .spacing = 40}));
  *
- *  A Brush of comparable ops and legs is itself comparable — the whole
- *  styled connector prunes and caches as ONE value. animated legs declare
- *  volatility through; bleed aggregates pipeline reach + leg reach. */
+ *  A Brush of comparable shapers and layers is itself comparable — the
+ *  whole styled connector prunes and caches as ONE value. Animated layers
+ *  declare volatility through; bleed aggregates pipeline reach + layer
+ *  reach.
+ *
+ *  `layer()`, not `leg()` (ROADMAP §33 ruling 14): a Brush's stacked
+ *  marks are the same idea as `brush::layers(...)`, the fixed-order
+ *  composite, the way a strand is the unit of a weave. `leg` named a
+ *  mechanism nobody else in the grammar used. */
 struct Brush {
-  /** One paint leg: a Decoration plus its own pipeline SUFFIX (applied
-   *  after the shared pipeline, this leg only) — the asymmetric-casing
+  /** One paint layer: a Decoration plus its own pipeline SUFFIX (applied
+   *  after the shared pipeline, this layer only) — the asymmetric-casing
    *  ask: one Brush reads as one material ("road with lane and curb"),
-   *  each side riding its own ops::Offset. */
-  struct Leg {
+   *  each side riding its own `shapers::Offset`. */
+  struct Layer {
     Decoration dec;
-    std::vector<GeometryOp> ops;
-    bool operator==(const Leg &o) const {
-      return dec == o.dec && ops == o.ops;
+    std::vector<Shaper> shapers;
+    bool operator==(const Layer &o) const {
+      return dec == o.dec && shapers == o.shapers;
     }
   };
 
-  std::vector<GeometryOp> pipeline;
-  std::vector<Leg> legs;
+  std::vector<Shaper> pipeline;
+  std::vector<Layer> layers;
 
   /** THE geometry-deviation seam: any comparable value with
    *  `SkPath shape(const SkPath &) const`. Stock shapers are kit values
    *  (`kit::brush::shapers::wave/jitter/offset`), peers of anything you
    *  write — there is deliberately no sugar method over this. */
   Brush &shaped(Shaper s) {
-    pipeline.push_back(GeometryOp(std::move(s)));
+    pipeline.push_back(std::move(s));
     return *this;
   }
-  /** Legacy spelling of shaped() — retained until the R3 deletion (ROADMAP §33) (§27). `op` and
-   *  `GeometryOp` name the mechanism; a shaper names what it does. */
-  Brush &op(GeometryOp g) {
-    pipeline.push_back(std::move(g));
-    return *this;
-  }
-  Brush &leg(Decoration d, std::vector<GeometryOp> legOps = {}) {
-    legs.push_back(Leg{std::move(d), std::move(legOps)});
+  /** One mark in the stack, bottom-up, with an optional shaper SUFFIX
+   *  that deviates this layer's geometry only.
+   *
+   *  The suffix takes shapers, the same seam `shaped()` takes — before R3
+   *  it took `GeometryOp`, which is why `ops::` had to stay public for a
+   *  phase (a kit shaper could not reach a `vector<GeometryOp>`: two
+   *  user-defined conversions do not chain). For a raw incomparable
+   *  lambda, wrap the layer's decoration in `brush::restyle(op, dec)` —
+   *  that is the one deliberate mechanism door and it is documented as
+   *  one. */
+  Brush &layer(Decoration d, std::vector<Shaper> suffix = {}) {
+    layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
   }
 
   bool operator==(const Brush &o) const {
-    return pipeline == o.pipeline && legs == o.legs;
+    return pipeline == o.pipeline && layers == o.layers;
   }
-  bool animates() const {
-    for (const Leg &l : legs)
-      if (l.dec.animates())
+  bool isAnimated() const {
+    for (const Layer &l : layers)
+      if (l.dec.isAnimated())
         return true;
     return false;
   }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
-  /** The widest mark any leg paints, plus the pipeline's own reach. */
+  /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
-    for (const GeometryOp &g : pipeline)
+    for (const Shaper &g : pipeline)
       shared += g.bleed();
     float worst = 0;
-    for (const Leg &l : legs) {
-      float legReach = l.dec.reach();
-      for (const GeometryOp &g : l.ops)
-        legReach += g.bleed();
-      worst = std::max(worst, legReach);
+    for (const Layer &l : layers) {
+      float layerReach = l.dec.reach();
+      for (const Shaper &g : l.shapers)
+        layerReach += g.bleed();
+      worst = std::max(worst, layerReach);
     }
     return shared + worst;
   }
-  /** A leg may be a composite that borrows keyed paths; forward them so
+  /** A layer may be a composite that borrows keyed paths; forward them so
    *  the element registers the derive borrow (BorrowingDecoration). */
   std::vector<std::string> borrows() const {
     std::vector<std::string> keys;
-    for (const Leg &l : legs)
+    for (const Layer &l : layers)
       for (const std::string &k : l.dec.borrows())
         keys.push_back(k);
     return keys;
   }
   float bleed() const {
     float shared = 0;
-    for (const GeometryOp &g : pipeline)
+    for (const Shaper &g : pipeline)
       shared += g.bleed(); // pipeline reaches compound (offset THEN wave)
     float worst = 0;
-    for (const Leg &l : legs) {
-      float legReach = l.dec.bleed();
-      for (const GeometryOp &g : l.ops)
-        legReach += g.bleed();
-      worst = std::max(worst, legReach);
+    for (const Layer &l : layers) {
+      float layerReach = l.dec.bleed();
+      for (const Shaper &g : l.shapers)
+        layerReach += g.bleed();
+      worst = std::max(worst, layerReach);
     }
     return shared + worst;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     SkPath styled = ctx.outline;
-    for (const GeometryOp &g : pipeline)
-      styled = g.apply(styled);
-    for (const Leg &l : legs) {
-      SkPath legPath = styled;
-      for (const GeometryOp &g : l.ops)
-        legPath = g.apply(legPath);
-      const PaintContext restyled{ctx.size,        std::move(legPath),
+    for (const Shaper &g : pipeline)
+      styled = g.shape(styled);
+    for (const Layer &l : layers) {
+      SkPath layerPath = styled;
+      for (const Shaper &g : l.shapers)
+        layerPath = g.shape(layerPath);
+      const PaintContext restyled{ctx.size,        std::move(layerPath),
                                   ctx.elapsedSeconds, ctx.contentScale,
                                   ctx.animating,   ctx.fonts,
                                   ctx.borrowed};
@@ -749,24 +658,26 @@ struct Brush {
   }
 };
 
-namespace brushes {
+namespace brush {
 
 /** Run a geometry pipeline, then paint `inner` on the restyled outline —
  *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
  *  jitter, rounding without knowing.
  *
- *  Takes a `GeometryOp`, so a comparable value (`ops::Wave{...}`, a kit
- *  shaper) and a raw `ops::PathOp` lambda both spell it. The WRAPPER is
- *  incomparable either way — it has no operator== — so memo the host node
- *  (or keep it pointer-stable) to prune, whichever op you hand it. */
+ *  THE ONE MECHANISM DOOR (ROADMAP §33, R3). It takes a `GeometryOp`, so
+ *  a comparable shaper value (`kit::brush::shapers::Wave{...}`, or one you
+ *  wrote) and a raw `ops::PathOp` lambda both spell it — and the lambda
+ *  has nowhere else to go, which is the whole reason `ops::` survived the
+ *  deletion. The WRAPPER is incomparable either way — it has no
+ *  operator== — so memo the host node (or keep it pointer-stable) to
+ *  prune, whichever op you hand it. Prefer `Brush::shaped(value)` when a
+ *  shaper can say it: that prunes. */
 struct Restyled {
   GeometryOp op;
   Decoration inner;
   float extraBleed = 8.0f; // the op's own overhang (wave amplitude…)
 
-  bool animates() const { return inner.animates(); }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return inner.isAnimated(); }
   float bleed() const { return inner.bleed() + extraBleed; }
   float reach() const { return inner.reach(); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be
@@ -807,7 +718,7 @@ struct Placement {
   };
   Mode mode = Mode::Interval;
   /** px, or contour fraction when ≤ 1. UNSET means "take the host brush's
-   *  own spacing" — `ScatterBrush::spacing` resolves it. It is an optional
+   *  own spacing" — `Scatter::spacing` resolves it. It is an optional
    *  and not a defaulted float because the default WAS 24, compared against
    *  24 to detect "unset", so an author writing `.interval = 24` got
    *  `spacing` instead of the number they typed, silently (audit I8). An
@@ -974,10 +885,10 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  the art Element pointer-stable across renders to prune; a mod fn makes
  *  the value incomparable (memo the host).
  *
- *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in PatternBrush): build
+ *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in Pattern): build
  *  the brush ONCE and keep it, because a fresh value per describe re-bakes
  *  everything, every frame. ROADMAP §16 is the open fix. */
-struct ScatterBrush {
+struct Scatter {
   Element art;
   float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
   /** Full placement grammar — set `place.mode` for Vertex/SegmentCenter/
@@ -993,11 +904,9 @@ struct ScatterBrush {
   StampModFn mod;
   bool animatedMod = false; ///< mod reads time → repaint per frame
 
-  bool animates() const { return animatedMod; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return animatedMod; }
   float bleed() const { return reach; }
-  bool operator==(const ScatterBrush &o) const {
+  bool operator==(const Scatter &o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
            place == o.place && seed == o.seed &&
            jitterAlong == o.jitterAlong &&
@@ -1109,7 +1018,7 @@ enum class CornerAlign { Bisector, Outgoing };
  *  constructor and no default member initializer: you cannot hand this
  *  brush a corner tile without saying which way it faces.
  *
- *      pb.corner = brushes::CornerArt{elbow, brushes::CornerAlign::Outgoing};
+ *      pb.corner = brush::CornerArt{elbow, brush::CornerAlign::Outgoing};
  */
 struct CornerArt {
   Element art;
@@ -1128,13 +1037,7 @@ struct CornerArt {
  *  or on the outgoing leg — `CornerArt` carries the choice and requires
  *  it); optional START/END tiles on open contours. Runs are the stretches
  *  between corners. An art brush is the one-tile degenerate case. */
-struct PatternBrush {
-  /** Nested legacy spellings — `brushes::PatternBrush::CornerAlign::…`
-   *  keeps compiling; the type itself now lives at `brushes::` scope so
-   *  `CornerArt` can name it. */
-  using CornerAlign = brushes::CornerAlign;
-  using CornerArt = brushes::CornerArt;
-
+struct Pattern {
   Element side;
   std::optional<Element> start, end;
   /** Corner tiles, and their alignment — see CornerArt. Absent means the
@@ -1173,11 +1076,9 @@ struct PatternBrush {
   StampModFn mod;              ///< side tiles only
   bool animatedMod = false;
 
-  bool animates() const { return animatedMod; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return animatedMod; }
   float bleed() const { return reach; }
-  bool operator==(const PatternBrush &o) const {
+  bool operator==(const Pattern &o) const {
     auto node = [](const std::optional<Element> &e) {
       return e ? e->node().get() : nullptr;
     };
@@ -1194,7 +1095,7 @@ struct PatternBrush {
    *
    *  THE CACHE LIVES IN THE BRUSH VALUE. Copy the brush and the copy shares
    *  this cache (shared_ptr); CONSTRUCT a new brush and it gets an empty
-   *  one. So a PatternBrush built inside a per-frame describe — inside the
+   *  one. So a Pattern built inside a per-frame describe — inside the
    *  function passed to renderSlot(), say — re-bakes every tile it has,
    *  every frame, and each bake is a full reconcile + layout + record pass
    *  through snapshot(). One study measured eighteen of those per frame.
@@ -1385,7 +1286,14 @@ struct Ribbon {
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
-  /** Any w(s) over the run — a taper is the default, not the limit: a
+  /** CONDEMNED, and still here — see `width` below for the replacement.
+   *  R3 did not delete this pair: moving the corpus's 7 `widthFn` ribbons
+   *  onto the profile lane is a RE-DRAW, not a rename (the two lanes are
+   *  different constructions — `bandRegion()` vs the sample-and-zip walk),
+   *  so it moves pixels by construction and needs a designer reading 7
+   *  plates. Do not add call sites (ROADMAP §33, R3 note).
+   *
+   *  Any w(s) over the run — a taper is the default, not the limit: a
    *  bulge, a pulse train, a per-node profile all fit here.
    *
    *  **Key it to `distance`, not to `fraction`, if the host can `trim()`.**
@@ -1397,7 +1305,7 @@ struct Ribbon {
    *  and only diverge in motion, which is the worst way for a bug to be
    *  visible. */
   std::function<float(const PathSample &)> widthFn;
-  /** Upper bound on what `widthFn` returns, in px.
+  /** CONDEMNED with `widthFn`. Upper bound on what it returns, in px.
    *
    *  `bleed()` grows the recording cull, and it cannot look inside a
    *  `std::function` — so a width function returning 166 on a ribbon
@@ -1411,8 +1319,8 @@ struct Ribbon {
   float widthMax = 0.0f;
 
   /** THE WIDTH LAW, on the shared PROFILE seam — and the reason
-   *  `widthFn`/`widthMax` are now the legacy pair (ROADMAP §33, stage
-   *  three / N12).
+   *  `widthFn`/`widthMax` are condemned (ROADMAP §33, stage three / N12,
+   *  and the R3 note for why they outlived the deletion phase).
    *
    *  A `Profile` is `float across(float along)` plus a REQUIRED
    *  `float max()` plus EQUALITY, so setting it closes both holes the
@@ -1428,7 +1336,7 @@ struct Ribbon {
    *
    *  IT ALSO CHANGES THE GEOMETRY, deliberately: a profiled ribbon is
    *  `bandRegion()`, so its rails go through `profileOffset` and pick up
-   *  `lines::offsetAlong`'s real-vertex corner repair (arc outside a
+   *  `lines::offsetAcross`'s real-vertex corner repair (arc outside a
    *  turn, miter inside). The sample-and-displace walk below leaves a
    *  spur on the inside of every rectangle corner. That is why this is a
    *  new field and not a reinterpretation of the old ones — no existing
@@ -1550,20 +1458,18 @@ inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
  *  station per N arc-px (6 px follows tight metro curves; loosen for
  *  long gentle paths).
  *
- *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in PatternBrush): build
+ *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in Pattern): build
  *  the brush ONCE and keep it, because a fresh value per describe re-bakes
  *  the texture every frame. ROADMAP §16 is the open fix. */
-struct ArtBrush {
+struct Art {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)
   float stationPx = 6.0f;  ///< arc-length between strip stations
   float reach = 32.0f;     ///< cull reserve: half height + art overhang
 
-  bool animates() const { return false; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return false; }
   float bleed() const { return reach; }
-  bool operator==(const ArtBrush &o) const {
+  bool operator==(const Art &o) const {
     return art.node() == o.art.node() && height == o.height &&
            stationPx == o.stationPx && reach == o.reach;
   }
@@ -1647,9 +1553,9 @@ struct ArtBrush {
 
 /** Art warped along the path: the drawVertices ribbon. `height` 0 keeps
  *  the art's intrinsic height. */
-inline ArtBrush artAlong(Element art, float height = 0,
+inline Art artAlong(Element art, float height = 0,
                          float stationPx = 6.0f) {
-  ArtBrush b;
+  Art b;
   b.art = std::move(art);
   b.height = height;
   b.stationPx = stationPx;
@@ -1657,34 +1563,16 @@ inline ArtBrush artAlong(Element art, float height = 0,
   return b;
 }
 
-} // namespace brushes
+} // namespace brush
 
 // ---------------------------------------------------------------------------
-// The remaining brush KINDS, taught under `brush::` (see the taxonomy note
-// above). Aliases, not new types — the old spellings keep compiling (§27),
-// and nothing about their behaviour changes.
+// `namespace brushes` is GONE (R3). Everything it held lives in `brush::`
+// under the taught name — the kinds are `brush::Pattern`/`Scatter`/`Art`/
+// `Ribbon`, not `PatternBrush`/`ScatterBrush`/`ArtBrush`, because a type
+// suffixed with its own namespace was the two-names-for-one-identity
+// defect (§22) the deletion phase exists to remove.
 
 namespace brush {
-/** A mark built from CELLS repeated along the boundary (the cell is an
- *  element — anything paints it). The other mechanism from a shaper: a
- *  shaper bends ONE continuous mark, a pattern builds the mark out of
- *  pieces. Legacy spelling: `brushes::PatternBrush`. */
-using Pattern = brushes::PatternBrush;
-/** Cells strewn NEAR the boundary rather than laid along it.
- *  Legacy spelling: `brushes::ScatterBrush`. */
-using Scatter = brushes::ScatterBrush;
-/** An element stretched ALONG the boundary in its (along, across) space.
- *  Legacy spelling: `brushes::ArtBrush`. */
-using Art = brushes::ArtBrush;
-/** A variable-width FILLED band along the boundary — the calligraphic
- *  kind (Illustrator's third archetype). Width comes from the shared
- *  `Profile` seam (`Ribbon::width`); `widthFn`/`widthMax` are the legacy
- *  pair. Legacy spelling: `brushes::Ribbon`. */
-using Ribbon = brushes::Ribbon;
-/** `Ribbon` presets: the linear taper (comet body, ink pull-away) and the
- *  calligraphic nib. Legacy spellings: `brushes::taper`/`calligraphic`. */
-using brushes::calligraphic;
-using brushes::taper;
 /** A Ribbon on the PROFILE seam — the taught constructor, because the
  *  profile is the half of a ribbon that has a shared vocabulary. */
 inline Ribbon ribbon(Profile width, Fill fill) {
@@ -1693,23 +1581,6 @@ inline Ribbon ribbon(Profile width, Fill fill) {
   r.fill = std::move(fill);
   return r;
 }
-/** One art cell bent along each contour. Legacy: `brushes::artAlong`. */
-using brushes::artAlong;
-/** WHERE instances land along a path (the QGIS marker-line placement
- *  grammar), and what a per-instance twist may say. Legacy spellings:
- *  `brushes::Placement` / `brushes::StampMod` / `brushes::StampModFn`. */
-using Placement = brushes::Placement;
-using StampMod = brushes::StampMod;
-using StampModFn = brushes::StampModFn;
-/** Corner art and its REQUIRED alignment — see brushes::CornerArt. */
-using CornerAlign = brushes::CornerAlign;
-using CornerArt = brushes::CornerArt;
-/** The geometry-deviation WRAPPER. Present so the fold is complete and
- *  nothing in `brushes::` is left without a home; the TAUGHT spelling for
- *  a geometry deviation is `Element::shaped(value)`, which is comparable
- *  where this wrapper is not. Legacy: `brushes::Restyled`/`restyle`. */
-using Restyled = brushes::Restyled;
-using brushes::restyle;
 } // namespace brush
 
 } // namespace sigil::compose

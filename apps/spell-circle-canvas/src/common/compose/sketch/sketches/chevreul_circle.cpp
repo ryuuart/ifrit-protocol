@@ -1726,7 +1726,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
                st.reconcileMs, st.layoutMs, st.volatileMs, st.paintMs);
     }
 
-    // The counting numbers of beat 2. PropValue covers floats, colours and
+    // The counting numbers of beat 2. Animatable covers floats, colours and
     // fills but not text, so a counter is a renderSlot() — done here rather
     // than by re-describing the plate, so every other cache stays valid.
     const float d = demo.value();

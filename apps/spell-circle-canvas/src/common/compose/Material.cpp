@@ -359,7 +359,7 @@ bool Material::operator==(const Material &o) const {
   if ((m_live != nullptr) != (o.m_live != nullptr))
     return false;
   if (m_live) {
-    if (isLive() || o.isLive())
+    if (isAnimated() || o.isAnimated())
       return m_live == o.m_live;
     return m_live->effect == o.m_live->effect &&
            m_live->constants == o.m_live->constants &&
@@ -439,14 +439,14 @@ Material &Material::quantizeTime(float hz) {
   return *this;
 }
 
-bool Material::isLive() const {
+bool Material::isAnimated() const {
   if (m_live &&
       (!m_live->binds.empty() || m_live->usesTime || m_live->usesScale))
     return true;
   // A blend inherits liveness from its layers (deferred fold in resolve()).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto &layer : m_recipe->layers)
-      if (layer.first.isLive())
+      if (layer.first.isAnimated())
         return true;
   return false;
 }
@@ -501,7 +501,7 @@ sk_sp<SkShader> Material::asShader() const {
   // A live material's m_shader snapshot predates its binds — rebuild fresh so
   // bound Outputs contribute their CURRENT values (what blend() flattens; the
   // Fable audit's stale-snapshot defect).
-  if (isLive())
+  if (isAnimated())
     return build(*m_live, nullptr);
   if (m_shader)
     return m_shader;
@@ -524,7 +524,7 @@ Fill Material::resolve(const PaintContext &ctx) const {
   // contributes its correct current form — the eager snapshot from blend()
   // would have baked those layers with a null context (uResolution = 0,0).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
-      (isLive() || geometryDependent())) {
+      (isAnimated() || geometryDependent())) {
     sk_sp<SkShader> acc;
     bool first = true;
     for (const auto &[mat, mode] : m_recipe->layers) {
@@ -549,7 +549,7 @@ Fill Material::resolve(const PaintContext &ctx) const {
     }
     return Fill::shader(std::move(acc));
   }
-  if (isLive() || geometryDependent())
+  if (isAnimated() || geometryDependent())
     return Fill::shader(build(*m_live, &ctx));
   return toFill();
 }
@@ -561,7 +561,7 @@ Element &Element::textFill(Material m) {
 
 Element &Element::fill(Material m) {
   detail::MaterialData &slots = m_node->materialData.ensure();
-  if (m.isLive() || m.geometryDependent()) {
+  if (m.isAnimated() || m.geometryDependent()) {
     // Live materials re-resolve per frame; geometry-dependent ones resolve
     // when the node records (and re-record on size change) — both route
     // through the material slot so the painter resolves with PaintContext.
@@ -569,7 +569,7 @@ Element &Element::fill(Material m) {
     m_node->paint.fill.reset();
     slots.recipe.reset();
   } else {
-    m_node->paint.fill = PropValue<Fill>{m.toFill()};
+    m_node->paint.fill = Animatable<Fill>{m.toFill()};
     slots.recipe = std::move(m); // the prune signature
     slots.live.reset();
   }

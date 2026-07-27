@@ -1954,7 +1954,7 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // Live numbers. PropValue has no u8string case (ROADMAP §9), so numbers
+  // Live numbers. Animatable has no u8string case (ROADMAP §9), so numbers
   // that tick go through slot()/renderSlot() — the fourth study to land here.
 
   Element chainStatEl() {

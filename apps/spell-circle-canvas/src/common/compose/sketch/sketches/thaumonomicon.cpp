@@ -46,8 +46,8 @@
 //   are in no repo. The UVs say where the cells are and how big they are; they
 //   say nothing about what is drawn in them. So every tile, plate, ornament,
 //   badge and 16x16 item glyph here is GENERATED — the route tiles and the
-//   frame from the brush vocabulary (ops::Sketchy + lines::cased + a
-//   ScatterBrush of ink spatter), the item icons as run-length pixel art on
+//   frame from the brush vocabulary (shapers::Jitter + lines::cased + a
+//   brush::Scatter of ink spatter), the item icons as run-length pixel art on
 //   the GUI grid, the way xcom_battlescape.cpp reconstructed ICONS.PCK. Also
 //   reconstructed: the save state (which nodes are complete / unlockable /
 //   locked) and the Minecraft bitmap face (see PixText).
@@ -94,7 +94,7 @@
 // -----------------------------------------------------------------------------
 // THE CORNER REPORT — brush::Pattern, measured, and now closed
 //
-// The brief predicted PatternBrush would break on a 48 px corner tile against
+// The brief predicted brush::Pattern would break on a 48 px corner tile against
 // 24 px side tiles. It did. Probed with a scratch sketch (three L routes; a
 // 48 px side tile with coloured end caps; a 96 px corner tile with its local
 // +x axis drawn, so placement and rotation are both readable off the pixels):
@@ -118,7 +118,7 @@
 //      bisector. On a rect that means three corners rotate one way and the
 //      fourth rotates 45 degrees off.
 //
-// (a) is FIXED: `PatternBrush::cornerLength` now reserves cornerLength/2 at
+// (a) is FIXED: `brush::Pattern::cornerLength` now reserves cornerLength/2 at
 // each end of a corner's two runs and refits the side tiles over the shortened
 // span. These edges are its first real consumer, and the numbers fall out
 // exactly: reserve = kCell/2 for the small elbow and 1.5*kCell for the big
@@ -154,7 +154,7 @@
 // corner and picks its art up front.
 //
 // One more, found while getting under the 60 FPS gate and not obvious from
-// either header: PatternBrush and ScatterBrush bake their art with snapshot(),
+// either header: brush::Pattern and brush::Scatter bake their art with snapshot(),
 // which records DRAW CALLS. So an SkMaskFilter inside tile art is re-run on
 // every stamp — a 1.1 px blurred ink bed cost 3.7 ms of a 15.5 ms frame across
 // ~145 stamps. Art that will be stamped hundreds of times has to be flat
@@ -471,7 +471,7 @@ inline int tierZ(EdgeTier t) {
 //
 // The path handed to the brush is ONE open contour with hard 90-degree
 // breaks, trimmed half a cell at each end (the mod's first tile sits a whole
-// cell from the node, and its last stops a cell short). PatternBrush::
+// cell from the node, and its last stops a cell short). brush::Pattern::
 // cornerLength then reserves the elbow's own room, and the side runs come out
 // to an exact integer count with sx = 1.0:
 //
@@ -537,9 +537,9 @@ inline Router thaumRoute(bool flipped) {
 
 // ---------------------------------------------------------------------------
 // INK. Every tile in the route vocabulary is generated from the brush kit:
-// ops::Sketchy jitter over lines::cased, plus a light ScatterBrush of spatter.
+// shapers::Jitter over lines::cased, plus a light brush::Scatter of spatter.
 // Art elements are held by the sketch so their node identity is stable and the
-// PatternBrush bake happens once.
+// brush::Pattern bake happens once.
 
 /** A pen stroke as a Brush: the ink BED (wide, dark, blurred — ink soaking
  *  into paper), a triple rule whose bold spine carries the value and whose
@@ -553,22 +553,22 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
   br.shaped(kit::brush::shapers::Jitter{
       .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body. NO blur —
-  // and that is a measured constraint, not a taste. PatternBrush and
-  // ScatterBrush bake their art with snapshot(), which records DRAW CALLS,
+  // and that is a measured constraint, not a taste. brush::Pattern and
+  // brush::Scatter bake their art with snapshot(), which records DRAW CALLS,
   // so an SkMaskFilter inside a tile is re-run on every stamp: 145 stamps of
   // a 1.1 px blurred bed cost 3.7 ms of a 15.5 ms frame. Art that will be
   // stamped hundreds of times has to be flat geometry.
-  br.leg(LayeredBrush{{
+  br.layer(LayeredBrush{{
       {g(4.0f) * k, mul(kInkDeep, 1.0f, 0.34f * tint.fA)},
       {g(2.6f) * k, mul(kInkDeep, 1.0f, 0.92f * tint.fA)},
   }});
   // the body: one rule — state moves VALUE, never width
-  br.leg(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
+  br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
   // the dry edge: a hairline offset to one side, where the nib lifted
-  br.leg(lines::Line{.width = g(0.45f) * k,
+  br.layer(lines::Line{.width = g(0.45f) * k,
                      .fill = Fill::color(mul(tint, 1.35f, 0.85f * tint.fA))},
-         {ops::Offset{.px = -g(0.85f), .step = g(2)}});
-  br.leg(brush::Scatter{.art = spatter,
+         {kit::brush::shapers::Offset{.px = g(0.85f), .step = g(2)}});
+  br.layer(brush::Scatter{.art = spatter,
                                .spacing = g(13),
                                .seed = 9,
                                .jitterAlong = g(4),
@@ -580,7 +580,7 @@ inline Brush penBrush(SkColor4f tint, float k, const Element &spatter,
   return br;
 }
 
-/** One ink grain — the ScatterBrush cell. */
+/** One ink grain — the brush::Scatter cell. */
 inline Element spatterCell(SkColor4f tint) {
   return box().width(g(1.2f)).height(g(1.2f)).shape(shapes::circle()).fill(
       Fill::color(mul(tint, 0.85f, 0.7f * tint.fA)));
@@ -594,7 +594,7 @@ inline Element straightTile(SkColor4f tint, const Element &spatter,
                             const Element &knot) {
   const float w = g(28), h = g(14);
   Brush br = penBrush(tint, 1.0f, spatter, 0.45f);
-  br.leg(brush::Scatter{
+  br.layer(brush::Scatter{
       .art = knot,
       .place = {.mode = brush::Placement::Mode::CentralPoint},
       .alignToPath = true,
@@ -624,7 +624,7 @@ inline Element knotCell(SkColor4f tint) {
   return e;
 }
 
-/** The elbow tile, drawn in the frame PatternBrush stamps it in — local +x
+/** The elbow tile, drawn in the frame brush::Pattern stamps it in — local +x
  *  along the OUTGOING leg, which the brush only does when it is ASKED
  *  (`cornerAlign = Outgoing`, set in edgeEl; the default is the bisector, and
  *  under it this art lands 45 degrees off — see THE CORNER REPORT). In that
@@ -647,7 +647,7 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
   const SkPoint entry{half, half + handed * arm};
   const SkPoint exit{half + arm, half};
   Brush br = penBrush(tint, 1.0f, spatter, 0.0f);
-  br.leg(brush::Scatter{
+  br.layer(brush::Scatter{
       .art = knot,
       .place = {.mode = brush::Placement::Mode::InnerVertices},
       .alignToPath = true,
@@ -746,12 +746,12 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element &spatter) {
   lines::Line outer;
   outer.width = g(1.6f);
   outer.fill = Fill::color(mul(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
-  rule.leg(outer);
+  rule.layer(outer);
   lines::Line inner;
   inner.width = g(0.8f);
   inner.fill = Fill::color(mul(kBrassLit, hidden ? 0.35f : 0.75f));
   inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
-  rule.leg(inner, {ops::Offset{.px = g(2.4f), .step = g(2)}});
+  rule.layer(inner, {kit::brush::shapers::Offset{.px = -g(2.4f), .step = g(2)}});
   e.stroke(rule);
   return e;
 }
@@ -770,7 +770,7 @@ inline Element spikyOverlay(uint32_t seed) {
   lines::Line l;
   l.width = g(1.1f);
   l.fill = Fill::color(mul(kBrassLit, 0.9f, 0.85f));
-  br.leg(l);
+  br.layer(l);
   e.stroke(br);
   return e;
 }
@@ -1056,7 +1056,7 @@ inline Element warpSwirl(const ch::Output<float> *spin, int strength) {
 // ---------------------------------------------------------------------------
 // THE FRAME (:726-755). A 22-px band whose outer edge is at -2 on every side,
 // built from a 22x22 corner tile and 64-px edge runs. This is the one place
-// the stock PatternBrush corner path is used: a closed rect has four hard
+// the stock brush::Pattern corner path is used: a closed rect has four hard
 // 90-degree breaks, and 3 px of misregistration on a 128-px tile does not
 // read. The inner rule beside it is the other idiom — four OPEN contours that
 // stop short of the corners instead of mitring.
@@ -1394,7 +1394,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
 
   // -------------------------------------------------------------------------
   // One edge: a connector on the transcribed router, dressed with ONE stock
-  // PatternBrush — 24x24 side tiles, a 24x24 or 48x48 corner tile, and
+  // brush::Pattern — 24x24 side tiles, a 24x24 or 48x48 corner tile, and
   // cornerLength reserving the elbow's own room so the side run butts against
   // it instead of continuing underneath. Nothing here is a stroke.
 
@@ -1423,7 +1423,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
       pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
     }
     Brush br;
-    br.leg(std::move(pb));
+    br.layer(std::move(pb));
 
     return connector(child.key, parent.key, thaumRoute(e.flipped))
         .inset(0)
@@ -1507,7 +1507,7 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // The frame: the stock PatternBrush corner path (closed rect, four breaks).
+  // The frame: the stock brush::Pattern corner path (closed rect, four breaks).
 
   Element frameBand() const {
     const float in = g(9);
@@ -1554,12 +1554,12 @@ struct Thaumonomicon : sigil::compose::sketch::Sketch {
     lines::Line outer;
     outer.width = g(1.2f);
     outer.fill = Fill::color(mul(kBrassDark, 1.0f, 0.85f));
-    br.leg(outer);
+    br.layer(outer);
     lines::Line dotted;
     dotted.width = g(0.8f);
     dotted.fill = Fill::color(mul(kBrassLit, 0.85f, 0.65f));
     dotted.dashIntervals = {g(1.2f), g(3.0f)};
-    br.leg(dotted, {ops::Offset{.px = g(2.5f), .step = g(3)}});
+    br.layer(dotted, {kit::brush::shapers::Offset{.px = -g(2.5f), .step = g(3)}});
     e.stroke(br);
     return e;
   }

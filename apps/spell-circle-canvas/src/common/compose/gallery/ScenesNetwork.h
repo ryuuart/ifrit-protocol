@@ -3,7 +3,7 @@
 // sketch/sketches/transit.cpp: one metro map, twelve constructions,
 // every route a different brush:
 //
-//   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased leg --
+//   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased layer --
 //                     the classic two-rail metro pair (rounding from the
 //                     PIPELINE, the router stays sharp)
 //   STEEL SPUR ...... lines::railwayCarto LayerStyle -- osm-carto's verified
@@ -11,10 +11,10 @@
 //   CURRENT LINE .... lines::Line with midCap chevrons + terminal arrow --
 //                     the polylinedecorator repeat pattern
 //   SMOKEWATER ...... the TfL Thames rule: a pale octilinear band ~3.9x the
-//                     route weight with thin per-leg ops::Offset bank edges
+//                     route weight with thin per-layer shapers::Offset edges
 //   NIGHT BUS ....... asymmetric casing from shapers::Offset pipelines --
 //                     amber dashed bus lane right of travel, thin curb left
-//   ORBITAL ......... Brush{ Line leg + brush::Scatter leg } on a circle --
+//   ORBITAL ......... Brush{ Line layer + brush::Scatter layer } on a circle --
 //                     station stamps INSTANCED along the route
 //   TWIN SERVICE .... shared running as alternating two-color dashes
 //   CABLEWAY ........ PathFormat::stampPath rings on a support cable
@@ -157,11 +157,11 @@ struct NightNetworkScene final : Scene {
     namespace nn = night_network;
 
     // -- 1. EMBER LINE: the cased pair. Router left SHARP (radius 0);
-    //    the Brush pipeline rounds, then the leg lays two rails whose
+    //    the Brush pipeline rounds, then the layer lays two rails whose
     //    dashes/params share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
     emberBrush.shaped(kit::brush::shapers::Rounded{12.0f});
-    emberBrush.leg(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
+    emberBrush.layer(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
     // -- 3. CURRENT LINE: the section-9 decorator pattern -- repeated
     //    mid-path chevrons + terminal arrow, tip AT the endpoint, body
@@ -177,36 +177,36 @@ struct NightNetworkScene final : Scene {
     //    Thames; d3-tube-map encodes the same rule): the river speaks the
     //    map's OWN octilinear language -- never organic -- as a pale band
     //    ~3.9x the route weight with thin bank edges ~0.3x, routes drawn
-    //    OVER it. The bank edges are per-leg ops::Offset legs -- one Brush,
+    //    OVER it. The bank edges are per-layer shapers::Offset -- one Brush,
     //    one material: "a river with two banks".
     const float routeW = 3.0f;
     Brush river;
-    river.leg(lines::Line{.width = routeW * 3.9f,
+    river.layer(lines::Line{.width = routeW * 3.9f,
                           .fill = Fill::color({0.13f, 0.27f, 0.40f, 0.9f})});
-    river.leg(lines::Line{.width = routeW * 0.3f,
+    river.layer(lines::Line{.width = routeW * 0.3f,
                           .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
-              {ops::Offset{.px = routeW * 1.95f}});
-    river.leg(lines::Line{.width = routeW * 0.3f,
+              {kit::brush::shapers::Offset{.px = -routeW * 1.95f}});
+    river.layer(lines::Line{.width = routeW * 0.3f,
                           .fill = Fill::color({0.36f, 0.66f, 0.86f, 0.8f})},
-              {ops::Offset{.px = -routeW * 1.95f}});
+              {kit::brush::shapers::Offset{.px = routeW * 1.95f}});
 
     // -- 5. NIGHT BUS: asymmetric casing from shapers::Offset. Positive
-    //    offset = RIGHT of travel (mapbox line-offset semantics): amber
+    //    offset = LEFT of travel (the one convention, R3): amber
     //    dashed bus lane one side, thin bone curb the other. One Brush per
-    //    side -- the pipeline applies to ALL legs, so per-side treatments
+    //    side -- the pipeline applies to ALL layers, so per-side treatments
     //    are separate strokes.
     lines::Line roadbed{.width = 13.0f, .fill = Fill::color(nn::kAsphalt)};
     Brush busLane;
-    busLane.shaped(kit::brush::shapers::Offset{.px = 9.5f});
-    busLane.leg(lines::Line{.width = 3.0f,
+    busLane.shaped(kit::brush::shapers::Offset{.px = -9.5f});
+    busLane.layer(lines::Line{.width = 3.0f,
                             .fill = Fill::color(nn::kAmber),
                             .dashIntervals = {13, 9}});
     Brush curb;
-    curb.shaped(kit::brush::shapers::Offset{.px = -8.5f});
-    curb.leg(lines::Line{.width = 1.3f,
+    curb.shaped(kit::brush::shapers::Offset{.px = 8.5f});
+    curb.layer(lines::Line{.width = 1.3f,
                          .fill = Fill::color({0.85f, 0.86f, 0.90f, 0.75f})});
 
-    // -- 6. ORBITAL: line leg + brush::Scatter leg -- real components
+    // -- 6. ORBITAL: line layer + brush::Scatter layer -- real components
     //    INSTANCED along the route (snapshot-baked once, replayed per
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
     Element ringStamp =
@@ -216,22 +216,22 @@ struct NightNetworkScene final : Scene {
                                  .borderWidth = 2.0f,
                                  .borderColor = {0.30f, 0.18f, 0.48f, 1}}));
     Brush orbital;
-    orbital.leg(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
-    orbital.leg(brush::Scatter{.art = ringStamp,
+    orbital.layer(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
+    orbital.layer(brush::Scatter{.art = ringStamp,
                                       .spacing = 74.6f,
                                       .alignToPath = false,
                                       .reach = 12.0f});
 
     // -- 7. TWIN SERVICE: shared running as ALTERNATING two-color dashes
     //    (the network-map convention for two services on one track): two
-    //    dashed legs, same body, complementary phases -- dash geometry
+    //    dashed layers, same body, complementary phases -- dash geometry
     //    shares one arc parameterization, so the colors interlock exactly.
     Brush twin;
-    twin.leg(lines::Line{.width = 4.0f,
+    twin.layer(lines::Line{.width = 4.0f,
                          .fill = Fill::color(nn::kRose),
                          .dashIntervals = {14, 14},
                          .dashPhase = 0});
-    twin.leg(lines::Line{.width = 4.0f,
+    twin.layer(lines::Line{.width = 4.0f,
                          .fill = Fill::color(nn::kBone),
                          .dashIntervals = {14, 14},
                          .dashPhase = 14});
@@ -245,16 +245,16 @@ struct NightNetworkScene final : Scene {
     cableRings.stampPath = SkPath::Circle(0, 0, 4.0f);
     cableRings.stampAdvance = 24.0f;
     Brush cableway;
-    cableway.leg(lines::Line{.width = 1.8f,
+    cableway.layer(lines::Line{.width = 1.8f,
                              .fill = Fill::color({0.66f, 0.68f, 0.74f, 0.95f})});
-    cableway.leg(cableRings);
+    cableway.layer(cableRings);
 
-    // -- 9. MILLBROOK CREEK: the CALLIGRAPHIC leg -- variable width the
+    // -- 9. MILLBROOK CREEK: the CALLIGRAPHIC layer -- variable width the
     //    way real maps use it: topographic rivers TAPER toward the source
     //    (drawn mouth->source, wide->narrow), in the map's own octilinear
     //    grammar per the Thames rule.
     Brush creek;
-    creek.leg(brush::taper(2.2f, 9.0f,
+    creek.layer(brush::taper(2.2f, 9.0f,
                              Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
 
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
@@ -263,7 +263,7 @@ struct NightNetworkScene final : Scene {
     auto demoRun = [](Shaper op, SkColor4f c) {
       Brush b;
       b.shaped(std::move(op));
-      b.leg(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
+      b.layer(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
       return b;
     };
     auto demoPath = [](SkSize sz) { // the SAME points for all three

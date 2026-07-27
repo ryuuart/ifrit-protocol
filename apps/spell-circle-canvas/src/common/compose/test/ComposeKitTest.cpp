@@ -763,10 +763,11 @@ TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
   EXPECT_GT(waved.getBounds().height(), 6.0f) << "the wave did not deviate";
   const SkPath jittered = kit::brush::shapers::jitter(8, 3, 5).shape(straight);
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
-  const SkPath railed = kit::brush::shapers::offset(12).shape(straight);
+  const SkPath railed = kit::brush::shapers::offset(-12).shape(straight);
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
-      << "offset is RIGHT of travel here — lines::offsetAlong's convention, "
-         "which the kit shaper wraps unchanged (§27)";
+      << "positive offset is LEFT of travel — the one convention (R3's "
+         "sign port), so travelling +x with y down a NEGATIVE offset goes "
+         "down the screen";
 
   // Comparable, so a brush holding one prunes.
   EXPECT_TRUE(kit::brush::shapers::wave(6, 30) ==
@@ -886,11 +887,11 @@ Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 // compile failure is reported as a kernel failure.
 
 TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
-  // `.shaped(value)` is the ONE geometry-deviation seam. `brushes::restyle`
-  // is the older wrapper that does the same job around a `GeometryOp` —
-  // it is NOT retired (it still ships), so the claim here is agreement,
-  // not replacement. The legacy arm spells `ops::Wave`, the comparable
-  // struct: the lowercase `ops::wave` lambda it used to spell is deleted.
+  // `.shaped(value)` is the ONE geometry-deviation seam. `brush::restyle`
+  // is the wrapper that does the same job around a `GeometryOp` — it is
+  // the one deliberate mechanism door R3 kept, because a raw lambda can
+  // never be a Shaper (a Shaper is comparable, by design). So the claim
+  // here is agreement between the door and the seam, not replacement.
   //
   // What is asserted is INK-COUNT SIMILARITY within 5%, not identical
   // output: the two paths build their own PaintContext and wrap the op
@@ -899,12 +900,12 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
     StrokeHost host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
     if (legacySpelling)
-      e.stroke(
-          brushes::restyle(ops::Wave{5, 24}, brush::solid(3, strokeRed()), 8));
+      e.stroke(brush::restyle(kit::brush::shapers::Wave{5, 24},
+                              brush::solid(3, strokeRed()), 8));
     else
       e.stroke(Brush{}
                    .shaped(kit::brush::shapers::wave(5, 24))
-                   .leg(brush::solid(3, strokeRed())));
+                   .layer(brush::solid(3, strokeRed())));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     int inked = 0;
@@ -918,9 +919,13 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   EXPECT_GT(shaped, 100) << "the shaper drew nothing";
   EXPECT_NEAR((double)shaped, (double)wrapper, (double)wrapper * 0.05);
 
-  // .op() is the legacy spelling of .shaped() and shares the pipeline.
+  // `.shaped()` is the only way into the pipeline now — `.op()` and its
+  // GeometryOp lists were deleted with `ops::` (R3) — and two brushes
+  // built from equal shaper values compare equal, which is the prune.
   EXPECT_TRUE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
-              Brush{}.op(GeometryOp(Shaper(kit::brush::shapers::wave(5, 24)))));
+              Brush{}.shaped(kit::brush::shapers::wave(5, 24)));
+  EXPECT_FALSE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
+               Brush{}.shaped(kit::brush::shapers::wave(5, 25)));
 }
 
 TEST(ComposeKitStrokes, ShapersAreComparableValuesAndPrune) {
@@ -1004,15 +1009,12 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
 }
 
 // ---------------------------------------------------------------------------
-// R2: the three twins that unblock the `brush::ops` demotion (ROADMAP §33).
-//
-// §33 said the demotion was blocked until `Rounded` and `Square` had kit
-// shapers. The R2 port found a THIRD gap — `ops::Wave{.zigzag = true}`,
-// with a live corpus site and no kit spelling. All three are here, and
-// each is tested the only way that matters for a rename: the kit value
-// produces the SAME PATH as the `ops::` struct it replaces.
+// R2 added the three twins that unblocked the `ops::` deletion; R3 did the
+// deleting, and the shaper bodies moved here. The `ops::` structs they
+// replaced are gone, so what is testable now is that each still DRAWS —
+// and that Zigzag is not Wave, which is the trap the flag used to hide.
 
-TEST(ComposeKitStrokes, TheThreeNewTwinsProduceTheSamePathAsTheirOpsStructs) {
+TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
   SkPathBuilder b;
   b.moveTo(10, 10);
   b.lineTo(160, 10);
@@ -1026,13 +1028,11 @@ TEST(ComposeKitStrokes, TheThreeNewTwinsProduceTheSamePathAsTheirOpsStructs) {
   const kit::brush::shapers::Square kitSquare{5, 26};
   const kit::brush::shapers::Zigzag kitZigzag{4, 28};
   const kit::brush::shapers::Wave kitWave{4, 28};
-  const ops::Square opsSquare{5, 26};
-  const ops::Wave opsZigzag{4, 28, true};
 
-  EXPECT_TRUE(kit::brush::shapers::Rounded{9.0f}.shape(src) ==
-              ops::Rounded{9.0f}.apply(src));
-  EXPECT_TRUE(kitSquare.shape(src) == opsSquare.apply(src));
-  EXPECT_TRUE(kitZigzag.shape(src) == opsZigzag.apply(src));
+  EXPECT_FALSE(kit::brush::shapers::Rounded{9.0f}.shape(src) == src)
+      << "Rounded absorbed ops::Rounded's SkCornerPathEffect body";
+  EXPECT_FALSE(kitSquare.shape(src) == src);
+  EXPECT_FALSE(kitZigzag.shape(src) == src);
   // …and Zigzag is NOT Wave: the flag it replaces changed the drawing.
   EXPECT_FALSE(kitZigzag.shape(src) == kitWave.shape(src));
 }
@@ -1052,7 +1052,7 @@ TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
 }
 
 TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
-  // WP3 moved filament/circuit/rope/pulse from `brushes::` to
+  // WP3 moved filament/circuit/rope/pulse from core's `brushes::` to
   // `kit::brush::presets::`. "Unchanged" is the whole claim, so it is
   // asserted the only way that settles it: against a HAND-BUILT copy of
   // the layer stack core shipped, transcribed from the pre-move source.
@@ -1131,44 +1131,36 @@ TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
   EXPECT_TRUE(pulse() == wantPulse);
 }
 
-TEST(ComposeKitPresets, TheLEGACYSpellingsStillResolveUntilR3) {
-  // R2 moved the bodies; R3 deletes the names. Until then `brushes::X`
-  // must still compile AND still mean the same value — the alias-first
-  // law (§27), which the first cut of WP3 broke by deleting the four
-  // names a phase early.
-  EXPECT_TRUE(brushes::filament() == kit::brush::presets::filament());
-  EXPECT_TRUE(brushes::circuit() == kit::brush::presets::circuit());
-  EXPECT_TRUE(brushes::rope(2) == kit::brush::presets::rope(2));
-  EXPECT_TRUE(brushes::pulse() == kit::brush::presets::pulse());
-  // …including through their DEFAULT arguments, which is why these are
-  // using-declarations and not hand-written forwarders.
-  EXPECT_TRUE(brushes::rope(1, 0.6f) == kit::brush::presets::rope(1, 0.6f));
+TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
+  // R2 moved the bodies out of core and left `brushes::X` behind as
+  // using-declarations; R3 deleted that namespace and them with it. What
+  // the deleted arms were really pinning was that the DEFAULTS did not
+  // drift in the move, so that is what is pinned directly now.
+  EXPECT_TRUE(kit::brush::presets::rope(1) == kit::brush::presets::rope(1, 1.0f));
   const SkColor4f teal{0.2f, 0.9f, 0.8f, 1};
-  EXPECT_TRUE(brushes::circuit(teal, 2) ==
-              kit::brush::presets::circuit(teal, 2));
+  EXPECT_TRUE(kit::brush::presets::circuit(teal) ==
+              kit::brush::presets::circuit(teal, 1));
+  EXPECT_FALSE(kit::brush::presets::circuit(teal, 2) ==
+               kit::brush::presets::circuit(teal, 1));
 }
 
 TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   // bleed() grows the recording cull, so a NEGATIVE one shrinks it and
   // clips the mark it was supposed to protect. A negative amplitude is a
   // perfectly legal wave — it starts the other way — and three of the
-  // five oscillating values used to hand back the raw number while two
-  // took abs(). One rule now, across core and kit.
+  // oscillating values used to hand back the raw number while others took
+  // abs(). One rule now, across core and kit.
   // (Named locals: a braced aggregate inside EXPECT_* hands the macro its
   // commas.)
-  const ops::Wave opsWave{-6.0f, 24.0f};
-  const ops::Square opsSquare{-5.0f, 32.0f};
   const kit::brush::shapers::Wave kitWave{-4.0f, 20.0f};
   const kit::brush::shapers::Square kitSquare{-5.0f, 26.0f};
   const kit::brush::shapers::Zigzag kitZigzag{-4.0f, 28.0f};
-  EXPECT_FLOAT_EQ(opsWave.bleed(), 6.0f);
-  EXPECT_FLOAT_EQ(opsSquare.bleed(), 5.0f);
   EXPECT_FLOAT_EQ(kitWave.bleed(), 4.0f);
   EXPECT_FLOAT_EQ(kitSquare.bleed(), 5.0f);
   EXPECT_FLOAT_EQ(kitZigzag.bleed(), 4.0f);
   // …and the type-erased seams read the same number through.
   EXPECT_FLOAT_EQ(Shaper(kitWave).bleed(), 4.0f);
-  EXPECT_FLOAT_EQ(GeometryOp(opsWave).bleed(), 6.0f);
+  EXPECT_FLOAT_EQ(GeometryOp(kitSquare).bleed(), 5.0f);
   // A negative amplitude still DRAWS — it is the same wave, half a cycle
   // over — so this is a cull fix and not a clamp on the value.
   SkPathBuilder b;

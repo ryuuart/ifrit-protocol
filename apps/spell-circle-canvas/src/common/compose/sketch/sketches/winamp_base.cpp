@@ -1351,7 +1351,7 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
   /** The three discrete-state slots. Everything continuous is bound; these
    *  three are text content and a 28-frame sprite index, neither of which
-   *  a PropValue can carry. */
+   *  a Animatable can carry. */
   void pushSlots(sketch::SketchContext &ctx, bool force) {
     const int sec =
         (int)(playPos.value() * (float)tracks()[(size_t)nowPlaying].seconds);

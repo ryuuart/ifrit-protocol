@@ -18,7 +18,7 @@
 //    small label in the right panel; all arc-table fractions are of the
 //    PLATE box, so the measured geometry survives the rescale intact
 //  - static ring geometry stays cacheable: the outlines are fixed paths,
-//    only the trim props (animatable PropValues) move; the reveal is ONE
+//    only the trim props (Animatable props) move; the reveal is ONE
 //    discrete re-describe gated in update(), exactly like the sketch
 
 #include "GalleryCore.h"

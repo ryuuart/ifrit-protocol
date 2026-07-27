@@ -50,8 +50,8 @@ namespace sigil::compose::lines {
  *  waves fit, and BOTH kinds are zero-phase at the endpoints, so the run
  *  starts and ends ON the route (heads computed from the undisplaced
  *  outline stay attached). Sine sampled at λ/16; zigzag emits triangular
- *  vertices at quarter-wave points. Shared by lines::Line and the ops::
- *  pipeline (Brushes.h). */
+ *  vertices at quarter-wave points. Shared by lines::Line and the kit's
+ *  Wave/Zigzag shapers (kit/Strokes.h). */
 inline SkPath displace(const SkPath &src, float amplitude, float wavelength,
                        bool zigzag) {
   SkPathBuilder out;
@@ -191,7 +191,7 @@ struct CornerHit {
 /** THE corner scanner. One of these, please.
  *
  *  There were three and a half: this one, a bisecting copy inline in
- *  `PatternBrush::paint`, `placementSamples(Mode::Vertex)`, and a fourth
+ *  `brush::Pattern::paint`, `placementSamples(Mode::Vertex)`, and a fourth
  *  refinement loop in `shapes::edges()`. They disagreed about the default
  *  angle (30 vs 35), about where the vertex is, and about whether to tell
  *  the author when they found nothing — so the same shape got different
@@ -278,19 +278,23 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
 
 } // namespace detail
 
-/** One-sided constant offset along the normal (Mapbox line-offset / QGIS
- *  line offset semantics: positive offsets to the RIGHT of the travel
- *  direction). Exact on straights, resampled on curves, and — since the
- *  corner repair below — correct at hard vertices too. Also the dash-safe
- *  way to build parallel rails: every rail keeps the same arc
- *  parameterization, so dashes stay in phase across the set.
+/** One-sided constant displacement along the normal — **positive is LEFT
+ *  of travel**, which in screen space (y down) is OUTSIDE a clockwise
+ *  path. That is the ONE convention (DESIGN.md; ROADMAP §33 ruling 5): it
+ *  is the kernel's, the one `bandPointAt`, `Profile::across`,
+ *  `strand::offset` and `TextPath::offset` always spoke.
  *
- *  **THE SIGN DIES IN R3.** LEFT of travel wins everywhere (ROADMAP §33
- *  ruling 5): the kernel — `bandPointAt`, `Profile`, `TextPath::offset` —
- *  has always been left-of-travel-is-outward, and `lines::`' right-of-
- *  travel members are the minority that goes. Nothing flips HERE, now: a
- *  sign flip changes every existing caller's output, so it rides the R2
- *  corpus port with pixel verification, not this additive phase.
+ *  Was `offsetAlong`, positive RIGHT of travel (Mapbox line-offset / QGIS
+ *  line offset), until R3 flipped it. The new name is the kernel's own
+ *  coordinate word — a displacement is ACROSS the mark, and `across` is
+ *  defined left-positive everywhere it appears — where `Along` named the
+ *  mechanism (a walk down the path) and carried no sign at all. Every
+ *  call site was ported with its argument NEGATED, so no picture moved.
+ *
+ *  Exact on straights, resampled on curves, and — since the corner repair
+ *  below — correct at hard vertices too. Also the dash-safe way to build
+ *  parallel rails: every rail keeps the same arc parameterization, so
+ *  dashes stay in phase across the set.
  *
  *  THE CORNER REPAIR. A uniform resample cannot offset a polygon: it
  *  samples either side of a vertex and draws a chord between the two
@@ -305,10 +309,15 @@ inline std::vector<CornerHit> findCorners(SkContourMeasure &contour,
  *  side the two legs overlap and `Simplify` removes the crossing. The
  *  result is exact for polygons and unchanged for smooth curves, which
  *  have no breaks for the scanner to find. */
-inline SkPath offsetAlong(const SkPath &src, float offset, float step = 4.0f) {
+inline SkPath offsetAcross(const SkPath &src, float across,
+                           float step = 4.0f) {
+  // ONE negation, here, and nowhere else: the construction below was
+  // written right-of-travel and is left exactly as it was, so a rail at
+  // `across` draws the pixels the old `offsetAlong(-across)` drew.
+  const float offset = -across;
   if (offset == 0)
     return src;
-  // `step` is public authoring data (and ops::Offset forwards it directly).
+  // `step` is public authoring data (shapers::Offset forwards it directly).
   // Never let a zero/negative/non-finite value stall the sampling loop.
   const float stride = std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
   const float radius = std::abs(offset);
@@ -448,7 +457,7 @@ inline SkPath offsetAlong(const SkPath &src, float offset, float step = 4.0f) {
  *  and a dash pattern shipped SOLID for the whole of run 1 and the study
  *  corpus never caught it.
  *
- *  Hairline is the rec to use, the same one `ops::Sketchy` settled on for
+ *  Hairline is the rec to use, the same one `shapers::Jitter` settled on for
  *  its own (unrelated) reason. Returns the input unchanged when the
  *  pattern is empty or Skia declines. */
 inline SkPath dashGeometry(const SkPath &src, SkSpan<const SkScalar> intervals,
@@ -493,7 +502,7 @@ inline SkPath insetOutline(const SkPath &outline, float px) {
 namespace detail {
 
 /** Arc-length positions along @p contour where the tangent breaks by more
- *  than @p angleDeg — the corners, found the same way `PatternBrush` finds
+ *  than @p angleDeg — the corners, found the same way `brush::Pattern` finds
  *  them (a fine forward scan, plus the wrap comparison a closed contour's
  *  seam needs, because the forward scan never compares across it).
  *
@@ -658,16 +667,15 @@ struct Line {
   float tickLength = 8.0f;
   float tickWidth = 0.0f;
 
-  /** One-sided offset of the whole run (Mapbox line-offset semantics:
-   *  positive = right of travel) — bus lanes beside the road, half-side
-   *  hachures. (Same semantics as ops::Offset in a Brush pipeline — use
-   *  the op when several legs share one offset, this field for a single
-   *  Line.)
+  /** One-sided displacement of the whole run, **positive LEFT of travel**
+   *  (the one convention — see `offsetAcross`) — bus lanes beside the
+   *  road, half-side hachures. Same semantics as
+   *  `kit::brush::shapers::Offset` in a Brush pipeline: reach for the
+   *  shaper when several layers share one displacement, this field for a
+   *  single Line.
    *
-   *  **The right-of-travel convention dies in R3 — LEFT wins everywhere**
-   *  (ROADMAP §33 ruling 5, the kernel's sign). No flip now: it changes
-   *  every caller's picture, so it rides the R2 port. */
-  float offset = 0.0f;
+   *  Was `offset`, positive right of travel, until R3. */
+  float across = 0.0f;
 
   /** Terminal caps per contour (start = the path's first point). The
    *  grounded convention (leaflet-polylinedecorator, tldraw, D3 practice):
@@ -703,9 +711,7 @@ struct Line {
 
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
-  bool animates() const { return dashPhaseBinding != nullptr; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return dashPhaseBinding != nullptr; }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -714,7 +720,7 @@ struct Line {
    *  arms, and heads all overhang. */
   float bleed() const {
     const float casing = parallels > 1 ? gap * (float)(parallels - 1) : 0.0f;
-    return width + casing + waveAmplitude + std::abs(offset) +
+    return width + casing + waveAmplitude + std::abs(across) +
            std::max({tickLength * 0.5f, capSize, 0.0f});
   }
 
@@ -725,7 +731,7 @@ struct Line {
     // 1. The body run: offset, then displaced into a wave, then trimmed
     //    back under Arrow/Bar heads (tldraw clips the body from the head
     //    region; trimming also stops dashes cleanly under the head).
-    SkPath body = offset != 0 ? offsetAlong(ctx.outline, offset) : ctx.outline;
+    SkPath body = across != 0 ? offsetAcross(ctx.outline, across) : ctx.outline;
     if (waveAmplitude > 0)
       body = displace(body, waveAmplitude, waveLength, zigzag);
     // Caps ride the FINAL geometry (offset + wave applied), not the raw
@@ -803,7 +809,7 @@ struct Line {
     // 2. Parallels. Undashed rails ride the stroke-OUTLINE construction
     //    (exact parallel curves on bends; round joins + Simplify() kill
     //    the miter spikes and tight-bend knots the references repair by
-    //    hand). Dashed rails are built per line via offsetAlong instead —
+    //    hand). Dashed rails are built per line via offsetAcross instead —
     //    both rails share one arc parameterization, so dashes stay in
     //    phase (the Mapbox property the loop can't give).
     if (parallels <= 1) {
@@ -832,7 +838,7 @@ struct Line {
         p.setStrokeWidth(parallels % 2 && i == n / 2
                              ? width * std::max(coreWidthFactor, 0.1f)
                              : width);
-        canvas.drawPath(o == 0 ? dashedBody : offsetAlong(dashedBody, o, 2.0f),
+        canvas.drawPath(o == 0 ? dashedBody : offsetAcross(dashedBody, -o, 2.0f),
                         p);
       }
     } else {
@@ -1067,9 +1073,10 @@ inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
 //
 // there is no field for it, and both workarounds cost something real. The
 // stacked-PathFormat trick only works on concentric circles, because it is a
-// RADIUS trick and not an offset. `Brush` with a per-leg `ops::Offset`
-// suffix does work on any path, but it resamples the contour once per leg
-// and each leg then dashes ITS OWN offset curve — whose arc length differs
+// RADIUS trick and not an offset. `Brush` with a per-layer
+// `shapers::Offset` suffix does work on any path, but it resamples the
+// contour once per layer and each layer then dashes ITS OWN offset curve —
+// whose arc length differs
 // from its neighbour's on every bend, so the dashes shear apart. Keeping
 // them together is the whole reason Line's dashed-parallel path exists.
 //
@@ -1085,14 +1092,16 @@ inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
 // property a shader-based renderer gets for free.
 
 /** One rail of a `Rails` stroke: its own displacement from the route, its
- *  own width, fill, dash pattern and phase. `offset` is px RIGHT of travel
- *  (Mapbox line-offset sign, same as `Line::offset` and `ops::Offset`), so
- *  a symmetric pair is {-gap/2, +gap/2}.
+ *  own width, fill, dash pattern and phase. `across` is px **LEFT of
+ *  travel** — the one convention (see `offsetAcross`), shared with
+ *  `Line::across`, `strand::offset` and `Profile::across` — so a
+ *  symmetric pair is still {-gap/2, +gap/2}.
  *
- *  **The right-of-travel convention dies in R3 — LEFT wins everywhere**
- *  (ROADMAP §33 ruling 5); the flip rides the R2 port, not this phase. */
+ *  Was `offset`, positive right of travel, until R3 (ROADMAP §33
+ *  ruling 5). Renamed as well as flipped so the compiler, not a grep,
+ *  found all ninety call sites. */
 struct Rail {
-  float offset = 0.0f;
+  float across = 0.0f;
   float width = 2.0f;
   Fill fill = Fill::color({1, 1, 1, 1});
   /** Empty → solid. Measured along the CENTRELINE, not this rail. */
@@ -1110,9 +1119,9 @@ struct Rail {
  *  one wave/zigzag displacement and one marching phase.
  *
  *      element.stroke(lines::Rails{.rails = {
- *          {.offset = -4, .width = 2.4f, .fill = ink},
- *          {.offset =  0, .width = 0.6f, .fill = ink, .dash = {1, 4}},
- *          {.offset =  4, .width = 2.4f, .fill = ink}}});
+ *          {.across = -4, .width = 2.4f, .fill = ink},
+ *          {.across =  0, .width = 0.6f, .fill = ink, .dash = {1, 4}},
+ *          {.across =  4, .width = 2.4f, .fill = ink}}});
  *
  *  A value like every other decoration: defaulted equality, so a static
  *  quad rail prunes and caches without a memo. */
@@ -1136,9 +1145,7 @@ struct Rails {
 
   bool operator==(const Rails &) const = default;
 
-  bool animates() const { return dashPhaseBinding != nullptr; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return dashPhaseBinding != nullptr; }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
@@ -1146,7 +1153,7 @@ struct Rails {
   float bleed() const {
     float worst = 0.0f;
     for (const Rail &r : rails)
-      worst = std::max(worst, std::abs(r.offset) + r.width * 0.5f);
+      worst = std::max(worst, std::abs(r.across) + r.width * 0.5f);
     return worst + waveAmplitude;
   }
 
@@ -1155,10 +1162,10 @@ struct Rails {
   float span() const {
     if (rails.empty())
       return 0.0f;
-    float lo = rails.front().offset, hi = rails.front().offset;
+    float lo = rails.front().across, hi = rails.front().across;
     for (const Rail &r : rails) {
-      lo = std::min(lo, r.offset);
-      hi = std::max(hi, r.offset);
+      lo = std::min(lo, r.across);
+      hi = std::max(hi, r.across);
     }
     return hi - lo;
   }
@@ -1186,8 +1193,8 @@ struct Rails {
               : dashGeometry(body,
                              SkSpan(rail.dash.data(), rail.dash.size()),
                              base + rail.dashPhase);
-      if (rail.offset != 0)
-        run = offsetAlong(run, rail.offset, stride);
+      if (rail.across != 0)
+        run = offsetAcross(run, rail.across, stride);
       SkPaint p;
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);
@@ -1211,13 +1218,13 @@ inline Rails rails(int count, float width, Fill fill, float gap = 5.0f) {
   Rails r;
   const int n = std::max(count, 1);
   for (int i = 0; i < n; ++i)
-    r.rails.push_back(Rail{.offset = gap * ((float)i - (float)(n - 1) * 0.5f),
+    r.rails.push_back(Rail{.across = gap * ((float)i - (float)(n - 1) * 0.5f),
                            .width = width,
                            .fill = fill});
   return r;
 }
 
-/** Explicit rails, offsets and all. */
+/** Explicit rails, displacements and all. */
 inline Rails rails(std::vector<Rail> set) {
   Rails r;
   r.rails = std::move(set);
@@ -1238,9 +1245,9 @@ inline Rails quad(float width, Fill fill, float gap = 4.0f) {
  *  the heavies, and the moment the two want different colours it is over. */
 inline Rails heavyHairHeavy(float heavy, float hair, Fill fill,
                             float gap = 5.0f) {
-  return rails({{.offset = -gap, .width = heavy, .fill = fill},
-                {.offset = 0, .width = hair, .fill = fill},
-                {.offset = gap, .width = heavy, .fill = fill}});
+  return rails({{.across = -gap, .width = heavy, .fill = fill},
+                {.across = 0, .width = hair, .fill = fill},
+                {.across = gap, .width = heavy, .fill = fill}});
 }
 
 /** Solid casing with a DOTTED core — the map convention for a road under
@@ -1248,13 +1255,13 @@ inline Rails heavyHairHeavy(float heavy, float hair, Fill fill,
  *  of the core's dots; the casing stays continuous. */
 inline Rails dottedCore(float outer, float core, Fill fill, float gap = 5.0f,
                         float dotGap = 6.0f) {
-  return rails({{.offset = -gap, .width = outer, .fill = fill},
-                {.offset = 0,
+  return rails({{.across = -gap, .width = outer, .fill = fill},
+                {.across = 0,
                  .width = core,
                  .fill = fill,
                  .dash = {0.01f, dotGap},
                  .cap = SkPaint::kRound_Cap},
-                {.offset = gap, .width = outer, .fill = fill}});
+                {.across = gap, .width = outer, .fill = fill}});
 }
 
 /** Sk2D lattice hatching (SkLine2DPathEffect — the engraving/blueprint
@@ -1272,20 +1279,18 @@ struct Hatch {
    *  convention `PathFormat::dashPhaseBinding`, `PathFormat::trimPhase`,
    *  `Line::dashPhaseBinding` and `Rails::dashPhaseBinding` already use.
    *
-   *  NOT a `PropValue` — a decoration paints with only a `PaintContext`
+   *  NOT a `Animatable` — a decoration paints with only a `PaintContext`
    *  and has no instance to resolve a transition against. Hatch was the
    *  odd one out in a vocabulary that otherwise animates, so a moiré, a
    *  tightening engraving or a rotating shade pass had to leave the
-   *  decoration and be rebuilt per frame. Binding declares `animated()`,
+   *  decoration and be rebuilt per frame. Binding declares `isAnimated()`,
    *  which is the volatility contract. */
   const choreograph::Output<float> *spacingBinding = nullptr;
   const choreograph::Output<float> *angleBinding = nullptr;
 
-  bool animates() const {
+  bool isAnimated() const {
     return spacingBinding != nullptr || angleBinding != nullptr;
   }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
   float pitch() const {
     return spacingBinding ? spacingBinding->value() : spacing;
   }

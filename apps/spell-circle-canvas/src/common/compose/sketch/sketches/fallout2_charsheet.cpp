@@ -1724,7 +1724,7 @@ struct Fallout2CharSheet : sigil::compose::sketch::Sketch {
 
   // ---- the three discrete-state slots -------------------------------------
   // Everything continuous is bound; these three change CONTENT, which no
-  // PropValue can carry (ROADMAP §9, last bullet).
+  // Animatable can carry (ROADMAP §9, last bullet).
   int shownSelected = -1, shownPresses = -1;
   std::string shownTens = "?", shownOnes = "?";
 

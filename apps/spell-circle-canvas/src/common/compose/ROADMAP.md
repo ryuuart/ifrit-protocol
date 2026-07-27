@@ -1690,9 +1690,10 @@ same two words, unrelated meanings, one authoring line apart.
 
 ## 33. The grammar audit — §32 generalised over the whole surface
 
-**Status: R1 and R2 SHIPPED (2026-07-26); R3 blocked on three designer
-calls — see the R2 note's deletion list.** The parity table below is
-CLOSED: every row reads CLOSED or CLOSED-BY-DESIGN.
+**Status: R1, R2 and R3 SHIPPED (2026-07-26).** The parity table below is
+CLOSED: every row reads CLOSED or CLOSED-BY-DESIGN. The R3 status note —
+what died, what is condemned-but-alive, and the one-door judgement — is
+at the END of this section, after the deletion list it executed.
 
 **The first rulings, 2026-07-25.** The designer ruled:
 (1) `PropValue` → **`Animatable<T>` — SHIPPED**, alias-first, tests
@@ -2157,17 +2158,17 @@ designer's decision about a picture:
 | `withFrom()` | Compose.h | 1 deliberate legacy-parity arm in the tests |
 | `withKeyframes<T>()` | Compose.h | 1 deliberate legacy-parity arm |
 | `with(v, spec)` | Compose.h | 0 corpus sites |
-| `Element::trim()` + `TrimMode` + `FxData::trim*` | Compose.h, Paint.cpp | **BLOCKED — 17 sites, of which exactly 2 need a designer** (the rest are hand edits) |
+| `Element::trim()` + `TrimMode` + `FxData::trim*` | Compose.h, Paint.cpp | **CONDEMNED, not deleted — 17 sites, of which exactly 2 need a designed replacement interface** |
 | `PropValue<T>` alias | Compose.h | 0 corpus sites; the LIBRARY still spells it internally (~130) and that is a rename, not a deletion |
 | `Bound::from(lo,hi)` / `Bound::to(lo,hi)` | Compose.h | 0 corpus sites |
 | `Pool::touch()` | Instances.h | 0 corpus sites |
 | `namespace brushes` (the whole fold) | Brushes.h, and the four preset names in kit/Strokes.h | 0 corpus sites; tests only (deliberate `static_assert` identity arms, plus the preset-alias test) |
 | `animated()` on every scheme + `Decoration` | ~14 headers | deliberate parity arms only |
-| `Material::isLive()` | Material.h | 41 sites — **not part of R2's map**; the ruling unified the *scheme* word, and `isLive()` is Material's own. Needs a call. |
-| `Ribbon::widthFn` / `widthMax` | Brushes.h | **BLOCKED — see WP2 finding 2** |
+| `Material::isLive()` | Material.h | 41 sites — **RULED in R3** (ruling 13): the fifth spelling of one idea, dead with the other four; `isAnimated()` is the word |
+| `Ribbon::widthFn` / `widthMax` | Brushes.h | **CONDEMNED, not deleted — see WP2 finding 2 and the R3 note** |
 | `Brush::op()` | Brushes.h | 0 corpus sites — every `.op()` is `.shaped()` |
-| `ops::` PUBLIC (the structs) | Brushes.h | **BLOCKED — the per-leg suffix has no shaper-typed spelling**; the pipeline half is done |
-| `lines::offsetAlong` / `Rail::offset` right-of-travel sign | Lines.h | **BLOCKED — the flip moves every caller's pixels; it did NOT ride R2** |
+| `ops::` PUBLIC (the structs) | Brushes.h | **DONE in R3** — `layer(Decoration, vector<Shaper>)` closed the per-layer gap; the structs died, `ops::PathOp`/`chain`/`debug` stayed as the one documented mechanism door |
+| `lines::offsetAlong` / `Rail::offset` right-of-travel sign | Lines.h | **DONE in R3** — renamed `offsetAcross`/`across` and flipped, every call site negated, plates byte-identical |
 | the lowercase retention docs ("Legacy spelling of …") | ~30 sites | delete with their subjects |
 
 Two of those deserve saying plainly. **The `lines::` sign flip did not
@@ -2575,3 +2576,219 @@ sketch reached for `clipOut()` and `shapes::subtract` by name
 (chaucer_astrolabe.cpp:972) and neither exists. New surface, not a
 rename; lands as comparable `ops::` values per decision C, never an
 eighth vocabulary.
+
+---
+
+## PHASE R3 SHIPPED 2026-07-26 — the deletion
+
+The alias-first law (§27) is a bridge, not a destination, and R3 is the
+far bank. Everything the R1/R2 ports left compiling under a one-line
+"legacy spelling" doc is gone, along with the two mechanism words the
+mid-flight rulings added to the list. **No surviving legacies**, with
+three named exceptions that are CONDEMNED rather than deleted and say so
+in their own doc comments.
+
+**TWO RULINGS LANDED MID-PHASE and are folded in here.**
+
+**Ruling 13 — the volatility predicate is `isAnimated()`, not
+`animates()`.** R1 unified five spellings on `animates()`; a cold read of
+it asks "animates *what*?", and the `is` prefix settles that it is a
+QUERY. There is no setter to confuse it with — the answer is derived from
+how the value was constructed — so the prefix costs nothing and buys the
+reading. `animates()` (R1's word), `animated()` (the original), and
+`Material::isLive()` all die together: **one word, 16 library schemes +
+`Decoration` + `Material`, 100 sites ported.** The concept keeps the name
+`AnimatedDecoration` — freed by the deletion of the legacy concept that
+held it — because the concept and the predicate now share a word;
+`AnimatingDecoration` is gone.
+
+**Ruling 14 — the composite-brush unit is `layer()`, not `leg()`.**
+`Brush{}.layer(casing).layer(face)` is symmetric with `brush::layers(…)`,
+the fixed-order composite, the way a strand is the unit of a weave. `leg`
+named a mechanism nothing else in the grammar used. The internals follow
+the taught word: `Brush::Leg` → `Brush::Layer`, `legs` → `layers`,
+`Leg::ops` → `Layer::shapers`. 68 sites.
+
+### THE DELETION MANIFEST — name → what was removed
+
+| deleted | declaration | definition | call sites ported |
+| --- | --- | --- | --- |
+| `with(v, spec)` | Compose.h | inlined into `animate(To<T>, spec)` | 1 test arm |
+| `withFrom(a, b, spec)` | Compose.h | inlined into `animate(FromTo<T>, spec)` | 1 test arm |
+| `withKeyframes<T>(f, e)` | Compose.h | inlined into `animate(Waypoints<T>, ease)` | 1 test arm |
+| `Element::outline()` | Compose.h | forwarder | 1 test arm (`ksp::Conic::outline` is a different member and stays) |
+| `PropValue<T>` alias | Compose.h | — | 97 internal spellings renamed to `Animatable<T>` |
+| `Bound::from(lo,hi)` / `Bound::to(lo,hi)` | Compose.h | forwarders | 1 test arm |
+| `Pool::touch()` | Instances.h | forwarder | 1 test arm |
+| `namespace brushes` | Brushes.h | the namespace itself, folded into `brush::` | 28 test/kit-test sites; the four preset using-decls in kit/Strokes.h deleted with it |
+| `PatternBrush` / `ScatterBrush` / `ArtBrush` | Brushes.h | renamed to `brush::Pattern`/`Scatter`/`Art` | the taught aliases became the definitions; ~45 comment/caption references swept |
+| `animated()` on 16 schemes + `Decoration` | ~9 headers | 18 forwarders | — |
+| `animates()` (R1's word) | everywhere | — | 100 sites → `isAnimated()` |
+| `Material::isLive()` | Material.h + Material.cpp | renamed | 33 sites in Material.cpp/Paint.cpp/Reconcile.cpp/tests. **No consumer outside compose** — checked SigilScry, SigilImage and the whole of `src/`: the only other `animated()` in the repo is `sigilimage::ImageAsset::animated()`, an unrelated member, untouched |
+| `AnimatingDecoration` concept | Compose.h | merged into `AnimatedDecoration` | 2 static_asserts |
+| `Brush::op(GeometryOp)` | Brushes.h | forwarder | 1 kit-test arm |
+| `Brush::leg(Decoration, vector<GeometryOp>)` | Brushes.h | replaced by `layer(Decoration, vector<Shaper>)` | 68 |
+| `ops::Wave`/`Rounded`/`Sketchy`/`Square`/`Offset` | Brushes.h | bodies MOVED into their kit shaper twins | 27 |
+| `GeometryScheme` concept (the `apply()` spelling) | Brushes.h | — | the seam word is `shape()` and only `shape()` |
+| `lines::offsetAlong` | Lines.h | renamed `offsetAcross`, sign flipped | 8 |
+| `lines::Rail::offset` | Lines.h | renamed `across`, sign flipped | 82 |
+| `lines::Line::offset` | Lines.h | renamed `across`, sign flipped | 3 |
+| `Pattern::CornerAlign` / `Pattern::CornerArt` nested aliases | Brushes.h | — | 0 |
+| the lowercase "Legacy spelling of …" docs | ~30 sites | deleted with their subjects | — |
+
+### THE PER-LEG SPELLING — `layer(Decoration, std::vector<Shaper>)`
+
+Chosen over a variadic `layer(Decoration, Shaper...)`. The reason is that
+the suffix reads beside `.shaped()`, and `.shaped()` takes ONE shaper per
+call: a braced list is the only spelling that says "and these, in order,
+for this layer only" without inventing a second way to mean the same
+thing. It is also what a `Brush::Layer` literally holds, so the
+declaration and the field agree — and a variadic would have made
+`layer(dec)` and `layer(dec, a, b)` two different-looking calls to one
+slot.
+
+`Shaper`, not `GeometryOp`, and that is the whole unblocking: the R2 note
+recorded that `{kit::brush::shapers::Offset{…}}` could not reach a
+`vector<GeometryOp>` because two user-defined conversions do not chain.
+A `vector<Shaper>` is one hop. `Brush::pipeline` moved to `vector<Shaper>`
+with it, so a Brush is now Shaper-typed end to end and `GeometryOp`
+survives in exactly one place.
+
+### THE `ops::` JUDGEMENT — one door, kept deliberately
+
+The comparable structs died: every one had a `kit::brush::shapers::` twin
+after R2 (`Wave`, `Zigzag`, `Rounded`, `Jitter`, `Square`, `Offset`), and
+their bodies moved into those twins unchanged — `Jitter` now holds
+`SkDiscretePathEffect` with the hairline rec, `Rounded` holds
+`SkCornerPathEffect`, `Square` calls `lines::displaceSquare` directly.
+`Brush::op()` and the `GeometryScheme`/`apply()` concept went with them.
+
+**`ops::PathOp`, `ops::chain()` and `ops::debug()` SURVIVE**, and this is
+the recorded judgement rather than an oversight. A `Shaper` requires
+`std::equality_comparable` **by design** — that is what makes a brush
+prunable — so a one-off closure can never be one. Deleting `PathOp` would
+have removed the raw-lambda escape hatch with nothing to say instead,
+which is precisely the failure the parity gate exists to prevent. It is
+now reachable through exactly one entry point, `brush::restyle(op, dec)`,
+documented in Brushes.h under a heading that says it is a mechanism and
+prices it (it never prunes). `GeometryOp` survives as the thing `restyle`
+carries, with two constructors: a shaper value, or the lambda.
+
+### THE SIGN-NEGATION PORT
+
+**One convention: positive `across` is LEFT of travel** — outside a
+clockwise path in screen space. Stated once, in DESIGN.md, and nowhere
+else claims otherwise. The `lines::` family was the minority that meant
+right-of-travel (Mapbox's line-offset sign) and it is gone.
+
+The name is **`across`**, taken from the kernel's own vocabulary rather
+than invented: `Profile::across(along)`, `bandPointAt(spine, along,
+acrossPx)`, `Across`/`across(px)` and `strand::offset` already spell the
+left-positive frame, and `across` is the half of the `(along, across)`
+pair a displacement actually lives in. `offsetAlong` named the mechanism
+(a walk down the path) and carried no sign at all. So:
+`lines::offsetAlong` → **`lines::offsetAcross`**, `Rail::offset` →
+**`Rail::across`**, `Line::offset` → **`Line::across`**.
+
+**Renamed as well as flipped, on purpose.** A silent sign flip on a field
+that kept its name would have made the port grep-verified across ninety
+sites; renaming made it COMPILER-verified — every missed site is a hard
+error, and every ported site is visible in the diff as `.offset = 12` →
+`.across = -12`.
+
+| site class | count | how |
+| --- | --- | --- |
+| `offsetAlong(p, x, s)` → `offsetAcross(p, -x, s)` | 8 | argument negated (kernel 3, tests 3, minard_1869 1, Compose.cpp 1 — the last DROPPED a negation that existed only to bridge the two conventions) |
+| `Rail{.offset = X}` → `Rail{.across = -X}` | 82 | scripted, brace-scoped, expression-negating |
+| `Line::offset` → `Line::across` | 3 | 2 kernel reads + stroke_atlas's specimen |
+| `kit::brush::shapers::Offset::px` | 4 | the two pre-existing value sites (ScenesNetwork.h:200/205) flipped with the function the shaper wraps; the ~12 arriving via the ops:: port are counted in that row; its "OPPOSITE sign" doc paragraph is deleted |
+| the five sign-note sites | 7 | `offsetAlong`, `Line::offset`, `Rail::offset`, `strand::Offset`, `profileOffset`, `bandPointAt`, `shapers::Offset` — all rewritten to point at DESIGN.md's single statement |
+
+`lines::rails(count,…)`, `heavyHairHeavy()` and `dottedCore()` keep their
+literals: each builds a SYMMETRIC set whose mirrored entries carry
+identical width and fill, so flipping the frame permutes identical rails
+and the pixels cannot move. Stated because it looks like a missed port.
+
+`TextPath::offset` was ALREADY left-of-travel and is untouched — it is the
+member that made the kernel right all along.
+
+### CONDEMNED, NOT DELETED — three, each with a doc comment saying so
+
+1. **`Element::trim()`** + `TrimMode` + `FxData::trim*`. 17 sites remain
+   after R2, and 2 of them reveal a PAINTING FILL (`chaucer_astrolabe`'s
+   meridian bar, `sigillum_aemeth`'s brass wash), which the span
+   vocabulary has no spelling for. The replacement interface is a
+   separate designed piece of work; the method dies with it. Doc now
+   opens "CONDEMNED, and still here … Do not add call sites."
+2. **`Ribbon::widthFn` / `widthMax`.** Moving the corpus's 7 sites to the
+   profile lane is a RE-DRAW, not a rename (`bandRegion()` vs the
+   sample-and-zip walk), so it moves pixels by construction and needs a
+   designer reading 7 plates. Same doc treatment.
+3. **`decorations::brackets` / `gappedRule`.** NOT on the enumerated R3
+   list, with live corpus sites (astral_tome ×5, stroke_atlas ×2) and a
+   different construction from `spans::corners`/`edges` — deleting them
+   is an uncleared corpus sweep with pixel risk. Their docs said
+   "retained until the R3 deletion", which would now be false, so they
+   were re-worded to CONDEMNED on the same terms as the other two. This
+   is the one place R3 refused an implied deletion, and it is recorded
+   here rather than quietly done.
+
+### THE GATE
+
+Debug and Release both build clean. `ctest` green across all 14 suites —
+**400 cases in `compose_test`, 47 in `compose_kit_test`**, which are R2's
+counts exactly: the phase deleted test ARMS (the legacy-parity halves)
+and replaced each with a test of the surviving spelling, so no coverage
+left with the surface. `sizeof(ElementNode)` guard unchanged and still
+asserting at 768 B.
+
+**THE PLATE LEDGER — 56 scenes, Release, `ComposeGallery --headless`.**
+One baseline sweep at HEAD, then **THREE** post-port sweeps (two on a
+quiet machine, one under deliberate CPU load), hashed all four ways.
+
+**47 of 56 are byte-identical across all four runs.** Nine move, and every
+one of them is accounted for:
+
+| scene | verdict |
+| --- | --- |
+| `chladni_tab1`, `genesis_fire`, `hitman_verlet`, `ksp_mapview`, `slitscan_2001` | **self-nondeterministic, the five already on record.** Each produces two or three distinct hashes across the three post-port sweeps, and `chladni_tab1`, `ksp_mapview` and `slitscan_2001` render the BASELINE hash again from the ported tree |
+| `black_watch` | **self-nondeterministic, NEW to the list — and it is the phase's control.** Its `.cpp` is byte-identical to HEAD, so nothing in it could have changed; rendered six times UNDER 8-WAY CPU LOAD — load is part of the
+control's protocol, a quiet machine renders one hash stably — it returns `4a93f9dc…` (the baseline) on runs 3, 4, 5 and `0e78e983…` (the sweep) on runs 1, 2, 6. A scene nobody touched, flipping between exactly the two hashes in question, is what "not attributable" looks like |
+| `bg3_dice_roll`, `minard_1869` | **differ by ±1–2 LSB and stay there.** Their sources changed only by a comment and by sign-negated calls, and the negation is an identity by construction (`offsetAcross`'s body sets `offset = -across` and then runs the unchanged construction). Proved by the control that matters: a MIRRORED port — the only way the sign could be wrong — was built and rendered, and it moves 0.093% / 0.443% of the plate's own pixel count at **maxDelta 149 / 35**. The observed baseline difference is 0.047% / 0.066% (same denominator) at **maxDelta 2 / 1**. A wrong sign is structural; this is antialiasing noise, the same signature `black_watch` demonstrably flips on |
+| `stroke_atlas` | **the caption plate — proved to the byte.** The specimen page PRINTS the API names it uses, and eleven of its captions changed. Restoring ONLY those eleven strings, with every code port left in place, renders `d2de7bde0718` — the baseline's hash, exactly. Restoring the new captions returns it to `193333121578`, the swept hash. The diff is ten text bands, 14–43 rows tall, `maxDelta` 205; nothing outside them moves |
+
+A trap worth recording, because it nearly produced a false negative: the
+first run of the caption experiment rendered from a binary the build had
+not yet relinked and reported the PORTED hash, which reads exactly like
+"the captions were not the cause". The experiment is only valid if the
+link step is watched, not assumed — the same lesson as R2's overwritten
+artifact, in a different disguise.
+
+**Method note.** `--no-promotion` was used as an A/B and confirms the
+mechanism: `slitscan_2001`, `minard_1869` and `ksp_mapview` all render a
+THIRD hash with automatic texture promotion forced off, so their pixels
+depend on a decision made from measured milliseconds — i.e. on machine
+load. Any future ledger should carry the flag on both arms.
+
+**WHAT R3 REFUSED, and why.**
+
+- **`decorations::brackets` / `gappedRule`** — see the CONDEMNED list
+  above. Not on the enumerated deletion list, live corpus sites, and a
+  different construction from `spans::corners`/`edges`, so deleting them
+  is an uncleared sweep with pixel risk. Re-doc'd, not removed.
+- **The four preset using-declarations at the bottom of `kit/Strokes.h`**
+  (`sigil::compose::brushes::{filament,circuit,rope,pulse}`). The work
+  order said they "stay since they point at kit values"; they could not,
+  because the namespace they lived in is the thing being deleted. The
+  presets themselves stay — they were never the target — under their real
+  and only name, `kit::brush::presets::`. Recorded as a reading of the
+  order rather than done quietly.
+- **`sketch/sketches/README.md`** still lists `brushes::` among the
+  namespaces a study may spell. It is on the untouchable list for this
+  phase (sketch READMEs), so the stale line stands and is flagged here.
+- **`ScenesNetwork.h`'s legend caption** "offset legs: lane + curb" was
+  left alone. It is plain English about two offset marks, not an API
+  name, and changing it would have cost a plate diff to prove nothing.
+- **ROADMAP.md and STRESS_TESTS.md keep their historical mentions** of
+  the deleted names. They are records of what happened; API.md and the
+  headers are the surface, and those are clean (`grep` is the audit).

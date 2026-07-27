@@ -135,7 +135,7 @@
 //    three hundred. Over one palette interval that is 59 ms of paint
 //    against 10 ms — the bound path is 5.6x MORE total work for a
 //    colour that changes every three seconds. Nothing is wrong with the
-//    binding; the pricing is. `animates()` is declared per NODE and is
+//    binding; the pricing is. `isAnimated()` is declared per NODE and is
 //    binary, so "this repaints when the theme changes" and "this
 //    repaints at 60 Hz" are the same declaration (ROADMAP.md argument
 //    3), and 80% of a desktop inherits it.
@@ -435,7 +435,7 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 struct ColorSet {
   ch::Output<Fill> bg, fg, ts, bs, sel;
   SkColor4f bgV{}, fgV{}, tsV{}, bsV{}, selV{}; // the same, as values, for
-                                                // the places a PropValue
+                                                // the places a Animatable
                                                 // cannot reach (text)
   void write(Rgb background) {
     const Derived d = calculate(background);
@@ -466,7 +466,7 @@ struct ColorSet {
  *  `const ch::Output<Fill>*`. A palette change is forty assignments; the
  *  description never mentions a colour, so nothing repatches for one —
  *  and every node carrying one is content-volatile forever, because
- *  `animates()` is declared per NODE and is binary.
+ *  `isAnimated()` is declared per NODE and is binary.
  *
  *  VALUES: the same forty colours reach their nodes as plain `Fill`s.
  *  Everything prunes and picture-caches — and a palette change is a
@@ -589,12 +589,12 @@ struct MotifShadow {
    *  binary: "this bevel changes every three seconds" is priced as "this
    *  bevel repaints at 60 Hz" (ROADMAP.md argument 3). Measured both
    *  ways — see the report in the sketch's tail comment. */
-  bool animates() const { return top != nullptr || bottom != nullptr; }
+  bool isAnimated() const { return top != nullptr || bottom != nullptr; }
   bool operator==(const MotifShadow &) const = default;
 };
 
 /** The bevel of a colour set — top shadow over bottom shadow. Under
- *  `g_liveColors` it holds the two Outputs and declares `animates()`;
+ *  `g_liveColors` it holds the two Outputs and declares `isAnimated()`;
  *  otherwise it holds the two colours as values, prunes, and caches. */
 inline MotifShadow bevel(float T, bool sunken, bool etched,
                          const ColorSet &s) {
@@ -633,7 +633,7 @@ struct MotifHighlight {
                     p);
   }
   SkColor4f value{0, 0, 0, 1};
-  bool animates() const { return color != nullptr; }
+  bool isAnimated() const { return color != nullptr; }
   bool operator==(const MotifHighlight &) const = default;
 };
 
@@ -680,7 +680,7 @@ struct MotifStipple {
         SkBlendMode::kSrcIn));
     canvas.drawRect(ctx.outline.getBounds(), p);
   }
-  bool animates() const { return color != nullptr; }
+  bool isAnimated() const { return color != nullptr; }
   bool operator==(const MotifStipple &) const = default;
 };
 
@@ -2049,7 +2049,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
       // The forty Fills are written above; this re-describe exists ONLY
       // because two things cannot be bound — a Pattern bakes its colours
       // into its tile, and a TextStyle's colour is an SkPaint, not a
-      // PropValue. Everything else prunes.
+      // Animatable. Everything else prunes.
       ctx.composer.render(describe(ctx));
     }
 

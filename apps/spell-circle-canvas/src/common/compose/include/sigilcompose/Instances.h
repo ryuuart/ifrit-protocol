@@ -164,13 +164,12 @@ public:
    *
    *  Named for what it does to the reader — the spans handed out above are
    *  a staging area, and this is the line that makes the frame's writes
-   *  visible. `touch()` named the mechanism (a counter got bumped). The
-   *  rename is TASTE, not a bug fix: the audit found 14 corpus sites and
-   *  zero stale-lane renders (GRAMMAR_AUDIT M6, re-audited 2026-07-27),
-   *  and the designer called it anyway (ROADMAP §33 ruling 9). */
+   *  visible. `touch()` — deleted in R3 — named the mechanism (a counter
+   *  got bumped). The rename was TASTE, not a bug fix: the audit found 14
+   *  corpus sites and zero stale-lane renders (GRAMMAR_AUDIT M6,
+   *  re-audited 2026-07-27), and the designer called it anyway (ROADMAP
+   *  §33 ruling 9). */
   void commit() { ++m_revision; }
-  /** Legacy spelling of commit() — dies in the R3 deletion. */
-  void touch() { commit(); }
   uint64_t revision() const { return m_revision; }
 
 private:

@@ -976,7 +976,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
 
   /** The Mediterranean, as an engraved coast: the outline, then
    *  coast-parallel hatching whose spacing GROWS away from the shore,
-   *  which is lines::offsetAlong called once per ring. */
+   *  which is lines::offsetAcross called once per ring. */
   Element hannibalSea() {
     const std::vector<SkPoint> coast = {
         {60, 300},   {150, 318},  {200, 330},  {268, 348},  {330, 344},
@@ -1004,7 +1004,7 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
     float d = 0;
     for (int i = 1; i <= 7; ++i) {
       d += 2.4f + 1.05f * (float)i;
-      rings.push_back(lines::offsetAlong(line, d, 4.0f));
+      rings.push_back(lines::offsetAcross(line, -d, 4.0f));
     }
 
     auto g = box().inset(0);

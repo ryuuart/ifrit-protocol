@@ -142,7 +142,7 @@ liveDriveImpl(Instance &inst, const ElementNode &node,
 void collectGroupScalars(const Instance &inst, bool root,
                          std::vector<float> &out) {
   const ElementNode &node = *inst.desc;
-  const auto push = [&](Instance::Slot slot, const PropValue<float> &v) {
+  const auto push = [&](Instance::Slot slot, const Animatable<float> &v) {
     if (v.binding() ||
         (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
       out.push_back(inst.resolveFloat(slot, v));
@@ -208,7 +208,7 @@ void warnOverlappingClaims(const std::string &a, const std::string &b,
            "background(spans, ...) pass and a stroke(spans, ...) pass "
            "collide the same way two strokes do. To layer two marks on one "
            "run, make them ONE pass with a composite brush "
-           "(Brush{}.leg(a).leg(b), or a LayeredBrush); to keep them apart, "
+           "(Brush{}.layer(a).layer(b), or a LayeredBrush); to keep them apart, "
            "give the second pass a disjoint span (or spans::rest()).\n",
            a.c_str(), b.c_str(), shared.begin, shared.end);
 }
@@ -229,7 +229,7 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
   std::vector<float> values;
   values.reserve(spanAnims.size());
   size_t slot = 0;
-  auto push = [&](const PropValue<float> &v) {
+  auto push = [&](const Animatable<float> &v) {
     const AnimatedFloat *a =
         slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));
@@ -306,7 +306,7 @@ detail::Instance::resolveSpans(const SkPath &outline) const {
 bool Composer::Impl::computeVolatile(Instance &inst) {
   const ElementNode &node = *inst.desc;
 
-  auto boundOrRunning = [&](Instance::Slot slot, const PropValue<float> &v) {
+  auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float> &v) {
     if (v.binding())
       return true;
     return inst.anims[slot] && inst.anims[slot]->value.isConnected();
@@ -321,9 +321,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     size_t slot = 0;
     bool live = false;
     for (const StrokePass &pass : node.strokeData->passes) {
-      live |= pass.what.animates();
+      live |= pass.what.isAnimated();
       for (const Spans::Term &term : pass.where.terms)
-        for (const PropValue<float> *v :
+        for (const Animatable<float> *v :
              {&term.begin, &term.end, &term.offset}) {
           if (v->binding())
             live = true;
@@ -368,21 +368,21 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   if (node.paint.fill && node.paint.fill->binding())
     ownContent = true;
   const Material *nodeLiveMat = liveMaterialOf(node);
-  const bool liveMat = nodeLiveMat && nodeLiveMat->isLive();
+  const bool liveMat = nodeLiveMat && nodeLiveMat->isAnimated();
   if (liveMat)
     ownContent = true; // truly live (bound/uTime) — geometry-dependent
                        // materials resolve at record time and stay cacheable
-  if (const Material *mf = metricFillOf(node); mf && mf->isLive())
+  if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
     ownContent = true; // animated chrome type paints per frame
   if (node.cacheMode == Cache::None)
     ownContent = true;
   for (const Decoration &d : node.backgrounds)
-    ownContent |= d.animated();
+    ownContent |= d.isAnimated();
   for (const Decoration &d : node.foregrounds)
-    ownContent |= d.animated();
+    ownContent |= d.isAnimated();
   if (node.fxData)
     for (const Decoration &d : node.fxData->overlays)
-      ownContent |= d.animated();
+      ownContent |= d.isAnimated();
   if (node.kind == Kind::Image && imageAssetOf(node) &&
       imageAssetOf(node)->animated())
     ownContent = true;
@@ -420,17 +420,17 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     opaqueToTheMemo = true; // a Fill is not a float
   if (liveMat)
     opaqueToTheMemo = true; // uTime / a bound uniform
-  if (const Material *mf = metricFillOf(node); mf && mf->isLive())
+  if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
     opaqueToTheMemo = true;
   if (node.cacheMode == Cache::None)
     opaqueToTheMemo = true; // declared per-frame volatility
   for (const Decoration &d : node.backgrounds)
-    opaqueToTheMemo |= d.animated();
+    opaqueToTheMemo |= d.isAnimated();
   for (const Decoration &d : node.foregrounds)
-    opaqueToTheMemo |= d.animated();
+    opaqueToTheMemo |= d.isAnimated();
   if (node.fxData)
     for (const Decoration &d : node.fxData->overlays)
-      opaqueToTheMemo |= d.animated();
+      opaqueToTheMemo |= d.isAnimated();
   if (node.kind == Kind::Image && imageAssetOf(node) &&
       imageAssetOf(node)->animated())
     opaqueToTheMemo = true;
@@ -506,19 +506,19 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // stable and re-records only when the shader actually changes.
   const Material *mfLive = metricFillOf(node);
   inst.liveMatOnly = liveMat && ownContent && !nonLiveMatContent &&
-                     !(mfLive && mfLive->isLive()) &&
+                     !(mfLive && mfLive->isAnimated()) &&
                      node.cacheMode != Cache::None && !childrenVolatile;
   // (decoration/image/trim/glyph volatility all set ownContent through
   // nonLiveMatContent's snapshot point or below — re-derive precisely:)
   if (inst.liveMatOnly) {
     bool other = nonLiveMatContent;
     for (const Decoration &d : node.backgrounds)
-      other |= d.animated();
+      other |= d.isAnimated();
     for (const Decoration &d : node.foregrounds)
-      other |= d.animated();
+      other |= d.isAnimated();
     if (node.fxData)
       for (const Decoration &d : node.fxData->overlays)
-        other |= d.animated();
+        other |= d.isAnimated();
     if (node.kind == Kind::Image && imageAssetOf(node) &&
         imageAssetOf(node)->animated())
       other = true;
@@ -548,16 +548,16 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       !childrenVolatile) {
     bool other = nonLiveMatContent; // the fill lerp
     for (const Decoration &d : node.backgrounds)
-      other |= d.animated();
+      other |= d.isAnimated();
     for (const Decoration &d : node.foregrounds)
-      other |= d.animated();
+      other |= d.isAnimated();
     if (node.fxData)
       for (const Decoration &d : node.fxData->overlays)
-        other |= d.animated();
+        other |= d.isAnimated();
     if (node.kind == Kind::Image && imageAssetOf(node) &&
         imageAssetOf(node)->animated())
       other = true;
-    if (const Material *mf = metricFillOf(node); mf && mf->isLive())
+    if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
       other = true;
     if (node.textData && node.textData->driveValue)
       other = true;
@@ -1358,7 +1358,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
         PaintContext metricCtx = paintCtx;
         metricCtx.size = {1.0f, 1.0f};
         const Fill f =
-            (metricMat->isLive() || metricMat->geometryDependent())
+            (metricMat->isAnimated() || metricMat->geometryDependent())
                 ? metricMat->resolve(metricCtx)
                 : metricMat->toFill();
         if (f.kind == Fill::Kind::Shader && f.shaderValue &&
@@ -1449,7 +1449,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // Span-qualified stroke passes, in declaration order, in the same slot
   // as the unqualified strokes they append to. Each one paints against
   // the sub-geometry it CLAIMED, so a brush that knows nothing about
-  // spans (a PathFormat, a Brush, a PatternBrush) dresses part of a
+  // spans (a PathFormat, a Brush, a brush::Pattern) dresses part of a
   // boundary with no new vocabulary.
   if (emitChildren)
     paintSpanHalf(detail::StrokePass::Half::Foreground);
