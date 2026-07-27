@@ -38,11 +38,26 @@ else()
     "SigilImage: OpenImageIO not found — EXR/PSD/TIFF decoding disabled")
 endif()
 
+# The Skia SVG module rasterizes vector sources through the same decode
+# surface (sniffed by content; DecodeOptions::width/height pick the
+# raster size). Optional: without it, SVG bytes simply fail to decode.
+if(TARGET unofficial::skia::modules::svg)
+  target_link_libraries(SigilImage PRIVATE unofficial::skia::modules::svg)
+  target_compile_definitions(SigilImage PRIVATE SIGILIMAGE_HAS_SVG)
+  message(STATUS "SigilImage: Skia SVG backend enabled")
+else()
+  message(WARNING
+    "SigilImage: skia svg module not found — SVG decoding disabled")
+endif()
+
 add_executable(image_test
   test/ImageAssetTest.cpp
 )
 
 target_link_libraries(image_test PRIVATE SigilImage GTest::gtest_main)
+if(TARGET unofficial::skia::modules::svg)
+  target_compile_definitions(image_test PRIVATE SIGILIMAGE_HAS_SVG)
+endif()
 
 # Tiny committed fixtures (4x4 px, a few hundred bytes each) — one still
 # per format plus a 3-frame red/green/blue animation for each animated
