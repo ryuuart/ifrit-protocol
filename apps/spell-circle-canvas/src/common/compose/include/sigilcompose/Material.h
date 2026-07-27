@@ -212,27 +212,23 @@ public:
   Material &quantizeTime(float hz);
 
   // ---- resolution ----------------------------------------------------------
-  /** True once any ch::Output uniform is bound OR the effect reads uTime or
-   *  uContentScale (both change independently of the node): the material
-   *  re-resolves per frame and its node stays volatile. A blend() inherits
-   *  liveness from its layers. */
-  bool isLive() const;
-  /** THE VOLATILITY DECLARATION, in the word the whole library now uses
-   *  (ROADMAP §33 ruling 2; see the AnimatingDecoration concept). Exactly
-   *  `isLive()` — a material that re-resolves per frame is a surface that
-   *  runs itself, and `isLive()` said "live DATA" for a thing that is
-   *  animated GRAPHICS. `isLive()` stays as the peer of
-   *  `geometryDependent()` inside the tier vocabulary and as the legacy
-   *  spelling outside it; `animates()` is what a scheme declares. */
-  bool animates() const { return isLive(); }
+  /** THE VOLATILITY DECLARATION — the same word every decoration scheme
+   *  spells (see the AnimatedDecoration concept). True once any ch::Output
+   *  uniform is bound OR the effect reads uTime or uContentScale (both
+   *  change independently of the node): the material re-resolves per frame
+   *  and its node stays volatile. A blend() inherits liveness from its
+   *  layers.
+   *
+   *  Was `isLive()` until R3 (ROADMAP §33 rulings 2 and 13). That word
+   *  said "live DATA" about a thing that is animated GRAPHICS, and it was
+   *  the fifth spelling of one idea; one word now, and it is this one. */
+  bool isAnimated() const;
   /** True when the effect declares uResolution (the node's layout size):
    *  the material needs PaintContext at resolve, but is stable between
    *  layouts — it resolves when its node records, CACHES like static
    *  content, and re-records on size change. A blend() inherits this from
    *  its layers (the flatten defers to resolve time). */
   bool geometryDependent() const;
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
 
   bool isNone() const { return !m_isSolid && !m_shader && !m_live; }
   bool isSolid() const { return m_isSolid; }

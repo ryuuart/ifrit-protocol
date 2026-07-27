@@ -219,7 +219,7 @@
 //     happily draw one under a 3x3.
 //
 // What was NOT a gap, checked in the header rather than assumed:
-// `PatternBrush::cornerLength`/`cornerAlign` do exactly what the brief says;
+// `brush::Pattern::cornerLength`/`cornerAlign` do exactly what the brief says;
 // `lines::Rails` really does dash in CENTRELINE arc-space so unequal-offset
 // rails stay in register; `decorations::border` really does follow a cut
 // outline untold. `Border::cornerAngleDeg` defaults to 30 and finds ZERO
@@ -1001,12 +1001,12 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                      .fill(Fill::none())
                      .shape([circuit](SkSize) { return circuit; })
                      .stroke(lines::Rails{
-                         .rails = {{.offset = -6.0f,
+                         .rails = {{.across = 6.0f,
                                     .width = 3.0f,
                                     .fill = Fill::color(magi::kInk),
                                     .cap = SkPaint::kSquare_Cap,
                                     .join = SkPaint::kMiter_Join},
-                                   {.offset = 3.0f,
+                                   {.across = -3.0f,
                                     .width = 1.8f,
                                     .fill = Fill::color(magi::kInk),
                                     .cap = SkPaint::kSquare_Cap,
@@ -1235,7 +1235,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
 
   void buildBrushes() {
     // The bake cache lives IN THE BRUSH VALUE, so these are members built
-    // once: a PatternBrush constructed inside describe() re-bakes every tile
+    // once: a brush::Pattern constructed inside describe() re-bakes every tile
     // through snapshot() every frame.
     beadBrush = brush::Pattern{
         .side = box()
@@ -1342,7 +1342,7 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     }
 
     // the heavy arc the 12 big hexagons sit on, dressed with the bead and
-    // chevron runs — PatternBrush on an arc, alternating tiles.
+    // chevron runs — brush::Pattern on an arc, alternating tiles.
     for (int seg = 0; seg < 12; ++seg) {
       const float a0 = (float)seg * 30.0f - 88.0f;
       const float r = 490.0f * S;
@@ -1381,14 +1381,14 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                   .fill(Fill::none())
                   .shape([arcp](SkSize) { return arcp; })
                   .stroke(lines::Rails{
-                      .rails = {{.offset = -6.0f,
+                      .rails = {{.across = 6.0f,
                                  .width = 4.0f,
                                  .fill = Fill::color(magi::kPRailHi)},
-                                {.offset = 0.0f,
+                                {.across = 0.0f,
                                  .width = 1.0f,
                                  .fill = Fill::color(magi::kPPin),
                                  .dash = {3.0f, 11.0f}},
-                                {.offset = 6.0f,
+                                {.across = -6.0f,
                                  .width = 1.8f,
                                  .fill = Fill::color(magi::kPRail)}},
                       .offsetStep = 3.0f}));
@@ -1753,11 +1753,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
                       routers::polyline(0.0f))
                      .inset(0)
                      .stroke(lines::Rails{
-                         .rails = {{.offset = 0.0f,
+                         .rails = {{.across = 0.0f,
                                     .width = 13.0f,
                                     .fill = Fill::color(magi::kOrange),
                                     .cap = SkPaint::kButt_Cap},
-                                   {.offset = -7.5f,
+                                   {.across = 7.5f,
                                     .width = 2.0f,
                                     .fill = Fill::color(magi::kOrangeDim),
                                     .cap = SkPaint::kButt_Cap}}}));

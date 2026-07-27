@@ -430,7 +430,7 @@ inline std::function<SkPath(SkSize)> chevron() {
 // re-describing. Marching ants on three orbit lines every frame is exactly
 // what the declared-volatility rule exists to avoid, so this is the library's
 // own extension seam used as designed: a value DecorationScheme with a bound
-// Output and animates() == true. It should not have to live in a sketch.
+// Output and isAnimated() == true. It should not have to live in a sketch.
 
 struct MarchingDots {
   float width = 1.0f;
@@ -440,7 +440,7 @@ struct MarchingDots {
   float speed = 1.0f;   ///< px of phase per unit of the bound output
 
   bool operator==(const MarchingDots &) const = default;
-  bool animates() const { return phase != nullptr; }
+  bool isAnimated() const { return phase != nullptr; }
   float bleed() const { return width; }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {

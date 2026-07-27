@@ -352,7 +352,7 @@ struct RailFlares {
   float period = 6.0f, phase = 0.0f;
 
   bool operator==(const RailFlares &) const = default;
-  bool animates() const { return true; }
+  bool isAnimated() const { return true; }
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     const float w = ctx.size.width(), h = ctx.size.height();
     const float ys[3] = {h * 0.167f, h * 0.5f, h * 0.833f};

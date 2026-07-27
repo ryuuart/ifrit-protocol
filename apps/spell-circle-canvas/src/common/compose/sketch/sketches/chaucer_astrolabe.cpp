@@ -3034,7 +3034,7 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   }
 
   void update(double, sketch::SketchContext &ctx) override {
-    // The four live readouts change their TEXT every frame, which PropValue
+    // The four live readouts change their TEXT every frame, which Animatable
     // cannot carry (ROADMAP §9). renderSlot is the right answer and is cheap:
     // the surrounding ~350-node tree is untouched and keeps its caches.
     ctx.composer.renderSlot("sun", sunMark());

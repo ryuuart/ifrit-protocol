@@ -89,7 +89,7 @@ bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
 }
 
 template <typename T>
-bool propEqual(const PropValue<T> &a, const PropValue<T> &b) {
+bool propEqual(const Animatable<T> &a, const Animatable<T> &b) {
   if (a.index() != b.index())
     return false;
   if (const T *plainA = a.plain())
@@ -127,7 +127,7 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.glyphFx)
     return false; // effect is a callable — memo covers settled kinetic text
-  // VariationDrive: BINDING identity, like PropValue bindings — same tag
+  // VariationDrive: BINDING identity, like Animatable bindings — same tag
   // and same Output pointer prune (the value lives outside the tree).
   if (std::memcmp(ta.driveTag, tb.driveTag, 4) != 0 ||
       ta.driveValue != tb.driveValue)
@@ -162,7 +162,7 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
   if (ta.metricFill.has_value() != tb.metricFill.has_value())
     return false;
   if (ta.metricFill) {
-    if (ta.metricFill->isLive() || tb.metricFill->isLive())
+    if (ta.metricFill->isAnimated() || tb.metricFill->isAnimated())
       return false;
     if (!(*ta.metricFill == *tb.metricFill))
       return false;
@@ -253,7 +253,7 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
   if (a->live.has_value() != b->live.has_value())
     return false;
   if (a->live) {
-    if (a->live->isLive() || b->live->isLive())
+    if (a->live->isAnimated() || b->live->isAnimated())
       return false;
     if (!(*a->live == *b->live))
       return false;
@@ -479,7 +479,7 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     if (prev)
       applyTransitions(inst, *prev, *resolved);
     else
-      applyMountTransitions(inst, *resolved); // withFrom() entrances
+      applyMountTransitions(inst, *resolved); // animate(from().to()) entrances
 
     // flowAround changes (margin or key set) re-derive too: exclusions are
     // cached per instance and the derive guards compare geometry, not the

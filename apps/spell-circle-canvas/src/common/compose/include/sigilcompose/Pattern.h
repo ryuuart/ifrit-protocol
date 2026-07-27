@@ -122,7 +122,7 @@ public:
    *  the pattern twice for want of it.
    *
    *  Still describe-time: animating a pan means re-describing, or a bound
-   *  uniform in hand-written SkSL. `offset(PropValue<SkPoint>)` under the
+   *  uniform in hand-written SkSL. `offset(Animatable<SkPoint>)` under the
    *  paint-only volatility contract is the version that closes it fully
    *  (ROADMAP.md §14). */
   Pattern &offset(SkPoint px) {

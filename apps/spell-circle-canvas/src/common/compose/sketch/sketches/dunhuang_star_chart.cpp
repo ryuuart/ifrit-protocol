@@ -127,7 +127,7 @@
 // THE THIRD MODE OF LINE. Sigillum is ENGRAVED; the fulu is WRITTEN; this
 // is DRAWN — a draughtsman's fine brush on 0.04 mm mulberry. One weight,
 // one ring, three fills, and a hand-drawn join BOWS: every asterism line
-// here is ops::Sketchy at low amplitude over a polyline through real dot
+// here is shapers::Jitter at low amplitude over a polyline through real dot
 // centres, revealed by trim() in RA order so the joining sweeps
 // right-to-left across the scroll, in reading order.
 //
@@ -142,7 +142,7 @@
 //                        weights; the map frames; the disc's limb
 //   PathFormat::trimStart/trimEnd   28 mansion rules that stop short of
 //                        both edges — interrupted, not chords
-//   ops::Sketchy         every asterism join, and the paper's own edge
+//   shapers::Jitter      every asterism join, and the paper's own edge
 //   shapes::parametric   the disc's radial DEC scale and the graticule
 //   shapes::annulus / sector / circle / spiral
 //   brush::Ribbon + widthFn   the archer, keyed to distance/fullLength
@@ -1570,11 +1570,11 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 Brush{}
                     .shaped(kit::brush::shapers::Jitter{
                         .segLength = 34, .deviation = 0.9f, .seed = 3326})
-                    .leg(lines::Rails{
-                        .rails = {{.offset = 0,
+                    .layer(lines::Rails{
+                        .rails = {{.across = 0,
                                    .width = 1.9f,
                                    .fill = Fill::color(hex(0x6b573c, 0.62f))},
-                                  {.offset = 4.5f,
+                                  {.across = -4.5f,
                                    .width = 0.55f,
                                    .fill = Fill::color(hex(0x6b573c, 0.34f)),
                                    .dash = {9, 6}}}})));
@@ -1608,7 +1608,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                 .segLength = 30,
                                 .deviation = 1.1f,
                                 .seed = (uint32_t)(600 + k)})
-                            .leg(lines::Line{
+                            .layer(lines::Line{
                                 .width = 1.25f,
                                 .fill = Fill::color(hex(0x4a3b28, 0.78f))}))
                 .foreground(decorations::brackets(2.0f, Fill::color(kInk),
@@ -1741,7 +1741,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                 Brush{}
                     .shaped(kit::brush::shapers::Jitter{
                         .segLength = 22, .deviation = 1.0f, .seed = 1300})
-                    .leg(lines::heavyHairHeavy(
+                    .layer(lines::heavyHairHeavy(
                         1.7f, 0.5f, Fill::color(hex(0x3a2e1e, 0.86f)), 5.0f))));
 
     // the DEC rings, at the published 5.10 °/cm — parametric, not stamped
@@ -1839,7 +1839,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   // --- the asterism line art ----------------------------------------------
 
   /** One asterism, as line art: a polyline through real dot centres, bowed
-   *  by ops::Sketchy because a hand-drawn join is not a rule, revealed by
+   *  by shapers::Jitter because a hand-drawn join is not a rule, revealed by
    *  trim() on its own beat. */
   void buildAsterismArt() {
     astArt.clear();
@@ -1915,7 +1915,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                                   .segLength = 13.0f,
                                   .deviation = 0.85f,
                                   .seed = (uint32_t)(i * 31 + 7)})
-                              .leg(lines::Line{.width = 1.05f,
+                              .layer(lines::Line{.width = 1.05f,
                                                .fill = Fill::color(A.ink),
                                                .capSize = 0.0f})));
     }
@@ -2173,7 +2173,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                           .shaped(kit::brush::shapers::Jitter{.segLength = 9.0f,
                                                               .deviation = 0.7f,
                                                               .seed = seed})
-                          .leg(lines::Line{
+                          .layer(lines::Line{
                               .width = 1.9f,
                               .fill = Fill::color(hex(0x241d15, 0.78f))})));
     }

@@ -151,10 +151,10 @@ Everything the API offers is one of these, wearing a grammar. The map
 
 | Grammar | Path | Owns |
 | --- | --- | --- |
-| `transition`/`with`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
+| `transition`/`animate`/`staggerChildren` | describe | reconciled state changes, entrances, staggers |
 | bare `Output*` / shaped `bind()` | bind | continuous scrubbing, data-driven values |
-| `animates()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
-| `spans::upTo` on a stroke pass, `wipe` (legacy `trim`) | either | reveals |
+| `isAnimated()` schemes, live materials (`uTime`, bound uniforms, `quantizeTime`) | bind (content volatility) | self-animating surfaces |
+| `spans::upTo` on a stroke pass, `wipe` (`trim` condemned) | either | reveals |
 | `glyphFx` + Animatable progress | either | per-glyph typography |
 | `custom()` + `Cache::None` + `elapsedSeconds` | floor | immediate-mode escape hatch |
 | pool `Mode::Live` / `Mode::Data` | the two paths verbatim | instanced masses |
@@ -175,7 +175,7 @@ advance-invariant weight.
 
 ## Caching — automatic because provable
 
-Declared volatility (bindings, transitions, `animates()` schemes, live
+Declared volatility (bindings, transitions, `isAnimated()` schemes, live
 leaves) makes "static" a decidable property of a subtree, not a
 heuristic. The tiers:
 
@@ -328,8 +328,8 @@ a third.
 - **Anything read live must participate in reconciler equality** or a
   pruned node reads stale values forever; incomparable callables
   compare conservatively unequal and therefore never prune — prefer
-  comparable value forms (`ops::` structs over raw lambdas), and
-  memoize where a callable is unavoidable.
+  comparable value forms (shaper structs over raw `ops::PathOp`
+  lambdas), and memoize where a callable is unavoidable.
 - **A default that encodes a judgement about the caller's art cannot
   be changed compatibly** — the test is whether any existing caller's
   *output* changes (the `cornerAlign` doctrine, ROADMAP §27; audit
@@ -348,12 +348,28 @@ a third.
   DRIVEN property keeps the data spelling (`&out`, shaped `bind()`
   — the bare overloads are retained BY DESIGN: driven is data
   updating, animation a side effect); a surface that RUNS ITSELF
-  declares `animates()`. Mechanism names (`PropValue`) stay internal. The grep test is two honest
-  searches: `animate(` finds every authored motion; `bind(` and bound
-  fields find everything data-driven. The wall and ruling are ROADMAP
-  §32; the full-surface audit is §33. Its cheapest test, applied to
-  every new name: **when a doc comment's job is to distinguish two
-  names, that is the rename ticket.**
+  declares `isAnimated()` — the `is` prefix is what makes it read as a
+  QUERY, and there is no setter to confuse it with. Mechanism names do
+  not stay internal either: `PropValue`, `with`/`withFrom`/
+  `withKeyframes`, `outline()`, `Brush::op()`/`leg()`, `Pool::touch()`,
+  `namespace brushes` and the `ops::` structs were all DELETED in R3
+  (§33), because an alias kept forever is a second grammar. The grep
+  test is two honest searches: `animate(` finds every authored motion;
+  `bind(` and bound fields find everything data-driven. The wall and
+  ruling are ROADMAP §32; the full-surface audit is §33. Its cheapest
+  test, applied to every new name: **when a doc comment's job is to
+  distinguish two names, that is the rename ticket.**
+- **PERPENDICULAR SIGN — ONE CONVENTION, STATED ONCE HERE.** Positive
+  `across` is to the **LEFT of travel**, which in screen space (y down)
+  is OUTSIDE a clockwise path — SkPath's own direction for rects and
+  circles, so `.outward()` exits the shape. Everything obeys it:
+  `bandPointAt`, `Profile::across`, `strand::offset`, `TextPath::offset`,
+  `lines::offsetAcross`, `lines::Rail::across`, `lines::Line::across` and
+  `kit::brush::shapers::Offset`. The `lines::` family used to be the
+  minority that meant right-of-travel (Mapbox's line-offset sign); R3
+  flipped it, renaming each member so the compiler found every call site
+  and negating every argument so no picture moved (§33 ruling 5). There
+  is no second convention to look up.
 - **Qt identifier ban** in every exported header (`emit`, `signals`,
   `slots`, `foreach`, `forever`, `Q_*`); the sketch rsp is Qt-free and
   blind — after editing headers, syntax-check a Qt TU.
@@ -407,7 +423,7 @@ table marks which half is source-verified vs unmeasured):
    impact: 43.4 of 43.5 ms on one un-prunable callable).
 3. Ribbon `(along, across)` paint space — expose what `artAlong`
    computes (§8b/§14).
-4. `ArtBrush` bake identity (§16) — the blocker for live ribbon
+4. `brush::Art` bake identity (§16) — the blocker for live ribbon
    content.
 5. **The one missing primitive, four clients** (3D panels, infinite
    canvas, high-res export, ribbons): snapshot a live keyed subtree at

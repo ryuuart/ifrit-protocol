@@ -177,8 +177,8 @@ Element &Element::inward() {
   return *this;
 }
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
-Element &Element::trim(PropValue<float> start, PropValue<float> end,
-                       PropValue<float> offset, TrimMode mode) {
+Element &Element::trim(Animatable<float> start, Animatable<float> end,
+                       Animatable<float> offset, TrimMode mode) {
   detail::FxData &fx = m_node->fxData.ensure();
   fx.hasTrim = true;
   fx.trimStart = std::move(start);
@@ -190,7 +190,7 @@ Element &Element::trim(PropValue<float> start, PropValue<float> end,
 
 // ---- paint ----------------------------------------------------------------
 
-Element &Element::fill(PropValue<Fill> f) {
+Element &Element::fill(Animatable<Fill> f) {
   m_node->paint.fill = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
@@ -229,7 +229,7 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
-Element &Element::wipe(float angleDeg, PropValue<float> fraction) {
+Element &Element::wipe(float angleDeg, Animatable<float> fraction) {
   auto &fx = m_node->fxData.ensure();
   fx.hasWipe = true;
   fx.wipeAngleDeg = angleDeg;
@@ -321,7 +321,7 @@ Element &Element::backdrop(Effect e) {
   m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }
-Element &Element::opacity(PropValue<float> o) {
+Element &Element::opacity(Animatable<float> o) {
   m_node->paint.opacity = std::move(o);
   return *this;
 }
@@ -329,19 +329,19 @@ Element &Element::blend(SkBlendMode mode) {
   m_node->paint.blendMode = mode;
   return *this;
 }
-Element &Element::translateX(PropValue<float> v) {
+Element &Element::translateX(Animatable<float> v) {
   m_node->paint.translateX = std::move(v);
   return *this;
 }
-Element &Element::translateY(PropValue<float> v) {
+Element &Element::translateY(Animatable<float> v) {
   m_node->paint.translateY = std::move(v);
   return *this;
 }
-Element &Element::rotate(PropValue<float> v) {
+Element &Element::rotate(Animatable<float> v) {
   m_node->paint.rotate = std::move(v);
   return *this;
 }
-Element &Element::scale(PropValue<float> v) {
+Element &Element::scale(Animatable<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
@@ -357,19 +357,19 @@ Element &Element::onPath(TextPath spec) {
   m_node->textData.ensure().onPath = std::move(spec);
   return *this;
 }
-Element &Element::scaleX(PropValue<float> v) {
+Element &Element::scaleX(Animatable<float> v) {
   m_node->paint.scaleX = std::move(v);
   return *this;
 }
-Element &Element::scaleY(PropValue<float> v) {
+Element &Element::scaleY(Animatable<float> v) {
   m_node->paint.scaleY = std::move(v);
   return *this;
 }
-Element &Element::skewX(PropValue<float> v) {
+Element &Element::skewX(Animatable<float> v) {
   m_node->paint.skewX = std::move(v);
   return *this;
 }
-Element &Element::skewY(PropValue<float> v) {
+Element &Element::skewY(Animatable<float> v) {
   m_node->paint.skewY = std::move(v);
   return *this;
 }
@@ -897,17 +897,16 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
   // chord, so two concentric ring spines came out as a filled disc.
   //
   // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
-  // constant width then rides lines::offsetAlong's corner repair (real
+  // constant width then rides lines::offsetAcross's corner repair (real
   // vertices, arc outside a turn, miter inside) instead of a naive
   // sample-and-displace that leaves a spur on the inside of every
   // rectangle.
   //
   // Sign and frame: positive `across` is LEFT of travel, which with y down
   // is OUTSIDE a clockwise path — SkPath's own direction for rects and
-  // circles, so `.outward()` exits the shape. profileOffset owns that
-  // convention, including the negation against lines::offsetAlong
-  // (right-of-travel); see bandPointAt for why the two differ and that the
-  // split predates the band.
+  // circles, so `.outward()` exits the shape. Since R3 that is the ONE
+  // convention and lines::offsetAcross means the same side; see
+  // bandPointAt, and DESIGN.md, which states it once.
   SkPathBuilder out;
   float consumed = 0;
   for (const auto &[contour, len] : splitContours(spine)) {
@@ -924,7 +923,7 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
     if (outerRail.isEmpty() || innerRail.isEmpty())
       continue;
 
-    // Zip by arc length rather than by index: offsetAlong inserts join
+    // Zip by arc length rather than by index: offsetAcross inserts join
     // geometry, so the two rails do not share a point count.
     const int steps = std::max(16, (int)std::ceil(len / 2.0f));
     const std::vector<SkPoint> outerPts = sampleRail(outerRail, steps);
@@ -1164,17 +1163,15 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
   measureContours(spine, &total);
   if (total <= 0)
     return SkPath();
-  // A CONSTANT profile is a parallel, and lines::offsetAlong already does
+  // A CONSTANT profile is a parallel, and lines::offsetAcross already does
   // parallels exactly — it finds the real vertices and joins them (arc
   // outside a turn, miter inside) instead of chording across. The naive
   // sample-and-displace walk below cannot: at a hard corner it offsets one
   // sampled point along ONE edge's normal, which leaves a spur on the
   // inside of every rectangle. Rather than grow a second corner repair
   // (the sibling-path failure family), delegate.
-  //
-  // The sign is negated because offsetAlong is RIGHT of travel and this
-  // seam is LEFT (see bandPointAt); flipping offsetAlong would be a §27
-  // breach, so the conversion lives here, once.
+  // No sign conversion any more: offsetAcross is LEFT of travel, which is
+  // this seam's frame exactly (R3's sign port; see bandPointAt).
   //
   // Constancy is detected by SAMPLING, and that is a real limitation, not
   // a rounding detail: a stepped profile whose period divides the sample
@@ -1191,7 +1188,7 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
     for (int k = 1; k < 97 && constant; ++k)
       constant = profile.across(((float)k + 0.5f) / 97.0f) == first;
     if (constant)
-      return first == 0.0f ? spine : lines::offsetAlong(spine, -first);
+      return first == 0.0f ? spine : lines::offsetAcross(spine, first);
   }
   SkPathBuilder out;
   SkContourMeasureIter iter(spine, false);

@@ -224,7 +224,7 @@
 //   So: CONFIRMED as a real behaviour, REFUTED as stated. Horizontal runs come
 //   out THICKER, not thinner — the prediction has the right mechanism and the
 //   wrong sign, because it is the NORMAL that gets stretched, not the tangent.
-//   lines::Rails behaves identically (offsetAlong and the stroke width are both
+//   lines::Rails behaves identically (offsetAcross and the stroke width are both
 //   local-space), so the whole rail vocabulary shares the property.
 //
 // This sketch does not hit it, because it does what the mod does: positions are
@@ -517,7 +517,7 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  405,260 at full white, then guiresbgcst over the same rect at
    *  (0.8, 0.8, 1.0, 0.7) with UV cropped to 0.1..0.9. The measured product
    *  is a #0B080B ground with white points reaching #8F8FB3 over ~0.95% of
-   *  the area — reconstructed as a nebula ramp plus four ScatterBrush passes
+   *  the area — reconstructed as a nebula ramp plus four brush::Scatter passes
    *  on lissajous routes, seeded so the field is identical every frame. */
   Element pagePlate() const {
     const float x = at::gx(15), y = at::gy(10);
@@ -590,10 +590,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // 25/64, 0.580 over the middle 9/64 — those three numbers, verbatim.
     lines::Rails rails;
     rails.rails = {
-        {.offset = 0,
+        {.across = 0,
          .width = band * (25.0f / 64.0f),
          .fill = Fill::color(at::mul(col, 1.0f, 0.309f))},
-        {.offset = 0,
+        {.across = 0,
          .width = band * (9.0f / 64.0f),
          .fill = Fill::color(at::mul(col, 1.45f, 0.580f))},
         // the two dotted flanks — the departure, and the per-rail phase test:
@@ -605,13 +605,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         //
         // CORRECTED 2026-07-22, AND THE OLD REASON WAS NEVER TRUE. This
         // comment used to say the OFFSET was the casualty: that a 0.01-long
-        // contour has no usable tangent, so offsetAlong displaced the dashes
+        // contour has no usable tangent, so offsetAcross displaced the dashes
         // by nothing and both flanks drew inside the band. Measured at these
         // exact numbers — offset +-11.4, width 1.4, centreline y = 100 — the
         // 0.01 dash lands on y = 88 and y = 111. That IS the full offset, to
         // the pixel. The shipped 2.2 dash lands on the SAME TWO ROWS, and on a
         // curve the 0.01 dash puts ink at 68.6 and 91.4 about an apex of 80,
-        // which is again +-11.4. offsetAlong (Lines.h:148) samples getPosTan at
+        // which is again +-11.4. offsetAcross (Lines.h:148) samples getPosTan at
         // two distances and displaces both along the normal; a 0.01 dash is a
         // real segment with a well-defined tangent and nothing in that loop
         // degenerates.
@@ -628,12 +628,12 @@ struct AstralTome : sigil::compose::sketch::Sketch {
         // beyond one sketch, because lines::dottedCore ships
         // .dash = {0.01f, dotGap} as its DEFAULT (Lines.h:1048) — the old
         // comment was indicting a stock helper for a defect it does not have.
-        {.offset = half * 1.9f,
+        {.across = -half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .cap = SkPaint::kRound_Cap},
-        {.offset = -half * 1.9f,
+        {.across = half * 1.9f,
          .width = 1.4f,
          .fill = Fill::color(at::mul(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
@@ -896,10 +896,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                   return p.detach();
                 })
                 .stroke(lines::Rails{
-                    .rails = {{.offset = 0,
+                    .rails = {{.across = 0,
                                .width = 1.0f,
                                .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.5f))},
-                              {.offset = 4.0f,
+                              {.across = -4.0f,
                                .width = 0.7f,
                                .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.24f)),
                                .dash = {2.0f, 5.0f}}}}));
@@ -1216,10 +1216,10 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                   return p.detach();
                 })
                 .stroke(lines::Rails{
-                    .rails = {{.offset = 0,
+                    .rails = {{.across = 0,
                                .width = 1.0f,
                                .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.42f))},
-                              {.offset = 3.5f,
+                              {.across = -3.5f,
                                .width = 0.6f,
                                .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.2f)),
                                .dash = {1.5f, 4.5f}}}}));

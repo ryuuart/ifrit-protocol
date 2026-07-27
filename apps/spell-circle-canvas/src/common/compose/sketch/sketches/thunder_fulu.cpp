@@ -85,7 +85,7 @@
 // is the only mark on this plate that is a single contour, and it is written
 // at 0.034 s per stroke against the body's 0.240 — 7.1× — which is doctrine
 // measured, not taste. 飛白 flying-white comes with the speed: two dashed
-// rails at ops::Offset ∓2.6 px, so the dry streaks are longitudinal and
+// rails at shapers::Offset ±2.6 px, so the dry streaks are longitudinal and
 // follow the tangent BY CONSTRUCTION rather than by a canvas-axis shader.
 //
 // THE LAYOUT IS THE TREAD. 步罡踏斗, 禹步 「三步九跡」 — three steps making
@@ -104,7 +104,7 @@
 // BUILT FROM (the library, not by hand):
 //   brush::Ribbon + widthFn   every stroke on the plate; 起行收 over
 //                        distance/length, w₀ from the recovered class
-//   Brush legs + ops::Offset    飛白 as two dashed rails offset off the
+//   Brush layers + shapers::Offset  飛白 as two dashed rails offset off the
 //                        stroke's own centreline — tangent-aligned by
 //                        construction, no per-stroke shader matrix
 //   lines::displace      雲篆: the cloud-wander is a REAL median displaced,
@@ -118,7 +118,7 @@
 //   brush::Scatter   the nine footprints of 禹步 along the tread
 //   brush::Pattern   corner tiles on the plate — corners rounded BY
 //                        HAMMERING, not by a radius
-//   ops::Sketchy         the beaten iron edge: low frequency, high deviation
+//   shapers::Jitter      the beaten iron edge: low frequency, high deviation
 //   shapes::chamfered / circle / star / parametric
 //   Material::linear + patterns::grain + speckle   the iron, under
 //                        Cache::Texture
@@ -151,6 +151,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMgr.h>
@@ -652,7 +653,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
   Material ironGrain;
   Pattern ironSpeck;
-  Element footPrint; // ScatterBrush art, held for pointer stability
+  Element footPrint; // brush::Scatter art, held for pointer stability
   Element hammerTile, hammerCorner;
 
   // --- the ink ------------------------------------------------------------
@@ -715,7 +716,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     }
 
     Brush brush;
-    brush.leg(rib);
+    brush.layer(rib);
     if (s.dry) {
       // 飛白. At speed a dry brush's hair bundles separate and the ground
       // shows through in LONGITUDINAL streaks. Two dashed rails offset off
@@ -728,12 +729,12 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       hair.cap = SkPaint::kButt_Cap;
       hair.dashIntervals = {5.0f, 3.4f};
       hair.dashPhase = 2.0f;
-      brush.leg(hair, {ops::Offset{2.2f, 3.0f}});
+      brush.layer(hair, {kit::brush::shapers::Offset{-2.2f, 3.0f}});
       PathFormat hair2 = hair;
       hair2.width = 1.0f;
       hair2.dashIntervals = {3.6f, 5.2f};
       hair2.dashPhase = 5.5f;
-      brush.leg(hair2, {ops::Offset{-2.4f, 3.0f}});
+      brush.layer(hair2, {kit::brush::shapers::Offset{2.4f, 3.0f}});
     }
 
     const SkRect f = s.frame;
@@ -838,7 +839,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape([](SkSize s) {
-                  return ops::Sketchy{46.0f, 2.6f, 1356}.apply(
+                  return kit::brush::shapers::Jitter{46.0f, 2.6f, 1356}.shape(
                       shapes::chamfered(17.0f)(s));
                 })
                 // linearUnit, not linear: linear() is in NODE PIXELS, so
@@ -863,7 +864,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .cache(Cache::Texture)
                 .key("iron"));
 
-    // the beaten edge, and the corners rounded BY HAMMERING. PatternBrush
+    // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
     // corner tiles: a facet, not a fillet.
     //
     // `cornerAlign` is spelled out below and the value is the DEFAULT, which
@@ -876,26 +877,26 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
     // hammer lands on the CORNER, and the flat it leaves straddles both legs
     // instead of lying along one of them. Audited by rendering the same
     // frame with Outgoing forced — the six facets rotate 13 to 35 degrees
-    // (half the chamfer's own turn, perturbed by ops::Sketchy) and nothing
+    // (half the chamfer's own turn, perturbed by shapers::Jitter) and nothing
     // snaps into or out of alignment, because a stubby lozenge at elongation
     // 1.4 has no strong axis to align. So the value stands, and now it is
     // stated rather than inherited.
     g.child(box()
                 .inset(0)
                 .shape([](SkSize s) {
-                  return ops::Sketchy{38.0f, 3.1f, 46}.apply(
+                  return kit::brush::shapers::Jitter{38.0f, 3.1f, 46}.shape(
                       shapes::chamfered(17.0f)(s));
                 })
                 .fill(Fill::none())
                 .stroke(Brush{}
-                            .leg(lines::rails(
-                                {{.offset = 0.0f,
+                            .layer(lines::rails(
+                                {{.across = 0.0f,
                                   .width = 3.0f,
                                   .fill = Fill::color(hex(0x5d564a, 0.85f))},
-                                 {.offset = 5.5f,
+                                 {.across = -5.5f,
                                   .width = 1.1f,
                                   .fill = Fill::color(hex(0x0a0909, 0.75f))}}))
-                            .leg(brush::Pattern{
+                            .layer(brush::Pattern{
                                 .side = hammerTile,
                                 .corner = brush::CornerArt{
                                     hammerCorner,
@@ -1299,10 +1300,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                 .inset(0)
                 .shape([walkPath](SkSize) { return walkPath; })
                 .fill(Fill::none())
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 2.6f,
                                        .fill = Fill::color(hex(0x8b6f36, 0.50f))},
-                                       {.offset = 0.0f,
+                                       {.across = 0.0f,
                                         .width = 1.0f,
                                         .fill = Fill::color(hex(0xd8bd7c, 0.75f)),
                                         .dash = {2.0f, 7.0f}}}))
@@ -1393,7 +1394,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
       mp.child(box()
                    .inset(0)
                    .shape([](SkSize s) {
-                     return ops::Sketchy{14.0f, 1.4f, 7}.apply(
+                     return kit::brush::shapers::Jitter{14.0f, 1.4f, 7}.shape(
                          shapes::chamfered(5.0f)(s));
                    })
                    .fill(Material::linearUnit(
@@ -1472,10 +1473,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   return b.detach();
                 })
                 .fill(Fill::none())
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 1.6f,
                                        .fill = Fill::color(hex(0xb2914f, 0.55f))},
-                                      {.offset = 4.0f,
+                                      {.across = -4.0f,
                                        .width = 0.7f,
                                        .fill = Fill::color(hex(0xb2914f, 0.30f)),
                                        .dash = {1.4f, 4.6f}}})));
@@ -1601,10 +1602,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
             return b.detach();
           })
           .fill(Fill::none())
-          .stroke(lines::rails({{.offset = 0.0f,
+          .stroke(lines::rails({{.across = 0.0f,
                                  .width = 1.3f,
                                  .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                {.offset = 3.4f,
+                                {.across = -3.4f,
                                  .width = 0.6f,
                                  .fill = Fill::color(hex(0xb2914f, 0.26f)),
                                  .dash = {1.3f, 4.2f}}}));
@@ -1694,10 +1695,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                       0.0f, 1.0f, 180))
                   .fill(Fill::none())
                   .stroke(lines::rails(
-                      {{.offset = 0.0f,
+                      {{.across = 0.0f,
                         .width = 1.5f,
                         .fill = Fill::color(hex(0xe6d7ae, 0.95f))},
-                       {.offset = 3.0f,
+                       {.across = -3.0f,
                         .width = 0.6f,
                         .fill = Fill::color(hex(0xcf3018, 0.55f))}}))
                   .key("lawcurve"));
@@ -1887,10 +1888,10 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                   return b.detach();
                 })
                 .fill(Fill::none())
-                .stroke(lines::rails({{.offset = 0.0f,
+                .stroke(lines::rails({{.across = 0.0f,
                                        .width = 1.3f,
                                        .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                      {.offset = 3.4f,
+                                      {.across = -3.4f,
                                        .width = 0.6f,
                                        .fill = Fill::color(hex(0xb2914f, 0.26f)),
                                        .dash = {1.3f, 4.2f}}})));
@@ -2089,7 +2090,7 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
                                   {hex(0x7c7263, 0.10f), hex(0x000000, 0.16f)});
     ironSpeck.seed(1220);
 
-    // ScatterBrush / PatternBrush art: held as MEMBERS. Built inside a
+    // brush::Scatter / brush::Pattern art: held as MEMBERS. Built inside a
     // describe they would re-bake their tile every frame — the snapshot
     // cache lives in the value.
     footPrint = box()

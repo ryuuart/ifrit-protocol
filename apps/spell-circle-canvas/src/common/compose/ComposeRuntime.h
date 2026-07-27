@@ -270,12 +270,12 @@ struct Instance {
   const ElementNode *outlineCacheDesc = nullptr;
 
   ~Instance();
-  float resolveFloat(Instance::Slot slot, const PropValue<float> &v) const;
+  float resolveFloat(Instance::Slot slot, const Animatable<float> &v) const;
   /** The same resolution over an explicitly-held motion — the span
    *  endpoints, whose count the description decides. One body: a bound
    *  Output wins, then a running ramp, then the plain value. */
   float resolveFloatAt(const AnimatedFloat *anim,
-                       const PropValue<float> &v) const;
+                       const Animatable<float> &v) const;
   /** Resolve every stroke pass's claimed runs for this frame, with
    *  rest() complements applied. Empty when the node has no passes. */
   std::vector<std::vector<Span>> resolveSpans(const SkPath &outline) const;

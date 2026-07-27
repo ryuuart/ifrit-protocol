@@ -42,16 +42,16 @@ struct LayoutProps {
 };
 
 struct PaintProps {
-  std::optional<PropValue<Fill>> fill;
-  PropValue<float> opacity = 1.0f;
+  std::optional<Animatable<Fill>> fill;
+  Animatable<float> opacity = 1.0f;
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
-  PropValue<float> translateX = 0.0f, translateY = 0.0f;
-  PropValue<float> rotate = 0.0f, scale = 1.0f;
+  Animatable<float> translateX = 0.0f, translateY = 0.0f;
+  Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
   // cooldown sweeps and drain rings are the most common animated
   // primitive in a UI and none of them are uniform.
-  PropValue<float> scaleX = 1.0f, scaleY = 1.0f;
-  PropValue<float> skewX = 0.0f, skewY = 0.0f; // degrees (shear)
+  Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
+  Animatable<float> skewX = 0.0f, skewY = 0.0f; // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
   bool originPx = false; // origin in node-local px instead of fractions
   int zIndex = 0;
@@ -195,8 +195,8 @@ struct FxData {
   std::vector<Echo> echoes;
   // Trim Path: painted-outline reveal (fractions of arc length).
   bool hasTrim = false;
-  PropValue<float> trimStart = 0.0f, trimEnd = 1.0f;
-  PropValue<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
+  Animatable<float> trimStart = 0.0f, trimEnd = 1.0f;
+  Animatable<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
   TrimMode trimMode = TrimMode::Clamp;
   float staggerChildrenMs = 0; // extra order·each mount delay per subtree
   Stagger::From staggerFrom = Stagger::From::Start;
@@ -210,7 +210,7 @@ struct FxData {
   // because a reveal reveals).
   bool hasWipe = false;
   float wipeAngleDeg = 0.0f;
-  PropValue<float> wipeFraction = 1.0f;
+  Animatable<float> wipeFraction = 1.0f;
 };
 
 struct MaterialData {
@@ -301,7 +301,7 @@ template <typename T> struct ResolvedProp {
 };
 
 template <typename T>
-ResolvedProp<T> resolveProp(const PropValue<T> &v,
+ResolvedProp<T> resolveProp(const Animatable<T> &v,
                             const std::optional<Transition> &nodeDefault) {
   ResolvedProp<T> out;
   if (const T *plain = v.plain()) {

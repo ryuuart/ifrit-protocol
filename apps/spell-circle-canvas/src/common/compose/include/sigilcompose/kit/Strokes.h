@@ -28,6 +28,11 @@
 #include "sigilcompose/Lines.h"
 #include "sigilcompose/Shapes.h"
 
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkStrokeRec.h>
+#include <include/effects/SkCornerPathEffect.h>
+#include <include/effects/SkDiscretePathEffect.h>
+
 #include <cmath>
 #include <vector>
 
@@ -69,13 +74,11 @@ namespace shapers {
  *  rather than deriving one, and the reason a wave profile on a very short
  *  or very long spine will not have the wavelength you asked for. The
  *  SHAPER reading (`shape()`) has a real path and is exact. */
-/** NOTE THE THIRD MEMBER. `ops::Wave`'s third is `bool zigzag`; this
- *  one's is `float phase`. `Wave{4, 28, true}` therefore means two
- *  different drawings in the two spellings — a smooth wave at phase 1 as
- *  a kit shaper, a ZIGZAG as an `ops::` struct — and it compiles both
- *  ways. Porting a positional `ops::Wave` to a kit shaper has to read the
- *  third argument; that is exactly the trap that made `Zigzag` its own
- *  value rather than a flag here. */
+/** THE THIRD MEMBER IS `phase`. The `ops::Wave` this replaced spelled a
+ *  `bool zigzag` there, so `Wave{4, 28, true}` meant two different
+ *  drawings in the two spellings and compiled both ways. `ops::` is gone
+ *  (R3) and the trap with it, but it is the reason `Zigzag` below is its
+ *  own value rather than a flag here. */
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
   bool operator==(const Wave &) const = default;
@@ -100,14 +103,28 @@ private:
 };
 
 /** A hand-drawn wobble: the mark resampled into short segments, each
- *  pushed off true by a seeded amount (the rough.js line). */
+ *  pushed off true by a seeded amount (the rough.js line).
+ *
+ *  ONE pass of SkDiscretePathEffect (grounded params in REFERENCES.md §9:
+ *  deviation ~ 2). rough.js draws TWO — full and half deviation at
+ *  different seeds — so the sketchy double-line is two brush layers, or
+ *  two restyles, never one call. */
 struct Jitter {
   float segLength = 8.0f, deviation = 2.0f;
   uint32_t seed = 7;
   bool operator==(const Jitter &) const = default;
   float bleed() const { return deviation * 2.0f; }
   SkPath shape(const SkPath &p) const {
-    return ops::Sketchy{segLength, deviation, seed}.apply(p);
+    SkPathBuilder out;
+    // HAIRLINE rec: under a fill rec SkDiscretePathEffect force-CLOSES
+    // open contours — the transit study's phantom river channel (the
+    // return chord braided the real run under jitter divergence).
+    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
+    if (sk_sp<SkPathEffect> fx =
+            SkDiscretePathEffect::Make(segLength, deviation, seed);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
   }
 };
 
@@ -115,19 +132,16 @@ struct Jitter {
  *  why `layers` plus this is the double/triple line and a braid needs
  *  Wave instead.
  *
- *  **Positive is RIGHT of travel**, because this wraps `lines::offsetAlong`
- *  unchanged (§27). That is the OPPOSITE of `strand::offset`, which is
- *  left-of-travel in the band's frame. The split predates both (see
- *  `bandPointAt`) and its reconciliation is the designer's call; until then
- *  the two `offset`s genuinely mean different sides, and this is the one
- *  place both are named together. */
+ *  **Positive is LEFT of travel**, the one convention (DESIGN.md; ROADMAP
+ *  §33 ruling 5). It agrees with `strand::offset(px)` exactly — the two
+ *  used to mean opposite sides, which is what R3's sign port ended. */
 struct Offset {
   float px = 0.0f;
   float step = 4.0f;
   bool operator==(const Offset &) const = default;
   float bleed() const { return std::abs(px); }
   SkPath shape(const SkPath &p) const {
-    return lines::offsetAlong(p, px, step);
+    return lines::offsetAcross(p, px, step);
   }
 };
 
@@ -136,26 +150,33 @@ struct Offset {
  *  rounds whatever path the brush pipeline is carrying, so it softens a
  *  displaced zigzag or an offset rail, not just a silhouette.
  *
- *  The twin of `ops::Rounded`, and the reason it exists: §33 wanted
- *  `brush::ops` demoted to internal once the lowercase lambda family died,
- *  and could not, because `Rounded` and `Square` had no taught spelling —
- *  demoting the family would have deleted two capabilities with nothing to
- *  say instead. */
+ *  Was the twin of `ops::Rounded`, and the reason it exists: §33 wanted
+ *  the `ops::` family gone, and could not have it while `Rounded` and
+ *  `Square` had no taught spelling — deleting them would have removed two
+ *  capabilities with nothing to say instead. R3 deleted the twins; this
+ *  now holds the body. */
 struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded &) const = default;
-  SkPath shape(const SkPath &p) const { return ops::Rounded{radius}.apply(p); }
+  SkPath shape(const SkPath &p) const {
+    SkPathBuilder out;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
+        fx && fx->filterPath(&out, p, &rec))
+      return out.detach();
+    return p;
+  }
 };
 
 /** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
  *  the Greek meander key, a stepped circuit trace. Wave's sibling, and the
- *  other half of what unblocks the `ops::` demotion. */
+ *  other half of what unblocked the `ops::` deletion. */
 struct Square {
   float amplitude = 5.0f, wavelength = 32.0f;
   bool operator==(const Square &) const = default;
   float bleed() const { return std::abs(amplitude); }
   SkPath shape(const SkPath &p) const {
-    return ops::Square{amplitude, wavelength}.apply(p);
+    return lines::displaceSquare(p, amplitude, wavelength);
   }
 };
 
@@ -166,7 +187,7 @@ struct Square {
  *  Its own value rather than a `zigzag` flag on `Wave`, because Wave is
  *  ALSO read as a profile (`across()`) and a flag that the profile reading
  *  ignored would be a silent asymmetry. Found by the R2 port: the
- *  `ops::` demotion turned out to need THREE twins, not the two §33
+ *  `ops::` deletion turned out to need THREE twins, not the two §33
  *  named — `ops::Wave{.zigzag = true}` was the third gap, and it had a
  *  live corpus site (the gallery's pipeline trio). */
 struct Zigzag {
@@ -278,7 +299,8 @@ inline sigil::compose::shapes::OutlineFn ring(float innerRatio = 0.6f) {
 // difference is visible at every call site — `kit::brush::shapers::wave`
 // is a word, `kit::brush::presets::rope` is a picture of Path of Exile's
 // rope. All four moved here from core's `brushes::` in R2 (ROADMAP §33),
-// unchanged: same layers, same numbers, same references.
+// unchanged: same layers, same numbers, same references; R3 deleted the
+// old namespace and with it the last spelling that was not this one.
 
 namespace brush {
 namespace presets {
@@ -376,28 +398,3 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
 } // namespace brush
 
 } // namespace sigil::compose::kit
-
-// ---------------------------------------------------------------------------
-// The legacy spellings, kept alive to R3.
-//
-// R2 moved the BODIES out of core; deleting the NAMES is R3's job, and
-// doing it a phase early is exactly what the alias-first law (§27) exists
-// to prevent. They are using-declarations rather than forwarding wrappers
-// so the default arguments cannot drift from the definitions.
-//
-// They live HERE, in the kit, and not in core's `Brushes.h`, because the
-// tier boundary is structural: SigilComposeKit links compose's public
-// headers and nothing goes the other way, so a core header cannot name a
-// kit value. The consequence, stated so nobody rediscovers it: reaching
-// `brushes::filament` now means including `<sigilcompose/kit/Strokes.h>`.
-// Every corpus site already does.
-namespace sigil::compose::brushes {
-/** Legacy spelling of kit::brush::presets::filament — dies in R3. */
-using kit::brush::presets::filament;
-/** Legacy spelling of kit::brush::presets::circuit — dies in R3. */
-using kit::brush::presets::circuit;
-/** Legacy spelling of kit::brush::presets::rope — dies in R3. */
-using kit::brush::presets::rope;
-/** Legacy spelling of kit::brush::presets::pulse — dies in R3. */
-using kit::brush::presets::pulse;
-} // namespace sigil::compose::brushes

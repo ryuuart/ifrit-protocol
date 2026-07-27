@@ -127,54 +127,22 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
 
 template <typename T> struct Transitioned {
   /** Value-initialized, not default-initialized: `animate(through({}))`
-   *  and `withKeyframes<float>({})` build one of these and then fill
-   *  nothing, and for a scalar T that left the property reading whatever
-   *  was on the stack (§32 review REV-11). An empty keyframe list is a
-   *  degenerate ask, but it must be a DETERMINATE one — zero. */
+   *  builds one of these and then fills nothing, and for a scalar T that
+   *  left the property reading whatever was on the stack (§32 review
+   *  REV-11). An empty keyframe list is a degenerate ask, but it must be
+   *  a DETERMINATE one — zero. */
   T value{};
   Transition spec;
   /** animate(from(a).to(b)): where the value ENTERS from when the node
-   *  first mounts. Empty for plain with() — no entrance, only change
-   *  transitions. */
+   *  first mounts. Empty for a plain `animate(to(v))` — no entrance, only
+   *  change transitions. */
   std::optional<T> from{};
   /** animate(through({...})): the mount-time path as (absolute time,
    *  value) pairs — multi-segment entrances (damped overshoots) that one
    *  from→to ramp can't shape. Mount-only choreography: later changes
-   *  retarget to `value` like any with(). */
+   *  retarget to `value` like any `animate(to(v))`. */
   std::vector<std::pair<std::chrono::milliseconds, T>> waypoints{};
 };
-
-/** Legacy spelling of `animate(to(v), spec)` — retained until the R3
- *  deletion (ROADMAP §33). Wraps a constant so changes to it transition
- *  (see API.md semantics: one motion per (instance, property),
- *  retarget-from-current). */
-template <typename T> Transitioned<T> with(T value, Transition spec) {
-  return {std::move(value), std::move(spec)};
-}
-
-/** Legacy spelling of animate(from(a).to(b), spec) — retained until the R3
- *  deletion (ROADMAP §33); new code and new signatures spell the intent. */
-template <typename T> Transitioned<T> withFrom(T from, T to, Transition spec) {
-  return {std::move(to), std::move(spec), std::move(from)};
-}
-
-/** Legacy spelling of animate(through({...}), ease) — retained until the R3
- *  deletion (ROADMAP §33); new code and new signatures spell the intent. Needs its
- *  explicit `<float>`, which is the deduction wall through() removes. */
-template <typename T>
-Transitioned<T>
-withKeyframes(std::vector<std::pair<std::chrono::milliseconds, T>> frames,
-              choreograph::EaseFn ease = &choreograph::easeOutQuad) {
-  Transitioned<T> t;
-  t.spec.ease = std::move(ease);
-  if (!frames.empty()) {
-    t.from = frames.front().second;
-    t.value = frames.back().second;
-    t.spec.duration = frames.back().first;
-  }
-  t.waypoints = std::move(frames);
-  return t;
-}
 
 /** The argument builders for animate(). Nobody spells these types; they
  *  exist so the call site reads `animate(from(a).to(b), spec)`. In
@@ -217,8 +185,8 @@ template <typename T> struct Waypoints {
 
 /** The waypoint path, as a float list needing no template argument — a
  *  nested braced list is a non-deduced context, which is why the generic
- *  form below (and withKeyframes before it) has to be told `<float>`.
- *  Every waypoint path in the corpus is float. */
+ *  form below has to be told `<float>`. Every waypoint path in the corpus
+ *  is float. */
 inline Waypoints<float>
 through(std::initializer_list<std::pair<std::chrono::milliseconds, float>>
             frames) {
@@ -240,8 +208,8 @@ through(std::vector<std::pair<std::chrono::milliseconds, T>> frames) {
  *
  *  Both forms are MOUNT choreography (CSS animation-on-enter / GSAP
  *  from() and keyframes): the path plays when the node first appears,
- *  and afterwards the property behaves exactly like with(to, spec) —
- *  later changes retarget from the CURRENT value, and re-describing the
+ *  and afterwards the property behaves exactly like `animate(to(v), spec)`
+ *  — later changes retarget from the CURRENT value, and re-describing the
  *  same animate() prunes clean (an entrance is a mount thing, not a
  *  per-render restart). staggerChildren() adds order·each to every
  *  entrance in a child subtree, on top of Transition::delay.
@@ -250,11 +218,11 @@ through(std::vector<std::pair<std::chrono::milliseconds, T>> frames) {
  *
  *  from→to works on every float slot (opacity/transforms/skew/trim/glyph
  *  progress) and on color fills (a mount-time color sweep). `spec`
- *  defaults to the house Transition (250 ms, easeOutQuad) — an
- *  affordance withFrom never had; name a spec when the beat matters. */
+ *  defaults to the house Transition (250 ms, easeOutQuad); name a spec
+ *  when the beat matters. */
 template <typename T>
 Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
-  return withFrom(std::move(ft.from), std::move(ft.to), std::move(spec));
+  return {std::move(ft.to), std::move(spec), std::move(ft.from)};
 }
 
 /** RAMP ON CHANGE — the per-property override of the node-level
@@ -266,10 +234,9 @@ Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
  *  that carries a different value ramps to it over `spec` instead of
  *  snapping, retargeting from wherever the property currently is (one
  *  motion per (instance, property) — a change mid-ramp bends the ramp, it
- *  does not queue a second). Identical to `with(v, spec)`, which is the
- *  legacy spelling this replaces. */
+ *  does not queue a second). */
 template <typename T> Transitioned<T> animate(To<T> t, Transition spec = {}) {
-  return with(std::move(t.value), std::move(spec));
+  return {std::move(t.value), std::move(spec)};
 }
 
 /** The keyframe path: absolute (time, value) waypoints played through on
@@ -281,11 +248,20 @@ template <typename T> Transitioned<T> animate(To<T> t, Transition spec = {}) {
  *
  *  `ease` applies PER SEGMENT. A leading time > 0 holds the first value
  *  (a built-in delay; Transition::delay and staggerChildren() still add
- *  on top). After the path completes the value behaves like with(last). */
+ *  on top). After the path completes the value behaves like
+ *  `animate(to(last))`. */
 template <typename T>
 Transitioned<T> animate(Waypoints<T> w,
                         choreograph::EaseFn ease = &choreograph::easeOutQuad) {
-  return withKeyframes<T>(std::move(w.frames), std::move(ease));
+  Transitioned<T> t;
+  t.spec.ease = std::move(ease);
+  if (!w.frames.empty()) {
+    t.from = w.frames.front().second;
+    t.value = w.frames.back().second;
+    t.spec.duration = w.frames.back().first;
+  }
+  t.waypoints = std::move(w.frames);
+  return t;
 }
 
 /** A live binding, SHAPED on its way to the property.
@@ -314,12 +290,8 @@ Transitioned<T> animate(Waypoints<T> w,
  *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
  *       it looks. `clamp` always applies last.
  *
- *  `from`/`to` are the legacy spellings of stages 1 and 3 (ROADMAP §33
- *  ruling 3: they collided with the authored `from(a).to(b)` ramp, which
- *  means something else); they compile until R3.
- *
  *  Costs nothing a bare binding does not: still paint-only, still read
- *  through the pointer each frame, still no relayout. sizeof(PropValue)
+ *  through the pointer each frame, still no relayout. sizeof(Animatable)
  *  is unchanged — the map rides the same out-of-line block the
  *  transitioned form already allocates. */
 struct BoundFloat {
@@ -348,7 +320,7 @@ struct BoundFloat {
 };
 
 /** Builder for BoundFloat — see the doc above. Converts implicitly into
- *  any `PropValue<float>` property. */
+ *  any `Animatable<float>` property. */
 class Bound {
 public:
   // The parameter is `out`, not `source`, because source() is now a stage
@@ -370,8 +342,6 @@ public:
     m_b.inOffset = span != 0.0f ? -lo / span : 0.0f;
     return *this;
   }
-  /** Legacy spelling of source(lo, hi) — dies in the R3 deletion. */
-  Bound &from(float lo, float hi) { return source(lo, hi); }
   /** `source()` that also CLAMPS the normalised value to [0,1].
    *
    *  A window is the whole point of `source(lo, hi)` on a multi-beat
@@ -405,8 +375,6 @@ public:
    *  spelled the way you think about it. The other half of the stage
    *  rename (see source()). */
   Bound &target(float lo, float hi) { return scale(hi - lo).offset(lo); }
-  /** Legacy spelling of target(lo, hi) — dies in the R3 deletion. */
-  Bound &to(float lo, float hi) { return target(lo, hi); }
   /** 1 − v, composed properly with whatever came before. */
   Bound &invert() {
     m_b.scale = -m_b.scale;
@@ -451,9 +419,6 @@ inline Bound bind(const choreograph::Output<float> *source) {
  * binding shaped through bind(). A constant is animatable too — the
  * name says what the slot CAN do, not what it is doing.
  *
- * (`PropValue` is the legacy spelling, kept as an alias below — the
- *  grammar rule is DESIGN.md's: names say intent, not mechanism.)
- *
  * Stored compactly (this used to be a std::variant): Transitioned<T> is
  * the fat form — from/waypoints/spec, ~100 B for a float — and most
  * properties on most nodes are plain constants, so the transitioned
@@ -472,7 +437,7 @@ public:
       : m_kind(Kind::kBound), m_bound(bound) {}
   /** bind(&out).…  — a shaped binding. Float properties only; the extra
    *  block is the same one the transitioned form allocates, so this adds
-   *  nothing to sizeof(PropValue) and nothing to a node that never uses
+   *  nothing to sizeof(Animatable) and nothing to a node that never uses
    *  it. */
   Animatable(const Bound &b) : m_kind(Kind::kBoundMapped) {
     m_bound = b.value().source;
@@ -533,9 +498,6 @@ private:
   std::unique_ptr<Extra> m_extra;
 };
 
-/** Legacy spelling of Animatable — retained until the R3 deletion (ROADMAP §33); new code and
- *  new signatures spell the intent. */
-template <typename T> using PropValue = Animatable<T>;
 
 // ---------------------------------------------------------------------------
 // Paint values
@@ -755,7 +717,7 @@ struct TextPath {
 };
 
 /** Kinetic text: attach to a text() element with Element::glyphFx(). The
- *  master `progress` takes the full PropValue treatment — plain, with()
+ *  master `progress` takes the full Animatable treatment — plain, with()
  *  transitions (retarget-safe), or a ch::Output binding (loops: bind a
  *  wrapping phase). While progress moves the node paints live; settled
  *  kinetic text caches like any static leaf. All glyphs render through
@@ -763,11 +725,11 @@ struct TextPath {
 struct GlyphFx {
   GlyphEffectFn effect;
   Stagger stagger;
-  PropValue<float> progress = 1.0f;
+  Animatable<float> progress = 1.0f;
 };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effects
- *  bodies. An optional `bool animates() const` declares per-frame
+ *  bodies. An optional `bool isAnimated() const` declares per-frame
  *  volatility (the single declared-volatility rule). */
 template <typename D>
 concept DecorationScheme =
@@ -777,27 +739,21 @@ concept DecorationScheme =
 
 /** THE VOLATILITY DECLARATION. A scheme that repaints every frame — a
  *  bound dash phase, a live material, a walk keyed to elapsed time — says
- *  so with `bool animates() const`, and the library stops caching its
+ *  so with `bool isAnimated() const`, and the library stops caching its
  *  node's picture. Nothing introspects: a Decoration is type-erased by
  *  the time the composer holds it, so the value must declare.
  *
- *  ONE WORD, five spellings before it (ROADMAP §33 ruling 2): schemes
- *  said `animated()`, Material said `isLive()`, PaintContext said
- *  `animating`, the node-level checks said "volatile". `animates()` is
- *  the primary — it shares a root with `animate()`, and a scheme
- *  DECLARES an activity rather than reporting a state. `animated()` is
- *  accepted for as long as the transition runs (the concept below
- *  duck-types both) and dies in R3; a scheme that spells both is read
- *  through `animates()`. */
-template <typename D>
-concept AnimatingDecoration = requires(const D &d) {
-  { d.animates() } -> std::convertible_to<bool>;
-};
-
-/** The legacy half of the volatility concept — see AnimatingDecoration. */
+ *  ONE WORD, five spellings before it (ROADMAP §33 rulings 2 and 13):
+ *  schemes said `animated()`, R1's port said `animates()`, Material said
+ *  `isLive()`, PaintContext said `animating`, the node-level checks said
+ *  "volatile". `isAnimated()` is the only one now — the `is` prefix makes
+ *  it unambiguously a QUERY (a cold read of `animates()` asks "animates
+ *  WHAT?"), and there is no setter to confuse it with: the answer is
+ *  derived from how the value was constructed. All four older spellings
+ *  were deleted in R3. */
 template <typename D>
 concept AnimatedDecoration = requires(const D &d) {
-  { d.animated() } -> std::convertible_to<bool>;
+  { d.isAnimated() } -> std::convertible_to<bool>;
 };
 
 /** Optional on a DecorationScheme: how far it paints BEYOND the node's
@@ -844,12 +800,8 @@ public:
   template <DecorationScheme D>
   Decoration(D scheme) // NOLINT: implicit by design
       : m_animated([&] {
-          // animates() wins where a scheme spells both — the library's own
-          // schemes forward animated() to it, so the two always agree.
-          if constexpr (AnimatingDecoration<D>)
-            return scheme.animates();
-          else if constexpr (AnimatedDecoration<D>)
-            return scheme.animated();
+          if constexpr (AnimatedDecoration<D>)
+            return scheme.isAnimated();
           else
             return false;
         }()),
@@ -895,9 +847,7 @@ public:
       m_paint(canvas, ctx);
   }
   /** Declared volatility, read off whichever word the scheme spelled. */
-  bool animates() const { return m_animated; }
-  /** Legacy spelling of animates() — dies in the R3 deletion. */
-  bool animated() const { return animates(); }
+  bool isAnimated() const { return m_animated; }
   float bleed() const { return m_bleed; }
   /** FULL width of the mark this decoration paints, across the outline it
    *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
@@ -1149,8 +1099,8 @@ Spans rest(std::string_view passName);
  *  callable is not a profile; write a struct.
  *
  *  `along` is a fraction of the spine's arc length; `across` is px on its
- *  normal, positive to the LEFT of travel — see bandPointAt for the sign
- *  and for why it is the negation of lines::offsetAlong's. */
+ *  normal, positive to the LEFT of travel — the one convention; see
+ *  bandPointAt. */
 template <typename P>
 concept ProfileScheme = std::equality_comparable<P> &&
     requires(const P &p, float along) {
@@ -1208,14 +1158,11 @@ struct Self {
 };
 /** across ≡ px: a parallel. Parallels are rails — they never cross.
  *
- *  **Positive is LEFT of travel** (outside a clockwise path) — the band's
- *  frame, which this shares by ruling. Note that
- *  `kit::brush::shapers::offset` is the OPPOSITE sign: it wraps
- *  `lines::offsetAlong`, whose convention is right-of-travel and which is
- *  not being flipped (§27). The split predates both (see bandPointAt) and
- *  its reconciliation is open — RULED 2026-07-27: **left wins, and the
- *  lines:: sign dies in R3**; the flip rides the R2 corpus port because
- *  it changes every existing caller's picture. */
+ *  **Positive is LEFT of travel** (outside a clockwise path) — the one
+ *  convention, stated once in DESIGN.md. `kit::brush::shapers::offset`,
+ *  `lines::offsetAcross`, `lines::Rail::across`, `Profile::across` and
+ *  `TextPath::offset` all mean this same side; R3's sign port ended the
+ *  split (ROADMAP §33 ruling 5). */
 struct Offset {
   float px = 0.0f;
   float across(float) const { return px; }
@@ -1272,8 +1219,7 @@ concept ShaperScheme = std::equality_comparable<S> &&
       { s.shape(p) } -> std::convertible_to<SkPath>;
     };
 
-/** Type-erased comparable shaper. Also accepts the legacy `apply()`
- *  spelling (Brushes.h's GeometryOp family) so §27 holds. */
+/** Type-erased comparable shaper. */
 class Shaper {
 public:
   template <ShaperScheme S>
@@ -1380,21 +1326,19 @@ inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and the band's frame exactly: `along` is a
  *  fraction of total arc length, positive `across` is LEFT of travel
- *  (outside a clockwise path). NOT `lines::offsetAlong`, which offsets
- *  RIGHT of travel and stays as it is FOR NOW (§27); the two conventions
- *  are documented at bandPointAt, and §33 ruling 5 settles it — LEFT wins
- *  everywhere and the lines:: sign dies in R3, flipped by the R2 port. */
+ *  (outside a clockwise path). The same side `lines::offsetAcross` means,
+ *  which a constant profile delegates to — one convention since R3. */
 SkPath profileOffset(const SkPath &spine, const Profile &profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get
- *  `lines::offsetAlong`'s real-vertex repair (arc outside a turn, miter
+ *  `lines::offsetAcross`'s real-vertex repair (arc outside a turn, miter
  *  inside) instead of the sample-and-displace spur that a naive walk
  *  leaves on the inside of every rectangle.
  *
  *  Public because a varying-width MARK along a spine IS this region: the
  *  ruling that a milled groove is band + fill (§8b) applies to a ribbon
- *  too, and `brushes::Ribbon`'s profile path fills exactly this. One
+ *  too, and `brush::Ribbon`'s profile path fills exactly this. One
  *  geometry, so the corner repair is not reimplemented per consumer. */
 SkPath bandRegion(const SkPath &spine, const Across &width,
                   Formation formation = Formation::Centered);
@@ -1820,9 +1764,18 @@ public:
 
   // ---- shape (defines PaintContext::outline and clipping) ----
   Element &corners(Corners c);
-  /** Legacy spelling of the span reveal — retained until the R3 deletion (ROADMAP §33) (§27);
-   *  new code writes `.stroke(spans::upTo(t), brush)`, which reveals a
-   *  named PASS instead of the whole node and works for every brush kind.
+  /** CONDEMNED, and still here — the one legacy R3 did not delete.
+   *
+   *  New code writes `.stroke(spans::upTo(t), brush)`, which reveals a
+   *  named PASS instead of the whole node and works for every brush kind;
+   *  R2 ported 58 of 75 corpus trims to it. The 17 that remain are not a
+   *  porting backlog: 2 of them reveal a PAINTING FILL (a filled meridian
+   *  bar, a translucent wash under a stroke), which the span vocabulary
+   *  has no spelling for, and the rest are elements built across several
+   *  statements or wearing more than one outline follower. The
+   *  replacement interface for those is a separate designed piece of work
+   *  and this method dies with it, not before (ROADMAP §33, R3 note).
+   *  Do not add call sites.
    *  Trim the node's painted outline to the [start, end] fraction of its
    *  arc length (the Lottie/sksg Trim Path — SkTrimPathEffect underneath).
    *  Applies to the fill surface and every outline-following decoration
@@ -1832,7 +1785,7 @@ public:
    *  Animatable treatment — plain, animate() transitions, or ch::Output
    *  bindings (bound/animating trim is content volatility: the node paints
    *  live while moving). `offset`
-   *  shifts both ends and takes the full PropValue treatment too — under
+   *  shifts both ends and takes the full Animatable treatment too — under
    *  TrimMode::Wrap, bind it to a wrapping phase Output and a fixed
    *  window marches around a closed outline forever (marching ants, the
    *  orbiting comet); under Clamp (default) fractions pin to [0,1].
@@ -1842,8 +1795,8 @@ public:
    *  so caps and additive brushes never double-hit there. Clipping and
    *  hit-testing keep the UNtrimmed shape — trim is a paint-phase reveal,
    *  not a layout change. */
-  Element &trim(PropValue<float> start, PropValue<float> end,
-                PropValue<float> offset = 0.0f,
+  Element &trim(Animatable<float> start, Animatable<float> end,
+                Animatable<float> offset = 0.0f,
                 TrimMode mode = TrimMode::Clamp);
   /** THE NODE'S SHAPE: a path generator over its laid-out size, in local
    *  coordinates. Overrides corners() — the fill surface, clip(), every
@@ -1851,9 +1804,9 @@ public:
    *  ContourWalk) trace it. Spiky dialogs, scalloped frames, any
    *  non-rectangular chrome.
    *
-   *  Renamed from `outline()` (which still compiles, below): the old name
-   *  read as a DRAWN LINE — the thing `stroke()` does — and call sites
-   *  showed it, `.outline(chevron()).fill(ramp)` filling an "outline" and
+   *  Was `outline()` until R3: the old name read as a DRAWN LINE — the
+   *  thing `stroke()` does — and call sites showed it,
+   *  `.outline(chevron()).fill(ramp)` filling an "outline" and
    *  `.outline(shape).stroke(brush)` putting two halves of one idea under
    *  one word. A shape is a region; a stroke is a mark on its boundary.
    *
@@ -1861,10 +1814,6 @@ public:
    *  such a node (or keep it pointer-stable) to prune it while its size
    *  and inputs are unchanged. */
   Element &shape(std::function<SkPath(SkSize)> path);
-  /** Legacy spelling of shape() — retained until the R3 deletion (ROADMAP §33) (§27). */
-  Element &outline(std::function<SkPath(SkSize)> path) {
-    return shape(std::move(path));
-  }
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
    *  `.inward()` take one side (the offset-path lineage). No effect on a
@@ -1894,13 +1843,13 @@ public:
    *  and rebuilt its most period-authentic widget on renderSlot() instead.
    *  What genuinely does NOT exist is deriving one from the other at the
    *  binding site — `fill(bind(&level).map(ramp))` — see ROADMAP.md. */
-  Element &fill(PropValue<Fill> f);
+  Element &fill(Animatable<Fill> f);
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
   Element &fill(Material m);
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
-  Element &fill(SkColor4f color) { return fill(PropValue<Fill>{Fill::color(color)}); }
+  Element &fill(SkColor4f color) { return fill(Animatable<Fill>{Fill::color(color)}); }
   /** How an image() leaf samples its source. Defaults to linear, which is
    *  right for photographs and wrong for every pixel grid: art, tilemaps,
    *  fonts baked as sprites, simulation buffers.
@@ -1936,7 +1885,7 @@ public:
    *  Paint-only and bindable, like the transforms — animating a wipe
    *  never relayouts, and it covers the node's decorations too, because a
    *  reveal reveals. */
-  Element &wipe(float angleDeg, PropValue<float> fraction);
+  Element &wipe(float angleDeg, Animatable<float> fraction);
   /** Takes this node OUT of hit testing — CSS `pointer-events: none`.
    *
    *  `hitTest` returns any keyed node whose box contains the point,
@@ -2016,7 +1965,7 @@ public:
    *  that overlap are a mistake the library says out loud (naming both
    *  passes and the overlapping run): one boundary, one mark. Layering
    *  two marks on one run is a composite BRUSH, not two passes — today
-   *  `Brush{}.leg(a).leg(b)` or a LayeredBrush.
+   *  `Brush{}.layer(a).layer(b)` or a LayeredBrush.
    *
    *  Two exceptions, both deliberate: bare `spans::rest()` claims
    *  whatever the other passes left over (so a rule and its bracket
@@ -2044,12 +1993,12 @@ public:
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
   Element &backdrop(Effect e);
-  Element &opacity(PropValue<float> o);
+  Element &opacity(Animatable<float> o);
   Element &blend(SkBlendMode mode);
-  Element &translateX(PropValue<float> v);
-  Element &translateY(PropValue<float> v);
-  Element &rotate(PropValue<float> degrees);
-  Element &scale(PropValue<float> factor);
+  Element &translateX(Animatable<float> v);
+  Element &translateY(Animatable<float> v);
+  Element &rotate(Animatable<float> degrees);
+  Element &scale(Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
    *  content picture replays under the new transform.
@@ -2062,47 +2011,47 @@ public:
    *  the OTHER axis. Set transformOrigin() to pin the growing edge —
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
-  Element &scaleX(PropValue<float> factor);
-  Element &scaleY(PropValue<float> factor);
+  Element &scaleX(Animatable<float> factor);
+  Element &scaleY(Animatable<float> factor);
   /** Shear, in degrees, about the transform origin — the diagonal-slash
    *  language (P3R cards ≈ −12°, P5R ≈ −20°; REFERENCES.md §1). Paint-only
    *  like rotate/scale: animating skews never relayouts, and content
    *  pictures replay under the new transform. skewX slants verticals
    *  (positive leans the top to the right at negative... use negative
    *  values for the ATLUS lean); skewY slants horizontals. */
-  Element &skewX(PropValue<float> degrees);
-  Element &skewY(PropValue<float> degrees);
+  Element &skewX(Animatable<float> degrees);
+  Element &skewY(Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
-  // PropValue variant on its own, and the resulting error is unreadable).
+  // Animatable variant on its own, and the resulting error is unreadable).
   // std::integral-constrained so FLOAT calls can never land here (a plain
   // int overload would capture them via the standard float→int conversion
-  // and recurse); PropValue is constructed explicitly for the same reason.
+  // and recurse); Animatable is constructed explicitly for the same reason.
   template <std::integral T> Element &opacity(T v) {
-    return opacity(PropValue<float>((float)v));
+    return opacity(Animatable<float>((float)v));
   }
   template <std::integral T> Element &translateX(T v) {
-    return translateX(PropValue<float>((float)v));
+    return translateX(Animatable<float>((float)v));
   }
   template <std::integral T> Element &translateY(T v) {
-    return translateY(PropValue<float>((float)v));
+    return translateY(Animatable<float>((float)v));
   }
   template <std::integral T> Element &rotate(T deg) {
-    return rotate(PropValue<float>((float)deg));
+    return rotate(Animatable<float>((float)deg));
   }
   template <std::integral T> Element &scale(T f) {
-    return scale(PropValue<float>((float)f));
+    return scale(Animatable<float>((float)f));
   }
   template <std::integral T> Element &scaleX(T f) {
-    return scaleX(PropValue<float>((float)f));
+    return scaleX(Animatable<float>((float)f));
   }
   template <std::integral T> Element &scaleY(T f) {
-    return scaleY(PropValue<float>((float)f));
+    return scaleY(Animatable<float>((float)f));
   }
   template <std::integral T> Element &skewX(T deg) {
-    return skewX(PropValue<float>((float)deg));
+    return skewX(Animatable<float>((float)deg));
   }
   template <std::integral T> Element &skewY(T deg) {
-    return skewY(PropValue<float>((float)deg));
+    return skewY(Animatable<float>((float)deg));
   }
   Element &transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
@@ -2399,15 +2348,11 @@ Element band(Around spine, Across width);
  *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for
  *  rects and circles, so `.outward()` exits the shape.
  *
- *  That is the NEGATION of `lines::offsetAlong` and `lines::Rail::offset`,
- *  both of which offset RIGHT of travel. The split is not new and the band
- *  did not invent it: `TextPath::offset` (this header, above) has always
- *  been left-of-travel-is-outward, so the KERNEL says left and the LINES
- *  extension says right. The band follows the kernel, and §33 ruling 5
- *  makes that the answer: **LEFT wins everywhere and the lines:: members'
- *  right-of-travel sign dies in R3.** Until the R2 port flips them (a
- *  sign flip moves pixels, so it does not ride this additive phase), do
- *  not assume a profile means the same side in both.
+ *  THE ONE CONVENTION, and DESIGN.md states it once for the whole
+ *  library. `lines::` used to be the minority that meant the other side
+ *  (`offsetAlong`, `Rail::offset`, `Line::offset`); R3 flipped all three,
+ *  renaming each so the compiler found every call site, and negated each
+ *  argument so no picture moved (ROADMAP §33 ruling 5).
  *
  *  The one place the two coordinates are spelled out, so a caller placing
  *  content on a band and the band's own geometry cannot disagree. */

@@ -812,10 +812,10 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
         .stroke(spans::upTo(&arcT[i]), Brush{}
                     // the milled slot the insert sits in — a hairline of
                     // occlusion either side, not an outline
-                    .leg(PathFormat{.width = kBandW + 0.9f,
+                    .layer(PathFormat{.width = kBandW + 0.9f,
                                     .strokeFill = Fill::color(kGroove)})
                     // the 30 mm polished insert
-                    .leg(PathFormat{.width = kBandW, .strokeFill = band}));
+                    .layer(PathFormat{.width = kBandW, .strokeFill = band}));
   }
 
   // -------------------------------------------------------------------------

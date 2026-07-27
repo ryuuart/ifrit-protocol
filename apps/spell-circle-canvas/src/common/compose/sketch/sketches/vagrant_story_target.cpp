@@ -125,8 +125,8 @@
 //    (solid casing, dotted core).
 //  * Bracket-only card frames: decorations::brackets and decorations::gappedRule
 //    on chamfered outlines. No rounded rect anywhere on this canvas.
-//  * ops::Sketchy is deliberately absent. This is an instrument, not a page.
-//    ops::Wave appears on exactly one thing: the damage-number pop.
+//  * shapers::Jitter is deliberately absent. This is an instrument, not a
+//    page. shapers::Wave appears on one thing: the damage-number pop.
 //
 // -----------------------------------------------------------------------------
 // THE COMPOSITION — why there is no column on this canvas
@@ -158,7 +158,7 @@
 // Composer::Impl::resolveOutline (Paint.cpp:256), which memoizes on
 // (description pointer, size) — so an OutlineFn that closes over a live value
 // is evaluated ONCE and frozen into the node's picture. There is no
-// `animates()` seam on OutlineFn the way there is on DecorationScheme.
+// `isAnimated()` seam on OutlineFn the way there is on DecorationScheme.
 //
 // The only way to move generated geometry is therefore to re-describe it. This
 // sketch does that through ONE slot: `slot("world")` holds the 12 sphere wires,
@@ -167,7 +167,7 @@
 // gauges, cards, ladders, marginalia — is described once in setup() and keeps
 // its caches. Measured cost of that decision is in the report; the natural API
 // would be `outline(fn, Volatility::Live)` or an OutlineFn concept with the
-// same optional `animates()` decorations already have.
+// same optional `isAnimated()` decorations already have.
 // =============================================================================
 
 #include <sigilsketch/Sketch.h>
@@ -403,7 +403,7 @@ inline Wire buildWire(const Cam &cam, float halfExtent,
 // aliased gives the hard-edged rasterisation, which is most of what a PS1 face
 // looked like. Static labels go through text() elements with aliased shaping,
 // condensed and snapped to the 512-grid. LIVE numbers (the hit percentage,
-// RISK, the rate) cannot: text() takes no PropValue. So the digits and a few
+// RISK, the rate) cannot: text() takes no Animatable. So the digits and a few
 // symbols are baked ONCE into 1-bit A8 cells at setup and blitted with
 // kNearest inside custom() leaves that read the bound Output directly — the
 // number IS the value, with no re-describe.
@@ -521,14 +521,14 @@ inline float widthOf(const PixFont &f, const std::string &s,
 //
 // This file shipped a 24-line `RiskHatch` value decoration that composed
 // `lines::Hatch`, held an `Output<float>*`, mapped RISK to a pitch at paint
-// time and returned `animates() == true`. The reason was real when it was
+// time and returned `isAnimated() == true`. The reason was real when it was
 // written: `Hatch::spacing` was a plain float with no binding seam, so a
 // RISK-driven density would have forced a `render()` every frame purely to
 // change one number.
 //
 // THAT GAP IS CLOSED. `Hatch::spacingBinding` and `Hatch::angleBinding`
 // (Lines.h:1185-1186) take exactly the raw `Output<float>*` the workaround
-// held, with `animates()` at :1188 and both in `operator==` at :1196 — which
+// held, with `isAnimated()` at :1188 and both in `operator==` at :1196 — which
 // is the same shape the workaround argued for, so it is gone and the gauge
 // binds the stock decoration. The one thing the field cannot do is MAP, so
 // the RISK-to-pitch curve moved into the ticker as its own Output; that is
@@ -809,9 +809,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         },
                         0, 6.28318530718f, 192, true));
     e.stroke(lines::Rails{.rails = {
-                              {.offset = -2.5f, .width = 2.6f,
+                              {.across = 2.5f, .width = 2.6f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.92f))},
-                              {.offset = 2.5f, .width = 1.0f,
+                              {.across = -2.5f, .width = 1.0f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.40f))},
                           }});
     return e;
@@ -889,9 +889,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .key("rim")
                 .shape(shapes::circle())
                 .stroke(lines::Rails{
-                    .rails = {{.offset = 0, .width = 1.4f,
+                    .rails = {{.across = 0, .width = 1.4f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.62f))},
-                              {.offset = 7.0f, .width = 1.0f,
+                              {.across = -7.0f, .width = 1.0f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.30f)),
                                .dash = {3.0f, 7.0f}}}}));
     return g;
@@ -986,9 +986,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                       SkMatrix::Translate(-bb.left(), -bb.top()));
                 })
                 .stroke(lines::Rails{
-                    .rails = {{.offset = 0, .width = 9.0f,
+                    .rails = {{.across = 0, .width = 9.0f,
                                .fill = Fill::color(vs::hex(0x0A0F18, 1.0f))},
-                              {.offset = 0, .width = 1.6f,
+                              {.across = 0, .width = 1.6f,
                                .fill = Fill::color(
                                    vs::mul(vs::kCyan, 1, 0.70f)),
                                .dash = {7.0f, 4.0f}}}}));
@@ -1072,7 +1072,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   }
 
   // Tile arts AND the brush itself are held as members, and the second half
-  // matters more than the first. PatternBrush owns its bake in a
+  // matters more than the first. brush::Pattern owns its bake in a
   // shared_ptr<Cache> that lives IN THE VALUE, so a brush constructed inside
   // the per-frame describe gets a fresh empty cache and re-runs snapshot() on
   // all three tiles every frame — three full reconcile+layout+record passes
@@ -1597,9 +1597,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                   return p.detach();
                 })
                 .stroke(lines::Rails{
-                    .rails = {{.offset = 0, .width = 2.0f,
+                    .rails = {{.across = 0, .width = 2.0f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.85f))},
-                              {.offset = 5.0f, .width = 0.8f,
+                              {.across = -5.0f, .width = 0.8f,
                                .fill = Fill::color(vs::mul(vs::kBone, 1, 0.35f)),
                                .dash = {14.0f, 5.0f, 3.0f, 5.0f}}}}));
     const std::string cls = vs::kClassNames[vs::kEnemyClass];
@@ -1687,7 +1687,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   // -------------------------------------------------------------------------
   // THE CHAIN PROMPT. A timing ring centred on the impact point, sweeping
   // 0 -> 360 deg over 400 ms: shapes::arc trimmed by a bound Output, over
-  // everything. The damage number pops beside it on ops::Wave — the one place
+  // everything. The damage number pops beside it on shapers::Wave — the one place
   // a displaced rule is allowed on this canvas.
 
   Element chainPrompt(float spin) const {
@@ -1701,17 +1701,17 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .key("chainring")
                 .shape(shapes::arc(-90.0f, 359.9f))
                 .trim(0.0f, bind(&chainSweep).clamp(0.0f, 1.0f))
-                // A Brush with a per-LEG ops::Offset: the bright body on the
-                // route, a counter-dashed strand 6 px outside it. Two legs,
+                // A Brush with a per-LAYER shapers::Offset: the bright body on the
+                // route, a counter-dashed strand 6 px outside it. Two layers,
                 // one route, one value.
                 .stroke(Brush{}
-                            .leg(lines::Line{.width = 3.2f,
+                            .layer(lines::Line{.width = 3.2f,
                                              .fill = Fill::color(vs::kCyan)})
-                            .leg(lines::Line{.width = 1.0f,
+                            .layer(lines::Line{.width = 1.0f,
                                              .fill = Fill::color(vs::mul(
                                                  vs::kCyan, 1, 0.45f)),
                                              .dashIntervals = {2.0f, 6.0f}},
-                                 {ops::Offset{.px = 6.0f, .step = 2.0f}})));
+                                 {kit::brush::shapers::Offset{.px = -6.0f, .step = 2.0f}})));
     g.child(box()
                 .width(r * 2.5f)
                 .height(r * 2.5f)
@@ -1721,10 +1721,10 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .opacity(bind(&chainSweep).target(0.15f, 0.85f))
                 .foreground(lines::radialHatch(
                     Fill::color(vs::mul(vs::kCyan, 1, 0.6f)), 16, 1.2f)));
-    // The damage pop: the only ops::Wave on this canvas.
+    // The damage pop: the only shapers::Wave on this canvas.
     Brush wavy;
     wavy.shaped(kit::brush::shapers::Wave{.amplitude = 2.6f, .wavelength = 26.0f});
-    wavy.leg(lines::Line{.width = 1.6f,
+    wavy.layer(lines::Line{.width = 1.6f,
                          .fill = Fill::color(vs::mul(vs::kAmber, 1, 0.85f))});
     g.child(box()
                 .rect(SkRect::MakeXYWH(vs::snapG(impact.fX + 62), vs::snapG(impact.fY - 96), 150, 3))

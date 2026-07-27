@@ -151,7 +151,7 @@
 //    whole border vocabulary at twenty vertices: `weightedCorners` on the outer
 //    ring so the rule thickens where it turns, `gappedRule` on the inner so it
 //    stops short at every flat, `brackets` as a twenty-tick ladder that indexes
-//    the die's twenty faces, and a `PatternBrush` whose CORNER tile is a gilt
+//    the die's twenty faces, and a `brush::Pattern` whose CORNER tile is a gilt
 //    fleuron on the bisector with side tiles run between. See the CORNER ANGLE
 //    note below — all four of those need to be told what a corner is.
 //  * `lines::heavyHairHeavy` for the principal rule and `lines::dottedCore` for
@@ -709,7 +709,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
     ornament.reach = 26.0f;
-    // PatternBrush has its OWN threshold, and its default is 35 — higher
+    // brush::Pattern has its OWN threshold, and its default is 35 — higher
     // than Border's 30. It needs telling separately.
     ornament.cornerAngleDeg = a;
 
@@ -805,12 +805,12 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
     // A hand-built Rails set: one rail's dashPhase slid against its
     // neighbours is what makes a doubled rule read as ENGRAVED.
     lines::Rails engraved = lines::rails({
-        {.offset = -4.0f, .width = 1.8f, .fill = bg3::gilt()},
-        {.offset = 0.0f,
+        {.across = 4.0f, .width = 1.8f, .fill = bg3::gilt()},
+        {.across = 0.0f,
          .width = 0.9f,
          .fill = bg3::giltDark(),
          .dash = {3.0f, 5.0f}},
-        {.offset = 4.0f,
+        {.across = -4.0f,
          .width = 1.8f,
          .fill = bg3::gilt(),
          .dash = {9.0f, 9.0f},
@@ -1323,7 +1323,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
    *  That matters more than it looks. The counter re-describes on every
    *  integer it passes through (12 → 20), so `describe()` runs ~10 times
    *  during the reveal; without memo each run rebuilt the ornament from
-   *  scratch, and `PatternBrush` keeps its baked-tile cache IN THE BRUSH
+   *  scratch, and `brush::Pattern` keeps its baked-tile cache IN THE BRUSH
    *  VALUE — a freshly constructed brush gets an EMPTY one, so all twenty
    *  fleurons plus every side tile were re-baked on each pass. That is what
    *  put p99 at 21.68 ms across the reveal window while the settled frame
@@ -1468,7 +1468,7 @@ SIGIL_SKETCH(Bg3DiceRoll)
 //     hairline (Weighted with no corners = gappedRule over the whole contour)
 //   * the inner gapped rule, which ran CONTINUOUS instead of stopping at each
 //     flat — the header's documented degenerate case, seen in the wild
-//   * all twenty PatternBrush fleurons, leaving only the side tiles
+//   * all twenty brush::Pattern fleurons, leaving only the side tiles
 // and the library printed, correctly and to the exact degree:
 //   "no corner cleared the 30.0 threshold, but the sharpest tangent break on
 //    this contour is 18.0 — ... Pass a smaller angleDeg, e.g. 11f."
@@ -1486,8 +1486,8 @@ SIGIL_SKETCH(Bg3DiceRoll)
 //    drop shadow under a 14%-alpha fill shows straight THROUGH the fill, and
 //    turned a gilt band into mud-olive.
 //
-// 2. A RE-DESCRIBE THROWS AWAY EVERY `PatternBrush` TILE CACHE.  The header of
-//    `PatternBrush` says the baked-tile cache lives in the brush VALUE and a
+// 2. A RE-DESCRIBE THROWS AWAY EVERY `brush::Pattern` TILE CACHE.  The header of
+//    `brush::Pattern` says the baked-tile cache lives in the brush VALUE and a
 //    constructed brush gets an empty one. The consequence only shows up under
 //    a counter: this plate re-describes on every integer the total passes
 //    through, so `describe()` ran ~10 times during the reveal, and each run
