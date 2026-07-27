@@ -5,6 +5,9 @@
     "benchmark",
     "choreograph",
     "concurrentqueue",
+    "curl",
+    "diligent-engine",
+    "earcut-hpp",
     "entt",
     "flatbuffers",
     "gtest",
@@ -49,6 +52,7 @@
       ],
       "platform": "windows & !uwp & !arm64"
     },
+    "vulkan-headers",
     "yoga"
   ]
 }
