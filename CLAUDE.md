@@ -17,7 +17,12 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            backends; blob/text/image + metadata probe +
                            hot reload; OpenImageIO extends decoding to
                            EXR w/ layer selection, PSD, TIFF, HDR —
-                           float sources land as F32 SkImages),
+                           float sources land as F32 SkImages; http(s)://
+                           URIs fetch via curl behind a disk cache
+                           [setNetworkCacheDir, poll() skips them] and
+                           file:// strips to local; SVG decodes via
+                           Skia's svg module — DecodeOptions.width/height
+                           set the raster size),
                            ultralight/ (SigilScry — Ultralight
                            HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
@@ -33,7 +38,26 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            snapshot(), organic extension headers
                            Shapes/Layouts/Routers/Web — see DESIGN.md
                            / API.md / STRESS_TESTS.md for
-                           architecture, surface, measured numbers)
+                           architecture, surface, measured numbers),
+                           shape/ (SigilShape — higher-level drawing
+                           over Skia ONLY, no compose dependency:
+                           Illustrator-style blend tool w/ spines +
+                           OKLab color, procedural Mesh generators
+                           [extrude/revolve/grid/torus/cylinderPanel]
+                           shared with SigilWorld, Skia-3D SkM44
+                           camera + SkVertices painter pipeline +
+                           perspective panels, and literal materials —
+                           gold foil/chrome/glass SkSL over bevel
+                           normal maps and equirect environments incl.
+                           loaded HDRIs — see its README.md),
+                           world/ (SigilWorld — diegetic 3D surfaces
+                           on Diligent Engine, Vulkan/MoltenVK on
+                           macOS [brew install molten-vk
+                           vulkan-loader]; shape::Mesh geometry,
+                           SkImage panel textures, space::Camera,
+                           headless render + PNG readback; vendored
+                           volk + Homebrew-aware VolkShim.c — see its
+                           README.md)
   src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
                            shaders, test/, bench/, examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}
@@ -61,7 +85,8 @@ ctest --test-dir build -C Debug --output-on-failure
 ```
 
 The setup script discovers Qt 6.11+ and vcpkg, then writes the uncommitted
-`CMakeUserPresets.json`. Custom ports (currently `choreograph`) come from
+`CMakeUserPresets.json`. Custom ports (`choreograph`, `skia`,
+`diligent-engine`) come from
 the sigil-vcpkg-registry via `vcpkg-configuration.json` — note its
 `repository` currently points at the local checkout
 `/Users/long/REI/sigil-vcpkg-registry`; update the URL and baseline when
@@ -73,9 +98,14 @@ README). The primary executables are `SpellCircle`,
 (SigilScry path costs; plain = CPU engine, `--gpu` = GPU engine — see the
 performance table in `src/common/scry/README.md`), `compose_test`,
 `compose_web_test` (SigilCompose×SigilScry, needs the Ultralight SDK),
-`compose_bench`, `loader_test` (SigilLoader), and `compose_demo`
+`compose_bench`, `loader_test` (SigilLoader), `compose_demo`
 (headless PNG panels of the
-compose stress catalog). `ComposeGallery` is a macOS .app bundle like
+compose stress catalog), `shape_test` and `shape_demo` (SigilShape —
+`shape_demo [outdir] [assetdir]` writes the blend/materials/mesh PNG
+panels, plus an HDRI-lit materials panel when assets are fetched), and
+`world_test` and `world_demo` (SigilWorld — `world_demo [outdir]
+[assetdir]` renders the diegetic-panel scene to PNG shots via
+Vulkan/MoltenVK; the tests SKIP without a Vulkan runtime). `ComposeGallery` is a macOS .app bundle like
 `WeaveGallery` and `SpellCircle`, so its headless mode runs through
 `build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery
 --headless <outdir> [--gpu] [--scene <name|index>]` — `--scene` takes a
@@ -88,9 +118,11 @@ and grouped into collapsible folders — so a study is one file that is
 both a hot-reload sketch and a gallery scene, and a study also answers to
 its file stem (`--scene penrose_paving`). Studies bring their own canvas
 size and background, which is why nothing downstream of `makeScene()`
-assumes `kSceneSize`. Open-licensed demo assets (fonts) come from the
+assumes `kSceneSize`. Open-licensed demo assets (fonts, the
+Ghostscript tiger SVG, a CC0 Poly Haven studio HDRI) come from the
 opt-in `fetch_assets` target into `build/assets/`; see
-`cmake/FetchAssets.cmake` for the manifest rules.
+`cmake/FetchAssets.cmake` for the manifest rules (hash-pinned, license
+fetched alongside).
 
 The Ultralight SDK is required for SigilScry;
 `SPELLCIRCLE_ENABLE_ULTRALIGHT` auto-disables with a warning when it's
