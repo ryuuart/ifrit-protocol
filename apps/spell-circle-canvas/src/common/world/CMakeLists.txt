@@ -25,6 +25,7 @@ target_include_directories(SigilWorld
   PRIVATE ${CMAKE_CURRENT_LIST_DIR}
 )
 
+find_package(EnTT CONFIG REQUIRED)
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 
@@ -37,7 +38,7 @@ if(APPLE)
 endif()
 
 target_link_libraries(SigilWorld
-  PUBLIC SigilShape unofficial::skia::skia
+  PUBLIC SigilShape unofficial::skia::skia EnTT::EnTT
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 

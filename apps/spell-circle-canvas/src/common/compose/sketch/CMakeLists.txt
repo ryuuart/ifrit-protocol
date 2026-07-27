@@ -57,7 +57,7 @@ set(SIGIL_SKETCH_STUDIES
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense lain_navi eva_magi_interior
   # The kit itself
-  hello stock_materials stroke_atlas shapeworks_lab
+  hello stock_materials stroke_atlas shapeworks_lab easel_playground
 )
 set(sigil_study_sources "")
 foreach(study IN LISTS SIGIL_SKETCH_STUDIES)

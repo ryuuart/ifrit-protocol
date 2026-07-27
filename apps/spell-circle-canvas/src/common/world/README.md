@@ -51,6 +51,18 @@ path work without environment surgery:
 pass), metallic/roughness, emissive, texture (sRGB view), unlit.
 `Lighting`: one sun + sky/ground hemisphere.
 
+## The entity layer
+
+Surfaces ARE entities: World owns an `entt::registry` (the ECS the
+repo's scene decoding already trusts) and `addSurface()` ids are entt
+entity values. `Components.h` publishes `TransformComponent` and
+`MaterialComponent`; a private GPU component carries the device
+objects. `World::registry()` opens the door to systems: attach your
+own components, iterate views, mutate transforms/material parameters
+and the next `render()` draws the result (texture swaps still
+re-create the surface — the SRB is baked). The scene layer below and
+any gameplay/animation systems above meet in the same registry.
+
 ## The scene layer
 
 `Scene.h` applies SigilCompose's core lesson without importing its

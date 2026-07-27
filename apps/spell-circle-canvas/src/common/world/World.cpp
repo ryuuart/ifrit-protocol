@@ -1,5 +1,7 @@
 #include "sigilworld/World.h"
 
+#include "sigilworld/Components.h"
+
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
@@ -201,6 +203,16 @@ struct Vertex {
 
 // ---------------------------------------------------------------------------
 
+/** The private GPU component: device objects for one surface entity.
+ *  Public state (transform, material) lives in the public components —
+ *  see Components.h. */
+struct GpuGeometry {
+  dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
+  dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
+  dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
+  uint32_t indexCount = 0;
+};
+
 struct World::Impl {
   WorldConfig config;
   shape::space::Camera camera;
@@ -221,24 +233,16 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::IBuffer> drawCB;
   dg::RefCntAutoPtr<dg::ITexture> whiteTexture;
 
-  struct Surface {
-    dg::RefCntAutoPtr<dg::IBuffer> vertexBuffer;
-    dg::RefCntAutoPtr<dg::IBuffer> indexBuffer;
-    dg::RefCntAutoPtr<dg::IShaderResourceBinding> srb;
-    uint32_t indexCount = 0;
-    SkM44 model;
-    Material material;
-    bool blended = false;
-  };
-  std::map<uint32_t, Surface> surfaces;
-  uint32_t nextId = 1;
+  /** Surfaces are entities; ids handed to callers are entity values.
+   *  Entity 0 is reserved at init so a valid surface id is never 0. */
+  entt::registry registry;
   bool rendered = false;
 
   bool init(std::string *error);
   bool createTargets(std::string *error);
   bool createPipelines(std::string *error);
   dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage> &image);
-  void writeDrawConstants(const Surface &surface);
+  void writeDrawConstants(const SkM44 &model, const Material &material);
 };
 
 bool World::Impl::init(std::string *error) {
@@ -263,6 +267,8 @@ bool World::Impl::init(std::string *error) {
   }
   device.Attach(rawDevice);
   context.Attach(rawContext);
+  // Reserve entity 0: callers read a 0 surface id as failure.
+  (void)registry.create();
   return createTargets(error) && createPipelines(error);
 }
 
@@ -473,13 +479,13 @@ World::Impl::uploadTexture(const sk_sp<SkImage> &image) {
   return texture ? texture : whiteTexture;
 }
 
-void World::Impl::writeDrawConstants(const Surface &surface) {
+void World::Impl::writeDrawConstants(const SkM44 &model,
+                                     const Material &m) {
   using namespace dg;
   MapHelper<DrawConstants> constants(context, drawCB, MAP_WRITE,
                                      MAP_FLAG_DISCARD);
-  constants->model = colMajor(surface.model);
-  constants->normalMat = normalMatrix(surface.model);
-  const Material &m = surface.material;
+  constants->model = colMajor(model);
+  constants->normalMat = normalMatrix(model);
   constants->baseColor[0] = m.baseColor.fR;
   constants->baseColor[1] = m.baseColor.fG;
   constants->baseColor[2] = m.baseColor.fB;
@@ -532,11 +538,8 @@ uint32_t World::addSurface(const shape::Mesh &mesh, const SkM44 &model,
     v.uv[1] = uv.fY;
   }
 
-  Impl::Surface surface;
-  surface.model = model;
-  surface.material = material;
-  surface.blended = material.baseColor.fA < 1.0f;
-  surface.indexCount = (uint32_t)mesh.indices.size();
+  GpuGeometry geometry;
+  geometry.indexCount = (uint32_t)mesh.indices.size();
 
   BufferDesc vbDesc;
   vbDesc.Name = "sigilworld vertices";
@@ -544,7 +547,7 @@ uint32_t World::addSurface(const shape::Mesh &mesh, const SkM44 &model,
   vbDesc.BindFlags = BIND_VERTEX_BUFFER;
   vbDesc.Size = (Uint64)(vertices.size() * sizeof(Vertex));
   BufferData vbData{vertices.data(), vbDesc.Size};
-  impl.device->CreateBuffer(vbDesc, &vbData, &surface.vertexBuffer);
+  impl.device->CreateBuffer(vbDesc, &vbData, &geometry.vertexBuffer);
 
   BufferDesc ibDesc;
   ibDesc.Name = "sigilworld indices";
@@ -552,37 +555,51 @@ uint32_t World::addSurface(const shape::Mesh &mesh, const SkM44 &model,
   ibDesc.BindFlags = BIND_INDEX_BUFFER;
   ibDesc.Size = (Uint64)(mesh.indices.size() * sizeof(uint32_t));
   BufferData ibData{mesh.indices.data(), ibDesc.Size};
-  impl.device->CreateBuffer(ibDesc, &ibData, &surface.indexBuffer);
+  impl.device->CreateBuffer(ibDesc, &ibData, &geometry.indexBuffer);
 
-  if (!surface.vertexBuffer || !surface.indexBuffer)
+  if (!geometry.vertexBuffer || !geometry.indexBuffer)
     return 0;
 
   dg::RefCntAutoPtr<dg::ITexture> texture =
       impl.uploadTexture(material.texture);
-  impl.opaquePso->CreateShaderResourceBinding(&surface.srb, true);
-  if (!surface.srb)
+  impl.opaquePso->CreateShaderResourceBinding(&geometry.srb, true);
+  if (!geometry.srb)
     return 0;
-  if (auto *var = surface.srb->GetVariableByName(SHADER_TYPE_PIXEL,
-                                                 "g_Texture"))
+  if (auto *var = geometry.srb->GetVariableByName(SHADER_TYPE_PIXEL,
+                                                  "g_Texture"))
     var->Set(texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
 
-  const uint32_t id = impl.nextId++;
-  impl.surfaces.emplace(id, std::move(surface));
-  return id;
+  const entt::entity id = impl.registry.create();
+  impl.registry.emplace<GpuGeometry>(id, std::move(geometry));
+  impl.registry.emplace<TransformComponent>(id, model);
+  impl.registry.emplace<MaterialComponent>(id, material);
+  return (uint32_t)id;
 }
 
 void World::setTransform(uint32_t id, const SkM44 &model) {
-  auto it = m_impl->surfaces.find(id);
-  if (it != m_impl->surfaces.end())
-    it->second.model = model;
+  entt::registry &registry = m_impl->registry;
+  const entt::entity e = entity(id);
+  if (registry.valid(e) && registry.all_of<TransformComponent>(e))
+    registry.get<TransformComponent>(e).model = model;
 }
 
 void World::removeSurface(uint32_t id) {
-  m_impl->surfaces.erase(id);
+  entt::registry &registry = m_impl->registry;
+  const entt::entity e = entity(id);
+  if (registry.valid(e) && registry.all_of<GpuGeometry>(e))
+    registry.destroy(e);
 }
 
 size_t World::surfaceCount() const {
-  return m_impl->surfaces.size();
+  return m_impl->registry.view<GpuGeometry>().size();
+}
+
+entt::registry &World::registry() {
+  return m_impl->registry;
+}
+
+const entt::registry &World::registry() const {
+  return m_impl->registry;
 }
 
 void World::setCamera(const shape::space::Camera &camera) {
@@ -655,42 +672,55 @@ bool World::render() {
     constants->params[1] = constants->params[2] = constants->params[3] = 0;
   }
 
-  // Opaque front-to-back is an optimization we skip; blended surfaces
-  // sort back-to-front by view depth.
-  std::vector<Impl::Surface *> opaque, blended;
-  for (auto &[id, surface] : impl.surfaces)
-    (surface.blended ? blended : opaque).push_back(&surface);
+  // Gather from the registry: opaque then blended (back-to-front by
+  // view depth). The alpha test reads the LIVE MaterialComponent, so
+  // mutating alpha through registry() re-routes the pass correctly.
+  struct DrawItem {
+    const GpuGeometry *geometry;
+    const SkM44 *model;
+    const Material *material;
+  };
+  std::vector<DrawItem> opaque, blended;
+  for (auto [e, geometry, transform, material] :
+       impl.registry
+           .view<GpuGeometry, TransformComponent, MaterialComponent>()
+           .each()) {
+    const DrawItem item{&geometry, &transform.model,
+                        &material.material};
+    (material.material.baseColor.fA < 1.0f ? blended : opaque)
+        .push_back(item);
+  }
   if (!blended.empty()) {
     const SkM44 view = impl.camera.view();
-    auto viewZ = [&](Impl::Surface *s) {
-      const SkV4 origin = (view * s->model) * SkV4{0, 0, 0, 1};
+    auto viewZ = [&](const DrawItem &item) {
+      const SkV4 origin = (view * *item.model) * SkV4{0, 0, 0, 1};
       return origin.z;
     };
     std::sort(blended.begin(), blended.end(),
-              [&](Impl::Surface *a, Impl::Surface *b) {
+              [&](const DrawItem &a, const DrawItem &b) {
                 return viewZ(a) < viewZ(b);
               });
   }
 
-  auto drawList = [&](const std::vector<Impl::Surface *> &list,
+  auto drawList = [&](const std::vector<DrawItem> &list,
                       IPipelineState *pso) {
     if (list.empty())
       return;
     impl.context->SetPipelineState(pso);
-    for (Impl::Surface *surface : list) {
-      impl.writeDrawConstants(*surface);
+    for (const DrawItem &item : list) {
+      impl.writeDrawConstants(*item.model, *item.material);
       impl.context->CommitShaderResources(
-          surface->srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-      IBuffer *vb = surface->vertexBuffer;
+          item.geometry->srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+      IBuffer *vb = item.geometry->vertexBuffer;
       const Uint64 offset = 0;
       impl.context->SetVertexBuffers(
           0, 1, &vb, &offset, RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
           SET_VERTEX_BUFFERS_FLAG_RESET);
       impl.context->SetIndexBuffer(
-          surface->indexBuffer, 0,
+          item.geometry->indexBuffer, 0,
           RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
       DrawIndexedAttribs attribs;
-      attribs.NumIndices = surface->indexCount;
+      attribs.NumIndices = item.geometry->indexCount;
       attribs.IndexType = VT_UINT32;
       attribs.Flags = DRAW_FLAG_VERIFY_ALL;
       impl.context->DrawIndexed(attribs);

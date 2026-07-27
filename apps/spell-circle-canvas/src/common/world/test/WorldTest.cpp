@@ -1,3 +1,4 @@
+#include "sigilworld/Components.h"
 #include "sigilworld/Scene.h"
 #include "sigilworld/World.h"
 
@@ -250,4 +251,53 @@ TEST(Scene, PanelsAreIdentityStable) {
   world::scene::Scene::Stats stats = scene.render(describe(25));
   EXPECT_EQ(stats.added, 0);
   EXPECT_EQ(stats.moved, 1);
+}
+
+TEST(World, SurfacesAreEntities) {
+  world::WorldConfig config;
+  config.width = 100;
+  config.height = 100;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 500};
+  w->setCamera(camera);
+  world::Material material;
+  material.unlit = true;
+  material.baseColor = {0, 1, 0, 1};
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(100, 100), SkM44(), material);
+  ASSERT_NE(id, 0u);
+
+  // The id is an entity carrying the public components.
+  entt::registry &registry = w->registry();
+  const entt::entity e = world::entity(id);
+  ASSERT_TRUE(registry.valid(e));
+  ASSERT_TRUE((registry.all_of<world::TransformComponent,
+                               world::MaterialComponent>(e)));
+
+  // Systems attach their own components alongside rendering state.
+  struct Velocity {
+    float y;
+  };
+  registry.emplace<Velocity>(e, Velocity{150.0f});
+  for (auto [entity, velocity, transform] :
+       registry.view<Velocity, world::TransformComponent>().each())
+    transform.model = SkM44::Translate(0, velocity.y, 0);
+
+  // The registry mutation IS the scene: the quad renders high.
+  ASSERT_TRUE(w->render());
+  sk_sp<SkImage> frame = w->readback();
+  ASSERT_TRUE(frame);
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(100, 100));
+  ASSERT_TRUE(frame->readPixels(nullptr, bm.pixmap(), 0, 0));
+  int top = 0, bottom = 0;
+  for (int y = 0; y < 100; ++y)
+    for (int x = 0; x < 100; ++x)
+      if (SkColorGetG(bm.getColor(x, y)) > 100)
+        (y < 50 ? top : bottom)++;
+  EXPECT_GT(top, 0);
+  EXPECT_EQ(bottom, 0);
 }

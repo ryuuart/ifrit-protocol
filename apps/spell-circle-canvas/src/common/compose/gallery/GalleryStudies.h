@@ -163,6 +163,9 @@ inline constexpr StudyInfo kStudies[] = {
     {"shapeworks_lab", "shapeworks lab", "Kit",
      "SigilShape live \xe2\x80\x94 the Illustrator blend, spinning meshes, "
      "and the gold/chrome/glass materials, all hot-editable"},
+    {"easel_playground", "easel playground", "Kit",
+     "The artist surface \xe2\x80\x94 easel:: chains that read like "
+     "sentences: shape recipes, blends, wires, particles"},
 };
 inline constexpr int kStudyCount = (int)(sizeof(kStudies) /
                                          sizeof(kStudies[0]));

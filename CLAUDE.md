@@ -56,17 +56,23 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            perspective panels, and literal materials —
                            gold foil/chrome/glass SkSL over bevel
                            normal maps and equirect environments incl.
-                           loaded HDRIs — see its README.md),
+                           loaded HDRIs; Easel.h is the fluent
+                           ARTIST surface over all of it, prototyped
+                           live in the easel_playground sketch — see
+                           its README.md),
                            world/ (SigilWorld — diegetic 3D surfaces
                            on Diligent Engine, Vulkan/MoltenVK on
                            macOS [brew install molten-vk
                            vulkan-loader]; shape::Mesh geometry,
                            SkImage panel textures, space::Camera,
                            headless render + PNG readback; vendored
-                           volk + Homebrew-aware VolkShim.c; Scene.h =
-                           declarative node tree reconciled into
-                           surfaces, compose's describe+diff lesson
-                           without the kernel — see its README.md)
+                           volk + Homebrew-aware VolkShim.c; surfaces
+                           are entt entities [Components.h publishes
+                           Transform/Material, World::registry() for
+                           systems]; Scene.h = declarative node tree
+                           reconciled into surfaces, compose's
+                           describe+diff lesson without the kernel —
+                           see its README.md)
   src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
                            shaders, test/, bench/, examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}

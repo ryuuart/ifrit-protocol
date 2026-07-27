@@ -17,6 +17,7 @@ add_library(SigilShape STATIC
   Space.cpp
   include/sigilshape/Blend.h
   include/sigilshape/Curves.h
+  include/sigilshape/Easel.h
   include/sigilshape/Geometry.h
   include/sigilshape/Materials.h
   include/sigilshape/Mesh.h

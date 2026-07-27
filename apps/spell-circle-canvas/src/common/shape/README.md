@@ -28,6 +28,13 @@ Points.h     Cloud = positions + named attribute lanes; generators
              instance()/panels() stamping, drawBillboards() particles
 Materials.h  literal materials: gold foil / chrome / glass SkSL
              over normal maps + equirect environments
+Easel.h      the ARTIST surface: stock shapes (star/ngon/dot/pill/
+             ring), fluent Shape recipes (.bloat().roughen().offset()
+             .gold()), Blend chains (.colors().steps().along()),
+             Wire (.through().closed().tube()/beads()), Particles
+             (.on().count().drift().ramp().glow()) — loud defaults,
+             one draw() at the end, made for the sketch host (see the
+             easel_playground study)
 ```
 
 ## Blend (the Illustrator study)

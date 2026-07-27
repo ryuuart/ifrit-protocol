@@ -30,6 +30,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 
+#include <entt/entity/fwd.hpp>
+
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -85,11 +87,19 @@ public:
   World &operator=(const World &) = delete;
 
   /** Add a surface: mesh + placement + material. Returns an id. */
+  /** Add a surface: mesh + placement + material. The returned id IS an
+   *  entt entity in registry() (see Components.h); 0 means failure. */
   uint32_t addSurface(const shape::Mesh &mesh, const SkM44 &model,
                       const Material &material);
   void setTransform(uint32_t id, const SkM44 &model);
   void removeSurface(uint32_t id);
   size_t surfaceCount() const;
+
+  /** The world's entity registry — surfaces live here as entities with
+   *  TransformComponent + MaterialComponent (Components.h). Attach your
+   *  own components and run your own systems over the same entities. */
+  entt::registry &registry();
+  const entt::registry &registry() const;
 
   void setCamera(const shape::space::Camera &camera);
   void setLighting(const Lighting &lighting);
