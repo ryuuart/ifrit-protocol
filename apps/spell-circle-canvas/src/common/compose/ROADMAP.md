@@ -3171,11 +3171,12 @@ paths through the library.
 asserting under the 768 B guard — the masks replaced two field groups
 inside `FxData`, which is a `Box<>`, so the base struct never saw them.
 
-**THE PLATE LEDGER IS OPEN.** The 56-scene Release sweep is deliberately not
-run here: the working tree also carries the widthFn→Profile migration
-awaiting its own plate approval, so a baseline taken now is not a HEAD
-baseline and any byte-identity claim from it would be unattributable. The
-sweep runs after that commit lands, against the new HEAD.
+**THE PLATE LEDGER — 56 scenes, Release, `ComposeGallery --headless`,
+run against the combined commit.** The prediction below was pre-registered
+BEFORE the sweep, and is left standing with the outcome beside it. Baseline:
+R3's three post-port sweep hashes (`/tmp/r3_new{,2,3}.sha256`), which ARE
+35cf6b7; the four widthFn scenes are read against the designer-approved
+after-plates instead.
 
 What it is expected to show, written down BEFORE it runs so the prediction
 is falsifiable:
@@ -3189,3 +3190,114 @@ is falsifiable:
 
 Any scene outside those four rows moving is a defect, not a re-draw, and
 should be treated as one.
+
+### The outcome — prediction vs actual
+
+TWO full sweeps plus a 29-scene third on a QUIET machine (the load
+conditions matter — see the methodology finding below), read against R3's
+three-sweep baseline set. The hashes are kept at `/tmp/r4_q{1,2,3}.sha256`
+and ARE the dd94846 baseline for the next phase, exactly as R3's were for
+this one.
+
+**51 of 56 reproduce a reference hash. ZERO unpredicted movers.** Every
+scene outside the predicted set is byte-identical, including all 23 other
+port sites. And the tree is deterministic where the corpus is:
+**53 of 56 scenes are byte-identical to THEMSELVES across the two sweeps** —
+the three that are not are the three that never repeat in the R3 baseline
+either. The partial third sweep agrees with the first on all 29 scenes it
+reached, 29 for 29.
+
+| scene | predicted | ACTUAL |
+| --- | --- | --- |
+| the 49 untouched | byte-identical | **byte-identical** ✓ |
+| `chaucer_astrolabe` | **MOVES** (the `by::edge` repair) | **BYTE-IDENTICAL — the prediction was WRONG** (below) |
+| `sigillum_aemeth` | may move ≤ 4 LSB | **byte-identical** — the "maybe" resolved to zero |
+| `astral_tome` | = approved after-plate | **= approved after-plate, hash-exact** (`9b870f08be38`) ✓ |
+| `dunhuang_star_chart` | = baseline (capture predates the archer) | **= baseline = after-plate** ✓ |
+| `minard_1869` | = approved widthFn delta | **2053 px / 0.0501% / maxDelta 15** vs the designer's documented *2053 px / 0.050% / maxDelta 15* ✓ |
+| `thunder_fulu` | = approved widthFn delta | **14121 px / 0.3818% / maxDelta 158** vs the documented *14118 px / 0.382%* — 3 px apart ✓ |
+| the six nondeterministic | flap | **only THREE actually flap on a quiet machine.** `black_watch` (the untouched control), `chladni_tab1` and `ksp_mapview` were STABLE across both sweeps AND reproduced known baseline hashes. `genesis_fire` and `hitman_verlet` produced two distinct hashes in two runs (they produced three in three under R3). `slitscan_2001` produced two — **one of which is the baseline, exactly** |
+
+**`slitscan_2001` deserves its own line, because it is the only scene that
+is BOTH a port site and nondeterministic** — the one place a real
+regression could have hidden behind noise. It carries two
+`wipe()` → `mask(by::edge(...))` ports. Its second sweep reproduces the
+35cf6b7 baseline hash `c6975b5f3273` **exactly**, and its own run-to-run
+variation between the two sweeps is **47 pixels / 0.0013%, confined to a
+single 6 × 9 px box** at (332–337, 1245–1253) — the shutter bar's leading
+edge, one sub-pixel step. A port that had changed the picture could not
+reproduce the baseline bit-for-bit on one run and differ by a 6 × 9 px box
+on the other. Attributed to the scene.
+
+**WHERE THE PREDICTION WAS WRONG, and why it matters.** `chaucer_astrolabe`
+does not move, and the reason is not that the repair is absent — it is that
+**the plate is taken 20 ms before the animation starts.** The default
+capture frame is `kProbeFrames + kMaxWarmFrames + kMaxSampleFrames` = 360 at
+60 fps = **t = 6.000 s**; the meridian's ramp is
+`ramp(tAzim·1000 + 820, 520)` with `tAzim = 5.20`, so it begins at
+**t = 6.020 s**. At capture the reveal fraction is 0, and 0 draws nothing
+under EITHER spelling — the old perimeter walk enclosed no area, the new
+half-plane clips everything away. The two agree exactly at the one moment
+the ledger looks.
+
+This is the same shape as `dunhuang_star_chart`'s row in the widthFn note
+("the archer enters at t=26.0 and the default capture is t=6.0, so the port
+is invisible there"), and it earns the same conclusion: **the ledger proves
+no REGRESSION, and for these two scenes it cannot prove the REPAIR.** The
+repair's evidence is the design analysis (a 2 px-wide × 2R-tall filled rect
+whose first ~50% of perimeter is a degenerate zero-area sliver) and
+`ComposeR4Mask.TheEdgeGateIsWipesHalfPlaneToTheBit`, not this plate. Filed
+plainly rather than quietly re-predicted: a pre-registered prediction that
+comes out wrong is worth more than one edited afterwards.
+
+**The cheap follow-up, for whoever wants the picture:** render
+`--scene chaucer --capture-at 6.30` (mid-ramp) against the same at HEAD~1.
+It is the only view in which the two spellings differ, and it costs one
+scene render rather than a sweep. Left undone here rather than half-done:
+single-scene renders still pay the full benchmark warm-up, so it is ~6
+minutes a side, and nothing in the ledger's verdict waits on it.
+
+### A METHODOLOGY FINDING — the ledger's determinism is load-dependent, and the knob already exists
+
+Two things were found while taking this ledger, and they change how the
+next one should be run.
+
+**(1) Eight orphaned `yes` load generators had been running since 21:38:52**
+— parent PID 1, abandoned from R3's own 8-way under-load protocol, still
+burning eight cores hours later. Every plate rendered in that window was
+rendered under load. The widthFn comparison sweep in the evidence dir
+(`widthfn/sweep_after`, 22:40–22:50) shows **13 of 31 scenes differing from
+the 35cf6b7 baseline** — including `botanical`, `cosmati`, `aero desktop`,
+`y2k chrome`, `passive tree`, `fallout2_charsheet`, scenes with no widthFn,
+no trim and no wipe in them. On a quiet machine every one of those comes
+back **byte-identical**. They were the load, not the code.
+
+**(1b) And the quiet numbers say the flaky list is too long.** Of the six
+scenes on record as self-nondeterministic, only **three** reproduce that
+verdict on a quiet machine: `genesis_fire`, `hitman_verlet` and
+`slitscan_2001`. `chladni_tab1`, `ksp_mapview` and `black_watch` were
+byte-identical across both sweeps here and each rendered a hash already in
+the baseline set. Three of the six may be load artefacts rather than
+properties of the scenes.
+
+**(2) The mechanism is auto texture promotion, and it is timing-driven.**
+`Paint.cpp`'s promoter bakes a node once `replayMs > kPromoteMs` (1.0 ms)
+for `kPromoteFrames` (8) consecutive frames — a MEASURED WALL-CLOCK cost.
+Under load those measurements move, different nodes promote, and the plate
+changes. Headless runs leave promotion ON by default; `--no-promotion`
+exists precisely as the A/B control. That is very likely the whole
+explanation for the "self-nondeterministic" set: they are not random, they
+are timing-sensitive at a promotion threshold.
+
+Two consequences worth acting on, neither of them this phase's work:
+
+- **A ledger must state its load conditions**, and a sweep taken beside a
+  running build is not evidence. The six-scene nondeterministic list should
+  be re-derived on a quiet machine before it is trusted as a property of the
+  scenes rather than of the afternoon.
+- **`thunder_fulu`'s after-plate PNG in the evidence dir is not the plate
+  the designer measured.** It differs from the 35cf6b7 baseline by
+  **24.89% / maxDelta 158**, where the approved note records *0.382%*. The
+  plate rendered here reproduces the note's number to within 3 pixels, so
+  the CODE is right and that one PNG is a load-perturbed render. Recorded so
+  nobody re-derives a verdict from it.
