@@ -24,7 +24,7 @@ target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/inclu
 target_compile_definitions(SigilSketchKit PUBLIC
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilLoader SigilWeavePorts EnTT::EnTT)
+  SigilCompose SigilLoader SigilShape SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -57,7 +57,7 @@ set(SIGIL_SKETCH_STUDIES
   genesis_fire hitman_verlet slitscan_2001 vertigo_titles
   eva_magi_defense lain_navi eva_magi_interior
   # The kit itself
-  hello stock_materials stroke_atlas
+  hello stock_materials stroke_atlas shapeworks_lab
 )
 set(sigil_study_sources "")
 foreach(study IN LISTS SIGIL_SKETCH_STUDIES)
