@@ -67,7 +67,8 @@ bool Composer::Impl::deriveFlow(Instance &inst) {
     if (exclusions != inst.exclusionsLocal) {
       inst.exclusionsLocal = std::move(exclusions);
       inst.contentRev++;
-      YGNodeMarkDirty(inst.yoga);
+      if (inst.yoga) // positioned text re-measures via positionedRect
+        YGNodeMarkDirty(inst.yoga);
       inst.markPaintDirtyUp();
       relayout = true;
     }
@@ -83,8 +84,8 @@ namespace {
  *  element it was borrowed from can never disagree. */
 SkPath resolvedShapeOf(Instance &inst) {
   const ElementNode &node = *inst.desc;
-  const SkSize size{YGNodeLayoutGetWidth(inst.yoga),
-                    YGNodeLayoutGetHeight(inst.yoga)};
+  const SkRect rect = inst.owner->instanceRect(inst);
+  const SkSize size{rect.width(), rect.height()};
   if (node.deriveData && !inst.connectorPath.isEmpty())
     return inst.connectorPath;
   if (node.shapeFn)

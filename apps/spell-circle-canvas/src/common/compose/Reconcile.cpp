@@ -433,8 +433,18 @@ Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
   auto inst = std::make_unique<Instance>();
   inst->owner = this;
   inst->parent = parent;
-  inst->yoga = YGNodeNewWithConfig(yogaConfig);
-  YGNodeSetContext(inst->yoga, inst.get());
+  // Positioned subtrees skip Yoga entirely: a child of a positioned()
+  // container — and everything below it — carries its rect in its own
+  // description, resolved by instanceRect() with no flex engine behind
+  // it. The container itself keeps its node (it lives in its parent's
+  // flow); its descendants never get one.
+  const bool positionedChild =
+      parent && (!parent->yoga ||
+                 (parent->desc && parent->desc->layout.positioned));
+  if (!positionedChild) {
+    inst->yoga = YGNodeNewWithConfig(yogaConfig);
+    YGNodeSetContext(inst->yoga, inst.get());
+  }
   patch(*inst, node);
   return inst;
 }
@@ -469,13 +479,19 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     if (kindChanged) {
       inst.paragraph.reset();
       inst.lines.clear();
-      YGNodeSetMeasureFunc(inst.yoga, nullptr);
+      if (inst.yoga)
+        YGNodeSetMeasureFunc(inst.yoga, nullptr);
     }
 
     applyLayoutProps(inst);
     // centerAt lives outside Yoga's style set (resolved in ensureLayout's
     // second pass), so a moved pin must force the layout pass itself.
     if (!prev || prev->layout.centerAt != resolved->layout.centerAt)
+      needsLayout = true;
+    // A positioned child's rect IS its layout props: a change must run
+    // the layout pass so syncLayoutRects stales the recordings that
+    // baked the old rect (the job Yoga's dirty bit does elsewhere).
+    if (!inst.yoga && prev && !(prev->layout == resolved->layout))
       needsLayout = true;
 
     if (resolved->kind == Kind::Text && resolved->textData) {
@@ -496,10 +512,12 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
           inst.paragraph.emplace();
           inst.paragraph->appendText(text.utf8, text.style);
         }
-        YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
-        YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
-        YGNodeSetNodeType(inst.yoga, YGNodeTypeText);
-        YGNodeMarkDirty(inst.yoga);
+        if (inst.yoga) {
+          YGNodeSetMeasureFunc(inst.yoga, measureTextNode);
+          YGNodeSetBaselineFunc(inst.yoga, baselineOfTextNode);
+          YGNodeSetNodeType(inst.yoga, YGNodeTypeText);
+          YGNodeMarkDirty(inst.yoga);
+        }
         needsLayout = true;
       }
     }
@@ -591,10 +609,16 @@ void Composer::Impl::patchChildren(Instance &inst,
   oldOrder.reserve(inst.children.size());
   std::unordered_map<std::string, std::unique_ptr<Instance>> keyed;
   std::vector<std::unique_ptr<Instance>> unkeyed;
+  // Whether children of THIS parent carry Yoga nodes; a mismatch on a
+  // reused instance (the container toggled positioned()) forces a fresh
+  // mount below, because a Yoga node's existence is fixed at mount.
+  const bool childrenWantYoga =
+      inst.yoga != nullptr && !inst.desc->layout.positioned;
   for (auto &child : inst.children) {
     if (child) {
       oldOrder.push_back(child.get());
-      YGNodeRemoveChild(inst.yoga, child->yoga);
+      if (inst.yoga && child->yoga)
+        YGNodeRemoveChild(inst.yoga, child->yoga);
       const std::shared_ptr<ElementNode> &shell =
           child->memoShell ? child->memoShell : child->desc;
       if (!shell->key.empty())
@@ -619,6 +643,8 @@ void Composer::Impl::patchChildren(Instance &inst,
     } else if (unkeyedCursor < unkeyed.size()) {
       match = std::move(unkeyed[unkeyedCursor++]);
     }
+    if (match && (match->yoga != nullptr) != childrenWantYoga)
+      match.reset(); // unmounts; the fresh mount below picks the right mode
 
     if (match) {
       match->parent = &inst;
@@ -666,9 +692,12 @@ void Composer::Impl::patchChildren(Instance &inst,
     // individually rejoin the flex flow would lay out as neither. What a
     // child DOES keep is its insets — `.top(12).right(12)` inside a stack
     // pins that corner, because absolute is exactly the mode insets need.
-    if (inst.desc->kind == Kind::Stack)
-      YGNodeStyleSetPositionType(placed.yoga, YGPositionTypeAbsolute);
-    YGNodeInsertChild(inst.yoga, placed.yoga, YGNodeGetChildCount(inst.yoga));
+    if (placed.yoga) {
+      if (inst.desc->kind == Kind::Stack)
+        YGNodeStyleSetPositionType(placed.yoga, YGPositionTypeAbsolute);
+      YGNodeInsertChild(inst.yoga, placed.yoga,
+                        YGNodeGetChildCount(inst.yoga));
+    }
   }
 
   // Mounts, unmounts, and reorders change what this node's recording paints
@@ -690,6 +719,8 @@ void Composer::Impl::patchChildren(Instance &inst,
 }
 
 void Composer::Impl::applyLayoutProps(Instance &inst) {
+  if (!inst.yoga)
+    return; // positioned subtree: instanceRect() reads the props directly
   const LayoutProps &l = inst.desc->layout;
   YGNodeRef n = inst.yoga;
 

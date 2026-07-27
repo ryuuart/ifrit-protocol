@@ -2516,6 +2516,28 @@ Element box();
  *  is for: `.top(12).right(12)` pins a corner). Mixed flow wants a box
  *  with a stack inside it. */
 Element stack();
+/** The positioned leaf set (ROADMAP §2/Direction 1): a container whose
+ *  children carry their OWN rects and skip Yoga entirely — no flex
+ *  nodes anywhere below it. Generated geometry (tilings, lattices, node
+ *  graphs, fields drawn as real elements) never wants layout, and this
+ *  is how to say so.
+ *
+ *  The child spelling is the one the corpus already writes:
+ *  `.left(x).top(y).width(w).height(h)` — px, or pct() against the
+ *  parent's rect; an open width/height with an opposing `.right()`/
+ *  `.bottom()` pins the far edge instead; a text leaf with an open
+ *  extent measures against its resolved (or the parent's) width.
+ *  Rects nest: a child's children position inside ITS rect, the whole
+ *  subtree Yoga-free. Everything else about the children is ordinary —
+ *  decorations, strokes, masks, transitions, stagger, zIndex, hitTest,
+ *  bounds() — because instances still exist; only their layout engine
+ *  is gone (549 Penrose setts: 1647 Yoga nodes to 1).
+ *
+ *  The container ITSELF is an ordinary box in its parent's flow (size
+ *  it with dims or insets; it does NOT auto-size from its children).
+ *  Not supported inside: flex props (ignored), centerAt, layout()
+ *  schemes, flowAround text — those want the flex world. */
+Element positioned();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
@@ -2861,6 +2883,8 @@ public:
   // ---- introspection (perf verification; see compose_bench) ----
   struct Stats {
     size_t instances = 0;       ///< live retained nodes
+    size_t yogaNodes = 0;       ///< instances carrying a Yoga node —
+                                ///< positioned() subtrees carry none
     size_t describedNodes = 0;  ///< element nodes visited last render()
     size_t memoHits = 0;        ///< memo props equal → describe skipped
     size_t patchedNodes = 0;    ///< instances whose props changed

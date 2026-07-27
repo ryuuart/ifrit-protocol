@@ -824,7 +824,9 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   Element diagram(int gen) {
     const std::vector<Tri> &tri = gens[(size_t)std::clamp(gen, 0, 3)];
-    auto group = stack()
+    // positioned(): every triangle carries its own bb rect — the
+    // deflation patch is the field's pattern in miniature, Yoga-free.
+    auto group = positioned()
                      .inset(0, 0, 0, 0)
                      .key("gen" + std::to_string(gen))
                      .staggerChildren(9ms, Stagger::From::Center)
@@ -926,7 +928,11 @@ struct PenrosePaving : sigil::compose::sketch::Sketch {
 
   Element describe(sketch::SketchContext &ctx) {
     (void)ctx;
-    auto field = box().inset(0, 0, 0, 0);
+    // The positioned leaf set (ROADMAP §2/Direction 1): every sett
+    // carries its own computed rect and the scene has zero layout in
+    // it — under a plain box() these 549 setts (+2 inlays each) cost
+    // 1,647 Yoga nodes; positioned() mounts them with none.
+    auto field = positioned().inset(0, 0, 0, 0);
     for (size_t i = 0; i < tiles.size(); ++i)
       field.child(sett(tiles[i], i));
 

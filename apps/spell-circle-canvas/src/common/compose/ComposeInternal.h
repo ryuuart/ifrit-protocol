@@ -35,6 +35,10 @@ struct LayoutProps {
   Justify justify = Justify::Start;
   bool absolute = false;
   bool hasInsets = false;
+  /** positioned() container: children (and their subtrees) get NO Yoga
+   *  nodes; instanceRect() resolves their rects straight from these
+   *  props. */
+  bool positioned = false;
   EdgeDims insets;
   std::optional<SkPoint> centerAt; // absolute: center ON this point
                                    // (resolved post-measure)

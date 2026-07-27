@@ -418,10 +418,9 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
   // better answer than a number that is not one.
   if (!rect.isFinite())
     return std::nullopt;
-  YGNodeRef node = YGNodeGetParent(it->second->yoga);
-  while (node) {
-    rect.offset(YGNodeLayoutGetLeft(node), YGNodeLayoutGetTop(node));
-    node = YGNodeGetParent(node);
+  for (Instance *p = it->second->parent; p; p = p->parent) {
+    const SkRect parentRect = m_impl->instanceRect(*p);
+    rect.offset(parentRect.left(), parentRect.top());
   }
   return rect;
 }
@@ -445,9 +444,11 @@ std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
 
 const Composer::Stats &Composer::stats() const {
   // Tree tallies are computed on demand, never in the frame loop.
-  size_t instances = 0, pictures = 0, textures = 0;
+  size_t instances = 0, pictures = 0, textures = 0, yogaNodes = 0;
   std::function<void(const Instance &)> tally = [&](const Instance &i) {
     ++instances;
+    if (i.yoga)
+      ++yogaNodes;
     if (i.picture)
       ++pictures;
     if (i.textureImage)
@@ -458,6 +459,7 @@ const Composer::Stats &Composer::stats() const {
   if (m_impl->root)
     tally(*m_impl->root);
   m_impl->stats.instances = instances;
+  m_impl->stats.yogaNodes = yogaNodes;
   m_impl->stats.picturesLive = pictures;
   m_impl->stats.texturesLive = textures;
   return m_impl->stats;

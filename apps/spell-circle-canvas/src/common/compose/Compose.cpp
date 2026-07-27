@@ -572,6 +572,12 @@ Element stack() {
   return e;
 }
 
+Element positioned() {
+  Element e;
+  e.node()->layout.positioned = true;
+  return e;
+}
+
 Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   Element e;
   e.node()->kind = Kind::Text;

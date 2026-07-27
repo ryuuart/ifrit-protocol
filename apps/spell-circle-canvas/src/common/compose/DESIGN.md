@@ -449,8 +449,9 @@ Earned across the programs; the full case files are ROADMAP §§26–31.
 The near-term order of work (argued in archive/SPATIAL.md — its claims
 table marks which half is source-verified vs unmeasured):
 
-1. Positioned leaf set (N caller-supplied rects, no flex; Penrose pays
-   1,647 Yoga nodes for zero layout).
+1. ~~Positioned leaf set~~ **LANDED 2026-07-27** — `positioned()`, the
+   ROADMAP §2 closure note is the record; Penrose's 1,647 Yoga nodes
+   are 1, and `stats().yogaNodes` states it.
 2. Comparable `Outline` values (ROADMAP §3 — the highest measured
    impact: 43.4 of 43.5 ms on one un-prunable callable).
 3. Ribbon `(along, across)` paint space — expose what `artAlong`

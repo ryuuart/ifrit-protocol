@@ -1082,8 +1082,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   // below are each opened and closed inside the half they belong to.
   const bool emitOwn = phase != Phase::ChildrenOnly;
   const bool emitChildren = phase != Phase::OwnOnly;
-  const SkRect bounds = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
-                                       YGNodeLayoutGetHeight(inst.yoga));
+  const SkRect ownRect = instanceRect(inst);
+  const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
   const SkRRect rrect = cornersRRect(bounds, node.corners);
 
   // The node's shape: routed connector/rail path, custom outline(), or the

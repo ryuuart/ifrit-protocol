@@ -18,14 +18,58 @@
 
 #include <sigilshape/Easel.h>
 
+#include <include/core/SkSurface.h>
+
 #include <cmath>
 
 using namespace sigil::compose;
 namespace easel = sigil::shape::easel;
 namespace shape = sigil::shape;
 
+namespace {
+
+// The tiled untileable strip: a Fibonacci word (A→AB, B→A — the golden
+// substitution) rendered as long/short cells. Aperiodic within its
+// span: no subsegment repeats, yet ONE span wraps cleanly, which is
+// exactly what a marquee riding a closed loop needs. Baked with the
+// word along Y so ribbon v (= distance along the curve) reads it.
+sk_sp<SkImage> fibonacciStrip(int width, int height) {
+  std::string word = "A";
+  while ((int)word.size() < 96) {
+    std::string next;
+    for (char c : word)
+      next += (c == 'A') ? "AB" : "A";
+    word = next;
+  }
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+  SkCanvas *c = surface->getCanvas();
+  c->clear(SkColorSetARGB(255, 10, 12, 24));
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  // Long/short cell heights in golden ratio; colors alternate by term.
+  const float unit =
+      (float)height / (1.618f * 55.0f + 34.0f); // F(10)/F(9) mix of the span
+  float y = 0;
+  for (char term : word) {
+    const float cell = term == 'A' ? unit * 1.618f : unit;
+    if (y > (float)height)
+      break;
+    paint.setColor(term == 'A' ? SkColorSetARGB(255, 64, 220, 255)
+                               : SkColorSetARGB(255, 255, 120, 220));
+    c->drawRect(SkRect::MakeXYWH(8, y + 1.5f, (float)width - 16,
+                                 cell - 3.0f),
+                paint);
+    y += cell;
+  }
+  return surface->makeImageSnapshot();
+}
+
+} // namespace
+
 struct EaselPlayground : sigil::compose::sketch::Sketch {
   shape::materials::Environment studio;
+  sk_sp<SkImage> marqueeStrip;
 
   Element describe(sketch::SketchContext &ctx) {
     // LEFT — a shape recipe wearing gold. Try: .twirl(40), a bigger
@@ -84,9 +128,14 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
             .inset(390, 60, 420, 40)
             .cache(Cache::None);
 
-    // RIGHT — a wire crossing space, everything hung on it.
+    // RIGHT — a wire crossing space, everything hung on it: a steel
+    // tube, particles, and the TILED UNTILEABLE MARQUEE — a
+    // Fibonacci-word band scrolling around a second, wider loop.
+    // Nothing marquee-shaped exists in the library: it is
+    // curves::ribbon (the (across, along) uv chart) + tileTexture +
+    // uvTransform, the same verbs any conveyor or ticker uses.
     Element flight =
-        custom([](SkCanvas &canvas, const PaintContext &paint) {
+        custom([this](SkCanvas &canvas, const PaintContext &paint) {
           const SkSize viewport = paint.size;
           shape::space::Camera camera;
           camera.eye = {0, 170, 620};
@@ -111,6 +160,30 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
                                  camera, viewport, steel);
           loop.draw(canvas, camera, viewport, {1, 1, 1, 0.25f}, 1);
 
+          // The marquee: a wider sibling loop wearing the Fibonacci
+          // band. ribbon() charts (across, along) into uv; the strip
+          // tiles (one aperiodic period wraps the loop) and the
+          // uvTransform's translate IS the scroll.
+          easel::Wire orbit = easel::wire({});
+          for (int i = 0; i < 8; ++i) {
+            const float a =
+                (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
+            orbit.through({std::cos(a) * 265,
+                           std::sin(a * 2.0f + t * 0.4f) * 96,
+                           std::sin(a) * 265});
+          }
+          orbit.closed();
+          shape::space::MeshStyle band;
+          band.texture = marqueeStrip;
+          band.tileTexture = true;
+          band.baseColor = {1, 1, 1, 0.92f};
+          band.ambient = {0.95f, 0.95f, 0.95f, 1};
+          band.lights = {};
+          band.specular = 0;
+          band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
+          shape::space::drawMesh(canvas, orbit.ribbon(30, 220), SkM44(),
+                                 camera, viewport, band);
+
           easel::particles()
               .on(loop)
               .count(220)
@@ -134,6 +207,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     ctx.background({0.045f, 0.045f, 0.085f, 1});
     ctx.captureAt(2.6);
     studio = shape::materials::Environment::studio();
+    marqueeStrip = fibonacciStrip(96, 1024);
     ctx.composer.render(describe(ctx));
   }
 };

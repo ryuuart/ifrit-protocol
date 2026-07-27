@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <limits>
 
 namespace sigil::compose {
@@ -147,7 +148,7 @@ void Composer::Impl::syncLayoutRects(Instance &inst) {
  *  target position actually changed), so the bounded repass converges. */
 bool Composer::Impl::applyCenterPins(Instance &inst) {
   bool applied = false;
-  if (inst.desc->layout.centerAt) {
+  if (inst.desc->layout.centerAt && inst.yoga) {
     const SkPoint p = *inst.desc->layout.centerAt;
     // Correct by the observed layout delta rather than writing the target
     // into the style directly — converges whatever reference box Yoga
@@ -175,7 +176,11 @@ bool Composer::Impl::applyCenterPins(Instance &inst) {
 
 bool Composer::Impl::applyCustomLayouts(Instance &inst) {
   bool applied = false;
-  if (inst.desc->deriveData && inst.desc->deriveData->placeFn &&
+  // layout() schemes are a flex-world feature; inside a positioned
+  // subtree (no Yoga nodes) — or ON a positioned() container, whose
+  // children have none — the placeFn is documented-unsupported.
+  if (inst.yoga && !inst.desc->layout.positioned &&
+      inst.desc->deriveData && inst.desc->deriveData->placeFn &&
       !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
@@ -255,16 +260,73 @@ bool Composer::Impl::applyCustomLayouts(Instance &inst) {
 // Resolved-rect reads
 
 SkRect Composer::Impl::instanceRect(const Instance &inst) const {
-  return SkRect::MakeXYWH(YGNodeLayoutGetLeft(inst.yoga),
-                          YGNodeLayoutGetTop(inst.yoga),
-                          YGNodeLayoutGetWidth(inst.yoga),
-                          YGNodeLayoutGetHeight(inst.yoga));
+  if (inst.yoga)
+    return SkRect::MakeXYWH(YGNodeLayoutGetLeft(inst.yoga),
+                            YGNodeLayoutGetTop(inst.yoga),
+                            YGNodeLayoutGetWidth(inst.yoga),
+                            YGNodeLayoutGetHeight(inst.yoga));
+  return positionedRect(inst);
+}
+
+/** A positioned child's rect, straight from its description: px/pct
+ *  left/top insets, px/pct dims, an open dim with an opposing
+ *  right/bottom inset pinning the far edge, and text measuring against
+ *  its resolved (or the parent's) width. O(depth) for pct/derived
+ *  terms — arithmetic, no engine. */
+SkRect Composer::Impl::positionedRect(const Instance &inst) const {
+  const LayoutProps &l = inst.desc->layout;
+  float parentW = 0, parentH = 0;
+  if (inst.parent) {
+    const SkRect parentRect = instanceRect(*inst.parent);
+    parentW = parentRect.width();
+    parentH = parentRect.height();
+  }
+  auto resolve = [](const Dim &d,
+                    float parentExtent) -> std::optional<float> {
+    switch (d.unit) {
+    case Dim::Unit::Px:
+      return d.value;
+    case Dim::Unit::Pct:
+      return parentExtent * d.value / 100.0f;
+    case Dim::Unit::Auto:
+    default:
+      return std::nullopt;
+    }
+  };
+  const float left =
+      l.hasInsets ? resolve(l.insets.left, parentW).value_or(0.0f) : 0.0f;
+  const float top =
+      l.hasInsets ? resolve(l.insets.top, parentH).value_or(0.0f) : 0.0f;
+  std::optional<float> width = resolve(l.width, parentW);
+  std::optional<float> height = resolve(l.height, parentH);
+  if (!width && l.hasInsets)
+    if (std::optional<float> right = resolve(l.insets.right, parentW))
+      width = std::max(parentW - left - *right, 0.0f);
+  if (!height && l.hasInsets)
+    if (std::optional<float> bottom = resolve(l.insets.bottom, parentH))
+      height = std::max(parentH - top - *bottom, 0.0f);
+  // Text with an open extent: measure now, against the width we have.
+  // The measure caches are logically mutable (measuredForWidth guards),
+  // hence the casts.
+  if (inst.desc->kind == Kind::Text && inst.paragraph &&
+      (!width || !height)) {
+    const_cast<Composer::Impl *>(this)->layoutText(
+        const_cast<Instance &>(inst), width ? *width : parentW);
+    if (!width)
+      width = inst.measuredSize.width;
+    if (!height)
+      height = inst.measuredSize.height;
+  }
+  return SkRect::MakeXYWH(left, top, width.value_or(0.0f),
+                          height.value_or(0.0f));
 }
 
 SkRect Composer::Impl::absoluteRect(const Instance &inst) const {
   SkRect rect = instanceRect(inst);
-  for (Instance *p = inst.parent; p; p = p->parent)
-    rect.offset(YGNodeLayoutGetLeft(p->yoga), YGNodeLayoutGetTop(p->yoga));
+  for (Instance *p = inst.parent; p; p = p->parent) {
+    const SkRect parentRect = instanceRect(*p);
+    rect.offset(parentRect.left(), parentRect.top());
+  }
   return rect;
 }
 

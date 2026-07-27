@@ -159,11 +159,26 @@ rotation, uniform scale, tint and frame. So:
   for a scene with **zero layout in it**, every child `.absolute()` with a
   computed rect.
 
-That last one is a different ask and worth separating: not "richer
+~~That last one is a different ask and worth separating: not "richer
 instances" but **a positioned leaf set** — N children with caller-supplied
 rects and no flex participation, skipping the Yoga pass. Generated
 geometry (tilings, lattices, node graphs, particle fields drawn as real
-elements) never wants layout, and today there is no way to say so.
+elements) never wants layout, and today there is no way to say so.~~
+**CLOSED 2026-07-27 — SHIPPED as `positioned()`.** The child spelling is
+the one the corpus already wrote (`.left/.top/.width/.height`, px or pct,
+an open dim with an opposing inset pinning the far edge, text measuring
+against its resolved width); the container is the one new word. Children
+of a `positioned()` container — and everything below them — mount with NO
+Yoga node; `instanceRect()` resolves their rects straight from the
+description, and every downstream consumer (paint, bounds, hitTest,
+derive, syncLayoutRects) already read through that chokepoint or was
+converted to. Penrose is the acceptance case: **1,647 Yoga nodes → 1**
+(`stats().yogaNodes`, the counter added with the feature), both the field
+and the deflation vignette — and the Release plate is BYTE-IDENTICAL to
+the R4 baseline (`834bf1d613ae`, quiet machine, one render). Not supported inside by
+contract (documented in API.md): flex props, `centerAt`, `layout()`
+schemes, `flowAround`. The remainder of this entry — the instancing lanes
+proper — stays open below.
 
 **And a second thing the cell bakes: its SHADE.** The X-COM study
 measured it — block 3 at shade 8 needs per-channel multipliers R 0.17 /

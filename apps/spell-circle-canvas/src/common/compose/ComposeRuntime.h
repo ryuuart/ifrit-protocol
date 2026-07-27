@@ -516,6 +516,7 @@ struct Composer::Impl {
   void syncLayoutRects(detail::Instance &inst);
   void layoutText(detail::Instance &inst, float constraint);
   SkRect instanceRect(const detail::Instance &inst) const;
+  SkRect positionedRect(const detail::Instance &inst) const;
   SkRect absoluteRect(const detail::Instance &inst) const;
 
   // ---- derive (Derive.cpp) ----

@@ -148,6 +148,20 @@ happens until a `Composer` reconciles the tree.
 // ---- factories (the leaf set = everything we already draw) ----
 Element box();
 Element stack();                                            // overlap container
+Element positioned();  // the positioned leaf set: children carry their OWN
+                       // rects (.left/.top/.width/.height — px or pct, an
+                       // open dim + opposing inset pins the far edge, text
+                       // measures against its width) and the whole subtree
+                       // skips Yoga — zero flex nodes below. For generated
+                       // geometry (tilings, lattices, fields) that never
+                       // wanted layout. Everything else is ordinary:
+                       // decorations, masks, transitions, stagger, zIndex,
+                       // hitTest, bounds(). The container itself is a normal
+                       // box in its parent's flow and does NOT auto-size
+                       // from its children. Unsupported inside: flex props
+                       // (ignored), centerAt, layout() schemes, flowAround.
+                       // Trap: a child with Auto dims and no opposing inset
+                       // resolves 0x0 — size it or pin it.
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph, // full control:
              sigil::weave::ParagraphLayoutOptions opts = {});    // spans, K-P,
