@@ -14,6 +14,8 @@ add_library(SigilWorld STATIC
   Scene.cpp
   VolkShim.c
   World.cpp
+  include/sigilworld/Components.h
+  include/sigilworld/Easel.h
   include/sigilworld/Scene.h
   include/sigilworld/World.h
 )

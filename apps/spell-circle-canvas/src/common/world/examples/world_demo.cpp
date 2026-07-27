@@ -6,6 +6,7 @@
 // through SigilLoader's SVG decode; without it the scene simply omits
 // the poster.
 
+#include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
 #include "sigilworld/World.h"
 
@@ -206,13 +207,12 @@ int main(int argc, char **argv) {
   // points — declared through the scene layer (describe + reconcile),
   // not imperative addSurface calls.
   world::scene::Scene stream(*w);
+  shape::Spline3 arc;
+  arc.points = {{-820, 260, -320},
+                {-300, 420, 60},
+                {260, 300, 220},
+                {820, 430, -260}};
   {
-    shape::Spline3 arc;
-    arc.points = {{-820, 260, -320},
-                  {-300, 420, 60},
-                  {260, 300, 220},
-                  {820, 430, -260}};
-
     shape::Cloud stations = shape::points::onSpline(arc, 9);
     const SkV3 eye = {0, 200, 1150}; // the stream shot's camera
     std::vector<SkV3> &facing = stations.vector("facing");
@@ -246,6 +246,40 @@ int main(int argc, char **argv) {
                                              cardOptions),
                        cardMat)
                        .key("cards")));
+  }
+
+  // The set dressing, declared through the world easel (Easel.h): two
+  // colored point lights pooling on the floor by the props, and a
+  // 3000-spark swarm riding the stream arc, GPU-instanced as ONE draw
+  // — tint ramps along "t", size varies through the scale lane.
+  {
+    shape::Cloud sparks = shape::points::onSpline(arc, 3000);
+    shape::points::jitter(sparks, 30, 11);
+    shape::points::displaceNoise(sparks, 70, 0.006f, 12);
+    const std::vector<float> &t = sparks.scalar("t");
+    std::vector<SkColor4f> &tint = sparks.color("tint");
+    std::vector<float> &size = sparks.scalar("size", 1);
+    for (size_t i = 0; i < sparks.size(); ++i) {
+      const float f = t[i];
+      tint[i] = {0.45f + 0.55f * f, 0.95f - 0.55f * f,
+                 1.0f - 0.05f * f, 1};
+      size[i] = 0.55f + 0.75f * (0.5f + 0.5f * std::sin(f * 61.0f));
+    }
+    world::Material sparkMat;
+    sparkMat.unlit = true;
+    sparkMat.baseColor = {1, 1, 1, 0.85f}; // blended pass, one flock
+    world::InstanceLanes sparkLanes;
+    sparkLanes.tintLane = "tint";
+    sparkLanes.scaleLane = "size";
+
+    world::easel::Stage dressing = world::easel::stage(*w);
+    dressing.light({-520, 60, -80}, {1.0f, 0.25f, 0.85f, 1}, 7, 760)
+        .light({540, 80, -50}, {0.2f, 0.85f, 1.0f, 1}, 7, 760)
+        .swarm(std::move(sparks), shape::mesh::quad(6, 6), sparkMat,
+               sparkLanes)
+        .key("sparks");
+    const world::scene::Scene::Stats stats = dressing.commit();
+    std::printf("easel dressing: %d added\n", stats.added);
   }
 
   world::Lighting lighting;

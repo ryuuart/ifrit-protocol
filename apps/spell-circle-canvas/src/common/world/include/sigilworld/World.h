@@ -24,6 +24,7 @@
  */
 
 #include <sigilshape/Mesh.h>
+#include <sigilshape/Points.h>
 #include <sigilshape/Space.h>
 
 #include <include/core/SkColor.h>
@@ -37,6 +38,8 @@
 #include <string>
 
 namespace sigil::world {
+
+struct LightComponent; // Components.h
 
 struct WorldConfig {
   int width = 1280;
@@ -61,6 +64,23 @@ struct Material {
 
   /** Textures compare by pointer — the scene reconciler's reuse test. */
   bool operator==(const Material &) const = default;
+};
+
+/** Per-instance lanes an instanced surface reads from its Cloud —
+ *  mirrors points::InstanceOptions, but the stamp uploads ONCE and the
+ *  points ride a per-instance vertex stream instead of a merged mesh.
+ *  Lanes are optional; a bare Cloud stamps unscaled, untinted, in the
+ *  stamp's own orientation. */
+struct InstanceLanes {
+  float scale = 1;
+  /** Scalar lane multiplied into scale per point (e.g. "size"). */
+  std::string scaleLane;
+  /** Color lane multiplied into baseColor per point (e.g. "tint"). */
+  std::string tintLane;
+  /** Vector lane orienting the stamp's +z (e.g. "normal"); empty =
+   *  keep the stamp's own orientation. */
+  std::string orientLane;
+  SkV3 up = {0, 1, 0};
 };
 
 /** One sun + hemisphere ambient — enough light vocabulary for panels
@@ -95,12 +115,36 @@ public:
   void removeSurface(uint32_t id);
   size_t surfaceCount() const;
 
+  /** One draw call stamping @p stamp at every point of @p cloud — the
+   *  GPU-instanced sibling of points::instance() for the thousands
+   *  range where a merged mesh wastes vertices. The flock is ONE
+   *  surface: one id, one TransformComponent (the whole-flock
+   *  transform), one MaterialComponent whose alpha routes the whole
+   *  flock opaque or blended. 0 on failure; an empty cloud is a valid
+   *  (invisible) flock awaiting setInstances(). */
+  uint32_t addInstanced(const shape::Mesh &stamp, const shape::Cloud &cloud,
+                        const Material &material,
+                        const InstanceLanes &lanes = {});
+  /** Re-upload an instanced surface's points (UpdateBuffer when the
+   *  count is unchanged, recreate otherwise). No-op on plain
+   *  surfaces. */
+  void setInstances(uint32_t id, const shape::Cloud &cloud,
+                    const InstanceLanes &lanes = {});
+
   /** The world's entity registry — surfaces live here as entities with
    *  TransformComponent + MaterialComponent (Components.h). Attach your
    *  own components and run your own systems over the same entities. */
   entt::registry &registry();
   const entt::registry &registry() const;
 
+  /** Convenience: a fresh entity carrying @p light. The registry is
+   *  the real API — mutate the LightComponent live, attach one to any
+   *  entity yourself, destroy via registry().destroy(entity(id)).
+   *  render() honors at most kLightBudget lights per frame. */
+  uint32_t addLight(const LightComponent &light);
+
+  /** The fallback camera. An entity with an ACTIVE CameraComponent
+   *  (Components.h) takes precedence while it exists. */
   void setCamera(const shape::space::Camera &camera);
   void setLighting(const Lighting &lighting);
 

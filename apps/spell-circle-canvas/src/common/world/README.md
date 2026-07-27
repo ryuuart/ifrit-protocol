@@ -49,7 +49,8 @@ path work without environment surgery:
 
 `Material`: baseColor (alpha < 1 routes to the blended, depth-sorted
 pass), metallic/roughness, emissive, texture (sRGB view), unlit.
-`Lighting`: one sun + sky/ground hemisphere.
+`Lighting`: one sun + sky/ground hemisphere — the ambient base that
+registry lights layer on top of.
 
 ## The entity layer
 
@@ -62,6 +63,67 @@ own components, iterate views, mutate transforms/material parameters
 and the next `render()` draws the result (texture swaps still
 re-create the surface — the SRB is baked). The scene layer below and
 any gameplay/animation systems above meet in the same registry.
+
+Lights and cameras are entities too:
+
+- **`LightComponent`** — directional or point (color, intensity,
+  direction/position, point falloff `range`: intensity fades as
+  `(1 - (d/range)^2)^2`, so artist numbers stay in the sun's 1..5
+  ballpark). `render()` gathers up to `kLightBudget` (8) light
+  entities each frame and evaluates the same GGX lobe per light on top
+  of the sun + hemisphere, so scenes without light entities render
+  unchanged. `World::addLight()` is the one-line factory; mutating the
+  component through the registry is live.
+- **`CameraComponent`** — an entity with `active = true` overrides
+  `setCamera()` (which stays the fallback); deactivate or destroy it
+  to fall back. Keep one active: with several, whichever the registry
+  iterates first wins.
+
+## Instancing
+
+`addInstanced(stamp, cloud, material, lanes)` renders one
+`shape::Mesh` stamped at every point of a `shape::Cloud` in ONE draw —
+the GPU sibling of `points::instance()` for the thousands range where
+a merged mesh wastes vertices. `InstanceLanes` mirrors
+`points::InstanceOptions` (scale + scaleLane/tintLane/orientLane + up;
+same orientation basis, so a cloud renders identically merged or
+instanced). The per-point data rides a second vertex stream (a 3x4
+transform + tint, `INPUT_ELEMENT_FREQUENCY_PER_INSTANCE`) through a
+parallel instanced PSO pair; tints multiply into baseColor in the
+shared pixel shader. The flock is one surface: one id, one
+`TransformComponent` moving the whole flock, one `MaterialComponent`
+whose alpha routes it opaque or blended (the blended pass sorts the
+flock as one item — instances are not sorted against each other).
+`setInstances(id, cloud, lanes)` refreshes the points (UpdateBuffer
+in place when the count is unchanged, recreate otherwise); an empty
+cloud is a valid invisible flock awaiting points.
+
+## The easel
+
+`Easel.h` (`sigil::world::easel`, header-only) is the artist layer for
+PLACING things — SigilShape's easel covers 2D marks, this one covers
+the stage:
+
+```cpp
+auto stage = easel::stage(world);
+stage.sun({-.4f, -.8f, -.5f}, 2.4f)
+     .light({200, 300, 0}, cyan, 3)          // registry point light
+     .place(mesh, gold).at({0, 0, 0}).turned(30).key("star")
+     .panel(image, 380, 252).at({0, 60, 0}).key("hud")
+     .swarm(cloud, quadStamp, glowMat).key("sparks")  // addInstanced
+     .commit();                              // reconcile, return Stats
+```
+
+`at()/turned()/sized()/key()` style the LAST declared placement, so an
+expression stays one sentence. `commit()` reconciles against the
+previous commit and returns `scene::Scene::Stats`: placements ride the
+Scene reconciler (by-value meshes get content-hash identity, so
+re-declaring the same mesh is a keep, not a re-upload), swarms map to
+addInstanced/setInstances by key (an unchanged cloud skips the upload
+entirely), lights to `LightComponent` entities by declaration order.
+The description is consumed per commit — re-declare each frame, and
+keep the Stage alive across commits (a fresh Stage forgets what it
+placed). `sun()/sky()/look()` apply on commit only when called.
 
 ## The scene layer
 
@@ -79,7 +141,7 @@ panels are stable by construction.
 ## Demo and tests
 
 ```
-./build/bin/Debug/world_demo [outdir] [assetdir]   # 4 PNG camera shots
+./build/bin/Debug/world_demo [outdir] [assetdir]   # 5 PNG camera shots
 ./build/bin/Debug/world_test                        # skips without a Vulkan runtime
 ```
 
@@ -87,5 +149,9 @@ The demo builds a cockpit: three emissive UI cards, a curved
 `cylinderPanel` ticker, a brushed floor slab, gold extruded star,
 chrome superellipsoid, a glass pane — and, when `fetch_assets` has
 run, the Ghostscript tiger decoded from SVG through SigilLoader onto a
-poster panel (`world_poster.png` frames it). Tests skip — not fail —
-when no Vulkan runtime exists, so CI without a GPU stays green.
+poster panel (`world_poster.png` frames it). The stream — a spline
+tube with camera-facing cards — is declared through the Scene layer,
+and the dressing (two colored point lights pooling on the floor by
+the props, a 3000-spark instanced swarm riding the arc) through the
+easel. Tests skip — not fail — when no Vulkan runtime exists, so CI
+without a GPU stays green.
