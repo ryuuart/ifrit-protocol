@@ -1,0 +1,101 @@
+#pragma once
+
+/** @file
+ * SigilShape space — Skia's 3D capabilities put to work. Two devices:
+ *
+ *  - drawPanel(): a full SkM44 (perspective included) concat'd onto the
+ *    canvas, then ordinary 2D drawing — Skia rasterizes perspective-
+ *    correct, which is exactly what a diegetic UI card needs. Panels
+ *    are the zero-copy path: any SkImage (a compose scene, a web view,
+ *    an SVG) lands on a plane in space.
+ *
+ *  - drawMesh(): the painter pipeline for Mesh solids — CPU transform,
+ *    per-vertex lighting, back-to-front triangle sort, SkVertices
+ *    batches (chunked under the 16-bit index limit). Style::Normals
+ *    renders a view-space normal G-buffer instead of lit color; feed
+ *    that surface to Materials.h and per-pixel chrome/gold/glass lands
+ *    on true 3D geometry — the deferred bridge between the two headers.
+ *
+ * One Camera struct drives both; its view/projection matrices are plain
+ * SkM44s, so anything Skia draws can join the scene.
+ */
+
+#include "sigilshape/Mesh.h"
+
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkM44.h>
+#include <include/core/SkRefCnt.h>
+
+#include <vector>
+
+namespace sigil::shape::space {
+
+/** Right-handed, y-up camera. Field of view is vertical. */
+struct Camera {
+  SkV3 eye = {0, 0, 480};
+  SkV3 target = {0, 0, 0};
+  SkV3 up = {0, 1, 0};
+  float fovYDeg = 40;
+  float zNear = 4;
+  float zFar = 4096;
+
+  SkM44 view() const;
+  SkM44 projection(float aspect) const;
+  /** view -> NDC -> viewport pixels (y flipped back to Skia's y-down). */
+  SkM44 viewProjection(SkSize viewport) const;
+};
+
+struct Light {
+  SkV3 direction = {-0.5f, -0.8f, -0.4f}; ///< world-space, toward scene
+  SkColor4f color = SkColors::kWhite;
+  float intensity = 1;
+};
+
+struct MeshStyle {
+  enum class Mode : uint8_t {
+    Lit,     ///< per-vertex Lambert + Blinn specular + rim
+    Normals, ///< view-space normal G-buffer (rgb = n*0.5+0.5), unlit
+    Uv,      ///< uv debug ramp
+  };
+  Mode mode = Mode::Lit;
+  SkColor4f baseColor = {0.8f, 0.8f, 0.85f, 1};
+  std::vector<Light> lights = {{}};
+  SkColor4f ambient = {0.12f, 0.12f, 0.15f, 1};
+  float specular = 0.5f;      ///< Blinn specular strength
+  float shininess = 48;       ///< Blinn exponent
+  float rim = 0.25f;          ///< rim light strength
+  /** Optional texture: uvs sample this image, modulated by lighting. */
+  sk_sp<SkImage> texture;
+  bool backfaceCull = true;
+  bool depthSort = true;
+};
+
+/** Draw a mesh through the painter pipeline. @p model is the mesh's
+ *  world transform; the camera provides view/projection at the
+ *  canvas's @p viewport size. */
+void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
+              const Camera &camera, SkSize viewport,
+              const MeshStyle &style = {});
+
+/** Place 2D content on a plane in space: concats the full perspective
+ *  transform then runs @p draw with the canvas in the panel's local
+ *  coordinates (origin at panel center, x right, y DOWN like any Skia
+ *  canvas, one unit = one world unit). */
+void drawPanel(SkCanvas &canvas, const SkM44 &model, const Camera &camera,
+               SkSize viewport,
+               const std::function<void(SkCanvas &)> &draw);
+
+/** Convenience: an image mapped onto a width x height panel at
+ *  @p model (image stretched to the panel rect, centered). */
+void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
+                    float height, const SkM44 &model, const Camera &camera,
+                    SkSize viewport, float opacity = 1);
+
+/** Model-matrix helpers (row-major reading order: applied right to
+ *  left, translate * rotate * scale). */
+SkM44 place(SkV3 position, float yawDeg = 0, float pitchDeg = 0,
+            float rollDeg = 0, float scale = 1);
+
+} // namespace sigil::shape::space
