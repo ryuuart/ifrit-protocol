@@ -1900,7 +1900,7 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
                                  .height(Dim(6))
                                  .width(Dim(60))
                                  .overlay(cde::bevel(2, true, true, s)));
-    return col.wipe(270.0f, &subpanel); // 270 = reveal from the BOTTOM
+    return col.mask(by::edge(270.0f, &subpanel)); // 270 = from the BOTTOM
   }
 
   // -------------------------------------------------------------------------

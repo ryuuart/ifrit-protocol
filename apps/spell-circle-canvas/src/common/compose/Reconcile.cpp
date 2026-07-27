@@ -218,19 +218,19 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
     return true;
   if (a->echoes != b->echoes)
     return false;
-  if (a->hasTrim != b->hasTrim)
-    return false;
-  if (a->hasTrim && (!propEqual(a->trimStart, b->trimStart) ||
-                     !propEqual(a->trimEnd, b->trimEnd) ||
-                     !propEqual(a->trimOffset, b->trimOffset) ||
-                     a->trimMode != b->trimMode))
-    return false;
   if (a->staggerChildrenMs != b->staggerChildrenMs ||
       a->staggerFrom != b->staggerFrom)
     return false;
-  if (a->hasWipe != b->hasWipe ||
-      (a->hasWipe && (a->wipeAngleDeg != b->wipeAngleDeg ||
-                      !propEqual(a->wipeFraction, b->wipeFraction))))
+  // The masking family. A mask is read LIVE every frame, so it participates
+  // in reconciler equality or a pruned node reveals to its first frame and
+  // stays there — §33's comparable-values law, and the reason the shape
+  // gate takes a Region value instead of an outline generator.
+  if (a->masks.size() != b->masks.size())
+    return false;
+  for (size_t i = 0; i < a->masks.size(); ++i)
+    if (!(a->masks[i] == b->masks[i]))
+      return false;
+  if (a->markNames != b->markNames)
     return false;
   if (a->overlays.size() != b->overlays.size())
     return false;
@@ -290,6 +290,34 @@ bool Spans::operator==(const Spans &other) const {
       return false;
   }
   return true;
+}
+
+/** A Gate compares the same way, and for the same reason — with one extra
+ *  clause worth naming. An `alpha` gate holds a Material; a LIVE material
+ *  (uTime or a bound uniform) never compares equal, exactly as a live
+ *  material fill never does, because a shader that resolves per frame is
+ *  not a value this frame can vouch for. A static one compares by recipe
+ *  and prunes like any other. */
+bool Gate::operator==(const Gate &other) const {
+  if (kind != other.kind)
+    return false;
+  switch (kind) {
+  case Kind::Spans:
+    return where == other.where;
+  case Kind::Edge:
+    return angleDeg == other.angleDeg && propEqual(fraction, other.fraction);
+  case Kind::Shape:
+    return outside == other.outside && region == other.region;
+  case Kind::Alpha:
+    if ((bool)coverage != (bool)other.coverage)
+      return false;
+    if (!coverage)
+      return true;
+    if (coverage->isAnimated() || other.coverage->isAnimated())
+      return false;
+    return *coverage == *other.coverage;
+  }
+  return false;
 }
 
 namespace {

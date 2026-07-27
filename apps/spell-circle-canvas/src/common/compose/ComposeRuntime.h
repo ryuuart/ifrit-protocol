@@ -61,10 +61,13 @@ struct Instance {
   int8_t driveProbe = -1;
 
   // Transition state, keyed by property slot
+  // The FIXED property slots. Mask gates deliberately are NOT here — their
+  // count is a property of the description, so they live in maskAnims (the
+  // four that used to be here, kTrimStart/kTrimEnd/kTrimOffset/kWipe, went
+  // with trim() and wipe()).
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kTrimStart, kTrimEnd, kTrimOffset, kGlyphProgress, kSkewX, kSkewY,
-    kScaleX, kScaleY, kWipe,
+    kGlyphProgress, kSkewX, kSkewY, kScaleX, kScaleY,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
@@ -84,10 +87,21 @@ struct Instance {
   // strand::from(key): the keyed paths, in this node's local space —
   // handed to decorations as PaintContext::borrowed.
   std::vector<std::pair<std::string, SkPath>> borrowedPaths;
-  // Animated span endpoints (two per term, per pass, in declaration
-  // order). A vector rather than the fixed Slot array because the count
-  // is a property of the description, not of the kernel.
+  // Animated span endpoints (THREE per term — begin, end, offset — per
+  // pass, in declaration order). A vector rather than the fixed Slot array
+  // because the count is a property of the description, not of the kernel.
   std::vector<std::unique_ptr<AnimatedFloat>> spanAnims;
+  // Animated MASK GATE scalars, in declaration order: three per Spans term
+  // (begin, end, offset), one per Edge fraction, none for Shape or Alpha.
+  //
+  // SEPARATELY INDEXED PER MASK, and that is the whole point rather than an
+  // implementation detail. Three masks on one node may carry three motions
+  // at three rates; if they shared a slot the second would retarget the
+  // first and a composition the designer asked for by name would be a race.
+  // Positional like spanAnims: a description that changes the SHAPE of its
+  // mask list drops the running motions rather than carrying them onto
+  // numbers that now mean something else.
+  std::vector<std::unique_ptr<AnimatedFloat>> maskAnims;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -150,12 +164,30 @@ struct Instance {
   // them would have meant rewriting fifteen call sites of the subtlest
   // function in the library to gain nothing.
   bool scalarMemo = false;
-  /** The content scalars a recording was baked with. Trim/wipe/glyph
-   *  default to their no-op values, so a node that has none compares
-   *  equal to itself forever. */
+  /** The content scalars a recording was baked with. A node that has none
+   *  compares equal to itself forever.
+   *
+   *  §3.6's REPAIR, and the one hard constraint the masking family was
+   *  designed around. This used to be a FIXED five-float struct —
+   *  trimStart/trimEnd/trimOffset/wipe/glyph — and that fixed size was the
+   *  whole obstacle: it is why `spanVolatile` is excluded from this memo by
+   *  a written decision in Paint.cpp, and therefore why every one of R2's
+   *  58 trim→`stroke(spans::…)` ports moved its node from the §17 scalar
+   *  memo to per-frame content volatility and out of `Cache::Group`. The
+   *  plate ledger was byte-identical, so nothing caught it: byte-identity
+   *  is a pixel gate, not a cost gate.
+   *
+   *  A mask's gate scalars are a BOUNDED, per-node, resolvable-to-floats
+   *  list, so they ride here as a vector and an element-level gate keeps
+   *  the memo — a held keyframe on a masked node still repaints nothing.
+   *  (Per-PASS span endpoints are still excluded; they are a property of an
+   *  open pass list, not of the node, and closing that is a separate
+   *  piece of work.) */
   struct ContentScalars {
-    float trimStart = 0.0f, trimEnd = 1.0f, trimOffset = 0.0f;
-    float wipe = 1.0f, glyph = 1.0f;
+    float glyph = 1.0f;
+    /** Every mask gate's animated floats, resolved, in the order
+     *  maskAnims indexes them. */
+    std::vector<float> gates;
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
@@ -279,6 +311,12 @@ struct Instance {
   /** Resolve every stroke pass's claimed runs for this frame, with
    *  rest() complements applied. Empty when the node has no passes. */
   std::vector<std::vector<Span>> resolveSpans(const SkPath &outline) const;
+  /** Resolve every mask gate's animatable floats for this frame, in the
+   *  order maskAnims indexes them (and ContentScalars::gates stores
+   *  them) — every value, live or settled, because the memo compares what
+   *  the recording was BAKED with. Empty when the node carries no mask, or
+   *  only shape/alpha gates, which have no numbers. */
+  std::vector<float> resolveGateValues() const;
 
   /** A change here stales every ancestor's recording too.
    *

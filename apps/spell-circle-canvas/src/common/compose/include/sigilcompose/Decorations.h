@@ -97,7 +97,7 @@ struct PathFormat {
 
   /** Per-DECORATION trim window (fractions of arc length) — one node can
    *  carry a full static band AND a marching sliver as two strokes. Wraps
-   *  like TrimMode::Wrap (seam-crossing windows stitch into one contour).
+   *  like `spans::wrap` (seam-crossing windows stitch into one contour).
    *  Bind `trimPhase` to a wrapping Output and THIS stroke marches while
    *  its siblings hold still (declares the decoration animated).
    *
@@ -542,8 +542,9 @@ inline Border border(float width, Fill fill, float inset = 0.0f) {
   return Border{.width = width, .fill = std::move(fill), .inset = inset};
 }
 
-/** CONDEMNED, and still here — one of the three legacies R3 did not
- *  delete (with `Element::trim` and `Ribbon::widthFn`). The stroke grammar
+/** CONDEMNED, and still here — one of the two legacies R3 did not delete
+ *  (with `Element::trim`; `Ribbon::widthFn`/`widthMax`, the third, is GONE
+ *  — see ROADMAP §33's widthFn→Profile note). The stroke grammar
  *  says this as `.stroke(spans::corners(arm), brush::solid(width, fill))`,
  *  and porting the corpus's sites to it is a sweep no designer has cleared
  *  — the two paths are different constructions, so it moves pixels. Do

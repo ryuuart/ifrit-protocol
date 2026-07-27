@@ -1059,9 +1059,8 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                  2, Fill::color(fade(kCyanRing, 0.6f)))),
                          cx - 118, horizon - 226, 236, 236);
     if (!still)
-      ring.trim(0.0f,
-                animate(from(0.0f).to(1.0f),
-                        {700ms, &ch::easeOutQuint, 2600ms}));
+      ring.mask(by::spans(spans::upTo(
+          animate(from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
     scene.child(ring);
 
     // three helmeted figures, backlit: dome silhouette + gloss rim-light

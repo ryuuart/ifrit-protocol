@@ -177,14 +177,134 @@ Element &Element::inward() {
   return *this;
 }
 Element &Element::clip(bool on) { m_node->clipContent = on; return *this; }
-Element &Element::trim(Animatable<float> start, Animatable<float> end,
-                       Animatable<float> offset, TrimMode mode) {
-  detail::FxData &fx = m_node->fxData.ensure();
-  fx.hasTrim = true;
-  fx.trimStart = std::move(start);
-  fx.trimEnd = std::move(end);
-  fx.trimOffset = std::move(offset);
-  fx.trimMode = mode;
+
+// ---- the masking family ---------------------------------------------------
+
+Region Region::own() { return Region{}; }
+Region Region::rect(const SkRect &r) {
+  Region out;
+  out.m_kind = Kind::Rect;
+  out.m_rect = r;
+  return out;
+}
+Region Region::oval(const SkRect &bounds) {
+  Region out;
+  out.m_kind = Kind::Oval;
+  out.m_rect = bounds;
+  return out;
+}
+Region Region::path(SkPath p) {
+  Region out;
+  out.m_kind = Kind::Path;
+  out.m_path = std::move(p);
+  return out;
+}
+bool Region::operator==(const Region &other) const {
+  if (m_kind != other.m_kind)
+    return false;
+  switch (m_kind) {
+  case Kind::Own:
+    return true;
+  case Kind::Rect:
+  case Kind::Oval:
+    return m_rect == other.m_rect;
+  case Kind::Path:
+    return m_path == other.m_path;
+  }
+  return false;
+}
+SkPath Region::resolve(const SkPath &ownShape) const {
+  switch (m_kind) {
+  case Kind::Own:
+    return ownShape;
+  case Kind::Rect: {
+    SkPathBuilder b;
+    b.addRect(m_rect);
+    return b.detach();
+  }
+  case Kind::Oval: {
+    SkPathBuilder b;
+    b.addOval(m_rect);
+    return b.detach();
+  }
+  case Kind::Path:
+    return m_path;
+  }
+  return ownShape;
+}
+
+namespace parts {
+Parts all() { return Parts{Parts::kAll, {}}; }
+Parts marks() { return Parts{Parts::kMarks, {}}; }
+Parts surface() { return Parts{Parts::kSurface, {}}; }
+Parts content() { return Parts{Parts::kContent, {}}; }
+Parts children() { return Parts{Parts::kChildren, {}}; }
+Parts named(std::string_view name) {
+  Parts p;
+  p.names.emplace_back(name);
+  return p;
+}
+} // namespace parts
+
+namespace by {
+Gate spans(Spans where) {
+  Gate g;
+  g.kind = Gate::Kind::Spans;
+  g.where = std::move(where);
+  return g;
+}
+Gate edge(float angleDeg, Animatable<float> fraction) {
+  Gate g;
+  g.kind = Gate::Kind::Edge;
+  g.angleDeg = angleDeg;
+  g.fraction = std::move(fraction);
+  return g;
+}
+Gate shape(Region r) {
+  Gate g;
+  g.kind = Gate::Kind::Shape;
+  g.region = std::move(r);
+  return g;
+}
+Gate outside(Region r) {
+  Gate g = shape(std::move(r));
+  g.outside = true;
+  return g;
+}
+Gate alpha(Material coverage) {
+  Gate g;
+  g.kind = Gate::Kind::Alpha;
+  g.coverage = std::make_shared<const Material>(std::move(coverage));
+  return g;
+}
+} // namespace by
+
+size_t Gate::valueCount() const {
+  switch (kind) {
+  case Kind::Spans:
+    return where.valueCount();
+  case Kind::Edge:
+    return 1;
+  case Kind::Shape:
+  case Kind::Alpha:
+    return 0;
+  }
+  return 0;
+}
+
+Element &Element::mask(Gate with) {
+  return mask(parts::all(), std::move(with));
+}
+Element &Element::mask(Parts what, Gate with) {
+  // A fit() term inside a span GATE borrows another element's resolved box
+  // exactly as one inside a span PASS does, so the keys ride into
+  // DeriveData where the ONE derive-registration walk finds them.
+  if (with.kind == Gate::Kind::Spans)
+    for (const Spans::Term &t : with.where.terms)
+      if (t.rule == Spans::Rule::Fit && !t.key.empty())
+        m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+  m_node->fxData.ensure().masks.push_back(
+      Mask{std::move(what), std::move(with)});
   return *this;
 }
 
@@ -229,14 +349,6 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
-Element &Element::wipe(float angleDeg, Animatable<float> fraction) {
-  auto &fx = m_node->fxData.ensure();
-  fx.hasWipe = true;
-  fx.wipeAngleDeg = angleDeg;
-  fx.wipeFraction = std::move(fraction);
-  return *this;
-}
-
 Element &Element::hitTestable(bool enabled) {
   m_node->hitTestable = enabled;
   return *this;
@@ -254,23 +366,43 @@ void Element::claimBorrows(const Decoration &d) {
     derive.borrowedPathKeys.push_back(key);
 }
 
-Element &Element::overlay(Decoration d) {
+/** Bind a LOCAL label to the mark at (slot, index), so `parts::named()`
+ *  can address it. `slot` is a detail::MarkSlot as an int, for the same
+ *  reason addSpanPass takes its half that way. An empty name costs
+ *  nothing — the vector stays absent on the overwhelming majority of
+ *  nodes, which is why the labels are a side list and not a field beside
+ *  every Decoration. */
+void Element::labelMark(int slot, size_t index, std::string name) {
+  if (name.empty())
+    return;
+  m_node->fxData.ensure().markNames.push_back(
+      detail::MarkLabel{(detail::MarkSlot)slot, (uint32_t)index,
+                        std::move(name)});
+}
+
+Element &Element::overlay(Decoration d, std::string name) {
   claimBorrows(d);
-  m_node->fxData.ensure().overlays.push_back(std::move(d));
+  const size_t index = m_node->fxData.ensure().overlays.size();
+  m_node->fxData->overlays.push_back(std::move(d));
+  labelMark((int)detail::MarkSlot::Overlay, index, std::move(name));
   return *this;
 }
-Element &Element::background(Decoration d) {
+Element &Element::background(Decoration d, std::string name) {
   claimBorrows(d);
+  const size_t index = m_node->backgrounds.size();
   m_node->backgrounds.push_back(std::move(d));
+  labelMark((int)detail::MarkSlot::Background, index, std::move(name));
   return *this;
 }
-Element &Element::foreground(Decoration d) {
+Element &Element::foreground(Decoration d, std::string name) {
   claimBorrows(d);
+  const size_t index = m_node->foregrounds.size();
   m_node->foregrounds.push_back(std::move(d));
+  labelMark((int)detail::MarkSlot::Foreground, index, std::move(name));
   return *this;
 }
-Element &Element::stroke(Decoration brush) {
-  return foreground(std::move(brush));
+Element &Element::stroke(Decoration brush, std::string name) {
+  return foreground(std::move(brush), std::move(name));
 }
 Element &Element::stroke(Spans where, Decoration what, std::string name) {
   return addSpanPass(std::move(where), std::move(what), std::move(name),
@@ -723,6 +855,27 @@ std::vector<Span> complementSpans(const std::vector<Span> &spans) {
   return out;
 }
 
+std::vector<Span> intersectSpans(const std::vector<Span> &a,
+                                 const std::vector<Span> &b) {
+  // Both inputs are normalized (sorted, disjoint, non-degenerate), so one
+  // sweep suffices. Touching endpoints are not an intersection, by the
+  // same 1e-6 rule normalizeSpans drops empties with — two runs meeting
+  // at a corner share no arc length.
+  std::vector<Span> out;
+  size_t i = 0, j = 0;
+  while (i < a.size() && j < b.size()) {
+    const float lo = std::max(a[i].begin, b[j].begin);
+    const float hi = std::min(a[i].end, b[j].end);
+    if (hi - lo > 1e-6f)
+      out.push_back({lo, hi});
+    if (a[i].end < b[j].end)
+      ++i;
+    else
+      ++j;
+  }
+  return out;
+}
+
 std::optional<Span> spansOverlap(const std::vector<Span> &a,
                                  const std::vector<Span> &b) {
   for (const Span &x : a)
@@ -809,16 +962,22 @@ SkPath spanPath(const SkPath &src, const std::vector<Span> &spans) {
  *  `slice` remaps this contour's own [0,1] onto its span of the WHOLE
  *  spine, so a multi-contour spine keeps one continuous parameterisation
  *  even though the rails are built one contour at a time (which is what
- *  keeps the region from bridging between contours). */
+ *  keeps the region from bridging between contours).
+ *
+ *  `spineLen` is the WHOLE spine's measured length, which is what a
+ *  px-keyed base profile is evaluated against — the rail itself is always
+ *  fraction-keyed (it is asked in fractions of its own contour), so the
+ *  conversion happens here, once, on the way in. */
 struct BandRail {
   Profile base;
   Formation formation = Formation::Centered;
   bool outer = true;
   float sliceStart = 0.0f, sliceSpan = 1.0f;
+  float spineLen = 0.0f;
   bool operator==(const BandRail &) const = default;
   float max() const { return base.max(); }
   float across(float along) const {
-    const float w = base.across(sliceStart + along * sliceSpan);
+    const float w = base.acrossAt(sliceStart + along * sliceSpan, spineLen);
     switch (formation) {
     case Formation::Centered: return outer ? w * 0.5f : -w * 0.5f;
     case Formation::Outward:  return outer ? w : 0.0f;
@@ -916,10 +1075,10 @@ SkPath bandRegion(const SkPath &spine, const Across &width,
 
     const SkPath outerRail = profileOffset(
         contour, Profile(BandRail{width.profile, formation, true, sliceStart,
-                                 sliceSpan}));
+                                 sliceSpan, total}));
     const SkPath innerRail = profileOffset(
         contour, Profile(BandRail{width.profile, formation, false, sliceStart,
-                                  sliceSpan}));
+                                  sliceSpan, total}));
     if (outerRail.isEmpty() || innerRail.isEmpty())
       continue;
 
@@ -1183,10 +1342,10 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
   // ever bites, the honest fix is a `constant()` query on the Profile
   // seam, which is additive.
   {
-    const float first = profile.across(0.5f / 97.0f);
+    const float first = profile.acrossAt(0.5f / 97.0f, total);
     bool constant = true;
     for (int k = 1; k < 97 && constant; ++k)
-      constant = profile.across(((float)k + 0.5f) / 97.0f) == first;
+      constant = profile.acrossAt(((float)k + 0.5f) / 97.0f, total) == first;
     if (constant)
       return first == 0.0f ? spine : lines::offsetAcross(spine, first);
   }
@@ -1210,7 +1369,8 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
       // The band's frame: positive across is LEFT of travel, which with y
       // down is outside a clockwise path. One body for the band's rails
       // and a relative strand, so the two cannot drift apart.
-      const float w = profile.across(total > 0 ? (base + d) / total : 0.0f);
+      const float w =
+          profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
       const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
       if (!started) {
         out.moveTo(at);

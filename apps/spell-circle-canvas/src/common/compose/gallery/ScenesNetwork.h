@@ -300,12 +300,12 @@ struct NightNetworkScene final : Scene {
         // ---- the bus corridor (bridges the river) ----
         .child(rail({{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
                     routers::polyline(22))
-                   .inset(0).trim(0.0f, &roadReveal)
+                   .inset(0).mask(by::spans(spans::upTo(&roadReveal)))
                    .stroke(roadbed).stroke(busLane).stroke(curb).zIndex(2))
         // ---- the carto railway ----
         .child(rail({{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
                     routers::octilinear(14))
-                   .inset(0).trim(0.0f, &railReveal)
+                   .inset(0).mask(by::spans(spans::upTo(&railReveal)))
                    .style(lines::railwayCarto(1.6f, nn::kSteel,
                                               {0.95f, 0.94f, 0.90f, 1}))
                    .zIndex(3))

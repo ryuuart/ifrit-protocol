@@ -1128,7 +1128,8 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
         .clip()
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .key("film")
-        .wipe(0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms}))
+        .mask(by::edge(
+            0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms})))
         .child(std::move(accumulation))
         .child(std::move(halation))
         // The shutter bar -- the ONLY thing in the plate driven by
@@ -1139,7 +1140,7 @@ struct SlitScan2001 : sigil::compose::sketch::Sketch {
                    .width(Dim(kFilmW))
                    .height(2)
                    .fill(al(kCold, 0.4f))
-                   .wipe(0.0f, bind(&frameAlpha)))
+                   .mask(by::edge(0.0f, bind(&frameAlpha))))
         .child(hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)))
         .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
                        filmNo, kKDisplay),

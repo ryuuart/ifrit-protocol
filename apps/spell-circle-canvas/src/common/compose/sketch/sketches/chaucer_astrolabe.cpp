@@ -968,8 +968,15 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(kR - 1.0f, 0, 2.0f, 2 * kR))
                 .key("meridian")
                 .fill(Fill::color(hex(0x3a2a10, 0.55f)))
-                .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                    ramp(tAzim * 1000 + 820, 520))));
+                // BY EDGE, not by spans, and this is the one port in the
+                // corpus that MOVES PIXELS on purpose. The bar is a filled
+                // 2 × 2R rect with no stroke at all; an arc-length window
+                // walks its PERIMETER, so the first half of the ramp crawled
+                // up a 2px-wide left edge enclosing no area — a 260 ms dead
+                // beat and then a snap. A meridian draws DOWNWARD.
+                .mask(by::edge(90.0f,
+                               animate(from(0.0f).to(1.0f),
+                                       ramp(tAzim * 1000 + 820, 520)))));
 
     // --- 12 unequal-hour lines, "twelve devisiouns embelif" (I.20) --------
     // THE REGION IS A SET DIFFERENCE: these live only inside Capricorn AND
@@ -1020,18 +1027,19 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
     // --- the horizon, h = 0: heavier than its 44 siblings ------------------
     g.child(cut({0, almCy(0.0f)}, almR(0.0f), 3.4f, 0.90f, 0.50f, "horizon")
-                .trim(0.0f, animate(
+                .mask(by::spans(spans::upTo(animate(
                     from(0.0f).to(1.0f),
-                    ramp(tHorizon * 1000, 900, ch::easeOutQuint))));
+                    ramp(tHorizon * 1000, 900, ch::easeOutQuint))))));
 
     // --- the three tropics: Capricorn : equator : Cancer = 1 : k : k² -----
     const float trop[3] = {1.0f, kReq, kRcan};
     for (int i = 0; i < 3; ++i)
       g.child(cut({0, 0}, trop[i], i == 0 ? 3.0f : 2.4f, 0.80f, 0.46f,
                   "trop" + std::to_string(i))
-                  .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                      ramp(tTropics * 1000 + (float)i * 200,
-                                           760, ch::easeOutQuint))));
+                  .mask(by::spans(spans::upTo(
+                      animate(from(0.0f).to(1.0f),
+                              ramp(tTropics * 1000 + (float)i * 200, 760,
+                                   ch::easeOutQuint))))));
 
     // --- the east and west points, where the horizon meets the equator ----
     // Exact invariant: √(R_eq² + R_eq²/tan²φ) = R_eq/sin φ, to the last bit
@@ -1266,9 +1274,10 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
 
       // the ecliptic line itself, engraved down the middle of the band
       clipped.child(cut({0, kEclCy}, kEclR, 2.0f, 0.72f, 0.36f, "eclline")
-                        .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                            ramp(tRete * 1000 + 700, 1100,
-                                                 ch::easeOutQuint))));
+                        .mask(by::spans(spans::upTo(
+                            animate(from(0.0f).to(1.0f),
+                                    ramp(tRete * 1000 + 700, 1100,
+                                         ch::easeOutQuint))))));
 
       // the twelve sign names, tangential — running lettering, engraver's
       // convention, no autoFlip. Each is centred at its OWN cell midpoint,
@@ -1349,8 +1358,8 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
                                    .strokeFill = brassStroke(bb, 0.66f)})
             .foreground(PathFormat{.width = w * 0.30f,
                                    .strokeFill = Fill::color(hex(0xffedc0, 0.30f))})
-            .trim(0.0f, animate(from(0.0f).to(1.0f),
-                                ramp(delay, 900, ch::easeOutQuint)));
+            .mask(by::spans(spans::upTo(animate(
+                from(0.0f).to(1.0f), ramp(delay, 900, ch::easeOutQuint)))));
       }
       g.child(std::move(node));
     }

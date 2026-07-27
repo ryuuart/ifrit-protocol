@@ -129,12 +129,13 @@ struct BeethovenScene final : Scene {
             })
             .stroke(inkStroke);
     if (phase == 0) {
-      e.trim(0.0f, 0.0001f);
+      e.mask(by::spans(spans::upTo(0.0001f)));
     } else {
       // The §7 motion rule: durations double per ring, linear sweeps.
       const auto duration =
           std::chrono::milliseconds(120 << std::min(ring, 5));
-      e.trim(0.0f, animate(to(span), {duration, &choreograph::easeNone}));
+      e.mask(by::spans(
+          spans::upTo(animate(to(span), {duration, &choreograph::easeNone}))));
     }
     return e;
   }

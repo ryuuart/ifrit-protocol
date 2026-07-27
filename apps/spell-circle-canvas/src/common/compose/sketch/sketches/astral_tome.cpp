@@ -179,7 +179,7 @@
 //     against the other, so the two rows of dots interleave down the link.
 //     Per-rail offset, width, fill, dash AND dashPhase in one value — the
 //     whole point of Rails and the reason nothing before it could do this.
-//   * a brush::Ribbon body under the rails whose widthFn takes the band to
+//   * a brush::Ribbon body under the rails whose width Profile takes the band to
 //     40% at both endpoints, so a link reads as drawn FROM star TO star. The
 //     mod's quad cannot taper; a printed chart always does.
 //   * shapes::star(4, 0.24, 0.16) for the glyphs, which is not a departure at
@@ -454,6 +454,38 @@ inline int degreeOf(const Con &c, int index1) {
   return d;
 }
 
+/** THE LINK'S WIDTH LAW, as a comparable Profile: full in the middle, 40%
+ *  at both endpoints, so a link reads as drawn FROM star TO star.
+ *
+ *  Fraction-keyed, and correctly so — the link's ribbons sit under an
+ *  UNQUALIFIED stroke with no reveal on the node, so `along` is a fraction
+ *  of the whole spine every frame and stays put. (The px key exists for
+ *  the laws that do sit under a reveal; this one does not need it.)
+ *
+ *  `max()` is `peak` exactly: sin(pi/2) = 1 at the midpoint, so the law
+ *  tops out at 0.40 + 0.60 = 1.0 of it. That is the number the old
+ *  `widthMax` had to be told and the seam now derives.
+ *
+ *  THE max(k, 0) IS NOT DEFENSIVE PADDING — it is a bug fix, and the bug
+ *  is why this band was INVISIBLE for the sketch's whole life. `3.14159265f`
+ *  rounds UP to 3.1415927, so `sin(pi * 1.0f)` is -8.74e-08, NEGATIVE, and
+ *  `sqrt` of it is NaN. Every construction samples the law at exactly
+ *  along = 1 (the zip walk's last sample is at `d == len`; the rail walk's
+ *  is at `k == steps`), so one NaN vertex entered the band path — and a
+ *  path with a non-finite point does not draw AT ALL. The bloom and the
+ *  body were being silently dropped, leaving only the rails. Found by the
+ *  widthFn→Profile port, because the port moved the sample positions and
+ *  two links started drawing while the rest did not. */
+struct LinkTaper {
+  float peak = 1.0f;
+  float across(float along) const {
+    const float k = std::sin(3.14159265f * std::clamp(along, 0.0f, 1.0f));
+    return peak * (0.40f + 0.60f * std::sqrt(std::max(k, 0.0f)));
+  }
+  float max() const { return peak; }
+  bool operator==(const LinkTaper &) const = default;
+};
+
 } // namespace at
 
 // =============================================================================
@@ -646,23 +678,13 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     // sprite's own 12-px body.
     brush::Ribbon bloom;
     bloom.fill = Fill::color(at::mul(col, 1.0f, 0.055f));
-    bloom.widthStart = bloom.widthEnd = band * 2.1f;
     bloom.step = 6.0f;
-    bloom.widthMax = band * 2.1f;
-    bloom.widthFn = [band](const PathSample &s) {
-      const float k = std::sin(3.14159265f * std::clamp(s.fraction, 0.0f, 1.0f));
-      return band * 2.1f * (0.40f + 0.60f * std::sqrt(k));
-    };
+    bloom.width = at::LinkTaper{band * 2.1f};
 
     brush::Ribbon body;
     body.fill = Fill::color(at::mul(col, 1.0f, 0.135f));
-    body.widthStart = body.widthEnd = band;
     body.step = 4.0f;
-    body.widthMax = band;
-    body.widthFn = [band](const PathSample &s) {
-      const float k = std::sin(3.14159265f * std::clamp(s.fraction, 0.0f, 1.0f));
-      return band * (0.40f + 0.60f * std::sqrt(k));
-    };
+    body.width = at::LinkTaper{band};
 
     const SkRect box2 = SkRect::MakeLTRB(std::min(a.fX, b.fX), std::min(a.fY, b.fY),
                                          std::max(a.fX, b.fX), std::max(a.fY, b.fY));
@@ -1361,7 +1383,8 @@ struct AstralTome : sigil::compose::sketch::Sketch {
           const int d = divisors[(size_t)(pass * c.linkCount + li)] - at::kDivMin;
           chartLinks.child(
               place(linkPass(c, li, pass, lkKey++)
-                        .trim(0.0f, animate(from(0.0f).to(1.0f), {520ms}))
+                        .mask(by::spans(spans::upTo(
+                            animate(from(0.0f).to(1.0f), {520ms}))))
                         .opacity(bind(&bright[(size_t)d]))));
         }
 

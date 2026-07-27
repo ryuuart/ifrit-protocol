@@ -1279,71 +1279,50 @@ struct Pattern {
 /** The variable-width RIBBON: a filled band whose width follows a profile —
  *  linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
  *  (width peaks perpendicular to the nib, the Illustrator calligraphic
- *  model), or any custom `widthFn` (incomparable — memo the host). */
+ *  model), or any `Profile` on the shared width seam. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
   float step = 3.0f; // clamped ≥ 0.5px at paint (0 would never advance)
-  /** CONDEMNED, and still here — see `width` below for the replacement.
-   *  R3 did not delete this pair: moving the corpus's 7 `widthFn` ribbons
-   *  onto the profile lane is a RE-DRAW, not a rename (the two lanes are
-   *  different constructions — `bandRegion()` vs the sample-and-zip walk),
-   *  so it moves pixels by construction and needs a designer reading 7
-   *  plates. Do not add call sites (ROADMAP §33, R3 note).
-   *
-   *  Any w(s) over the run — a taper is the default, not the limit: a
-   *  bulge, a pulse train, a per-node profile all fit here.
-   *
-   *  **Key it to `distance`, not to `fraction`, if the host can `trim()`.**
-   *  A decoration under a trim is handed the REVEALED contour, so
-   *  `PathSample::fraction` is a fraction of what has been drawn SO FAR,
-   *  not of the whole path — and a width law keyed to it slides along the
-   *  stroke as the reveal grows. `distance / <the full length you
-   *  authored against>` stays put. The two are identical in a still frame
-   *  and only diverge in motion, which is the worst way for a bug to be
-   *  visible. */
-  std::function<float(const PathSample &)> widthFn;
-  /** CONDEMNED with `widthFn`. Upper bound on what it returns, in px.
-   *
-   *  `bleed()` grows the recording cull, and it cannot look inside a
-   *  `std::function` — so a width function returning 166 on a ribbon
-   *  whose widthStart/widthEnd are the defaults declared 10 px of reach
-   *  and the band was silently CLIPPED. A flow map is exactly this shape
-   *  (Minard's retreat band runs 166 px at Kowno), and the failure looks
-   *  like a rendering bug rather than a missing declaration.
-   *
-   *  Set it whenever you set `widthFn`. It is the one number the library
-   *  cannot derive for you. */
-  float widthMax = 0.0f;
 
-  /** THE WIDTH LAW, on the shared PROFILE seam — and the reason
-   *  `widthFn`/`widthMax` are condemned (ROADMAP §33, stage three / N12,
-   *  and the R3 note for why they outlived the deletion phase).
+  /** THE WIDTH LAW, on the shared PROFILE seam — and what replaced the
+   *  deleted `widthFn`/`widthMax` pair (ROADMAP §33, the widthFn→Profile
+   *  note).
    *
    *  A `Profile` is `float across(float along)` plus a REQUIRED
-   *  `float max()` plus EQUALITY, so setting it closes both holes the
-   *  callable pair leaves open at once: `bleed()` can ask how far the
-   *  mark reaches instead of trusting a second field nobody set (the
-   *  §25/audit-I9 silent-clip trap, now structurally impossible on this
-   *  path), and the reconciler can compare two ribbons instead of
-   *  declaring every `widthFn` ribbon unequal forever.
+   *  `float max()` plus EQUALITY, so setting it closes both holes the old
+   *  callable pair left open at once: `bleed()` asks how far the mark
+   *  reaches instead of trusting a second field nobody set (the
+   *  §25/audit-I9 silent-clip trap, now structurally impossible), and the
+   *  reconciler compares two ribbons instead of declaring every
+   *  varying-width ribbon unequal forever — a `widthFn` ribbon could
+   *  never prune, so its whole band re-recorded every frame.
    *
    *  `across(along)` is the FULL width at that fraction of the spine, the
    *  same value `band(spine, across(...))` reads — one vocabulary for a
    *  band's taper, a strand's displacement and a ribbon's width.
    *
-   *  IT ALSO CHANGES THE GEOMETRY, deliberately: a profiled ribbon is
-   *  `bandRegion()`, so its rails go through `profileOffset` and pick up
-   *  `lines::offsetAcross`'s real-vertex corner repair (arc outside a
-   *  turn, miter inside). The sample-and-displace walk below leaves a
-   *  spur on the inside of every rectangle corner. That is why this is a
-   *  new field and not a reinterpretation of the old ones — no existing
-   *  ribbon's output moves (§27).
+   *  **A law that must not slide under a reveal is keyed in PX**: give the
+   *  scheme `static constexpr bool alongIsPx = true` and `across` is
+   *  handed arc-length px from the spine's start instead of a fraction.
+   *  Under `trim()`/`spans::upTo` the decoration receives the REVEALED
+   *  contour, so a fraction is a fraction of what has been drawn so far
+   *  and a fraction-keyed law walks along the mark as it writes; px does
+   *  not move — provided the reveal is anchored at the spine's start
+ *  (upTo/range-from-0); a moving-begin window or wrap measures px from
+ *  the revealed piece's start. See `PxKeyedProfileScheme`.
    *
-   *  Default-constructed means ABSENT: `widthFn`, then the nib, then the
-   *  widthStart→widthEnd taper apply, exactly as before. */
+   *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
+   *  through `profileOffset` — a CONSTANT profile picks up
+   *  `lines::offsetAcross`'s real-vertex corner repair (arc outside a
+   *  turn, miter inside) instead of the spur the sample-and-displace walk
+   *  below leaves on the inside of every rectangle corner; a VARYING one
+   *  is sampled per rail at a uniform 2 px and zipped by arc length.
+   *
+   *  Default-constructed means ABSENT: the nib, then the
+   *  widthStart→widthEnd taper apply. */
   Profile width;
 
   /** Is the profile seam in use? (A default-constructed Profile compares
@@ -1354,15 +1333,12 @@ struct Ribbon {
   float bleed() const {
     if (hasProfile())
       return width.max();
-    const float base = std::max(widthStart, widthEnd);
-    return widthFn ? std::max(base, widthMax) : base;
+    return std::max(widthStart, widthEnd);
   }
   bool operator==(const Ribbon &o) const {
     return fill == o.fill && widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
-           nibContrast == o.nibContrast && step == o.step &&
-           widthMax == o.widthMax && width == o.width && !widthFn &&
-           !o.widthFn;
+           nibContrast == o.nibContrast && step == o.step && width == o.width;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
@@ -1396,9 +1372,7 @@ struct Ribbon {
           break;
         const PathSample s{pos, tan, at, len > 0 ? at / len : 0};
         float w;
-        if (widthFn) {
-          w = widthFn(s);
-        } else if (nibAngleDeg >= 0) {
+        if (nibAngleDeg >= 0) {
           const float a = std::atan2(tan.y(), tan.x()) -
                           nibAngleDeg * 0.017453293f;
           w = widthStart *

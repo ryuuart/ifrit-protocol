@@ -292,7 +292,7 @@ inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
 
 /** A circular arc inscribed in the box, STARTING at @p startDeg (Skia
  *  canvas convention: 0° = +x, clockwise) and sweeping @p sweepDeg — the
- *  path begins at the arc's start, so `.trim(0, sweep/360)`-style reveals
+ *  path begins at the arc's start, so `spans::upTo(sweep/360)`-style reveals
  *  and orbit connectors (the PoE Orbit idiom, REFERENCES.md §5) need no
  *  wrap math. Stroke it; an unstroked open arc has no fillable area. */
 inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {

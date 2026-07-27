@@ -1539,9 +1539,9 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // whole subtree with no diagnostic at all. Hence the explicit rect.
     Element lattice = at(gx, gy, 4 * cw, 3 * chh)
                           .key("grounds")
-                          .wipe(90.0f, bind(&demo)
-                                           .window(0.50f, 0.64f)
-                                           .map(upHoldAwayBack()));
+                          .mask(by::edge(90.0f, bind(&demo)
+                                                    .window(0.50f, 0.64f)
+                                                    .map(upHoldAwayBack())));
     for (int i = 0; i < 12; ++i) {
       const int col = i % 4, row = i / 4;
       lattice.child(at((float)col * cw, (float)row * chh, cw - 3, chh - 3)

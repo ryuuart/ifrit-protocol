@@ -137,6 +137,30 @@ std::vector<const Animatable<float> *> spanEndpoints(const ElementNode &node) {
   return out;
 }
 
+/** Every animatable number a node's MASK GATES carry, in declaration order
+ *  — the order Instance::maskAnims is indexed by. Three per Spans term,
+ *  one per Edge fraction, none for Shape or Alpha.
+ *
+ *  SEPARATE PER MASK, which is the point: three masks running at three
+ *  rates each own their slots, so `animate(to(x))` on the second retargets
+ *  the second and nothing else. */
+std::vector<const Animatable<float> *> gateEndpoints(const ElementNode &node) {
+  std::vector<const Animatable<float> *> out;
+  if (!node.fxData)
+    return out;
+  for (const Mask &m : node.fxData->masks) {
+    if (m.with.kind == Gate::Kind::Spans)
+      for (const Spans::Term &term : m.with.where.terms) {
+        out.push_back(&term.begin);
+        out.push_back(&term.end);
+        out.push_back(&term.offset);
+      }
+    else if (m.with.kind == Gate::Kind::Edge)
+      out.push_back(&m.with.fraction);
+  }
+  return out;
+}
+
 } // namespace
 
 /** Mount entrances: an animate(from(a).to(b)) value plays `from → value` when the node
@@ -210,13 +234,6 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   entrance(Instance::kSkewY, node.paint.skewY);
   entrance(Instance::kScaleX, node.paint.scaleX);
   entrance(Instance::kScaleY, node.paint.scaleY);
-  if (node.fxData && node.fxData->hasWipe)
-    entrance(Instance::kWipe, node.fxData->wipeFraction);
-  if (node.hasTrim()) {
-    entrance(Instance::kTrimStart, node.fxData->trimStart);
-    entrance(Instance::kTrimEnd, node.fxData->trimEnd);
-    entrance(Instance::kTrimOffset, node.fxData->trimOffset);
-  }
   if (node.textData && node.textData->glyphFx)
     entrance(Instance::kGlyphProgress, node.textData->glyphFx->progress);
   // Span reveals: `.stroke(spans::upTo(animate(...)), brush)` is a mount
@@ -227,6 +244,14 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
     inst.spanAnims.resize(ends.size());
     for (size_t i = 0; i < ends.size(); ++i)
       entranceAt(inst.spanAnims[i], *ends[i]);
+  }
+  // Mask gates: `.mask(by::spans(spans::upTo(animate(...))))` and
+  // `.mask(by::edge(90, animate(...)))` are mount entrances like any other.
+  {
+    const std::vector<const Animatable<float> *> gates = gateEndpoints(node);
+    inst.maskAnims.resize(gates.size());
+    for (size_t i = 0; i < gates.size(); ++i)
+      entranceAt(inst.maskAnims[i], *gates[i]);
   }
 
   // Color fill entrance: from → to through the kFillLerp progress.
@@ -276,21 +301,6 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.scaleX, nd);
   transitionFloat(*this, inst, Instance::kScaleY, prev.paint.scaleY,
                   next.paint.scaleY, nd);
-  if (next.hasTrim() || prev.hasTrim()) {
-    static const Animatable<float> kTrimStart0 = 0.0f, kTrimEnd1 = 1.0f,
-                                  kTrimOffset0 = 0.0f;
-    const FxData *pf = prev.fxData ? &*prev.fxData : nullptr;
-    const FxData *nf = next.fxData ? &*next.fxData : nullptr;
-    transitionFloat(*this, inst, Instance::kTrimStart,
-                    pf ? pf->trimStart : kTrimStart0,
-                    nf ? nf->trimStart : kTrimStart0, nd);
-    transitionFloat(*this, inst, Instance::kTrimEnd,
-                    pf ? pf->trimEnd : kTrimEnd1,
-                    nf ? nf->trimEnd : kTrimEnd1, nd);
-    transitionFloat(*this, inst, Instance::kTrimOffset,
-                    pf ? pf->trimOffset : kTrimOffset0,
-                    nf ? nf->trimOffset : kTrimOffset0, nd);
-  }
   {
     const GlyphFx *pg =
         prev.textData && prev.textData->glyphFx ? &*prev.textData->glyphFx
@@ -329,6 +339,30 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
       for (size_t i = 0; i < nextEnds.size(); ++i)
         transitionFloatAt(*this, inst, inst.spanAnims[i], *prevEnds[i],
                           *nextEnds[i], nd);
+    }
+  }
+
+  // Mask gates, by the same rule and for the same reason. This is what
+  // makes the retarget case work: an element that writes ONE mask in both
+  // branches of an if/else keeps a stable slot index, so
+  // `animate(to(span))` ramps from wherever the gate is now instead of
+  // mounting from scratch. Write two masks in one branch and one in the
+  // other and the shape changed — the motions drop, deliberately, rather
+  // than carrying onto a number that now means something else.
+  {
+    const std::vector<const Animatable<float> *> prevGates =
+        gateEndpoints(prev);
+    const std::vector<const Animatable<float> *> nextGates =
+        gateEndpoints(next);
+    if (prevGates.size() != nextGates.size()) {
+      inst.maskAnims.clear();
+      inst.maskAnims.resize(nextGates.size());
+    } else {
+      if (inst.maskAnims.size() != nextGates.size())
+        inst.maskAnims.resize(nextGates.size());
+      for (size_t i = 0; i < nextGates.size(); ++i)
+        transitionFloatAt(*this, inst, inst.maskAnims[i], *prevGates[i],
+                          *nextGates[i], nd);
     }
   }
 

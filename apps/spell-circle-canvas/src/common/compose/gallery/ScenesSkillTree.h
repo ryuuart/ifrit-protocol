@@ -449,8 +449,8 @@ struct SkillTreeScene final : Scene {
   }
 
   /** The wrap comet: the widest group's orbit ring carries a fixed
-   *  [0.92, 1.06] trim window whose offset is a bound wrapping phase.
-   *  TrimMode::Wrap keeps BOTH pieces across the seam, so the highlight
+   *  [0.92, 1.06] wrap window whose offset is a bound wrapping phase.
+   *  `spans::wrap` keeps BOTH pieces across the seam, so the highlight
    *  marches around the circle forever without a blink. */
   void cometRing(Element &root) {
     namespace pt = skill_tree;

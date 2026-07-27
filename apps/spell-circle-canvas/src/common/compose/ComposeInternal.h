@@ -188,16 +188,27 @@ struct StrokeData {
   std::vector<StrokePass> passes;
 };
 
+/** Which unqualified mark slot a local label belongs to. Span passes carry
+ *  their own `name` on StrokePass; these three lists are the labels the
+ *  UNqualified slots grew so `parts::named()` can address them too. */
+enum class MarkSlot : uint8_t { Background, Overlay, Foreground };
+
+/** Element::foreground/overlay/background/stroke(d, name): one local label
+ *  bound to one mark, by slot and index. A vector of these rather than a
+ *  name beside every Decoration, because naming a mark is rare and
+ *  Decoration is a hot value in three inline lists. */
+struct MarkLabel {
+  MarkSlot slot = MarkSlot::Foreground;
+  uint32_t index = 0;
+  std::string name;
+  bool operator==(const MarkLabel &) const = default;
+};
+
 struct FxData {
   std::optional<Effect> layerEffect;
   std::optional<Effect> backdropEffect;
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
-  // Trim Path: painted-outline reveal (fractions of arc length).
-  bool hasTrim = false;
-  Animatable<float> trimStart = 0.0f, trimEnd = 1.0f;
-  Animatable<float> trimOffset = 0.0f; // animatable; the Wrap-mode marcher
-  TrimMode trimMode = TrimMode::Clamp;
   float staggerChildrenMs = 0; // extra order·each mount delay per subtree
   Stagger::From staggerFrom = Stagger::From::Start;
   // Element::overlay(): decorations painted OVER the fill and UNDER the
@@ -205,12 +216,20 @@ struct FxData {
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
   // rare-fields rule Composer.cpp's static_assert enforces.
   std::vector<Decoration> overlays;
-  // Element::wipe(): a directional reveal — an axis-aligned clip fraction
-  // at an arbitrary angle, covering the WHOLE node (decorations too,
-  // because a reveal reveals).
-  bool hasWipe = false;
-  float wipeAngleDeg = 0.0f;
-  Animatable<float> wipeFraction = 1.0f;
+  // Element::mask(): the appearance-gating family, in declaration order.
+  // Masks whose selections overlap INTERSECT on the overlap, and each
+  // carries its own animation slots (Instance::maskAnims), so three masks
+  // on one node may run at three different rates.
+  //
+  // Both of this block's departed tenants — trim()'s arc window and
+  // wipe()'s half-plane — are members of this list now: a trim is
+  // `{parts::all(), by::spans(...)}` and a wipe is `{parts::all(),
+  // by::edge(...)}`. That is why the masks live HERE rather than in a new
+  // block: the family replaced two fixed field groups with one vector, and
+  // ElementNode did not grow a pointer for it.
+  std::vector<Mask> masks;
+  // Local labels for the UNqualified marks (see MarkLabel).
+  std::vector<MarkLabel> markNames;
 };
 
 struct MaterialData {
@@ -264,7 +283,7 @@ struct ElementNode {
   std::vector<Element> children;
 
   bool isMemo() const { return (bool)memoData; }
-  bool hasTrim() const { return fxData && fxData->hasTrim; }
+  bool hasMasks() const { return fxData && !fxData->masks.empty(); }
   bool hasStrokePasses() const {
     return strokeData && !strokeData->passes.empty();
   }
@@ -280,6 +299,13 @@ struct ElementNode {
 std::vector<Span> normalizeSpans(std::vector<Span> spans);
 /** Everything in [0,1] the input does not cover (already normalized). */
 std::vector<Span> complementSpans(const std::vector<Span> &spans);
+/** THE INTERSECTION LAW, as arithmetic: the runs BOTH sets cover. Two
+ *  masks on one target must both pass, and a span-qualified pass under a
+ *  span-gated mask claims `where ∩ gate` — so the sweep that lights up a
+ *  set of reticle brackets is one line and no re-authoring. Both inputs
+ *  are normalized; the answer is too. */
+std::vector<Span> intersectSpans(const std::vector<Span> &a,
+                                 const std::vector<Span> &b);
 /** Do these two normalized sets share more than float noise? Returns the
  *  first shared run, or nullopt. */
 std::optional<Span> spansOverlap(const std::vector<Span> &a,
