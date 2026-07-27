@@ -68,6 +68,13 @@ struct MeshStyle {
   float rim = 0.25f;          ///< rim light strength
   /** Optional texture: uvs sample this image, modulated by lighting. */
   sk_sp<SkImage> texture;
+  /** Texture PLACEMENT in uv space, applied before the lookup —
+   *  translate to scroll (a marquee riding a ribbon), scale to repeat,
+   *  rotate to spin. Identity = the image spans uv [0,1] once. */
+  SkMatrix uvTransform = SkMatrix::I();
+  /** Wrap the texture when uvs leave [0,1] (a scrolling band on a
+   *  closed loop); off = clamp, the panel default. */
+  bool tileTexture = false;
   bool backfaceCull = true;
   bool depthSort = true;
 };

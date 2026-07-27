@@ -218,10 +218,11 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
   SkPaint paint;
   paint.setAntiAlias(true);
   const bool textured = style.texture && hasUvs;
-  if (textured)
-    paint.setShader(style.texture->makeShader(SkTileMode::kClamp,
-                                              SkTileMode::kClamp,
-                                              sampling));
+  if (textured) {
+    const SkTileMode tile =
+        style.tileTexture ? SkTileMode::kRepeat : SkTileMode::kClamp;
+    paint.setShader(style.texture->makeShader(tile, tile, sampling));
+  }
   const float texW = textured ? (float)style.texture->width() : 1;
   const float texH = textured ? (float)style.texture->height() : 1;
 
@@ -240,8 +241,10 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
       for (uint32_t idx : {tri.i0, tri.i1, tri.i2}) {
         pos.push_back(screen[idx]);
         col.push_back(shaded[idx]);
-        if (textured)
-          tex.push_back({mesh.uvs[idx].fX * texW, mesh.uvs[idx].fY * texH});
+        if (textured) {
+          const SkPoint uv = style.uvTransform.mapPoint(mesh.uvs[idx]);
+          tex.push_back({uv.fX * texW, uv.fY * texH});
+        }
       }
     }
     sk_sp<SkVertices> vertices = SkVertices::MakeCopy(

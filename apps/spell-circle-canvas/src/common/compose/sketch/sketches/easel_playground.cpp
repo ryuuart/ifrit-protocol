@@ -193,6 +193,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
               .glow(canvas, camera, viewport);
         })
             .inset(840, 60, 30, 40)
+            .clip()
             .cache(Cache::None);
 
     return stack()
