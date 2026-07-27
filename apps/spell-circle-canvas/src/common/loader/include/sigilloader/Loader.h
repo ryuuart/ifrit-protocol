@@ -16,6 +16,14 @@
 //                          {.layer = "diffuse"});           //  PSD, TIFF…
 //   auto info  = hub.probe("res://light/probe.exr");        // metadata
 //
+// http:// and https:// URIs bypass mounts and fetch over the network
+// (libcurl: redirects followed, 20s timeout, HTTP errors fail).
+// Successful fetches persist in an on-disk cache (temp dir /
+// "sigilloader-net-cache"; override via setNetworkCacheDir), and a
+// cache hit never touches the network — offline runs keep working.
+// file:// URIs strip to plain local paths. poll() skips network
+// entries: they carry no mtime to watch.
+//
 // The loader owns ACCESS: where bytes come from, caching, reload.
 // What pixels mean is SigilImage's concern (sigilimage/Decode.h) — the
 // Skia codecs plus, when built in, the OpenImageIO backend (EXR with
@@ -58,6 +66,11 @@ struct ResourceInfo {
  *  format knowledge of its own. */
 using ImageOptions = sigil::image::DecodeOptions;
 
+/** The on-disk cache filename (no directory) a network URL maps to:
+ *  hex of the URL's hash plus the URL path's extension, so decode
+ *  pathHints keep working. Exposed for tests and cache pre-seeding. */
+std::string networkCacheKey(std::string_view url);
+
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
  *
@@ -79,6 +92,11 @@ public:
   /** The mounted filesystem path a URI resolves to (empty when no
    *  mount matches — the URI is then tried as a plain path). */
   std::filesystem::path resolve(std::string_view uri) const;
+
+  /** Where network fetches persist (default: temp dir /
+   *  "sigilloader-net-cache"). Files land under networkCacheKey(url);
+   *  a present file is served without touching the network. */
+  void setNetworkCacheDir(std::filesystem::path dir);
 
   /** Raw bytes; null when unresolvable/unreadable. */
   std::shared_ptr<const Blob> blob(std::string_view uri);
@@ -120,6 +138,7 @@ private:
 
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
+  std::filesystem::path m_netCacheDir; // empty = the default temp dir
 };
 
 } // namespace sigil::loader

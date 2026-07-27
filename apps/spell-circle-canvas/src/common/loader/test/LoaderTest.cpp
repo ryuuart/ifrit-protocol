@@ -103,6 +103,81 @@ TEST(LoaderHub, ProbeReportsPlainData) {
   EXPECT_EQ(info->byteSize, 64u);
 }
 
+TEST(LoaderHub, FileUrlsLoadAsLocalPaths) {
+  TempDir dir;
+  dir.write("direct.txt", "no mount needed");
+  Hub hub; // note: nothing mounted
+  const std::string url =
+      "file://" + (dir.path / "direct.txt").string();
+  auto text = hub.text(url);
+  ASSERT_TRUE(text.has_value());
+  EXPECT_EQ(*text, "no mount needed");
+  auto bytes = hub.blob(url);
+  ASSERT_NE(bytes, nullptr);
+  EXPECT_EQ(bytes->bytes.size(), 15u);
+}
+
+TEST(LoaderNet, CacheKeyKeepsUrlExtension) {
+  const std::string key =
+      networkCacheKey("https://fake.invalid/a/logo.png?v=2");
+  EXPECT_TRUE(key.ends_with(".png"));
+  EXPECT_EQ(key, networkCacheKey("https://fake.invalid/a/logo.png?v=2"));
+  EXPECT_NE(key, networkCacheKey("https://fake.invalid/a/other.png?v=2"));
+  // No extension in the URL path: bare hash, no trailing dot-noise.
+  EXPECT_EQ(networkCacheKey("https://fake.invalid/api/blob")
+                .find('.'),
+            std::string::npos);
+}
+
+TEST(LoaderNet, SeededCacheServesWithoutNetwork) {
+  // Hermetic: the cache file is pre-seeded under the same key the hub
+  // computes, so the fake host is never contacted.
+  TempDir cache;
+  const std::string url = "https://fake.invalid/x.txt";
+  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
+      << "from the cache";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  auto text = hub.text(url);
+  ASSERT_TRUE(text.has_value());
+  EXPECT_EQ(*text, "from the cache");
+}
+
+TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
+  TempDir cache;
+  const std::string url = "https://fake.invalid/red.png";
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  bitmap.eraseColor(SK_ColorRED);
+  SkFILEWStream stream(
+      (cache.path / networkCacheKey(url)).string().c_str());
+  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
+  stream.flush();
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  auto image = hub.image(url);
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 1);
+  auto info = hub.probe(url);
+  ASSERT_TRUE(info.has_value());
+  EXPECT_EQ(info->kind, ResourceInfo::Kind::Image);
+  EXPECT_EQ(info->format, "png");
+}
+
+TEST(LoaderNet, PollSkipsNetworkEntries) {
+  TempDir cache;
+  const std::string url = "https://fake.invalid/data.bin";
+  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
+      << "abc";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  ASSERT_NE(hub.blob(url), nullptr);
+  EXPECT_FALSE(hub.poll()); // no mtime to watch, nothing erased
+  auto again = hub.blob(url);
+  ASSERT_NE(again, nullptr);
+  EXPECT_EQ(again->bytes.size(), 3u);
+}
+
 #ifdef SIGILLOADER_HAS_OIIO
 
 namespace {

@@ -11,6 +11,11 @@ target_include_directories(SigilLoader PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(SigilLoader PUBLIC SigilImage)
 
+# libcurl backs the http(s):// URIs (fetch + on-disk cache); pure
+# transport, so it stays a private implementation detail.
+find_package(CURL CONFIG REQUIRED)
+target_link_libraries(SigilLoader PRIVATE CURL::libcurl)
+
 # The test writes its own EXR fixtures, so it needs OIIO directly (the
 # library itself does not).
 find_package(OpenImageIO CONFIG QUIET)
