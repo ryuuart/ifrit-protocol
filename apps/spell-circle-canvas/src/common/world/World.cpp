@@ -581,6 +581,10 @@ void World::removeSurface(uint32_t id) {
   m_impl->surfaces.erase(id);
 }
 
+size_t World::surfaceCount() const {
+  return m_impl->surfaces.size();
+}
+
 void World::setCamera(const shape::space::Camera &camera) {
   m_impl->camera = camera;
 }

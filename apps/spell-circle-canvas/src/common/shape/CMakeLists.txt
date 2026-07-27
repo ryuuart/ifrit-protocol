@@ -8,14 +8,20 @@
 # downward, never the reverse.
 add_library(SigilShape STATIC
   Blend.cpp
+  Curves.cpp
   Geometry.cpp
   Materials.cpp
   Mesh.cpp
+  Ops.cpp
+  Points.cpp
   Space.cpp
   include/sigilshape/Blend.h
+  include/sigilshape/Curves.h
   include/sigilshape/Geometry.h
   include/sigilshape/Materials.h
   include/sigilshape/Mesh.h
+  include/sigilshape/Ops.h
+  include/sigilshape/Points.h
   include/sigilshape/Space.h
 )
 

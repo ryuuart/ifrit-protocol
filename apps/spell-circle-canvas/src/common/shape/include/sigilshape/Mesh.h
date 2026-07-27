@@ -14,6 +14,7 @@
  * always present so panel textures land without ceremony.
  */
 
+#include <include/core/SkColor.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
@@ -31,6 +32,9 @@ struct Mesh {
   std::vector<SkV3> positions;
   std::vector<SkV3> normals;   // unit, same count as positions
   std::vector<SkPoint> uvs;    // [0,1]^2, same count as positions
+  /** Optional per-vertex tint (instancing writes it); empty = none.
+   *  Space.h's Lit mode multiplies baseColor by it when present. */
+  std::vector<SkColor4f> colors;
   std::vector<uint32_t> indices;
 
   size_t vertexCount() const { return positions.size(); }

@@ -146,8 +146,14 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
                          ? normalized(normalM.apply(mesh.normals[i]))
                          : SkV3{0, 0, 1};
       const SkV3 V = normalized(posView * -1.0f);
-      const SkV3 base = {style.baseColor.fR, style.baseColor.fG,
-                         style.baseColor.fB};
+      SkV3 base = {style.baseColor.fR, style.baseColor.fG,
+                   style.baseColor.fB};
+      float alpha = style.baseColor.fA;
+      if (i < mesh.colors.size()) { // per-vertex tint lane (instancing)
+        base = {base.x * mesh.colors[i].fR, base.y * mesh.colors[i].fG,
+                base.z * mesh.colors[i].fB};
+        alpha *= mesh.colors[i].fA;
+      }
       SkV3 accum = {style.ambient.fR * base.x, style.ambient.fG * base.y,
                     style.ambient.fB * base.z};
       for (const Light &light : style.lights) {
@@ -171,7 +177,7 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
             std::pow(1.0f - std::max(N.dot(V), 0.0f), 3.0f) * style.rim;
         accum += {rim, rim, rim};
       }
-      shaded[i] = toColor(accum, style.baseColor.fA);
+      shaded[i] = toColor(accum, alpha);
       break;
     }
     }

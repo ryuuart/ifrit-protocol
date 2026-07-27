@@ -6,11 +6,14 @@
 // through SigilLoader's SVG decode; without it the scene simply omits
 // the poster.
 
+#include "sigilworld/Scene.h"
 #include "sigilworld/World.h"
 
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
+#include <sigilshape/Curves.h>
 #include <sigilshape/Mesh.h>
+#include <sigilshape/Points.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
@@ -198,6 +201,53 @@ int main(int argc, char **argv) {
     }
   }
 
+  // The stream: a spline crossing the space above the set, carrying a
+  // chrome wire and camera-facing UI cards instanced on its arc-length
+  // points — declared through the scene layer (describe + reconcile),
+  // not imperative addSurface calls.
+  world::scene::Scene stream(*w);
+  {
+    shape::Spline3 arc;
+    arc.points = {{-820, 260, -320},
+                  {-300, 420, 60},
+                  {260, 300, 220},
+                  {820, 430, -260}};
+
+    shape::Cloud stations = shape::points::onSpline(arc, 9);
+    const SkV3 eye = {0, 200, 1150}; // the stream shot's camera
+    std::vector<SkV3> &facing = stations.vector("facing");
+    for (size_t i = 0; i < stations.size(); ++i) {
+      const SkV3 to = eye - stations.positions[i];
+      const float len = to.length();
+      facing[i] = len > 1e-6f ? to * (1.0f / len) : SkV3{0, 0, 1};
+    }
+    shape::points::InstanceOptions cardOptions;
+    cardOptions.orientLane = "facing";
+
+    world::Material wireMat;
+    wireMat.baseColor = {0.9f, 0.93f, 1.0f, 1};
+    wireMat.metallic = 1;
+    wireMat.roughness = 0.15f;
+    world::Material cardMat;
+    cardMat.unlit = true;
+    cardMat.texture = uiCard(384, 256, {0.45f, 0.95f, 0.85f, 1}, 0.62f);
+    cardMat.baseColor = {1, 1, 1, 0.92f};
+
+    stream.render(
+        world::scene::group().key("stream")
+            .child(world::scene::surface(
+                       shape::curves::tube(arc, {.radius = 7,
+                                                 .segments = 180,
+                                                 .sides = 10}),
+                       wireMat)
+                       .key("wire"))
+            .child(world::scene::surface(
+                       shape::points::panels(stations, 170, 112,
+                                             cardOptions),
+                       cardMat)
+                       .key("cards")));
+  }
+
   world::Lighting lighting;
   lighting.sunDirection = {-0.4f, -0.8f, -0.45f};
   lighting.sunIntensity = 2.4f;
@@ -209,7 +259,11 @@ int main(int argc, char **argv) {
     const char *name;
     shape::space::Camera camera;
   };
-  Shot shots[4];
+  Shot shots[5];
+  shots[4].name = "world_stream.png";
+  shots[4].camera.eye = {0, 200, 1150};
+  shots[4].camera.target = {0, 330, -60};
+  shots[4].camera.fovYDeg = 46;
   shots[0].name = "world_cockpit.png";
   shots[0].camera.eye = {0, 90, 900};
   shots[0].camera.target = {0, 20, 0};

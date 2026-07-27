@@ -11,8 +11,10 @@
 enable_language(C)
 
 add_library(SigilWorld STATIC
+  Scene.cpp
   VolkShim.c
   World.cpp
+  include/sigilworld/Scene.h
   include/sigilworld/World.h
 )
 

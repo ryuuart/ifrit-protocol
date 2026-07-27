@@ -1,3 +1,4 @@
+#include "sigilworld/Scene.h"
 #include "sigilworld/World.h"
 
 #include <sigilshape/Mesh.h>
@@ -169,4 +170,84 @@ TEST(World, SavePngWritesFile) {
   EXPECT_TRUE(w->savePng(path));
   EXPECT_GT(std::filesystem::file_size(path), 100u);
   std::filesystem::remove(path);
+}
+
+TEST(Scene, ReconcilesInsteadOfRebuilding) {
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 64;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(
+      shape::mesh::quad(50, 50));
+  world::Material red;
+  red.baseColor = {1, 0, 0, 1};
+
+  auto describe = [&](float x) {
+    return world::scene::group().key("root").child(
+        world::scene::group()
+            .key("rig")
+            .at({x, 0, 0})
+            .child(world::scene::surface(mesh, red).key("card")));
+  };
+
+  world::scene::Scene scene(*w);
+  world::scene::Scene::Stats first = scene.render(describe(0));
+  EXPECT_EQ(first.added, 1);
+  EXPECT_EQ(w->surfaceCount(), 1u);
+
+  // Same description: everything kept, nothing touched.
+  world::scene::Scene::Stats second = scene.render(describe(0));
+  EXPECT_EQ(second.added, 0);
+  EXPECT_EQ(second.kept, 1);
+  EXPECT_EQ(second.moved, 0);
+
+  // A parent transform change is a move, not a rebuild.
+  world::scene::Scene::Stats third = scene.render(describe(40));
+  EXPECT_EQ(third.added, 0);
+  EXPECT_EQ(third.moved, 1);
+  EXPECT_EQ(w->surfaceCount(), 1u);
+
+  // A material change rebuilds that one surface.
+  world::Material blue = red;
+  blue.baseColor = {0, 0, 1, 1};
+  world::scene::Node swapped =
+      world::scene::group().key("root").child(
+          world::scene::group().key("rig").at({40, 0, 0}).child(
+              world::scene::surface(mesh, blue).key("card")));
+  world::scene::Scene::Stats fourth = scene.render(swapped);
+  EXPECT_EQ(fourth.removed, 1);
+  EXPECT_EQ(fourth.added, 1);
+
+  // Dropping the leaf removes its surface.
+  world::scene::Scene::Stats fifth =
+      scene.render(world::scene::group().key("root"));
+  EXPECT_EQ(fifth.removed, 1);
+  EXPECT_EQ(w->surfaceCount(), 0u);
+}
+
+TEST(Scene, PanelsAreIdentityStable) {
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 64;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  sk_sp<SkImage> image;
+  {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(16, 16));
+    surface->getCanvas()->clear(SK_ColorGREEN);
+    image = surface->makeImageSnapshot();
+  }
+  world::scene::Scene scene(*w);
+  auto describe = [&](float y) {
+    return world::scene::group().child(
+        world::scene::panel(image, 100, 60).key("hud").at({0, y, 0}));
+  };
+  EXPECT_EQ(scene.render(describe(0)).added, 1);
+  // Panels resolve to a cached quad per size: re-describing must not
+  // re-upload.
+  world::scene::Scene::Stats stats = scene.render(describe(25));
+  EXPECT_EQ(stats.added, 0);
+  EXPECT_EQ(stats.moved, 1);
 }

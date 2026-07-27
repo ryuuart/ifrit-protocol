@@ -6,9 +6,12 @@
 // renders under the REAL environment instead of the procedural bakes.
 
 #include "sigilshape/Blend.h"
+#include "sigilshape/Curves.h"
 #include "sigilshape/Geometry.h"
 #include "sigilshape/Materials.h"
 #include "sigilshape/Mesh.h"
+#include "sigilshape/Ops.h"
+#include "sigilshape/Points.h"
 #include "sigilshape/Space.h"
 
 #include <sigilimage/ImageAsset.h>
@@ -514,6 +517,177 @@ void panelSpace(SkCanvas &canvas) {
 
 } // namespace
 
+// The Pathfinder panel and the Distort menu: booleans on a star+circle
+// pair, offset rings, and the four distorts over one base star.
+void panelPathfinder(SkCanvas &canvas) {
+  const auto fill = [&](const SkPath &path, SkColor4f color) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor4f(color);
+    canvas.drawPath(path, paint);
+  };
+  const auto outline = [&](const SkPath &path, SkColor4f color,
+                           float width) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(width);
+    paint.setColor4f(color);
+    canvas.drawPath(path, paint);
+  };
+
+  // Row 1 — the booleans, each on the same star+circle pair.
+  {
+    const float y = 140;
+    const SkColor4f ink = {0.85f, 0.9f, 1.0f, 1};
+    struct Case {
+      const char *name;
+      SkPath (*op)(const SkPath &, const SkPath &);
+    };
+    const Case cases[] = {{"unite", ops::unite},
+                          {"subtract", ops::subtract},
+                          {"intersect", ops::intersect},
+                          {"exclude", ops::exclude}};
+    float x = 170;
+    for (const Case &c : cases) {
+      const SkPath a = star(5, 78, 34, {x - 18, y});
+      const SkPath b = circle(52, {x + 34, y + 18});
+      outline(a, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
+      outline(b, {0.4f, 0.5f, 0.7f, 0.5f}, 1.5f);
+      fill(c.op(a, b), ink);
+      x += 300;
+    }
+  }
+  // Row 2 — offset rings: the same blob, offset in steps both ways.
+  {
+    const SkPath base = squircle(70, {250, 430}, 3.0f);
+    for (int i = -2; i <= 3; ++i) {
+      const SkPath ring = ops::offset(base, (float)i * 22.0f);
+      outline(ring, {0.3f + 0.12f * (float)(i + 2),
+                     0.75f - 0.09f * (float)(i + 2), 1.0f, 0.9f},
+              i == 0 ? 4.0f : 2.0f);
+    }
+  }
+  // Row 2, right — a non-destructive chain: offset -> zigzag -> roughen.
+  {
+    const SkPath base = circle(80, {700, 430});
+    outline(base, {0.4f, 0.5f, 0.7f, 0.6f}, 1.5f);
+    const ops::PathOp recipe = ops::chain(
+        {ops::offsetBy(18), ops::Zigzag{7, 30, true},
+         ops::Roughen{2.5f, 6, 11}});
+    fill(recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
+  }
+  // Row 3 — the distorts over one base star.
+  {
+    const float y = 620;
+    const SkPath base = star(6, 70, 38, {0, 0});
+    struct Row {
+      SkPath path;
+      SkColor4f color;
+    };
+    const Row rows[] = {
+        {ops::Roughen{5, 7, 3}.apply(base), {0.55f, 0.95f, 0.7f, 1}},
+        {ops::Zigzag{6, 26, false}.apply(base), {0.95f, 0.85f, 0.4f, 1}},
+        {ops::Zigzag{6, 26, true}.apply(base), {0.95f, 0.6f, 0.4f, 1}},
+        {ops::PuckerBloat{-0.6f}.apply(base), {0.7f, 0.55f, 0.95f, 1}},
+        {ops::PuckerBloat{0.7f}.apply(base), {0.45f, 0.75f, 0.95f, 1}},
+        {ops::Twirl{100}.apply(base), {0.95f, 0.5f, 0.7f, 1}},
+    };
+    float x = 130;
+    for (const Row &row : rows) {
+      canvas.save();
+      canvas.translate(x, y);
+      fill(row.path, row.color);
+      canvas.restore();
+      x += 200;
+    }
+  }
+}
+
+// Splines crossing space: one knotted 3D curve carrying everything —
+// tube geometry, a taper ribbon, arc-length beads as billboards, and
+// instanced panels standing on its frames.
+void panelSplines(SkCanvas &canvas) {
+  const SkSize viewport = {1240, 720};
+  space::Camera camera;
+  camera.eye = {60, 500, 780};
+  camera.target = {0, -20, 0};
+  camera.fovYDeg = 44;
+
+  Spline3 knot;
+  knot.closed = true;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    knot.points.push_back({std::cos(a) * 300,
+                           std::sin(a * 3.0f) * 110,
+                           std::sin(a) * 300});
+  }
+
+  // The tube, lit like brushed steel.
+  space::MeshStyle steel;
+  steel.baseColor = {0.6f, 0.68f, 0.8f, 1};
+  steel.specular = 0.9f;
+  steel.shininess = 48;
+  space::drawMesh(canvas,
+                  curves::tube(knot, {.radius = 9,
+                                      .segments = 220,
+                                      .sides = 12}),
+                  SkM44(), camera, viewport, steel);
+
+  // Instanced panels standing on the curve's frames, tilted like
+  // solar panels (a cooked lane: binormal leaned toward the normal).
+  Cloud stations = points::onSpline(knot, 14);
+  {
+    std::vector<SkColor4f> &tint = stations.color("tint");
+    std::vector<SkV3> &facing = stations.vector("facing");
+    const std::vector<float> &t = *stations.scalarIf("t");
+    const std::vector<SkV3> &normal = *stations.vectorIf("normal");
+    const std::vector<SkV3> &binormal = *stations.vectorIf("binormal");
+    for (size_t i = 0; i < stations.size(); ++i) {
+      tint[i] = {0.35f + 0.6f * t[i], 0.9f - 0.5f * t[i], 1.0f, 0.85f};
+      const SkV3 lean = binormal[i] + normal[i] * 1.2f;
+      const float len = lean.length();
+      facing[i] = len > 1e-6f ? lean * (1.0f / len) : normal[i];
+    }
+  }
+  points::InstanceOptions cards;
+  cards.orientLane = "facing";
+  cards.tintLane = "tint";
+  space::MeshStyle screen;
+  screen.baseColor = {1, 1, 1, 1};
+  screen.ambient = {0.85f, 0.85f, 0.9f, 1};
+  screen.specular = 0;
+  space::drawMesh(canvas, points::panels(stations, 96, 64, cards),
+                  SkM44(), camera, viewport, screen);
+
+  // Particles: a drifting halo around the wire, additive.
+  Cloud sparks = points::onSpline(knot, 320);
+  {
+    std::vector<SkColor4f> &tint = sparks.color("tint");
+    std::vector<float> &size = sparks.scalar("size", 1);
+    const std::vector<float> &t = *sparks.scalarIf("t");
+    for (size_t i = 0; i < sparks.size(); ++i) {
+      tint[i] = {0.4f + 0.6f * t[i], 0.75f, 1.0f - 0.5f * t[i], 0.28f};
+      size[i] = 0.4f + 0.8f * std::abs(std::sin(t[i] * 40.0f));
+    }
+  }
+  points::displaceNoise(sparks, 34, 0.012f, 9);
+  points::BillboardStyle glow;
+  glow.size = 13;
+  glow.sizeLane = "size";
+  glow.tintLane = "tint";
+  points::drawBillboards(canvas, sparks, camera, viewport, glow);
+
+  // The same spline as a drawn overlay — proof one value feeds both
+  // the mesh world and the vector world.
+  SkPaint wire;
+  wire.setAntiAlias(true);
+  wire.setStyle(SkPaint::kStroke_Style);
+  wire.setStrokeWidth(1.2f);
+  wire.setColor4f({1, 1, 1, 0.35f});
+  canvas.drawPath(curves::project(knot, camera, viewport, 400), wire);
+}
+
 // Materials under a fetched HDRI: SigilLoader -> OIIO -> F32 equirect
 // SkImage -> Environment::fromEquirect. Gold/chrome/glass badges lit by
 // a real studio.
@@ -586,6 +760,8 @@ int main(int argc, char **argv) {
       {"mesh_perspective.png", panelMeshPerspective, 0xff0d0d13},
       {"mesh_chrome.png", panelMeshChrome, 0xff0d0d13},
       {"panels_space.png", panelSpace, 0xff07070c},
+      {"pathfinder.png", panelPathfinder, 0xff101014},
+      {"splines_particles.png", panelSplines, 0xff07070c},
   };
 
   int written = 0;

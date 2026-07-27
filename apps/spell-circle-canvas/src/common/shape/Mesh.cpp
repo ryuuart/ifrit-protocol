@@ -27,6 +27,16 @@ SkV3 normalized(SkV3 v, SkV3 fallback = {0, 0, 1}) {
 
 void Mesh::append(const Mesh &other) {
   const uint32_t base = (uint32_t)positions.size();
+  // Color lanes stay coherent: if either side tints, both end up sized.
+  if (!colors.empty() || !other.colors.empty()) {
+    colors.resize(positions.size(), SkColors::kWhite);
+    if (other.colors.empty())
+      colors.resize(positions.size() + other.positions.size(),
+                    SkColors::kWhite);
+    else
+      colors.insert(colors.end(), other.colors.begin(),
+                    other.colors.end());
+  }
   positions.insert(positions.end(), other.positions.begin(),
                    other.positions.end());
   normals.insert(normals.end(), other.normals.begin(), other.normals.end());

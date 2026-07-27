@@ -56,6 +56,9 @@ struct Material {
   float emissiveStrength = 0;
   sk_sp<SkImage> texture;
   bool unlit = false;
+
+  /** Textures compare by pointer — the scene reconciler's reuse test. */
+  bool operator==(const Material &) const = default;
 };
 
 /** One sun + hemisphere ambient — enough light vocabulary for panels
@@ -86,6 +89,7 @@ public:
                       const Material &material);
   void setTransform(uint32_t id, const SkM44 &model);
   void removeSurface(uint32_t id);
+  size_t surfaceCount() const;
 
   void setCamera(const shape::space::Camera &camera);
   void setLighting(const Lighting &lighting);

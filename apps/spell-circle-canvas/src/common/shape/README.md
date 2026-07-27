@@ -6,16 +6,26 @@ Skia-only by contract (no compose kernel, no motion, no Qt), so
 SigilCompose and any product can adapt downward while this library
 stays extractable.
 
-Four headers, one dependency direction (later headers may use earlier):
+Eight headers, one dependency direction (later headers may use earlier):
 
 ```
 Geometry.h   SkPath -> Polyline (adaptive flatten, corners exact)
              SkPath -> Sampled  (N arc-length-uniform points)
              cyclic alignment, Catmull-Rom rebuild, lerp
 Blend.h      the Illustrator blend tool over that currency
+Ops.h        the Pathfinder panel (unite/subtract/intersect/exclude/
+             simplify/offset over Skia pathops) and the Distort menu
+             (Roughen/Zigzag/PuckerBloat/Twirl as parameter values;
+             chain() composes non-destructive recipes)
 Mesh.h       renderer-neutral Mesh + procedural generators
+Curves.h     Spline3 (Catmull-Rom/Bezier/linear over SkV3 knots) with
+             arc-length sampling, parallel-transport frames, tube()/
+             ribbon() sweeps, and project() to a 2D path
 Space.h      Skia's 3D: SkM44 camera, painter-pipeline drawMesh,
              perspective drawPanel / drawImagePanel
+Points.h     Cloud = positions + named attribute lanes; generators
+             (onSpline/grid/ring/scatterBox/onMesh), jitter/noise,
+             instance()/panels() stamping, drawBillboards() particles
 Materials.h  literal materials: gold foil / chrome / glass SkSL
              over normal maps + equirect environments
 ```
@@ -89,17 +99,31 @@ pixel by an SkRuntimeEffect.
   edge glow). `drawGold/drawChrome/drawGlass` run the whole pipeline
   for one path.
 
+## Non-destructive posture
+
+Everything upstream of a pixel is a VALUE with editable parameters:
+blend Keys/Options, distort structs and `ops::chain` recipes, Spline3
+control points, Cloud lanes, mesh generator arguments. Nothing bakes
+until a draw call asks; re-run any stage after touching any dial. The
+attribute vocabulary is deliberately Houdini-ish: generators write
+conventional lanes ("t", "tangent"/"normal"/"binormal", "size",
+"tint"), consumers read them by name, and cooked lanes (write your own
+vector per point) slot in anywhere a built-in one does.
+
 ## Demo and tests
 
 ```
-./build/bin/Debug/shape_demo [outdir] [assetdir]   # 7 PNG panels, +1 with assets
+./build/bin/Debug/shape_demo [outdir] [assetdir]   # 9 PNG panels, +1 with assets
 ./build/bin/Debug/shape_test
 ```
 
 Panels: blend_morph, blend_color, blend_spine, materials,
-mesh_perspective, mesh_chrome, panels_space — and materials_hdri when
-`fetch_assets` has populated the asset dir (the Poly Haven studio HDRI
-through SigilLoader/OIIO). `shape_test` covers resampling invariants,
-blend endpoint/spacing/OKLab rules, extrude caps (hole area preserved),
-grid/torus normals, camera projection, and material shader compilation
-+ masking.
+mesh_perspective, mesh_chrome, panels_space, pathfinder,
+splines_particles — and materials_hdri when `fetch_assets` has
+populated the asset dir (the Poly Haven studio HDRI through
+SigilLoader/OIIO). `shape_test` (32 tests) covers resampling
+invariants, blend endpoint/spacing/OKLab rules, pathfinder booleans and
+offset, distort sanity, spline interpolation/arc-length/frame
+orthonormality, tube/ribbon well-formedness, cloud generators and
+lanes, instancing, billboard coverage, extrude caps, grid/torus
+normals, camera projection, and material shader compilation.

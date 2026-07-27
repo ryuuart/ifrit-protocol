@@ -51,6 +51,19 @@ path work without environment surgery:
 pass), metallic/roughness, emissive, texture (sRGB view), unlit.
 `Lighting`: one sun + sky/ground hemisphere.
 
+## The scene layer
+
+`Scene.h` applies SigilCompose's core lesson without importing its
+kernel: describe the 3D scene as a value tree
+(`scene::group/surface/panel` with keys, transforms, children), call
+`Scene::render(root)`, and a reconciler diffs against the last render —
+transform-only changes are `setTransform`, identical leaves are kept,
+only genuinely new/changed surfaces upload. `render()` returns
+`Stats{added, removed, moved, kept}` so pruning is observable, the same
+visibility compose's ledgers taught. Identity is the key path; meshes
+reuse by shared_ptr identity; `panel()` quads are cached per size so
+panels are stable by construction.
+
 ## Demo and tests
 
 ```

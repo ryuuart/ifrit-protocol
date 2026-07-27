@@ -42,9 +42,16 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            shape/ (SigilShape — higher-level drawing
                            over Skia ONLY, no compose dependency:
                            Illustrator-style blend tool w/ spines +
-                           OKLab color, procedural Mesh generators
-                           [extrude/revolve/grid/torus/cylinderPanel]
-                           shared with SigilWorld, Skia-3D SkM44
+                           OKLab color, Pathfinder booleans + offset +
+                           Roughen/Zigzag/PuckerBloat/Twirl distorts
+                           as non-destructive values [Ops.h],
+                           procedural Mesh generators
+                           [extrude/revolve/grid/torus/cylinderPanel],
+                           3D splines w/ parallel-transport frames +
+                           tube/ribbon sweeps + 2D projection
+                           [Curves.h], point clouds w/ named attribute
+                           lanes, instancing and billboard UI
+                           particles [Points.h], Skia-3D SkM44
                            camera + SkVertices painter pipeline +
                            perspective panels, and literal materials —
                            gold foil/chrome/glass SkSL over bevel
@@ -56,8 +63,10 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            vulkan-loader]; shape::Mesh geometry,
                            SkImage panel textures, space::Camera,
                            headless render + PNG readback; vendored
-                           volk + Homebrew-aware VolkShim.c — see its
-                           README.md)
+                           volk + Homebrew-aware VolkShim.c; Scene.h =
+                           declarative node tree reconciled into
+                           surfaces, compose's describe+diff lesson
+                           without the kernel — see its README.md)
   src/sigilweave/          the SigilWeave layout engine + kit/ports/qt/
                            shaders, test/, bench/, examples/{gallery,demo}
   src/spellcircle/         the receiver product: shared/{schema,net,scene}

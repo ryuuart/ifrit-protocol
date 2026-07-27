@@ -1,7 +1,10 @@
 #include "sigilshape/Blend.h"
+#include "sigilshape/Curves.h"
 #include "sigilshape/Geometry.h"
 #include "sigilshape/Materials.h"
 #include "sigilshape/Mesh.h"
+#include "sigilshape/Ops.h"
+#include "sigilshape/Points.h"
 #include "sigilshape/Space.h"
 
 #include <include/core/SkBitmap.h>
@@ -325,4 +328,211 @@ TEST(Materials, EnvironmentRoughnessBlursAndCaches) {
   EXPECT_EQ(rough->width(), sharp->width());
   // Cache: same bucket returns the same image.
   EXPECT_EQ(env.image(0.6f).get(), rough.get());
+}
+
+// --- Ops ------------------------------------------------------------------
+
+TEST(Ops, PathfinderBooleans) {
+  const SkPath a = rect(0, 0, 100, 100);
+  const SkPath b = rect(50, 0, 100, 100);
+  EXPECT_NEAR(ops::unite(a, b).computeTightBounds().width(), 150, 1e-3);
+  EXPECT_NEAR(ops::subtract(a, b).computeTightBounds().width(), 50, 1e-3);
+  EXPECT_NEAR(ops::intersect(a, b).computeTightBounds().width(), 50, 1e-3);
+  const SkPath xr = ops::exclude(a, b);
+  EXPECT_NEAR(xr.computeTightBounds().width(), 150, 1e-3);
+  EXPECT_FALSE(xr.contains(75, 50)); // the overlap is punched out
+  EXPECT_TRUE(ops::unite({a, b, rect(140, 0, 100, 100)})
+                  .contains(200, 50));
+}
+
+TEST(Ops, OffsetGrowsAndShrinks) {
+  const SkPath circle = SkPath::Circle(0, 0, 50);
+  const SkRect grown = ops::offset(circle, 10).computeTightBounds();
+  EXPECT_NEAR(grown.width(), 120, 1.5f);
+  const SkRect shrunk = ops::offset(circle, -15).computeTightBounds();
+  EXPECT_NEAR(shrunk.width(), 70, 1.5f);
+}
+
+TEST(Ops, DistortsKeepBoundsSane) {
+  const SkPath base = SkPath::Circle(100, 100, 60);
+  const SkRect roughened =
+      ops::Roughen{6, 8, 42}.apply(base).computeTightBounds();
+  EXPECT_LT(std::abs(roughened.centerX() - 100), 4);
+  EXPECT_LT(roughened.width(), 120 + 2 * 6 + 2);
+  const SkPath twirled = ops::Twirl{90}.apply(base);
+  EXPECT_LT(
+      std::abs(twirled.computeTightBounds().centerX() - 100), 4);
+  const SkRect bloated =
+      ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
+  EXPECT_GT(bloated.width(), 118); // pushed toward the silhouette
+  const SkPath chained = ops::chain(
+      {ops::offsetBy(6), ops::Zigzag{4, 20}})(base);
+  EXPECT_FALSE(chained.isEmpty());
+}
+
+// --- Curves ---------------------------------------------------------------
+
+TEST(Curves, SplineInterpolatesEndpointsAndLength) {
+  Spline3 line;
+  line.type = Spline3::Type::Linear;
+  line.points = {{0, 0, 0}, {100, 0, 0}};
+  EXPECT_NEAR(line.length(), 100, 1e-2);
+  const SkV3 mid = line.position(0.5f);
+  EXPECT_NEAR(mid.x, 50, 1e-3);
+
+  Spline3 spline;
+  spline.points = {{0, 0, 0}, {50, 40, 0}, {100, 0, 0}, {150, -40, 0}};
+  const SkV3 start = spline.position(0);
+  const SkV3 end = spline.position(1);
+  EXPECT_NEAR(start.x, 0, 1e-3);   // Catmull-Rom passes through
+  EXPECT_NEAR(end.x, 150, 1e-3);
+}
+
+TEST(Curves, ArcLengthSamplingIsEven) {
+  Spline3 spline; // deliberately uneven knots
+  spline.type = Spline3::Type::Linear; // keep the curve straight so
+                                       // spacing is the only variable
+  spline.points = {{0, 0, 0}, {5, 0, 0}, {10, 0, 0}, {200, 0, 0}};
+  const std::vector<SkV3> beads = spline.sampleArcLength(11);
+  ASSERT_EQ(beads.size(), 11u);
+  for (size_t i = 1; i < beads.size(); ++i)
+    EXPECT_NEAR(beads[i].x - beads[i - 1].x, 20, 1.5f);
+}
+
+TEST(Curves, FramesStayOrthonormalAndContinuous) {
+  Spline3 knot;
+  knot.closed = true;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    knot.points.push_back({std::cos(a) * 100,
+                           std::sin(a * 2) * 40,
+                           std::sin(a) * 100});
+  }
+  const std::vector<Frame3> rail = curves::frames(knot, 64);
+  ASSERT_EQ(rail.size(), 64u);
+  for (size_t i = 0; i < rail.size(); ++i) {
+    const Frame3 &f = rail[i];
+    EXPECT_NEAR(f.tangent.length(), 1, 1e-3);
+    EXPECT_NEAR(f.normal.length(), 1, 1e-3);
+    EXPECT_NEAR(f.tangent.dot(f.normal), 0, 1e-3);
+    if (i > 0) // parallel transport: no sudden flips
+      EXPECT_GT(f.normal.dot(rail[i - 1].normal), 0.5f);
+  }
+}
+
+TEST(Curves, TubeAndRibbonAreWellFormed) {
+  Spline3 arc;
+  arc.points = {{0, 0, 0}, {60, 60, 0}, {120, 0, 0}};
+  const Mesh t = curves::tube(arc, {.radius = 8, .segments = 24, .sides = 8});
+  EXPECT_GT(t.triangleCount(), 0u);
+  EXPECT_EQ(t.normals.size(), t.vertexCount());
+  for (const SkV3 &n : t.normals)
+    EXPECT_NEAR(n.length(), 1, 1e-3);
+  const Mesh r = curves::ribbon(arc, {.width = 20, .segments = 24});
+  EXPECT_EQ(r.vertexCount(), 48u);
+  EXPECT_EQ(r.triangleCount(), 46u);
+}
+
+TEST(Curves, ProjectMatchesCameraProjection) {
+  Spline3 line;
+  line.type = Spline3::Type::Linear;
+  line.points = {{-50, 0, 0}, {50, 0, 0}};
+  space::Camera camera;
+  camera.eye = {0, 0, 200};
+  const SkPath path = curves::project(line, camera, {400, 300}, 16);
+  const SkRect bounds = path.computeTightBounds();
+  EXPECT_NEAR(bounds.centerY(), 150, 1e-2);
+  EXPECT_NEAR(bounds.centerX(), 200, 1e-2);
+}
+
+// --- Points ---------------------------------------------------------------
+
+TEST(Points, GeneratorsWriteLanes) {
+  Spline3 line;
+  line.type = Spline3::Type::Linear;
+  line.points = {{0, 0, 0}, {90, 0, 0}};
+  Cloud onCurve = points::onSpline(line, 10);
+  EXPECT_EQ(onCurve.size(), 10u);
+  ASSERT_TRUE(onCurve.scalarIf("t"));
+  EXPECT_NEAR(onCurve.scalarIf("t")->back(), 1, 1e-4);
+  ASSERT_TRUE(onCurve.vectorIf("normal"));
+
+  Cloud lattice = points::grid({0, 0, 0}, {90, 0, 0}, {0, 60, 0}, 4, 3);
+  EXPECT_EQ(lattice.size(), 12u);
+  EXPECT_NEAR(lattice.vectorIf("normal")->front().z, 1, 1e-4);
+
+  Cloud circle = points::ring({0, 0, 0}, 50, 8);
+  EXPECT_EQ(circle.size(), 8u);
+  for (const SkV3 &p : circle.positions) {
+    EXPECT_NEAR(p.length(), 50, 1e-2);  // on the radius
+    EXPECT_NEAR(p.y, 0, 1e-3);          // in the plane ⊥ default axis
+  }
+
+  Cloud box = points::scatterBox({0, 0, 0}, {10, 10, 10}, 100, 3);
+  EXPECT_EQ(box.size(), 100u);
+  for (const SkV3 &p : box.positions) {
+    EXPECT_GE(p.x, 0);
+    EXPECT_LE(p.x, 10);
+  }
+}
+
+TEST(Points, OnMeshLandsOnSurface) {
+  const Mesh quad = mesh::quad(100, 100); // z = 0 plane
+  Cloud cloud = points::onMesh(quad, 64, 5);
+  ASSERT_EQ(cloud.size(), 64u);
+  for (const SkV3 &p : cloud.positions) {
+    EXPECT_NEAR(p.z, 0, 1e-4);
+    EXPECT_LE(std::abs(p.x), 50.01f);
+  }
+  ASSERT_TRUE(cloud.vectorIf("normal"));
+  EXPECT_NEAR((*cloud.vectorIf("normal"))[0].z, 1, 1e-3);
+}
+
+TEST(Points, InstanceStampsWithLanes) {
+  Cloud cloud = points::ring({0, 0, 0}, 80, 6);
+  std::vector<float> &size = cloud.scalar("size", 1);
+  size[0] = 2;
+  std::vector<SkColor4f> &tint = cloud.color("tint");
+  tint[0] = {1, 0, 0, 1};
+  const Mesh stamp = mesh::quad(10, 10);
+  points::InstanceOptions options;
+  options.scaleLane = "size";
+  options.tintLane = "tint";
+  options.orientLane = "normal";
+  const Mesh merged = points::instance(cloud, stamp, options);
+  EXPECT_EQ(merged.vertexCount(), 6u * stamp.vertexCount());
+  EXPECT_EQ(merged.triangleCount(), 6u * stamp.triangleCount());
+  ASSERT_EQ(merged.colors.size(), merged.vertexCount());
+  EXPECT_NEAR(merged.colors[0].fR, 1, 1e-4);
+  EXPECT_NEAR(merged.colors[0].fG, 0, 1e-4);
+  // The first stamp is scaled 2x: its extent from its ring point is 10.
+  SkV3 lo, hi;
+  Mesh first;
+  first.positions.assign(merged.positions.begin(),
+                         merged.positions.begin() + 4);
+  first.bounds(&lo, &hi);
+  EXPECT_GT((hi - lo).length(), 14.0f); // 2x-scaled quad diagonal-ish
+}
+
+TEST(Points, BillboardsCoverPixels) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  Cloud cloud = points::ring({0, 0, 0}, 40, 12, {0, 0, 1});
+  space::Camera camera;
+  camera.eye = {0, 0, 200};
+  points::BillboardStyle style;
+  style.size = 24;
+  style.tint = {0, 1, 0, 1};
+  points::drawBillboards(*surface->getCanvas(), cloud, camera,
+                         {200, 150}, style);
+  SkBitmap bm;
+  bm.allocPixels(surface->imageInfo());
+  ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+  int lit = 0;
+  for (int y = 0; y < 150; ++y)
+    for (int x = 0; x < 200; ++x)
+      if (SkColorGetG(bm.getColor(x, y)) > 30)
+        ++lit;
+  EXPECT_GT(lit, 200);
 }
