@@ -8,14 +8,25 @@
 #include "sigilshape/Blend.h"
 #include "sigilshape/Curves.h"
 #include "sigilshape/Geometry.h"
+#include "sigilshape/Import.h"
 #include "sigilshape/Materials.h"
 #include "sigilshape/Mesh.h"
 #include "sigilshape/Ops.h"
 #include "sigilshape/Points.h"
+#include "sigilshape/Pop.h"
 #include "sigilshape/Space.h"
 
+#include <sigilcompose/Compose.h>
+#include <sigilimage/Decode.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweavekit/SigilWeaveKit.h>
+
+#include <include/core/SkPicture.h>
+
+#include <algorithm>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -385,7 +396,7 @@ void panelMeshPerspective(SkCanvas &canvas) {
            bronze);
 
   // Revolved vase.
-  std::vector<SkPoint> profile;
+  std::vector<glm::vec2> profile;
   for (int i = 0; i <= 24; ++i) {
     const float t = (float)i / 24.0f;
     const float r = 46.0f + 34.0f * std::sin(t * 3.1f + 0.4f) +
@@ -415,7 +426,7 @@ void panelMeshChrome(SkCanvas &canvas) {
   space::MeshStyle normals;
   normals.mode = space::MeshStyle::Mode::Normals;
 
-  auto renderNormals = [&](const Mesh &m, const SkM44 &model) {
+  auto renderNormals = [&](const Mesh &m, const glm::mat4 &model) {
     sk_sp<SkSurface> surface = SkSurfaces::Raster(
         SkImageInfo::MakeN32Premul((int)viewport.width(),
                                    (int)viewport.height()));
@@ -432,7 +443,7 @@ void panelMeshChrome(SkCanvas &canvas) {
   // across the surface (a flat extruded cap would read as one sample).
   {
     Mesh m = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);
-    const SkM44 model = space::place({-280, 0, 0}, 24, -10, -8);
+    const glm::mat4 model = space::place({-280, 0, 0}, 24, -10, -8);
     sk_sp<SkImage> g = renderNormals(m, model);
     materials::ChromeParams params;
     params.contrast = 1.35f;
@@ -454,7 +465,7 @@ void panelMeshChrome(SkCanvas &canvas) {
   // Gold torus (studio).
   {
     Mesh m = mesh::torus(130, 46);
-    const SkM44 model = space::place({280, 0, -40}, 0, -30, 18);
+    const glm::mat4 model = space::place({280, 0, -40}, 0, -30, 18);
     sk_sp<SkImage> g = renderNormals(m, model);
     materials::GoldParams params;
     params.crinkle = 0.12f;
@@ -483,11 +494,11 @@ void panelSpace(SkCanvas &canvas) {
   wire.baseColor = {0.16f, 0.3f, 0.5f, 0.22f};
   wire.mode = space::MeshStyle::Mode::Lit;
   wire.specular = 0;
-  Mesh floor = mesh::grid(24, 24, [](float u, float v) -> SkV3 {
+  Mesh floor = mesh::grid(24, 24, [](float u, float v) -> glm::vec3 {
     return {(u - 0.5f) * 1400, -170,
             (v - 0.5f) * 1400};
   });
-  space::drawMesh(canvas, floor, SkM44(), camera, viewport, wire);
+  space::drawMesh(canvas, floor, glm::mat4(1.0f), camera, viewport, wire);
 
   // Three floating UI cards, angled like a cockpit.
   sk_sp<SkImage> cardA = uiCardImage(360, 240, {0.2f, 0.85f, 1.0f, 1});
@@ -632,21 +643,22 @@ void panelSplines(SkCanvas &canvas) {
                   curves::tube(knot, {.radius = 9,
                                       .segments = 220,
                                       .sides = 12}),
-                  SkM44(), camera, viewport, steel);
+                  glm::mat4(1.0f), camera, viewport, steel);
 
   // Instanced panels standing on the curve's frames, tilted like
   // solar panels (a cooked lane: binormal leaned toward the normal).
   Cloud stations = points::onSpline(knot, 14);
   {
-    std::vector<SkColor4f> &tint = stations.color("tint");
-    std::vector<SkV3> &facing = stations.vector("facing");
+    std::vector<glm::vec4> &tint = stations.color("tint");
+    std::vector<glm::vec3> &facing = stations.vector("facing");
     const std::vector<float> &t = *stations.scalarIf("t");
-    const std::vector<SkV3> &normal = *stations.vectorIf("normal");
-    const std::vector<SkV3> &binormal = *stations.vectorIf("binormal");
+    const std::vector<glm::vec3> &normal = *stations.vectorIf("normal");
+    const std::vector<glm::vec3> &binormal =
+        *stations.vectorIf("binormal");
     for (size_t i = 0; i < stations.size(); ++i) {
       tint[i] = {0.35f + 0.6f * t[i], 0.9f - 0.5f * t[i], 1.0f, 0.85f};
-      const SkV3 lean = binormal[i] + normal[i] * 1.2f;
-      const float len = lean.length();
+      const glm::vec3 lean = binormal[i] + normal[i] * 1.2f;
+      const float len = glm::length(lean);
       facing[i] = len > 1e-6f ? lean * (1.0f / len) : normal[i];
     }
   }
@@ -658,12 +670,12 @@ void panelSplines(SkCanvas &canvas) {
   screen.ambient = {0.85f, 0.85f, 0.9f, 1};
   screen.specular = 0;
   space::drawMesh(canvas, points::panels(stations, 96, 64, cards),
-                  SkM44(), camera, viewport, screen);
+                  glm::mat4(1.0f), camera, viewport, screen);
 
   // Particles: a drifting halo around the wire, additive.
   Cloud sparks = points::onSpline(knot, 320);
   {
-    std::vector<SkColor4f> &tint = sparks.color("tint");
+    std::vector<glm::vec4> &tint = sparks.color("tint");
     std::vector<float> &size = sparks.scalar("size", 1);
     const std::vector<float> &t = *sparks.scalarIf("t");
     for (size_t i = 0; i < sparks.size(); ++i) {
@@ -740,6 +752,299 @@ void panelMaterialsHdri(SkCanvas &canvas,
   }
 }
 
+// Imported models: whatever assets/models/ holds (fetch_assets ships
+// the CC0 Khronos Avocado GLB; drop any OBJ/glTF/STL beside it and it
+// joins the lineup). Each part draws with its own base color and, when
+// the file carries one, its base-color texture — SigilImage decodes
+// the encoded bytes the importer hands over.
+void panelImportedModels(SkCanvas &canvas,
+                         const std::vector<import::Model> &models) {
+  const SkSize viewport = {1240, 720};
+  space::Camera camera;
+  camera.eye = {0, 170, 860};
+  camera.target = {0, -10, 0};
+  camera.fovYDeg = 40;
+
+  // The faint floor grid from the panels scene grounds the lineup.
+  space::MeshStyle grid;
+  grid.baseColor = {0.16f, 0.3f, 0.5f, 0.22f};
+  grid.specular = 0;
+  Mesh floor = mesh::grid(24, 24, [](float u, float v) -> glm::vec3 {
+    return {(u - 0.5f) * 1400, -180, (v - 0.5f) * 1400};
+  });
+  space::drawMesh(canvas, floor, glm::mat4(1.0f), camera, viewport, grid);
+
+  const float slots[3] = {-370, 0, 370};
+  const int count = std::min((int)models.size(), 3);
+  for (int i = 0; i < count; ++i) {
+    const import::Model &model = models[(size_t)i];
+    const glm::mat4 place =
+        space::place({slots[count == 1 ? 1 : i], 0, 0},
+                     -34 + 26.0f * (float)i, -6) *
+        model.fitTransform(290);
+    for (const import::Part &part : model.parts) {
+      space::MeshStyle style;
+      style.baseColor = {part.baseColor.r, part.baseColor.g,
+                         part.baseColor.b, part.baseColor.a};
+      style.lights = {
+          {{-0.5f, -0.75f, -0.4f}, {1.0f, 0.97f, 0.92f, 1}, 1.05f},
+          {{0.65f, -0.15f, -0.35f}, {0.45f, 0.55f, 0.85f, 1}, 0.4f}};
+      style.ambient = {0.38f, 0.38f, 0.42f, 1};
+      style.specular = 0.25f;
+      style.shininess = 24;
+      if (!part.textureBytes.empty()) {
+        if (auto decoded = sigil::image::decodeImage(
+                part.textureBytes.data(), part.textureBytes.size(), {},
+                part.textureUri))
+          style.texture = decoded->frameAt(0).image;
+      }
+      space::drawMesh(canvas, part.mesh, place, camera, viewport, style);
+    }
+  }
+}
+
+// A 2x2 sprite atlas: four motifs, one texture — the pop Atlas op
+// picks a cell per point, so one stamps() call scatters variety.
+sk_sp<SkImage> spriteAtlas() {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(256, 256));
+  SkCanvas *c = surface->getCanvas();
+  c->clear(SK_ColorTRANSPARENT);
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor4f({0.4f, 0.85f, 1.0f, 1});
+  c->drawCircle(64, 64, 44, p); // dot
+  p.setColor4f({1.0f, 0.6f, 0.3f, 1});
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(16);
+  c->drawCircle(192, 64, 38, p); // ring
+  p.setStyle(SkPaint::kFill_Style);
+  p.setColor4f({0.6f, 1.0f, 0.6f, 1});
+  SkPathBuilder diamond;
+  diamond.moveTo({64, 148}).lineTo({108, 192}).lineTo({64, 236}).lineTo(
+      {20, 192});
+  diamond.close();
+  c->drawPath(diamond.detach(), p); // diamond
+  p.setColor4f({1.0f, 0.8f, 0.3f, 1});
+  c->drawPath(star(4, 46, 16, {192, 192}), p); // sparkle
+  return surface->makeImageSnapshot();
+}
+
+// The pop combinators, spoken as an artist: chains form models, sinks
+// pick the former, every edit is a value. This panel IS the example —
+// copy any stanza into a sketch and turn the dials.
+void panelPop(SkCanvas &canvas) {
+  const SkSize viewport = {1240, 720};
+  space::Camera camera;
+  camera.eye = {0, 260, 980};
+  camera.target = {0, 20, 0};
+  camera.fovYDeg = 42;
+
+  std::vector<glm::vec3> ring;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    ring.push_back({std::cos(a) * 230, std::sin(a * 2.0f) * 60,
+                    std::sin(a) * 230});
+  }
+
+  space::MeshStyle steel;
+  steel.baseColor = {0.62f, 0.7f, 0.82f, 1};
+  steel.specular = 0.8f;
+  steel.shininess = 48;
+
+  // A noised ring becomes a wobbly tube: three verbs and a sink.
+  space::drawMesh(canvas,
+                  pop::on(ring).count(220).noise(26, 0.004f).tube(
+                      11, 14, true),
+                  space::place({-330, 40, 0}, 24, -10), camera,
+                  viewport, steel);
+
+  // The same loop, stamped: scattered plates facing the camera,
+  // scale varied, tint faded around the ring.
+  space::MeshStyle plates;
+  plates.baseColor = {1, 1, 1, 1};
+  plates.ambient = {0.85f, 0.85f, 0.9f, 1};
+  plates.specular = 0;
+  plates.texture = spriteAtlas(); // .atlas() picks each stamp's cell
+  space::drawMesh(canvas,
+                  pop::on(ring)
+                      .count(900)
+                      .spread(26)
+                      .vary(0.6f)
+                      .fade({1.0f, 0.7f, 0.55f, 1}, {0.6f, 0.85f, 1.0f, 1})
+                      .atlas(2, 2)
+                      .lookAt(camera.eye)
+                      .stamps(mesh::quad(11, 11)),
+                  space::place({330, 60, 0}, -16), camera, viewport,
+                  plates);
+
+  // A ribbon on a lifted window of the loop — the chain is open:
+  // reach in, move it, re-form.
+  // Any outline sweeps along a chain: a star cross-section riding a
+  // smoothed noised ring — extrusion, the artist way.
+  space::MeshStyle gold = steel;
+  gold.baseColor = {0.95f, 0.72f, 0.3f, 1};
+  const Mesh crown = pop::on(ring)
+                         .count(140)
+                         .noise(20, 0.004f)
+                         .smooth(0.5f, 2)
+                         .sweep(star(5, 30, 14, {0, 0}), true);
+  const glm::mat4 crownPlace =
+      space::place({0, 255, -140}, 14, -10, 0, 0.85f);
+  space::drawMesh(canvas, crown, crownPlace, camera, viewport, gold);
+  // ...and pops seed from FORMED models: glints scattered on the
+  // crown's own surface, facing along its normals.
+  space::MeshStyle glint;
+  glint.baseColor = {1.0f, 0.95f, 0.8f, 1};
+  glint.ambient = {0.85f, 0.8f, 0.7f, 1};
+  glint.specular = 0;
+  space::drawMesh(canvas,
+                  pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3)),
+                  crownPlace, camera, viewport, glint);
+
+  pop::Chain wave =
+      pop::on(ring)
+          .count(120)
+          .window(0.5f, 0.5f)
+          .noise(16, 0.004f)
+          .smooth(0.6f, 3); // heal the kinks before the sweep
+  space::MeshStyle jade = steel;
+  jade.baseColor = {0.4f, 0.85f, 0.6f, 1};
+  jade.backfaceCull = false; // a band twists; show both faces
+  space::drawMesh(canvas, popops::cookRibbon(wave, 42, {.segments = 120}),
+                  space::place({0, -60, 140}, 0, 14), camera, viewport,
+                  jade);
+}
+
+// The Skia yarn marquee: the SAME idea as SigilWorld's — a ball
+// winding painted end to end with one compose column, perpendicular
+// text — but formed by curves::banner and drawn by the PAINTER
+// (space::drawMesh), no GPU device anywhere. Arcs draw back-to-front
+// by centroid depth; interpenetrating wraps accept painter honesty.
+void panelYarnMarquee(SkCanvas &canvas) {
+  namespace sc = sigil::compose;
+  namespace weave = sigil::weave;
+  const SkSize viewport = {1240, 720};
+  space::Camera camera;
+  camera.eye = {40, 140, 980};
+  camera.target = {0, 10, 0};
+  camera.fovYDeg = 46;
+
+  Spline3 yarn;
+  yarn.closed = true;
+  for (int i = 0; i < 96; ++i) {
+    const float t = (float)i / 96.0f;
+    const float lat = std::sin(2.0f * (float)M_PI * 3.0f * t);
+    const float azi = -2.0f * (float)M_PI * 2.0f * t;
+    yarn.points.push_back({340.0f * std::cos(lat) * std::cos(azi),
+                           10.0f + 200.0f * std::sin(lat),
+                           280.0f * std::cos(lat) * std::sin(azi)});
+  }
+  const float loopLen = yarn.length(512);
+  const float kWidth = 100;
+  const int kAcrossPx = 300;
+  const int kTiles = 4;
+  const int kTilePx = 4096;
+  const float total = (float)kTiles * kTilePx;
+
+  // One compose column, perpendicular orientation, packed sectors.
+  weave::FontContext fonts(weave::ports::systemFontManager());
+  const SkColor kInk = SkColorSetARGB(255, 236, 244, 254);
+  const SkColor kAccent = SkColorSetARGB(255, 116, 224, 190);
+  const auto para = [](const char8_t *s, float size, SkColor c) {
+    auto p = std::make_shared<weave::Paragraph>();
+    p->appendText(s, weave::kit::makeStyle(size, c));
+    return p;
+  };
+  weave::ParagraphLayoutOptions centered;
+  centered.alignment = weave::TextAlignment::kCenter;
+  sc::Element column = sc::box()
+                           .column()
+                           .width((float)kAcrossPx)
+                           .height(total)
+                           .padding(18, 60)
+                           .child(sc::box().left(4).top(0).bottom(0).width(3).fill(
+                               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.9f})))
+                           .child(sc::box().right(4).top(0).bottom(0).width(2).fill(
+                               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
+  const char8_t *pool[6] = {
+      u8"the same winding, no GPU anywhere",
+      u8"curves::banner forms the band",
+      u8"space::drawMesh paints the cloth",
+      u8"text reads across, the column climbs",
+      u8"one compose column, sliced to tiles",
+      u8"skia end to end, the artist's backend",
+  };
+  column.child(sc::text(para(u8"THE PAINTER'S YARN", 52, kAccent),
+                        centered));
+  for (int s = 0; s < 48; ++s) {
+    column.child(sc::box().grow());
+    char numeral[16];
+    std::snprintf(numeral, sizeof(numeral), "- %02d -", s + 1);
+    std::u8string label((const char8_t *)numeral);
+    auto n = std::make_shared<weave::Paragraph>();
+    n->appendText(label, weave::kit::makeStyle(
+                             30, SkColorSetARGB(255, 150, 168, 196)));
+    column.child(sc::text(n, centered));
+    column.child(sc::text(para(pool[s % 6], 38, kInk), centered));
+  }
+  column.child(sc::box().grow());
+  column.child(sc::text(para(u8"and back to its own beginning", 42,
+                             kAccent),
+                        centered));
+  const sk_sp<SkPicture> art = sc::snapshot(column, fonts);
+
+  // Slice into tiles (mirror-x: the wall samples u right-to-left).
+  std::vector<sk_sp<SkImage>> tiles;
+  for (int k = 0; k < kTiles; ++k) {
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(
+        SkImageInfo::MakeN32Premul(kAcrossPx, kTilePx));
+    SkCanvas *c = surface->getCanvas();
+    c->clear(SkColorSetARGB(120, 8, 12, 22));
+    c->translate((float)kAcrossPx, 0);
+    c->scale(-1, 1);
+    c->translate(0, -(float)k * kTilePx);
+    c->drawPicture(art);
+    tiles.push_back(surface->makeImageSnapshot());
+  }
+
+  // One banner arc per tile, painted farthest-first.
+  struct Arc {
+    Mesh mesh;
+    float depth = 0;
+    int tile = 0;
+  };
+  std::vector<Arc> arcs;
+  for (int k = 0; k < kTiles; ++k) {
+    Arc arc;
+    arc.mesh = curves::banner(
+        yarn, {.width = kWidth,
+               .head = (float)(k + 1) / (float)kTiles,
+               .span = 1.0f / (float)kTiles,
+               .sections = 160});
+    glm::vec3 lo, hi;
+    arc.mesh.bounds(&lo, &hi);
+    const glm::vec3 mid = (lo + hi) * 0.5f;
+    arc.depth = glm::length(mid - camera.eye);
+    arc.tile = k;
+    arcs.push_back(std::move(arc));
+  }
+  std::sort(arcs.begin(), arcs.end(),
+            [](const Arc &a, const Arc &b) { return a.depth > b.depth; });
+  for (const Arc &arc : arcs) {
+    space::MeshStyle cloth;
+    cloth.texture = tiles[(size_t)arc.tile];
+    cloth.baseColor = {1, 1, 1, 1};
+    cloth.ambient = {1, 1, 1, 1};
+    cloth.lights = {};
+    cloth.specular = 0;
+    cloth.backfaceCull = false; // the back of the cloth shows, honest
+    space::drawMesh(canvas, arc.mesh, glm::mat4(1.0f), camera, viewport,
+                    cloth);
+  }
+  static_cast<void>(loopLen);
+}
+
 int main(int argc, char **argv) {
   const std::filesystem::path outDir =
       argc > 1 ? argv[1] : "shape_demo_out";
@@ -762,6 +1067,8 @@ int main(int argc, char **argv) {
       {"panels_space.png", panelSpace, 0xff07070c},
       {"pathfinder.png", panelPathfinder, 0xff101014},
       {"splines_particles.png", panelSplines, 0xff07070c},
+      {"pop_models.png", panelPop, 0xff0d0d13},
+      {"yarn_marquee.png", panelYarnMarquee, 0xff08080d},
   };
 
   int written = 0;
@@ -792,6 +1099,36 @@ int main(int argc, char **argv) {
       else
         std::fprintf(stderr, "failed: materials_hdri.png\n");
     }
+  }
+
+  // Imported models, up to three, alphabetical: fetch_assets ships the
+  // Khronos Avocado; any OBJ/glTF/GLB/STL dropped into assets/models/
+  // joins the panel.
+  std::vector<import::Model> models;
+  const std::filesystem::path modelDir = assetDir / "models";
+  if (std::filesystem::exists(modelDir)) {
+    std::vector<std::filesystem::path> files;
+    for (const auto &entry :
+         std::filesystem::directory_iterator(modelDir))
+      if (entry.is_regular_file())
+        files.push_back(entry.path());
+    std::sort(files.begin(), files.end());
+    for (const std::filesystem::path &file : files) {
+      if (models.size() == 3)
+        break;
+      if (auto model = import::model(file))
+        models.push_back(std::move(*model));
+      // non-model files (licenses) simply don't import; no complaint
+    }
+  }
+  if (!models.empty()) {
+    ++total;
+    if (writePanel({1240, 720}, outDir / "imported_models.png",
+                   [&](SkCanvas &c) { panelImportedModels(c, models); },
+                   0xff0d0d13))
+      ++written;
+    else
+      std::fprintf(stderr, "failed: imported_models.png\n");
   }
 
   std::printf("wrote %d/%d panels to %s\n", written, total,

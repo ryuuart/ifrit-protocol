@@ -2,16 +2,25 @@
 #include "sigilshape/Curves.h"
 #include "sigilshape/Easel.h"
 #include "sigilshape/Geometry.h"
+#include "sigilshape/Import.h"
 #include "sigilshape/Materials.h"
 #include "sigilshape/Mesh.h"
 #include "sigilshape/Ops.h"
 #include "sigilshape/Points.h"
+#include "sigilshape/Pop.h"
+#include "sigilshape/Save.h"
 #include "sigilshape/Space.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+
+#include <Alembic/Abc/All.h>
+#include <Alembic/AbcCoreOgawa/All.h>
+#include <Alembic/AbcGeom/All.h>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <gtest/gtest.h>
 
@@ -170,7 +179,7 @@ TEST(Mesh, ExtrudeRectMakesABox) {
   ASSERT_GT(m.vertexCount(), 0u);
   ASSERT_EQ(m.normals.size(), m.vertexCount());
   ASSERT_EQ(m.uvs.size(), m.vertexCount());
-  SkV3 lo, hi;
+  glm::vec3 lo, hi;
   m.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x - lo.x, 100.0f, 1e-3f);
   EXPECT_NEAR(hi.y - lo.y, 60.0f, 1e-3f);
@@ -178,8 +187,8 @@ TEST(Mesh, ExtrudeRectMakesABox) {
   // 2 caps (2 tris each) + 4 walls (2 tris each) = 12 triangles.
   EXPECT_EQ(m.triangleCount(), 12u);
   // All normals unit length.
-  for (const SkV3 &n : m.normals)
-    EXPECT_NEAR(n.length(), 1.0f, 1e-4f);
+  for (const glm::vec3 &n : m.normals)
+    EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
 }
 
 TEST(Mesh, ExtrudeAnnulusKeepsHole) {
@@ -192,11 +201,11 @@ TEST(Mesh, ExtrudeAnnulusKeepsHole) {
   // have all vertices at z=+5).
   double area = 0;
   for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
-    const SkV3 &a = m.positions[m.indices[t]];
-    const SkV3 &b = m.positions[m.indices[t + 1]];
-    const SkV3 &c = m.positions[m.indices[t + 2]];
+    const glm::vec3 &a = m.positions[m.indices[t]];
+    const glm::vec3 &b = m.positions[m.indices[t + 1]];
+    const glm::vec3 &c = m.positions[m.indices[t + 2]];
     if (a.z > 4.9f && b.z > 4.9f && c.z > 4.9f) {
-      const SkV3 ab = b - a, ac = c - a;
+      const glm::vec3 ab = b - a, ac = c - a;
       area += 0.5 * std::abs((double)ab.x * ac.y - (double)ab.y * ac.x);
     }
   }
@@ -205,15 +214,15 @@ TEST(Mesh, ExtrudeAnnulusKeepsHole) {
 }
 
 TEST(Mesh, GridUvAndIndicesCoherent) {
-  Mesh m = mesh::grid(4, 3, [](float u, float v) -> SkV3 {
+  Mesh m = mesh::grid(4, 3, [](float u, float v) -> glm::vec3 {
     return {u * 10, v * 10, 0};
   });
   EXPECT_EQ(m.vertexCount(), 12u);
   EXPECT_EQ(m.triangleCount(), 12u); // 3x2 cells * 2
   // Image-convention UVs: v param 0 (sheet bottom) samples image v=1.
-  EXPECT_EQ(m.uvs.front().fX, 0.0f);
-  EXPECT_EQ(m.uvs.front().fY, 1.0f);
-  EXPECT_EQ(m.uvs.back().fY, 0.0f);
+  EXPECT_EQ(m.uvs.front().x, 0.0f);
+  EXPECT_EQ(m.uvs.front().y, 1.0f);
+  EXPECT_EQ(m.uvs.back().y, 0.0f);
   for (uint32_t i : m.indices)
     EXPECT_LT(i, m.vertexCount());
 }
@@ -221,20 +230,45 @@ TEST(Mesh, GridUvAndIndicesCoherent) {
 TEST(Mesh, TorusNormalsPointOutward) {
   Mesh m = mesh::torus(100, 30, 32, 16);
   // At u=0,v=0: phi=0 -> outer equator, normal ~ +x.
-  const SkV3 n0 = m.normals.front();
+  const glm::vec3 n0 = m.normals.front();
   EXPECT_GT(std::abs(n0.x), 0.7f);
-  for (const SkV3 &n : m.normals)
-    EXPECT_NEAR(n.length(), 1.0f, 1e-3f);
+  for (const glm::vec3 &n : m.normals)
+    EXPECT_NEAR(glm::length(n), 1.0f, 1e-3f);
 }
 
 TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {
   Mesh m = mesh::quad(10, 10);
-  m.transform(SkM44::Translate(5, 0, 0));
-  SkV3 lo, hi;
+  m.transform(glm::translate(glm::mat4(1.0f), {5, 0, 0}));
+  glm::vec3 lo, hi;
   m.bounds(&lo, &hi);
   EXPECT_NEAR((lo.x + hi.x) * 0.5f, 5.0f, 1e-4f);
-  for (const SkV3 &n : m.normals)
-    EXPECT_NEAR(n.length(), 1.0f, 1e-4f);
+  for (const glm::vec3 &n : m.normals)
+    EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
+}
+
+TEST(Mesh, TransformRotatesNormalsForward) {
+  // Rotation must carry normals WITH it: the inverse transpose applies
+  // in row form. Dotting its columns instead applies the plain inverse
+  // — normals rotate BACKWARDS ({0,-1,0} here).
+  Mesh m = mesh::quad(10, 10);
+  m.normals.assign(m.vertexCount(), {1, 0, 0});
+  m.transform(
+      glm::rotate(glm::mat4(1.0f), (float)M_PI * 0.5f, {0, 0, 1}));
+  for (const glm::vec3 &n : m.normals) {
+    EXPECT_NEAR(n.x, 0.0f, 1e-4f);
+    EXPECT_NEAR(n.y, 1.0f, 1e-4f);
+    EXPECT_NEAR(n.z, 0.0f, 1e-4f);
+  }
+  // Non-uniform scale keeps inverse-transpose semantics: a normal
+  // along the scaled axis renormalizes back to itself.
+  Mesh s = mesh::quad(10, 10);
+  s.normals.assign(s.vertexCount(), {1, 0, 0});
+  s.transform(glm::scale(glm::mat4(1.0f), {2, 1, 1}));
+  for (const glm::vec3 &n : s.normals) {
+    EXPECT_NEAR(n.x, 1.0f, 1e-4f);
+    EXPECT_NEAR(n.y, 0.0f, 1e-4f);
+    EXPECT_NEAR(n.z, 0.0f, 1e-4f);
+  }
 }
 
 // --- Space ----------------------------------------------------------------
@@ -243,8 +277,8 @@ TEST(Space, CameraProjectsCenterToViewportCenter) {
   space::Camera camera;
   camera.eye = {0, 0, 100};
   camera.target = {0, 0, 0};
-  const SkM44 vp = camera.viewProjection({800, 600});
-  const SkV4 out = vp * SkV4{0, 0, 0, 1};
+  const glm::mat4 vp = camera.viewProjection({800, 600});
+  const glm::vec4 out = vp * glm::vec4{0, 0, 0, 1};
   EXPECT_NEAR(out.x / out.w, 400.0f, 1e-2f);
   EXPECT_NEAR(out.y / out.w, 300.0f, 1e-2f);
 }
@@ -258,7 +292,7 @@ TEST(Space, DrawMeshCoversPixels) {
   space::MeshStyle style;
   style.baseColor = {1, 0, 0, 1};
   space::drawMesh(*surface->getCanvas(), sigil::shape::mesh::quad(100, 100),
-                  SkM44(), camera, {200, 150}, style);
+                  glm::mat4(1.0f), camera, {200, 150}, style);
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
@@ -378,13 +412,13 @@ TEST(Curves, SplineInterpolatesEndpointsAndLength) {
   line.type = Spline3::Type::Linear;
   line.points = {{0, 0, 0}, {100, 0, 0}};
   EXPECT_NEAR(line.length(), 100, 1e-2);
-  const SkV3 mid = line.position(0.5f);
+  const glm::vec3 mid = line.position(0.5f);
   EXPECT_NEAR(mid.x, 50, 1e-3);
 
   Spline3 spline;
   spline.points = {{0, 0, 0}, {50, 40, 0}, {100, 0, 0}, {150, -40, 0}};
-  const SkV3 start = spline.position(0);
-  const SkV3 end = spline.position(1);
+  const glm::vec3 start = spline.position(0);
+  const glm::vec3 end = spline.position(1);
   EXPECT_NEAR(start.x, 0, 1e-3);   // Catmull-Rom passes through
   EXPECT_NEAR(end.x, 150, 1e-3);
 }
@@ -394,7 +428,7 @@ TEST(Curves, ArcLengthSamplingIsEven) {
   spline.type = Spline3::Type::Linear; // keep the curve straight so
                                        // spacing is the only variable
   spline.points = {{0, 0, 0}, {5, 0, 0}, {10, 0, 0}, {200, 0, 0}};
-  const std::vector<SkV3> beads = spline.sampleArcLength(11);
+  const std::vector<glm::vec3> beads = spline.sampleArcLength(11);
   ASSERT_EQ(beads.size(), 11u);
   for (size_t i = 1; i < beads.size(); ++i)
     EXPECT_NEAR(beads[i].x - beads[i - 1].x, 20, 1.5f);
@@ -413,11 +447,11 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
   ASSERT_EQ(rail.size(), 64u);
   for (size_t i = 0; i < rail.size(); ++i) {
     const Frame3 &f = rail[i];
-    EXPECT_NEAR(f.tangent.length(), 1, 1e-3);
-    EXPECT_NEAR(f.normal.length(), 1, 1e-3);
-    EXPECT_NEAR(f.tangent.dot(f.normal), 0, 1e-3);
+    EXPECT_NEAR(glm::length(f.tangent), 1, 1e-3);
+    EXPECT_NEAR(glm::length(f.normal), 1, 1e-3);
+    EXPECT_NEAR(glm::dot(f.tangent, f.normal), 0, 1e-3);
     if (i > 0) // parallel transport: no sudden flips
-      EXPECT_GT(f.normal.dot(rail[i - 1].normal), 0.5f);
+      EXPECT_GT(glm::dot(f.normal, rail[i - 1].normal), 0.5f);
   }
 }
 
@@ -427,8 +461,8 @@ TEST(Curves, TubeAndRibbonAreWellFormed) {
   const Mesh t = curves::tube(arc, {.radius = 8, .segments = 24, .sides = 8});
   EXPECT_GT(t.triangleCount(), 0u);
   EXPECT_EQ(t.normals.size(), t.vertexCount());
-  for (const SkV3 &n : t.normals)
-    EXPECT_NEAR(n.length(), 1, 1e-3);
+  for (const glm::vec3 &n : t.normals)
+    EXPECT_NEAR(glm::length(n), 1, 1e-3);
   const Mesh r = curves::ribbon(arc, {.width = 20, .segments = 24});
   EXPECT_EQ(r.vertexCount(), 48u);
   EXPECT_EQ(r.triangleCount(), 46u);
@@ -464,14 +498,14 @@ TEST(Points, GeneratorsWriteLanes) {
 
   Cloud circle = points::ring({0, 0, 0}, 50, 8);
   EXPECT_EQ(circle.size(), 8u);
-  for (const SkV3 &p : circle.positions) {
-    EXPECT_NEAR(p.length(), 50, 1e-2);  // on the radius
+  for (const glm::vec3 &p : circle.positions) {
+    EXPECT_NEAR(glm::length(p), 50, 1e-2);  // on the radius
     EXPECT_NEAR(p.y, 0, 1e-3);          // in the plane ⊥ default axis
   }
 
   Cloud box = points::scatterBox({0, 0, 0}, {10, 10, 10}, 100, 3);
   EXPECT_EQ(box.size(), 100u);
-  for (const SkV3 &p : box.positions) {
+  for (const glm::vec3 &p : box.positions) {
     EXPECT_GE(p.x, 0);
     EXPECT_LE(p.x, 10);
   }
@@ -481,7 +515,7 @@ TEST(Points, OnMeshLandsOnSurface) {
   const Mesh quad = mesh::quad(100, 100); // z = 0 plane
   Cloud cloud = points::onMesh(quad, 64, 5);
   ASSERT_EQ(cloud.size(), 64u);
-  for (const SkV3 &p : cloud.positions) {
+  for (const glm::vec3 &p : cloud.positions) {
     EXPECT_NEAR(p.z, 0, 1e-4);
     EXPECT_LE(std::abs(p.x), 50.01f);
   }
@@ -493,7 +527,7 @@ TEST(Points, InstanceStampsWithLanes) {
   Cloud cloud = points::ring({0, 0, 0}, 80, 6);
   std::vector<float> &size = cloud.scalar("size", 1);
   size[0] = 2;
-  std::vector<SkColor4f> &tint = cloud.color("tint");
+  std::vector<glm::vec4> &tint = cloud.color("tint");
   tint[0] = {1, 0, 0, 1};
   const Mesh stamp = mesh::quad(10, 10);
   points::InstanceOptions options;
@@ -504,15 +538,46 @@ TEST(Points, InstanceStampsWithLanes) {
   EXPECT_EQ(merged.vertexCount(), 6u * stamp.vertexCount());
   EXPECT_EQ(merged.triangleCount(), 6u * stamp.triangleCount());
   ASSERT_EQ(merged.colors.size(), merged.vertexCount());
-  EXPECT_NEAR(merged.colors[0].fR, 1, 1e-4);
-  EXPECT_NEAR(merged.colors[0].fG, 0, 1e-4);
+  EXPECT_NEAR(merged.colors[0].r, 1, 1e-4);
+  EXPECT_NEAR(merged.colors[0].g, 0, 1e-4);
   // The first stamp is scaled 2x: its extent from its ring point is 10.
-  SkV3 lo, hi;
+  glm::vec3 lo, hi;
   Mesh first;
   first.positions.assign(merged.positions.begin(),
                          merged.positions.begin() + 4);
   first.bounds(&lo, &hi);
-  EXPECT_GT((hi - lo).length(), 14.0f); // 2x-scaled quad diagonal-ish
+  EXPECT_GT(glm::length(hi - lo), 14.0f); // 2x-scaled quad diagonal-ish
+}
+
+TEST(Points, AppendPadsLanesWithConventionalDefaults) {
+  // A lane missing on one side pads with the lane NAME's convention:
+  // "size" pads 1 (not invisible instances) and "Tex" the identity
+  // uv window (not white).
+  Cloud a;
+  a.positions = {{0, 0, 0}, {1, 0, 0}};
+  Cloud b;
+  b.positions = {{2, 0, 0}, {3, 0, 0}};
+  b.scalar("size", 2);
+  b.color("Tex", {0.5f, 0.5f, 0.5f, 0.5f});
+  a.append(b);
+  ASSERT_EQ(a.size(), 4u);
+  const std::vector<float> *size = a.scalarIf("size");
+  ASSERT_TRUE(size);
+  ASSERT_EQ(size->size(), 4u);
+  EXPECT_FLOAT_EQ((*size)[0], 1.0f); // a's side: scale 1, visible
+  EXPECT_FLOAT_EQ((*size)[1], 1.0f);
+  EXPECT_FLOAT_EQ((*size)[2], 2.0f); // b's actual values
+  EXPECT_FLOAT_EQ((*size)[3], 2.0f);
+  const std::vector<glm::vec4> *tex = a.colorIf("Tex");
+  ASSERT_TRUE(tex);
+  ASSERT_EQ(tex->size(), 4u);
+  for (size_t i = 0; i < 2; ++i) { // a's side: identity uv window
+    EXPECT_FLOAT_EQ((*tex)[i].x, 0.0f);
+    EXPECT_FLOAT_EQ((*tex)[i].y, 0.0f);
+    EXPECT_FLOAT_EQ((*tex)[i].z, 1.0f);
+    EXPECT_FLOAT_EQ((*tex)[i].w, 1.0f);
+  }
+  EXPECT_FLOAT_EQ((*tex)[2].x, 0.5f); // b's actual window
 }
 
 TEST(Points, BillboardsCoverPixels) {
@@ -579,6 +644,1166 @@ TEST(Easel, WireAndParticlesCook) {
                            .cook();
   EXPECT_EQ(sparks.size(), 50u);
   ASSERT_TRUE(sparks.colorIf("tint"));
-  EXPECT_NEAR(sparks.colorIf("tint")->front().fR, 1, 1e-3);
-  EXPECT_NEAR(sparks.colorIf("tint")->back().fB, 1, 1e-3);
+  EXPECT_NEAR(sparks.colorIf("tint")->front().r, 1, 1e-3);
+  EXPECT_NEAR(sparks.colorIf("tint")->back().b, 1, 1e-3);
+}
+
+// --- Import ---------------------------------------------------------------
+
+namespace {
+
+using import::Model;
+using import::Part;
+
+std::vector<std::byte> toBytes(std::string_view text) {
+  const auto *begin = reinterpret_cast<const std::byte *>(text.data());
+  return {begin, begin + text.size()};
+}
+
+std::string base64(const std::vector<std::byte> &bytes) {
+  static const char *alphabet =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string out;
+  for (size_t i = 0; i < bytes.size(); i += 3) {
+    uint32_t chunk = (uint32_t)bytes[i] << 16;
+    if (i + 1 < bytes.size())
+      chunk |= (uint32_t)bytes[i + 1] << 8;
+    if (i + 2 < bytes.size())
+      chunk |= (uint32_t)bytes[i + 2];
+    out.push_back(alphabet[(chunk >> 18) & 63]);
+    out.push_back(alphabet[(chunk >> 12) & 63]);
+    out.push_back(i + 1 < bytes.size() ? alphabet[(chunk >> 6) & 63] : '=');
+    out.push_back(i + 2 < bytes.size() ? alphabet[chunk & 63] : '=');
+  }
+  return out;
+}
+
+template <typename T>
+void appendRaw(std::vector<std::byte> &out, const T &value) {
+  const auto *begin = reinterpret_cast<const std::byte *>(&value);
+  out.insert(out.end(), begin, begin + sizeof(T));
+}
+
+/** One triangle at (0,0,0) (1,0,0) (0,1,0), uint16 indices 0 1 2. */
+std::vector<std::byte> triangleBufferBytes() {
+  std::vector<std::byte> bin;
+  const float positions[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+  for (float f : positions)
+    appendRaw(bin, f);
+  for (uint16_t i : {uint16_t(0), uint16_t(1), uint16_t(2)})
+    appendRaw(bin, i);
+  return bin;
+}
+
+/** The minimal scene: one node (translated +10 x) holding one red
+ *  triangle. @p bufferUri empty = GLB (no uri member). */
+std::string triangleGltfJson(const std::string &bufferUri) {
+  std::string buffer = "{\"byteLength\": 42";
+  if (!bufferUri.empty())
+    buffer += ", \"uri\": \"" + bufferUri + "\"";
+  buffer += "}";
+  return R"({
+  "asset": {"version": "2.0"},
+  "scene": 0,
+  "scenes": [{"nodes": [0]}],
+  "nodes": [{"mesh": 0, "name": "tri", "translation": [10, 0, 0]}],
+  "meshes": [{"primitives": [
+    {"attributes": {"POSITION": 0}, "indices": 1, "material": 0}]}],
+  "materials": [{"pbrMetallicRoughness":
+    {"baseColorFactor": [1, 0, 0, 1]}}],
+  "buffers": [)" +
+         buffer + R"(],
+  "bufferViews": [
+    {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+    {"buffer": 0, "byteOffset": 36, "byteLength": 6}],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+     "min": [0, 0, 0], "max": [1, 1, 0]},
+    {"bufferView": 1, "componentType": 5123, "count": 3,
+     "type": "SCALAR"}]
+})";
+}
+
+std::vector<std::byte> glbBytes() {
+  std::string json = triangleGltfJson("");
+  while (json.size() % 4)
+    json.push_back(' ');
+  std::vector<std::byte> bin = triangleBufferBytes();
+  while (bin.size() % 4)
+    bin.push_back(std::byte{0});
+  std::vector<std::byte> out;
+  appendRaw(out, (uint32_t)0x46546C67); // "glTF"
+  appendRaw(out, (uint32_t)2);
+  appendRaw(out, (uint32_t)(12 + 8 + json.size() + 8 + bin.size()));
+  appendRaw(out, (uint32_t)json.size());
+  appendRaw(out, (uint32_t)0x4E4F534A); // "JSON"
+  for (char c : json)
+    out.push_back((std::byte)c);
+  appendRaw(out, (uint32_t)bin.size());
+  appendRaw(out, (uint32_t)0x004E4942); // "BIN"
+  out.insert(out.end(), bin.begin(), bin.end());
+  return out;
+}
+
+constexpr const char *kCubeObj = R"(mtllib cube.mtl
+o Cube
+v -1 -1 -1
+v 1 -1 -1
+v 1 1 -1
+v -1 1 -1
+v -1 -1 1
+v 1 -1 1
+v 1 1 1
+v -1 1 1
+usemtl scarlet
+f 1 2 3 4
+f 5 8 7 6
+f 1 5 6 2
+f 2 6 7 3
+f 3 7 8 4
+f 4 8 5 1
+)";
+
+constexpr const char *kCubeMtl = R"(newmtl scarlet
+Kd 1 0 0
+)";
+
+} // namespace
+
+TEST(Import, ObjCubeWithMaterialThroughResolver) {
+  std::vector<std::string> asked;
+  const import::Resolver resolve =
+      [&](std::string_view uri) -> std::optional<std::vector<std::byte>> {
+    asked.emplace_back(uri);
+    if (uri == "cube.mtl")
+      return toBytes(kCubeMtl);
+    return std::nullopt;
+  };
+  const std::string obj = kCubeObj;
+  auto model = import::model(obj.data(), obj.size(), "cube.obj", resolve);
+  ASSERT_TRUE(model.has_value());
+  ASSERT_EQ(model->parts.size(), 1u);
+  const Part &part = model->parts.front();
+  EXPECT_EQ(part.name, "Cube");
+  EXPECT_EQ(part.mesh.vertexCount(), 8u);   // deduplicated corners
+  EXPECT_EQ(part.mesh.triangleCount(), 12u); // quads triangulated
+  EXPECT_FLOAT_EQ(part.baseColor.r, 1);
+  EXPECT_FLOAT_EQ(part.baseColor.g, 0);
+  ASSERT_EQ(asked.size(), 1u);
+  EXPECT_EQ(asked.front(), "cube.mtl");
+  // No normals in the file: computed, unit length.
+  ASSERT_EQ(part.mesh.normals.size(), 8u);
+  EXPECT_NEAR(glm::length(part.mesh.normals.front()), 1, 1e-4);
+  EXPECT_EQ(part.mesh.uvs.size(), 8u); // lane sized even without vt
+}
+
+TEST(Import, GltfEmbeddedBase64Buffer) {
+  const std::string json = triangleGltfJson(
+      "data:application/octet-stream;base64," +
+      base64(triangleBufferBytes()));
+  auto model = import::model(json.data(), json.size(), "tri.gltf");
+  ASSERT_TRUE(model.has_value());
+  ASSERT_EQ(model->parts.size(), 1u);
+  const Part &part = model->parts.front();
+  EXPECT_EQ(part.name, "tri");
+  EXPECT_EQ(part.mesh.vertexCount(), 3u);
+  EXPECT_EQ(part.mesh.triangleCount(), 1u);
+  EXPECT_FLOAT_EQ(part.baseColor.r, 1);
+  EXPECT_FLOAT_EQ(part.baseColor.b, 0);
+  // The node's +10 x translation is baked into model space.
+  glm::vec3 lo, hi;
+  model->bounds(&lo, &hi);
+  EXPECT_FLOAT_EQ(lo.x, 10);
+  EXPECT_FLOAT_EQ(hi.x, 11);
+}
+
+TEST(Import, GltfExternalBufferThroughResolver) {
+  const std::string json = triangleGltfJson("tri.bin");
+  const import::Resolver resolve =
+      [](std::string_view uri) -> std::optional<std::vector<std::byte>> {
+    if (uri == "tri.bin")
+      return triangleBufferBytes();
+    return std::nullopt;
+  };
+  auto model = import::model(json.data(), json.size(), "tri.gltf",
+                             resolve);
+  ASSERT_TRUE(model.has_value());
+  EXPECT_EQ(model->triangleCount(), 1u);
+  // Without the resolver the external buffer is unreachable.
+  EXPECT_FALSE(
+      import::model(json.data(), json.size(), "tri.gltf").has_value());
+}
+
+TEST(Import, GlbBinaryContainerAndSniffing) {
+  const std::vector<std::byte> glb = glbBytes();
+  auto model = import::model(glb.data(), glb.size(), "tri.glb");
+  ASSERT_TRUE(model.has_value());
+  EXPECT_EQ(model->vertexCount(), 3u);
+  EXPECT_EQ(model->triangleCount(), 1u);
+  // No useful extension: the GLB magic identifies it anyway.
+  auto sniffed = import::model(glb.data(), glb.size(), "download");
+  ASSERT_TRUE(sniffed.has_value());
+  EXPECT_EQ(sniffed->triangleCount(), 1u);
+}
+
+TEST(Import, StlBinaryAndAscii) {
+  // Binary: two triangles, zero normals force recomputation.
+  std::vector<std::byte> stl(80, std::byte{0});
+  appendRaw(stl, (uint32_t)2);
+  const float tri[2][12] = {
+      {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0},
+      {0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0},
+  };
+  for (const float *f : {tri[0], tri[1]}) {
+    for (int i = 0; i < 12; ++i)
+      appendRaw(stl, f[i]);
+    appendRaw(stl, (uint16_t)0);
+  }
+  auto model = import::model(stl.data(), stl.size(), "part.stl");
+  ASSERT_TRUE(model.has_value());
+  EXPECT_EQ(model->triangleCount(), 2u);
+  EXPECT_EQ(model->vertexCount(), 6u); // flat shaded, no dedup
+  EXPECT_NEAR(glm::length(model->parts.front().mesh.normals.front()), 1,
+              1e-4);
+
+  const std::string ascii = R"(solid tetra piece
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 1 0 0
+vertex 0 1 0
+endloop
+endfacet
+endsolid tetra piece
+)";
+  auto text = import::model(ascii.data(), ascii.size(), "part.stl");
+  ASSERT_TRUE(text.has_value());
+  EXPECT_EQ(text->triangleCount(), 1u);
+  EXPECT_EQ(text->parts.front().name, "tetra piece");
+  EXPECT_FLOAT_EQ(text->parts.front().mesh.normals.front().z, 1);
+}
+
+TEST(Import, MergedBakesBaseColorsIntoLane) {
+  Model model;
+  Part a;
+  a.mesh = mesh::quad(2, 2);
+  a.baseColor = {1, 0, 0, 1};
+  Part b;
+  b.mesh = mesh::quad(2, 2);
+  b.baseColor = {0, 1, 0, 1};
+  model.parts = {a, b};
+  const Mesh merged = model.merged();
+  EXPECT_EQ(merged.vertexCount(), 8u);
+  ASSERT_EQ(merged.colors.size(), 8u);
+  EXPECT_FLOAT_EQ(merged.colors.front().r, 1);
+  EXPECT_FLOAT_EQ(merged.colors.back().g, 1);
+}
+
+TEST(Import, MergedCloudConcatenatesLanesAcrossParts) {
+  // Disjoint lanes across parts: each side's values land at its own
+  // offset, and the other side pads with the lane's default.
+  Model model;
+  Part a;
+  a.mesh = mesh::quad(2, 2);
+  a.scalarLanes["energy"] = {1, 2, 3, 4};
+  Part b;
+  b.mesh = mesh::quad(2, 2);
+  b.colorLanes["heat"].assign(4, {1, 0, 0, 1});
+  model.parts = {a, b};
+  const Cloud merged = model.mergedCloud();
+  ASSERT_EQ(merged.size(), 8u);
+  const std::vector<float> *energy = merged.scalarIf("energy");
+  ASSERT_TRUE(energy);
+  ASSERT_EQ(energy->size(), 8u);
+  EXPECT_FLOAT_EQ((*energy)[0], 1.0f);
+  EXPECT_FLOAT_EQ((*energy)[3], 4.0f);
+  EXPECT_FLOAT_EQ((*energy)[4], 0.0f); // b's side pads scalar 0
+  EXPECT_FLOAT_EQ((*energy)[7], 0.0f);
+  const std::vector<glm::vec4> *heat = merged.colorIf("heat");
+  ASSERT_TRUE(heat);
+  ASSERT_EQ(heat->size(), 8u);
+  EXPECT_FLOAT_EQ((*heat)[0].r, 1.0f); // a's side pads white
+  EXPECT_FLOAT_EQ((*heat)[0].g, 1.0f);
+  EXPECT_FLOAT_EQ((*heat)[4].r, 1.0f); // b's red from offset 4
+  EXPECT_FLOAT_EQ((*heat)[4].g, 0.0f);
+}
+
+TEST(Import, FitTransformCentersAndScales) {
+  Model model;
+  Part part;
+  part.mesh = mesh::quad(4, 2);
+  part.mesh.transform(glm::translate(glm::mat4(1.0f), {100, 50, 0}));
+  model.parts = {part};
+  Mesh fitted = model.parts.front().mesh;
+  fitted.transform(model.fitTransform(100));
+  glm::vec3 lo, hi;
+  fitted.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x - lo.x, 100, 1e-3); // largest extent = target
+  EXPECT_NEAR(hi.y - lo.y, 50, 1e-3);  // aspect kept
+  EXPECT_NEAR(lo.x + hi.x, 0, 1e-3);   // centered
+  EXPECT_NEAR(lo.y + hi.y, 0, 1e-3);
+}
+
+// --- Pop ------------------------------------------------------------------
+
+TEST(Import, GltfCustomAttributesBecomeLanes) {
+  // Blender/Houdini's _NAME accessors survive import as named lanes
+  // and pour into a Cloud beside the conventional ones.
+  const std::string json = R"({
+  "asset": {"version": "2.0"},
+  "scenes": [{"nodes": [0]}], "scene": 0,
+  "nodes": [{"mesh": 0, "name": "pts"}],
+  "meshes": [{"primitives": [
+    {"attributes": {"POSITION": 0, "_ENERGY": 1}}]}],
+  "buffers": [{"byteLength": 48, "uri":
+"data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAACAPgAAAD8AAEA/"}],
+  "bufferViews": [
+    {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+    {"buffer": 0, "byteOffset": 36, "byteLength": 12}],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+     "min": [0, 0, 0], "max": [1, 1, 0]},
+    {"bufferView": 1, "componentType": 5126, "count": 3,
+     "type": "SCALAR"}]
+})";
+  auto model = import::model(json.data(), json.size(), "pts.gltf");
+  ASSERT_TRUE(model.has_value());
+  const import::Part &part = model->parts.front();
+  ASSERT_EQ(part.mesh.vertexCount(), 3u);
+  const auto energy = part.scalarLanes.find("ENERGY");
+  ASSERT_NE(energy, part.scalarLanes.end());
+  ASSERT_EQ(energy->second.size(), 3u);
+  EXPECT_FLOAT_EQ(energy->second[0], 0.25f);
+  EXPECT_FLOAT_EQ(energy->second[2], 0.75f);
+
+  const Cloud cloud = part.asCloud();
+  EXPECT_EQ(cloud.size(), 3u);
+  ASSERT_TRUE(cloud.scalarIf("ENERGY"));
+  EXPECT_FLOAT_EQ((*cloud.scalarIf("ENERGY"))[1], 0.5f);
+}
+
+TEST(Import, GltfVec2AndVec4CustomAttributesLandAsColorLanes) {
+  // Width routing beyond scalars: VEC2 customs ride the color lane
+  // zero-padded in z/w, VEC4 land verbatim — and both pour through
+  // asCloud() like any lane.
+  std::vector<std::byte> bin;
+  const float positions[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+  for (float f : positions)
+    appendRaw(bin, f);
+  const float uv2[6] = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
+  for (float f : uv2)
+    appendRaw(bin, f);
+  const float wgt[12] = {1, 0, 0, 0.5f, 0, 1, 0, 0.25f,
+                         0, 0, 1, 0.125f};
+  for (float f : wgt)
+    appendRaw(bin, f);
+  const std::string json = R"({
+  "asset": {"version": "2.0"},
+  "scenes": [{"nodes": [0]}], "scene": 0,
+  "nodes": [{"mesh": 0, "name": "pts"}],
+  "meshes": [{"primitives": [
+    {"attributes": {"POSITION": 0, "_UV2": 1, "_WGT": 2}}]}],
+  "buffers": [{"byteLength": 108, "uri":
+"data:application/octet-stream;base64,)" +
+                           base64(bin) + R"("}],
+  "bufferViews": [
+    {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+    {"buffer": 0, "byteOffset": 36, "byteLength": 24},
+    {"buffer": 0, "byteOffset": 60, "byteLength": 48}],
+  "accessors": [
+    {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+     "min": [0, 0, 0], "max": [1, 1, 0]},
+    {"bufferView": 1, "componentType": 5126, "count": 3, "type": "VEC2"},
+    {"bufferView": 2, "componentType": 5126, "count": 3, "type": "VEC4"}]
+})";
+  auto model = import::model(json.data(), json.size(), "pts.gltf");
+  ASSERT_TRUE(model.has_value());
+  const Part &part = model->parts.front();
+  const auto uv = part.colorLanes.find("UV2");
+  ASSERT_NE(uv, part.colorLanes.end());
+  ASSERT_EQ(uv->second.size(), 3u);
+  EXPECT_FLOAT_EQ(uv->second[1].x, 0.3f);
+  EXPECT_FLOAT_EQ(uv->second[1].y, 0.4f);
+  EXPECT_FLOAT_EQ(uv->second[1].z, 0.0f); // zero-padded z/w
+  EXPECT_FLOAT_EQ(uv->second[1].w, 0.0f);
+  const auto wgtLane = part.colorLanes.find("WGT");
+  ASSERT_NE(wgtLane, part.colorLanes.end());
+  ASSERT_EQ(wgtLane->second.size(), 3u);
+  EXPECT_FLOAT_EQ(wgtLane->second[0].w, 0.5f);
+  EXPECT_FLOAT_EQ(wgtLane->second[2].z, 1.0f);
+  EXPECT_FLOAT_EQ(wgtLane->second[2].w, 0.125f);
+
+  const Cloud cloud = part.asCloud();
+  ASSERT_TRUE(cloud.colorIf("UV2"));
+  ASSERT_TRUE(cloud.colorIf("WGT"));
+  EXPECT_FLOAT_EQ((*cloud.colorIf("UV2"))[2].y, 0.6f);
+  EXPECT_FLOAT_EQ((*cloud.colorIf("WGT"))[1].y, 1.0f);
+}
+
+TEST(Import, PlyAttributesFlowFromAsciiAndBinary) {
+  // The attribute carrier: conventional names build the mesh, every
+  // other property becomes a lane raw (ids stay ids; only colors
+  // normalize), and a faceless file is an honest point cloud whose
+  // lanes drive instancing directly.
+  const char *ascii =
+      "ply\n"
+      "format ascii 1.0\n"
+      "comment a houdini-ish scatter\n"
+      "element vertex 4\n"
+      "property float x\n"
+      "property float y\n"
+      "property float z\n"
+      "property float intensity\n"
+      "property uchar red\n"
+      "property uchar green\n"
+      "property uchar blue\n"
+      "end_header\n"
+      "0 0 0 0.5 255 0 0\n"
+      "10 0 0 1.5 0 255 0\n"
+      "0 10 0 2.5 0 0 255\n"
+      "10 10 0 3.5 255 255 255\n";
+  auto model = import::model(ascii, std::strlen(ascii), "scatter.ply");
+  ASSERT_TRUE(model.has_value());
+  const import::Part &part = model->parts.front();
+  ASSERT_EQ(part.mesh.vertexCount(), 4u);
+  EXPECT_TRUE(part.mesh.indices.empty()); // a point cloud, honestly
+  EXPECT_FLOAT_EQ(part.mesh.positions[1].x, 10);
+  ASSERT_EQ(part.mesh.colors.size(), 4u);
+  EXPECT_NEAR(part.mesh.colors[0].r, 1, 1e-2f); // uchar normalized
+  EXPECT_NEAR(part.mesh.colors[2].b, 1, 1e-2f);
+  const auto intensity = part.scalarLanes.find("intensity");
+  ASSERT_NE(intensity, part.scalarLanes.end());
+  EXPECT_FLOAT_EQ(intensity->second[3], 3.5f);
+
+  // The lane drives the library: intensity scales instanced stamps.
+  const Cloud cloud = part.asCloud();
+  points::InstanceOptions options;
+  options.scaleLane = "intensity";
+  const Mesh stamped =
+      points::instance(cloud, mesh::quad(2, 2), options);
+  EXPECT_EQ(stamped.vertexCount(), 4u * 4u);
+  glm::vec3 lo, hi;
+  stamped.bounds(&lo, &hi);
+  EXPECT_GT(hi.x, 12.0f); // the 3.5x stamp reaches past its point
+
+  // Binary little-endian speaks the same rows, faces included.
+  std::vector<std::byte> bin;
+  const auto push = [&](const void *p, size_t n) {
+    const auto *b = static_cast<const std::byte *>(p);
+    bin.insert(bin.end(), b, b + n);
+  };
+  const char *header =
+      "ply\n"
+      "format binary_little_endian 1.0\n"
+      "element vertex 3\n"
+      "property float x\n"
+      "property float y\n"
+      "property float z\n"
+      "property float intensity\n"
+      "element face 1\n"
+      "property list uchar int vertex_indices\n"
+      "end_header\n";
+  push(header, std::strlen(header));
+  const float verts[] = {0, 0, 0, 7,  4, 0, 0, 8,  0, 4, 0, 9};
+  push(verts, sizeof(verts));
+  const uint8_t faceCount = 3;
+  const int32_t face[] = {0, 1, 2};
+  push(&faceCount, 1);
+  push(face, sizeof(face));
+  auto binModel = import::model(bin.data(), bin.size(), "tri.ply");
+  ASSERT_TRUE(binModel.has_value());
+  const import::Part &tri = binModel->parts.front();
+  EXPECT_EQ(tri.mesh.triangleCount(), 1u);
+  EXPECT_FLOAT_EQ(tri.scalarLanes.at("intensity")[2], 9.0f);
+  ASSERT_EQ(tri.mesh.normals.size(), 3u);
+  EXPECT_NEAR(tri.mesh.normals.front().z, 1.0f, 1e-4f);
+}
+
+TEST(Import, PlyRejectsHostileCountsAndIndices) {
+  // (a) A face naming a vertex past the count is dropped whole — the
+  // vertices still import, and computeNormals never indexes OOB.
+  const char *badFace =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 1\n"
+      "property list uchar int vertex_indices\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n"
+      "3 0 1 9\n";
+  auto dropped = import::model(badFace, std::strlen(badFace), "bad.ply");
+  ASSERT_TRUE(dropped.has_value());
+  EXPECT_EQ(dropped->parts.front().mesh.vertexCount(), 3u);
+  EXPECT_EQ(dropped->parts.front().mesh.triangleCount(), 0u);
+
+  // (b) A vertex count no data could back is rejected before any
+  // resize acts on it.
+  const char *hugeCount =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 4000000000\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "end_header\n"
+      "0 0 0\n";
+  EXPECT_FALSE(
+      import::model(hugeCount, std::strlen(hugeCount), "huge.ply")
+          .has_value());
+
+  // (c) A binary list count promising more bytes than remain fails
+  // the row read instead of walking off the buffer.
+  std::vector<std::byte> truncated;
+  const char *binHeader =
+      "ply\nformat binary_little_endian 1.0\n"
+      "element vertex 1\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 1\n"
+      "property list uchar int vertex_indices\n"
+      "end_header\n";
+  const auto pushBytes = [&](const void *p, size_t n) {
+    const auto *b = static_cast<const std::byte *>(p);
+    truncated.insert(truncated.end(), b, b + n);
+  };
+  pushBytes(binHeader, std::strlen(binHeader));
+  const float vertex[3] = {0, 0, 0};
+  pushBytes(vertex, sizeof(vertex));
+  const uint8_t promised = 200; // 800 bytes of indices; none follow
+  pushBytes(&promised, 1);
+  EXPECT_FALSE(import::model(truncated.data(), truncated.size(),
+                             "trunc.ply")
+                   .has_value());
+}
+
+TEST(Import, LoneTStaysAScalarLane) {
+  // "t" is a texture coordinate only when paired with "s". Alone —
+  // the scalar every readPoints/cook/asCloud cloud carries — it must
+  // stay a lane instead of vanishing into uv.y.
+  const char *ascii =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "property float t\n"
+      "end_header\n"
+      "0 0 0 0.25\n1 0 0 0.5\n0 1 0 0.75\n";
+  auto model = import::model(ascii, std::strlen(ascii), "lone_t.ply");
+  ASSERT_TRUE(model.has_value());
+  const Part &part = model->parts.front();
+  const auto t = part.scalarLanes.find("t");
+  ASSERT_NE(t, part.scalarLanes.end());
+  ASSERT_EQ(t->second.size(), 3u);
+  EXPECT_FLOAT_EQ(t->second[1], 0.5f);
+  // uvs sized by finishPart, untouched by the lone "t".
+  for (const glm::vec2 &uv : part.mesh.uvs)
+    EXPECT_FLOAT_EQ(uv.y, 0.0f);
+  const Cloud cloud = part.asCloud();
+  ASSERT_TRUE(cloud.scalarIf("t"));
+  EXPECT_FLOAT_EQ((*cloud.scalarIf("t"))[2], 0.75f);
+
+  // The readPoints posture: a cloud whose ONLY extra lane is scalar
+  // "t" round-trips through save::ply with its values intact.
+  Cloud dump;
+  dump.positions = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}};
+  dump.scalar("t") = {0.1f, 0.6f, 0.9f};
+  const std::string bytes = save::ply(dump);
+  auto trip = import::model(bytes.data(), bytes.size(), "trip.ply");
+  ASSERT_TRUE(trip.has_value());
+  const Cloud back = trip->parts.front().asCloud();
+  ASSERT_EQ(back.size(), 3u);
+  ASSERT_TRUE(back.scalarIf("t"));
+  EXPECT_FLOAT_EQ((*back.scalarIf("t"))[0], 0.1f);
+  EXPECT_FLOAT_EQ((*back.scalarIf("t"))[1], 0.6f);
+  EXPECT_FLOAT_EQ((*back.scalarIf("t"))[2], 0.9f);
+}
+
+TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
+  // The fold-back leg's edges: an incomplete _x/_y pair fabricates no
+  // vector and keeps its raw scalars; a complete _r/_g/_b without _a
+  // folds with alpha 1.
+  const char *ascii =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 2\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "property float foo_x\nproperty float foo_y\n"
+      "property float warm_r\nproperty float warm_g\n"
+      "property float warm_b\n"
+      "end_header\n"
+      "0 0 0 1 2 0.25 0.5 0.75\n"
+      "1 0 0 3 4 1 0 0.5\n";
+  auto model = import::model(ascii, std::strlen(ascii), "fold.ply");
+  ASSERT_TRUE(model.has_value());
+  const Part &part = model->parts.front();
+  EXPECT_EQ(part.vectorLanes.count("foo"), 0u);
+  ASSERT_EQ(part.scalarLanes.count("foo_x"), 1u);
+  ASSERT_EQ(part.scalarLanes.count("foo_y"), 1u);
+  EXPECT_FLOAT_EQ(part.scalarLanes.at("foo_x")[1], 3.0f);
+  EXPECT_FLOAT_EQ(part.scalarLanes.at("foo_y")[1], 4.0f);
+  const auto warm = part.colorLanes.find("warm");
+  ASSERT_NE(warm, part.colorLanes.end());
+  ASSERT_EQ(warm->second.size(), 2u);
+  EXPECT_FLOAT_EQ(warm->second[0].x, 0.25f);
+  EXPECT_FLOAT_EQ(warm->second[0].y, 0.5f);
+  EXPECT_FLOAT_EQ(warm->second[0].z, 0.75f);
+  EXPECT_FLOAT_EQ(warm->second[0].w, 1.0f);
+  EXPECT_EQ(part.scalarLanes.count("warm_r"), 0u);
+  EXPECT_EQ(part.scalarLanes.count("warm_g"), 0u);
+  EXPECT_EQ(part.scalarLanes.count("warm_b"), 0u);
+}
+
+namespace {
+
+/** An Ogawa archive written fully in memory: a translated xform
+ *  holding a static clockwise triangle with a kVertexScope arb param,
+ *  and an animated top-level point cloud (2 samples at 24 fps) with
+ *  ids on the first sample. */
+std::string alembicArchiveBytes() {
+  namespace Abc = Alembic::Abc;
+  namespace AbcGeom = Alembic::AbcGeom;
+  std::ostringstream out(std::ios::binary);
+  {
+    Abc::OArchive archive(
+        Alembic::AbcCoreOgawa::WriteArchive()(&out, Abc::MetaData()));
+    const uint32_t ts = archive.addTimeSampling(
+        Alembic::AbcCoreAbstract::TimeSampling(1.0 / 24.0, 0.0));
+
+    AbcGeom::OXform root(archive.getTop(), "root");
+    AbcGeom::XformSample xs;
+    xs.setTranslation(Abc::V3d(10, 0, 0));
+    root.getSchema().set(xs);
+
+    AbcGeom::OPolyMesh meshObj(root, "tri"); // static, under the xform
+    const std::vector<Imath::V3f> pos = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+    const std::vector<int32_t> indices = {0, 2, 1}; // Alembic: clockwise
+    const std::vector<int32_t> counts = {3};
+    meshObj.getSchema().set(AbcGeom::OPolyMeshSchema::Sample(
+        Abc::P3fArraySample(pos), Abc::Int32ArraySample(indices),
+        Abc::Int32ArraySample(counts)));
+    AbcGeom::OFloatGeomParam energy(meshObj.getSchema().getArbGeomParams(),
+                                    "energy", false, AbcGeom::kVertexScope,
+                                    1);
+    const std::vector<float> values = {0.25f, 0.5f, 0.75f};
+    energy.set(AbcGeom::OFloatGeomParam::Sample(
+        Abc::FloatArraySample(values), AbcGeom::kVertexScope));
+
+    AbcGeom::OPoints pointsObj(archive.getTop(), "cloud", ts); // animated
+    const std::vector<uint64_t> ids = {0, 1};
+    const std::vector<Imath::V3f> frame0 = {{0, 0, 0}, {1, 0, 0}};
+    pointsObj.getSchema().set(AbcGeom::OPointsSchema::Sample(
+        Abc::P3fArraySample(frame0), Abc::UInt64ArraySample(ids)));
+    const std::vector<Imath::V3f> frame1 = {{0, 1, 0}, {1, 1, 0}};
+    pointsObj.getSchema().set(
+        AbcGeom::OPointsSchema::Sample(Abc::P3fArraySample(frame1)));
+  } // OArchive dtor finalizes the Ogawa bytes — .str() only after
+  return std::move(out).str();
+}
+
+} // namespace
+
+TEST(Import, AlembicMeshPointsAndLanes) {
+  const std::string bytes = alembicArchiveBytes();
+
+  // No useful extension on the hint: the Ogawa magic routes it.
+  auto model = import::model(bytes.data(), bytes.size(), "download");
+  ASSERT_TRUE(model.has_value());
+  ASSERT_EQ(model->parts.size(), 2u);
+  const auto find = [&](std::string_view name) -> const Part * {
+    for (const Part &part : model->parts)
+      if (part.name == name)
+        return &part;
+    return nullptr;
+  };
+  const Part *tri = find("tri");
+  const Part *cloud = find("cloud");
+  ASSERT_NE(tri, nullptr);
+  ASSERT_NE(cloud, nullptr);
+
+  EXPECT_EQ(tri->mesh.triangleCount(), 1u);
+  glm::vec3 lo, hi;
+  tri->mesh.bounds(&lo, &hi);
+  EXPECT_FLOAT_EQ(lo.x, 10.0f); // the root xform baked into positions
+  EXPECT_FLOAT_EQ(hi.x, 11.0f);
+  // Alembic winds clockwise; the importer reverses to CCW, so the
+  // derived normal faces +z instead of -z.
+  ASSERT_EQ(tri->mesh.normals.size(), 3u);
+  EXPECT_GT(tri->mesh.normals[0].z, 0.0f);
+  // kVertexScope arbGeomParam -> per-point scalar lane, each value
+  // riding the dedup to its vertex (locally 0.25 + 0.25x + 0.5y).
+  const auto energy = tri->scalarLanes.find("energy");
+  ASSERT_NE(energy, tri->scalarLanes.end());
+  ASSERT_EQ(energy->second.size(), 3u);
+  for (size_t i = 0; i < 3; ++i) {
+    const glm::vec3 local = tri->mesh.positions[i] - glm::vec3{10, 0, 0};
+    EXPECT_NEAR(energy->second[i],
+                0.25f + 0.25f * local.x + 0.5f * local.y, 1e-6f);
+  }
+  EXPECT_EQ(tri->asCloud().scalars.count("energy"), 1u);
+
+  // The point cloud: faceless part, ids as a lane, frame 0 at time 0.
+  EXPECT_TRUE(cloud->mesh.indices.empty());
+  ASSERT_EQ(cloud->mesh.positions.size(), 2u);
+  EXPECT_FLOAT_EQ(cloud->mesh.positions[0].y, 0.0f);
+  const auto id = cloud->scalarLanes.find("id");
+  ASSERT_NE(id, cloud->scalarLanes.end());
+  ASSERT_EQ(id->second.size(), 2u);
+  EXPECT_FLOAT_EQ(id->second[0], 0.0f);
+  EXPECT_FLOAT_EQ(id->second[1], 1.0f);
+
+  // Malformed bytes stay quiet: garbage and a truncated archive.
+  const char garbage[] = "not an alembic archive at all";
+  EXPECT_FALSE(import::alembic(garbage, sizeof(garbage)).has_value());
+  EXPECT_FALSE(
+      import::alembic(bytes.data(), bytes.size() / 2).has_value());
+}
+
+TEST(Import, AlembicTimeSampleSelection) {
+  const std::string bytes = alembicArchiveBytes();
+  const auto cloudY = [&](double time) -> float {
+    auto model =
+        import::alembic(bytes.data(), bytes.size(), {.time = time});
+    if (!model)
+      return -1.0f;
+    for (const Part &part : model->parts)
+      if (part.name == "cloud")
+        return part.mesh.positions.at(0).y;
+    return -1.0f;
+  };
+  EXPECT_FLOAT_EQ(cloudY(0), 0.0f);        // frame 0
+  EXPECT_FLOAT_EQ(cloudY(1.0 / 24), 1.0f); // frame 1
+  EXPECT_FLOAT_EQ(cloudY(0.6 / 24), 1.0f); // NEAREST sample, not floor
+}
+
+TEST(Save, PlyRoundTripsCloudLanes) {
+  // The return leg: a Cloud with every lane kind writes to PLY and
+  // reads back reconstituted — vectors fold from _x/_y/_z, colors
+  // from _r/_g/_b/_a, tint survives its uchar quantization, and the
+  // conventional names stay conventional.
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {4, 0, 0}, {0, 4, 0}, {4, 4, 2}};
+  cloud.scalar("energy") = {0.5f, 1.5f, 2.5f, 3.5f};
+  cloud.vector("dir") = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 0}};
+  cloud.vector("normal") =
+      {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
+  cloud.color("glow") = {{0.25f, 0.5f, 0.75f, 1.0f},
+                         {1, 0, 0, 0.5f},
+                         {0, 1, 0, 0.25f},
+                         {0, 0, 1, 0.125f}};
+  cloud.color("tint") = {{1, 0, 0, 1},
+                         {0, 1, 0, 1},
+                         {0, 0, 1, 1},
+                         {1, 1, 1, 0.5f}};
+
+  const std::string bytes = save::ply(cloud);
+  auto model = import::model(bytes.data(), bytes.size(), "trip.ply");
+  ASSERT_TRUE(model.has_value());
+  const Cloud back = model->parts.front().asCloud();
+  ASSERT_EQ(back.size(), 4u);
+  EXPECT_NEAR(back.positions[3].z, 2, 1e-4f);
+  ASSERT_TRUE(back.scalarIf("energy"));
+  EXPECT_FLOAT_EQ((*back.scalarIf("energy"))[2], 2.5f);
+  ASSERT_TRUE(back.vectorIf("dir")); // folded back from dir_x/_y/_z
+  EXPECT_FLOAT_EQ((*back.vectorIf("dir"))[1].y, 1);
+  ASSERT_TRUE(back.vectorIf("normal")); // via nx/ny/nz
+  EXPECT_FLOAT_EQ((*back.vectorIf("normal"))[0].z, 1);
+  ASSERT_TRUE(back.colorIf("glow")); // folded from glow_r/_g/_b/_a
+  EXPECT_NEAR((*back.colorIf("glow"))[0].y, 0.5f, 1e-4f);
+  EXPECT_NEAR((*back.colorIf("glow"))[3].w, 0.125f, 1e-4f);
+  ASSERT_TRUE(back.colorIf("tint")); // uchar red/green/blue/alpha
+  EXPECT_NEAR((*back.colorIf("tint"))[1].y, 1, 1.5f / 255.0f);
+  EXPECT_NEAR((*back.colorIf("tint"))[3].w, 0.5f, 1.5f / 255.0f);
+}
+
+TEST(Save, PlyRoundTripsMeshWithFaces) {
+  Mesh quad = mesh::quad(10, 6);
+  quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
+  const std::string bytes = save::ply(quad);
+  auto model = import::model(bytes.data(), bytes.size(), "quad.ply");
+  ASSERT_TRUE(model.has_value());
+  const Mesh &back = model->parts.front().mesh;
+  ASSERT_EQ(back.vertexCount(), 4u);
+  EXPECT_EQ(back.triangleCount(), 2u);
+  glm::vec3 lo, hi;
+  back.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x - lo.x, 10, 1e-4f);
+  EXPECT_NEAR(hi.y - lo.y, 6, 1e-4f);
+  ASSERT_EQ(back.uvs.size(), 4u);
+  ASSERT_EQ(back.colors.size(), 4u);
+  EXPECT_NEAR(back.colors[0].y, 0.9f, 1.5f / 255.0f);
+}
+
+TEST(Save, BinaryPlyRoundTripsExactly) {
+  // binary_little_endian rows are raw floats, so the round trip is
+  // BIT-exact — EXPECT_FLOAT_EQ throughout, no %g truncation; only
+  // tint pays its uchar quantization toll. The awkward values
+  // (thirds, 1e-5) are the ones ascii would have rounded.
+  Cloud cloud;
+  cloud.positions = {{0.1f, 2.3f, -4.5f},
+                     {6.7f, -8.9f, 10.11f},
+                     {1.0f / 3.0f, 2.0f / 7.0f, 1e-5f}};
+  cloud.scalar("energy") = {0.5f, 1.0f / 3.0f, 2.5f};
+  cloud.vector("dir") = {{1, 0, 0}, {0.1f, 0.2f, 0.3f}, {0, 0, 1}};
+  cloud.vector("normal") = {{0, 0, 1}, {0, 1, 0}, {1, 0, 0}};
+  cloud.color("glow") = {{0.25f, 0.5f, 0.75f, 1.0f},
+                         {1.0f / 3.0f, 0, 0, 0.5f},
+                         {0, 1, 0, 0.125f}};
+  cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 1}, {1, 1, 1, 0.5f}};
+
+  const std::string bytes = save::ply(cloud, {.binary = true});
+  auto model = import::model(bytes.data(), bytes.size(), "bin.ply");
+  ASSERT_TRUE(model.has_value());
+  const Cloud back = model->parts.front().asCloud();
+  ASSERT_EQ(back.size(), 3u);
+  for (size_t i = 0; i < 3; ++i)
+    for (int c = 0; c < 3; ++c)
+      EXPECT_FLOAT_EQ(back.positions[i][c], cloud.positions[i][c]);
+  ASSERT_TRUE(back.scalarIf("energy"));
+  EXPECT_FLOAT_EQ((*back.scalarIf("energy"))[1], 1.0f / 3.0f);
+  ASSERT_TRUE(back.vectorIf("dir")); // folded back from dir_x/_y/_z
+  EXPECT_FLOAT_EQ((*back.vectorIf("dir"))[1].z, 0.3f);
+  ASSERT_TRUE(back.vectorIf("normal")); // via nx/ny/nz
+  EXPECT_FLOAT_EQ((*back.vectorIf("normal"))[1].y, 1.0f);
+  ASSERT_TRUE(back.colorIf("glow")); // folded from glow_r/_g/_b/_a
+  EXPECT_FLOAT_EQ((*back.colorIf("glow"))[1].x, 1.0f / 3.0f);
+  EXPECT_FLOAT_EQ((*back.colorIf("glow"))[2].w, 0.125f);
+  ASSERT_TRUE(back.colorIf("tint")); // uchar red/green/blue/alpha
+  EXPECT_NEAR((*back.colorIf("tint"))[2].w, 0.5f, 1.5f / 255.0f);
+
+  // Faces ride binary too: list counts as single raw uchars, indices
+  // as raw int32 — the same rows the ascii writer spells in text.
+  Mesh quad = mesh::quad(10, 6);
+  quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
+  const std::string meshBytes = save::ply(quad, {.binary = true});
+  auto meshModel =
+      import::model(meshBytes.data(), meshBytes.size(), "quad.ply");
+  ASSERT_TRUE(meshModel.has_value());
+  const Mesh &tri = meshModel->parts.front().mesh;
+  ASSERT_EQ(tri.vertexCount(), 4u);
+  EXPECT_EQ(tri.triangleCount(), 2u);
+  glm::vec3 lo, hi;
+  tri.bounds(&lo, &hi);
+  EXPECT_FLOAT_EQ(hi.x - lo.x, 10.0f);
+  EXPECT_FLOAT_EQ(hi.y - lo.y, 6.0f);
+  ASSERT_EQ(tri.colors.size(), 4u);
+  EXPECT_NEAR(tri.colors[0].y, 0.9f, 1.5f / 255.0f);
+}
+
+TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
+  // Wrong-length lanes are skipped by header AND rows (the lockstep
+  // predicate): the export still parses and the correct lane survives.
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+  cloud.scalar("energy") = {1, 2, 3};
+  cloud.scalars["stub"] = {7};                    // wrong length
+  cloud.vectors["off"] = {{1, 2, 3}, {4, 5, 6}}; // wrong length
+  const std::string bytes = save::ply(cloud);
+  auto model = import::model(bytes.data(), bytes.size(), "skip.ply");
+  ASSERT_TRUE(model.has_value());
+  const Part &part = model->parts.front();
+  ASSERT_EQ(part.mesh.vertexCount(), 3u);
+  ASSERT_EQ(part.scalarLanes.count("energy"), 1u);
+  EXPECT_FLOAT_EQ(part.scalarLanes.at("energy")[2], 3.0f);
+  EXPECT_EQ(part.scalarLanes.count("stub"), 0u);
+  EXPECT_EQ(part.vectorLanes.count("off"), 0u);
+  EXPECT_EQ(part.scalarLanes.count("off_x"), 0u);
+
+  // Zero vertices decline loudly: "" from the string overloads (our
+  // own importer refuses an empty PLY), false from the file overload.
+  EXPECT_TRUE(save::ply(Cloud{}).empty());
+  EXPECT_TRUE(save::ply(Mesh{}).empty());
+  const std::filesystem::path file =
+      std::filesystem::temp_directory_path() /
+      "sigilshape_empty_decline.ply";
+  EXPECT_FALSE(save::ply(file, Cloud{}));
+  EXPECT_FALSE(save::ply(file, Mesh{}));
+}
+
+TEST(Pop, CookMeshFormsAModelFromAChain) {
+  // The whole point of the split: a pop chain DESCRIBES a model, and
+  // the CPU cook forms it as one Mesh — the same currency both
+  // space::drawMesh (Skia) and World::addSurface (Diligent) draw.
+  pop::SplineScatter scatter;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    scatter.loop.push_back(
+        {200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+  }
+  scatter.count = 500;
+  scatter.head = 1;
+  scatter.span = 1;
+  scatter.radius = 12;
+  pop::Chain chain = {scatter,
+                      pop::Vary{pop::Lane::Scale, 1.0f, 0.4f, 3},
+                      pop::Ramp{pop::Lane::Color,
+                                {1, 0, 0, 1},
+                                {0, 0, 1, 1}}};
+  const Mesh stamp = mesh::quad(6, 6);
+  const Mesh model = popops::cookMesh(chain, stamp);
+  EXPECT_EQ(model.vertexCount(), 500u * stamp.vertexCount());
+  EXPECT_EQ(model.triangleCount(), 500u * stamp.triangleCount());
+  ASSERT_EQ(model.colors.size(), model.vertexCount()); // tint baked
+  // Determinism: the same description forms the same model.
+  const Mesh again = popops::cookMesh(chain, stamp);
+  ASSERT_EQ(again.positions.size(), model.positions.size());
+  EXPECT_EQ(again.positions[123].x, model.positions[123].x);
+  // The chain is a VALUE: editing it re-describes a different model.
+  chain.push_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 500, 0, 0}});
+  const Mesh lifted = popops::cookMesh(chain, stamp);
+  EXPECT_GT(lifted.positions[123].y, model.positions[123].y + 400.0f);
+}
+
+TEST(Pop, SweptSinksBendWithTheChain) {
+  // The chain's cooked points ARE the path: a noised circle scatter
+  // becomes a wobbly tube; the same description ribbons; a Math
+  // translate re-describes the whole model elsewhere.
+  pop::SplineScatter scatter;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    scatter.loop.push_back(
+        {300.0f * std::cos(a), 0, 300.0f * std::sin(a)});
+  }
+  scatter.count = 96;
+  scatter.head = 1;
+  scatter.span = 1;
+  pop::Chain chain = {scatter, pop::Noise{pop::Lane::P, 40, 0.01f, 5}};
+
+  const Mesh tube =
+      popops::cookTube(chain, 12, 10, {.closed = true, .segments = 200});
+  EXPECT_GT(tube.triangleCount(), 1000u);
+  glm::vec3 lo, hi;
+  tube.bounds(&lo, &hi);
+  EXPECT_GT(hi.y - lo.y, 20.0f) << "noise must bend the sweep off-plane";
+  EXPECT_NEAR(hi.x - lo.x, 624, 130); // ~circle + noise + radius
+
+  const Mesh ribbon =
+      popops::cookRibbon(chain, 60, {.closed = true, .segments = 160});
+  EXPECT_GT(ribbon.triangleCount(), 200u);
+
+  chain.push_back(
+      pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
+  const Mesh lifted = popops::cookTube(chain, 12, 10, {.closed = true});
+  glm::vec3 lo2, hi2;
+  lifted.bounds(&lo2, &hi2);
+  EXPECT_GT(lo2.y, hi.y + 400.0f) << "value edit re-forms the model high";
+}
+
+TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
+  }
+  // One breath: entry verb, intent verbs, a sink — every default loud.
+  const Mesh wobble =
+      pop::on(loop).count(64).noise(30).tube(10, 8, true);
+  EXPECT_GT(wobble.triangleCount(), 500u);
+
+  // The builder IS the chain: nothing hides, edits stay open.
+  pop::Chain c = pop::on(loop)
+                     .count(10)
+                     .spread(5)
+                     .vary(0.4f)
+                     .fade({1, 0, 0, 1}, {0, 0, 1, 1});
+  EXPECT_EQ(c.size(), 3u); // scatter + vary + ramp
+  std::get<pop::SplineScatter>(c.front()).count = 20;
+  EXPECT_EQ(popops::cook(c).size(), 20u);
+}
+
+
+TEST(Pop, SmoothHealsNoiseKinks) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({250.0f * std::cos(a), 0, 250.0f * std::sin(a)});
+  }
+  const auto jaggedness = [](const Cloud &cloud) {
+    double sum = 0;
+    for (size_t i = 1; i + 1 < cloud.size(); ++i)
+      sum += glm::length(cloud.positions[i - 1] -
+                         cloud.positions[i] * 2.0f +
+                         cloud.positions[i + 1]);
+    return sum;
+  };
+  const double rough = jaggedness(
+      popops::cook(pop::on(loop).count(80).noise(30).chain()));
+  const double healed = jaggedness(popops::cook(
+      pop::on(loop).count(80).noise(30).smooth(0.6f, 3).chain()));
+  EXPECT_LT(healed, rough * 0.5) << rough << " -> " << healed;
+}
+
+
+TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({220.0f * std::cos(a), 0, 220.0f * std::sin(a)});
+  }
+  SkPathBuilder starProfile;
+  for (int i = 0; i < 10; ++i) {
+    const float r = i % 2 == 0 ? 24.0f : 10.0f;
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    const SkPoint p = {r * std::cos(a), r * std::sin(a)};
+    if (i == 0)
+      starProfile.moveTo(p);
+    else
+      starProfile.lineTo(p);
+  }
+  starProfile.close();
+  const Mesh swept = pop::on(loop).count(60).smooth(0.4f).sweep(
+      starProfile.detach(), true, 120);
+  EXPECT_GT(swept.triangleCount(), 1500u);
+  glm::vec3 lo, hi;
+  swept.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x - lo.x, 2 * (220 + 24), 30); // ring + star arms
+  EXPECT_GT(hi.y - lo.y, 20.0f); // the profile stands off the plane
+}
+
+
+TEST(Pop, ChainsComposeIntoEachOther) {
+  // Pops feed pops: chain A's cooked result IS chain B's path.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({220.0f * std::cos(a), 0, 220.0f * std::sin(a)});
+  }
+  const pop::Chain spine =
+      pop::on(loop).count(48).noise(26).smooth(0.5f);
+  const Cloud beads = pop::on(spine).count(300).spread(6).cloud();
+  EXPECT_EQ(beads.size(), 300u);
+  // The beads inherit A's off-plane noise — they ride the composed
+  // path, not the raw circle.
+  float yMin = 1e9f, yMax = -1e9f;
+  for (const glm::vec3 &p : beads.positions) {
+    yMin = std::min(yMin, p.y);
+    yMax = std::max(yMax, p.y);
+  }
+  EXPECT_GT(yMax - yMin, 12.0f);
+  // And any sink still applies to the composition.
+  EXPECT_GT(pop::on(spine).count(80).tube(6, 8, true).triangleCount(),
+            500u);
+}
+
+
+TEST(Pop, ChainsSeedFromFormedModels) {
+  // The recursive loop: form a model, scatter ON its surface, form
+  // again — every stage one description.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+  }
+  const Mesh cable = pop::on(loop).count(64).noise(20).tube(9, 8, true);
+  const Cloud dust = pop::on(cable, 500).cloud();
+  EXPECT_EQ(dust.size(), 500u);
+  glm::vec3 mLo, mHi, dLo, dHi;
+  cable.bounds(&mLo, &mHi);
+  Mesh asPoints;
+  asPoints.positions = dust.positions;
+  asPoints.bounds(&dLo, &dHi);
+  EXPECT_GE(dLo.x, mLo.x - 1);
+  EXPECT_LE(dHi.x, mHi.x + 1); // dust lives on the cable
+  EXPECT_GT(pop::on(cable, 300).stamps(mesh::quad(4, 4)).triangleCount(),
+            500u);
+}
+
+TEST(Curves, BannerHangsGravityUpright) {
+  Spline3 loop;
+  loop.closed = true;
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
+    loop.points.push_back(
+        {300.0f * std::cos(a), 40.0f * std::sin(2 * a),
+         300.0f * std::sin(a)});
+  }
+  const Mesh band =
+      curves::banner(loop, {.width = 50, .sections = 120});
+  ASSERT_EQ(band.vertexCount(), 240u);
+  // Every cross-section's u=0 vertex sits ABOVE its u=1 partner: the
+  // width hangs vertical, never rolled.
+  for (size_t i = 0; i + 1 < band.positions.size(); i += 2)
+    EXPECT_GT(band.positions[i].y, band.positions[i + 1].y);
+}
+
+TEST(Pop, ImportedModelsJoinTheSystem) {
+  // The loaders' output is the pop system's input: an imported model
+  // (the in-memory OBJ cube) both SEEDS a chain and serves as a
+  // STAMP — no special casing, Mesh is Mesh.
+  const std::string obj = kCubeObj;
+  auto model = import::model(obj.data(), obj.size(), "cube.obj");
+  ASSERT_TRUE(model.has_value());
+  const Mesh cube = model->merged();
+
+  // Scatter on the imported surface...
+  const Cloud dust = pop::on(cube, 300).cloud();
+  EXPECT_EQ(dust.size(), 300u);
+  glm::vec3 lo, hi;
+  Mesh asPoints;
+  asPoints.positions = dust.positions;
+  asPoints.bounds(&lo, &hi);
+  EXPECT_GE(lo.x, -1.01f);
+  EXPECT_LE(hi.x, 1.01f); // points live on the unit cube
+
+  // ...and use the imported model AS the stamp along a chain.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({80.0f * std::cos(a), 0, 80.0f * std::sin(a)});
+  }
+  const Mesh cubes =
+      pop::on(loop).count(24).vary(0.4f).stamps(cube);
+  EXPECT_EQ(cubes.triangleCount(), 24u * cube.triangleCount());
+}
+
+TEST(Pop, NamedAttributesFlowAndExport) {
+  // TD's superpower: any NAME is an attribute. Create one, noise it,
+  // scale it into Scale via Math-on-custom... and read it all back.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+  }
+  const pop::Chain chain =
+      pop::on(loop)
+          .count(64)
+          .set("energy", {0.5f, 0, 0, 0})
+          .op(pop::Jitter{"energy", 0.25f, 5})
+          .op(pop::Math{"energy", {2, 1, 1, 1}, {0, 0, 0, 0}});
+  const Cloud cooked = popops::cook(chain);
+  const std::vector<glm::vec4> *energy = cooked.colorIf("energy");
+  ASSERT_TRUE(energy) << "customs must export under their own name";
+  float lo = 1e9f, hi = -1e9f;
+  for (const glm::vec4 &e : *energy) {
+    lo = std::min(lo, e.r);
+    hi = std::max(hi, e.r);
+  }
+  EXPECT_GT(hi, lo + 0.1f); // jittered, not constant
+  EXPECT_GT(lo, 0.4f);      // 2 * (0.5 - 0.25) bounds
+  EXPECT_LT(hi, 1.6f);
+}
+
+TEST(Pop, AtlasTexHintsRemapStampUvs) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
+  }
+  const pop::Chain chain = pop::on(loop).count(40).atlas(2, 2);
+  const Mesh stamped = popops::cookMesh(chain, mesh::quad(8, 8));
+  // Every stamped point's uvs land inside ONE half-size atlas cell.
+  const size_t stampVerts = mesh::quad(8, 8).vertexCount();
+  int cellsSeen[4] = {0, 0, 0, 0};
+  for (size_t p = 0; p < 40; ++p) {
+    float uMin = 2, uMax = -1, vMin = 2, vMax = -1;
+    for (size_t v = 0; v < stampVerts; ++v) {
+      const glm::vec2 uv = stamped.uvs[p * stampVerts + v];
+      uMin = std::min(uMin, uv.x);
+      uMax = std::max(uMax, uv.x);
+      vMin = std::min(vMin, uv.y);
+      vMax = std::max(vMax, uv.y);
+    }
+    EXPECT_NEAR(uMax - uMin, 0.5f, 1e-4f);
+    EXPECT_NEAR(vMax - vMin, 0.5f, 1e-4f);
+    cellsSeen[(uMin > 0.25f ? 1 : 0) + (vMin > 0.25f ? 2 : 0)]++;
+  }
+  EXPECT_GT(cellsSeen[0] + cellsSeen[1] + cellsSeen[2] + cellsSeen[3],
+            39); // all classified
+  int distinct = 0;
+  for (int c : cellsSeen)
+    distinct += c > 0 ? 1 : 0;
+  EXPECT_GE(distinct, 3) << "the hash should spread across cells";
 }

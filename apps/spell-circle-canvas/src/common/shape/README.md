@@ -2,11 +2,20 @@
 
 Namespace `sigil::shape`, target `SigilShape`, headers
 `include/sigilshape/`. The higher-level drawing vocabulary over Skia —
-Skia-only by contract (no compose kernel, no motion, no Qt), so
-SigilCompose and any product can adapt downward while this library
-stays extractable.
+no compose kernel, no motion, no Qt — so SigilCompose and any product
+can adapt downward while this library stays extractable.
 
-Eight headers, one dependency direction (later headers may use earlier):
+Two type currencies, split by context: **glm** (`vec2/vec3/vec4/mat4`)
+for everything directly 3D — Mesh, Curves, Points, Pop, Import, the
+Camera — and **Skia** for everything genuinely 2D or draw-time —
+SkPath outlines, paint/style colors, textures, the canvas. Space.h is
+the declared bridge (`toSkM44()` is the seam; both stores are
+column-major). SigilWorld consumes the glm side without touching Skia
+except for `SkImage` textures. One glm trap to know: `vec3::length()`
+is the COMPONENT COUNT (3), not the magnitude — always spell
+`glm::length(v)`.
+
+Twelve headers, one dependency direction (later headers may use earlier):
 
 ```
 Geometry.h   SkPath -> Polyline (adaptive flatten, corners exact)
@@ -18,14 +27,48 @@ Ops.h        the Pathfinder panel (unite/subtract/intersect/exclude/
              (Roughen/Zigzag/PuckerBloat/Twirl as parameter values;
              chain() composes non-destructive recipes)
 Mesh.h       renderer-neutral Mesh + procedural generators
-Curves.h     Spline3 (Catmull-Rom/Bezier/linear over SkV3 knots) with
+Import.h     model files into that Mesh currency: OBJ (+MTL, via
+             tinyobjloader), glTF 2.0 .gltf/.glb (cgltf; node
+             transforms baked, base-color material + texture),
+             ascii/binary STL, and PLY (ascii + binary LE; hand-
+             rolled) — THE attribute carrier: every non-conventional
+             vertex property becomes a named lane, faceless files are
+             point clouds — and Alembic .abc (Ogawa; meshes + point
+             clouds at a chosen nearest-sample time, arbGeomParams as
+             lanes). glTF _NAME custom accessors (Blender/
+             Houdini exports) land as lanes too; Part::asCloud() /
+             Model::mergedCloud() pour attributes into shape::Cloud —
+             scatter in Houdini, cook in pops, stamp with points::
+             here. Bytes in, Model{Part…} out; external refs
+             (.mtl/.bin/textures) pull through a caller Resolver
+             (a directory, a SigilLoader Hub, anything). Textures stay
+             ENCODED bytes — SigilImage decodes, same split as the
+             loader. merged() bakes part colors into the color lane;
+             fitTransform() puts any unit scale on the table
+Curves.h     Spline3 (Catmull-Rom/Bezier/linear over glm knots) with
              arc-length sampling, parallel-transport frames, tube()/
              ribbon() sweeps, and project() to a 2D path
-Space.h      Skia's 3D: SkM44 camera, painter-pipeline drawMesh,
-             perspective drawPanel / drawImagePanel
+Space.h      Skia's 3D: the glm camera + painter-pipeline drawMesh,
+             perspective drawPanel / drawImagePanel (toSkM44 seam)
+Pop.h        POP combinators as VALUES: a Chain of operator values
+             (SplineScatter generator; Jitter/Noise/Ramp/Vary/LookAt/
+             Math filters) with CPU executors — cook() -> Cloud,
+             cookMesh(stamp) -> one Mesh, cookTube()/cookRibbon()
+             sweep the cooked points as a path. The same Chain runs
+             GPU-side in SigilWorld (addPoints); formulas match bit
+             for bit
 Points.h     Cloud = positions + named attribute lanes; generators
              (onSpline/grid/ring/scatterBox/onMesh), jitter/noise,
              instance()/panels() stamping, drawBillboards() particles
+Save.h       the return leg of Import.h: save::ply(cloud|mesh) —
+             ascii PLY by default (binary_little_endian via PlyOptions,
+             smaller and bit-exact for big point dumps) with EVERY
+             lane written ("normal" as nx/ny/nz,
+             "tint" as uchar colors, customs as name / name_x.. /
+             name_r..; the importer folds them back, so round trips
+             are lossless). Loudest use: World::readPoints a
+             GPU-cooked pop surface and hand the file to Houdini or
+             Blender
 Materials.h  literal materials: gold foil / chrome / glass SkSL
              over normal maps + equirect environments
 Easel.h      the ARTIST surface: stock shapes (star/ngon/dot/pill/
