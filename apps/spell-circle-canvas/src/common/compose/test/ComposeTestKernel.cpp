@@ -1,5 +1,6 @@
 #include "ComposeTestSupport.h"
 
+
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
   Host host;
   host.composer.render(box().row().gap(20)
@@ -312,6 +313,7 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
   EXPECT_EQ(visits, 16); // 8 samples × 2 frames: repainted per frame
 }
 
+
 TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   static int staticRuns;
   staticRuns = 0;
@@ -410,6 +412,7 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);   // untouched outside
 }
 
+// AUDIT-FLAG 2026-07-27 — VACUOUS (high): the word Once is never asserted (no bake counter; the pixel probe passes baked-once, baked-every-frame, or uncached); STRENGTHEN with texturesBaked.
 TEST(ComposeEffects, TextureBakesEffectOnce) {
   Host host;
   host.composer.render(box().child(
@@ -1342,6 +1345,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   EXPECT_GT(lit, 80u); // exp(-6/12) · edge cutoff ≈ 0.51 → ~130
 }
 
+
 // ---- Pattern: runtime-procedural regenerable tiles --------------------------
 
 #include <sigilcompose/LayerStyles.h>
@@ -1545,6 +1549,7 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
   EXPECT_GT(SkColorGetR(host.pixel(70, 94)), 25u);
 }
 
+
 TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   Host host;
   host.composer.render(box().child(
@@ -1558,3 +1563,138 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
 }
 
 // ---- console(): the streaming log ------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Effect live uniforms (§11): Material's uniform(name, &output) contract,
+// on the effect seam.
+
+TEST(ComposeEffects, ALiveUniformAnimatesWithoutRedescribe) {
+  // §11: Effect::shader took constants only, so animating a ripple phase
+  // or a bloom threshold required a full re-describe per frame. A bound
+  // uniform now resolves per paint and declares the node volatile —
+  // exactly the live-material contract.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "uniform float uK;"
+               "half4 main(float2 p) { return content.eval(p) * uK; }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  choreograph::Output<float> k{1.0f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).inset(0, 0, 140, 140).absolute()
+          .fill(green())
+          .effect(Effect::shader(effect).uniform("uK", &k))));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(30, 30)), 200u); // uK=1 → full green
+  k = 0.25f;    // move the bound uniform — NO re-describe
+  host.frame(); // the live effect re-resolves from k
+  const SkColor dimmed = host.pixel(30, 30);
+  EXPECT_LT(SkColorGetG(dimmed), 120u);
+  EXPECT_GT(SkColorGetG(dimmed), 20u); // dimmed, not gone
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u) // volatile: paints live
+      << "a bound effect uniform must declare volatility";
+}
+
+TEST(ComposeEffects, AStaticShaderEffectPrunesByRecipe) {
+  // The other half of the seam: a STATIC shader effect compares by recipe
+  // (runtime-effect pointer + constant uniforms), so a fixture that holds
+  // ONE SkRuntimeEffect and re-describes prunes — the sharedHeavyEffect
+  // pattern, which used to re-patch on the filter pointer every frame.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "uniform float uK;"
+               "half4 main(float2 p) { return content.eval(p) * uK; }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  Host host;
+  auto tree = [&](float uK) {
+    return box().child(box().width(60).height(60).fill(green())
+                           .effect(Effect::shader(effect, {{"uK", uK}})));
+  };
+  host.composer.render(tree(0.5f));
+  host.frame();
+  host.composer.render(tree(0.5f)); // fresh Effect, same recipe
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical shader-effect recipe re-patched";
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+
+  // …and the equality is honest: a different constant IS a change.
+  host.composer.render(tree(0.9f));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
+  // then() precomposes static sides once (unchanged behaviour); a chain
+  // with a live side re-composes per paint and stays honest about it.
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "uniform float uK;"
+               "half4 main(float2 p) { return content.eval(p) * uK; }"));
+  ASSERT_TRUE(effect) << err.c_str();
+  choreograph::Output<float> k{1.0f};
+  const Effect liveChain =
+      Effect::shader(effect).uniform("uK", &k).then(
+          Effect::shader(effect, {{"uK", 0.5f}}));
+  EXPECT_TRUE(liveChain.isAnimated());
+  ASSERT_TRUE(liveChain.resolvedImageFilter() != nullptr);
+  const Effect staticChain = Effect::shader(effect, {{"uK", 0.5f}})
+                                 .then(Effect::shader(effect, {{"uK", 0.5f}}));
+  EXPECT_FALSE(staticChain.isAnimated());
+  EXPECT_TRUE(staticChain.imageFilter() != nullptr); // precomposed once
+
+  // The chain applies BOTH stages: 1.0 * 0.5 through the live chain dims
+  // a green fill to about half.
+  Host host;
+  host.composer.render(box().child(
+      box().width(60).height(60).inset(0, 0, 140, 140).absolute()
+          .fill(green()).effect(liveChain)));
+  host.frame();
+  const unsigned g = SkColorGetG(host.pixel(30, 30));
+  EXPECT_GT(g, 90u);
+  EXPECT_LT(g, 170u);
+}
+
+// ---------------------------------------------------------------------------
+// Material::amount() (§5): a blend layer's strength.
+
+TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
+  // "Soft-light this noise at 30%" had no expression — the only route was
+  // baking the amplitude into a forked copy of the generator's SkSL.
+  // amount() is Photoshop layer opacity: composite the layer in full,
+  // then mix the RESULT back toward the accumulation — which on a
+  // srcOver white-over-red at 0.5 lands on pink, and at 0 leaves red.
+  auto plate = [](float amt) {
+    Host host;
+    host.composer.render(box().child(
+        box().width(60).height(60).inset(0, 0, 140, 140).absolute().fill(
+            Material::blend({{Material::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
+                             {Material::solid({1, 1, 1, 1}).amount(amt),
+                              SkBlendMode::kSrcOver}}))));
+    host.frame();
+    return host.pixel(30, 30);
+  };
+  const SkColor full = plate(1.0f), half = plate(0.5f), none = plate(0.0f);
+  EXPECT_GT(SkColorGetG(full), 240u);              // white wins outright
+  EXPECT_NEAR(SkColorGetG(half), 128, 12);         // half toward white…
+  EXPECT_GT(SkColorGetR(half), 240u);              // …with red intact
+  EXPECT_LT(SkColorGetG(none), 12u);               // 0 leaves the base
+  EXPECT_GT(SkColorGetR(none), 240u);
+
+  // The amount is recipe: equal amounts prune, different amounts patch.
+  const Material a = Material::solid({1, 1, 1, 1}).amount(0.3f);
+  const Material b = Material::solid({1, 1, 1, 1}).amount(0.3f);
+  const Material c = Material::solid({1, 1, 1, 1}).amount(0.7f);
+  EXPECT_TRUE(a == b);
+  EXPECT_FALSE(a == c);
+}
+
+
+// ---------------------------------------------------------------------------
+// §18: a texture-cached node's blend rides its blit, not a saveLayer.
+
+
+// ---------------------------------------------------------------------------
+// Material::buffer (§4): content that changes without re-describing.
+
+
+

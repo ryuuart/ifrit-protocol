@@ -324,6 +324,30 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
   return m;
 }
 
+namespace {
+/** mix(a, b, t) as one nested shader — what a blend layer's amount()
+ *  lerps with (SkShaders has Blend but no Lerp). One effect for the
+ *  whole process, per the Patterns.h one-effect rule. */
+sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader a;"
+                 "uniform shader b;"
+                 "uniform half uAmt;"
+                 "half4 main(float2 p) { return mix(a.eval(p), b.eval(p),"
+                 "                                  uAmt); }"));
+    return effect;
+  }();
+  if (!fx)
+    return b;
+  SkRuntimeShaderBuilder builder(fx);
+  builder.child("a") = std::move(a);
+  builder.child("b") = std::move(b);
+  builder.uniform("uAmt") = t;
+  return builder.makeShader();
+}
+} // namespace
+
 Material Material::blend(std::vector<std::pair<Material, SkBlendMode>> layers) {
   if (layers.empty())
     return {};
@@ -336,7 +360,14 @@ Material Material::blend(std::vector<std::pair<Material, SkBlendMode>> layers) {
     }
     if (!src)
       continue;
-    acc = SkShaders::Blend(layers[i].second, std::move(acc), std::move(src));
+    // amount(): composite the layer in full, then mix the result back
+    // toward the accumulation — Photoshop layer opacity, not src-alpha
+    // thinning (the two differ on every non-porter-duff mode).
+    const float amt = layers[i].first.m_amount;
+    sk_sp<SkShader> blended =
+        SkShaders::Blend(layers[i].second, acc, std::move(src));
+    acc = amt >= 1.0f ? std::move(blended)
+                      : mixShaders(std::move(acc), std::move(blended), amt);
   }
   Material m = shader(std::move(acc));
   // Keep the layer materials as the comparable recipe (recursive equality) —
@@ -350,6 +381,10 @@ Material Material::blend(std::vector<std::pair<Material, SkBlendMode>> layers) {
 }
 
 bool Material::operator==(const Material &o) const {
+  if (m_amount != o.m_amount)
+    return false; // a layer strength is recipe, like a stop or a mode
+  if (m_bleed != o.m_bleed)
+    return false; // a cull reserve is recipe too — a change must re-record
   if (m_isSolid != o.m_isSolid)
     return false;
   if (m_isSolid)
@@ -421,6 +456,16 @@ Material &Material::uniform(std::string name,
   detachLive();
   m_live->binds.emplace_back(std::move(name), output);
   return *this; // now LIVE; painting resolves per frame (resolve())
+}
+
+Material &Material::amount(float a01) {
+  m_amount = std::clamp(a01, 0.0f, 1.0f);
+  return *this;
+}
+
+Material &Material::bleed(float px) {
+  m_bleed = px; // read by the recording cull (max-accumulated, so only a
+  return *this; // positive reserve ever grows anything)
 }
 
 Material &Material::quantizeTime(float hz) {
@@ -545,7 +590,10 @@ Fill Material::resolve(const PaintContext &ctx) const {
       }
       if (!src)
         continue;
-      acc = SkShaders::Blend(mode, std::move(acc), std::move(src));
+      const float amt = mat.m_amount; // same rule as the eager flatten
+      sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
+      acc = amt >= 1.0f ? std::move(blended)
+                        : mixShaders(std::move(acc), std::move(blended), amt);
     }
     return Fill::shader(std::move(acc));
   }

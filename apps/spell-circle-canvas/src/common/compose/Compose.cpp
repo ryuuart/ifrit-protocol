@@ -332,21 +332,60 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   Effect e;
   if (!effect)
     return e;
-  SkRuntimeShaderBuilder builder(std::move(effect));
+  SkRuntimeShaderBuilder builder(effect);
   for (const auto &[name, value] : uniforms)
     builder.uniform(name.c_str()) = value;
   e.m_filter = SkImageFilters::RuntimeShader(builder, "content", nullptr);
+  e.m_effect = std::move(effect);
+  e.m_uniforms = std::move(uniforms);
   return e;
+}
+
+Effect &Effect::uniform(std::string name,
+                        const choreograph::Output<float> *value) {
+  if (m_effect && value)
+    m_bound.emplace_back(std::move(name), value);
+  return *this;
 }
 
 Effect Effect::then(const Effect &next) const {
   Effect e;
-  if (!m_filter)
+  const bool thisReal = m_filter || isAnimated();
+  const bool nextReal = next.m_filter || next.isAnimated();
+  if (!thisReal)
     return next;
-  if (!next.m_filter)
+  if (!nextReal)
     return *this;
+  if (isAnimated() || next.isAnimated()) {
+    // A live side cannot precompose: hold both and re-compose per paint.
+    e.m_chainA = std::make_shared<const Effect>(*this);
+    e.m_chainB = std::make_shared<const Effect>(next);
+    return e;
+  }
   e.m_filter = SkImageFilters::Compose(next.m_filter, m_filter);
   return e;
+}
+
+sk_sp<SkImageFilter> Effect::resolvedImageFilter() const {
+  if (m_chainA)
+    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(),
+                                   m_chainA->resolvedImageFilter());
+  if (m_bound.empty() || !m_effect)
+    return m_filter;
+  SkRuntimeShaderBuilder builder(m_effect);
+  for (const auto &[name, value] : m_uniforms)
+    builder.uniform(name.c_str()) = value;
+  for (const auto &[name, out] : m_bound)
+    builder.uniform(name.c_str()) = out->value();
+  return SkImageFilters::RuntimeShader(builder, "content", nullptr);
+}
+
+bool Effect::operator==(const Effect &o) const {
+  if (isAnimated() || o.isAnimated())
+    return false; // live never prunes — the material rule
+  if (m_effect || o.m_effect)
+    return m_effect == o.m_effect && m_uniforms == o.m_uniforms;
+  return m_filter == o.m_filter; // filter(): pointer identity, as ever
 }
 
 Element &Element::hitTestable(bool enabled) {

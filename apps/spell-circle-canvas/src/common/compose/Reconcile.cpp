@@ -111,7 +111,11 @@ bool effectEqual(const std::optional<Effect> &a,
     return false;
   if (!a)
     return true;
-  return a->imageFilter().get() == b->imageFilter().get();
+  // Structural (Effect::operator==): static shader recipes compare by
+  // (runtime effect, constant uniforms) so a re-described effect prunes
+  // when the caller holds one SkRuntimeEffect; live effects and filter()
+  // pointer changes stay conservatively unequal.
+  return *a == *b;
 }
 
 // ---- block equality (presence must match; then contents, preserving the

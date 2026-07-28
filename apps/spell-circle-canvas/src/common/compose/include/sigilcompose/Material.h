@@ -203,6 +203,32 @@ public:
   Material &uniform(std::string name, SkColor4f value);
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
+  /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%"
+   *  (ROADMAP §5: the only route used to be forking the generator's SkSL
+   *  to bake `0.5 + (v-0.5)*amp` into it). Photoshop layer-opacity
+   *  semantics: the layer composites with its blend mode in full, then
+   *  the result mixes back toward the accumulation by `a01` — which is
+   *  NOT the same as thinning the layer's alpha first, and is the number
+   *  a reference's layer panel states. Clamped to [0, 1]; 1 (the
+   *  default) is free. Read ONLY by blend(); a material used directly as
+   *  a fill ignores it (there is no accumulation to mix back toward).
+   *  Participates in equality like every recipe field. */
+  Material &amount(float a01);
+
+  /** RECORDING-CULL RESERVE (§14): how far this material's node paints
+   *  beyond its own box, in px. A DecorationScheme can declare `bleed()`
+   *  so the recording cull grows; a Material could not, so a fill on an
+   *  outline that escapes the box (a `shape()` silhouette larger than
+   *  the layout rect — overflow is legal) truncated at the cached
+   *  picture/texture bounds, and the arithmetic fell to the caller.
+   *  Declares the same number on the same word. Read by the recording
+   *  cull only — it moves no pixels itself; the default 0 changes
+   *  nothing. Participates in equality like every recipe field (a
+   *  changed reserve must re-record). */
+  Material &bleed(float px);
+  /** The declared reserve (0 unless bleed() was set). */
+  float bleed() const { return m_bleed; }
+
   /** Step the auto-injected uTime at `hz` (floor(t·hz)/hz) — declared
    *  choppiness as a MATERIAL property, not per-consumer ticker plumbing.
    *  The P3R sea rule: its caustics run at 6 Hz ("we imagine the
@@ -265,6 +291,8 @@ private:
   void detachLive(); // copy-on-write before any recipe mutation
 
   bool m_isSolid = false;
+  float m_amount = 1.0f; // blend-layer strength (see amount())
+  float m_bleed = 0.0f;  // recording-cull reserve (see bleed())
   SkColor4f m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
                                 // sksl a constants-only snapshot (live paint

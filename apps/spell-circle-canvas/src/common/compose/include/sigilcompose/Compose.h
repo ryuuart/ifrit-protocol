@@ -600,15 +600,50 @@ public:
    *  the layer arrives as the child shader named "content". */
   static Effect shader(sk_sp<SkRuntimeEffect> effect,
                        std::vector<std::pair<std::string, float>> uniforms = {});
+  /** A LIVE float uniform — Material's contract, on the effect seam
+   *  (ROADMAP §11: animating a ripple phase or a bloom threshold used to
+   *  require a full re-describe per frame). The value is read from the
+   *  Output at every paint, and the node repaints per frame while the
+   *  effect is attached — a bound uniform declares volatility exactly as
+   *  a live material does. Only meaningful on a shader() effect: a
+   *  filter() has no uniform to receive the value (the binding is
+   *  ignored there, and the volatility is NOT declared). */
+  Effect &uniform(std::string name, const choreograph::Output<float> *value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
-   *  Effect::shader(colorize)). */
+   *  Effect::shader(colorize)). Static chains precompose once; a chain
+   *  with a live side re-composes at each paint. */
   Effect then(const Effect &next) const;
 
   const sk_sp<SkImageFilter> &imageFilter() const { return m_filter; }
+  /** The filter with any bound uniforms resolved NOW — what the paint
+   *  phase applies. Identical to imageFilter() for a static effect. */
+  sk_sp<SkImageFilter> resolvedImageFilter() const;
+  /** THE VOLATILITY DECLARATION (one word, everywhere): does this effect
+   *  change without a re-describe? True while any uniform is bound. */
+  bool isAnimated() const {
+    return !m_bound.empty() ||
+           (m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated()));
+  }
+  /** Structural equality for the reconciler: static shader effects
+   *  compare by RECIPE (runtime-effect pointer + constant uniforms), so
+   *  a re-described effect prunes when the caller holds one
+   *  SkRuntimeEffect — the sharedHeavyEffect pattern. A live effect
+   *  never compares equal (conservative, like a live material); filter()
+   *  effects compare by filter pointer, as they always did. */
+  bool operator==(const Effect &o) const;
 
 private:
   sk_sp<SkImageFilter> m_filter;
+  // The shader recipe (kept so bound uniforms can rebuild per paint and
+  // so equality can compare structurally).
+  sk_sp<SkRuntimeEffect> m_effect;
+  std::vector<std::pair<std::string, float>> m_uniforms;
+  std::vector<std::pair<std::string, const choreograph::Output<float> *>>
+      m_bound;
+  // then()-chain retained only when a side is live (static chains
+  // precompose into m_filter and carry no nodes).
+  std::shared_ptr<const Effect> m_chainA, m_chainB;
 };
 
 // ---------------------------------------------------------------------------

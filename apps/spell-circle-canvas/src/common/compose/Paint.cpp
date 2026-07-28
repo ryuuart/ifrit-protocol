@@ -522,6 +522,12 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   ownContent |= scalarContent;
   if (node.textData && node.textData->driveValue)
     ownContent = true; // VariationDrive repaints per frame (no reshape)
+  // A LIVE effect (§11): the filter is captured by the recording, so bound
+  // uniforms are content volatility — the material rule on the effect seam.
+  const bool liveEffect =
+      (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
+      (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
+  ownContent |= liveEffect;
 
   // §30: what a SUBTREE VALUE MEMO can and cannot see. A group bake is held
   // by comparing floats, so every source of volatility in it must either BE
@@ -555,6 +561,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     opaqueToTheMemo = true;
   opaqueToTheMemo |= spanVolatile;
   opaqueToTheMemo |= maskOpaque; // an alpha gate on a LIVE material
+  opaqueToTheMemo |= liveEffect; // a bound effect uniform is not a float
+                                 // the memo tracks
 
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
@@ -1195,12 +1203,16 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
   const bool trimmed = cut;
 
   // The node's own layer effect wraps everything painted here, so it is
-  // captured by picture recordings and BAKED by texture snapshots.
+  // captured by picture recordings and BAKED by texture snapshots. A LIVE
+  // effect (bound uniforms, §11) resolves here per paint — computeVolatile
+  // declared the node volatile, so this recording is never cached stale.
   const Effect *layerFx = layerEffectOf(node);
-  const bool hasEffect = layerFx && layerFx->imageFilter();
+  const sk_sp<SkImageFilter> layerFilter =
+      layerFx ? layerFx->resolvedImageFilter() : nullptr;
+  const bool hasEffect = (bool)layerFilter;
   if (hasEffect) {
     SkPaint effectPaint;
-    effectPaint.setImageFilter(layerFx->imageFilter());
+    effectPaint.setImageFilter(layerFilter);
     // BOUNDED: with nullptr bounds the layer allocates at the CLIP size —
     // on a root-level canvas that filtered 900x640 for a 92x72 icon
     // shadow (13.5ms/frame, the aero-icon defect). recordBounds is what
@@ -1889,8 +1901,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     canvas.translate(-origin.x(), -origin.y());
   }
 
-  const bool hasBackdrop =
-      backdropEffectOf(node) && backdropEffectOf(node)->imageFilter();
+  const sk_sp<SkImageFilter> backdropFilter =
+      backdropEffectOf(node) ? backdropEffectOf(node)->resolvedImageFilter()
+                             : nullptr;
+  const bool hasBackdrop = (bool)backdropFilter;
   if (hasBackdrop) {
     // The filtered backdrop composites as a CLOSED pass clipped to the
     // node's shape — the node's own decorations and overflowing children
