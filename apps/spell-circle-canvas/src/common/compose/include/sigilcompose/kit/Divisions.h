@@ -114,11 +114,22 @@ struct Ticks {
    *  print darker than the plate ever did.
    *
    *  Null (the default) means "use the fields". A `std::function` here is
-   *  free of reconciler consequence because this component returns an
-   *  SkPath immediately — it is not stored in a node and never
-   *  participates in equality. (Contrast `outline()`, whose `OutlineFn`
-   *  IS stored and therefore never prunes — `ROADMAP.md §3`.) */
+   *  free of reconciler consequence when the SkPath overload is used (the
+   *  path is built immediately and never stored). On the SHAPE overload it
+   *  is the one member equality cannot see, so a Ticks with a classifier
+   *  compares unequal to everything and its node stays conservative —
+   *  the same escape-hatch rule every raw callable gets (§3). */
   std::function<Span(int i, Span fromFields)> classify;
+
+  /** Field-wise, with the classifier conservative: any classify present
+   *  means "not provably the same ladder". */
+  bool operator==(const Ticks &o) const {
+    if (classify || o.classify)
+      return false;
+    return divisions == o.divisions && from == o.from && sweep == o.sweep &&
+           closed == o.closed && mark == o.mark && longEvery == o.longEvery &&
+           longMark == o.longMark;
+  }
 };
 
 /** The ladder as a path in the FRAME's parent space (absolute coordinates:
@@ -143,7 +154,7 @@ inline SkPath ticks(const Frame &frame, const Ticks &t) {
   return b.detach();
 }
 
-/** The ladder as an `OutlineFn`, with the frame taken from the node's own
+/** The ladder as a SHAPE VALUE, with the frame taken from the node's own
  *  laid-out box: centre at the box centre, radius = half the SHORTER side.
  *
  *  Half the shorter side, not half the width, so a ladder on a non-square
@@ -152,15 +163,27 @@ inline SkPath ticks(const Frame &frame, const Ticks &t) {
  *  that method. Give it a square box (`Frame::box()`, `util::disc`) and
  *  the question does not arise.
  *
- *  @p conventions supplies `zero`, `sense` and `originDeg`; its `centre`
+ *  Comparable (so the node prunes) unless the Ticks carries a
+ *  `classify` callable — that one member equality cannot see, so a
+ *  classified ladder stays conservative like any raw callable.
+ *
+ *  `conventions` supplies `zero`, `sense` and `originDeg`; its `centre`
  *  and `radius` are ignored and replaced. */
-inline shapes::OutlineFn ticks(const Ticks &t, Frame conventions = {}) {
-  return [t, conventions](SkSize size) {
+struct TicksShape {
+  Ticks t;
+  Frame conventions;
+  bool operator==(const TicksShape &) const = default;
+  SkPath path(SkSize size) const {
     Frame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
     f.radius = std::min(size.width(), size.height()) * 0.5f;
     return ticks(f, t);
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline TicksShape ticks(const Ticks &t, Frame conventions = {}) {
+  return TicksShape{t, conventions};
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +232,8 @@ struct Chords {
    *  fill); false leaves each chord its own OPEN contour, which is the
    *  addressable-per-side form TextPath wants. */
   bool closed = false;
+
+  bool operator==(const Chords &) const = default;
 };
 
 inline SkPath chords(const Frame &frame, const Chords &c) {
@@ -256,15 +281,25 @@ inline SkPath chords(const Frame &frame, const Chords &c) {
   return b.detach();
 }
 
-/** `chords` as an `OutlineFn`, frame from the laid-out box — same rule as
- *  `ticks`: centre at the box centre, radius half the shorter side. */
-inline shapes::OutlineFn chords(const Chords &c, Frame conventions = {}) {
-  return [c, conventions](SkSize size) {
+/** `chords` as a SHAPE VALUE, frame from the laid-out box — same rule as
+ *  `ticks`: centre at the box centre, radius half the shorter side.
+ *  Fully comparable (Chords has no callable member), so it always
+ *  prunes. */
+struct ChordsShape {
+  Chords c;
+  Frame conventions;
+  bool operator==(const ChordsShape &) const = default;
+  SkPath path(SkSize size) const {
     Frame f = conventions;
     f.centre = {size.width() * 0.5f, size.height() * 0.5f};
     f.radius = std::min(size.width(), size.height()) * 0.5f;
     return chords(f, c);
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline ChordsShape chords(const Chords &c, Frame conventions = {}) {
+  return ChordsShape{c, conventions};
 }
 
 } // namespace sigil::compose::kit

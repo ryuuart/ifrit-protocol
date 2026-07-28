@@ -148,8 +148,9 @@ struct DeriveData {
   RailRouter railRouter;
   // band(): the spine is guide DATA — either authored here, or borrowed
   // from a keyed element's resolved shape by the derive pass. The width
-  // profile's presence is what makes this node a band.
-  std::function<SkPath(SkSize)> bandSpine;
+  // profile's presence is what makes this node a band. A Shape, so a
+  // comparable spine prunes (same seam as shapeFn).
+  Shape bandSpine;
   std::string bandAround;
   std::optional<Across> bandWidth;
   Formation bandFormation = Formation::Centered;
@@ -259,7 +260,8 @@ struct ElementNode {
   LayoutProps layout;
   PaintProps paint;
   Corners corners;
-  std::function<SkPath(SkSize)> shapeFn; // custom outline; overrides corners
+  Shape shapeFn; // custom silhouette; overrides corners. A comparable
+                 // scheme prunes; a raw callable stays conservative (§3).
   bool clipContent = false;
   // Element::hitTestable(false): the node and its own box are skipped by
   // hitTest, though its CHILDREN are still tested. A keyed full-bleed

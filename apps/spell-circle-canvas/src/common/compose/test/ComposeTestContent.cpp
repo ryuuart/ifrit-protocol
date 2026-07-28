@@ -513,6 +513,207 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
 }
 
 // ---------------------------------------------------------------------------
+// Shape VALUES (§3): generators are comparable schemes, so shaped nodes
+// prune. The highest measured-impact roadmap item — 43.4 of 43.5 ms on
+// one node whose outline callable could not compare (the Chevreul wash).
+
+TEST(ComposeShapeValues, AStockGeneratorShapePrunes) {
+  // The §3 scenario itself: a shaped node re-described identically must
+  // patch nothing and re-record nothing. Before shapes were values,
+  // propsEqual refused ANY shaped node and this tree re-recorded every
+  // frame of its life.
+  Host host;
+  auto tree = [] {
+    return box().child(box().width(100).height(100)
+                           .shape(shapes::star(5, 0.5f, 0.12f))
+                           .fill(red()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED); // the star is really there
+
+  host.composer.render(tree()); // brand-new Elements, identical values
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
+TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
+  // The other half of the prune contract: equality must be HONEST. A
+  // different parameter is a different value, patches, and redraws.
+  Host host;
+  auto tree = [](int sides) {
+    return box().child(box().width(100).height(100)
+                           .shape(shapes::polygon(sides))
+                           .fill(red()));
+  };
+  host.composer.render(tree(4)); // diamond: box corners empty
+  host.frame();
+  EXPECT_EQ(host.pixel(6, 6), SK_ColorBLACK);
+  host.composer.render(tree(40)); // ~circle: still empty corners, more ink
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  // A 40-gon covers (25, 12); a diamond does not.
+  EXPECT_EQ(host.pixel(25, 12), SK_ColorRED);
+}
+
+TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
+  // A hand-rolled OutlineFn cannot compare, so the node keeps the old
+  // behaviour: re-patch on every describe. This is the documented escape
+  // hatch, not a defect — memo() such a node to prune it.
+  Host host;
+  auto tree = [] {
+    return box().child(box().width(100).height(100)
+                           .shape([](SkSize s) {
+                             SkPathBuilder b;
+                             b.addOval(SkRect::MakeWH(s.width(), s.height()));
+                             return b.detach();
+                           })
+                           .fill(red()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree());
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "an incomparable callable pruned — equality is lying";
+}
+
+TEST(ComposeShapeValues, CopiesOfOneShapeCompareEqualEvenWhenRaw) {
+  // Shared state IS identity: two copies of one Shape are the same value,
+  // which upgrades the old "keep the generator pointer-stable" advice
+  // into an actual prune for raw callables held by the caller.
+  const Shape raw = [](SkSize s) {
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeWH(s.width(), s.height()));
+    return b.detach();
+  };
+  const Shape copy = raw;
+  EXPECT_TRUE(raw == copy);
+  // But two separate constructions from equivalent lambdas cannot know
+  // they agree, and must not claim to.
+  const Shape other = [](SkSize s) {
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeWH(s.width(), s.height()));
+    return b.detach();
+  };
+  EXPECT_FALSE(raw == other);
+}
+
+TEST(ComposeShapeValues, WrappersAreComparableWhenTheirInnerIs) {
+  // rounded() composes: value in, value out. Wrapping the escape hatch
+  // stays the escape hatch.
+  EXPECT_TRUE(Shape(shapes::rounded(shapes::star(5), 8)) ==
+              Shape(shapes::rounded(shapes::star(5), 8)));
+  EXPECT_FALSE(Shape(shapes::rounded(shapes::star(5), 8)) ==
+               Shape(shapes::rounded(shapes::star(5), 9)));
+  EXPECT_FALSE(Shape(shapes::rounded(shapes::star(5), 8)) ==
+               Shape(shapes::rounded(shapes::star(6), 8)));
+  auto lambda = [](SkSize s) {
+    SkPathBuilder b;
+    b.addRect(SkRect::MakeWH(s.width(), s.height()));
+    return b.detach();
+  };
+  EXPECT_FALSE(Shape(shapes::rounded(lambda, 8)) ==
+               Shape(shapes::rounded(lambda, 8)));
+}
+
+TEST(ComposeShapeValues, SvgShapesAreValuesNow) {
+  // The parsed SkPath has structural equality, so an svg() silhouette
+  // prunes — its old doc said "incomparable like every outline()", which
+  // stopped being true the day shapes became values.
+  EXPECT_TRUE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
+              Shape(shapes::svg("M0 0L10 0L10 10Z")));
+  EXPECT_FALSE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
+               Shape(shapes::svg("M0 0L10 0L5 10Z")));
+}
+
+TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
+  auto fig8 = [](float t) { return SkPoint{std::sin(2 * t), std::sin(t)}; };
+  // Unkeyed: the callable is the identity and cannot compare.
+  EXPECT_FALSE(Shape(shapes::parametric(fig8, 0, 6.2832f, 720)) ==
+               Shape(shapes::parametric(fig8, 0, 6.2832f, 720)));
+  // Keyed: (key, window, samples) is the identity — the author's contract
+  // that one key names one curve.
+  EXPECT_TRUE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+              Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)));
+  EXPECT_FALSE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+               Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 360)));
+  EXPECT_FALSE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+               Shape(shapes::parametric("orbit", fig8, 0, 6.2832f, 720)));
+  // The named families carry their identity in their parameters.
+  EXPECT_TRUE(Shape(shapes::lissajous(3, 2)) == Shape(shapes::lissajous(3, 2)));
+  EXPECT_FALSE(Shape(shapes::lissajous(3, 2)) ==
+               Shape(shapes::lissajous(5, 4)));
+  EXPECT_TRUE(Shape(shapes::rose(3)) == Shape(shapes::rose(3)));
+  EXPECT_FALSE(Shape(shapes::spiral(3.0f)) == Shape(shapes::spiral(4.0f)));
+}
+
+TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
+  // §10e's third bullet: a node carrying a TextPath never pruned — 72
+  // radial labels re-recorded on every render(). The baseline is a Shape
+  // now, TextPath compares, and the run prunes.
+  Host host(240, 240);
+  auto ring = [](float at) {
+    return text(u8"HHHHHHHHHH", whiteStyle(22))
+        .width(240).height(240).absolute().left(0).top(0)
+        .onPath({.path = shapes::arc(180.0f, 359.9f), .at = at,
+                 .align = TextPath::Align::Center});
+  };
+  host.composer.render(box().child(ring(0.25f)));
+  host.frame();
+  host.composer.render(box().child(ring(0.25f)));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical curved run re-patched";
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+
+  // …and the equality is honest: moving `at` IS a change. (When onPath
+  // first landed, textEqual omitted it entirely and a moving `at`
+  // silently kept the OLD placement forever — the recorded near-miss.)
+  host.composer.render(box().child(ring(0.75f)));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
+  // The band's authored spine rides the same seam (deriveEqual used to
+  // refuse any authored spine outright).
+  Host host;
+  auto tree = [] {
+    return box().child(band(shapes::circle(), across(8.0f))
+                           .width(100).height(100).fill(red()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical authored band spine re-patched";
+}
+
+TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
+  // The measured §3 case, as a steady-state pin: a texture-cached node
+  // whose shape is a generator, re-described every frame. Removing this
+  // ONE node took the study's frame 43.5 → 0.10 ms because its bake was
+  // being thrown away each describe. The bake must survive now.
+  Host host;
+  auto tree = [] {
+    return box().child(box().width(120).height(120)
+                           .shape(shapes::circle())
+                           .fill(red())
+                           .cache(Cache::Texture));
+  };
+  host.composer.render(tree());
+  host.frame(); // records + bakes once
+  for (int i = 0; i < 3; ++i) {
+    host.composer.render(tree());
+    host.frame();
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "the bake was thrown away by an identical re-describe";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Element stamps + snapshot() (stress items 10 and 20).
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {

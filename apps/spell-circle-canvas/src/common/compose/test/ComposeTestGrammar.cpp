@@ -1205,7 +1205,12 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
   EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 160.0f), 24.0f);
 
   // And the prune OBSERVED, not inferred: an identical re-describe of a
-  // profiled ribbon must not re-record its picture.
+  // profiled ribbon must not re-record its picture. When this pin was
+  // written, `.shape()` was an incomparable callable that forced a
+  // re-patch (§3), so the strongest available claim was "no MORE
+  // recordings than the first draw". Shapes are comparable values now,
+  // so the honest pin is the absolute one: an identical re-describe
+  // records NOTHING.
   {
     Host host;
     auto tree = [] {

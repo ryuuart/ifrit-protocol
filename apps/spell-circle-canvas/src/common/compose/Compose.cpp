@@ -160,7 +160,7 @@ Element &Element::at(SkPoint topLeft) {
 // ---- shape ----------------------------------------------------------------
 
 Element &Element::corners(Corners c) { m_node->corners = c; return *this; }
-Element &Element::shape(std::function<SkPath(SkSize)> path) {
+Element &Element::shape(Shape path) {
   m_node->shapeFn = std::move(path);
   return *this;
 }
@@ -1654,7 +1654,7 @@ SkPath crossingPatch(const SkPath &a, float reachA, const SkPath &b,
   return disc.detach();
 }
 
-Element band(std::function<SkPath(SkSize)> spine, Across width) {
+Element band(Shape spine, Across width) {
   Element e;
   detail::DeriveData &derive = e.node()->deriveData.ensure();
   derive.bandSpine = std::move(spine);

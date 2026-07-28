@@ -284,8 +284,9 @@ inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
 
 namespace shapes {
 /** A RING: the area between two concentric circles. "Annulus" was
- *  rejected as jargon for exactly the shape everybody calls a ring. */
-inline sigil::compose::shapes::OutlineFn ring(float innerRatio = 0.6f) {
+ *  rejected as jargon for exactly the shape everybody calls a ring.
+ *  A comparable value (it IS the annulus value), so a ring node prunes. */
+inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
   return sigil::compose::shapes::annulus(innerRatio);
 }
 } // namespace shapes

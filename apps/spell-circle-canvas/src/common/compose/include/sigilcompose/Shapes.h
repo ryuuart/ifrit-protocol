@@ -2,15 +2,25 @@
 
 /** @file
  * SigilCompose shape kit — the free-form answer to "everything is a
- * box". An extension over the kernel's outline() seam: every generator
- * here returns an OutlineFn (a path over the laid-out size), so any
- * element can *be* a star, blob, polygon, or squircle — fill, clip,
- * and every outline-following decoration (PathFormat, ContourWalk)
- * trace the shape, and hitTest() honors it.
+ * box". An extension over the kernel's shape() seam: every generator
+ * here is a COMPARABLE VALUE (a `ShapeScheme`: params + `path(SkSize)`
+ * + equality), so any element can *be* a star, blob, polygon, or
+ * squircle — fill, clip, and every outline-following decoration
+ * (PathFormat, ContourWalk) trace the shape, hitTest() honors it, and
+ * the node PRUNES like an unshapen one (ROADMAP §3: the incomparable
+ * callable era cost 43.4 of 43.5 ms on the node that measured it).
+ *
+ * Every generator is also CALLABLE over a size, so it still converts to
+ * an `OutlineFn` anywhere a raw path-over-size function is wanted — a
+ * band spine, a TextPath baseline, your own wrapper. Going the other
+ * way, a raw callable handed to `shape()` is the escape hatch that
+ * never prunes; give your own generators `path(SkSize)` + `operator==`
+ * to make them values.
  *
  * Generators compose through wrappers: `rounded(star(5), 8)` is a
  * five-point star with consistently rounded points — corners() for
- * silhouettes that have no box corners.
+ * silhouettes that have no box corners — and the wrapper is comparable
+ * whenever what it wraps is.
  *
  * `edges()` runs the other way: it extracts the sub-contours of a
  * resolved outline that face a given box edge, so per-edge treatments
@@ -37,18 +47,23 @@
 
 namespace sigil::compose::shapes {
 
+/** A silhouette generator: local-coordinate path over the node's
+ *  laid-out size. The ESCAPE-HATCH spelling of what Element::shape()
+ *  accepts — a raw callable never prunes; the generator values below
+ *  do. Kept because helpers across the corpus return it, and because a
+ *  hand-rolled curve has to start somewhere. */
+using OutlineFn = std::function<SkPath(SkSize)>;
+
 /** An outline from an SVG path-d string (SkParsePath) — trace a reference
  *  silhouette in any vector tool, paste the `d`, done. The path's bounds
  *  map onto the node's box (stretch by default; `preserveAspect` fits and
- *  centers instead). Parsed ONCE at call time; the generator is an
- *  incomparable callable like every outline() — memo the node or keep it
- *  pointer-stable to prune. */
-inline std::function<SkPath(SkSize)> svg(const char *d,
-                                         bool preserveAspect = false) {
+ *  centers instead). Parsed ONCE at call time; the parsed SkPath is a
+ *  comparable value, so an svg() shape prunes like any generator. */
+struct Svg {
   SkPath parsed;
-  if (auto result = SkParsePath::FromSVGString(d))
-    parsed = std::move(*result);
-  return [parsed, preserveAspect](SkSize size) {
+  bool preserveAspect = false;
+  bool operator==(const Svg &) const = default;
+  SkPath path(SkSize size) const {
     const SkRect b = parsed.getBounds();
     if (b.isEmpty() || size.isEmpty())
       return parsed;
@@ -60,20 +75,27 @@ inline std::function<SkPath(SkSize)> svg(const char *d,
       m = SkMatrix::RectToRect(b, SkRect::MakeWH(size.width(), size.height()));
     }
     return parsed.makeTransform(m);
-  };
-}
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
 
-/** A silhouette generator: local-coordinate path over the node's
- *  laid-out size. What Element::outline() accepts. */
-using OutlineFn = std::function<SkPath(SkSize)>;
+inline Svg svg(const char *d, bool preserveAspect = false) {
+  SkPath parsed;
+  if (auto result = SkParsePath::FromSVGString(d))
+    parsed = std::move(*result);
+  return Svg{std::move(parsed), preserveAspect};
+}
 
 // ---------------------------------------------------------------------------
 // Generators
 
 /** Regular N-gon inscribed in the box (first vertex up unless rotated;
  *  @p rotationDeg spins the whole figure). */
-inline OutlineFn polygon(int sides, float rotationDeg = 0.0f) {
-  return [sides, rotationDeg](SkSize s) {
+struct Polygon {
+  int sides = 3;
+  float rotationDeg = 0.0f;
+  bool operator==(const Polygon &) const = default;
+  SkPath path(SkSize s) const {
     const int n = std::max(sides, 3);
     const float cx = s.width() / 2, cy = s.height() / 2;
     const float base = rotationDeg * SK_FloatPI / 180 - SK_FloatPI / 2;
@@ -88,7 +110,12 @@ inline OutlineFn polygon(int sides, float rotationDeg = 0.0f) {
     }
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Polygon polygon(int sides, float rotationDeg = 0.0f) {
+  return Polygon{sides, rotationDeg};
 }
 
 /** N-pointed star inscribed in the box (first point up); inner
@@ -100,9 +127,12 @@ inline OutlineFn polygon(int sides, float rotationDeg = 0.0f) {
  *  narrow fast off the hub and then run as needles, and nine figures on
  *  that one plate wanted exactly this parameter. ~0.10–0.25 reads as
  *  engraved; negative bulges the arms instead (a compass rose). */
-inline OutlineFn star(int points, float innerRatio = 0.5f,
-                      float waist = 0.0f) {
-  return [points, innerRatio, waist](SkSize s) {
+struct Star {
+  int points = 5;
+  float innerRatio = 0.5f;
+  float waist = 0.0f;
+  bool operator==(const Star &) const = default;
+  SkPath path(SkSize s) const {
     const int n = std::max(points, 2) * 2;
     const float cx = s.width() / 2, cy = s.height() / 2;
     auto vertex = [&](int i) {
@@ -126,24 +156,16 @@ inline OutlineFn star(int points, float innerRatio = 0.5f,
     }
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
+  return Star{points, innerRatio, waist};
 }
 
-/** The circle (ellipse, on a non-square box) inscribed in the box.
- *
- *  Trivial, and missing anyway — the KSP study hand-wrote it, so did
- *  ScenesSkillTree, and `onPath`'s own docs reach for one. `util::disc()`
- *  is the ELEMENT form (a pre-sized box centred on a point); this is the
- *  OutlineFn, which is what onPath, trim and the decorations take. */
-inline OutlineFn circle() {
-  return [](SkSize s) {
-    SkPathBuilder b;
-    b.addOval(SkRect::MakeWH(s.width(), s.height()));
-    return b.detach();
-  };
-}
-
-/** The same circle with a chosen WINDING and start point.
+/** The circle (ellipse, on a non-square box) inscribed in the box, with a
+ *  chosen WINDING and start point.
  *
  *  Direction is not a detail on a text baseline — it decides which way
  *  the glyphs face. `onPath` orients to the tangent, so a clockwise ring
@@ -157,25 +179,39 @@ inline OutlineFn circle() {
  *  contour begins at, which is what `TextPath::at` measures from. It
  *  defaults to 1 because that is what Skia's own `addOval(rect, dir)`
  *  uses — so `circle(kCW)` is byte-for-byte the path `circle()` gives,
- *  and this overload is a strict superset rather than a near-miss. (I
- *  defaulted it to 0 first and the two produced different paths, which a
- *  test caught immediately and would have been a nasty thing to
- *  discover from a drifting label.)
+ *  and the oriented overload is a strict superset rather than a
+ *  near-miss. (It was defaulted to 0 first and the two produced
+ *  different paths, which a test caught immediately and would have been
+ *  a nasty thing to discover from a drifting label.)
  *
  *  Exact conics either way — this is `addOval`, not a sampled
  *  polyline. */
-inline OutlineFn circle(SkPathDirection direction, unsigned startIndex = 1) {
-  return [direction, startIndex](SkSize s) {
+struct Circle {
+  SkPathDirection direction = SkPathDirection::kCW;
+  unsigned startIndex = 1;
+  bool operator==(const Circle &) const = default;
+  SkPath path(SkSize s) const {
     SkPathBuilder b;
     b.addOval(SkRect::MakeWH(s.width(), s.height()), direction, startIndex);
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+/** `util::disc()` is the ELEMENT form (a pre-sized box centred on a
+ *  point); this is the shape value, which is what onPath, the mask gates
+ *  and the decorations take. */
+inline Circle circle() { return Circle{}; }
+inline Circle circle(SkPathDirection direction, unsigned startIndex = 1) {
+  return Circle{direction, startIndex};
 }
 
 /** A ring: the inscribed circle with a concentric hole at @p innerRatio
  *  of the radius. Even-odd, so it fills as an annulus. */
-inline OutlineFn annulus(float innerRatio = 0.6f) {
-  return [innerRatio](SkSize s) {
+struct Annulus {
+  float innerRatio = 0.6f;
+  bool operator==(const Annulus &) const = default;
+  SkPath path(SkSize s) const {
     const float r = std::clamp(innerRatio, 0.0f, 0.999f);
     const SkRect outer = SkRect::MakeWH(s.width(), s.height());
     SkRect inner = outer;
@@ -185,14 +221,19 @@ inline OutlineFn annulus(float innerRatio = 0.6f) {
     b.addOval(outer);
     b.addOval(inner);
     return b.detach();
-  };
-}
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Annulus annulus(float innerRatio = 0.6f) { return Annulus{innerRatio}; }
 
 /** Superellipse |x|^e + |y|^e = 1 — the squircle. @p exponent 2 is an
  *  ellipse; 4–5 is the familiar app-icon softness; large values
  *  approach the rect. */
-inline OutlineFn squircle(float exponent = 4.0f) {
-  return [exponent](SkSize s) {
+struct Squircle {
+  float exponent = 4.0f;
+  bool operator==(const Squircle &) const = default;
+  SkPath path(SkSize s) const {
     const float e = std::max(exponent, 0.5f);
     const float cx = s.width() / 2, cy = s.height() / 2;
     constexpr int kSegments = 96;
@@ -210,8 +251,11 @@ inline OutlineFn squircle(float exponent = 4.0f) {
     }
     b.close();
     return b.detach();
-  };
-}
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Squircle squircle(float exponent = 4.0f) { return Squircle{exponent}; }
 
 namespace detail {
 /** Deterministic per-index noise in [-1, 1] (splitmix-style). */
@@ -252,6 +296,29 @@ inline float bisectTransition(float lo, float hi, Pred stillNear,
   return hi;
 }
 
+/** The one polyline sampler behind every parametric curve: evaluates
+ *  @p f over t ∈ [t0, t1] in the UNIT frame (±1 spans the box) and
+ *  scales onto the node's half-extents. */
+template <typename F>
+inline SkPath samplePolyline(const F &f, float t0, float t1, int samples,
+                             bool close, SkSize s) {
+  const int n = std::max(samples, 2);
+  const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
+  SkPathBuilder b;
+  for (int i = 0; i <= n; ++i) {
+    const float t = t0 + (t1 - t0) * ((float)i / (float)n);
+    const SkPoint u = f(t);
+    const SkPoint p{cx + cx * u.fX, cy + cy * u.fY};
+    if (i == 0)
+      b.moveTo(p);
+    else
+      b.lineTo(p);
+  }
+  if (close)
+    b.close();
+  return b.detach();
+}
+
 } // namespace detail
 
 /** Organic closed blob: @p lobes control points on the inscribed
@@ -259,9 +326,12 @@ inline float bisectTransition(float lo, float hi, Pred stillNear,
  *  radius) of seeded deterministic noise, joined by a smooth
  *  Catmull-Rom loop. Same seed → same blob, every frame, every run —
  *  chaos you can cache. */
-inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
-                      int lobes = 8) {
-  return [seed, amplitude, lobes](SkSize s) {
+struct Blob {
+  uint32_t seed = 0;
+  float amplitude = 0.18f;
+  int lobes = 8;
+  bool operator==(const Blob &) const = default;
+  SkPath path(SkSize s) const {
     const int n = std::max(lobes, 3);
     const float cx = s.width() / 2, cy = s.height() / 2;
     std::vector<SkPoint> pts((size_t)n);
@@ -287,7 +357,12 @@ inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
     }
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
+  return Blob{seed, amplitude, lobes};
 }
 
 /** A circular arc inscribed in the box, STARTING at @p startDeg (Skia
@@ -295,13 +370,21 @@ inline OutlineFn blob(uint32_t seed, float amplitude = 0.18f,
  *  path begins at the arc's start, so `spans::upTo(sweep/360)`-style reveals
  *  and orbit connectors (the PoE Orbit idiom, REFERENCES.md §5) need no
  *  wrap math. Stroke it; an unstroked open arc has no fillable area. */
-inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {
-  return [startDeg, sweepDeg](SkSize s) {
+struct Arc {
+  float startDeg = 0.0f;
+  float sweepDeg = 359.9f;
+  bool operator==(const Arc &) const = default;
+  SkPath path(SkSize s) const {
     SkPathBuilder b;
     b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
              std::min(sweepDeg, 359.9f));
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Arc arc(float startDeg, float sweepDeg = 359.9f) {
+  return Arc{startDeg, sweepDeg};
 }
 
 /** A CLOSED, fillable circular sector inscribed in the box — the arc plus
@@ -312,9 +395,12 @@ inline OutlineFn arc(float startDeg, float sweepDeg = 359.9f) {
  *  cooldown sweeps, radial menus, gauge fills, compass roses.
  *
  *  Angles follow Skia's canvas convention: 0° = +x, sweeping clockwise. */
-inline OutlineFn sector(float startDeg, float sweepDeg,
-                        float innerRatio = 0.0f) {
-  return [startDeg, sweepDeg, innerRatio](SkSize s) {
+struct Sector {
+  float startDeg = 0.0f;
+  float sweepDeg = 90.0f;
+  float innerRatio = 0.0f;
+  bool operator==(const Sector &) const = default;
+  SkPath path(SkSize s) const {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     // arcTo swallows a full turn, so sector(start, 360, inner) — the most
     // obvious call there is, a gauge's annular TRACK — silently drew
@@ -336,14 +422,21 @@ inline OutlineFn sector(float startDeg, float sweepDeg,
     b.arcTo(innerBox, startDeg + sweep, -sweep, false);
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Sector sector(float startDeg, float sweepDeg, float innerRatio = 0.0f) {
+  return Sector{startDeg, sweepDeg, innerRatio};
 }
 
 /** A parallelogram leaning by @p skewDeg (the ATLUS slash, REFERENCES.md
  *  §1: P3R ≈ −12°, P5R ≈ −20°): the top edge shifts by h·tan(skew) relative
  *  to the bottom, staying inside the box. */
-inline OutlineFn parallelogram(float skewDeg) {
-  return [skewDeg](SkSize s) {
+struct Parallelogram {
+  float skewDeg = 0.0f;
+  bool operator==(const Parallelogram &) const = default;
+  SkPath path(SkSize s) const {
     const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
     const float l = std::max(0.0f, -lean), r = std::max(0.0f, lean);
     SkPathBuilder b;
@@ -353,7 +446,12 @@ inline OutlineFn parallelogram(float skewDeg) {
     b.lineTo(r - l >= 0 ? r : 0, s.height());
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Parallelogram parallelogram(float skewDeg) {
+  return Parallelogram{skewDeg};
 }
 
 // ---------------------------------------------------------------------------
@@ -371,10 +469,11 @@ inline OutlineFn parallelogram(float skewDeg) {
 // its proportions when the box changes and `amplitude` means the same
 // thing everywhere.
 //
-// They are still incomparable callables, so a node carrying one still
-// re-records on every render(). Naming the families LANDED; making them
-// comparable VALUES is the half that changes Element::outline()'s
-// signature (ROADMAP.md §3).
+// The named families are comparable values like every other generator.
+// The raw `parametric(fn, …)` holds YOUR callable, which cannot compare —
+// key it (`parametric("orbit-a", fn, …)`) to make it a value: the key
+// plus the sampling parameters become its identity, on the author's
+// contract that one key means one function.
 
 /** Samples @p f over t ∈ [t0, t1] into a polyline. @p f returns UNIT
  *  coordinates (±1 spans the box); @p samples is the segment count, and
@@ -383,26 +482,56 @@ inline OutlineFn parallelogram(float skewDeg) {
  *      .shape(shapes::parametric([](float t) {
  *        return SkPoint{std::cos(3 * t), std::sin(2 * t)};
  *      }, 0, 2 * SK_FloatPI, 720))
- */
-inline OutlineFn parametric(std::function<SkPoint(float)> f, float t0,
-                            float t1, int samples = 512, bool close = false) {
-  return [f = std::move(f), t0, t1, samples, close](SkSize s) {
-    const int n = std::max(samples, 2);
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    SkPathBuilder b;
-    for (int i = 0; i <= n; ++i) {
-      const float t = t0 + (t1 - t0) * ((float)i / (float)n);
-      const SkPoint u = f(t);
-      const SkPoint p{cx + cx * u.fX, cy + cy * u.fY};
-      if (i == 0)
-        b.moveTo(p);
-      else
-        b.lineTo(p);
-    }
-    if (close)
-      b.close();
-    return b.detach();
-  };
+ *
+ *  UNKEYED: the callable is the whole identity and it cannot compare, so
+ *  a node shaped by this re-records every render() — the escape hatch.
+ *  The keyed overload below is the prunable spelling. */
+struct Parametric {
+  std::function<SkPoint(float)> f;
+  float t0 = 0.0f;
+  float t1 = 1.0f;
+  int samples = 512;
+  bool close = false;
+  SkPath path(SkSize s) const {
+    return detail::samplePolyline(f, t0, t1, samples, close, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Parametric parametric(std::function<SkPoint(float)> f, float t0,
+                             float t1, int samples = 512, bool close = false) {
+  return Parametric{std::move(f), t0, t1, samples, close};
+}
+
+/** The KEYED parametric: comparable by (key, t0, t1, samples, close), so
+ *  the node prunes. The key is the FUNCTION's identity — the author's
+ *  contract is that one key always names one curve; reusing a key for a
+ *  different `f` silently keeps whichever recorded first. Change the key
+ *  (or fold the changing number into a parameter of a named family
+ *  below) when the curve changes. */
+struct KeyedParametric {
+  std::string key;
+  std::function<SkPoint(float)> f;
+  float t0 = 0.0f;
+  float t1 = 1.0f;
+  int samples = 512;
+  bool close = false;
+  bool operator==(const KeyedParametric &o) const {
+    return key == o.key && t0 == o.t0 && t1 == o.t1 &&
+           samples == o.samples && close == o.close;
+  }
+  SkPath path(SkSize s) const {
+    return detail::samplePolyline(f, t0, t1, samples, close, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline KeyedParametric parametric(std::string_view key,
+                                  std::function<SkPoint(float)> f, float t0,
+                                  float t1, int samples = 512,
+                                  bool close = false) {
+  return KeyedParametric{std::string(key), std::move(f), t0, t1, samples,
+                         close};
 }
 
 /** Lissajous figure: x = sin(a·t + δ), y = sin(b·t). The ratio a:b picks
@@ -410,14 +539,27 @@ inline OutlineFn parametric(std::function<SkPoint(float)> f, float t0,
  *  weave) and δ its phase — the same two numbers a physical harmonograph
  *  is set to. `turns` is how many 2π the parameter runs for; the curve
  *  closes when a:b is rational and `turns` covers the period. */
-inline OutlineFn lissajous(float a, float b, float deltaDeg = 0.0f,
+struct Lissajous {
+  float a = 3.0f;
+  float b = 2.0f;
+  float deltaDeg = 0.0f;
+  float turns = 1.0f;
+  int samples = 720;
+  bool operator==(const Lissajous &) const = default;
+  SkPath path(SkSize s) const {
+    const float delta = deltaDeg * SK_FloatPI / 180.0f;
+    return detail::samplePolyline(
+        [fa = a, fb = b, delta](float t) {
+          return SkPoint{std::sin(fa * t + delta), std::sin(fb * t)};
+        },
+        0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
                            float turns = 1.0f, int samples = 720) {
-  const float delta = deltaDeg * SK_FloatPI / 180.0f;
-  return parametric(
-      [a, b, delta](float t) {
-        return SkPoint{std::sin(a * t + delta), std::sin(b * t)};
-      },
-      0.0f, turns * 2.0f * SK_FloatPI, samples);
+  return Lissajous{a, b, deltaDeg, turns, samples};
 }
 
 /** A harmonograph: a Lissajous whose amplitudes DECAY, which is what
@@ -425,78 +567,135 @@ inline OutlineFn lissajous(float a, float b, float deltaDeg = 0.0f,
  *  retracing one closed rosette. @p damping is the exponential rate per
  *  unit t; @p precession spins the whole figure as it draws (the rotating
  *  turntable under John Whitney's pendulum). */
-inline OutlineFn harmonograph(float a, float b, float deltaDeg = 0.0f,
-                              float damping = 0.05f, float precession = 0.0f,
-                              float turns = 6.0f, int samples = 2000) {
-  const float delta = deltaDeg * SK_FloatPI / 180.0f;
-  return parametric(
-      [a, b, delta, damping, precession](float t) {
-        const float env = std::exp(-damping * t);
-        const float x = env * std::sin(a * t + delta);
-        const float y = env * std::sin(b * t);
-        if (precession == 0.0f)
-          return SkPoint{x, y};
-        const float th = precession * t;
-        const float c = std::cos(th), sn = std::sin(th);
-        return SkPoint{x * c - y * sn, x * sn + y * c};
-      },
-      0.0f, turns * 2.0f * SK_FloatPI, samples);
+struct Harmonograph {
+  float a = 3.0f;
+  float b = 2.0f;
+  float deltaDeg = 0.0f;
+  float damping = 0.05f;
+  float precession = 0.0f;
+  float turns = 6.0f;
+  int samples = 2000;
+  bool operator==(const Harmonograph &) const = default;
+  SkPath path(SkSize s) const {
+    const float delta = deltaDeg * SK_FloatPI / 180.0f;
+    return detail::samplePolyline(
+        [fa = a, fb = b, delta, fdamping = damping,
+         fprecession = precession](float t) {
+          const float env = std::exp(-fdamping * t);
+          const float x = env * std::sin(fa * t + delta);
+          const float y = env * std::sin(fb * t);
+          if (fprecession == 0.0f)
+            return SkPoint{x, y};
+          const float th = fprecession * t;
+          const float c = std::cos(th), sn = std::sin(th);
+          return SkPoint{x * c - y * sn, x * sn + y * c};
+        },
+        0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Harmonograph harmonograph(float a, float b, float deltaDeg = 0.0f,
+                                 float damping = 0.05f, float precession = 0.0f,
+                                 float turns = 6.0f, int samples = 2000) {
+  return Harmonograph{a, b, deltaDeg, damping, precession, turns, samples};
 }
 
 /** Rose (rhodonea) r = cos(k·θ). Integer @p k gives k petals when k is
  *  odd and 2k when even; rational k gives the multi-lobed forms. */
-inline OutlineFn rose(float k, float turns = 1.0f, int samples = 720) {
-  return parametric(
-      [k](float th) {
-        const float r = std::cos(k * th);
-        return SkPoint{r * std::cos(th), r * std::sin(th)};
-      },
-      0.0f, turns * 2.0f * SK_FloatPI, samples);
+struct Rose {
+  float k = 3.0f;
+  float turns = 1.0f;
+  int samples = 720;
+  bool operator==(const Rose &) const = default;
+  SkPath path(SkSize s) const {
+    return detail::samplePolyline(
+        [fk = k](float th) {
+          const float r = std::cos(fk * th);
+          return SkPoint{r * std::cos(th), r * std::sin(th)};
+        },
+        0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Rose rose(float k, float turns = 1.0f, int samples = 720) {
+  return Rose{k, turns, samples};
 }
 
 /** Spiral from the centre outward. @p logarithmic switches Archimedean
  *  (even spacing — a clock spring, a record groove) for logarithmic
  *  (constant angle — a nautilus, a galaxy arm). */
-inline OutlineFn spiral(float turns = 3.0f, bool logarithmic = false,
-                        float growth = 0.25f, int samples = 720) {
-  const float total = turns * 2.0f * SK_FloatPI;
-  return parametric(
-      [logarithmic, growth, total](float th) {
-        const float r = logarithmic
-                            ? std::exp(growth * th) / std::exp(growth * total)
-                            : th / total;
-        return SkPoint{r * std::cos(th), r * std::sin(th)};
-      },
-      0.0f, total, samples);
+struct Spiral {
+  float turns = 3.0f;
+  bool logarithmic = false;
+  float growth = 0.25f;
+  int samples = 720;
+  bool operator==(const Spiral &) const = default;
+  SkPath path(SkSize s) const {
+    const float total = turns * 2.0f * SK_FloatPI;
+    return detail::samplePolyline(
+        [flog = logarithmic, fgrowth = growth, total](float th) {
+          const float r = flog
+                              ? std::exp(fgrowth * th) / std::exp(fgrowth * total)
+                              : th / total;
+          return SkPoint{r * std::cos(th), r * std::sin(th)};
+        },
+        0.0f, total, samples, false, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Spiral spiral(float turns = 3.0f, bool logarithmic = false,
+                     float growth = 0.25f, int samples = 720) {
+  return Spiral{turns, logarithmic, growth, samples};
 }
 
 /** Epitrochoid / hypotrochoid — the spirograph pair. A circle of radius
  *  @p r rolls around one of radius @p R (outside for an epitrochoid,
  *  inside when @p inside), with the pen @p d from its centre. Everything
  *  is normalised so the figure fills the box. */
-inline OutlineFn trochoid(float R, float r, float d, bool inside = false,
-                          float turns = 1.0f, int samples = 1440) {
-  const float sign = inside ? -1.0f : 1.0f;
-  const float sum = R + sign * r;
-  const float extent = std::max(std::abs(sum) + std::abs(d), 1e-3f);
-  return parametric(
-      [R, r, d, sign, sum, extent](float t) {
-        const float k = sum / std::max(r, 1e-3f);
-        return SkPoint{(sum * std::cos(t) - sign * d * std::cos(k * t)) / extent,
-                       (sum * std::sin(t) - d * std::sin(k * t)) / extent};
-      },
-      0.0f, turns * 2.0f * SK_FloatPI, samples);
+struct Trochoid {
+  float R = 5.0f;
+  float r = 3.0f;
+  float d = 5.0f;
+  bool inside = false;
+  float turns = 1.0f;
+  int samples = 1440;
+  bool operator==(const Trochoid &) const = default;
+  SkPath path(SkSize s) const {
+    const float sign = inside ? -1.0f : 1.0f;
+    const float sum = R + sign * r;
+    const float extent = std::max(std::abs(sum) + std::abs(d), 1e-3f);
+    return detail::samplePolyline(
+        [fR = R, fr = r, fd = d, sign, sum, extent](float t) {
+          const float k = sum / std::max(fr, 1e-3f);
+          return SkPoint{(sum * std::cos(t) - sign * fd * std::cos(k * t)) / extent,
+                         (sum * std::sin(t) - fd * std::sin(k * t)) / extent};
+        },
+        0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Trochoid trochoid(float R, float r, float d, bool inside = false,
+                         float turns = 1.0f, int samples = 1440) {
+  return Trochoid{R, r, d, inside, turns, samples};
 }
 
 // ---------------------------------------------------------------------------
 // Wrappers — generators over generators
 
-/** Wraps any outline generator so every sharp corner rounds with a
- *  consistent radius — corners() for arbitrary silhouettes:
- *  `.shape(rounded(star(5), 8))`. */
-inline OutlineFn rounded(OutlineFn shape, float radius) {
-  return [shape = std::move(shape), radius](SkSize s) {
-    SkPath src = shape(s);
+/** Wraps any shape so every sharp corner rounds with a consistent
+ *  radius — corners() for arbitrary silhouettes:
+ *  `.shape(rounded(star(5), 8))`. Comparable whenever the wrapped shape
+ *  is (a wrapped raw callable stays the escape hatch). */
+struct Rounded {
+  Shape inner;
+  float radius = 0.0f;
+  bool operator==(const Rounded &) const = default;
+  SkPath path(SkSize s) const {
+    SkPath src = inner(s);
     if (radius <= 0)
       return src;
     SkPathBuilder dst;
@@ -505,7 +704,12 @@ inline OutlineFn rounded(OutlineFn shape, float radius) {
         fx && fx->filterPath(&dst, src, &rec))
       return dst.detach();
     return src;
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Rounded rounded(Shape shape, float radius) {
+  return Rounded{std::move(shape), radius};
 }
 
 // ---------------------------------------------------------------------------
@@ -541,8 +745,11 @@ constexpr bool has(Corner mask, Corner c) {
 /** The CHAMFERED box: each selected corner replaced by a 45° cut of @p cut
  *  px. Clamped to half the short side, so an over-large cut degenerates to
  *  a diamond rather than an inside-out path. */
-inline OutlineFn chamfered(float cut, Corner mask = Corner::All) {
-  return [cut, mask](SkSize s) {
+struct Chamfered {
+  float cut = 0.0f;
+  Corner mask = Corner::All;
+  bool operator==(const Chamfered &) const = default;
+  SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float c = std::clamp(cut, 0.0f, std::min(w, h) * 0.5f);
     SkPathBuilder b;
@@ -572,15 +779,23 @@ inline OutlineFn chamfered(float cut, Corner mask = Corner::All) {
       b.lineTo(0, c);
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Chamfered chamfered(float cut, Corner mask = Corner::All) {
+  return Chamfered{cut, mask};
 }
 
 /** The NOTCHED box: each selected corner carries a rectangular bite @p
  *  notchWidth wide and @p depth deep — the stencil corner, the fixing lug,
  *  the Aliens-console cut. */
-inline OutlineFn notched(float notchWidth, float depth,
-                         Corner mask = Corner::All) {
-  return [notchWidth, depth, mask](SkSize s) {
+struct Notched {
+  float notchWidth = 0.0f;
+  float depth = 0.0f;
+  Corner mask = Corner::All;
+  bool operator==(const Notched &) const = default;
+  SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
     const float d = std::clamp(depth, 0.0f, std::min(w, h) * 0.45f);
@@ -616,7 +831,13 @@ inline OutlineFn notched(float notchWidth, float depth,
     }
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Notched notched(float notchWidth, float depth,
+                       Corner mask = Corner::All) {
+  return Notched{notchWidth, depth, mask};
 }
 
 // ---------------------------------------------------------------------------
@@ -793,8 +1014,11 @@ inline Inset inset(float px, Decoration inner) {
  *  height and a head of `headFrac` of the width. Every HUD, gizmo,
  *  manoeuvre node and diagram draws one, and every one of them was
  *  hand-built with SkPathBuilder. */
-inline OutlineFn arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
-  return [shaftFrac, headFrac](SkSize s) {
+struct Arrow {
+  float shaftFrac = 0.34f;
+  float headFrac = 0.42f;
+  bool operator==(const Arrow &) const = default;
+  SkPath path(SkSize s) const {
     const float w = s.width(), h = s.height();
     const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
     const float head = std::clamp(headFrac, 0.05f, 1.0f) * w;
@@ -809,7 +1033,12 @@ inline OutlineFn arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
     b.lineTo(0, cy + half);
     b.close();
     return b.detach();
-  };
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
+  return Arrow{shaftFrac, headFrac};
 }
 
 } // namespace sigil::compose::shapes

@@ -1,9 +1,10 @@
 #pragma once
 // Shared support for the compose test TUs — the Host harness, color and
 // text-style helpers, and every header any slice needs. Split out of the
-// single 12.4k-line ComposeTest.cpp; the slices are contiguous regions
-// of that file, byte-identical, in original order. Helpers live in an
-// anonymous namespace on purpose: internal linkage per TU, as before.
+// single 12.6k-line ComposeTest.cpp (2026-07-27); the slices are
+// contiguous regions of that file, byte-identical, in original order.
+// Helpers live in an anonymous namespace on purpose: internal linkage
+// per TU, same as they always had.
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -48,6 +49,10 @@
 #include <sigilcompose/Instances.h>
 #include <sigilcompose/Studio.h>
 #include <type_traits>
+
+// Kernel behavior tests: layout, stacking paint, reconciliation (keys,
+// memo), automatic picture caching, and transition semantics — the P1
+// slice of STRESS_TESTS.md, in headless deterministic form.
 
 
 
@@ -103,6 +108,15 @@ Fill blue() { return Fill::color({0, 0, 1, 1}); }
 } // namespace
 
 namespace {
+sk_sp<SkRuntimeEffect> ukEffect() {
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uK;"
+               "half4 main(float2 p) { return half4(uK, 0, 0, 1); }"));
+  return effect;
+}
+} // namespace
+
+namespace {
 sigil::weave::TextStyle whiteStyle(float size) {
   sigil::weave::TextStyle s = styleAt(size);
   s.paint.foreground.setColor(SK_ColorWHITE);
@@ -128,6 +142,34 @@ std::shared_ptr<sigil::image::ImageAsset> twoCellAtlas() {
   SkPngEncoder::Encode(&stream, src.pixmap(), {});
   return std::make_shared<sigil::image::ImageAsset>(
       *sigil::image::ImageAsset::decode(stream.detachAsData()));
+}
+} // namespace
+
+namespace {
+/** Counts distinct painted runs in a vertical scan column. */
+int verticalRuns(Host &host, int x, int y0, int y1, SkColor color) {
+  int runs = 0;
+  bool in = false;
+  for (int y = y0; y <= y1; ++y) {
+    const bool hit = host.pixel(x, y) == color;
+    if (hit && !in)
+      ++runs;
+    in = hit;
+  }
+  return runs;
+}
+Element straightRun(Decoration style) {
+  // A horizontal open path across the node, dressed by the line style.
+  return box().child(box()
+                         .absolute()
+                         .inset(20, 80, 20, 80)
+                         .shape([](SkSize s) {
+                           SkPathBuilder b;
+                           b.moveTo(0, s.height() / 2);
+                           b.lineTo(s.width(), s.height() / 2);
+                           return b.detach();
+                         })
+                         .stroke(std::move(style)));
 }
 } // namespace
 
@@ -246,33 +288,18 @@ bool identicalPixels(Host &a, Host &b, int w, int h) {
 } // namespace
 
 namespace {
+/** ONE effect for the whole process, and this is not tidiness.
+ *
+ *  `heavyEffect()` mints a fresh SkRuntimeEffect on every call, and a fresh
+ *  effect makes the material RECIPE compare unequal — so a fixture that
+ *  re-describes each frame dirties the node's own paint each frame and no
+ *  bake of any kind can hold. Every other cache test in this file calls
+ *  `render()` once and then `frame()`, so none of them ever met this. The
+ *  split has to re-describe, because the whole point is that the child
+ *  moves. The corpus does not hit it because real materials are built from
+ *  comparable values; a raw SkSL pointer is the one thing that is not. */
 sk_sp<SkRuntimeEffect> sharedHeavyEffect() {
   static sk_sp<SkRuntimeEffect> effect = heavyEffect(false);
-  return effect;
-}
-} // namespace
-
-namespace {
-Element straightRun(Decoration style) {
-  // A horizontal open path across the node, dressed by the line style.
-  return box().child(box()
-                         .absolute()
-                         .inset(20, 80, 20, 80)
-                         .shape([](SkSize s) {
-                           SkPathBuilder b;
-                           b.moveTo(0, s.height() / 2);
-                           b.lineTo(s.width(), s.height() / 2);
-                           return b.detach();
-                         })
-                         .stroke(std::move(style)));
-}
-} // namespace
-
-namespace {
-sk_sp<SkRuntimeEffect> ukEffect() {
-  auto [effect, err] = SkRuntimeEffect::MakeForShader(
-      SkString("uniform float uK;"
-               "half4 main(float2 p) { return half4(uK, 0, 0, 1); }"));
   return effect;
 }
 } // namespace

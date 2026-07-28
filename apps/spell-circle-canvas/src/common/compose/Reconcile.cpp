@@ -148,15 +148,13 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
     return false;
   if (ta.paragraphOverride)
     return false; // layoutOptions aren't comparable — memo these
-  // onPath(): the baseline is an incomparable std::function, so a run
-  // that has one never prunes — the same conservative rule deriveEqual
-  // applies to placeFn/router. (It was omitted here entirely when onPath
-  // landed, which meant a moving `at` or a new baseline silently kept the
-  // OLD path forever. TextPath's defaulted operator== was implicitly
-  // deleted for the same reason and never caught it.)
+  // onPath(): the baseline is a Shape, so a run on a comparable generator
+  // prunes — 72 radial labels used to re-record every render() for want
+  // of this compare (§10e). A raw-callable baseline makes the Shape
+  // compare false and keeps the old conservative rule.
   if (ta.onPath.has_value() != tb.onPath.has_value())
     return false;
-  if (ta.onPath)
+  if (ta.onPath && !(*ta.onPath == *tb.onPath))
     return false;
   // textFill(): live never prunes, static compares by recipe.
   if (ta.metricFill.has_value() != tb.metricFill.has_value())
@@ -175,11 +173,14 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
     return false;
   if (!a)
     return true;
-  // Incomparable callables → conservative inequality. A band's SPINE is
-  // one of them (same rule as shapeFn); a band borrowed by key is a
-  // comparable value and prunes.
+  // Incomparable callables → conservative inequality. A band's authored
+  // SPINE rides the Shape seam instead (same rule as shapeFn): comparable
+  // generators prune, raw callables stay conservative. A band borrowed by
+  // key was always a comparable value.
   if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
-      b->railRouter || a->bandSpine || b->bandSpine)
+      b->railRouter)
+    return false;
+  if (!(a->bandSpine == b->bandSpine))
     return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value())
     return false;
@@ -328,7 +329,20 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   // Incomparable callables → conservative inequality.
   if (a.hitTestable != b.hitTestable)
     return false;
-  if (a.shapeFn || b.shapeFn || (bool)a.customData || (bool)b.customData)
+  if ((bool)a.customData != (bool)b.customData)
+    return false;
+  if (a.customData) {
+    // custom(key): equal non-empty keys assert equal programs (the
+    // author's contract, like a keyed parametric); unkeyed stays
+    // conservatively unequal.
+    if (a.customData->key.empty() || a.customData->key != b.customData->key)
+      return false;
+  }
+  // The shape seam: a comparable scheme (any shapes:: generator) prunes;
+  // the raw-callable escape hatch compares unequal and stays conservative.
+  // This WAS a blanket refusal — the §3 wall, 43.4 of 43.5 ms measured on
+  // one node whose outline could not compare.
+  if (!(a.shapeFn == b.shapeFn))
     return false;
   if (!deriveEqual(a.deriveData, b.deriveData))
     return false;

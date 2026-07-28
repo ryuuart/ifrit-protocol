@@ -650,6 +650,105 @@ struct Stagger {
   bool operator==(const Stagger &) const = default;
 };
 
+// ---------------------------------------------------------------------------
+// The shape seam — a COMPARABLE silhouette value
+
+/** A shape scheme: `SkPath path(SkSize) const`, plus equality — the
+ *  seam-value convention (one named required member, comparable values
+ *  throughout; `Shaper` spells `shape()`, `CrossingRule` spells
+ *  `decide()`, a shape value spells `path()`).
+ *
+ *  Every stock generator in `Shapes.h` is one, which is what lets a
+ *  shaped node participate in reconciler equality and PRUNE — the wall
+ *  ROADMAP §3 measured at 43.4 of 43.5 ms on one node whose outline
+ *  callable could not compare. A scheme's equality is its contract:
+ *  equal values must generate identical paths at every size. */
+template <typename S>
+concept ShapeScheme = std::equality_comparable<S> &&
+    requires(const S &s, SkSize size) {
+      { s.path(size) } -> std::convertible_to<SkPath>;
+    };
+
+/** THE NODE'S SILHOUETTE, type-erased: what `Element::shape()`, a
+ *  `TextPath` baseline and a `band()` spine hold.
+ *
+ *  Two constructions, one value:
+ *
+ *  - a COMPARABLE scheme (any `shapes::` generator, or your own value
+ *    with `path(SkSize)` + `==`) — the node prunes while the value and
+ *    its size are unchanged;
+ *  - a raw callable (`[](SkSize) -> SkPath`, an `OutlineFn`) — the
+ *    escape hatch that never compares equal across describes, so the
+ *    node stays conservatively un-pruned exactly as every shaped node
+ *    used to. Copies of ONE Shape still compare equal (shared state), so
+ *    a pointer-stable generator keeps its old prune too.
+ *
+ *  Held as one shared immutable pointer, so an ElementNode carrying a
+ *  shape is CHEAPER than the `std::function` it used to hold, and a COW
+ *  node copy is a refcount bump. */
+class Shape {
+public:
+  Shape() = default;
+
+  template <ShapeScheme S>
+    requires(!std::same_as<std::remove_cvref_t<S>, Shape>)
+  Shape(S scheme) { // NOLINT: implicit by design (.shape(shapes::star(5)))
+    State state;
+    state.held = scheme;
+    state.equals = [](const std::any &a, const std::any &b) {
+      return std::any_cast<const S &>(a) == std::any_cast<const S &>(b);
+    };
+    state.generate = [s = std::move(scheme)](SkSize size) {
+      return s.path(size);
+    };
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  /** The escape hatch: any callable over the laid-out size. Never
+   *  compares equal to a separately-constructed Shape. */
+  template <typename F>
+    requires(!ShapeScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, Shape> &&
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F> &,
+                                   SkSize>)
+  Shape(F fn) { // NOLINT: implicit by design (.shape([](SkSize s) {...}))
+    State state;
+    state.generate = std::move(fn);
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  explicit operator bool() const {
+    return m_state && (bool)m_state->generate;
+  }
+  SkPath operator()(SkSize size) const {
+    return m_state && m_state->generate ? m_state->generate(size) : SkPath();
+  }
+  /** Does this value participate in structural equality? (False for the
+   *  callable escape hatch.) */
+  bool comparable() const { return m_state && (bool)m_state->equals; }
+
+  /** Shared state (copies of one Shape) is equal; comparable schemes of
+   *  one type compare their values; anything else is conservative. */
+  bool operator==(const Shape &o) const {
+    if (m_state == o.m_state)
+      return true;
+    if (!m_state || !o.m_state)
+      return false;
+    if (!m_state->equals || !o.m_state->equals)
+      return false;
+    return m_state->held.type() == o.m_state->held.type() &&
+           m_state->equals(m_state->held, o.m_state->held);
+  }
+
+private:
+  struct State {
+    std::function<SkPath(SkSize)> generate;
+    std::any held;
+    bool (*equals)(const std::any &, const std::any &) = nullptr;
+  };
+  std::shared_ptr<const State> m_state;
+};
+
 /** Text whose BASELINE is a path (`Element::onPath`).
  *
  *  The run is shaped once — real kerning, real ligatures, real advances —
@@ -667,7 +766,7 @@ struct TextPath {
    *  `shapes::` generator, or your own. EVERY contour is walked, in
    *  order, as one arc-length coordinate — a trajectory clipped to the
    *  frame is several contours and used to lose its label silently. */
-  std::function<SkPath(SkSize)> path;
+  Shape path;
   /** Where the run sits along the path, as a fraction of its length.
    *  With Align::Center this is the run's midpoint. */
   float at = 0.0f;
@@ -710,10 +809,12 @@ struct TextPath {
    *  bbox centre is not its circle's centre — so give a partial arc a
    *  full-circle baseline and place the run on it with `at`. */
   enum class Orient { Tangent, Radial, Upright } orient = Orient::Tangent;
-  // No operator==: `path` is a std::function, so a defaulted one is
-  // implicitly DELETED and compiles quietly while comparing nothing. The
-  // reconciler treats a run with a baseline as never-prunable instead
-  // (Reconcile.cpp, textEqual) — the same rule the derive callables get.
+  /** Structural equality. The baseline is a `Shape`, so a run on a stock
+   *  generator (or any comparable scheme) PRUNES — 72 radial labels used
+   *  to re-record every render() because this operator could not exist
+   *  (ROADMAP §10e). A raw-callable baseline compares unequal and keeps
+   *  the old conservative behaviour. */
+  bool operator==(const TextPath &) const = default;
 };
 
 /** Kinetic text: attach to a text() element with Element::glyphFx(). The
@@ -2048,10 +2149,13 @@ public:
    *  `.outline(shape).stroke(brush)` putting two halves of one idea under
    *  one word. A shape is a region; a stroke is a mark on its boundary.
    *
-   *  Like custom(), the generator is an incomparable callable — memo()
-   *  such a node (or keep it pointer-stable) to prune it while its size
-   *  and inputs are unchanged. */
-  Element &shape(std::function<SkPath(SkSize)> path);
+   *  Takes a `Shape`: every `shapes::` generator is a COMPARABLE value
+   *  now, so a shaped node prunes like an unshapen one (ROADMAP §3 — the
+   *  highest measured-impact item this roadmap carried, 43.5 → 0.10 ms
+   *  on the node that priced it). A raw callable is still accepted as
+   *  the escape hatch and keeps the old conservative behaviour — memo()
+   *  such a node (or keep the SHAPE value stable) to prune it. */
+  Element &shape(Shape path);
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
    *  `.inward()` take one side (the offset-path lineage). No effect on a
@@ -2660,7 +2764,7 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *
  *  The profile's `max()` is what the paint cull grows by, so a band whose
  *  width varies is never silently clipped. */
-Element band(std::function<SkPath(SkSize)> spine, Across width);
+Element band(Shape spine, Across width);
 Element band(Around spine, Across width);
 
 /** The band's own (along, across) space, addressable: `along` is a
