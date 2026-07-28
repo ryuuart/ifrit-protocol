@@ -191,11 +191,18 @@ Element &centerAt(SkPoint);   // center an absolute node ON a parent-space
 
 // ---- shape (geometry: defines PaintContext::outline and clipping) ----
 Element &corners(Corners);
-// Custom silhouette: a path generator over the laid-out size. Overrides
+// Custom silhouette: a Shape VALUE over the laid-out size. Overrides
 // corners() as the node's shape — fill, clip(), and every
 // outline-following decoration (PathFormat, ContourWalk) trace it.
 // Spiky shout dialogs, scalloped seals, any non-rectangular chrome.
-Element &shape(std::function<SkPath(SkSize)>);   // `outline()` DELETED (R3)
+//
+// A Shape is the seam's comparable value (§3 CLOSED): every shapes::
+// generator is a ShapeScheme (`path(SkSize)` + `==`), so a shaped node
+// PRUNES. A raw callable (`[](SkSize){…}`, OutlineFn) is still accepted
+// — the escape hatch that never compares, so such a node re-patches
+// every describe exactly as every shaped node used to; memo() it, or
+// hold ONE Shape value (copies of one Shape compare equal).
+Element &shape(Shape);                           // `outline()` DELETED (R3)
 Element &clip(bool = true);
 // Trim Path (Lottie/sksg) — CONDEMNED, and one of the three legacies R3
 // did NOT delete (see the R3 note in ROADMAP §33: 2 of its 17 remaining
@@ -777,10 +784,10 @@ TextPath{ .path, .at, .align, .offset, .autoFlip, .orient }
 //                     ring, a modern gauge; neither of the other two can
 //                     express it)
 // EVERY contour of the path is walked, in order, as one arc-length
-// coordinate. TextPath has NO operator== — `path` is a std::function, so
-// a defaulted one would be implicitly deleted and compile quietly while
-// comparing nothing; a run with a baseline is treated as never-prunable
-// instead.
+// coordinate. `path` is a Shape, so TextPath compares structurally and a
+// run on a comparable baseline PRUNES — 72 radial labels used to
+// re-record every render() because this operator could not exist (§10e).
+// A raw-callable baseline keeps the old never-prunable behaviour.
 
 // ---- shapes ----
 shapes::circle()  shapes::annulus(innerRatio)  shapes::sector(a, sweep, inner)
@@ -789,7 +796,10 @@ shapes::polygon(sides, rotateDeg)            // regular n-gon, inscribed
 shapes::star(points, innerRatio, waist)      // waist bows the arms concave
 shapes::chamfered(size, Corner)  shapes::notched(size, depth, Corner)
 shapes::onEdges(Edge mask, Decoration)       // per-edge treatment (EdgeSlice)
-shapes::parametric(fn, t0, t1, samples, close)   // fn: t -> UNIT (x, y)
+shapes::parametric(fn, t0, t1, samples, close)   // fn: t -> UNIT (x, y);
+                                             // incomparable — the escape hatch
+shapes::parametric(key, fn, t0, t1, samples, close) // KEYED: a value; the key
+                                             // + window is the identity
 shapes::lissajous(a, b, deltaDeg, turns)     shapes::rose(k, turns)
 shapes::harmonograph(a, b, delta, damping, precession, turns)
 shapes::spiral(turns, logarithmic, growth)   shapes::trochoid(R, r, d, inside)
@@ -1103,9 +1113,17 @@ frame a full repaint "just in case".
 
 ### Shapes and patterns worth knowing about
 
-`<sigilcompose/Shapes.h>` generators return an `OutlineFn`, so any
-element can BE the shape — fill, clip, every outline-following
-decoration and `hitTest()` all trace it. Two easy ones to miss:
+`<sigilcompose/Shapes.h>` generators are comparable `ShapeScheme`
+values (params + `path(SkSize)` + `==`), so any element can BE the
+shape — fill, clip, every outline-following decoration and `hitTest()`
+all trace it — and the node PRUNES (§3). Every generator is also
+CALLABLE over a size, so it still converts to an `OutlineFn` wherever a
+raw path-over-size function is wanted. The parametric family
+(`lissajous`, `harmonograph`, `rose`, `spiral`, `trochoid`) carries its
+identity in its parameters; the raw `parametric(fn, …)` cannot compare
+unless you KEY it (`parametric("orbit-a", fn, …)` — the key plus the
+sampling window is the identity, on the author's contract that one key
+names one curve). Two easy ones to miss:
 
 - `shapes::sector(startDeg, sweepDeg, innerRatio = 0)` — a CLOSED,
   fillable circular sector; `innerRatio > 0` gives the annular
@@ -1371,6 +1389,19 @@ rail({{"a", {1, .5f}}, {"hub", {.5f, .5f}}, {"b", {0, .5f}}},
     .stroke(lines::cased(3, ink, 5));
 ```
 
+Stock routers (`<sigilcompose/Routers.h>`): pairwise `straight()`,
+`orthogonal()`, `arc(bulge)`; rail `polyline()`, `octilinear()`,
+`orbit(center)`, `manhattan(Bend, cornerRadius, chamferCut)` — and
+`fromPairwise(Router)` adapts any pairwise router to `rail()`, stitching
+the legs into one contour. The manhattan family (ROADMAP §8) adds what a
+circuit graph needs: `Bend::MidX` is the stock Z, `Bend::HFirst`/`VFirst`
+the two Ls (bend at the target/source column); collinear anchor runs
+collapse to single segments (the zero-argument `orthogonal()` keeps its
+degenerate verbs — frozen behavior); `chamferCut` cuts corners at 45°
+where `cornerRadius` rounds them (`routers::chamfer(path, cut)` is the
+treatment as a function, `kit::brush::shapers::chamfered(cut)` the same
+cut for any brush pipeline).
+
 #### The derive family — one name, six spellings, four shared laws
 
 Everything above is ONE mechanism, and until §33 ruling 11 it had no
@@ -1460,9 +1491,27 @@ Material::radialUnit({0.5f,0.5f}, 1.0f, stops);
 Material::image(img, tileX, tileY, localMatrix);  // sprites: sub-rect matrix
 Material::sksl(effect, {{"uSpeed", 2.f}});        // SkSL runtime effect
 Material::blend({{base, kSrcOver}, {sheen, kScreen}});  // ONE flattened shader
+Material::blend({{base, kSrcOver},                      // §5: layer STRENGTH —
+    {grain.amount(0.30f), SkBlendMode::kSoftLight}});   // Photoshop opacity
+                                                        // (composite, then mix
+                                                        // back), recipe-equal
 material.uniform("uGlow", &output);  // bind a ch::Output → material is LIVE
 material.quantizeTime(6.0f);         // step the injected uTime at 6 Hz
 ```
+
+Effects carry the same live contract (§11):
+
+```cpp
+Effect::shader(fx, {{"uThreshold", 0.6f}})   // constants, as ever
+    .uniform("uPhase", &phase);              // BOUND: resolved per paint,
+                                             // node repaints while attached
+```
+
+A static shader effect compares by RECIPE (runtime-effect pointer +
+constant uniforms), so holding one `SkRuntimeEffect` process-wide and
+re-describing prunes; a live effect never prunes, like a live material.
+`then()` chains precompose when static and re-compose per paint when a
+side is live.
 
 `linear()/radial()/sweep()` are in node-local PIXELS, which is right
 when you wrote the box's size down and impossible when the layout
@@ -1706,9 +1755,10 @@ the compiler found every call site and negating every argument so no
 picture moved (ROADMAP §33 ruling 5). A `Profile` now means the same side
 wherever it is read.
 
-The spine is an incomparable callable, like `shape()`'s: `memo()` such a
-node (or keep the generator pointer-stable) to prune it while its size
-and inputs are unchanged.
+The spine is a `Shape`, like `shape()`'s value: a comparable generator
+(any `shapes::` value) prunes on its own; a raw callable is the escape
+hatch — `memo()` such a node (or hold one Shape value stable) to prune
+it while its size and inputs are unchanged.
 
 Formation is explicit — `.centered()` (default), `.outward()`,
 `.inward()`. There is no defensible default beyond "both", and on a

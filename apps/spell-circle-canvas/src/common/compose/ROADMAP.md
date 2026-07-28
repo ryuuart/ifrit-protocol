@@ -254,6 +254,44 @@ small HETEROGENEOUS sets. The shaped fix there is `(cell, variant)`
 addressing on the `Atlas` — several bakes of one recipe — rather than
 widening every instance.
 
+> **SHIPPED 2026-07-27: `Atlas::variants(count, size, make)`** (and the
+> general form where each variant brings its own logical size — KSP's
+> two arm lengths). `make(v)` is baked per variant as consecutive
+> frames; variant v is frame `first + v` in `Pool::frames()`. The
+> re-render cases (X-COM's types × shades, re-stroked rings) are the
+> point; crop-variants stay `texWindows()`. Pinned by
+> `ComposeInstances.VariantsAreConsecutiveBakesOfOneRecipe`.
+> **Also shipped the same day: the ALPHA lane and the `place::repeat`
+> hygiene repair.** `Pool::alphas()` is opt-in like `sizes()`,
+> multiplied into the tint's alpha at stamp time, so fading a subset is
+> one float lane and the authored colour stays authored. `repeat()`
+> writes the lerp to THAT lane (only when its opacity parameters say
+> something), no longer clobbers `tints[].fA`, and takes an optional
+> `frame` (< 0 leaves the lane untouched) — a generator writes the
+> lanes its parameters use, and no others. The old contract's pin was
+> re-pointed at the new one
+> (`RepeaterLawExponentialScaleLinearEverythingElse` now asserts the
+> tint is UNTOUCHED). Pinned by
+> `ComposeInstances.TheAlphaLaneFadesWithoutTouchingTheTint`.
+> **And `instancing::pick(pool, atlas, point)` — SHIPPED 2026-07-27**:
+> the inverse projection against the same lanes the stamp reads
+> (rotation, scale, sizes(), texWindows(), frame size), topmost-first;
+> pinned by `ComposeInstances.PickInvertsTheStampTopmostFirst`.
+> Still open in this entry: the delay/progress lane (leaning REFUSE as
+> library surface — progress semantics live in the author's update
+> loop, and the Pool doc already rules user data stays user-side; a
+> ruling should say so or name the consumer), the short-string lane,
+> per-leaf clip, and the stroke-width / `strokeInvariant` question —
+> which `variants()` now partly answers (a re-stroke per size IS a
+> variant set).
+> **Plate ledger for the whole 2026-07-27 instancing stretch
+> (variants + alphas + repeat hygiene + pick): 54 of 56
+> byte-identical** against the §16 arm; the two movers are
+> `genesis_fire` and `slitscan_2001`, the documented flappers. Zero
+> corpus sites use the new lanes and `place::repeat` has zero corpus
+> call sites, so identity was the pre-registered expectation, and it
+> held.
+
 **The schema already exists, and it is from 1983.** William Reeves' §2.2
 attribute list for the Genesis Demo — the first particle system — *is*
 the `Pool` the roadmap keeps asking for. Three of its seven attributes
@@ -273,7 +311,66 @@ their own lanes. Or, failing that, say plainly in the header that
 labelled lists stay real elements — the doc currently reads as if they
 are covered.
 
-## 3. `outline()` can never prune, and parametric curves have no generator — *four studies*
+## 3. `outline()` can never prune, and parametric curves have no generator — *four studies* — **CLOSED 2026-07-27 (comparability + generators); one named remainder stays open**
+
+**SHIPPED as the `Shape` value + `ShapeScheme` seam** (`Compose.h`), the
+identical move `Material` made and this entry asked for. `Element::shape()`,
+a `TextPath` baseline and a `band()` spine all hold a `Shape`: every
+`Shapes.h` generator is now a comparable value (params + `path(SkSize)` +
+`==`, still callable so `OutlineFn` consumers keep compiling), the raw
+callable stays accepted as the escape hatch that never compares, and
+`propsEqual`'s blanket refusal of shaped nodes is gone. Copies of ONE
+Shape compare equal (shared state), which upgrades the old
+"pointer-stable" advice into a real prune for raw callables too. The
+parametric family landed as values (`lissajous`/`harmonograph`/`rose`/
+`spiral`/`trochoid` compare by parameters; raw `parametric(fn, …)` takes
+an optional KEY — `parametric("orbit-a", fn, …)` — whose contract is that
+one key names one curve). `svg()` turned out to be comparable for free
+(the parsed SkPath has structural equality) and its "incomparable like
+every outline()" doc was the stale claim. Kit riders: `kit::shapes::ring`,
+`kit::ticks(Ticks, Frame)` and `kit::chords(Chords, Frame)` are values
+(`TicksShape`/`ChordsShape`; a `Ticks::classify` callable is the one
+member equality cannot see, so classified ladders stay conservative).
+`TextPath` gained the `operator==` its own comment said could not exist,
+which closes §10e's third bullet — and the equality is honest: a moved
+`at` now patches, where the original omission silently kept the old
+placement. Pinned by `ComposeShapeValues.*` (10 cases): the prune
+observed via `patchedNodes`/`picturesRecorded`, the Chevreul bake-survival
+scenario, honest inequality on changed parameters, the escape hatch's
+conservatism, and a positive control (defeating the propsEqual compare
+turns the two prune pins red). One pre-existing pin strengthened:
+`ComposeWidthProfile.TheLastNeverPruneRibbonsCanPruneNow` asserted "no
+MORE recordings than the first draw" because its tree carried
+`.shape(circle())` and could do no better; it asserts zero now.
+
+**THE PLATE LEDGER — 56 scenes, Release, `--no-promotion` both arms,
+quiet machine.** Baseline arm: the pre-change binary. Change arm: the
+same tree rebuilt with the seam. **53 of 56 byte-identical.**
+`genesis_fire` and `hitman_verlet` are the two scenes already on record
+as self-nondeterministic on a quiet machine. `penrose_paving` differed —
+and was proved NOT to be this change: a clean worktree at HEAD with none
+of these edits renders the identical new hash (`ccd7c2aa…`, stable
+across four renders and two independently built binaries), so the delta
+sits between the baseline binary (built before the `positioned()`
+commit was cut) and HEAD itself. Two findings ride on that, filed here
+because this ledger surfaced them: **(1) §2's positioned() acceptance
+claim ("Release plate BYTE-IDENTICAL to `834bf1d613ae`") does not hold
+at HEAD** — HEAD renders `ccd7c2aa…`, 88.97% of pixels at maxDelta 139,
+the full-plate low-amplitude signature of every antialiased edge moving
+sub-pixel (instanceRect() resolves rects through different rounding
+than the Yoga path it replaced, and the grain overlay amplifies it);
+whatever state that acceptance measured, it is not the committed one.
+**(2) The stored R4 baseline hashes are stale as a gate** — only 19 of
+56 scenes still match `/tmp/r4_q1.sha256` at HEAD (the Skia m151 bump
+moved antialiasing corpus-wide, plus the approved widthFn/positioned
+deltas), so any future ledger must bake its own baseline arm rather
+than quote those files.
+
+**What stays open, and it is one sentence of this entry:** geometry that
+is BOUND (an outline as a function of live Outputs — Winamp's EQ curve)
+still has no spelling and still drops to `custom()`; an
+`Animatable`-aware shape is its own designed pass, not a comparability
+fix. The original entry follows, unedited:
 
 It takes an incomparable `std::function<SkPath(SkSize)>`, so every shaped
 node re-records on each `render()`: 514 in the kumiko lattice, every
@@ -344,7 +441,19 @@ caching and every decoration slot on the node.
 `Material::buffer(std::shared_ptr<PixelSource>)` — the raster analogue,
 reusing that pruning rule verbatim.
 
-## 5. A `Material::blend` layer has no amount — *two studies*
+**CLOSED 2026-07-27 — SHIPPED as exactly that:**
+`Material::buffer(std::shared_ptr<PixelBuffer>, …)` over a concrete
+`PixelBuffer` (N32 bitmap + `canvas()` writer + `commit()`; snapshot
+copied once per revision, so a pruned describe never touches a pixel).
+The recipe compares by (source, revision) — the Instances rule verbatim
+— so identical re-describes prune between commits and one commit
+patches exactly once. Rides the ordinary static-material fill path:
+picture caching, decorations and every slot stay intact, which is the
+whole entry. Pinned by
+`ComposeMaterial.ABufferPrunesBetweenCommitsAndPatchesOnCommit`;
+451/451; ledger byte-neutral (56/58 identical, movers = two flappers).
+
+## 5. A `Material::blend` layer has no amount — *two studies* — **CLOSED 2026-07-27**
 
 "Soft-light this noise at 30%" has no expression. The only route is
 baking `0.5 + (v-0.5)*amp` into the noise's own SkSL, which means every
@@ -354,6 +463,20 @@ problem.)
 
 Natural API: `blend({{base, kSrcOver}, {tex, kSoftLight, 0.30f}})`, or
 `Material::amount(float)` on the layer value.
+
+**SHIPPED as the second spelling** — `Material::amount(a01)` on the
+layer value (the triple-braced overload would have been ambiguous
+against the existing pair vector at every current call site). Photoshop
+layer-opacity semantics, stated in the header because the two readings
+differ on every non-Porter-Duff mode: the layer composites with its
+mode IN FULL, then the result mixes back toward the accumulation — not
+src-alpha thinning. Implemented as one process-wide mix() runtime
+effect (the Patterns.h one-effect rule) applied in both the eager
+flatten and the deferred per-resolve path, so live and
+geometry-dependent layers carry their amounts too. The amount is
+recipe: it participates in `Material::operator==`, so equal amounts
+prune and a changed amount patches. Pinned by
+`ComposeMaterial.ABlendLayerCompositesAtItsAmount`.
 
 ## 6. No directional wipe — *three studies* — CLOSED
 Three studies wanted a reveal at an angle, which `trim()` (perimeter) and
@@ -395,7 +518,7 @@ distorts everything below it. Both were caught by checking the claim
 against the source before ranking it, and both should have been caught by
 the header saying so at the call site.
 
-## 8. `routers::orthogonal()` is unusable for its most natural application
+## 8. `routers::orthogonal()` is unusable for its most natural application — **CLOSED 2026-07-27**
 
 Found building a PCB-style node graph, three problems at once:
 
@@ -413,6 +536,65 @@ Natural API: `routers::manhattan(...)` as a RailRouter,
 `Bend::MidX|HFirst|VFirst` plus a **chamfer** alternative to
 `cornerRadius` (45° cut corners are the game-UI convention;
 `SkCornerPathEffect` only rounds).
+
+**CLOSED 2026-07-27 — SHIPPED as the natural API, with one sub-claim
+overturned by the header's own law.** Verified against source first:
+
+- *No rail spelling / no adapter* — **real**. Routers.h had only
+  polyline/octilinear/orbit as RailRouters; the `rail(anchors,
+  routers::manhattan())` call site did not exist in any spelling.
+- *Always bends at midX, corners only round* — **real**, by
+  construction (`midX = (fx+tx)/2` hard-coded; SkCornerPathEffect).
+- *Zero-length segments* — **real** (verb-dumped: an fy==ty pair emits
+  M + three lines with a zero-length V leg; fx==tx degenerates both H
+  legs). *The flare they were blamed for* — **not real in today's
+  code**: the exact scene (axis-aligned connector, `lines::cased`, the
+  offset-shaper Brush, with and without cornerRadius) renders
+  BYTE-IDENTICAL to hand-authored clean geometry (PIL diff: 0 changed
+  px, maxDelta 0) — Skia's stroker skips exactly-degenerate segments
+  and every contour-measure construction drops them. The symptom the
+  study saw is real somewhere; this mechanism is not it. (The one
+  artifact that does reproduce is different: a NEAR-aligned pair — a
+  1 px jog — under `cornerRadius` knots at midX, because
+  SkCornerPathEffect halves a segment shorter than 2r. A chamfer or a
+  clean bend policy avoids it.)
+
+Shipped, all additive (`orthogonal()`'s zero-arg output frozen verbs
+and all, per §27 — corpus callers pass floats, which cannot resolve to
+the new overload):
+
+- `routers::manhattan(Bend, cornerRadius, chamferCut)` — the
+  RailRouter; `routers::orthogonal(Bend, ...)` — the same family as a
+  pairwise overload; both collapse consecutive-duplicate and
+  forward-collinear waypoints (reversal spikes kept: real geometry).
+- `routers::fromPairwise(Router)` — any pairwise router rides
+  `rail()`: legs stitch into ONE contour (terminal caps fire once),
+  junction moves drop, zero-length segments collapse, exactly-collinear
+  line runs merge, curve legs (`arc`) ride through.
+- `Bend::MidX | HFirst | VFirst` — the Z and both Ls (bend at the
+  target column / source column).
+- `routers::chamfer(path, cut)` — the 45° cut as a function (clamped to
+  half-legs, closed polylines cut their closing vertex, curved contours
+  pass through), wired as `chamferCut` on the manhattan family and as
+  `kit::brush::shapers::chamfered(cut)`, Rounded's machined sibling for
+  any brush pipeline.
+
+Pinned in ComposeTestLines.cpp: `ComposeRouters.
+ManhattanIsARailRouterAndCollapsesCollinearRuns` (also freezes the old
+spelling's degenerate verbs as the §27 contrast),
+`BendPoliciesTakeTheNamedColumns`, `ChamferCutsTheCornerRoundingCannot`,
+`FromPairwiseStitchesOneContourAndKeepsCurves`, and the cased-brush
+pixel guard `ManhattanCasedRailMatchesCleanGeometry`. Positive controls
+run: disabling collapse, bend, chamfer and the adapter's merge each
+failed exactly its own pin (the pixel guard stayed green with collapse
+disabled — which is the flare verdict above, demonstrated a third way).
+Suite 457 → 462. Ledger (Release, --stability 2): 54/58 byte-identical,
+movers = the three documented flappers plus easel_playground, which
+moved SELF-STABLY with zero references to any router — its own .cpp and
+the shape/ library under it carry the concurrent shape-session's
+uncommitted edits, so it is attributed there; byte-neutral for this
+entry's delta (corpus callers all pass floats, which cannot resolve to
+the new Bend overload).
 
 ## 8b. No way to shape a stroke ACROSS its width
 
@@ -676,10 +858,12 @@ instrument — and it lands on something nothing else could have found.
   split-Skia boundary; `main()` must stay monolithic). A 24-run tartan
   sett and a 72-step chromatic sweep had both fallen back to hand-written
   `PatternProgram`s for want of stops.
-- **`TextPath` has no `operator==`**, deliberately (its baseline is a
+- ~~**`TextPath` has no `operator==`**, deliberately (its baseline is a
   `std::function`), so a node carrying one never prunes — 72 radial
-  labels re-record on every `render()`. The comparable-`Outline` fix in
-  §3 covers this too if it carries a key.
+  labels re-record on every `render()`.~~ **CLOSED with §3** — the
+  baseline is a `Shape`, `TextPath` compares structurally, and a run on
+  a comparable generator prunes
+  (`ComposeShapeValues.TextOnAComparableBaselinePrunes`).
 
 ## 10f. `Material::sksl()` has no child shader — but a LUT is NOT unreachable
 
@@ -828,12 +1012,39 @@ axis are the same axis.
   reconstruction left this engine entirely for its labels. One field, not
   a face.
 
-## 11. `Effect` has no live uniforms
+## 11. `Effect` has no live uniforms — **CLOSED 2026-07-27**
 
 `Material` solved this with `uniform(name, &output)` and a volatility
 contract. `Effect::shader(fx, uniforms)` takes constants only, so
 animating a ripple phase or a bloom threshold requires a full re-describe
 per frame.
+
+**SHIPPED as exactly that spelling**: `Effect::uniform(name, &output)` —
+resolved per paint (`resolvedImageFilter()`), declaring content
+volatility AND group-memo opacity the way a live material does (the
+filter is captured by recordings, so a bound uniform is content, not
+paint). `then()` chains with a live side re-compose per paint; static
+chains precompose once as before. And the seam got the same equality
+upgrade on the way: a STATIC shader effect now compares by RECIPE
+(runtime-effect pointer + constant uniforms) instead of by filter
+pointer, so the sharedHeavyEffect pattern — one process-wide
+SkRuntimeEffect, re-described each frame — prunes instead of re-patching
+(its fixture comment in the cache tests documents the old failure).
+Pinned by `ComposeEffects.ALiveUniformAnimatesWithoutRedescribe`,
+`AStaticShaderEffectPrunesByRecipe` (honest inequality included) and
+`LiveChainsRecomposeAndStaticChainsStayCheap`. Scope note: the
+Composer-level `setView()` effect stays static — a live VIEW transform
+has no redraw contract and was not asked for.
+
+**Plate ledger (shared with §5's closure — one sweep gated both):
+54 of 56 byte-identical** against the §3-closure arm, Release,
+`--no-promotion`, quiet machine. The two movers are `genesis_fire` and
+`slitscan_2001`, both on the documented self-nondeterministic list —
+and slitscan's attribution is hash-exact: the two pre-change arms both
+render `c6975b5f3273…`, the same value the R4 ledger records as this
+scene's recurring hash, and the post-change arm rendered the scene's
+other face. No corpus site spells the new APIs, so identity was the
+prediction, and it held.
 
 ## 12. `Ticker` has no fixed-timestep helper — CLOSED
 Two studies had each reinvented a fixed-rate accumulator and its
@@ -859,15 +1070,39 @@ signatures.
 
 ## 14. Smaller, but each cost someone an iteration
 
-- **`sdf::` glow eats the shape silently.** `pad()` is reserved *inside*
+- ~~**`sdf::` glow eats the shape silently.** `pad()` is reserved *inside*
   the node's box, so a 300×300 box with `glowRadius: 54` renders a 0.5 px
   disc and says nothing. `sdf::minBoxFor()` is the answer and nothing
   points at it from the call site. Warn when `pad ≥ half-size`, or add
   `Style::glowOutside` that bleeds past the bounds the way `OuterGlow`
-  already does.
-- **`Material` has no `bleed()`.** `DecorationScheme` can declare one so
+  already does.~~ **CLOSED 2026-07-27 — the warning half shipped** (the
+  entry offered either/or; `Style::glowOutside` remains unbuilt): a
+  once-per-process SkDebugf in `Material::build` (Material.cpp), where
+  the numbers finally meet — uPad is a style constant, uResolution the
+  laid-out size — scoped to the sdf prelude's signature (uPad + uGlowR
+  + uResolution) and firing when pad >= half of the box's min
+  dimension; the message states the pad, the box, the ~px the shape
+  shrank to, and names `sdf::minBoxFor(style, contentPx)` as the fix.
+  Stderr only, zero pixels moved. Pinned by
+  `ComposeSdf.PadSwallowingTheBoxWarnsOnceNamingMinBoxFor` (fires once,
+  silent on the second offender; control run: fails with the warning
+  disabled). 457/457; ledger 55/58 byte-identical (flappers + the
+  shape-attributed easel_playground).
+- ~~**`Material` has no `bleed()`.** `DecorationScheme` can declare one so
   the recording cull grows; a Material cannot, so anything painting
-  outside its box needs arithmetic the caller does.
+  outside its box needs arithmetic the caller does.~~ **CLOSED
+  2026-07-27 — `Material::bleed(px)` shipped, the same number on the
+  same word**: a builder + getter participating in `operator==` (a
+  changed reserve must re-record), read by `ownPaintBounds` /
+  `recordBounds` from BOTH carriers `Element::fill(Material)` stores —
+  the live/geometry slot and the static recipe — and max-accumulated
+  with the decorations' bleeds, so a fill on a `shape()` outline that
+  escapes the box survives the picture cull and the Cache::Texture bake
+  alike. Default 0 changes nothing (§27). Pinned by
+  `ComposeMaterial.DeclaredBleedGrowsTheRecordingCull` (both carriers,
+  under Cache::Texture where truncation is hard; control run: pixels go
+  black with the recordBounds hookup disabled). 457/457; ledger 55/58
+  byte-identical (flappers + the shape-attributed easel_playground).
 - **`Pattern` cannot pan LIVE** — the describe-time half is closed
   (`Pattern::offset(SkPoint)`, which turned out to be plumbing that
   already existed: `bake()` hands its matrix to `Material::image`, whose
@@ -875,11 +1110,12 @@ signatures.
   `offset(PropValue<SkPoint>)` under the paint-only volatility contract
   bound transforms already have, so a conveyor or a marching weave
   animates without re-describing.
-- **`patterns::stripes` is single-colour and un-phased.** A coloured
-  sequence of runs — what a tartan, an awning, a ribbon or a chart axis
-  actually wants — is a hand-written `PatternProgram` every time, and
-  `Material::linearUnit` cannot substitute (six stops against a 24-run
-  sett). Wanted: `patterns::sequence(span<pair<float, SkColor4f>>, phase)`.
+- ~~**`patterns::stripes` is single-colour and un-phased.**~~ **CLOSED
+  2026-07-27 — `patterns::sequence(runs, phase)` shipped**: {width px,
+  color} runs along +x, period = their sum, wrapped phase, seam covered
+  by painting two periods; rotate the Pattern for diagonals. Pinned by
+  `ComposePatterns.SequencePaintsColouredRunsAndPhaseSlides`. (The stop
+  model was never the tool: a 24-run sett is runs, not stops.) 453/453.
 - **`HyphenationOptions` has no hyphenation in it.** `enabled` and
   `penalty` read like a hyphenator; the engine breaks solely at U+00AD
   discretionaries the author typed. A legitimate contract, badly named.
@@ -887,16 +1123,42 @@ signatures.
   line Elements internally, so `staggerChildren()` on the returned panel
   is a no-op and "the console types out on mount" is inexpressible.
   Wanted: `console::Style::entrance`, or expose `console::line(...)`.
-- **`custom()` re-records on every `render()`** — its program is an
+- ~~**`custom()` re-records on every `render()`** — its program is an
   incomparable callable. Wanted: a `custom(key, program)` overload, or let
-  `Cache::None` imply "nothing to invalidate".
-- **`layouts::Radial` has one radius for all children.** A data-driven
-  ring — the idiom the header claims as native — needs `radiusAt(i)`.
-- **`decorations::ContourWalk` is one field from being the text-on-path
+  `Cache::None` imply "nothing to invalidate".~~ **CLOSED 2026-07-27 —
+  `custom(key, program)` shipped**: the key declares the program's
+  identity on the keyed-parametric contract (one key = one drawing; fold
+  what varies into the key); equal keys prune, the unkeyed form stays
+  the escape hatch. Pinned by
+  `ComposeContent.AKeyedCustomPrunesAndTheKeyIsHonest`. 452/452.
+- ~~**`layouts::Radial` has one radius for all children.**~~ **CLOSED
+  2026-07-27 — `Radial::radiusAt`**: a per-index fraction vector
+  overriding `radiusFraction`, tail falling back to it. Pinned by
+  `ComposeLayouts.RadialRadiusAtGivesEachChildItsOwnRing`. 454/454;
+  rode the sequence arm's ledger (byte-neutral, movers = flappers + the
+  shape/-attributed easel_playground at its unchanged attributed hash).
+- ~~**`decorations::ContourWalk` is one field from being the text-on-path
   answer for *sequences*.** It already samples the tangent and rotates to
   it; it just replays one stamp. A
   `stampAt(const PathSample&, size_t) -> optional<Element>` callback turns
-  it into ruler ticks with numbers, ribbon menus, chained ornament.
+  it into ruler ticks with numbers, ribbon menus, chained ornament.~~
+  **CLOSED 2026-07-27 — `ContourWalk::stampAt` shipped, exactly the
+  field the entry named**: called per sample with a running index
+  (across contours); a returned Element is baked via `snapshot()` at
+  intrinsic size and replayed centered like `stamp`; `nullopt` falls
+  back to `stamp`, so a numbered major tick rides over plain minors in
+  ONE walk. The bakes are per call, per record, UNCACHED by choice —
+  each returned Element is a fresh node, so the §16 instance-side
+  StampCache has nothing stable to key them on (per-index entries would
+  churn its slots and evict the node's real brush bakes); the callable
+  keeps the decoration conservatively unequal, which every ContourWalk
+  already was (no operator== — the raw `draw` callable decided that
+  long ago). Pinned by
+  `ComposeDecorations.ContourWalkStampAtSequencesPerSampleArt`
+  (control run: test fails with the mechanism disabled). 457/457;
+  ledger 55/58 byte-identical — movers were the two documented flappers
+  plus the shape-attributed `easel_playground` (concurrent shape/
+  session).
 - **`echo()` takes a single stamp.** Registration doubling on a light
   display face wants one each side of the glyph run, not one behind it.
 - **A fixed `width()` flex child still shrinks**, and the failure is
@@ -933,6 +1195,29 @@ written, because a freed Element's address can be reused and the next
 brush would silently inherit the wrong art. It needs either a weak handle
 to the node or a generation counter. Worth doing: this is the only place
 in the library where re-describing costs raster work rather than a diff.
+
+**CLOSED 2026-07-27 — SHIPPED as the Instance-side `StampCache`**
+(ruling 6's home: a slot map handed through `PaintContext::stamps`).
+All three kinds consult it before any raster work — Scatter and
+Pattern's four slots publish pictures, Art publishes its 2x image +
+logical size — keyed on the art's node WITH THE WEAK HANDLE the entry
+demanded: an entry whose weak guard no longer locks to its key is a
+recycled address and re-bakes, so inheriting the wrong art is
+structurally impossible. The member cache in the value survives as the
+standalone-paint fallback (no composer, no stamps pointer). What still
+re-bakes is a NEW art node per describe — the key is the art Element's
+node, so pointer-stable art is still the author's half of the contract,
+and the header now says exactly that. Pinned by
+`ComposeBrushes.AStampBakeSurvivesABrushRebuiltEveryDescribe`: the
+renderSlot() trap reproduced (fresh Scatter value each describe,
+Cache::None node repainting every frame, stable art) — one bake in five
+frames where the old world took five. The crossing-cache half of
+ruling 6 (weave's `discoverCrossings`) still wants its bench arm before
+it rides the same store — unchanged, see the stage-two residue.
+**Plate ledger: 53 of 56 byte-identical** against the §11/§5 arm
+(Release, `--no-promotion`, quiet machine); the three movers are
+exactly the documented self-nondeterministic list — `genesis_fire`,
+`hitman_verlet`, `slitscan_2001` — and nothing else.
 
 ## 17. `withKeyframes` is live volatility even where its value is constant — CLOSED
 Keyframe holds and settled easings repainted every frame while provably
@@ -972,6 +1257,24 @@ blend entirely, which is the failure the current exclusion prevents.
 Not attempted yet because the predicate has to be exact and the function
 it lives in has had three defects this run that each looked like one.
 
+**CLOSED 2026-07-27 — SHIPPED as the entry prescribed.** The predicate
+is exact BY CONSTRUCTION: `deferBlendToBlit` is the texture branch's
+own entry condition (the memo probes were hoisted above the layer
+decision so `cacheHolds` is known there), and every exit of that branch
+ends in a single image draw — the device blit, or the quantized-local
+blit it falls back to — each now carrying the node's opacity/blend on
+its paint when deferred. A node that fails the entry keeps its layer,
+so the silent-blend-loss failure the old exclusion guarded against is
+unreachable. Pinned by
+`ComposeCaching.ATextureBlendCompositesOnTheBlitNotALayer` (deferred
+blit vs a hand-built layer composite within §30's 8-bit residual, plus
+a live kPlus accumulation check). **Plate ledger (via plate_ledger.py):
+52/58 byte-identical; the three findings are the sanctioned residual,
+measured** — fallout2_charsheet 0.78% of px, thaumonomicon 5.89%,
+thunder_fulu 0.48%, all at **maxDelta ≤ 2**, the one-less-requantisation
+direction the entry called "slightly more accurate"; the other three
+movers are the documented flappers. Baseline rebased. 450/450.
+
 ## 19. Materials and effects have no spatially-varying parameter channel
 
 **Two independent citations, from a film UI and an anime UI**, for the
@@ -996,7 +1299,40 @@ something with the right cost model — for the blur case, a 2–3 level
 pyramid blended by the parameter, which is O(1) in the sigma range
 instead of O(sigma²) per pixel.
 
-## 20. A bound property that has FINISHED is live volatility forever
+## 20. A bound property that has FINISHED is live volatility forever — **CLOSED 2026-07-27**
+
+**SHIPPED as the measured-stability RELEASE** — the second candidate
+shape below, exactly as the entry preferred: no new API, no author
+knowledge. The §17/§3.6 memos already kept a settled node's own
+recording; what never released was the volatility FLAG, so the node
+replayed live every frame and ancestors could not cache across it
+(measured by the probe: 0 re-records, 5/5 live paints). The release:
+the paint side counts consecutive stable paints
+(`Instance::kScalarSettleFrames = 8`, promotion's own bar) and crossing
+it requests ONE volatility recompute; the walk honours the warmed-up
+release and registers the instance; and a per-draw MOVEMENT SCAN
+(`scanReleasedScalars`) re-checks released nodes so an
+externally-driven Output that moves re-declares volatility — staling
+every ancestor recording — in the same frame, before anything paints.
+Nothing stale can replay. The one-time cost is the settling frame's
+re-record (ancestors caching for the first time), now documented in the
+two held-keyframe pins that measured it. Covers gate scalars and glyph
+progress (the memoized scalars); bound TRANSFORM/OPACITY slots remain
+paint-only volatility as designed — they never blocked the content
+cache. Tests: `ComposeR4Mask.ASettledBoundGateRecachesWithoutAnyNewApi`
+(the acceptance test written red before the mechanism, now green,
+including the stale-replay control: the frame the binding moves again,
+ink changes) and the two §17 pins re-aimed at post-release steady
+state. 449/449. **Plate ledger: byte-neutral — 53/56 identical vs the
+instancing arm, movers = exactly the three documented flappers,
+auto-attributed.** That verdict was also the maiden run of
+`scripts/plate_ledger.py` + `ComposeGallery --ledger` (benchmark-free
+exact-stepped captures, parallel, manifest-compared, flappers
+attributed, `--stability N` self-attribution for new movers): the
+whole byte-identity ritual is ONE command and ~8 minutes now, against
+the ~45 serial minutes every prior arm cost — which retires the
+methodology debt the §33 R4 note filed ("any future ledger must bake
+its own baseline") by making the baking cheap.
 
 Filed by `dunhuang_star_chart`. Every `window()` on a master clock stays
 live after its value has been pinned at 1.0 for ten seconds; the node is
@@ -1031,6 +1367,19 @@ Note this shares a slogan with §15 and §17 — "provably not changing,
 believed to be changing" — and the family has now three times shared a
 slogan and not a mechanism. Read the source before merging any two of
 them.
+
+**PROBED 2026-07-27, and the entry narrows by half.** The filed case (a
+settled bound GATE) was measured with the R4 machinery in place:
+`settledRecords == 0` — the gate/scalar memo already keeps the
+recording — but `settledPaints == 5 of 5` — the volatility FLAG never
+releases, so the node replays live every frame and its ancestors cannot
+cache across it. So the remaining §20 work is exactly the second
+candidate shape above: a measured-stability RELEASE of the volatile
+flag (with the drop-on-tick discipline Cache::Group proved, inverted —
+the frame the value moves must re-declare before anything stale
+replays). The acceptance test exists and is deliberately red:
+`ComposeR4Mask.DISABLED_ASettledBoundGateRecachesWithoutAnyNewApi` —
+enable it when the release lands.
 
 ## 21. `console::Style::visibleLines` gives no height
 
@@ -2438,8 +2787,9 @@ findings, recorded so they are not rediscovered:
   weave will hit. Caching per Instance was evaluated and REFUSED as
   not-small: a `Weave` is a `Decoration`, so it has no Instance; caching
   would mean plumbing a mutable cache handle through the const
-  `PaintContext`, which is a design change, not an optimisation. **There
-  is still no `compose_bench` weave arm** — add it before choosing a fix.
+  `PaintContext`, which is a design change, not an optimisation. The missing
+  `compose_bench` weave arm is now `BM_Draw_BrushWeave_Live/{2,4,8}`; keep
+  it as the decision gate before choosing a cache or algorithmic fix.
 - **`Decoration` is 136 B** (104 before stage two): +24 for the borrows
   vector, +8 for `reach` and padding. `ElementNode` is unchanged at 744 —
   decorations live in vectors, never inline.** Storing the keys on demand instead was evaluated and

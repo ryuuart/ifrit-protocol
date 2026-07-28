@@ -284,7 +284,14 @@ them the brush vocabulary is closed and small: four KINDS
 (`brush::solid`/`Pattern`/`Scatter`/`Art`) and two COMPOSITES
 (`brush::layers`, `brush::weave` — formally ONE machine, two author
 intents), with `.shaped()` the one geometry-deviation seam, `Profile` the
-one width seam, and `CrossingRule` the one over/under seam.
+one width seam, and `CrossingRule` the one over/under seam. The node's
+own silhouette rides the same law: `Shape` is the one silhouette seam
+(`ShapeScheme`: `path(SkSize)` + `==`), every stock generator is a
+comparable value, and the raw callable is the escape hatch that never
+prunes (§3's closure). Seam-value convention, restated once: one named
+required member per seam — `shape()` for shapers, `path()` for shapes,
+`across()` for profiles, `decide()` for crossing rules — comparable
+values throughout.
 
 **Instancing**: masses are a leaf, not a tree. Atlas of baked cells +
 user-owned SoA Pool + one stamp per frame; EnTT stays on the user's
