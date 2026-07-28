@@ -18,8 +18,235 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace sigil::compose::routers {
+
+/** Where an orthogonal leg takes its turn. `MidX` is the Z every node
+ *  graph editor defaults to (half way over, one vertical run, half way
+ *  in); `HFirst` and `VFirst` are the two Ls — bend AT the target column
+ *  (horizontal out of the source first) or AT the source column (vertical
+ *  first). A circuit trace bends at the target column; a flowchart drops
+ *  out of the source first. */
+enum class Bend { MidX, HFirst, VFirst };
+
+/** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
+ *  along each leg — on the orthogonal family's right angles that is the
+ *  45° face, the game-UI/PCB corner convention (REFERENCES.md §7 "FUI
+ *  circuit": orthogonal + 45° chamfers) that `SkCornerPathEffect` cannot
+ *  spell (it only rounds). The cut clamps to half of each adjacent leg,
+ *  so short legs degenerate to a diagonal rather than crossing over.
+ *  Straight-through vertices and contours carrying curve segments pass
+ *  through untouched; closed polyline contours chamfer the closing
+ *  vertex too, so a routed loop and a `shapes::chamfered` panel agree. */
+inline SkPath chamfer(const SkPath &path, float cut) {
+  if (cut <= 0 || path.isEmpty())
+    return path;
+  SkPathBuilder out;
+  std::vector<SkPoint> run; // current contour's polyline vertices
+  SkPathBuilder verbatim;   // the same contour, copied exactly
+  bool closed = false, anyCurve = false;
+
+  // A vertex's cut points: entry on the incoming leg, exit on the
+  // outgoing leg, each clamped to half its leg. False at a
+  // straight-through or degenerate vertex (no corner to cut).
+  const auto cutAt = [&](size_t i, SkPoint &entry, SkPoint &exit) {
+    const size_t n = run.size();
+    const SkPoint prev = run[(i + n - 1) % n], v = run[i],
+                  next = run[(i + 1) % n];
+    const SkVector in{v.x() - prev.x(), v.y() - prev.y()};
+    const SkVector outV{next.x() - v.x(), next.y() - v.y()};
+    const float lenIn = std::hypot(in.x(), in.y());
+    const float lenOut = std::hypot(outV.x(), outV.y());
+    if (lenIn < 1e-4f || lenOut < 1e-4f)
+      return false;
+    const float cross = in.x() * outV.y() - in.y() * outV.x();
+    const float dot = in.x() * outV.x() + in.y() * outV.y();
+    if (std::abs(cross) <= 1e-4f * lenIn * lenOut && dot > 0)
+      return false; // straight through — no corner
+    const float cIn = std::min(cut, lenIn * 0.5f);
+    const float cOut = std::min(cut, lenOut * 0.5f);
+    entry = {v.x() - in.x() / lenIn * cIn, v.y() - in.y() / lenIn * cIn};
+    exit = {v.x() + outV.x() / lenOut * cOut,
+            v.y() + outV.y() / lenOut * cOut};
+    return true;
+  };
+
+  const auto emitChamfered = [&] {
+    if (run.empty())
+      return;
+    if (closed && run.size() > 1 && run.front() == run.back())
+      run.pop_back(); // the closing joint belongs to close()
+    const size_t n = run.size();
+    SkPoint entry, exit;
+    if (n < 3) { // nothing to cut — as collected
+      out.moveTo(run.front());
+      for (size_t i = 1; i < n; ++i)
+        out.lineTo(run[i]);
+      if (closed)
+        out.close();
+      return;
+    }
+    if (!closed) {
+      out.moveTo(run.front());
+      for (size_t i = 1; i + 1 < n; ++i) {
+        if (cutAt(i, entry, exit)) {
+          out.lineTo(entry);
+          out.lineTo(exit);
+        } else {
+          out.lineTo(run[i]);
+        }
+      }
+      out.lineTo(run.back());
+    } else { // every vertex is interior, the moveTo joint included
+      bool started = false;
+      // NOT named `emit`: this header reaches Qt TUs, where that is a macro.
+      const auto put = [&](SkPoint p) {
+        if (started)
+          out.lineTo(p);
+        else {
+          out.moveTo(p);
+          started = true;
+        }
+      };
+      for (size_t i = 0; i < n; ++i) {
+        if (cutAt(i, entry, exit)) {
+          put(entry);
+          out.lineTo(exit);
+          started = true;
+        } else {
+          put(run[i]);
+        }
+      }
+      out.close();
+    }
+  };
+
+  const auto flushContour = [&] {
+    if (anyCurve) // chamfer is a polyline treatment: curves pass through
+      out.addPath(verbatim.detach());
+    else
+      emitChamfered();
+    verbatim = SkPathBuilder();
+    run.clear();
+    closed = false;
+    anyCurve = false;
+  };
+
+  SkPath::Iter iter(path, false);
+  SkPoint pts[4];
+  SkPath::Verb verb;
+  while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
+    switch (verb) {
+    case SkPath::kMove_Verb:
+      flushContour();
+      run.push_back(pts[0]);
+      verbatim.moveTo(pts[0]);
+      break;
+    case SkPath::kLine_Verb:
+      run.push_back(pts[1]);
+      verbatim.lineTo(pts[1]);
+      break;
+    case SkPath::kQuad_Verb:
+      anyCurve = true;
+      verbatim.quadTo(pts[1], pts[2]);
+      break;
+    case SkPath::kConic_Verb:
+      anyCurve = true;
+      verbatim.conicTo(pts[1], pts[2], iter.conicWeight());
+      break;
+    case SkPath::kCubic_Verb:
+      anyCurve = true;
+      verbatim.cubicTo(pts[1], pts[2], pts[3]);
+      break;
+    case SkPath::kClose_Verb:
+      closed = true;
+      verbatim.close();
+      break;
+    default:
+      break;
+    }
+  }
+  flushContour();
+  return out.detach();
+}
+
+namespace detail {
+
+/** Consecutive-duplicate and forward-collinear collapse over a waypoint
+ *  run — why the manhattan family emits no zero-length or split segments
+ *  on axis-aligned pairs (ROADMAP §8: `orthogonal()`'s degenerate verbs,
+ *  frozen there, stop here). Reversals (spikes) are kept: a doubled-back
+ *  leg is real geometry. */
+inline void collapseCollinear(std::vector<SkPoint> &pts) {
+  size_t w = 0;
+  for (size_t i = 0; i < pts.size(); ++i) {
+    if (w > 0 && pts[i] == pts[w - 1])
+      continue; // zero-length
+    if (w >= 2) {
+      const SkVector a{pts[w - 1].x() - pts[w - 2].x(),
+                       pts[w - 1].y() - pts[w - 2].y()};
+      const SkVector b{pts[i].x() - pts[w - 1].x(),
+                       pts[i].y() - pts[w - 1].y()};
+      const float cross = a.x() * b.y() - a.y() * b.x();
+      const float dot = a.x() * b.x() + a.y() * b.y();
+      if (cross == 0.0f && dot > 0.0f) {
+        pts[w - 1] = pts[i]; // extend the straight run
+        continue;
+      }
+    }
+    pts[w++] = pts[i];
+  }
+  pts.resize(w);
+}
+
+/** The shared manhattan construction: waypoints per leg by bend policy,
+ *  collapsed, then one corner treatment — `chamferCut` wins over
+ *  `cornerRadius` when both are set (they are alternatives, not layers). */
+inline SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
+                            float cornerRadius, float chamferCut) {
+  SkPathBuilder b;
+  if (anchors.empty())
+    return b.detach();
+  std::vector<SkPoint> way;
+  way.reserve(anchors.size() * 3);
+  way.push_back(anchors.front());
+  for (size_t i = 1; i < anchors.size(); ++i) {
+    const SkPoint a = anchors[i - 1], c = anchors[i];
+    switch (bend) {
+    case Bend::MidX: {
+      const float midX = (a.x() + c.x()) / 2;
+      way.push_back({midX, a.y()});
+      way.push_back({midX, c.y()});
+      break;
+    }
+    case Bend::HFirst:
+      way.push_back({c.x(), a.y()});
+      break;
+    case Bend::VFirst:
+      way.push_back({a.x(), c.y()});
+      break;
+    }
+    way.push_back(c);
+  }
+  collapseCollinear(way);
+  b.moveTo(way.front());
+  for (size_t i = 1; i < way.size(); ++i)
+    b.lineTo(way[i]);
+  SkPath path = b.detach();
+  if (chamferCut > 0)
+    return chamfer(path, chamferCut);
+  if (cornerRadius <= 0)
+    return path;
+  SkPathBuilder rounded;
+  SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+  if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(cornerRadius);
+      fx && fx->filterPath(&rounded, path, &rec))
+    return rounded.detach();
+  return path;
+}
+
+} // namespace detail
 
 /** Straight center-to-center line — the connector default, as a named
  *  value for symmetry. */
@@ -57,8 +284,150 @@ inline Router orthogonal(float cornerRadius = 0.0f) {
   };
 }
 
+/** Orthogonal route with a bend policy (ROADMAP §8): where the overload
+ *  above always bends at midX (a Z), this one also spells the two Ls —
+ *  see `Bend`. Collinear points collapse (an axis-aligned pair emits ONE
+ *  segment, not three with zero-length ends), and the corner is either
+ *  rounded (@p cornerRadius, SkCornerPathEffect) or cut at 45°
+ *  (@p chamferCut — see `chamfer()` above; it wins when both are set).
+ *  The zero-argument `orthogonal()` keeps its exact old output — its
+ *  degenerate verbs are frozen behavior (§27); this spelling is the
+ *  clean one. */
+inline Router orthogonal(Bend bend, float cornerRadius = 0.0f,
+                         float chamferCut = 0.0f) {
+  return [bend, cornerRadius, chamferCut](const SkRect &from,
+                                          const SkRect &to) {
+    const SkPoint ends[2] = {{from.centerX(), from.centerY()},
+                             {to.centerX(), to.centerY()}};
+    return detail::manhattanPath(ends, bend, cornerRadius, chamferCut);
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Rail routers (rail(): an ordered run of anchor points → the line's path)
+
+/** The RAIL spelling of the orthogonal family — `rail(stops,
+ *  routers::manhattan())` is the call site ROADMAP §8 found impossible
+ *  (`orthogonal()` is a pairwise Router and `rail()` takes a RailRouter).
+ *  Each consecutive anchor pair runs H/V legs per @p bend; collinear
+ *  points collapse, so axis-aligned anchors thread as single clean
+ *  segments; corners round with @p cornerRadius or cut at 45° with
+ *  @p chamferCut (the game-UI convention — chamfer wins when both are
+ *  set). */
+inline RailRouter manhattan(Bend bend = Bend::MidX, float cornerRadius = 0.0f,
+                            float chamferCut = 0.0f) {
+  return [bend, cornerRadius, chamferCut](std::span<const SkPoint> pts) {
+    return detail::manhattanPath(pts, bend, cornerRadius, chamferCut);
+  };
+}
+
+/** Adapts any pairwise Router into a RailRouter: consecutive anchors are
+ *  routed pairwise (each anchor as a point rect, so center-to-center
+ *  routers see the anchor itself) and the legs stitch into ONE contour —
+ *  terminal caps and casings fire once at the run's ends, not at every
+ *  waypoint. Junction moves are dropped, zero-length segments collapse
+ *  and exactly-collinear line runs merge; curve legs (arc()) ride
+ *  through untouched. */
+inline RailRouter fromPairwise(Router router) {
+  return [router = std::move(router)](std::span<const SkPoint> pts) {
+    SkPathBuilder b;
+    if (pts.size() < 2 || !router) {
+      if (!pts.empty())
+        b.moveTo(pts.front());
+      for (size_t i = 1; i < pts.size(); ++i)
+        b.lineTo(pts[i]);
+      return b.detach();
+    }
+    // Collect into an op list so a collinear lineTo can extend the
+    // previous one (SkPathBuilder cannot rewrite its tail).
+    struct Op {
+      SkPath::Verb verb;
+      SkPoint p[3];
+      float w = 0; // conic weight
+    };
+    std::vector<Op> ops;
+    SkPoint cur = pts.front();
+    ops.push_back({SkPath::kMove_Verb, {cur}});
+    const auto pushLine = [&](SkPoint p) {
+      if (p == cur)
+        return; // zero-length — collapse
+      if (ops.back().verb == SkPath::kLine_Verb) {
+        // Merge an exactly-forward-collinear run: the last segment's own
+        // start is the endpoint of the op before it, whatever its verb.
+        const Op &before = ops[ops.size() - 2];
+        SkPoint segStart = before.p[0];
+        if (before.verb == SkPath::kQuad_Verb ||
+            before.verb == SkPath::kConic_Verb)
+          segStart = before.p[1];
+        else if (before.verb == SkPath::kCubic_Verb)
+          segStart = before.p[2];
+        const SkVector a{cur.x() - segStart.x(), cur.y() - segStart.y()};
+        const SkVector d{p.x() - cur.x(), p.y() - cur.y()};
+        const float cross = a.x() * d.y() - a.y() * d.x();
+        const float dot = a.x() * d.x() + a.y() * d.y();
+        if (cross == 0.0f && dot > 0.0f) {
+          ops.back().p[0] = p;
+          cur = p;
+          return;
+        }
+      }
+      ops.push_back({SkPath::kLine_Verb, {p}});
+      cur = p;
+    };
+    for (size_t i = 1; i < pts.size(); ++i) {
+      const SkPath leg =
+          router(SkRect::MakeXYWH(pts[i - 1].x(), pts[i - 1].y(), 0, 0),
+                 SkRect::MakeXYWH(pts[i].x(), pts[i].y(), 0, 0));
+      SkPath::Iter iter(leg, false);
+      SkPoint lp[4];
+      SkPath::Verb verb;
+      while ((verb = iter.next(lp)) != SkPath::kDone_Verb) {
+        switch (verb) {
+        case SkPath::kMove_Verb:
+          // The stitch: a leg starts where the last one ended; a router
+          // that starts elsewhere gets a bridging line instead of a gap.
+          pushLine(lp[0]);
+          break;
+        case SkPath::kLine_Verb:
+          pushLine(lp[1]);
+          break;
+        case SkPath::kQuad_Verb:
+          if (!(lp[1] == cur && lp[2] == cur)) {
+            ops.push_back({SkPath::kQuad_Verb, {lp[1], lp[2]}});
+            cur = lp[2];
+          }
+          break;
+        case SkPath::kConic_Verb:
+          if (!(lp[1] == cur && lp[2] == cur)) {
+            ops.push_back(
+                {SkPath::kConic_Verb, {lp[1], lp[2]}, iter.conicWeight()});
+            cur = lp[2];
+          }
+          break;
+        case SkPath::kCubic_Verb:
+          if (!(lp[1] == cur && lp[2] == cur && lp[3] == cur)) {
+            ops.push_back({SkPath::kCubic_Verb, {lp[1], lp[2], lp[3]}});
+            cur = lp[3];
+          }
+          break;
+        default: // routes are open; close verbs do not stitch
+          break;
+        }
+      }
+    }
+    for (const Op &op : ops) {
+      switch (op.verb) {
+      case SkPath::kMove_Verb: b.moveTo(op.p[0]); break;
+      case SkPath::kLine_Verb: b.lineTo(op.p[0]); break;
+      case SkPath::kQuad_Verb: b.quadTo(op.p[0], op.p[1]); break;
+      case SkPath::kConic_Verb: b.conicTo(op.p[0], op.p[1], op.w); break;
+      case SkPath::kCubic_Verb: b.cubicTo(op.p[0], op.p[1], op.p[2]); break;
+      default: break;
+      }
+    }
+    return b.detach();
+  };
+}
 
 /** Straight polyline through the waypoints; a positive @p cornerRadius
  *  rounds every turn (SkCornerPathEffect). */

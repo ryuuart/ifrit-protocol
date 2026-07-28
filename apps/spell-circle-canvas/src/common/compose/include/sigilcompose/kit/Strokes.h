@@ -26,6 +26,7 @@
 #include "sigilcompose/Brushes.h"
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/Lines.h"
+#include "sigilcompose/Routers.h"
 #include "sigilcompose/Shapes.h"
 
 #include <include/core/SkPathBuilder.h>
@@ -168,6 +169,18 @@ struct Rounded {
   }
 };
 
+/** CUT EVERY CORNER of the mark at 45° (`routers::chamfer`) — Rounded's
+ *  machined sibling, the game-UI corner (ROADMAP §8: SkCornerPathEffect
+ *  only rounds). Not `shapes::chamfered()`, which cuts an OUTLINE
+ *  GENERATOR's box: this cuts whatever polyline the brush pipeline is
+ *  carrying — a routed wire, a displaced zigzag, an offset rail. Curved
+ *  contours pass through untouched. */
+struct Chamfer {
+  float cut = 6.0f;
+  bool operator==(const Chamfer &) const = default;
+  SkPath shape(const SkPath &p) const { return routers::chamfer(p, cut); }
+};
+
 /** THE BOXY DISPLACEMENT: a square wave across the mark — battlements,
  *  the Greek meander key, a stepped circuit trace. Wave's sibling, and the
  *  other half of what unblocked the `ops::` deletion. */
@@ -206,6 +219,7 @@ inline Zigzag zigzag(float amplitude = 4.0f, float wavelength = 24.0f) {
   return Zigzag{amplitude, wavelength};
 }
 inline Rounded rounded(float radius = 6.0f) { return Rounded{radius}; }
+inline Chamfer chamfered(float cut = 6.0f) { return Chamfer{cut}; }
 inline Square square(float amplitude = 5.0f, float wavelength = 32.0f) {
   return Square{amplitude, wavelength};
 }

@@ -1558,5 +1558,202 @@ TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
   }
 }
 
+
+
 // ---------------------------------------------------------------------------
-// decorations::Border — brackets, gapped rules, weighted corners, insets.
+// ROADMAP §8 — the manhattan family: rail-compatible orthogonal routing,
+// collinear collapse, bend policies, chamfer corners.
+
+namespace {
+/** The path's line-verb skeleton: every on-curve point in order, with the
+ *  verb census alongside — the geometry assertions below read this. */
+struct PathDump {
+  std::vector<SkPoint> pts;
+  int moves = 0, lines = 0, curves = 0, closes = 0;
+};
+PathDump dumpPath(const SkPath &p) {
+  PathDump d;
+  SkPath::Iter it(p, false);
+  SkPoint v[4];
+  for (SkPath::Verb verb; (verb = it.next(v)) != SkPath::kDone_Verb;) {
+    switch (verb) {
+    case SkPath::kMove_Verb:
+      ++d.moves;
+      d.pts.push_back(v[0]);
+      break;
+    case SkPath::kLine_Verb:
+      ++d.lines;
+      d.pts.push_back(v[1]);
+      break;
+    case SkPath::kQuad_Verb:
+    case SkPath::kConic_Verb:
+      ++d.curves;
+      d.pts.push_back(v[2]);
+      break;
+    case SkPath::kCubic_Verb:
+      ++d.curves;
+      d.pts.push_back(v[3]);
+      break;
+    case SkPath::kClose_Verb:
+      ++d.closes;
+      break;
+    default:
+      break;
+    }
+  }
+  return d;
+}
+} // namespace
+
+TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
+  // The §8 wall: rail() takes a RailRouter and orthogonal() is a pairwise
+  // Router. This line compiling IS half the entry.
+  RailRouter router = routers::manhattan();
+
+  // An axis-aligned pair: ONE segment, no zero-length verbs.
+  const SkPoint aligned[2] = {{20, 100}, {180, 100}};
+  PathDump collapsed = dumpPath(router(std::span(aligned, 2)));
+  EXPECT_EQ(collapsed.moves, 1);
+  EXPECT_EQ(collapsed.lines, 1);
+  ASSERT_EQ(collapsed.pts.size(), 2u);
+  EXPECT_EQ(collapsed.pts[0], SkPoint::Make(20, 100));
+  EXPECT_EQ(collapsed.pts[1], SkPoint::Make(180, 100));
+
+  // Three collinear anchors thread as ONE straight run.
+  const SkPoint three[3] = {{20, 100}, {100, 100}, {180, 100}};
+  PathDump merged = dumpPath(router(std::span(three, 3)));
+  EXPECT_EQ(merged.lines, 1);
+  ASSERT_EQ(merged.pts.size(), 2u);
+  EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
+
+  // THE FROZEN CONTRAST (§27): the zero-argument orthogonal() keeps its
+  // degenerate verbs — M, then THREE lines, two of them zero-length. The
+  // §8 investigation could not make those verbs flare through
+  // lines::cased (Skia's stroker skips exactly-degenerate segments; the
+  // render is byte-identical to clean geometry), so the old spelling's
+  // output is frozen as-is and only the new spellings collapse.
+  Router old = routers::orthogonal();
+  PathDump frozen = dumpPath(old(SkRect::MakeXYWH(10, 90, 20, 20),
+                                 SkRect::MakeXYWH(170, 90, 20, 20)));
+  EXPECT_EQ(frozen.lines, 3);
+  ASSERT_EQ(frozen.pts.size(), 4u);
+  EXPECT_EQ(frozen.pts[1], SkPoint::Make(100, 100)); // midX
+  EXPECT_EQ(frozen.pts[2], SkPoint::Make(100, 100)); // zero-length V leg
+}
+
+TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
+  const SkPoint run[2] = {{20, 20}, {180, 160}};
+  // HFirst: horizontal out of the source, the L bends AT the target
+  // column — the circuit-graph shape §8 could not spell.
+  PathDump h = dumpPath(routers::manhattan(routers::Bend::HFirst)(
+      std::span(run, 2)));
+  ASSERT_EQ(h.pts.size(), 3u);
+  EXPECT_EQ(h.pts[1], SkPoint::Make(180, 20));
+  // VFirst: the other L, down the source column first.
+  PathDump v = dumpPath(routers::manhattan(routers::Bend::VFirst)(
+      std::span(run, 2)));
+  ASSERT_EQ(v.pts.size(), 3u);
+  EXPECT_EQ(v.pts[1], SkPoint::Make(20, 160));
+  // MidX stays the stock Z, bending half way over.
+  PathDump z = dumpPath(routers::manhattan(routers::Bend::MidX)(
+      std::span(run, 2)));
+  ASSERT_EQ(z.pts.size(), 4u);
+  EXPECT_EQ(z.pts[1], SkPoint::Make(100, 20));
+  EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
+  // The pairwise spelling routes the same shape from rects.
+  PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
+      SkRect::MakeXYWH(15, 15, 10, 10), SkRect::MakeXYWH(175, 155, 10, 10)));
+  ASSERT_EQ(hr.pts.size(), 3u);
+  EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
+}
+
+TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
+  const SkPoint run[2] = {{20, 20}, {180, 160}};
+  // An 8 px chamfer on the HFirst L: the corner vertex (180,20) is
+  // REPLACED by the two cut points 8 px along each leg — the 45° face.
+  PathDump cut = dumpPath(routers::manhattan(routers::Bend::HFirst, 0.0f,
+                                             8.0f)(std::span(run, 2)));
+  ASSERT_EQ(cut.pts.size(), 4u);
+  EXPECT_EQ(cut.pts[1], SkPoint::Make(172, 20));
+  EXPECT_EQ(cut.pts[2], SkPoint::Make(180, 28));
+  EXPECT_EQ(cut.curves, 0); // a cut is a line, never an arc
+  for (const SkPoint &p : cut.pts)
+    EXPECT_NE(p, SkPoint::Make(180, 20)); // the vertex itself is gone
+  // cornerRadius on the same route rounds with curve verbs — the two
+  // treatments are distinct mechanisms, not one effect at two settings.
+  PathDump round = dumpPath(routers::manhattan(routers::Bend::HFirst,
+                                               8.0f)(std::span(run, 2)));
+  EXPECT_GT(round.curves, 0);
+  // The kit shaper is the same cut for any brush pipeline: a closed
+  // 100x100 polyline square chamfered at 30 becomes the octagon
+  // shapes::chamfered() draws — 8 vertices, corners cut.
+  SkPathBuilder sq;
+  sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
+  const SkPath oct = kit::brush::shapers::chamfered(30).shape(sq.detach());
+  PathDump o = dumpPath(oct);
+  EXPECT_EQ(o.closes, 1);
+  // 8 unique vertices (the iterator's synthesized closing line repeats
+  // the start point, so the raw dump reads 9 with front == back).
+  ASSERT_GE(o.pts.size(), 2u);
+  EXPECT_EQ(o.pts.size() - (o.pts.front() == o.pts.back() ? 1 : 0), 8u);
+  EXPECT_FALSE(oct.contains(2, 2));              // corner cut away
+  EXPECT_TRUE(oct.contains(50, 50));
+}
+
+TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
+  // The adapter: any pairwise Router rides rail(). Three stations, the
+  // legs stitch into ONE contour (terminal caps fire once, junction
+  // moves dropped) and the old router's zero-length verbs collapse.
+  const SkPoint stops[3] = {{20, 100}, {100, 100}, {100, 180}};
+  RailRouter rr = routers::fromPairwise(routers::orthogonal());
+  const SkPath path = rr(std::span(stops, 3));
+  PathDump d = dumpPath(path);
+  EXPECT_EQ(d.moves, 1); // ONE contour, not one per pair
+  ASSERT_GE(d.pts.size(), 2u);
+  EXPECT_EQ(d.pts.front(), SkPoint::Make(20, 100));
+  EXPECT_EQ(d.pts.back(), SkPoint::Make(100, 180));
+  for (size_t i = 1; i < d.pts.size(); ++i) // every segment has length
+    EXPECT_NE(d.pts[i], d.pts[i - 1]);
+  // Collinear merge across the stitch: both legs of the first pair run
+  // y=100, so the horizontal approach is one segment.
+  EXPECT_EQ(d.lines, 2);
+  // A curved router survives the adapter with its curves intact.
+  PathDump arc = dumpPath(
+      routers::fromPairwise(routers::arc(0.3f))(std::span(stops, 3)));
+  EXPECT_EQ(arc.moves, 1);
+  EXPECT_GT(arc.curves, 0);
+}
+
+TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
+  // The §8 flare complaint, pinned from the fixed side: a cased (offset
+  // contour) brush over the NEW spelling renders byte-identically to the
+  // same brush over hand-authored clean geometry — nothing the router
+  // emits (no degenerate verb, no split run) reaches the pixels. The
+  // investigation note lives in ManhattanIsARailRouterAndCollapses...:
+  // the OLD spelling's degenerate verbs happen not to flare either, so
+  // this is the regression guard that keeps the new family clean.
+  auto boxes = [](Element route) {
+    return stack()
+        .child(box().key("a").width(20).height(20)
+                   .inset(10, 90, 170, 90).absolute().fill(red()))
+        .child(box().key("b").width(20).height(20)
+                   .inset(170, 90, 10, 90).absolute().fill(green()))
+        .child(std::move(route));
+  };
+  Decoration wire = lines::cased(3, Fill::color({1, 1, 1, 1}), 10);
+  Host railed, clean;
+  railed.composer.render(boxes(
+      rail({{"a"}, {"b"}}, routers::manhattan()).inset(0).stroke(wire)));
+  clean.composer.render(boxes(box().absolute().inset(0)
+                                  .shape([](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(20, 100);
+                                    b.lineTo(180, 100);
+                                    return b.detach();
+                                  })
+                                  .stroke(wire)));
+  railed.frame();
+  clean.frame();
+  EXPECT_TRUE(identicalPixels(railed, clean, 200, 200))
+      << "the manhattan rail's cased brush differs from clean geometry";
+}
