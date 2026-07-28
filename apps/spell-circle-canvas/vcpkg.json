@@ -1,8 +1,10 @@
 {
   "dependencies": [
     "abseil",
+    "alembic",
     "asio",
     "benchmark",
+    "cgltf",
     "choreograph",
     "concurrentqueue",
     "curl",
@@ -10,6 +12,7 @@
     "earcut-hpp",
     "entt",
     "flatbuffers",
+    "glm",
     "gtest",
     {
       "name": "harfbuzz",
@@ -30,6 +33,10 @@
     },
     "openimageio",
     {
+      "name": "shader-slang",
+      "host": true
+    },
+    {
       "name": "skia",
       "features": [
         "avif",
@@ -45,6 +52,7 @@
       ]
     },
     "spdlog",
+    "tinyobjloader",
     {
       "name": "spout2",
       "features": [
