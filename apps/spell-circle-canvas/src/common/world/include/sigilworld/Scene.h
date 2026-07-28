@@ -43,7 +43,7 @@ public:
     m_key = std::move(value);
     return *this;
   }
-  Node &at(SkV3 position) {
+  Node &at(glm::vec3 position) {
     m_position = position;
     return *this;
   }
@@ -58,7 +58,7 @@ public:
     return *this;
   }
   /** Extra local matrix, applied after at/rotated/scaled. */
-  Node &transform(const SkM44 &m) {
+  Node &transform(const glm::mat4 &m) {
     m_extra = m;
     m_hasExtra = true;
     return *this;
@@ -74,7 +74,7 @@ public:
 
   /** The node's local matrix (translate * yaw * pitch * roll * scale
    *  * extra). */
-  SkM44 localMatrix() const;
+  glm::mat4 localMatrix() const;
 
 private:
   friend Node group();
@@ -84,10 +84,10 @@ private:
 
   Kind m_kind = Kind::Group;
   std::string m_key;
-  SkV3 m_position = {0, 0, 0};
+  glm::vec3 m_position = {0, 0, 0};
   float m_yawDeg = 0, m_pitchDeg = 0, m_rollDeg = 0;
   float m_scale = 1;
-  SkM44 m_extra;
+  glm::mat4 m_extra{1.0f};
   bool m_hasExtra = false;
   std::shared_ptr<const shape::Mesh> m_mesh; // Surface
   Material m_material;                       // Surface + Panel
@@ -131,7 +131,7 @@ private:
     uint32_t id = 0;
     const shape::Mesh *mesh = nullptr;
     Material material;
-    SkM44 world;
+    glm::mat4 world{1.0f};
     bool visited = false;
   };
 

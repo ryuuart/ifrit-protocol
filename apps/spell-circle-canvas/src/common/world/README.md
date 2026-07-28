@@ -41,14 +41,64 @@ path work without environment surgery:
   install). `SIGILWORLD_VULKAN_LIBRARY` overrides the candidate list.
 - **Shading**: one HLSL source (compiled to SPIR-V by the glslang
   Diligent ships) with a GGX + hemisphere-ambient PBR-lite pixel
-  shader; matrices upload as raw column-major SkM44 dumps with
+  shader; matrices upload as raw column-major glm::mat4 dumps with
   `mul(M, v)` column-vector math — deliberately dodging HLSL
   `row_major` translation quirks. Diligent's Vulkan backend normalizes
   clip-space y, so the projection carries no flip (the
   `QuadAtPositiveYAppearsInTopHalf` test pins this).
 
 `Material`: baseColor (alpha < 1 routes to the blended, depth-sorted
-pass), metallic/roughness, emissive, texture (sRGB view), unlit.
+pass), metallic/roughness, emissive, texture (sRGB view), unlit, and
+a uv window (`uvScale`/`uvOffset`, applied at sample time, clamped at
+the edge). A mesh's baked `colors` lane rides along too — what pop's
+`cookMesh` fades and import's `merged()` bake multiply into the shaded
+color on the plain pipeline, and multiply the per-instance tint on the
+instanced one (white when absent; both pinned by
+`BakedVertexColorsTintBothPipelines`), matching the Skia painter's
+`drawMesh` behavior. The window is LIVE like the colors: animate `uvOffset` on
+the `MaterialComponent` and content scrolls across the surface with
+zero texture uploads — the marquee mechanism, pinned by the
+`UvScaleOffsetSelectsTexelLiveAcrossFrames` test. Geometry can move
+the same way: `setSurfaceMesh()` replaces a surface's mesh in place
+(UpdateBuffer when the vertex/index counts match, recreate
+otherwise — vertex buffers are USAGE_DEFAULT for exactly this), the
+towed-flag path pinned by `SetSurfaceMeshMovesGeometryInPlace`. And
+generation itself can live on the GPU: `addSweep()` is the first
+POP-style generator — the loop's control points sit in a device
+buffer and a compute pass (parameter-exact `shape::Spline3` closed
+Catmull-Rom, gravity rig) rewrites the surface's vertex buffer in
+place; `setSweepWindow()` is two floats in a cbuffer and the re-sweep
+runs at the next render(). Pinned by
+`GpuSweepGeneratesAndSlidesOnTheGpu`; scaling head-room measured at
+10x sections for +0.6 ms (the CPU path would have paid ~8 ms).
+`addFlock()` is the second: a compute pass scatters `count` instances
+along a window of the loop (stable per-point radial offsets, sin-field
+drift, a tail-to-head tint ramp) and packs the InstanceAttribs stream
+the instanced VS consumes — the points never exist on the CPU, and
+`setFlockWindow()` streams the whole flock along the loop. Pinned by
+`GpuFlockStreamsAlongTheLoop`; measured at ONE MILLION particles for
+~5.8 ms/frame, all of it raster fill — the pack itself is a dispatch.
+
+And the third is the COMBINATOR layer, `World::pop` — the
+TouchDesigner POP lesson (GPU-resident attributes, generators vs
+filters, nondestructive chains) made native. A `pop::Chain` is a
+vector of operator VALUES — `SplineScatter` (generator: P, T, Dir),
+then filters `Jitter`, `Noise`, `Ramp`, `Vary`, `LookAt`, `Math`,
+each declaring the Lane it touches (P / Dir / Color / Scale / T,
+packed as three float4 GPU buffers). `addPoints(stamp, chain,
+material)` cooks the chain as sequential compute dispatches with UAV
+barriers between and an implicit Copy-POP sink packing the instanced
+stream; `setPoints(id, chain)` re-describes — same op kinds and count
+is a parameter re-cook, anything structural rebuilds lanes and
+bindings. The chain is data: edit a field, re-describe, nothing
+mutates upstream. Pinned by `PopChainCooksAndRedescribes` (which
+appends a Math mirror op live). v1 simplifications, on the roadmap to
+lift: the conventional lanes only (custom named lanes later),
+whole-chain re-cook (copy-on-write attribute references later), no
+Feedback/Delete/Sort yet. MoltenVK gotcha for future operators:
+RWStructuredBuffers sharing one element struct collide in SPIRV-Cross
+MSL naming — give each lane a distinct struct type, and write whole
+elements, not members.
 `Lighting`: one sun + sky/ground hemisphere — the ambient base that
 registry lights layer on top of.
 
@@ -141,7 +191,7 @@ panels are stable by construction.
 ## Demo and tests
 
 ```
-./build/bin/Debug/world_demo [outdir] [assetdir]   # 5 PNG camera shots
+./build/bin/Debug/world_demo [outdir] [assetdir]   # 6 PNG camera shots + scroll frames
 ./build/bin/Debug/world_test                        # skips without a Vulkan runtime
 ```
 
@@ -153,5 +203,35 @@ poster panel (`world_poster.png` frames it). The stream — a spline
 tube with camera-facing cards — is declared through the Scene layer,
 and the dressing (two colored point lights pooling on the floor by
 the props, a 3000-spark instanced swarm riding the arc) through the
-easel. Tests skip — not fail — when no Vulkan runtime exists, so CI
-without a GPU stays green.
+easel.
+
+The marquee (`world_marquee.png`, `world_marquee_flight_*.png`): THE
+YARN — a ~24k-wu sparse ball winding wrapping the whole scene
+(latitude swings seven times while the winding plane precesses twice,
+coprime so the wraps spread), carried as a 301-wu-wide band painted
+END TO END with one SigilCompose COLUMN in the PERPENDICULAR
+orientation: every line of type reads ACROSS the band's width and the
+stack advances ALONG the winding (the hanging-scroll orientation
+riding the yarn). The column is packed with numbered SECTORS — a
+numeral, a narrow-column paragraph (a ten-text pool, cycled), and a
+graphics stretch (ruler / waveform / swatch run / dot ellipsis, each
+parameterized by sector index so no two render alike) — with only
+thin grow gaps between: no empty stretches anywhere on the loop. One
+element tree, snapshotted ONCE as a vector SkPicture, SLICED straight
+down into 10 tiles of 506x4096 (texture x = u, y = v — no transpose;
+drawn mirrored in x so the wall's u-mapping restores unmirrored
+glyphs), texel-continuous across seams. The cloth is gravity-rigged
+like a real towed banner (parallel-transport frames roll upside-down
+somewhere on any ball winding), and each frame every arc re-sweeps
+one step forward ON THE GPU — the arcs are `addSweep()` surfaces, so
+the march is ten `setSweepWindow()` calls (two floats each) and ten
+compute dispatches; no CPU mesh exists for the band at all. A
+300,000-particle `addFlock()` comet streams behind the dart on the
+same loop (tail-fading tint ramp, drift noise), its instance stream
+packed by compute each frame. Timed on Apple-silicon Vulkan-on-Metal,
+1440x810 MSAA 4x, full set: ~2.7 ms/frame submitted+flushed — and at
+one million comet particles, ~5.8 ms, all raster fill; the CPU never
+touches a point. SigilWorld does NOT depend on compose
+or weave; the demo composes them, world just samples SkImages. Tests
+skip — not fail — when no Vulkan runtime exists, so CI without a GPU
+stays green.

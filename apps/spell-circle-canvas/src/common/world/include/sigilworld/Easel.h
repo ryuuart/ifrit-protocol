@@ -64,12 +64,12 @@ inline uint64_t hashBytes(uint64_t h, const void *data, size_t size) {
 inline uint64_t fingerprint(const shape::Mesh &mesh) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, mesh.positions.data(),
-                mesh.positions.size() * sizeof(SkV3));
+                mesh.positions.size() * sizeof(glm::vec3));
   h = hashBytes(h, mesh.normals.data(),
-                mesh.normals.size() * sizeof(SkV3));
-  h = hashBytes(h, mesh.uvs.data(), mesh.uvs.size() * sizeof(SkPoint));
+                mesh.normals.size() * sizeof(glm::vec3));
+  h = hashBytes(h, mesh.uvs.data(), mesh.uvs.size() * sizeof(glm::vec2));
   h = hashBytes(h, mesh.colors.data(),
-                mesh.colors.size() * sizeof(SkColor4f));
+                mesh.colors.size() * sizeof(glm::vec4));
   h = hashBytes(h, mesh.indices.data(),
                 mesh.indices.size() * sizeof(uint32_t));
   return h;
@@ -81,18 +81,18 @@ inline uint64_t fingerprint(const shape::Cloud &cloud,
                             const InstanceLanes &lanes) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, cloud.positions.data(),
-                cloud.positions.size() * sizeof(SkV3));
+                cloud.positions.size() * sizeof(glm::vec3));
   h = hashBytes(h, &lanes.scale, sizeof(lanes.scale));
   h = hashBytes(h, &lanes.up, sizeof(lanes.up));
   h = hashBytes(h, lanes.scaleLane.data(), lanes.scaleLane.size());
   if (const std::vector<float> *lane = cloud.scalarIf(lanes.scaleLane))
     h = hashBytes(h, lane->data(), lane->size() * sizeof(float));
   h = hashBytes(h, lanes.tintLane.data(), lanes.tintLane.size());
-  if (const std::vector<SkColor4f> *lane = cloud.colorIf(lanes.tintLane))
-    h = hashBytes(h, lane->data(), lane->size() * sizeof(SkColor4f));
+  if (const std::vector<glm::vec4> *lane = cloud.colorIf(lanes.tintLane))
+    h = hashBytes(h, lane->data(), lane->size() * sizeof(glm::vec4));
   h = hashBytes(h, lanes.orientLane.data(), lanes.orientLane.size());
-  if (const std::vector<SkV3> *lane = cloud.vectorIf(lanes.orientLane))
-    h = hashBytes(h, lane->data(), lane->size() * sizeof(SkV3));
+  if (const std::vector<glm::vec3> *lane = cloud.vectorIf(lanes.orientLane))
+    h = hashBytes(h, lane->data(), lane->size() * sizeof(glm::vec3));
   return h;
 }
 
@@ -104,22 +104,22 @@ public:
 
   // -- the set's light and eye, applied on commit ---------------------------
 
-  Stage &sun(SkV3 direction, float intensity = 2.6f,
-             SkColor4f color = {1.0f, 0.96f, 0.9f, 1}) {
+  Stage &sun(glm::vec3 direction, float intensity = 2.6f,
+             glm::vec4 color = {1.0f, 0.96f, 0.9f, 1}) {
     m_lighting.sunDirection = direction;
     m_lighting.sunIntensity = intensity;
     m_lighting.sunColor = color;
     m_lightingDirty = true;
     return *this;
   }
-  Stage &sky(SkColor4f sky, SkColor4f ground, float ambient = 0.55f) {
+  Stage &sky(glm::vec4 sky, glm::vec4 ground, float ambient = 0.55f) {
     m_lighting.skyColor = sky;
     m_lighting.groundColor = ground;
     m_lighting.ambient = ambient;
     m_lightingDirty = true;
     return *this;
   }
-  Stage &look(SkV3 eye, SkV3 target = {0, 0, 0}, float fovYDeg = 40) {
+  Stage &look(glm::vec3 eye, glm::vec3 target = {0, 0, 0}, float fovYDeg = 40) {
     m_camera.eye = eye;
     m_camera.target = target;
     m_camera.fovYDeg = fovYDeg;
@@ -130,7 +130,7 @@ public:
   // -- registry lights, reconciled by declaration order ---------------------
 
   /** A point light hovering at @p position. */
-  Stage &light(SkV3 position, SkColor4f color = {1, 1, 1, 1},
+  Stage &light(glm::vec3 position, glm::vec4 color = {1, 1, 1, 1},
                float intensity = 3, float range = 600) {
     LightComponent value;
     value.type = LightComponent::Type::Point;
@@ -142,7 +142,7 @@ public:
     return *this;
   }
   /** A directional light shining along @p direction. */
-  Stage &beam(SkV3 direction, SkColor4f color = {1, 1, 1, 1},
+  Stage &beam(glm::vec3 direction, glm::vec4 color = {1, 1, 1, 1},
               float intensity = 2) {
     LightComponent value;
     value.type = LightComponent::Type::Directional;
@@ -204,7 +204,7 @@ public:
 
   // -- tail styling: each call shapes the LAST declared placement -----------
 
-  Stage &at(SkV3 position) {
+  Stage &at(glm::vec3 position) {
     if (!m_pending.empty())
       m_pending.back().position = position;
     return *this;
@@ -299,7 +299,7 @@ private:
     enum class Kind : uint8_t { Surface, Panel, Swarm };
     Kind kind = Kind::Surface;
     std::string key;
-    SkV3 position = {0, 0, 0};
+    glm::vec3 position = {0, 0, 0};
     float yawDeg = 0, pitchDeg = 0, rollDeg = 0;
     float scale = 1;
     std::shared_ptr<const shape::Mesh> mesh; // Surface, shared identity
@@ -320,7 +320,7 @@ private:
     uint64_t stampFingerprint = 0;
     uint64_t cloudFingerprint = 0;
     Material material;
-    SkM44 world;
+    glm::mat4 world{1.0f};
     bool visited = false;
   };
 
@@ -387,7 +387,7 @@ private:
           p.key.empty() ? "~#" + std::to_string(swarmIndex) : p.key;
       ++swarmIndex;
       const uint64_t cloudFp = detail::fingerprint(p.cloud, p.lanes);
-      const SkM44 world = scene::group()
+      const glm::mat4 world = scene::group()
                               .at(p.position)
                               .rotated(p.yawDeg, p.pitchDeg, p.rollDeg)
                               .scaled(p.scale)

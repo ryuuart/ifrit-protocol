@@ -6,6 +6,7 @@
 // through SigilLoader's SVG decode; without it the scene simply omits
 // the poster.
 
+#include "sigilworld/Components.h"
 #include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
 #include "sigilworld/World.h"
@@ -15,17 +16,30 @@
 #include <sigilshape/Curves.h>
 #include <sigilshape/Mesh.h>
 #include <sigilshape/Points.h>
+#include <sigilshape/Save.h>
+
+#include <sigilcompose/Compose.h>
+#include <sigilweave/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkSurface.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <iterator>
+#include <vector>
 
 using namespace sigil;
 
@@ -85,6 +99,215 @@ sk_sp<SkImage> uiCard(int w, int h, SkColor4f accent, float gaugeFrac) {
   return surface->makeImageSnapshot();
 }
 
+// --- the marquee's type ---------------------------------------------------
+// THE YARN, fully painted, PERPENDICULAR orientation, FILLED end to
+// end: the entire ball winding is the ribbon, its full length ONE
+// SigilCompose COLUMN — every line of type reads ACROSS the band's
+// width and the stack advances ALONG the winding. The column is
+// packed with numbered SECTORS: a big numeral, a narrow-column
+// paragraph, and a graphics stretch (ruler / waveform / swatch run /
+// dot ellipsis, each parameterized by its sector index so no two
+// render alike), with only thin grow gaps between — no empty
+// stretches anywhere on the loop. Snapshotted ONCE as a vector
+// SkPicture, SLICED straight down into GPU tiles (texture x = u,
+// y = v — no transpose), drawn mirrored in x so the wall's u-mapping
+// restores unmirrored glyphs. Arcs share boundary texels: seamless.
+struct StripArt {
+  std::vector<sk_sp<SkImage>> tiles;
+  float acrossPx = 0; ///< column width = the band's texel width
+  float totalAlongPx = 0;
+};
+
+StripArt yarnStrip(sigil::weave::FontContext &fonts, int tileCount,
+                   int tileAlongPx, int acrossPx) {
+  namespace sc = sigil::compose;
+  namespace weave = sigil::weave;
+  const SkColor kInk = SkColorSetARGB(255, 236, 244, 254);
+  const SkColor kAccent = SkColorSetARGB(255, 116, 224, 190);
+  const SkColor kDim = SkColorSetARGB(255, 158, 176, 202);
+  const float total = (float)tileCount * (float)tileAlongPx;
+
+  const auto para = [](const char8_t *string, float size, SkColor color) {
+    auto p = std::make_shared<weave::Paragraph>();
+    p->appendText(string, weave::kit::makeStyle(size, color));
+    return p;
+  };
+  weave::ParagraphLayoutOptions centered;
+  centered.alignment = weave::TextAlignment::kCenter;
+  const auto label = [&](std::u8string string, float size,
+                         SkColor color) {
+    auto p = std::make_shared<weave::Paragraph>();
+    p->appendText(std::move(string), weave::kit::makeStyle(size, color));
+    return sc::text(p, centered);
+  };
+
+  // Sector graphics, parameterized so no two stretches render alike.
+  const auto ruler = [&](int s) {
+    sc::Element row = sc::box().row().gap(8.0f + (float)(s % 3) * 3.0f)
+                          .alignItems(sc::Align::Center)
+                          .alignSelf(sc::Align::Center)
+                          .height(150);
+    const int major = 5 + s % 4;
+    for (int i = 0; i < 30 + (s % 3) * 5; ++i)
+      row.child(sc::box()
+                    .width(i % major == 0 ? 5.0f : 3.0f)
+                    .height(i % major == 0 ? 140.0f : 60.0f)
+                    .fill(sc::Fill::color(
+                        {0.58f, 0.66f, 0.77f,
+                         i % major == 0 ? 0.95f : 0.5f})));
+    return row;
+  };
+  const auto wave = [&](int s) {
+    sc::Element row = sc::box().row().gap(5).alignItems(sc::Align::End)
+                          .alignSelf(sc::Align::Center)
+                          .height(170);
+    for (int i = 0; i < 44; ++i) {
+      const float beat = std::clamp(
+          0.5f +
+              0.35f * std::sin((float)i * (0.29f + 0.03f * (float)(s % 5)) +
+                               (float)s * 1.7f) +
+              0.3f * std::sin((float)i * 0.11f + (float)s),
+          0.0f, 1.0f);
+      row.child(sc::box()
+                    .width(6)
+                    .height(28 + 134 * beat)
+                    .corners({3})
+                    .fill(sc::Fill::color({0.455f, 0.878f, 0.745f,
+                                           0.45f + 0.55f * beat})));
+    }
+    return row;
+  };
+  const auto swatches = [&](int s) {
+    sc::Element row =
+        sc::box().row().gap(13).alignSelf(sc::Align::Center);
+    for (int i = 0; i < 12; ++i) {
+      const float f = (float)((i + s * 5) % 12) / 11.0f;
+      row.child(sc::box().width(24).height(24).corners({12}).fill(
+          sc::Fill::color(
+              {0.4f + 0.45f * f, 0.878f, 0.745f, 0.35f + 0.65f * f})));
+    }
+    return row;
+  };
+  const auto dots = [&](int s) {
+    sc::Element row = sc::box().row().gap(15).alignItems(sc::Align::Center)
+                          .alignSelf(sc::Align::Center)
+                          .height(60);
+    for (int i = 0; i < 14; ++i) {
+      const float f =
+          0.5f + 0.5f * std::sin((float)(i + s * 3) * 0.55f);
+      row.child(
+          sc::box()
+              .width(10 + 22 * f)
+              .height(10 + 22 * f)
+              .corners({(10 + 22 * f) * 0.5f})
+              .fill(sc::Fill::color(
+                  {0.72f, 0.82f, 0.95f, 0.3f + 0.7f * f})));
+    }
+    return row;
+  };
+
+  const char8_t *pool[10] = {
+      u8"a paragraph can behave like yarn: one description wound seven "
+      "times around the stage while its plane turns twice, painted end "
+      "to end.",
+      u8"every line reads across the band and the column climbs the "
+      "winding — the hanging-scroll orientation riding the yarn, "
+      "perpendicular to the flight.",
+      u8"nothing here tiles and nothing repeats: each sector is a "
+      "different neighborhood of the same element tree, numbered as it "
+      "passes.",
+      u8"the strip is snapshotted once as a vector picture and sliced "
+      "into GPU tiles, one per arc — the seams share their texels and "
+      "vanish.",
+      u8"geometry by SigilShape, type by SigilWeave, authored in "
+      "SigilCompose, lit by SigilWorld on Diligent and Vulkan.",
+      u8"the cloth hangs from its own tangent like a towed banner, so "
+      "the words never roll upside down anywhere on the ball.",
+      u8"each frame every arc re-sweeps one step forward — the same "
+      "vertices, updated in place — and the whole canvas marches.",
+      u8"the dart is the pilot: a chrome revolve riding the head of the "
+      "winding, always one sector ahead of the seam.",
+      u8"the band is wide enough for a real measure, so the paragraphs "
+      "set as narrow columns, centered, sector after sector.",
+      u8"read it the long way: twenty-four thousand units of continuous "
+      "surface, and back to its own beginning.",
+  };
+
+  sc::Element root =
+      sc::box()
+          .column()
+          .width((float)acrossPx)
+          .height(total)
+          .padding(52, 110)
+          .child(sc::box().left(10).top(0).bottom(0).width(6).fill(
+              sc::Fill::color({0.455f, 0.878f, 0.745f, 0.95f})))
+          .child(sc::box().right(10).top(0).bottom(0).width(4).fill(
+              sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
+
+  root.child(label(u8"THE YARN", 96, kAccent));
+  const int kSectors = 44; // fills ~90% of the column; thin grow gaps
+                           // absorb the rest evenly
+  for (int s = 0; s < kSectors; ++s) {
+    root.child(sc::box().grow());
+    char numeral[8];
+    std::snprintf(numeral, sizeof(numeral), "%02d", s + 1);
+    root.child(label(std::u8string(u8"— ") +
+                         (const char8_t *)numeral + u8" —",
+                     64, kDim));
+    root.child(label(pool[s % 10], 44,
+                     s % 10 == 4 || s % 10 == 9 ? kDim : kInk));
+    switch (s % 4) {
+    case 0: root.child(ruler(s)); break;
+    case 1: root.child(wave(s)); break;
+    case 2: root.child(swatches(s)); break;
+    default: root.child(dots(s)); break;
+    }
+  }
+  root.child(sc::box().grow());
+  root.child(label(u8"— and back to its own beginning", 72, kAccent));
+
+  const sk_sp<SkPicture> art = sc::snapshot(root, fonts);
+  StripArt out;
+  out.acrossPx = (float)acrossPx;
+  out.totalAlongPx = total;
+  for (int k = 0; k < tileCount; ++k) {
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(
+        SkImageInfo::MakeN32Premul(acrossPx, tileAlongPx));
+    SkCanvas *canvas = surface->getCanvas();
+    canvas->clear(SK_ColorTRANSPARENT);
+    // Mirror in x (the wall's u-mapping mirrors back), then step to
+    // this tile's window of the column.
+    canvas->translate((float)acrossPx, 0);
+    canvas->scale(-1, 1);
+    canvas->translate(0, -(float)k * (float)tileAlongPx);
+    canvas->drawPicture(art);
+    out.tiles.push_back(surface->makeImageSnapshot());
+  }
+  return out;
+}
+
+float wrap01(float t) { return t - std::floor(t); }
+
+/** The dart that tows the flag: revolve's +y nose aimed down the
+ *  flight tangent, keeping the flag's own up convention. */
+glm::mat4 dartTransform(const sigil::shape::Spline3 &loop, float head) {
+  const glm::vec3 p = loop.position(wrap01(head));
+  const glm::vec3 ahead = loop.position(wrap01(head + 0.004f));
+  const glm::vec3 behind = loop.position(wrap01(head - 0.004f));
+  glm::vec3 t = ahead - behind;
+  const float len = glm::length(t);
+  t = len > 1e-6f ? t * (1.0f / len) : glm::vec3{1, 0, 0};
+  glm::vec3 n =
+      glm::vec3{0, 0, 1} - t * glm::dot(t, glm::vec3{0, 0, 1});
+  const float nLen = glm::length(n);
+  n = nLen > 1e-6f ? n * (1.0f / nLen) : glm::vec3{0, 1, 0};
+  const glm::vec3 b = glm::cross(t, n);
+  // Basis columns (binormal, tangent, normal | position) — glm's
+  // constructor takes columns directly.
+  return glm::mat4(glm::vec4(b, 0), glm::vec4(t, 0), glm::vec4(n, 0),
+                   glm::vec4(p, 1));
+}
+
 SkPath starPath(int points, float outer, float inner) {
   SkPathBuilder b;
   const float step = (float)M_PI / (float)points;
@@ -129,7 +352,8 @@ int main(int argc, char **argv) {
     floor.metallic = 0.85f;
     floor.roughness = 0.4f;
     shape::Mesh slab = shape::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
-    w->addSurface(slab, SkM44::Translate(0, -190, 0), floor);
+    w->addSurface(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}),
+                  floor);
   }
 
   // Three emissive UI cards, cockpit arc.
@@ -214,12 +438,12 @@ int main(int argc, char **argv) {
                 {820, 430, -260}};
   {
     shape::Cloud stations = shape::points::onSpline(arc, 9);
-    const SkV3 eye = {0, 200, 1150}; // the stream shot's camera
-    std::vector<SkV3> &facing = stations.vector("facing");
+    const glm::vec3 eye = {0, 200, 1150}; // the stream shot's camera
+    std::vector<glm::vec3> &facing = stations.vector("facing");
     for (size_t i = 0; i < stations.size(); ++i) {
-      const SkV3 to = eye - stations.positions[i];
-      const float len = to.length();
-      facing[i] = len > 1e-6f ? to * (1.0f / len) : SkV3{0, 0, 1};
+      const glm::vec3 to = eye - stations.positions[i];
+      const float len = glm::length(to);
+      facing[i] = len > 1e-6f ? to * (1.0f / len) : glm::vec3{0, 0, 1};
     }
     shape::points::InstanceOptions cardOptions;
     cardOptions.orientLane = "facing";
@@ -228,6 +452,21 @@ int main(int argc, char **argv) {
     wireMat.baseColor = {0.9f, 0.93f, 1.0f, 1};
     wireMat.metallic = 1;
     wireMat.roughness = 0.15f;
+
+    // The wire carries a baked color lane — cool chrome at the start
+    // warming to rose by the end. Tube rings are ordered along the
+    // curve, so a vertex-index ramp IS an arc-length ramp.
+    shape::Mesh wire = shape::curves::tube(
+        arc, {.radius = 7, .segments = 180, .sides = 10});
+    wire.colors.resize(wire.positions.size());
+    for (size_t i = 0; i < wire.positions.size(); ++i) {
+      const float f =
+          wire.positions.size() > 1
+              ? (float)i / (float)(wire.positions.size() - 1)
+              : 0.0f;
+      wire.colors[i] = {0.75f + 0.25f * f, 0.9f - 0.35f * f,
+                        1.0f - 0.25f * f, 1};
+    }
     world::Material cardMat;
     cardMat.unlit = true;
     cardMat.texture = uiCard(384, 256, {0.45f, 0.95f, 0.85f, 1}, 0.62f);
@@ -235,12 +474,7 @@ int main(int argc, char **argv) {
 
     stream.render(
         world::scene::group().key("stream")
-            .child(world::scene::surface(
-                       shape::curves::tube(arc, {.radius = 7,
-                                                 .segments = 180,
-                                                 .sides = 10}),
-                       wireMat)
-                       .key("wire"))
+            .child(world::scene::surface(wire, wireMat).key("wire"))
             .child(world::scene::surface(
                        shape::points::panels(stations, 170, 112,
                                              cardOptions),
@@ -257,7 +491,7 @@ int main(int argc, char **argv) {
     shape::points::jitter(sparks, 30, 11);
     shape::points::displaceNoise(sparks, 70, 0.006f, 12);
     const std::vector<float> &t = sparks.scalar("t");
-    std::vector<SkColor4f> &tint = sparks.color("tint");
+    std::vector<glm::vec4> &tint = sparks.color("tint");
     std::vector<float> &size = sparks.scalar("size", 1);
     for (size_t i = 0; i < sparks.size(); ++i) {
       const float f = t[i];
@@ -282,6 +516,122 @@ int main(int argc, char **argv) {
     std::printf("easel dressing: %d added\n", stats.added);
   }
 
+  // THE YARN, painted end to end: the sparse ball winding wraps the
+  // whole scene (latitude swings seven times while the winding plane
+  // precesses twice — coprime, so the wraps spread), and every unit
+  // of it carries the infinite-canvas strip above. One surface per
+  // GPU tile; per frame every arc re-sweeps one step forward so the
+  // whole canvas marches around the winding behind the chrome dart.
+  std::vector<uint32_t> stripIds; // one surface per strip tile
+  uint32_t dartId = 0, cometId = 0, guideId = 0;
+  const float kCometSpan = 0.34f;
+  world::World::pop::Chain guideChain;
+  shape::Spline3 flightLoop;
+  float bandWidth = 300;            // set from the strip's texel density
+  const int kTiles = 10;            // GPU tiles the vector strip slices to
+  const int kSectionsPerTile = 200; // ribbon cross-sections per arc
+  const float kFlagHome = 0.91f;    // stills: strip start on a front pass
+  {
+    flightLoop.closed = true;
+    const int kKnots = 96;
+    const float kWraps = 7;   // latitude oscillations
+    const float kPrecess = 2; // turns of the winding plane
+    const float kTilt = 1.0f; // latitude amplitude, radians
+    const glm::vec3 shell = {1250, 620, 950};
+    const glm::vec3 center = {0, 380, 0};
+    for (int i = 0; i < kKnots; ++i) {
+      const float t = (float)i / (float)kKnots;
+      const float lat = kTilt * std::sin(2.0f * (float)M_PI * kWraps * t);
+      const float azi = -2.0f * (float)M_PI * kPrecess * t; // front: face out
+      flightLoop.points.push_back(
+          {center.x + shell.x * std::cos(lat) * std::cos(azi),
+           center.y + shell.y * std::sin(lat),
+           center.z + shell.z * std::cos(lat) * std::sin(azi)});
+    }
+    float loopLen = 0;
+    {
+      shape::Cloud rail = shape::points::onSpline(flightLoop, 1024);
+      for (size_t i = 1; i < rail.size(); ++i)
+        loopLen +=
+            glm::length(rail.positions[i] - rail.positions[i - 1]);
+    }
+
+    sigil::weave::FontContext fonts(
+        sigil::weave::ports::systemFontManager());
+
+    // Square texels: 10 x 4096 px over ~24k wu ≈ 1.68 px/wu, so a
+    // 506 px column stands ~300 wu wide on the winding — a real
+    // narrow-column measure reading across the band.
+    const StripArt strip = yarnStrip(fonts, kTiles, 4096, 506);
+    const float pxPerWu = strip.totalAlongPx / loopLen;
+    bandWidth = strip.acrossPx / pxPerWu;
+    // Each arc is a GPU sweep: the loop's control points live in a
+    // device buffer and a compute pass writes the ribbon's vertices —
+    // no CPU mesh exists for the band at all.
+    for (int k = 0; k < kTiles; ++k) {
+      world::Material segment;
+      segment.unlit = true;
+      segment.texture = strip.tiles[(size_t)k];
+      segment.baseColor = {1, 1, 1, 0.98f}; // alpha < 1: blended pass
+      world::World::SweepDesc arc;
+      arc.loop = flightLoop.points;
+      arc.width = bandWidth;
+      arc.sections = kSectionsPerTile;
+      arc.head = wrap01(kFlagHome + (float)(k + 1) / (float)kTiles);
+      arc.span = 1.0f / (float)kTiles;
+      stripIds.push_back(w->addSweep(arc, segment));
+    }
+
+    world::Material chromeDart;
+    chromeDart.baseColor = {0.92f, 0.95f, 1.0f, 1};
+    chromeDart.metallic = 1;
+    chromeDart.roughness = 0.12f;
+    const std::vector<glm::vec2> dartProfile = {
+        {0, 95}, {26, 30}, {34, -20}, {18, -52}, {0, -60}};
+    dartId = w->addSurface(shape::mesh::revolve(dartProfile),
+                           dartTransform(flightLoop, kFlagHome),
+                           chromeDart);
+
+    // The comet, COMPOSED ON DEVICE: a small guide chain rides the
+    // yarn's window, and the comet chain rides the GUIDE — its
+    // generator reads the guide's cooked arena directly. Animating
+    // the guide (two floats) cascades through the comet in compute;
+    // the CPU never touches a point of either.
+    guideChain = shape::pop::on(flightLoop.points)
+                     .count(64)
+                     .window(kFlagHome, kCometSpan)
+                     .noise(26, 0.003f)
+                     .smooth(0.5f, 2);
+    world::Material guideMat;
+    guideMat.unlit = true;
+    guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f}; // faint beads
+    guideId = w->addPoints(shape::mesh::quad(4, 4), guideChain,
+                           guideMat);
+    const world::World::pop::Chain cometChain =
+        shape::pop::on(std::vector<glm::vec3>{}) // loop = the guide's arena
+            .count(300000)
+            .window(0.984f, 0.984f) // skip the closing return segment
+            .spread(48)
+            .noise(20, 0.004f)
+            .vary(0.5f)
+            .fade({1.0f, 0.45f, 0.85f, 0.0f}, // tail
+                  {0.65f, 0.95f, 1.0f, 0.5f}); // head
+    world::Material sparkle;
+    sparkle.unlit = true;
+    sparkle.baseColor = {1, 1, 1, 0.8f}; // blended
+    cometId = w->addPointsOn(guideId, shape::mesh::quad(2.6f, 2.6f),
+                             cometChain, sparkle);
+    std::printf("comet: %d GPU particles riding a %d-point guide "
+                "chain, composed on device\n",
+                std::get<shape::pop::SplineScatter>(cometChain[0]).count,
+                std::get<shape::pop::SplineScatter>(guideChain[0]).count);
+
+    std::printf("yarn: %.0f wu wound, band %.0f wu wide, %d tiles of "
+                "%dx%d (%.0fk px of unique canvas)\n",
+                loopLen, bandWidth, kTiles, strip.tiles[0]->width(),
+                strip.tiles[0]->height(), strip.totalAlongPx / 1000);
+  }
+
   world::Lighting lighting;
   lighting.sunDirection = {-0.4f, -0.8f, -0.45f};
   lighting.sunIntensity = 2.4f;
@@ -293,7 +643,11 @@ int main(int argc, char **argv) {
     const char *name;
     shape::space::Camera camera;
   };
-  Shot shots[5];
+  Shot shots[6];
+  shots[5].name = "world_marquee.png";
+  shots[5].camera.eye = {180, 520, 2400};
+  shots[5].camera.target = {-40, 380, 0};
+  shots[5].camera.fovYDeg = 46;
   shots[4].name = "world_stream.png";
   shots[4].camera.eye = {0, 200, 1150};
   shots[4].camera.target = {0, 330, -60};
@@ -328,6 +682,105 @@ int main(int argc, char **argv) {
     else
       std::fprintf(stderr, "write failed: %s\n", shot.name);
   }
+  // --- the interop door, demonstrated -------------------------------------
+  // The comet's 300k particles exist ONLY as GPU lanes — cooked by
+  // compute, never touched by the CPU. readPoints() pulls the arena
+  // back as a Cloud and save::ply() writes a binary PLY (a third the
+  // ascii size, bit-exact floats) Houdini or Blender opens directly:
+  // positions, t/size scalars, dir vectors, tint colors — the
+  // attributes ride along.
+  if (cometId) {
+    const shape::Cloud comet = w->readPoints(cometId);
+    const auto file = outDir / "comet_points.ply";
+    if (shape::save::ply(file, comet, {.binary = true}))
+      std::printf("comet_points.ply: %zu GPU-cooked points exported "
+                  "(binary_little_endian, %.1f MB), "
+                  "%zu scalar / %zu vector / %zu color lanes\n",
+                  comet.size(),
+                  (double)std::filesystem::file_size(file) / 1e6,
+                  comet.scalars.size(), comet.vectors.size(),
+                  comet.colors.size());
+  }
+
+  // --- the flight, and its numbers ----------------------------------------
+  // Per frame every strip arc re-sweeps one step forward along the
+  // winding (setSurfaceMesh per tile — same topology, an UpdateBuffer
+  // each), so the whole painted yarn marches behind the dart. Timed
+  // two ways: submit+flush throughput (drained at the end) and fully
+  // synced frames (render + GPU readback each time).
+  if (!stripIds.empty()) {
+    w->setCamera(shots[5].camera);
+    // One circumnavigation every 2400 frames (40 s at 60).
+    const auto animate = [&](int frame) {
+      const float shift =
+          wrap01(kFlagHome + (float)frame / 2400.0f);
+      for (int k = 0; k < kTiles; ++k)
+        w->setSweepWindow(
+            stripIds[(size_t)k],
+            wrap01(shift + (float)(k + 1) / (float)kTiles),
+            1.0f / (float)kTiles);
+      w->setTransform(dartId, dartTransform(flightLoop, shift));
+      // Two floats on the GUIDE; the comet re-cooks by cascade.
+      w->setPointsWindow(guideId, shift, kCometSpan);
+    };
+
+    const int kTimed = 240;
+    const auto start = std::chrono::steady_clock::now();
+    for (int frame = 0; frame < kTimed; ++frame) {
+      animate(frame);
+      w->render();
+    }
+    w->readback(); // drain, so the mean owns every submitted frame
+    const auto flushed = std::chrono::steady_clock::now();
+
+    const int kSynced = 30;
+    for (int frame = 0; frame < kSynced; ++frame) {
+      animate(frame);
+      w->render();
+      w->readback();
+    }
+    const auto synced = std::chrono::steady_clock::now();
+
+    const double renderMs =
+        std::chrono::duration<double, std::milli>(flushed - start)
+            .count() /
+        kTimed;
+    const double syncedMs =
+        std::chrono::duration<double, std::milli>(synced - flushed)
+            .count() /
+        kSynced;
+    std::printf("flight: %.2f ms/frame submitted+flushed (%.0f fps), "
+                "%.2f ms/frame with GPU readback (%.0f fps) — the re-sweeps "
+                "run as compute on the GPU\n",
+                renderMs, 1000.0 / renderMs, syncedMs,
+                1000.0 / syncedMs);
+
+    int flightWritten = 0;
+    for (int i = 0; i < 6; ++i) {
+      animate(i * 400); // six stations around one full loop
+      char name[40];
+      std::snprintf(name, sizeof(name), "world_marquee_flight_%d.png",
+                    i);
+      if (w->render() && w->savePng(outDir / name))
+        ++flightWritten;
+    }
+    std::printf("flight frames: %d/6\n", flightWritten);
+
+    // Showcase mode: argv[3] = a frame count dumps a continuous
+    // animation sequence (world_anim_0000.png ...) for ffmpeg.
+    const int animFrames = argc > 3 ? std::atoi(argv[3]) : 0;
+    int animWritten = 0;
+    for (int i = 0; i < animFrames; ++i) {
+      animate(i * 4); // 4 loop-steps per frame: one lap in 600 frames
+      char name[40];
+      std::snprintf(name, sizeof(name), "world_anim_%04d.png", i);
+      if (w->render() && w->savePng(outDir / name))
+        ++animWritten;
+    }
+    if (animFrames > 0)
+      std::printf("anim frames: %d/%d\n", animWritten, animFrames);
+  }
+
   std::printf("wrote %d/%d shots to %s\n", written, total,
               outDir.string().c_str());
   return written == total ? 0 : 1;

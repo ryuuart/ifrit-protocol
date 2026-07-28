@@ -2,6 +2,8 @@
 
 #include <sigilshape/Mesh.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <cmath>
 
 namespace sigil::world::scene {
@@ -10,18 +12,18 @@ namespace {
 constexpr float kDegToRad = (float)M_PI / 180.0f;
 }
 
-SkM44 Node::localMatrix() const {
-  SkM44 m = SkM44::Translate(m_position.x, m_position.y, m_position.z);
+glm::mat4 Node::localMatrix() const {
+  glm::mat4 m = glm::translate(glm::mat4(1.0f), m_position);
   if (m_yawDeg != 0)
-    m.preConcat(SkM44::Rotate({0, 1, 0}, m_yawDeg * kDegToRad));
+    m = glm::rotate(m, m_yawDeg * kDegToRad, glm::vec3{0, 1, 0});
   if (m_pitchDeg != 0)
-    m.preConcat(SkM44::Rotate({1, 0, 0}, m_pitchDeg * kDegToRad));
+    m = glm::rotate(m, m_pitchDeg * kDegToRad, glm::vec3{1, 0, 0});
   if (m_rollDeg != 0)
-    m.preConcat(SkM44::Rotate({0, 0, 1}, m_rollDeg * kDegToRad));
+    m = glm::rotate(m, m_rollDeg * kDegToRad, glm::vec3{0, 0, 1});
   if (m_scale != 1)
-    m.preScale(m_scale, m_scale, m_scale);
+    m = glm::scale(m, glm::vec3{m_scale});
   if (m_hasExtra)
-    m.preConcat(m_extra);
+    m *= m_extra;
   return m;
 }
 
@@ -51,19 +53,18 @@ Scene::Stats Scene::render(const Node &root) {
   // Depth-first flatten with accumulated transforms and key paths.
   struct Visit {
     const Node *node;
-    SkM44 parent;
+    glm::mat4 parent{1.0f};
     std::string path;
   };
   std::vector<Visit> stack;
-  stack.push_back({&root, SkM44(), ""});
+  stack.push_back({&root, glm::mat4(1.0f), ""});
 
   while (!stack.empty()) {
     Visit visit = stack.back();
     stack.pop_back();
     const Node &node = *visit.node;
 
-    SkM44 world = visit.parent;
-    world.preConcat(node.localMatrix());
+    const glm::mat4 world = visit.parent * node.localMatrix();
     std::string path = visit.path + "/" +
                        (node.m_key.empty() ? "@" : node.m_key);
 

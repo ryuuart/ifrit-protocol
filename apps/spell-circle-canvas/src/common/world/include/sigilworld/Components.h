@@ -9,9 +9,10 @@
  *   TransformComponent  the world matrix (mutate freely; the renderer
  *                       reads it every frame)
  *   MaterialComponent   the shading parameters (colors, metallic,
- *                       roughness, emissive are LIVE on mutation;
- *                       swapping `texture` needs a remove/re-add or a
- *                       scene re-describe — the SRB is baked)
+ *                       roughness, emissive, uvScale/uvOffset are
+ *                       LIVE on mutation; swapping `texture` needs a
+ *                       remove/re-add or a scene re-describe — the
+ *                       SRB is baked)
  *
  * plus a private GPU component (buffers, SRB) owned by World.cpp.
  * World::registry() hands out the registry itself, so systems compose
@@ -34,7 +35,7 @@
 namespace sigil::world {
 
 struct TransformComponent {
-  SkM44 model;
+  glm::mat4 model{1.0f};
 };
 
 struct MaterialComponent {
@@ -51,12 +52,12 @@ inline constexpr int kLightBudget = 8;
 struct LightComponent {
   enum class Type : uint8_t { Directional, Point };
   Type type = Type::Point;
-  SkColor4f color = {1, 1, 1, 1};
+  glm::vec4 color = {1, 1, 1, 1};
   float intensity = 1;
   /** Directional only: world-space direction toward the scene. */
-  SkV3 direction = {0, -1, 0};
+  glm::vec3 direction = {0, -1, 0};
   /** Point only: world-space position. */
-  SkV3 position = {0, 0, 0};
+  glm::vec3 position = {0, 0, 0};
   /** Point only: falloff radius — intensity fades smoothly to zero at
    *  this distance ((1 - (d/range)^2)^2, 1 at the light). */
   float range = 600;
