@@ -301,6 +301,11 @@ struct Instance {
   SkSize outlineCacheSize = {-1.0f, -1.0f};
   const ElementNode *outlineCacheDesc = nullptr;
 
+  // §16: stamped-brush bakes live with the NODE (handed to decorations via
+  // PaintContext::stamps), so a brush value rebuilt every describe reuses
+  // its art's bake instead of re-rastering it.
+  StampCache stampCache;
+
   ~Instance();
   float resolveFloat(Instance::Slot slot, const Animatable<float> &v) const;
   /** The same resolution over an explicitly-held motion — the span

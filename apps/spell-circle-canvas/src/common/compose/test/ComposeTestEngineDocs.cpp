@@ -982,8 +982,11 @@ TEST(ComposeInstances, RepeaterLawExponentialScaleLinearEverythingElse) {
   EXPECT_FLOAT_EQ(pool.positions()[3].fX, 25.0f); // linear translate
   EXPECT_FLOAT_EQ(pool.rotations()[3], 0.3f);     // linear rotate
   EXPECT_FLOAT_EQ(pool.scales()[3], 0.125f);      // pow(0.5, 3)
-  EXPECT_FLOAT_EQ(pool.tints()[0].fA, 1.0f);      // opacity lerp endpoints
-  EXPECT_FLOAT_EQ(pool.tints()[3].fA, 0.25f);
+  // The opacity lerp rides the ALPHA lane (§2 lane hygiene, 2026-07-27):
+  // repeat() no longer clobbers tints[].fA — the tint stays the author's.
+  EXPECT_FLOAT_EQ(pool.alphas()[0], 1.0f);        // opacity lerp endpoints
+  EXPECT_FLOAT_EQ(pool.alphas()[3], 0.25f);
+  EXPECT_FLOAT_EQ(pool.tints()[3].fA, 1.0f);      // untouched
 }
 
 // ---------------------------------------------------------------------------

@@ -151,6 +151,20 @@ public:
   }
   bool hasSizes() const { return m_sizes.size() == m_positions.size(); }
 
+  /** Per-instance OPACITY, opt-in like sizes() — multiplied into the
+   *  tint's alpha at stamp time (§2: `tints()` was the only opacity
+   *  lane, so fading a subset meant rewriting RGBA every frame when
+   *  only alpha moved). Composes with the tint: authored colour stays
+   *  authored, fades ride one float lane. `place::repeat`'s opacity
+   *  lerp writes THIS lane now, not the tint it used to clobber. */
+  std::span<float> alphas() {
+    if (m_alphas.size() != m_positions.size())
+      m_alphas.resize(m_positions.size(), 1.0f);
+    return m_alphas;
+  }
+  bool hasAlphas() const { return m_alphas.size() == m_positions.size(); }
+  std::span<const float> alphas() const { return m_alphas; }
+
   std::span<const SkPoint> positions() const { return m_positions; }
   std::span<const float> rotations() const { return m_rotations; }
   std::span<const float> scales() const { return m_scales; }
@@ -178,7 +192,8 @@ private:
   std::vector<float> m_scales;
   std::vector<SkColor4f> m_tints;
   std::vector<int> m_frames;
-  std::vector<SkSize> m_sizes; // empty unless sizes() was asked for
+  std::vector<SkSize> m_sizes;  // empty unless sizes() was asked for
+  std::vector<float> m_alphas;  // empty unless alphas() was asked for
   std::vector<SkRect> m_texWindows; // empty unless texWindows() was asked for
   uint64_t m_revision = 0;
 };
@@ -214,6 +229,42 @@ public:
     m_cells.push_back({std::move(tree), logicalSize});
     m_sheet.reset();
     return (int)m_cells.size() - 1;
+  }
+
+  /** VARIANTS (§2): several BAKES of one recipe, addressed as
+   *  (cell, variant) — `make(v)` is called for v ∈ [0, count) and each
+   *  result registered as its own frame; the return is the FIRST frame
+   *  index, so variant v of the set is frame `first + v` in
+   *  Pool::frames(). This is the faithful flyweight for the cases more
+   *  Pool columns cannot reach because the variant is a RE-RENDER, not a
+   *  transform of baked pixels: X-COM's types × shades (a per-channel
+   *  ramp `tints()` provably cannot express — the study measured red
+   *  2.4× too bright under the best single scalar), KSP's gizmo arms at
+   *  two lengths, the astrolabe's re-stroked rings. Hand-packing
+   *  variants into one cell and windowing with `Pool::texWindows()`
+   *  remains the spelling when the variants ARE crops of one drawing. */
+  int variants(int count, SkSize logicalSize,
+               const std::function<Element(int)> &make) {
+    int first = -1;
+    for (int v = 0; v < count; ++v) {
+      const int idx = cell(make(v), logicalSize);
+      if (v == 0)
+        first = idx;
+    }
+    return first;
+  }
+  /** The general form: each variant brings its own logical size (KSP's
+   *  two arm lengths — one recipe, two geometries). */
+  int variants(int count,
+               const std::function<std::pair<Element, SkSize>(int)> &make) {
+    int first = -1;
+    for (int v = 0; v < count; ++v) {
+      auto [tree, size] = make(v);
+      const int idx = cell(std::move(tree), size);
+      if (v == 0)
+        first = idx;
+    }
+    return first;
   }
   int frameCount() const { return (int)m_cells.size(); }
   SkSize frameSize(int frame) const {
@@ -375,7 +426,10 @@ inline void stamp(SkCanvas &canvas, const PaintContext &ctx, Atlas &atlas,
     tex.push_back(cellTex);
     if (nonUniform)
       sizes.push_back(sizeMul);
-    const SkColor tint = tints[i].toSkColor();
+    SkColor4f t = tints[i];
+    if (pool.hasAlphas())
+      t.fA *= pool.alphas()[i]; // the fade lane composes with the tint
+    const SkColor tint = t.toSkColor();
     tinted |= tint != SK_ColorWHITE;
     colors.push_back(tint);
   }
@@ -413,6 +467,57 @@ enum class Mode {
    *  mutate from a ticker steppable, keep the host redrawing). */
   Live,
 };
+
+/** PICK a stamped instance (§2): the index of the topmost instance whose
+ *  drawn quad contains @p point (in the same local pixels the pool's
+ *  positions are in), or nullopt. `hitTest` cannot see inside the
+ *  instancing leaf — the whole pool is one custom() draw — so picking a
+ *  stamped cell used to mean writing your own inverse projection beside
+ *  the one that placed it; confirmed at a second call site by the X-COM
+ *  study, which escaped only because its reference publishes its own
+ *  inverse. This IS that inverse, against the same lanes the stamp
+ *  reads: position/rotation/scale, the sizes() and texWindows() lanes
+ *  when present, and the frame's logical size. Iterates topmost-first
+ *  (later instances draw on top). Alpha does not exempt an instance —
+ *  a faded stamp still picks, like a translucent Element. */
+inline std::optional<size_t> pick(const Pool &pool, const Atlas &atlas,
+                                  SkPoint point) {
+  const auto positions = pool.positions();
+  const auto rotations = pool.rotations();
+  const auto scales = pool.scales();
+  const auto frames = pool.frames();
+  const auto sizes = pool.sizes();
+  const auto windows = pool.texWindows();
+  const bool nonUniform = sizes.size() == positions.size();
+  const bool windowed = windows.size() == positions.size();
+  const int frameCount = atlas.frameCount();
+  if (frameCount == 0)
+    return std::nullopt;
+  for (size_t n = positions.size(); n-- > 0;) {
+    const int frame = std::clamp(frames[n], 0, frameCount - 1);
+    SkSize half = atlas.frameSize(frame);
+    if (half.isEmpty())
+      continue;
+    if (windowed)
+      half = {half.width() * windows[n].width(),
+              half.height() * windows[n].height()};
+    const SkSize mul = nonUniform ? sizes[n] : SkSize{1.0f, 1.0f};
+    const float sx = scales[n] * mul.width(), sy = scales[n] * mul.height();
+    if (sx == 0.0f || sy == 0.0f)
+      continue;
+    // Inverse of the stamp's RSXform: translate to the anchor (the quad
+    // centre), un-rotate, un-scale, test against the half-extents.
+    const float dx = point.fX - positions[n].fX;
+    const float dy = point.fY - positions[n].fY;
+    const float c = std::cos(-rotations[n]), s = std::sin(-rotations[n]);
+    const float lx = (dx * c - dy * s) / sx;
+    const float ly = (dx * s + dy * c) / sy;
+    if (std::abs(lx) <= half.width() * 0.5f &&
+        std::abs(ly) <= half.height() * 0.5f)
+      return n;
+  }
+  return std::nullopt;
+}
 
 /** The single-draw stamping leaf. It FILLS ITS PARENT (absolute, inset
  *  0) — wrap it in a sized or positioned box, and pool positions are that
@@ -490,23 +595,43 @@ inline void ring(Pool &pool, size_t count, SkPoint center, float radius,
 }
 
 /** The skottie Repeater law: per-copy linear translate + linear rotate,
- *  EXPONENTIAL scale (pow(scaleStep, i)), start→end opacity lerp folded
- *  into the tint alpha. */
+ *  EXPONENTIAL scale (pow(scaleStep, i)), start→end opacity lerp on the
+ *  ALPHA lane.
+ *
+ *  LANE HYGIENE (§2, fixed 2026-07-27): this used to write
+ *  `tints[i].fA` unconditionally — clobbering an authored tint alpha
+ *  even at the default opacity — and could not set `frame`, so every
+ *  mixed-frame call site re-walked the lanes by hand. The opacity lerp
+ *  rides the dedicated `alphas()` lane now (composing with authored
+ *  tints instead of overwriting them), it is written only when the
+ *  opacity parameters say something, and `frame` writes the frame lane
+ *  only when asked (>= 0). A generator writes the lanes its parameters
+ *  use, and no others. */
 inline void repeat(Pool &pool, size_t count, SkPoint start, SkPoint translate,
                    float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
-                   float opacityFrom = 1.0f, float opacityTo = 1.0f) {
+                   float opacityFrom = 1.0f, float opacityTo = 1.0f,
+                   int frame = -1) {
   pool.resize(count);
   auto positions = pool.positions();
   auto rotations = pool.rotations();
   auto scales = pool.scales();
-  auto tints = pool.tints();
   for (size_t i = 0; i < count; ++i) {
-    const float t = count > 1 ? (float)i / (float)(count - 1) : 0.0f;
     positions[i] = {start.fX + translate.fX * (float)i,
                     start.fY + translate.fY * (float)i};
     rotations[i] = rotateStepRadians * (float)i;
     scales[i] = std::pow(scaleStep, (float)i);
-    tints[i].fA = opacityFrom + (opacityTo - opacityFrom) * t;
+  }
+  if (opacityFrom != 1.0f || opacityTo != 1.0f) {
+    auto alphas = pool.alphas();
+    for (size_t i = 0; i < count; ++i) {
+      const float t = count > 1 ? (float)i / (float)(count - 1) : 0.0f;
+      alphas[i] = opacityFrom + (opacityTo - opacityFrom) * t;
+    }
+  }
+  if (frame >= 0) {
+    auto frames = pool.frames();
+    for (size_t i = 0; i < count; ++i)
+      frames[i] = frame;
   }
   pool.commit();
 }

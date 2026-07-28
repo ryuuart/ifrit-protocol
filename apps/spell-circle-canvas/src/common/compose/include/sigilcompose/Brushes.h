@@ -926,12 +926,26 @@ struct Scatter {
   void paint(SkCanvas &c, const PaintContext &ctx) const {
     if (spacing <= 0 || !ctx.fonts)
       return;
-    if (!cache->pic || cache->bakedFor != art.node().get()) {
-      // shell box: snapshot ignores the ROOT's own dims
-      cache->pic = snapshot(box().child(art), *ctx.fonts);
-      cache->bakedFor = art.node().get();
+    // §16: prefer the instance-side store — a brush value rebuilt every
+    // describe finds its art's bake there; the value member remains the
+    // standalone-paint fallback.
+    sk_sp<SkPicture> pic;
+    if (ctx.stamps) {
+      if (const StampCache::Entry *e = ctx.stamps->get(art.node()))
+        pic = e->pic;
+      if (!pic) {
+        // shell box: snapshot ignores the ROOT's own dims
+        pic = snapshot(box().child(art), *ctx.fonts);
+        ctx.stamps->put(art.node(), {pic, nullptr, {0, 0}});
+      }
+    } else {
+      if (!cache->pic || cache->bakedFor != art.node().get()) {
+        cache->pic = snapshot(box().child(art), *ctx.fonts);
+        cache->bakedFor = art.node().get();
+      }
+      pic = cache->pic;
     }
-    if (!cache->pic)
+    if (!pic)
       return;
 
     // An unset place.interval takes `spacing` — the sugar, resolved where
@@ -952,7 +966,7 @@ struct Scatter {
         m.rotateDeg +=
             shapes::detail::hashNoise(seed, 4 * k + 3) * jitterRotateDeg;
       }
-      detail::drawStamp(c, *cache->pic, samples[i], alignToPath, 0, 1, 1, m);
+      detail::drawStamp(c, *pic, samples[i], alignToPath, 0, 1, 1, m);
     }
   }
 };
@@ -1093,18 +1107,16 @@ struct Pattern {
   /** The baked tile art. Keyed on the art Element's node POINTER, which is
    *  what makes the next paragraph a trap.
    *
-   *  THE CACHE LIVES IN THE BRUSH VALUE. Copy the brush and the copy shares
-   *  this cache (shared_ptr); CONSTRUCT a new brush and it gets an empty
-   *  one. So a Pattern built inside a per-frame describe — inside the
-   *  function passed to renderSlot(), say — re-bakes every tile it has,
-   *  every frame, and each bake is a full reconcile + layout + record pass
-   *  through snapshot(). One study measured eighteen of those per frame.
-   *
-   *  Build the brush ONCE and keep it (a member, a static, anything that
-   *  outlives the frame), or keep the art Elements pointer-stable and copy
-   *  the brush rather than rebuilding it. The same rule the rest of the
-   *  library states as "keep the callable pointer-stable to prune" — here
-   *  it costs raster work, not just a diff. */
+   *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed): inside a
+   *  composer the bakes live in the INSTANCE's StampCache, handed in via
+   *  PaintContext::stamps and keyed on the art's node with a weak guard —
+   *  so a brush value rebuilt by every describe (the renderSlot() trap
+   *  that once cost eighteen snapshot() passes per frame) finds its
+   *  art's bake instead of re-rastering it. What still re-bakes is a
+   *  NEW ART NODE each describe: keep the art Element pointer-stable
+   *  (a member, a static, a captured value) — its node is the cache
+   *  key. This member cache serves standalone paints (no composer, no
+   *  PaintContext::stamps): copies share it; fresh values start empty. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
     const void *bakedSide = nullptr;
@@ -1132,16 +1144,28 @@ struct Pattern {
       cache->bakedEnd = endNode;
       cache->bakedCorner = cornerNode;
     }
-    auto bake = [&](const std::optional<Element> &e, sk_sp<SkPicture> &slot) {
-      if (e && !slot) // shell box: snapshot ignores the ROOT's own dims
-        slot = snapshot(box().child(*e), *ctx.fonts);
+    // §16: each slot warms from the instance-side store first, so a
+    // Pattern value rebuilt every describe (empty member cache) reuses
+    // its arts' bakes; misses bake once and publish back.
+    auto bake = [&](const Element &e, sk_sp<SkPicture> &slot) {
+      if (slot)
+        return;
+      if (ctx.stamps)
+        if (const StampCache::Entry *hit = ctx.stamps->get(e.node()))
+          slot = hit->pic;
+      if (!slot) { // shell box: snapshot ignores the ROOT's own dims
+        slot = snapshot(box().child(e), *ctx.fonts);
+        if (ctx.stamps && slot)
+          ctx.stamps->put(e.node(), {slot, nullptr, {0, 0}});
+      }
     };
-    if (!cache->side)
-      cache->side = snapshot(box().child(side), *ctx.fonts);
-    bake(start, cache->start);
-    bake(end, cache->end);
-    if (corner && !cache->corner)
-      cache->corner = snapshot(box().child(corner->art), *ctx.fonts);
+    bake(side, cache->side);
+    if (start)
+      bake(*start, cache->start);
+    if (end)
+      bake(*end, cache->end);
+    if (corner)
+      bake(corner->art, cache->corner);
     if (!cache->side)
       return;
     const float tileLen =
@@ -1461,6 +1485,17 @@ struct Art {
     if (!cache->image || cache->bakedFor != art.node().get()) {
       cache->bakedFor = art.node().get();
       cache->image = nullptr;
+      // §16: the most expensive of the three bakes (2x raster) — the
+      // instance-side store is consulted before any raster work.
+      if (ctx.stamps) {
+        if (const StampCache::Entry *hit = ctx.stamps->get(art.node());
+            hit && hit->image) {
+          cache->image = hit->image;
+          cache->artSize = hit->artSize;
+        }
+      }
+    }
+    if (!cache->image) {
       // shell box: snapshot/measure ignore the ROOT's own dims
       const SkSize sz = measure(box().child(art), *ctx.fonts);
       if (sz.isEmpty())
@@ -1476,6 +1511,8 @@ struct Art {
       surface->getCanvas()->drawPicture(pic);
       cache->image = surface->makeImageSnapshot();
       cache->artSize = sz;
+      if (ctx.stamps && cache->image)
+        ctx.stamps->put(art.node(), {nullptr, cache->image, cache->artSize});
     }
     if (!cache->image)
       return;

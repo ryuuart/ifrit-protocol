@@ -1498,3 +1498,46 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
 
 // ---------------------------------------------------------------------------
 // The unified Brush engine: geometry pipeline → paint layers, as ONE value.
+
+
+// ---------------------------------------------------------------------------
+// §16: stamped-brush bakes live with the INSTANCE, not in the brush value.
+
+TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
+  // The renderSlot() trap, reproduced: a FRESH Scatter value each describe
+  // (empty member cache) around a pointer-stable art, on a node that
+  // repaints every frame. The instance-side StampCache means the art
+  // bakes ONCE; before it, this fixture re-ran snapshot() every frame —
+  // the only place in the library where re-describing cost raster work.
+  static int bakes;
+  bakes = 0;
+  const Element art = // stable: its node pointer is the cache key
+      box().width(8).height(8).child(
+          custom([](SkCanvas &c, const PaintContext &) {
+            ++bakes;
+            SkPaint p;
+            p.setColor(SK_ColorRED);
+            c.drawRect(SkRect::MakeWH(8, 8), p);
+          }).width(8).height(8).cache(Cache::None));
+  Host host;
+  auto tree = [&] {
+    brush::Scatter s; // fresh VALUE: empty member cache, on purpose
+    s.art = art;
+    s.spacing = 20;
+    s.alignToPath = false;
+    return box().child(box().width(120).height(120)
+                           .cache(Cache::None) // repaints every frame
+                           .stroke(std::move(s)));
+  };
+  for (int i = 0; i < 5; ++i) {
+    host.composer.render(tree());
+    host.frame();
+  }
+  EXPECT_EQ(bakes, 1)
+      << "a pointer-stable art re-baked under rebuilt brush values";
+  int reds = 0; // and the stamps really draw, wherever spacing lands them
+  for (int x = 0; x < 130; ++x)
+    for (int y = 0; y < 10; ++y)
+      reds += host.pixel(x, y) == SK_ColorRED;
+  EXPECT_GT(reds, 20);
+}

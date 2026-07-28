@@ -580,9 +580,59 @@ struct PaintContext {
           return p;
     return SkPath();
   }
+
+  /** The instance's stamp-bake store (§16) — null outside a composer
+   *  (standalone decoration paints fall back to the brush value's own
+   *  cache). Mutable through a const context on purpose: a bake is a
+   *  cache write, not a paint output. */
+  class StampCache *stamps = nullptr;
 };
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
+
+/** The INSTANCE-SIDE bake store for stamped brushes (§16, ruling 6): tile
+ *  bakes live with the NODE, not in the brush value, so a brush value
+ *  rebuilt by every describe finds its art's bake instead of re-baking —
+ *  the only place in the library where re-describing used to cost raster
+ *  work rather than a diff (one study measured eighteen full snapshot()
+ *  passes per frame from a brush constructed inside renderSlot()).
+ *
+ *  Keyed on the art Element's node with a WEAK GUARD: a process-wide map
+ *  on the raw pointer was rejected in the entry because a freed node's
+ *  recycled address would silently inherit the wrong art; holding the
+ *  weak handle makes that structurally impossible — a recycled key fails
+ *  the lock-identity check and re-bakes. Entries carry either a picture
+ *  (Pattern/Scatter tiles) or a rastered image + logical size (Art's 2x
+ *  bake); each consumer reads only its own kind. */
+class StampCache {
+public:
+  struct Entry {
+    sk_sp<SkPicture> pic;
+    sk_sp<SkImage> image;
+    SkSize artSize{0, 0};
+  };
+  /** The entry for `key`, or null — never a recycled address's entry. */
+  const Entry *get(const std::shared_ptr<const void> &key) const {
+    auto it = m_entries.find(key.get());
+    if (it == m_entries.end())
+      return nullptr;
+    if (it->second.first.lock() != key)
+      return nullptr; // the address was recycled: not this art's bake
+    return &it->second.second;
+  }
+  void put(const std::shared_ptr<const void> &key, Entry entry) {
+    // A node's stamp arts are few; a runaway map means keys churn every
+    // frame, and keeping stale bakes alive would pin their nodes' memory.
+    if (m_entries.size() >= 16)
+      m_entries.clear();
+    m_entries[key.get()] = {std::weak_ptr<const void>(key), std::move(entry)};
+  }
+
+private:
+  std::unordered_map<const void *,
+                     std::pair<std::weak_ptr<const void>, Entry>>
+      m_entries;
+};
 
 /**
  * Post-processing at stacking-context boundaries. `filter` wraps any

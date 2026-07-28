@@ -1232,7 +1232,8 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                               &fonts,
                               inst.borrowedPaths.empty()
                                   ? nullptr
-                                  : &inst.borrowedPaths};
+                                  : &inst.borrowedPaths,
+                              &inst.stampCache};
 
   // ---- the masking family, part 2: the PLANE gates ------------------------
   //

@@ -1518,3 +1518,85 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
   EXPECT_NEAR(rules(/*vertical=*/true), 6, 1);   // 120 / 20
   EXPECT_NEAR(rules(/*vertical=*/false), 15, 2); // 120 / 8
 }
+
+
+TEST(ComposeInstances, VariantsAreConsecutiveBakesOfOneRecipe) {
+  // §2: (cell, variant) — several BAKES of one recipe. The X-COM shade
+  // shape in miniature: three shades of one tile, each a re-render (a
+  // per-channel ramp tints() cannot express), addressed as first + v.
+  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  const int first = atlas->variants(3, {20, 20}, [](int v) {
+    const float g = 0.2f + 0.3f * (float)v; // three distinct shades
+    return box().fill(Fill::color({g, g, g, 1}));
+  });
+  EXPECT_EQ(atlas->frameCount(), 3);
+  auto pool = std::make_shared<instancing::Pool>();
+  for (int v = 0; v < 3; ++v)
+    pool->add({30.0f + 60.0f * (float)v, 30.0f});
+  auto frames = pool->frames();
+  for (int v = 0; v < 3; ++v)
+    frames[v] = first + v;
+  pool->commit();
+  Host host(200, 200);
+  host.composer.render(box().absolute().inset(0).child(
+      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.frame();
+  const unsigned r0 = SkColorGetR(host.pixel(30, 30));
+  const unsigned r1 = SkColorGetR(host.pixel(90, 30));
+  const unsigned r2 = SkColorGetR(host.pixel(150, 30));
+  EXPECT_LT(r0 + 20, r1); // strictly brighter per variant
+  EXPECT_LT(r1 + 20, r2);
+}
+
+TEST(ComposeInstances, TheAlphaLaneFadesWithoutTouchingTheTint) {
+  // §2: tints() was the only opacity lane. alphas() is opt-in, composes
+  // with the authored tint, and place::repeat writes IT rather than
+  // clobbering tints — the lane-hygiene repair.
+  auto atlas = std::make_shared<instancing::Atlas>(1.0f);
+  atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 40});
+  auto pool = std::make_shared<instancing::Pool>();
+  instancing::place::repeat(*pool, 2, {40, 40}, {80, 0}, 0.0f, 1.0f,
+                            1.0f, 0.25f);
+  Host host(200, 200);
+  host.composer.render(box().absolute().inset(0).child(
+      instancing::instances(atlas, pool, instancing::Mode::Data)));
+  host.frame();
+  const unsigned full = SkColorGetR(host.pixel(40, 40));
+  const unsigned faded = SkColorGetR(host.pixel(120, 40));
+  EXPECT_GT(full, 240u);          // first copy at full opacity
+  EXPECT_LT(faded, 100u);         // last copy at 25% over black
+  EXPECT_GT(faded, 20u);
+  // …and the tint lane was never written: the fade is alphas()'s.
+  EXPECT_EQ(pool->tints()[1].fA, 1.0f);
+  EXPECT_TRUE(pool->hasAlphas());
+}
+
+TEST(ComposeInstances, PickInvertsTheStampTopmostFirst) {
+  // §2: hitTest cannot see a pool instance (the field is one custom()
+  // draw). pick() is the inverse projection, against the same lanes the
+  // stamp reads — rotation, scale, and topmost-wins where stamps overlap.
+  using namespace sigil::compose::instancing;
+  Atlas atlas(1.0f);
+  atlas.cell(box().fill(Fill::color({1, 0, 0, 1})), {40, 20});
+  Pool pool;
+  pool.add({100, 100});          // instance 0
+  pool.add({120, 100});          // instance 1, overlapping 0's right side
+  pool.scales()[1] = 0.5f;       // 20x10 quad at (120,100)
+  pool.rotations()[0] = (float)M_PI / 2.0f; // 0 is rotated 90°: 20x40 now
+  pool.commit();
+
+  // Overlap region: (118, 100) is inside both — topmost (1) wins.
+  auto hit = pick(pool, atlas, {118, 100});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, 1u);
+  // Rotation honoured: (100, 117) is inside 0's rotated quad (tall now),
+  // outside its unrotated footprint.
+  hit = pick(pool, atlas, {100, 117});
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(*hit, 0u);
+  // …and (117, 100) horizontally would have been inside UNrotated 0 but
+  // is outside the rotated quad and outside 1.
+  EXPECT_FALSE(pick(pool, atlas, {84, 100}).has_value());
+  // Scale honoured: outside 1's shrunken quad.
+  EXPECT_FALSE(pick(pool, atlas, {135, 100}).has_value());
+}
