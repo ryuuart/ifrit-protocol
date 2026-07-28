@@ -94,7 +94,12 @@ bottleneck at 60 fps, this is dead.
 Risk: Slug lives in `include/private/chromium/` — unversioned, absent
 from RELEASE_NOTES, free to vanish on a bump. Adoption goes behind a
 thin seam or not at all.
-**2026-07-26 — slot reserved, nothing integrated.**
+**2026-07-27 — DEAD by its own criterion, CLOSED.** §1's flip removed
+the cost Slug would have saved: dense-text picture replay is now
+57.7 µs against the 42.0 µs texture-blit floor (same run, CVs < 1%),
+so glyph re-planning per replay is bounded above by 15.7 µs/frame —
+~0.1% of a 60 fps budget. Not a bottleneck; the private-API risk buys
+nothing. The bench slot stays as the re-open hook. Prior status:
 `BM_Draw_DenseText_SlugReplay` is registered in compose_bench beside the
 `_PictureReplay` / `_TextureBlit` pair and reports SKIPPED with the gate
 in its message. No Slug header is included and no seam exists; filling
@@ -165,7 +170,12 @@ does need the bump).
 `Shaper.cpp:175-177`: at `kMaxShapeEntries` the whole map clears —
 every ShapedWord AND every cached blob at once. Not a Skia issue, but
 it is the cliff under any blob/Slug caching above (§2/§3 degrade
-gracefully only if this does). Measure: the cold-path bench
+gracefully only if this does).
+**2026-07-27 — DORMANT: the load-bearing condition is unmet.** §2 came
+back evidence-negative and §3 is dead, so nothing above this cliff
+exists to protect (§4's intercept memo keys on blob uniqueID and
+simply refills after a clear). Stays diagnosis-only per the 2026-07-26
+note; the oversubscribing arm remains unbuilt by design. Measure: the cold-path bench
 (`BM_Update_ReplaceWholeParagraph_Cold_500w`) plus a corpus that
 oversubscribes `kMaxShapeEntries`.
 

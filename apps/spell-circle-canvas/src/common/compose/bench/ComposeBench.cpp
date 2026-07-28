@@ -294,8 +294,10 @@ BENCHMARK(BM_Draw_DenseText_TextureBlit);
  *  Graphite measurement in hand. */
 static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
   state.SkipWithMessage(
-      "gated on ROADMAP §3: measure BM_Draw_DenseText_PictureReplay_Graphite "
-      "first; Slug integration needs a seam decision");
+      "weave ROADMAP §3 adjudicated DEAD 2026-07-27: with ordered "
+      "recordings (§1) dense-text picture replay is 57.7us against a "
+      "42.0us blit floor — Slug's win is bounded by that 15.7us gap. "
+      "The slot stays as the re-open hook if replay cost ever returns");
 }
 BENCHMARK(BM_Draw_DenseText_SlugReplay);
 
