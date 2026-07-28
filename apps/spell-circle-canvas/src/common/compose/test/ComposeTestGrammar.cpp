@@ -1227,10 +1227,9 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
     };
     host.composer.render(tree());
     host.frame();
-    const auto recorded = host.composer.stats().picturesRecorded;
     host.composer.render(tree());
     host.frame();
-    EXPECT_EQ(host.composer.stats().picturesRecorded, recorded)
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
         << "an identical profiled ribbon re-recorded — the prune is not real";
   }
   EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 999.0f), 24.0f);
@@ -1918,15 +1917,3 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
       << "…and a static one must still cache";
 }
 
-// ---------------------------------------------------------------------------
-// PHASE R4 — THE MASKING FAMILY
-//
-// `trim()` and `wipe()` are gone; one verb replaced both, and it is a
-// relation between two named factors: `parts::` says WHICH of a node's
-// paint outputs a mask reaches, `by::` says HOW that paint arrives.
-//
-// The eight tests S1–S8 below are the design's own sample set — eight real
-// corpus sites, chosen because each one broke a different candidate shape.
-// They are here as tests because a family designed against eight pictures
-// should be able to draw all eight, and because the shape that could not
-// draw one of them was rejected for exactly that.

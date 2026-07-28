@@ -604,7 +604,11 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   // ---- patterns: grain's FIVE parameters --------------------------------
   (void)patterns::grain(0.02f, 4, 7.0f);              // the documented three
   (void)patterns::grain(0.02f, 4, 7.0f, 1.6f, 3.0f);  // contrast + stretch
-  (void)patterns::noise(0.02f, 4, 1.0f, 0.5f);
+  // turbulence is a BOOL (fractal vs turbulence mode), not an amount — the
+  // first draft of this line passed 0.5f and the implicit conversion
+  // compiled it silently to `true`, which is exactly the class of defect
+  // this suite exists to catch (§25).
+  (void)patterns::noise(0.02f, 4, 1.0f, true);
 
   (void)plain; (void)dashed; (void)capped; (void)inner; (void)outer;
   (void)material; (void)stamped; (void)effected; (void)walk;
@@ -1246,3 +1250,4 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
 
 // ---------------------------------------------------------------------------
 // Shaped bindings — bind(&out).from().map().to().clamp()
+

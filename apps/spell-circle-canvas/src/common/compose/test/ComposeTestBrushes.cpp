@@ -1,5 +1,8 @@
 #include "ComposeTestSupport.h"
 
+// ---------------------------------------------------------------------------
+// decorations::Border — brackets, gapped rules, weighted corners, insets.
+
 namespace {
 Fill white() { return Fill::color({1, 1, 1, 1}); }
 /** A 100x100 blue panel with `dec` as its foreground, in a 200x200 host.
@@ -640,16 +643,6 @@ namespace {
  *  got wrong and the ones promotion refuses. */
 choreograph::Output<float> gSplitSweep{0.0f};
 
-/** ONE effect for the whole process, and this is not tidiness.
- *
- *  `heavyEffect()` mints a fresh SkRuntimeEffect on every call, and a fresh
- *  effect makes the material RECIPE compare unequal — so a fixture that
- *  re-describes each frame dirties the node's own paint each frame and no
- *  bake of any kind can hold. Every other cache test in this file calls
- *  `render()` once and then `frame()`, so none of them ever met this. The
- *  split has to re-describe, because the whole point is that the child
- *  moves. The corpus does not hit it because real materials are built from
- *  comparable values; a raw SkSL pointer is the one thing that is not. */
 
 Element splitPlane(bool clipped, SkBlendMode childBlend) {
   Element plane = box()

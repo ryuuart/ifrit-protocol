@@ -1,5 +1,18 @@
 #include "ComposeTestSupport.h"
 
+// ---------------------------------------------------------------------------
+// PHASE R4 — THE MASKING FAMILY
+//
+// `trim()` and `wipe()` are gone; one verb replaced both, and it is a
+// relation between two named factors: `parts::` says WHICH of a node's
+// paint outputs a mask reaches, `by::` says HOW that paint arrives.
+//
+// The eight tests S1–S8 below are the design's own sample set — eight real
+// corpus sites, chosen because each one broke a different candidate shape.
+// They are here as tests because a family designed against eight pictures
+// should be able to draw all eight, and because the shape that could not
+// draw one of them was rejected for exactly that.
+
 namespace {
 
 /** A 100×100 box at (20,20) whose boundary is the ring `boundaryRing`

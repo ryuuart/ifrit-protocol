@@ -567,20 +567,6 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
 // ---------------------------------------------------------------------------
 // Line patterns (Lines.h) — the beyond-dashes stroke vocabulary.
 
-namespace {
-/** Counts distinct painted runs in a vertical scan column. */
-int verticalRuns(Host &host, int x, int y0, int y1, SkColor color) {
-  int runs = 0;
-  bool in = false;
-  for (int y = y0; y <= y1; ++y) {
-    const bool hit = host.pixel(x, y) == color;
-    if (hit && !in)
-      ++runs;
-    in = hit;
-  }
-  return runs;
-}
-} // namespace
 
 TEST(ComposeLines, TripleRailStrokesThreeBands) {
   Host host;

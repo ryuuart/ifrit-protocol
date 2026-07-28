@@ -802,3 +802,4 @@ TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
 
 // ---------------------------------------------------------------------------
 // The stroke grammar (ROADMAP §33 stage one): shape(), spans, band().
+
