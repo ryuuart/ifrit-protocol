@@ -38,6 +38,7 @@ SkPath unitBox() {
 
 } // namespace
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): the OutlineIsGone half asserts nothing; the file has the idiom (static_assert on the dead word) — add it.
 TEST(ComposeShapeRename, ShapeOverridesTheBoxAndOutlineIsGone) {
   // `outline()` was deleted in R3; `shape()` is the one spelling, and what
   // it does is override the node's rect with a generated path.
@@ -298,6 +299,7 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
       << "the middle was filled";
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low-medium): one data point cannot show linearity, and this is the one machine-speed-dependent assertion in the file; rename to the 700ms-regression pin it actually is, or add a second radius.
 TEST(ComposeBand, ConstructionIsLinearInSpineLength) {
   // sampleRail asked bandPointAt per sample, and bandPointAt re-measures the
   // whole path every call — quadratic. Measured at 700 ms for an r=550 ring.
@@ -574,6 +576,7 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (medium): the Inner half is conceded untested in the closing comment (Align::Center only); real Inner coverage is in ReachReportsTheMarkWhereBleedReportsNothing — rename + drop the dead align param.
 TEST(ComposeComposites, TheRepairCoversShallowCrossingsAndInnerStrokes) {
   // The disc this replaced under-covered twice over. At a SHALLOW angle the
   // two marks overlap in a long lens whose extent goes as reach/sin(theta),
@@ -713,6 +716,7 @@ TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
   EXPECT_EQ(host.pixel(100, 120), SK_ColorBLACK) << "nothing else moved";
 }
 
+// AUDIT-FLAG 2026-07-27 — VACUOUS (high): three static_asserts compare a type to itself (R3's rename sweep turned the brushes::-identity pins into tautologies); trim to the two live assertions + retitle.
 TEST(ComposeBrushKinds, TheKindsAreTheOldTypesUnderTaughtNames) {
   // Naming alignment only — no behaviour change, and the legacy spellings
   // are the SAME types (§27).
@@ -949,6 +953,7 @@ struct LinearTaper {
 };
 } // namespace
 
+// AUDIT-FLAG 2026-07-27 — REDUNDANT (medium): all three assertions remade with more in ComposeWidthProfile.TheLastNeverPruneRibbonsCanPruneNow; fraction-key reflexivity also in ComposeBand.ProfilesAreComparableAndReflexive; delete candidate.
 TEST(ComposeR1Ribbon, ProfileIsComparableAndBoundsItsOwnReach) {
   brush::Ribbon a;
   a.width = Profile(LinearTaper{});
@@ -1273,6 +1278,7 @@ TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
   EXPECT_GT(inkedCount(qualified), 10u) << "the wire actually drew";
 }
 
+// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): two-arm EXPECT_EQ with no liveness guard; add the inkedCount bound.
 TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
   auto draw = [](bool freeVerb) {
     Host host(300, 200);
@@ -1500,6 +1506,7 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
   EXPECT_LT(inkedCount(spanned), spanned.size());
 }
 
+// AUDIT-FLAG 2026-07-27 — VACUOUS (medium): EXPECT_EQ(two arms) cannot distinguish pin from wrap, and no inkedCount guard — blank==blank passes; add both.
 TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
   // Row: clamped behaviour — fractions outside [0,1] pin rather than
   // wrap. normalizeSpans clamps the same way.
@@ -1518,6 +1525,7 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
   EXPECT_EQ(draw(false), draw(true));
 }
 
+// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): EXPECT_EQ(armA, armB) with no inkedCount guard — a mutually blank render passes; add the bound the sibling rows carry.
 TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
   // Row: plain bound endpoints, both modes' shared case.
   choreograph::Output<float> begin, end;
@@ -1573,6 +1581,7 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   }
 }
 
+// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): same as BoundEndpointsScrubTheSameWindow — add the inkedCount bound.
 TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
   // Row: composer-manufactured endpoints under Clamp.
   auto host = [](bool useLegacyTrim) {

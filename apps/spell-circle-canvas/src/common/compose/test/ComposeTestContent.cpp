@@ -1264,6 +1264,7 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
 // Round-2 friction batch: mount entrances, trim wrap, per-side insets,
 // overflow-safe recording, stroke align, measure(), presets, marquee.
 
+// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): strict subset of AnimatePlaysEntranceOnMount (which adds the mid-ramp pin); delete candidate.
 TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
   Host host;
   host.composer.render(
@@ -1284,6 +1285,7 @@ TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED); // still settled
 }
 
+// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): byte-duplicate of AnimateColorSweepsOnMount — the R2 port added the twin and never removed this; delete candidate.
 TEST(ComposeMotion, WithFromColorSweepsOnMount) {
   Host host;
   host.composer.render(box().child(box().width(80).height(80).fill(

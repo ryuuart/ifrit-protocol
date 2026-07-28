@@ -86,6 +86,7 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
 
 // ---- S3 · the retarget: one mask in both branches -------------------------
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (medium): phase-0 parks at 0.0001, so retarget vs fresh-mount are numerically indistinguishable; park ABOVE target (e.g. 0.8 -> 0.5) to discriminate.
 TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
   // ScenesBeethoven: phase 0 is unswept, phase 1 sweeps each arc over its
   // measured span. `animate(to(span))` is RAMP-ON-CHANGE — it starts from
@@ -341,6 +342,7 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
 
 // ---- the intersection law, as arithmetic ---------------------------------
 
+// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): same fixture/mask pair as TheIntersectionIsExactIntervalArithmetic, which pins pixels AND refutes union; delete candidate.
 TEST(ComposeR4Mask, StackedSpanGatesIntersectRatherThanUnion) {
   // Union is spelled INSIDE a gate value (Spans::operator|); across masks
   // there is only intersection, because two masks are two conditions and
@@ -423,6 +425,7 @@ TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
   EXPECT_LT(inkedCount(passDoor), passDoor.size());
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): fixture has no unnamed sibling; what it actually (uniquely) pins is the silent-no-op law for an unmatched label — rename, keep.
 TEST(ComposeR4Mask, ANamedMaskLeavesTheUnnamedMarksAlone) {
   // parts::named() addresses ONE mark by its LOCAL label. A label that
   // matches nothing selects nothing, silently — the same law as

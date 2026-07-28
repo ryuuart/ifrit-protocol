@@ -319,6 +319,7 @@ TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO invented chord
 }
 
+// AUDIT-FLAG 2026-07-27 — REDUNDANT (medium): one-pixel probe subsumed by PatternCornerLandsOnTheVertexAndFacesTheBisector (all four vertices incl. the seam, plus orientation); delete candidate.
 TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
   Host host;
   brush::Pattern brush;
@@ -1215,6 +1216,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
   EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".." << gradeMax; // visible thickening
 }
 
+// AUDIT-FLAG 2026-07-27 — VACUOUS (medium): on the default face the axis is ABSENT, so refusal fires for the wrong reason and the test cannot fail; needs the positive-control/skip its sibling has.
 TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   sk_sp<SkTypeface> ui = fonts().defaultTypeface();
   if (fonts().axisIsAdvanceInvariant(ui, "wght"))

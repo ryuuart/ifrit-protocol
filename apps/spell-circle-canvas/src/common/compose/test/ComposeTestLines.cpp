@@ -259,6 +259,7 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   EXPECT_LT(lit(bottom, 0, 110), 40);
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (high on the claim): the mirroring comparison the comment sets up is never made (both arms measure the same whole-half ink); add the first/last-third comparison.
 TEST(ComposeText, OnPathWrapsTheSeamAndFlipsWithoutMirroring) {
   // Two bugs found by the Vertigo study, hours after onPath shipped.
   //
@@ -487,6 +488,7 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   EXPECT_LT((float)still, 0.25f * (float)redNow.size());
 }
 
+// AUDIT-FLAG 2026-07-27 — VACUOUS (high): asserts on a path built inside the test and never inspects the rendered node — measures Skia, not spans::wrap; the closed-contour seam law is unasserted anywhere; REWRITE against pixels like OpenContourWrapKeepsTwoPieces.
 TEST(ComposeMask, WrapSeamIsOneContour) {
   // A seam-crossing wrap window must be ONE contour: two pieces would
   // double-hit round caps / additive brushes at the joint.
@@ -941,6 +943,7 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
 // Cache::Auto texture promotion — the library fixing a slow frame by itself.
 
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): never establishes any node actually promoted (no profiledUnder/requireRow); if promotion silently stopped firing this compares two unpromoted renders; add liveness.
 TEST(ComposeCache, AutoPromotionIsPixelIdentical) {
   // THE constraint. A texture cache that resolved at the wrong scale and
   // softened a hairline would trade a perf bug for a fidelity bug, and this
@@ -970,6 +973,7 @@ TEST(ComposeCache, AutoPromotionIsPixelIdentical) {
       << differing << " pixels changed when the library promoted a node";
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): promotion is OFF for the whole test, so visibility is only tested in the negative; live content is unique — rename.
 TEST(ComposeCache, PromotionIsVisibleInTheProfile) {
   // A silent good outcome and a silent bad outcome look identical without an
   // instrument, so a promotion the library performs must be attributable to

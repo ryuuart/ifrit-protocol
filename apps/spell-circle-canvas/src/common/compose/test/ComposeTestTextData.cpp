@@ -1003,6 +1003,7 @@ TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
   EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): the sampling half sets kNearest on BOTH arms and never contrasts kLinear, so a no-op sampling() passes; contrast the two modes.
 TEST(ComposePattern, ARepeatCanBePannedAndItsSamplingChosen) {
   // "Pattern cannot pan" was two studies, and the second located the fix
   // a level below where the roadmap had it: bake() hands its matrix to
@@ -1235,6 +1236,7 @@ TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
   EXPECT_EQ(lit(none, 20, 180), 0);
 }
 
+// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): PaintOnly is asserted by nothing — add the bounds()-unchanged check GradDrivesPaintOnlyWhenAdvanceInvariant uses.
 TEST(ComposeFx, EdgeGateIsBindableAndPaintOnly) {
   // Paint-only like the transforms: animating it never relayouts, and a
   // bound fraction repaints without a re-describe.
