@@ -22,8 +22,9 @@
 #include "sigilshape/Mesh.h"
 #include "sigilshape/Space.h"
 
-#include <include/core/SkM44.h>
 #include <include/core/SkPath.h>
+
+#include <glm/glm.hpp>
 
 #include <functional>
 #include <vector>
@@ -33,29 +34,29 @@ namespace sigil::shape {
 struct Spline3 {
   enum class Type : uint8_t { Linear, CatmullRom, Bezier };
 
-  std::vector<SkV3> points;
+  std::vector<glm::vec3> points;
   Type type = Type::CatmullRom;
   bool closed = false;
 
   /** Position at parameter t in [0,1] (uniform by segment). */
-  SkV3 position(float t) const;
+  glm::vec3 position(float t) const;
   /** Unit tangent at t (central difference). */
-  SkV3 tangent(float t) const;
+  glm::vec3 tangent(float t) const;
   /** Approximate length (chord sum over @p samples). */
   float length(int samples = 256) const;
   /** @p count positions, uniform in PARAMETER. */
-  std::vector<SkV3> sample(int count) const;
+  std::vector<glm::vec3> sample(int count) const;
   /** @p count positions, uniform in ARC LENGTH — even beads on the
    *  wire regardless of knot spacing. */
-  std::vector<SkV3> sampleArcLength(int count) const;
+  std::vector<glm::vec3> sampleArcLength(int count) const;
 };
 
 /** An orthonormal moving frame on the curve. */
 struct Frame3 {
-  SkV3 position{0, 0, 0};
-  SkV3 tangent{0, 0, 1};
-  SkV3 normal{0, 1, 0};   // "up", parallel-transported
-  SkV3 binormal{1, 0, 0}; // tangent x normal
+  glm::vec3 position{0, 0, 0};
+  glm::vec3 tangent{0, 0, 1};
+  glm::vec3 normal{0, 1, 0};   // "up", parallel-transported
+  glm::vec3 binormal{1, 0, 0}; // tangent x normal
   float t = 0;            // curve parameter
 };
 
@@ -66,7 +67,7 @@ namespace curves {
  *  minimally — no Frenet flips at inflections. Closed splines get an
  *  even twist correction so the last frame meets the first. */
 std::vector<Frame3> frames(const Spline3 &spline, int count,
-                           SkV3 up = {0, 1, 0});
+                           glm::vec3 up = {0, 1, 0});
 
 struct TubeOptions {
   float radius = 6;
@@ -75,7 +76,7 @@ struct TubeOptions {
   int segments = 96;  ///< rings along the curve
   int sides = 12;     ///< vertices around each ring
   bool caps = true;   ///< close open tube ends with fans
-  SkV3 up = {0, 1, 0};
+  glm::vec3 up = {0, 1, 0};
 };
 
 /** Sweep a circle along the spline. UVs: u around, v = t. */
@@ -85,11 +86,25 @@ struct RibbonOptions {
   float width = 24;
   std::function<float(float t)> profile;
   int segments = 96;
-  SkV3 up = {0, 1, 0}; ///< the ribbon faces its frames' normal
+  glm::vec3 up = {0, 1, 0}; ///< the ribbon faces its frames' normal
 };
 
 /** Sweep a flat band along the spline (a 3D brush stroke). */
 Mesh ribbon(const Spline3 &spline, const RibbonOptions &options = {});
+
+struct BannerOptions {
+  float width = 24;
+  float head = 1;   ///< window end, in loop parameter
+  float span = 1;   ///< window length back from head
+  int sections = 160;
+};
+/** A gravity-rigged band over a window of a CLOSED spline — the
+ *  towed-banner rig: the cloth's width hangs world-vertical off the
+ *  tangent (hysteresis through vertical stretches), so it never rolls
+ *  upside-down on a ball winding the way parallel-transport frames
+ *  do. u = 0 is the TOP edge, v runs tail -> head over the window.
+ *  The CPU twin of SigilWorld's GPU sweep kernel. */
+Mesh banner(const Spline3 &spline, const BannerOptions &options = {});
 
 /** The spline as a 2D path under @p camera — points behind the near
  *  plane split the path into separate contours. */

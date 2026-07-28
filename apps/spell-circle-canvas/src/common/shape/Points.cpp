@@ -1,5 +1,7 @@
 #include "sigilshape/Points.h"
 
+#include "sigilshape/detail/VecMath.h"
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
@@ -11,17 +13,11 @@
 
 namespace sigil::shape {
 
+using detail::basisFor;
+using detail::normalized;
+using glm::cross;
+
 namespace {
-
-SkV3 cross(SkV3 a, SkV3 b) {
-  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
-          a.x * b.y - a.y * b.x};
-}
-
-SkV3 normalized(SkV3 v, SkV3 fallback = {0, 0, 1}) {
-  const float len = v.length();
-  return len < 1e-12f ? fallback : v * (1.0f / len);
-}
 
 uint32_t pcg(uint32_t &state) {
   state = state * 747796405u + 2891336453u;
@@ -33,7 +29,7 @@ float rand01(uint32_t &state) {
   return (float)pcg(state) / (float)0xFFFFFFFFu;
 }
 
-float valueNoise3(SkV3 p, uint32_t seed) {
+float valueNoise3(glm::vec3 p, uint32_t seed) {
   auto hash = [seed](int x, int y, int z) {
     uint32_t h = seed + (uint32_t)x * 374761393u + (uint32_t)y * 668265263u +
                  (uint32_t)z * 2147483647u;
@@ -57,14 +53,21 @@ float valueNoise3(SkV3 p, uint32_t seed) {
   return accum * 2.0f - 1.0f;
 }
 
-/** Basis with +z along @p dir. */
-void basisFor(SkV3 dir, SkV3 up, SkV3 *x, SkV3 *y, SkV3 *z) {
-  *z = normalized(dir);
-  SkV3 side = cross(up, *z);
-  if (side.lengthSquared() < 1e-8f)
-    side = cross(SkV3{1, 0, 0}, *z);
-  *x = normalized(side);
-  *y = cross(*z, *x);
+/** The pad values Cloud::append fills missing lanes with, BY NAME —
+ *  the lane conventions, not one blanket default: a missing "size"
+ *  means scale 1 (not invisible instances), a missing "Tex" the
+ *  identity uv window, a missing "uv" zeros; other scalars pad 0,
+ *  other colors white, vectors {0, 0, 1}. */
+float scalarDefault(std::string_view name) {
+  return name == "size" ? 1.0f : 0.0f;
+}
+
+glm::vec4 colorDefault(std::string_view name) {
+  if (name == "Tex")
+    return {0, 0, 1, 1};
+  if (name == "uv")
+    return {0, 0, 0, 0};
+  return {1, 1, 1, 1};
 }
 
 } // namespace
@@ -75,15 +78,16 @@ std::vector<float> &Cloud::scalar(const std::string &name, float fill) {
   return lane;
 }
 
-std::vector<SkV3> &Cloud::vector(const std::string &name, SkV3 fill) {
-  std::vector<SkV3> &lane = vectors[name];
+std::vector<glm::vec3> &Cloud::vector(const std::string &name,
+                                      glm::vec3 fill) {
+  std::vector<glm::vec3> &lane = vectors[name];
   lane.resize(positions.size(), fill);
   return lane;
 }
 
-std::vector<SkColor4f> &Cloud::color(const std::string &name,
-                                     SkColor4f fill) {
-  std::vector<SkColor4f> &lane = colors[name];
+std::vector<glm::vec4> &Cloud::color(const std::string &name,
+                                     glm::vec4 fill) {
+  std::vector<glm::vec4> &lane = colors[name];
   lane.resize(positions.size(), fill);
   return lane;
 }
@@ -92,11 +96,11 @@ const std::vector<float> *Cloud::scalarIf(std::string_view name) const {
   auto it = scalars.find(name);
   return it == scalars.end() ? nullptr : &it->second;
 }
-const std::vector<SkV3> *Cloud::vectorIf(std::string_view name) const {
+const std::vector<glm::vec3> *Cloud::vectorIf(std::string_view name) const {
   auto it = vectors.find(name);
   return it == vectors.end() ? nullptr : &it->second;
 }
-const std::vector<SkColor4f> *Cloud::colorIf(std::string_view name) const {
+const std::vector<glm::vec4> *Cloud::colorIf(std::string_view name) const {
   auto it = colors.find(name);
   return it == colors.end() ? nullptr : &it->second;
 }
@@ -106,42 +110,43 @@ void Cloud::append(const Cloud &other) {
   const size_t newSize = oldSize + other.positions.size();
   positions.insert(positions.end(), other.positions.begin(),
                    other.positions.end());
-  // Union of lanes on both sides, padded with defaults.
+  // Union of lanes on both sides, a missing side padded with the lane
+  // NAME's conventional default (scalarDefault/colorDefault above) —
+  // the same convention on the pad-ours and pad-theirs paths.
   for (auto &[name, lane] : scalars)
-    lane.resize(newSize,
-                0.0f); // pad ours; other's values overwrite below if present
+    lane.resize(newSize, scalarDefault(name));
   for (const auto &[name, lane] : other.scalars) {
     std::vector<float> &mine = scalars[name];
-    mine.resize(oldSize, 0.0f);
+    mine.resize(oldSize, scalarDefault(name));
     mine.insert(mine.end(), lane.begin(), lane.end());
-    mine.resize(newSize, 0.0f);
+    mine.resize(newSize, scalarDefault(name));
   }
   for (auto &[name, lane] : vectors)
-    lane.resize(newSize, SkV3{0, 0, 1});
+    lane.resize(newSize, glm::vec3{0, 0, 1});
   for (const auto &[name, lane] : other.vectors) {
-    std::vector<SkV3> &mine = vectors[name];
-    mine.resize(oldSize, SkV3{0, 0, 1});
+    std::vector<glm::vec3> &mine = vectors[name];
+    mine.resize(oldSize, glm::vec3{0, 0, 1});
     mine.insert(mine.end(), lane.begin(), lane.end());
-    mine.resize(newSize, SkV3{0, 0, 1});
+    mine.resize(newSize, glm::vec3{0, 0, 1});
   }
   for (auto &[name, lane] : colors)
-    lane.resize(newSize, SkColor4f{1, 1, 1, 1});
+    lane.resize(newSize, colorDefault(name));
   for (const auto &[name, lane] : other.colors) {
-    std::vector<SkColor4f> &mine = colors[name];
-    mine.resize(oldSize, SkColor4f{1, 1, 1, 1});
+    std::vector<glm::vec4> &mine = colors[name];
+    mine.resize(oldSize, colorDefault(name));
     mine.insert(mine.end(), lane.begin(), lane.end());
-    mine.resize(newSize, SkColor4f{1, 1, 1, 1});
+    mine.resize(newSize, colorDefault(name));
   }
 }
 
 namespace points {
 
-Cloud onSpline(const Spline3 &spline, int count, SkV3 up) {
+Cloud onSpline(const Spline3 &spline, int count, glm::vec3 up) {
   Cloud out;
   const std::vector<Frame3> rail = curves::frames(spline, count, up);
   out.positions.reserve(rail.size());
   std::vector<float> t;
-  std::vector<SkV3> tangent, normal, binormal;
+  std::vector<glm::vec3> tangent, normal, binormal;
   for (const Frame3 &f : rail) {
     out.positions.push_back(f.position);
     t.push_back(f.t);
@@ -156,11 +161,12 @@ Cloud onSpline(const Spline3 &spline, int count, SkV3 up) {
   return out;
 }
 
-Cloud grid(SkV3 origin, SkV3 du, SkV3 dv, int nu, int nv) {
+Cloud grid(glm::vec3 origin, glm::vec3 du, glm::vec3 dv, int nu,
+           int nv) {
   Cloud out;
   nu = std::max(nu, 1);
   nv = std::max(nv, 1);
-  const SkV3 n = normalized(cross(du, dv));
+  const glm::vec3 n = normalized(cross(du, dv));
   const size_t total = (size_t)nu * (size_t)nv;
   out.positions.reserve(total);
   for (int j = 0; j < nv; ++j)
@@ -176,11 +182,13 @@ Cloud grid(SkV3 origin, SkV3 du, SkV3 dv, int nu, int nv) {
   return out;
 }
 
-Cloud ring(SkV3 center, float radius, int count, SkV3 axis) {
+Cloud ring(glm::vec3 center, float radius, int count, glm::vec3 axis) {
   Cloud out;
   count = std::max(count, 1);
-  SkV3 x, y, z;
-  basisFor(axis, std::abs(axis.y) > 0.9f ? SkV3{1, 0, 0} : SkV3{0, 1, 0},
+  glm::vec3 x, y, z;
+  basisFor(axis,
+           std::abs(axis.y) > 0.9f ? glm::vec3{1, 0, 0}
+                                   : glm::vec3{0, 1, 0},
            &x, &y, &z);
   out.positions.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
@@ -189,7 +197,7 @@ Cloud ring(SkV3 center, float radius, int count, SkV3 axis) {
                             y * (radius * std::sin(a)));
   }
   std::vector<float> &t = out.scalar("t");
-  std::vector<SkV3> &normal = out.vector("normal");
+  std::vector<glm::vec3> &normal = out.vector("normal");
   for (int i = 0; i < count; ++i) {
     t[(size_t)i] = (float)i / (float)count;
     normal[(size_t)i] =
@@ -198,7 +206,7 @@ Cloud ring(SkV3 center, float radius, int count, SkV3 axis) {
   return out;
 }
 
-Cloud scatterBox(SkV3 lo, SkV3 hi, int count, uint32_t seed) {
+Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed) {
   Cloud out;
   count = std::max(count, 0);
   uint32_t state = seed * 2654435761u + 1u;
@@ -223,11 +231,11 @@ Cloud onMesh(const Mesh &mesh, int count, uint32_t seed) {
   // Cumulative area table for area-weighted triangle picks.
   std::vector<double> cumulative(triangles + 1, 0.0);
   for (size_t t = 0; t < triangles; ++t) {
-    const SkV3 &a = mesh.positions[mesh.indices[t * 3]];
-    const SkV3 &b = mesh.positions[mesh.indices[t * 3 + 1]];
-    const SkV3 &c = mesh.positions[mesh.indices[t * 3 + 2]];
+    const glm::vec3 &a = mesh.positions[mesh.indices[t * 3]];
+    const glm::vec3 &b = mesh.positions[mesh.indices[t * 3 + 1]];
+    const glm::vec3 &c = mesh.positions[mesh.indices[t * 3 + 2]];
     cumulative[t + 1] =
-        cumulative[t] + 0.5 * (double)cross(b - a, c - a).length();
+        cumulative[t] + 0.5 * (double)glm::length(cross(b - a, c - a));
   }
   const double total = cumulative.back();
   if (total <= 0)
@@ -235,7 +243,7 @@ Cloud onMesh(const Mesh &mesh, int count, uint32_t seed) {
 
   uint32_t state = seed * 2654435761u + 17u;
   out.positions.reserve((size_t)count);
-  std::vector<SkV3> pickedNormals;
+  std::vector<glm::vec3> pickedNormals;
   pickedNormals.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
     const double target = (double)rand01(state) * total;
@@ -254,9 +262,9 @@ Cloud onMesh(const Mesh &mesh, int count, uint32_t seed) {
     const uint32_t i0 = mesh.indices[tri * 3];
     const uint32_t i1 = mesh.indices[tri * 3 + 1];
     const uint32_t i2 = mesh.indices[tri * 3 + 2];
-    const SkV3 &a = mesh.positions[i0];
-    const SkV3 &b = mesh.positions[i1];
-    const SkV3 &c = mesh.positions[i2];
+    const glm::vec3 &a = mesh.positions[i0];
+    const glm::vec3 &b = mesh.positions[i1];
+    const glm::vec3 &c = mesh.positions[i2];
     out.positions.push_back(a + (b - a) * u + (c - a) * v);
     if (mesh.normals.size() == mesh.positions.size()) {
       pickedNormals.push_back(normalized(
@@ -275,19 +283,20 @@ Cloud onMesh(const Mesh &mesh, int count, uint32_t seed) {
 
 void jitter(Cloud &cloud, float amplitude, uint32_t seed) {
   uint32_t state = seed * 2654435761u + 101u;
-  for (SkV3 &p : cloud.positions)
-    p += {(rand01(state) * 2 - 1) * amplitude,
-          (rand01(state) * 2 - 1) * amplitude,
-          (rand01(state) * 2 - 1) * amplitude};
+  for (glm::vec3 &p : cloud.positions)
+    p += glm::vec3{(rand01(state) * 2 - 1) * amplitude,
+                   (rand01(state) * 2 - 1) * amplitude,
+                   (rand01(state) * 2 - 1) * amplitude};
 }
 
 void displaceNoise(Cloud &cloud, float amplitude, float frequency,
                    uint32_t seed) {
-  for (SkV3 &p : cloud.positions) {
-    const SkV3 q = p * frequency;
-    p += {valueNoise3(q, seed) * amplitude,
-          valueNoise3(q + SkV3{31.7f, 0, 0}, seed) * amplitude,
-          valueNoise3(q + SkV3{0, 47.3f, 0}, seed) * amplitude};
+  for (glm::vec3 &p : cloud.positions) {
+    const glm::vec3 q = p * frequency;
+    p += glm::vec3{
+        valueNoise3(q, seed) * amplitude,
+        valueNoise3(q + glm::vec3{31.7f, 0, 0}, seed) * amplitude,
+        valueNoise3(q + glm::vec3{0, 47.3f, 0}, seed) * amplitude};
   }
 }
 
@@ -304,9 +313,9 @@ Mesh instance(const Cloud &cloud, const Mesh &stamp,
   const std::vector<float> *scaleLane =
       options.scaleLane.empty() ? nullptr
                                 : cloud.scalarIf(options.scaleLane);
-  const std::vector<SkColor4f> *tintLane =
+  const std::vector<glm::vec4> *tintLane =
       options.tintLane.empty() ? nullptr : cloud.colorIf(options.tintLane);
-  const std::vector<SkV3> *orientLane =
+  const std::vector<glm::vec3> *orientLane =
       options.orientLane.empty() ? nullptr
                                  : cloud.vectorIf(options.orientLane);
   const bool tinted = tintLane != nullptr || !stamp.colors.empty();
@@ -315,30 +324,26 @@ Mesh instance(const Cloud &cloud, const Mesh &stamp,
     const float s =
         options.scale *
         (scaleLane && i < scaleLane->size() ? (*scaleLane)[i] : 1.0f);
-    SkV3 bx{1, 0, 0}, by{0, 1, 0}, bz{0, 0, 1};
+    glm::vec3 bx{1, 0, 0}, by{0, 1, 0}, bz{0, 0, 1};
     if (orientLane && i < orientLane->size())
       basisFor((*orientLane)[i], options.up, &bx, &by, &bz);
-    const SkV3 origin = cloud.positions[i];
+    const glm::vec3 origin = cloud.positions[i];
     const uint32_t base = (uint32_t)out.positions.size();
     for (size_t v = 0; v < stampVerts; ++v) {
-      const SkV3 &p = stamp.positions[v];
+      const glm::vec3 &p = stamp.positions[v];
       out.positions.push_back(origin + (bx * p.x + by * p.y + bz * p.z) * s);
       if (v < stamp.normals.size()) {
-        const SkV3 &nrm = stamp.normals[v];
+        const glm::vec3 &nrm = stamp.normals[v];
         out.normals.push_back(bx * nrm.x + by * nrm.y + bz * nrm.z);
       }
       if (v < stamp.uvs.size())
         out.uvs.push_back(stamp.uvs[v]);
       if (tinted) {
-        SkColor4f tint =
-            tintLane && i < tintLane->size() ? (*tintLane)[i]
-                                             : SkColor4f{1, 1, 1, 1};
-        if (v < stamp.colors.size()) {
-          tint.fR *= stamp.colors[v].fR;
-          tint.fG *= stamp.colors[v].fG;
-          tint.fB *= stamp.colors[v].fB;
-          tint.fA *= stamp.colors[v].fA;
-        }
+        glm::vec4 tint = tintLane && i < tintLane->size()
+                             ? (*tintLane)[i]
+                             : glm::vec4{1, 1, 1, 1};
+        if (v < stamp.colors.size())
+          tint *= stamp.colors[v];
         out.colors.push_back(tint);
       }
     }
@@ -359,21 +364,21 @@ void drawBillboards(SkCanvas &canvas, const Cloud &cloud,
   const size_t n = cloud.size();
   if (n == 0)
     return;
-  const SkM44 vp = camera.viewProjection(viewport);
-  const SkM44 view = camera.view();
+  const glm::mat4 vp = camera.viewProjection(viewport);
+  const glm::mat4 view = camera.view();
 
   struct Splat {
     SkPoint screen;
     float px;   // half-size in pixels
     float depth;
-    SkColor4f tint;
+    glm::vec4 tint;
   };
   std::vector<Splat> splats;
   splats.reserve(n);
 
   const std::vector<float> *sizeLane =
       style.sizeLane.empty() ? nullptr : cloud.scalarIf(style.sizeLane);
-  const std::vector<SkColor4f> *tintLane =
+  const std::vector<glm::vec4> *tintLane =
       style.tintLane.empty() ? nullptr : cloud.colorIf(style.tintLane);
 
   // Pixels per world unit at distance d: focal / d * (h/2).
@@ -382,11 +387,11 @@ void drawBillboards(SkCanvas &canvas, const Cloud &cloud,
   const float halfH = viewport.height() * 0.5f;
 
   for (size_t i = 0; i < n; ++i) {
-    const SkV3 &p = cloud.positions[i];
-    const SkV4 clip = vp * SkV4{p.x, p.y, p.z, 1};
+    const glm::vec3 &p = cloud.positions[i];
+    const glm::vec4 clip = vp * glm::vec4{p, 1};
     if (clip.w <= 1e-4f)
       continue;
-    const SkV4 eye = view * SkV4{p.x, p.y, p.z, 1};
+    const glm::vec4 eye = view * glm::vec4{p, 1};
     Splat splat;
     splat.screen = {clip.x / clip.w, clip.y / clip.w};
     splat.depth = eye.z;
@@ -397,12 +402,9 @@ void drawBillboards(SkCanvas &canvas, const Cloud &cloud,
                    ? std::max(0.25f, size * 0.5f * focal * halfH /
                                          std::max(-eye.z, 1e-3f))
                    : size * 0.5f;
-    SkColor4f tint = style.tint;
-    if (tintLane && i < tintLane->size()) {
-      const SkColor4f &c = (*tintLane)[i];
-      tint = {tint.fR * c.fR, tint.fG * c.fG, tint.fB * c.fB,
-              tint.fA * c.fA};
-    }
+    glm::vec4 tint = style.tint;
+    if (tintLane && i < tintLane->size())
+      tint *= (*tintLane)[i];
     splat.tint = tint;
     splats.push_back(splat);
   }
@@ -446,7 +448,9 @@ void drawBillboards(SkCanvas &canvas, const Cloud &cloud,
   for (const Splat &splat : splats) {
     // Full-color tint via modulate — works for any sprite (a white
     // sprite tints exactly).
-    paint.setColorFilter(SkColorFilters::Blend(splat.tint.toSkColor(),
+    const SkColor4f tintColor = {splat.tint.r, splat.tint.g,
+                                 splat.tint.b, splat.tint.a};
+    paint.setColorFilter(SkColorFilters::Blend(tintColor.toSkColor(),
                                                SkBlendMode::kModulate));
     const SkRect dst = SkRect::MakeXYWH(splat.screen.fX - splat.px,
                                         splat.screen.fY - splat.px,

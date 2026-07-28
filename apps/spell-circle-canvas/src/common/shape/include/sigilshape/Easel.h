@@ -305,12 +305,12 @@ inline Blend blend(SkPath from, SkPath to) {
 class Wire {
 public:
   Wire() = default;
-  Wire(std::initializer_list<SkV3> points) {
+  Wire(std::initializer_list<glm::vec3> points) {
     m_spline.points = points;
   }
   explicit Wire(Spline3 spline) : m_spline(std::move(spline)) {}
 
-  Wire &through(SkV3 point) {
+  Wire &through(glm::vec3 point) {
     m_spline.points.push_back(point);
     return *this;
   }
@@ -354,7 +354,7 @@ private:
   Spline3 m_spline;
 };
 
-inline Wire wire(std::initializer_list<SkV3> points) {
+inline Wire wire(std::initializer_list<glm::vec3> points) {
   return Wire(points);
 }
 
@@ -368,7 +368,7 @@ public:
     m_source = Source::Wire;
     return *this;
   }
-  Particles &inBox(SkV3 lo, SkV3 hi) {
+  Particles &inBox(glm::vec3 lo, glm::vec3 hi) {
     m_lo = lo;
     m_hi = hi;
     m_source = Source::Box;
@@ -403,7 +403,7 @@ public:
     return *this;
   }
   /** Tint from a to b along the "t" lane. */
-  Particles &ramp(SkColor4f a, SkColor4f b) {
+  Particles &ramp(glm::vec4 a, glm::vec4 b) {
     m_rampA = a;
     m_rampB = b;
     return *this;
@@ -432,7 +432,7 @@ public:
     if (m_drift > 0)
       points::displaceNoise(cloud, m_drift, m_driftFrequency, m_seed + 2);
     const std::vector<float> *t = cloud.scalarIf("t");
-    std::vector<SkColor4f> &tint = cloud.color("tint");
+    std::vector<glm::vec4> &tint = cloud.color("tint");
     std::vector<float> &size = cloud.scalar("size", 1);
     for (size_t i = 0; i < cloud.size(); ++i) {
       const float f =
@@ -441,10 +441,7 @@ public:
               : (cloud.size() > 1
                      ? (float)i / (float)(cloud.size() - 1)
                      : 0.0f);
-      tint[i] = {m_rampA.fR + (m_rampB.fR - m_rampA.fR) * f,
-                 m_rampA.fG + (m_rampB.fG - m_rampA.fG) * f,
-                 m_rampA.fB + (m_rampB.fB - m_rampA.fB) * f,
-                 m_rampA.fA + (m_rampB.fA - m_rampA.fA) * f};
+      tint[i] = m_rampA + (m_rampB - m_rampA) * f;
       size[i] = 1.0f + m_sizeVary * std::sin(f * 37.0f);
     }
     return cloud;
@@ -465,15 +462,15 @@ private:
 
   Source m_source = Source::Box;
   Wire m_wire;
-  SkV3 m_lo = {-100, -100, -100}, m_hi = {100, 100, 100};
+  glm::vec3 m_lo = {-100, -100, -100}, m_hi = {100, 100, 100};
   const Mesh *m_mesh = nullptr;
   int m_count = 200;
   uint32_t m_seed = 7;
   float m_drift = 0, m_driftFrequency = 0.012f;
   float m_jitter = 0;
   float m_size = 10, m_sizeVary = 0.5f;
-  SkColor4f m_rampA = {0.4f, 0.8f, 1.0f, 0.5f};
-  SkColor4f m_rampB = {1.0f, 0.5f, 0.9f, 0.5f};
+  glm::vec4 m_rampA = {0.4f, 0.8f, 1.0f, 0.5f};
+  glm::vec4 m_rampB = {1.0f, 0.5f, 0.9f, 0.5f};
   sk_sp<SkImage> m_sprite;
 };
 

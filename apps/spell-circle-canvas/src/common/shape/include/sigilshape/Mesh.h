@@ -2,9 +2,13 @@
 
 /** @file
  * SigilShape procedural geometry — one Mesh currency for two renderers.
- * The same vertex/index buffers draw through Skia (Space.h: SkM44
- * projection + SkVertices) and upload to SigilWorld (Diligent vertex
- * buffers) — positions, normals, uvs, indices, nothing renderer-shaped.
+ * The same vertex/index buffers draw through Skia (Space.h: the painter
+ * bridge) and upload to SigilWorld (Diligent vertex buffers) —
+ * positions, normals, uvs, indices, nothing renderer-shaped.
+ *
+ * 3D data speaks glm (vec3/vec4/mat4); Skia types appear only where
+ * geometry genuinely comes from or goes to Skia (extrude's SkPath
+ * outline here, the Space.h canvas downstream).
  *
  * Generators cover the diegetic-surface needs: extrude() lifts any
  * SkPath into a solid (caps earcut-triangulated with holes intact,
@@ -14,10 +18,9 @@
  * always present so panel textures land without ceremony.
  */
 
-#include <include/core/SkColor.h>
-#include <include/core/SkM44.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
+
+#include <glm/glm.hpp>
 
 #include <cstdint>
 #include <functional>
@@ -29,12 +32,12 @@ namespace sigil::shape {
  *  SkVertices limit is handled by the Space.h drawer (chunking), not by
  *  the data. */
 struct Mesh {
-  std::vector<SkV3> positions;
-  std::vector<SkV3> normals;   // unit, same count as positions
-  std::vector<SkPoint> uvs;    // [0,1]^2, same count as positions
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec3> normals;  // unit, same count as positions
+  std::vector<glm::vec2> uvs;      // [0,1]^2, same count as positions
   /** Optional per-vertex tint (instancing writes it); empty = none.
-   *  Space.h's Lit mode multiplies baseColor by it when present. */
-  std::vector<SkColor4f> colors;
+   *  Both renderers multiply it into the shaded color when present. */
+  std::vector<glm::vec4> colors;
   std::vector<uint32_t> indices;
 
   size_t vertexCount() const { return positions.size(); }
@@ -43,11 +46,11 @@ struct Mesh {
   /** Append another mesh (indices re-based). */
   void append(const Mesh &other);
   /** Transform positions by @p m and normals by its inverse transpose. */
-  void transform(const SkM44 &m);
+  void transform(const glm::mat4 &m);
   /** Recompute vertex normals as area-weighted triangle-normal sums. */
   void computeNormals();
   /** Axis-aligned bounds. */
-  void bounds(SkV3 *lo, SkV3 *hi) const;
+  void bounds(glm::vec3 *lo, glm::vec3 *hi) const;
 };
 
 namespace mesh {
@@ -74,19 +77,21 @@ struct RevolveOptions {
 
 /** Lathe a profile polyline around the +y axis: each profile point is
  *  (radius, height). UVs: u around the sweep, v along the profile. */
-Mesh revolve(const std::vector<SkPoint> &profile,
+Mesh revolve(const std::vector<glm::vec2> &profile,
              const RevolveOptions &options = {});
 
 /** Evaluate a parametric sheet on an nu x nv vertex grid. UVs are the
  *  (u,v) parameters. Normals from the analytic cross of numeric partial
  *  derivatives. */
-Mesh grid(int nu, int nv, const std::function<SkV3(float u, float v)> &fn);
+Mesh grid(int nu, int nv,
+          const std::function<glm::vec3(float u, float v)> &fn);
 
 /** Torus around +y: major radius R in xz, tube radius r. */
 Mesh torus(float R, float r, int nu = 64, int nv = 32);
 
 /** Superellipsoid (exponent 2 = sphere, higher = rounded box). */
-Mesh superellipsoid(SkV3 radii, float exponent, int nu = 48, int nv = 32);
+Mesh superellipsoid(glm::vec3 radii, float exponent, int nu = 48,
+                    int nv = 32);
 
 /** A width x height panel curved around a vertical cylinder of
  *  @p radius (0 or infinite radius = flat), facing +z, centered at the

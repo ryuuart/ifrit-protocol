@@ -1,6 +1,7 @@
 #include "sigilshape/Mesh.h"
 
 #include "sigilshape/Geometry.h"
+#include "sigilshape/detail/VecMath.h"
 
 #include <mapbox/earcut.hpp>
 
@@ -11,28 +12,17 @@
 
 namespace sigil::shape {
 
-namespace {
-
-SkV3 cross(SkV3 a, SkV3 b) {
-  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
-          a.x * b.y - a.y * b.x};
-}
-
-SkV3 normalized(SkV3 v, SkV3 fallback = {0, 0, 1}) {
-  const float len = v.length();
-  return len < 1e-12f ? fallback : v * (1.0f / len);
-}
-
-} // namespace
+using detail::normalized;
+using glm::cross;
 
 void Mesh::append(const Mesh &other) {
   const uint32_t base = (uint32_t)positions.size();
   // Color lanes stay coherent: if either side tints, both end up sized.
   if (!colors.empty() || !other.colors.empty()) {
-    colors.resize(positions.size(), SkColors::kWhite);
+    colors.resize(positions.size(), glm::vec4{1, 1, 1, 1});
     if (other.colors.empty())
       colors.resize(positions.size() + other.positions.size(),
-                    SkColors::kWhite);
+                    glm::vec4{1, 1, 1, 1});
     else
       colors.insert(colors.end(), other.colors.begin(),
                     other.colors.end());
@@ -46,15 +36,13 @@ void Mesh::append(const Mesh &other) {
     indices.push_back(base + i);
 }
 
-void Mesh::transform(const SkM44 &m) {
-  for (SkV3 &p : positions) {
-    const SkV4 r = m * SkV4{p.x, p.y, p.z, 1};
-    p = {r.x, r.y, r.z};
-  }
+void Mesh::transform(const glm::mat4 &m) {
+  for (glm::vec3 &p : positions)
+    p = glm::vec3(m * glm::vec4(p, 1));
   // Normals move by the inverse transpose of the upper-left 3x3.
-  const float a00 = m.rc(0, 0), a01 = m.rc(0, 1), a02 = m.rc(0, 2);
-  const float a10 = m.rc(1, 0), a11 = m.rc(1, 1), a12 = m.rc(1, 2);
-  const float a20 = m.rc(2, 0), a21 = m.rc(2, 1), a22 = m.rc(2, 2);
+  const float a00 = m[0][0], a01 = m[1][0], a02 = m[2][0];
+  const float a10 = m[0][1], a11 = m[1][1], a12 = m[2][1];
+  const float a20 = m[0][2], a21 = m[1][2], a22 = m[2][2];
   const float det = a00 * (a11 * a22 - a12 * a21) -
                     a01 * (a10 * a22 - a12 * a20) +
                     a02 * (a10 * a21 - a11 * a20);
@@ -71,10 +59,12 @@ void Mesh::transform(const SkM44 &m) {
   const float n20 = (a01 * a12 - a02 * a11) * inv;
   const float n21 = (a02 * a10 - a00 * a12) * inv;
   const float n22 = (a00 * a11 - a01 * a10) * inv;
-  for (SkV3 &n : normals) {
-    n = normalized({n00 * n.x + n10 * n.y + n20 * n.z,
-                    n01 * n.x + n11 * n.y + n21 * n.z,
-                    n02 * n.x + n12 * n.y + n22 * n.z},
+  // n00..n22 is row-major, so each component dots a ROW; dotting
+  // columns would apply the plain inverse and rotate normals backwards.
+  for (glm::vec3 &n : normals) {
+    n = normalized({n00 * n.x + n01 * n.y + n02 * n.z,
+                    n10 * n.x + n11 * n.y + n12 * n.z,
+                    n20 * n.x + n21 * n.y + n22 * n.z},
                    n);
   }
 }
@@ -82,24 +72,24 @@ void Mesh::transform(const SkM44 &m) {
 void Mesh::computeNormals() {
   normals.assign(positions.size(), {0, 0, 0});
   for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-    const SkV3 &p0 = positions[indices[i]];
-    const SkV3 &p1 = positions[indices[i + 1]];
-    const SkV3 &p2 = positions[indices[i + 2]];
-    const SkV3 n = cross(p1 - p0, p2 - p0); // area-weighted
+    const glm::vec3 &p0 = positions[indices[i]];
+    const glm::vec3 &p1 = positions[indices[i + 1]];
+    const glm::vec3 &p2 = positions[indices[i + 2]];
+    const glm::vec3 n = cross(p1 - p0, p2 - p0); // area-weighted
     normals[indices[i]] += n;
     normals[indices[i + 1]] += n;
     normals[indices[i + 2]] += n;
   }
-  for (SkV3 &n : normals)
+  for (glm::vec3 &n : normals)
     n = normalized(n);
 }
 
-void Mesh::bounds(SkV3 *lo, SkV3 *hi) const {
-  SkV3 mn = {std::numeric_limits<float>::max(),
+void Mesh::bounds(glm::vec3 *lo, glm::vec3 *hi) const {
+  glm::vec3 mn = {std::numeric_limits<float>::max(),
              std::numeric_limits<float>::max(),
              std::numeric_limits<float>::max()};
-  SkV3 mx = {-mn.x, -mn.y, -mn.z};
-  for (const SkV3 &p : positions) {
+  glm::vec3 mx = {-mn.x, -mn.y, -mn.z};
+  for (const glm::vec3 &p : positions) {
     mn = {std::min(mn.x, p.x), std::min(mn.y, p.y), std::min(mn.z, p.z)};
     mx = {std::max(mx.x, p.x), std::max(mx.y, p.y), std::max(mx.z, p.z)};
   }
@@ -127,13 +117,14 @@ bool pointInRing(SkPoint p, const std::vector<SkPoint> &ring) {
 
 /** Ensure the geometric normal of triangle (i0,i1,i2) points along
  *  @p wanted, swapping winding when it does not. */
-void orientTriangle(const std::vector<SkV3> &positions, uint32_t *tri,
-                    SkV3 wanted) {
-  const SkV3 &p0 = positions[tri[0]];
-  const SkV3 &p1 = positions[tri[1]];
-  const SkV3 n = cross(positions[tri[1]] - p0, positions[tri[2]] - p0);
+void orientTriangle(const std::vector<glm::vec3> &positions,
+                    uint32_t *tri, glm::vec3 wanted) {
+  const glm::vec3 &p0 = positions[tri[0]];
+  const glm::vec3 &p1 = positions[tri[1]];
+  const glm::vec3 n =
+      cross(positions[tri[1]] - p0, positions[tri[2]] - p0);
   (void)p1;
-  if (n.dot(wanted) < 0)
+  if (glm::dot(n, wanted) < 0)
     std::swap(tri[1], tri[2]);
 }
 
@@ -211,7 +202,7 @@ Mesh extrude(const SkPath &path, const ExtrudeOptions &options) {
       const std::vector<uint32_t> tris =
           mapbox::earcut<uint32_t>(polygon);
       const uint32_t base = (uint32_t)out.positions.size();
-      const SkV3 normal = {0, 0, front ? 1.0f : -1.0f};
+      const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
       for (const Polyline *ring : ringsUsed) {
         for (const SkPoint &p : ring->points) {
           out.positions.push_back({p.fX, p.fY, z});
@@ -250,7 +241,7 @@ Mesh extrude(const SkPath &path, const ExtrudeOptions &options) {
         if (len < 1e-9f)
           continue;
         // CCW outer ring in y-up space: outward = edge rotated -90.
-        const SkV3 normal =
+        const glm::vec3 normal =
             normalized({edge.fY / len, -edge.fX / len, 0});
         const uint32_t base = (uint32_t)out.positions.size();
         const float u0 = arc / total, u1 = (arc + len) / total;
@@ -278,7 +269,8 @@ Mesh extrude(const SkPath &path, const ExtrudeOptions &options) {
   return out;
 }
 
-Mesh grid(int nu, int nv, const std::function<SkV3(float, float)> &fn) {
+Mesh grid(int nu, int nv,
+          const std::function<glm::vec3(float, float)> &fn) {
   Mesh out;
   nu = std::max(nu, 2);
   nv = std::max(nv, 2);
@@ -296,10 +288,10 @@ Mesh grid(int nu, int nv, const std::function<SkV3(float, float)> &fn) {
       // in y-up space). Both renderers (Space.h texs, SigilWorld)
       // assume this.
       out.uvs.push_back({u, 1.0f - v});
-      const SkV3 du = fn(std::min(u + eps, 1.0f), v) -
-                      fn(std::max(u - eps, 0.0f), v);
-      const SkV3 dv = fn(u, std::min(v + eps, 1.0f)) -
-                      fn(u, std::max(v - eps, 0.0f));
+      const glm::vec3 du = fn(std::min(u + eps, 1.0f), v) -
+                           fn(std::max(u - eps, 0.0f), v);
+      const glm::vec3 dv = fn(u, std::min(v + eps, 1.0f)) -
+                           fn(u, std::max(v - eps, 0.0f));
       out.normals.push_back(normalized(cross(du, dv)));
     }
   }
@@ -314,10 +306,10 @@ Mesh grid(int nu, int nv, const std::function<SkV3(float, float)> &fn) {
   }
   // Degenerate-partial fallback (poles): borrow the nearest valid normal.
   for (size_t i = 0; i < out.normals.size(); ++i)
-    if (out.normals[i].lengthSquared() < 0.5f) {
+    if (glm::dot(out.normals[i], out.normals[i]) < 0.5f) {
       for (size_t j = 1; j < out.normals.size(); ++j) {
         const size_t k = (i + j) % out.normals.size();
-        if (out.normals[k].lengthSquared() > 0.5f) {
+        if (glm::dot(out.normals[k], out.normals[k]) > 0.5f) {
           out.normals[i] = out.normals[k];
           break;
         }
@@ -326,7 +318,7 @@ Mesh grid(int nu, int nv, const std::function<SkV3(float, float)> &fn) {
   return out;
 }
 
-Mesh revolve(const std::vector<SkPoint> &profile,
+Mesh revolve(const std::vector<glm::vec2> &profile,
              const RevolveOptions &options) {
   Mesh out;
   if (profile.size() < 2)
@@ -334,22 +326,22 @@ Mesh revolve(const std::vector<SkPoint> &profile,
   const float sweep = options.sweepDeg * (float)M_PI / 180.0f;
   const int nu = std::max(options.segments, 3) + (options.close ? 1 : 0);
   const int nv = (int)profile.size();
-  auto sample = [&](float v) -> SkPoint {
+  auto sample = [&](float v) -> glm::vec2 {
     const float f = v * (float)(nv - 1);
     const int i = std::clamp((int)f, 0, nv - 2);
     const float t = f - (float)i;
-    const SkPoint a = profile[(size_t)i], b = profile[(size_t)i + 1];
-    return {a.fX + (b.fX - a.fX) * t, a.fY + (b.fY - a.fY) * t};
+    const glm::vec2 a = profile[(size_t)i], b = profile[(size_t)i + 1];
+    return a + (b - a) * t;
   };
-  return grid(nu, nv, [&](float u, float v) -> SkV3 {
-    const SkPoint p = sample(v);
+  return grid(nu, nv, [&](float u, float v) -> glm::vec3 {
+    const glm::vec2 p = sample(v);
     const float theta = u * sweep;
-    return {p.fX * std::cos(theta), p.fY, -p.fX * std::sin(theta)};
+    return {p.x * std::cos(theta), p.y, -p.x * std::sin(theta)};
   });
 }
 
 Mesh torus(float R, float r, int nu, int nv) {
-  return grid(nu, nv, [=](float u, float v) -> SkV3 {
+  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI;
     const float phi = v * 2.0f * (float)M_PI;
     const float ring = R + r * std::cos(phi);
@@ -358,12 +350,12 @@ Mesh torus(float R, float r, int nu, int nv) {
   });
 }
 
-Mesh superellipsoid(SkV3 radii, float exponent, int nu, int nv) {
+Mesh superellipsoid(glm::vec3 radii, float exponent, int nu, int nv) {
   const float p = 2.0f / std::max(exponent, 0.01f);
   auto shaped = [p](float c) {
     return (c < 0 ? -1.0f : 1.0f) * std::pow(std::abs(c), p);
   };
-  return grid(nu, nv, [=](float u, float v) -> SkV3 {
+  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI - (float)M_PI;
     // Full pole-to-pole sweep: shaped(cos(±pi/2)) = 0 closes the poles
     // to points; grid()'s fallback covers the degenerate normals there.
@@ -380,7 +372,7 @@ Mesh cylinderPanel(float width, float height, float radius, int nu,
   if (radius <= 0 || !std::isfinite(radius))
     return quad(width, height);
   const float arc = width / radius;
-  return grid(nu, nv, [=](float u, float v) -> SkV3 {
+  return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
     const float theta = (u - 0.5f) * arc;
     return {radius * std::sin(theta), (v - 0.5f) * height,
             radius * std::cos(theta) - radius};
@@ -388,7 +380,7 @@ Mesh cylinderPanel(float width, float height, float radius, int nu,
 }
 
 Mesh quad(float width, float height) {
-  return grid(2, 2, [=](float u, float v) -> SkV3 {
+  return grid(2, 2, [=](float u, float v) -> glm::vec3 {
     return {(u - 0.5f) * width, (v - 0.5f) * height, 0};
   });
 }

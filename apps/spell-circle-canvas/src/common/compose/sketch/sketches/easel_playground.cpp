@@ -156,7 +156,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           shape::space::MeshStyle steel;
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
-          shape::space::drawMesh(canvas, loop.tube(7, 180), SkM44(),
+          shape::space::drawMesh(canvas, loop.tube(7, 180), glm::mat4(1.0f),
                                  camera, viewport, steel);
           loop.draw(canvas, camera, viewport, {1, 1, 1, 0.25f}, 1);
 
@@ -181,7 +181,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.lights = {};
           band.specular = 0;
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
-          shape::space::drawMesh(canvas, orbit.ribbon(30, 220), SkM44(),
+          shape::space::drawMesh(canvas, orbit.ribbon(30, 220), glm::mat4(1.0f),
                                  camera, viewport, band);
 
           easel::particles()

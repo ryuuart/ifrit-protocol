@@ -16,8 +16,9 @@
  *    that surface to Materials.h and per-pixel chrome/gold/glass lands
  *    on true 3D geometry — the deferred bridge between the two headers.
  *
- * One Camera struct drives both; its view/projection matrices are plain
- * SkM44s, so anything Skia draws can join the scene.
+ * One Camera struct drives both renderers. 3D data (camera vectors,
+ * model/view/projection matrices) speaks glm; this header is the
+ * BRIDGE where it meets Skia's canvas — toSkM44() is the seam.
  */
 
 #include "sigilshape/Mesh.h"
@@ -28,27 +29,35 @@
 #include <include/core/SkM44.h>
 #include <include/core/SkRefCnt.h>
 
+#include <glm/glm.hpp>
+
 #include <vector>
 
 namespace sigil::shape::space {
 
+/** The glm -> Skia seam: both are column-major, so the conversion is a
+ *  straight pour. */
+inline SkM44 toSkM44(const glm::mat4 &m) {
+  return SkM44::ColMajor(&m[0][0]);
+}
+
 /** Right-handed, y-up camera. Field of view is vertical. */
 struct Camera {
-  SkV3 eye = {0, 0, 480};
-  SkV3 target = {0, 0, 0};
-  SkV3 up = {0, 1, 0};
+  glm::vec3 eye = {0, 0, 480};
+  glm::vec3 target = {0, 0, 0};
+  glm::vec3 up = {0, 1, 0};
   float fovYDeg = 40;
   float zNear = 4;
   float zFar = 4096;
 
-  SkM44 view() const;
-  SkM44 projection(float aspect) const;
+  glm::mat4 view() const;
+  glm::mat4 projection(float aspect) const;
   /** view -> NDC -> viewport pixels (y flipped back to Skia's y-down). */
-  SkM44 viewProjection(SkSize viewport) const;
+  glm::mat4 viewProjection(SkSize viewport) const;
 };
 
 struct Light {
-  SkV3 direction = {-0.5f, -0.8f, -0.4f}; ///< world-space, toward scene
+  glm::vec3 direction = {-0.5f, -0.8f, -0.4f}; ///< world-space, toward scene
   SkColor4f color = SkColors::kWhite;
   float intensity = 1;
 };
@@ -82,7 +91,7 @@ struct MeshStyle {
 /** Draw a mesh through the painter pipeline. @p model is the mesh's
  *  world transform; the camera provides view/projection at the
  *  canvas's @p viewport size. */
-void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
+void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
               const Camera &camera, SkSize viewport,
               const MeshStyle &style = {});
 
@@ -90,19 +99,21 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const SkM44 &model,
  *  transform then runs @p draw with the canvas in the panel's local
  *  coordinates (origin at panel center, x right, y DOWN like any Skia
  *  canvas, one unit = one world unit). */
-void drawPanel(SkCanvas &canvas, const SkM44 &model, const Camera &camera,
+void drawPanel(SkCanvas &canvas, const glm::mat4 &model,
+               const Camera &camera,
                SkSize viewport,
                const std::function<void(SkCanvas &)> &draw);
 
 /** Convenience: an image mapped onto a width x height panel at
  *  @p model (image stretched to the panel rect, centered). */
 void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
-                    float height, const SkM44 &model, const Camera &camera,
-                    SkSize viewport, float opacity = 1);
+                    float height, const glm::mat4 &model,
+                    const Camera &camera, SkSize viewport,
+                    float opacity = 1);
 
 /** Model-matrix helpers (row-major reading order: applied right to
  *  left, translate * rotate * scale). */
-SkM44 place(SkV3 position, float yawDeg = 0, float pitchDeg = 0,
-            float rollDeg = 0, float scale = 1);
+glm::mat4 place(glm::vec3 position, float yawDeg = 0,
+                float pitchDeg = 0, float rollDeg = 0, float scale = 1);
 
 } // namespace sigil::shape::space

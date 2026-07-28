@@ -28,9 +28,10 @@
 #include "sigilshape/Mesh.h"
 #include "sigilshape/Space.h"
 
-#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
+
+#include <glm/glm.hpp>
 
 #include <map>
 #include <string>
@@ -39,27 +40,29 @@
 namespace sigil::shape {
 
 struct Cloud {
-  std::vector<SkV3> positions;
+  std::vector<glm::vec3> positions;
   std::map<std::string, std::vector<float>, std::less<>> scalars;
-  std::map<std::string, std::vector<SkV3>, std::less<>> vectors;
-  std::map<std::string, std::vector<SkColor4f>, std::less<>> colors;
+  std::map<std::string, std::vector<glm::vec3>, std::less<>> vectors;
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> colors;
 
   size_t size() const { return positions.size(); }
 
   /** Lane accessors, create-on-touch, sized to the cloud. */
   std::vector<float> &scalar(const std::string &name, float fill = 0);
-  std::vector<SkV3> &vector(const std::string &name,
-                            SkV3 fill = {0, 0, 1});
-  std::vector<SkColor4f> &color(const std::string &name,
-                                SkColor4f fill = {1, 1, 1, 1});
+  std::vector<glm::vec3> &vector(const std::string &name,
+                                 glm::vec3 fill = {0, 0, 1});
+  std::vector<glm::vec4> &color(const std::string &name,
+                                glm::vec4 fill = {1, 1, 1, 1});
 
   /** Read-only lane lookups; null when absent. */
   const std::vector<float> *scalarIf(std::string_view name) const;
-  const std::vector<SkV3> *vectorIf(std::string_view name) const;
-  const std::vector<SkColor4f> *colorIf(std::string_view name) const;
+  const std::vector<glm::vec3> *vectorIf(std::string_view name) const;
+  const std::vector<glm::vec4> *colorIf(std::string_view name) const;
 
-  /** Append another cloud (shared lanes concatenate; lanes missing on
-   *  one side pad with their defaults). */
+  /** Append another cloud. Shared lanes concatenate; a lane missing
+   *  on one side pads by NAME convention: scalar "size" pads 1
+   *  (others 0), color "Tex" pads the identity window {0,0,1,1} and
+   *  "uv" pads {0,0,0,0} (other colors white), vectors pad {0,0,1}. */
   void append(const Cloud &other);
 };
 
@@ -68,17 +71,21 @@ namespace points {
 /** @p count points along the spline, arc-length spaced; writes "t"
  *  plus the full parallel-transport frame as "tangent", "normal", and
  *  "binormal" lanes — cook them into any orient lane you need. */
-Cloud onSpline(const Spline3 &spline, int count, SkV3 up = {0, 1, 0});
+Cloud onSpline(const Spline3 &spline, int count,
+               glm::vec3 up = {0, 1, 0});
 
 /** nu x nv lattice spanned by two edge vectors; writes "t" (row-major
  *  0..1) and "normal" (du x dv). */
-Cloud grid(SkV3 origin, SkV3 du, SkV3 dv, int nu, int nv);
+Cloud grid(glm::vec3 origin, glm::vec3 du, glm::vec3 dv, int nu,
+           int nv);
 
 /** A ring of @p count points; writes "t" and "normal" (outward). */
-Cloud ring(SkV3 center, float radius, int count, SkV3 axis = {0, 1, 0});
+Cloud ring(glm::vec3 center, float radius, int count,
+           glm::vec3 axis = {0, 1, 0});
 
 /** Uniform random points in a box; writes "t" (by index). */
-Cloud scatterBox(SkV3 lo, SkV3 hi, int count, uint32_t seed = 1);
+Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count,
+                 uint32_t seed = 1);
 
 /** Area-weighted random points on a mesh surface; writes "normal"
  *  (interpolated) and "t". */
@@ -103,7 +110,7 @@ struct InstanceOptions {
   /** Vector lane orienting the stamp's +z (e.g. "normal"); empty =
    *  keep the stamp's own orientation. */
   std::string orientLane;
-  SkV3 up = {0, 1, 0};
+  glm::vec3 up = {0, 1, 0};
 };
 
 /** Stamp @p stamp at every point into one merged Mesh. */
@@ -122,7 +129,7 @@ struct BillboardStyle {
   float size = 10;          ///< world units at scale 1
   std::string sizeLane;     ///< scalar multiplier per point
   std::string tintLane;     ///< color per point
-  SkColor4f tint = {1, 1, 1, 1};
+  glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;     ///< kPlus glow vs kSrcOver
   bool depthSort = true;
   /** Shrink with distance (perspective); off = constant pixel size. */
