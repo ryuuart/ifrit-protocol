@@ -69,6 +69,19 @@ private:
 skgpu::graphite::RecorderOptions SkiaGraphiteContext::makeRecorderOptions() {
   skgpu::graphite::RecorderOptions options;
   options.fImageProvider = sk_make_sp<CachingImageProvider>();
+  // Unordered replay makes Recorder::snap() evict the glyph/path/clip
+  // atlases every snap (Skia m151 Recorder.cpp:265-267 →
+  // AtlasProvider::invalidateAtlases), so every glyph re-uploads once per
+  // frame. Every host here snaps and inserts one Recording per frame on
+  // one thread, in order — audited 2026-07-26, see
+  // src/sigilweave/docs/graphite_ordering_audit.md.
+  //
+  // PRECONDITION, not a tradeoff: a snapped-but-never-inserted Recording
+  // (or a snap() that returns nullptr) skips an ID and permanently kills
+  // this Recorder — insertRecording then returns kOutOfOrderRecording and
+  // renders nothing, forever, unchecked. Do not add a "snap to discard"
+  // anywhere downstream of this line.
+  options.fRequireOrderedRecordings = true;
   return options;
 }
 

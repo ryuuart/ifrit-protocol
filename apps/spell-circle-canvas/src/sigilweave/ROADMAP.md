@@ -33,7 +33,16 @@ Graphite`, `BM_Draw_Bloom_PictureReplay_Graphite`) plus a Graphite
 twin of `BM_Draw_DenseText_PictureReplay` — which does not exist yet
 and is exactly the shape this flag moves. Confirm with a Metal
 capture on atlas upload bytes.
-**2026-07-26 — bench built, audit filed, still unmeasured.**
+**2026-07-27 — MEASURED AND SHIPPED. The flag is ON.** Release,
+quiet machine (CVs 0.10-0.79%), 3 repetitions, before/after around the
+one-line makeRecorderOptions patch the audit prepared:
+`BM_Draw_DenseText_PictureReplay_Graphite` **141.3 µs → 57.7 µs
+(2.45×)**; `BM_Draw_100Rows_Cached_Graphite` 294.5 → 270.5 µs (−8.2%);
+`BM_Draw_Bloom_PictureReplay_Graphite` 240.2 → 220.1 µs (−8.4%); the
+`_TextureBlit` control floor 42.01 → 42.02 µs (unchanged — the delta is
+entirely the atlas eviction, as the source analysis predicted). All GPU
+suites green under ordered recordings (compose_gpu_test, scry/web gpu).
+Preconditions C1/C2 had landed earlier (ece1b3e). Prior status:
 `BM_Draw_DenseText_PictureReplay_Graphite` (plus `_TextureBlit_Graphite`
 as its floor) registered in compose_bench; Debug and Release both build;
 smoke-run only. Audit: `docs/graphite_ordering_audit.md` — every
@@ -62,6 +71,13 @@ Measure FIRST — the wall bracket already exists: the gap between
 `BM_DrawBatched_Raster_300w`, then `_2000w` for scale. Packing does
 not touch rasterization; the win is a fraction — believe the number,
 not the story.
+**2026-07-27 — MEASURED, and the number kills the story at this
+scale.** Release, quiet, CV ≤ 0.4%: blob path 301 µs, drawBatched
+**207 µs** — the repacking path is 31% FASTER than the blob arm, so
+per-frame repacking is not the wall the entry described. (`_2000w`
+has no blob twin; batched alone is 849 µs.) The fix stays unbuilt
+until a real scene shows repacking cost; this entry is now
+evidence-negative.
 
 ## 3. Slug-cache the moving-text picture path — measure before building
 
@@ -99,7 +115,13 @@ per-run path the group path's scratch.
 Measure: no skip-ink draw bench exists — add
 `BM_DrawBatched_Raster_300w_SkipInkUnderline` and diff against plain.
 That bench IS the wall reproduction; it must come first.
-**2026-07-26 — bench built, unmeasured.**
+**2026-07-27 — MEASURED; the wall is real and the fix is justified.**
+Release, quiet, CV ≤ 0.4%: plain 207 µs, `_PlainUnderline` 270 µs
+(+63 µs = band rasterization, not §4), `_SkipInkUnderline` **381 µs**
+— +111 µs over the plain-underline control is the per-frame
+intercept + strike re-entry this entry names. The memo fix (intercepts
+keyed on layout-stable inputs beside blobCache, scratch for the
+per-run path) is now number-backed and next in line. Prior status:
 `BM_DrawBatched_Raster_300w_SkipInkUnderline` registered in weave_bench
 beside plain `BM_DrawBatched_Raster_300w`, same corpus/flow/surface, one
 default underline decoration the only difference. Added with it:
