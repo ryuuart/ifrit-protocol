@@ -23,6 +23,7 @@
 #include <include/encode/SkPngEncoder.h>
 
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -386,6 +387,12 @@ Element tileMazePanel(SkSize size) {
 }
 
 int main(int argc, char **argv) {
+  if (argc > 1 && argv[1][0] == '-') {
+    const bool help =
+        std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;
+    std::fprintf(help ? stdout : stderr, "usage: compose_demo [outdir]\n");
+    return help ? 0 : 1;
+  }
   std::filesystem::path outDir = argc > 1 ? argv[1] : "compose_demo_out";
   std::filesystem::create_directories(outDir);
 
