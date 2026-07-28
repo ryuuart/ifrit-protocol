@@ -1692,6 +1692,56 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
 // ---------------------------------------------------------------------------
 // §18: a texture-cached node's blend rides its blit, not a saveLayer.
 
+TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
+  // The measured case: Cache::Texture + a non-srcOver blend used to
+  // allocate a device-clip-sized saveLayer to composite ONE blit
+  // (3.45 → 0.24 ms on the node that filed §18). The blend now rides the
+  // blit's paint. Semantics pinned against the ground truth: compositing
+  // one image through a layer and drawing it with the paint directly are
+  // the same operation minus an intermediate — so the deferred plate must
+  // match a hand-built layer composite to within the honest 8-bit
+  // residual (§30's standard: peak ≤ 2), and kPlus over the red base
+  // must actually ACCUMULATE.
+  auto plate = [](bool texture) {
+    Host host;
+    host.composer.render(
+        box().fill(red()).child(box().width(80).height(80)
+                                    .inset(20, 20, 100, 100).absolute()
+                                    .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+                                    .blend(SkBlendMode::kPlus)
+                                    .cache(texture ? Cache::Texture
+                                                   : Cache::Picture)));
+    for (int i = 0; i < 3; ++i)
+      host.frame(); // settle: bake once, then replay/blit
+    std::vector<SkColor> px;
+    for (int y = 10; y < 110; y += 2)
+      for (int x = 10; x < 110; x += 2)
+        px.push_back(host.pixel(x, y));
+    return px;
+  };
+  const auto deferred = plate(true), layered = plate(false);
+  ASSERT_EQ(deferred.size(), layered.size());
+  int peak = 0;
+  for (size_t i = 0; i < deferred.size(); ++i)
+    for (int shift : {0, 8, 16, 24})
+      peak = std::max(peak, std::abs((int)((deferred[i] >> shift) & 0xFF) -
+                                     (int)((layered[i] >> shift) & 0xFF)));
+  EXPECT_LE(peak, 2) << "deferred blit and layer composite disagree "
+                        "beyond the 8-bit residual";
+  // …and the blend is really live: plus over red saturates the red
+  // channel where the child overlaps.
+  Host host;
+  host.composer.render(
+      box().fill(red()).child(box().width(80).height(80)
+                                  .inset(20, 20, 100, 100).absolute()
+                                  .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
+                                  .blend(SkBlendMode::kPlus)
+                                  .cache(Cache::Texture)));
+  for (int i = 0; i < 3; ++i)
+    host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u); // 1.0 + 0.2 clamps
+  EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 90u);  // the child's green
+}
 
 // ---------------------------------------------------------------------------
 // Material::buffer (§4): content that changes without re-describing.

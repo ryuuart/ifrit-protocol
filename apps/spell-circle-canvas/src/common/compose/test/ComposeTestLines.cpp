@@ -1513,10 +1513,13 @@ TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
   Host host;
   host.composer.render(gatedRing(Cache::Auto));
   host.frame();
-  for (int i = 0; i < 18; ++i)
-    host.frame(1.0 / 60.0); // t ~ 0.30 s: inside the hold
+  // Warm PAST the §20 release: kScalarSettleFrames stable paints in, the
+  // volatility flag releases and the tree re-records ONCE (the settling
+  // frame). The steady state after that is the zero this test pins.
+  for (int i = 0; i < 26; ++i)
+    host.frame(1.0 / 60.0); // t ~ 0.43 s: deep in the hold, post-release
   unsigned duringHold = 0;
-  for (int i = 0; i < 15; ++i) { // 0.30 -> 0.55 s, still flat
+  for (int i = 0; i < 8; ++i) { // 0.43 -> 0.57 s, still flat
     host.frame(1.0 / 60.0);
     duringHold += host.composer.stats().picturesRecorded;
   }

@@ -191,6 +191,18 @@ struct Instance {
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
+  // §20: the measured-stability RELEASE. computeVolatile resolves the
+  // same scalars per frame; after kSettleFrames of identity the node
+  // stops declaring content volatility for them, so ANCESTORS can cache
+  // across a settled binding (the §17 memo already kept the node's own
+  // recording — what never released was the flag). The frame a value
+  // moves, the compare fails, volatility re-declares, and the ancestor's
+  // recording is refused before anything stale replays.
+  ContentScalars settledScalars;
+  int settleFrames = 0;
+  /** Consecutive stable paints before the release — promotion's own
+   *  consecutive-frames bar (§29's kPromoteFrames precedent). */
+  static constexpr int kScalarSettleFrames = 8;
   // ---- §30: Cache::Group, the SUBTREE value memo -------------------------
   // §17 asked "did this node's own animated scalars move". A group asks the
   // same question of a whole subtree, and for a different reason: kumiko's
@@ -425,6 +437,15 @@ struct Composer::Impl {
       routesByAnchor;
   bool volatileDirty = true; // recompute needed (render or animation)
   bool tickerWasActive = false;
+  // §20: instances whose scalar volatility is RELEASED (settled bound
+  // gates/glyph progress). Rebuilt by every computeVolatile walk; scanned
+  // once per draw so an EXTERNALLY-driven Output that moves re-declares
+  // volatility the same frame — the walk itself only re-runs on
+  // reconcile/ticker, which is exactly why the flag never released
+  // before. Guarded by !volatileDirty (a pending recompute means the
+  // tree changed and these pointers may be stale).
+  std::vector<detail::Instance *> releasedScalars;
+  void scanReleasedScalars(); // defined in Paint.cpp beside the memos
   // Recomputed with the key index (so unmounting the last derived/pinned
   // node actually clears them — they were latch-only before).
   bool hasDerived = false; // any flowAround/connector/rail in the tree

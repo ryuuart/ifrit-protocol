@@ -286,9 +286,13 @@ void Composer::draw(SkCanvas &canvas) {
   impl.stats.layoutMs = lap();
 
   // Volatility changes only on reconcile or while animations run (and once
-  // more on the settling frame) — skip the walk otherwise.
+  // more on the settling frame) — skip the walk otherwise. §20's released
+  // bindings are the exception the scan covers: an externally-driven
+  // Output can move while the walk sleeps, and must re-declare NOW.
+  impl.scanReleasedScalars();
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
+    impl.releasedScalars.clear(); // the walk re-registers what stays released
     impl.computeVolatile(*impl.root);
     impl.volatileDirty = false;
   }

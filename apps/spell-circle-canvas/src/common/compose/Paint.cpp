@@ -391,6 +391,28 @@ SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
 // ---------------------------------------------------------------------------
 // Volatility & caching
 
+/** §20's movement scan: released instances re-checked once per draw, so
+ *  an EXTERNALLY-driven Output that moves re-declares volatility (and
+ *  stales every ancestor recording) in the same frame — nothing stale
+ *  ever replays. Cheap by construction: released nodes are few and each
+ *  check is a handful of float resolves. */
+void Composer::Impl::scanReleasedScalars() {
+  if (volatileDirty || releasedScalars.empty())
+    return; // a pending recompute rebuilds the list (pointers may be stale)
+  for (Instance *inst : releasedScalars) {
+    Instance::ContentScalars now;
+    now.gates = inst->resolveGateValues();
+    if (const GlyphFx *g = glyphFxOf(*inst->desc))
+      now.glyph = inst->resolveFloat(Instance::kGlyphProgress, g->progress);
+    if (!(now == inst->settledScalars)) {
+      inst->settleFrames = 0; // the hold is over: warm up from scratch
+      inst->settledScalars = std::move(now);
+      inst->markPaintDirtyUp();
+      volatileDirty = true; // re-walk this frame, before anything paints
+    }
+  }
+}
+
 bool Composer::Impl::computeVolatile(Instance &inst) {
   const ElementNode &node = *inst.desc;
 
@@ -519,6 +541,28 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
   if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
     scalarContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
+  // §20: the measured-stability RELEASE, read side. The settle counter
+  // accumulates at PAINT time — this walk re-runs only on reconcile or
+  // while the TICKER is active, which is exactly why the flag never
+  // released before — so here the walk merely honours a warmed-up
+  // release and registers the instance for the per-draw scan
+  // (scanReleasedScalars) that re-declares volatility THE FRAME an
+  // externally-driven binding moves again. The §17 memo always kept
+  // this node's own recording; the FLAG is what this frees, so
+  // ancestors can finally cache across a settled reveal.
+  if (scalarContent && inst.settleFrames >= Instance::kScalarSettleFrames) {
+    Instance::ContentScalars now;
+    now.gates = inst.resolveGateValues();
+    if (const GlyphFx *g = glyphFxOf(node))
+      now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
+    if (now == inst.settledScalars) {
+      scalarContent = false; // released — provably holding still
+      releasedScalars.push_back(&inst);
+    } else {
+      inst.settleFrames = 0; // moved between walks: warm up again
+      inst.settledScalars = std::move(now);
+    }
+  }
   ownContent |= scalarContent;
   if (node.textData && node.textData->driveValue)
     ownContent = true; // VariationDrive repaints per frame (no reshape)
@@ -1918,48 +1962,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       canvas.clipRRect(cornersRRect(SkRect::MakeWH(rect.width(), rect.height()),
                                     node.corners),
                        true);
-    SkCanvas::SaveLayerRec rec(nullptr, nullptr,
-                               backdropEffectOf(node)->imageFilter().get(), 0);
+    SkCanvas::SaveLayerRec rec(nullptr, nullptr, backdropFilter.get(), 0);
     canvas.saveLayer(rec);
     canvas.restore(); // composite the filtered backdrop through the clip
     canvas.restore(); // release the clip — content is NOT bounded by it
   }
-
-  // Fill-only leaves route blend/opacity straight onto the fill paint instead
-  // of a (device-clip-sized!) saveLayer — a field of plus-blended shapes costs
-  // path draws, not full-canvas layers. Excluded: live opacity (must stay
-  // outside any cached recording) and texture bakes (blending must hit the
-  // real destination, not the bake's transparent surface).
-  const bool opacityLive =
-      node.paint.opacity.binding() != nullptr ||
-      (inst.anims[Instance::kOpacity] &&
-       inst.anims[Instance::kOpacity]->value.isConnected());
-  const bool leafDirectBlend =
-      (node.kind == Kind::Box || node.kind == Kind::Stack) &&
-      inst.children.empty() && node.backgrounds.empty() &&
-      node.foregrounds.empty() && !node.hasStrokePasses() &&
-      (!node.fxData ||
-       (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
-      !layerEffectOf(node) &&
-      !backdropEffectOf(node) &&
-      !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
-      node.cacheMode != Cache::Group; // (same reason: bakes isolate)
-  const bool needsLayer =
-      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
-      !leafDirectBlend;
-  if (needsLayer) {
-    SkPaint layerPaint;
-    layerPaint.setAlphaf(opacity);
-    layerPaint.setBlendMode(node.paint.blendMode);
-    // BOUNDED like the effect layer: nullptr would allocate a clip-sized
-    // (often full-canvas) layer for every fading container — entrance
-    // opacity ramps paid a fullscreen composite per animated group.
-    const SkRect content = recordBounds(inst);
-    canvas.saveLayer(&content, &layerPaint);
-  }
-  const SkBlendMode leafBlend =
-      leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
-  const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
 
   // The live-material resolve probe: when the node's only volatility is
   // its live material, resolve NOW — a stable shader means the cached
@@ -2004,6 +2011,21 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&
                              scalarsNow == inst.bakedScalars;
+  // §20 warmup, write side: count consecutive stable paints; crossing the
+  // bar requests ONE volatility recompute, and that walk performs the
+  // actual release (and registers the node for the per-draw movement
+  // scan). Any instability resets the warmup — a moving binding costs
+  // exactly what it did before this existed.
+  if (inst.scalarMemo) {
+    if (scalarsStable) {
+      inst.settledScalars = scalarsNow;
+      if (inst.settleFrames < Instance::kScalarSettleFrames &&
+          ++inst.settleFrames == Instance::kScalarSettleFrames)
+        volatileDirty = true;
+    } else {
+      inst.settleFrames = 0;
+    }
+  }
   // "May this node keep its cached pixels?" — either nothing about it is
   // volatile, or every input it reads is memoized and provably unchanged.
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
@@ -2012,6 +2034,57 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   // their own input and abstain on the other.
   const bool memoStale = (inst.liveMatOnly && !liveStable) ||
                          (inst.scalarMemo && !scalarsStable);
+
+  // Fill-only leaves route blend/opacity straight onto the fill paint instead
+  // of a (device-clip-sized!) saveLayer — a field of plus-blended shapes costs
+  // path draws, not full-canvas layers. Excluded: live opacity (must stay
+  // outside any cached recording) and texture bakes (blending must hit the
+  // real destination, not the bake's transparent surface).
+  const bool opacityLive =
+      node.paint.opacity.binding() != nullptr ||
+      (inst.anims[Instance::kOpacity] &&
+       inst.anims[Instance::kOpacity]->value.isConnected());
+  const bool leafDirectBlend =
+      (node.kind == Kind::Box || node.kind == Kind::Stack) &&
+      inst.children.empty() && node.backgrounds.empty() &&
+      node.foregrounds.empty() && !node.hasStrokePasses() &&
+      (!node.fxData ||
+       (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
+      !layerEffectOf(node) &&
+      !backdropEffectOf(node) &&
+      !node.clipContent && !opacityLive && node.cacheMode != Cache::Texture &&
+      node.cacheMode != Cache::Group; // (same reason: bakes isolate)
+  // §18: a texture-cached node composites exactly ONE draw — its blit —
+  // so its blend/opacity ride the blit's paint instead of a
+  // device-clip-sized saveLayer (3.45 → 0.24 ms measured on the node
+  // that filed the entry, and one fewer 8-bit requantisation). The
+  // predicate is EXACT by construction: it is the texture branch's own
+  // entry condition (the memo probes above were hoisted so cacheHolds is
+  // known here), and every exit of that branch ends in a single image
+  // draw — the device blit, or the quantized-local blit it falls back
+  // to. A node that fails the entry keeps the layer, so nothing can
+  // lose its blend.
+  const bool deferBlendToBlit =
+      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
+      !leafDirectBlend && !liveOnly && cacheHolds &&
+      node.cacheMode == Cache::Texture && !backdropEffectOf(node);
+  const bool needsLayer =
+      (opacity < 1.0f || node.paint.blendMode != SkBlendMode::kSrcOver) &&
+      !leafDirectBlend && !deferBlendToBlit;
+  if (needsLayer) {
+    SkPaint layerPaint;
+    layerPaint.setAlphaf(opacity);
+    layerPaint.setBlendMode(node.paint.blendMode);
+    // BOUNDED like the effect layer: nullptr would allocate a clip-sized
+    // (often full-canvas) layer for every fading container — entrance
+    // opacity ramps paid a fullscreen composite per animated group.
+    const SkRect content = recordBounds(inst);
+    canvas.saveLayer(&content, &layerPaint);
+  }
+  const SkBlendMode leafBlend =
+      leafDirectBlend ? node.paint.blendMode : SkBlendMode::kSrcOver;
+  const float leafOpacity = leafDirectBlend ? opacity : 1.0f;
+
 
   // Automatic caching at topmost provably-static subtrees: pictures by
   // default, a rasterized image under Cache::Texture (the raster-target pixel
@@ -2701,8 +2774,19 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         canvas.save();
         canvas.resetMatrix();
         profDraw("blit", [&] {
-          canvas.drawImage(inst.textureImage, (float)deviceR.left(),
-                           (float)deviceR.top(), SkSamplingOptions());
+          if (deferBlendToBlit) {
+            // §18: the node's blend/opacity on the ONE draw it composites
+            // as — cheaper and slightly MORE exact than the layer it
+            // replaces (no full-canvas intermediate, one less rounding).
+            SkPaint blit;
+            blit.setAlphaf(opacity);
+            blit.setBlendMode(node.paint.blendMode);
+            canvas.drawImage(inst.textureImage, (float)deviceR.left(),
+                             (float)deviceR.top(), SkSamplingOptions(), &blit);
+          } else {
+            canvas.drawImage(inst.textureImage, (float)deviceR.left(),
+                             (float)deviceR.top(), SkSamplingOptions());
+          }
         });
         canvas.restore();
         if (needsLayer)
@@ -2768,8 +2852,16 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
         (float)inst.textureImage->width() / inst.textureScale,
         (float)inst.textureImage->height() / inst.textureScale);
     profDraw("blit", [&] {
-      canvas.drawImageRect(inst.textureImage, dst,
-                           SkSamplingOptions(SkFilterMode::kLinear));
+      if (deferBlendToBlit) {
+        SkPaint blit; // §18: same rule as the device blit above
+        blit.setAlphaf(opacity);
+        blit.setBlendMode(node.paint.blendMode);
+        canvas.drawImageRect(inst.textureImage, dst,
+                             SkSamplingOptions(SkFilterMode::kLinear), &blit);
+      } else {
+        canvas.drawImageRect(inst.textureImage, dst,
+                             SkSamplingOptions(SkFilterMode::kLinear));
+      }
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A zero-sized node (auto-height layout() containers, spacer

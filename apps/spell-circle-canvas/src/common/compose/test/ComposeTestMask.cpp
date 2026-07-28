@@ -469,11 +469,15 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   Host host;
   host.composer.render(ring());
   host.frame();
-  for (int i = 0; i < 18; ++i)
-    host.frame(1.0 / 60.0); // t ≈ 0.30 s — inside the hold
+  // Warm PAST the §20 release: after kScalarSettleFrames stable paints
+  // the volatility flag releases and the tree re-records ONCE (the
+  // "settling frame" cost — the price of ancestors gaining the cache).
+  // The hold's steady state after that is the zero this test pins.
+  for (int i = 0; i < 26; ++i)
+    host.frame(1.0 / 60.0); // t ≈ 0.43 s — deep in the hold, post-release
   unsigned duringHold = 0;
-  for (int i = 0; i < 15; ++i) {
-    host.frame(1.0 / 60.0);
+  for (int i = 0; i < 8; ++i) {
+    host.frame(1.0 / 60.0); // t ≈ 0.43 → 0.57 s, still held
     duringHold += host.composer.stats().picturesRecorded;
   }
   EXPECT_EQ(duringHold, 0u) << "a held gate must repaint nothing";
@@ -784,4 +788,42 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   host.frame();
   EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
+}
+
+TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
+  // §20's acceptance test, enabled by the measured-stability RELEASE:
+  // a bound gate that has held still for kSettleFrames stops declaring
+  // volatility, so the ANCESTOR caches across it — the probe that
+  // preceded the fix measured recording kept (memo) but 5/5 live paints
+  // (the flag never released).
+  choreograph::Output<float> reveal{0.0f};
+  Host host;
+  host.composer.render(box().child(
+      maskBox().stroke(util::stroke(6, red()))
+          .mask(by::spans(spans::upTo(&reveal)))));
+  host.frame();
+  reveal = 1.0f;                 // the ramp lands…
+  for (int i = 0; i < 12; ++i)   // …and the release warms up (8 frames)
+    host.frame(0.016);
+  unsigned settledRecords = 0, settledPaints = 0;
+  for (int i = 0; i < 5; ++i) {  // the hold must now cost NOTHING
+    host.frame(0.016);
+    settledRecords += host.composer.stats().picturesRecorded;
+    settledPaints += host.composer.stats().nodesPainted;
+  }
+  EXPECT_EQ(settledRecords, 0u)
+      << "a pinned bound gate re-recorded during its hold";
+  EXPECT_EQ(settledPaints, 0u)
+      << "a pinned bound gate painted live during its hold";
+  EXPECT_GT(redInk(host, 0, 0, 200, 200), 400); // fully revealed, drawn
+
+  // THE STALE-REPLAY CONTROL: the frame the binding moves again, the
+  // release must re-declare BEFORE anything paints — the ancestor's
+  // cached picture holds the settled state and must not replay.
+  const int inkBefore = redInk(host, 0, 0, 200, 200);
+  reveal = 0.3f;
+  host.frame(0.016);
+  const int inkAfter = redInk(host, 0, 0, 200, 200);
+  EXPECT_LT(inkAfter, inkBefore / 2)
+      << "the moved gate did not repaint — a stale picture replayed";
 }
