@@ -146,6 +146,7 @@ else()
 endif()
 add_executable(compose_bench
   bench/ComposeBench.cpp
+  bench/ComposeCoreBench.cpp
   ${COMPOSE_BENCH_GPU_SOURCES}
 )
 target_link_libraries(compose_bench PRIVATE

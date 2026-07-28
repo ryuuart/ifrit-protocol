@@ -18,6 +18,20 @@ and `compose_bench` (Release, Apple Silicon dev Mac, 100 text rows,
 | relayout on width change | 583 µs | ~200 paragraph re-measures |
 | frame with 1 transition | 700 µs | ticker step + partial repaint |
 
+The original gate above is intentionally kept as the historical 100-row
+baseline. `ComposeCoreBench.cpp` now adds the SigilWeave-style scaling matrix
+that was missing from it: cold mount; warm, one-change, and keyed-reorder
+reconciliation at 100/500/2000 nodes; flex versus Yoga-free positioned layout;
+comparable versus raw-callable shapes; keyed bounds queries; live span/edge
+masks; profiled ribbons; the quadratic weave-crossing arm called out in
+ROADMAP §33; and the previously untimed `Cache::Group` live-picture/blit pair.
+Run just that matrix with:
+
+```sh
+./build/bin/Release/compose_bench \
+  --benchmark_filter='BM_(Mount|Reconcile|Layout|Query|Draw_(Mask|Profiled|BrushWeave|GroupCache))'
+```
+
 **Cache::Texture (landed, measured):** dense text block (800×540
 fully covered): picture replay 1224 µs → texture blit **600 µs (2.0×)**;
 the sparse 100-row list texture-cached whole: 404 µs → 597 µs (48%
