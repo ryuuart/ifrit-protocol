@@ -69,8 +69,22 @@ else()
   message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
 endif()
 
+# Nine contiguous slices of what was one 12.6k-line ComposeTest.cpp —
+# byte-identical test bodies in original order, sharing
+# test/ComposeTestSupport.h (the Host harness and helpers). Named by each
+# slice's dominant theme; suites interleave across slices because the
+# original file grew chronologically, and reshuffling 440 tests by suite
+# was judged a bigger risk than a name that is only mostly right.
 add_executable(compose_test
-  test/ComposeTest.cpp
+  test/ComposeTestKernel.cpp
+  test/ComposeTestContent.cpp
+  test/ComposeTestLines.cpp
+  test/ComposeTestBrushes.cpp
+  test/ComposeTestEngineDocs.cpp
+  test/ComposeTestTextData.cpp
+  test/ComposeTestQueriesStudio.cpp
+  test/ComposeTestGrammar.cpp
+  test/ComposeTestMask.cpp
 )
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
