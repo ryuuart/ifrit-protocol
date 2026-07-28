@@ -20,6 +20,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <iterator>
 
@@ -100,6 +101,13 @@ SkPath starPath(int points, float outer, float inner) {
 } // namespace
 
 int main(int argc, char **argv) {
+  if (argc > 1 && argv[1][0] == '-') {
+    const bool help =
+        std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;
+    std::fprintf(help ? stdout : stderr,
+                 "usage: world_demo [outdir] [assetdir]\n");
+    return help ? 0 : 1;
+  }
   const std::filesystem::path outDir =
       argc > 1 ? argv[1] : "world_demo_out";
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
