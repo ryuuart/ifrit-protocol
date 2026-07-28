@@ -21,7 +21,9 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkPath.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
@@ -37,10 +39,12 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
 class SkCanvas;
+class SkImage;
 class SkImageFilter;
 class SkPicture;
 class SkRuntimeEffect;
@@ -2843,9 +2847,10 @@ Element rail(std::vector<Anchor> anchors, RailRouter router = {});
  *  BOX. That is the pinned organic-shape hit-testing pass (§33), not a
  *  band defect to work around here.
  *
- *  An authored spine is an incomparable callable, exactly like shape()'s
- *  generator — memo() such a node (or keep the generator pointer-stable)
- *  to prune it while its size and inputs are unchanged. A borrowed spine
+ *  An authored spine is a `Shape`, exactly like shape()'s value: a
+ *  comparable generator (any `shapes::` value) prunes; a raw callable is
+ *  the escape hatch that stays conservative — memo() such a node (or
+ *  keep the SHAPE value stable) to prune it. A borrowed spine
  *  (`around(key)`) is a comparable value and prunes on its own.
  *
  *  Formation is explicit: `.centered()` (the default) straddles the
