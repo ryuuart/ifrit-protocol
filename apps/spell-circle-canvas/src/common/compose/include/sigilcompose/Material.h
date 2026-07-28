@@ -50,6 +50,7 @@
 #include <utility>
 #include <vector>
 
+class SkBitmap;
 class SkImage;
 
 namespace sigil::compose {
@@ -60,6 +61,40 @@ struct Stop {
   float pos = 0.0f;
   SkColor4f color = {0, 0, 0, 1};
   bool operator==(const Stop &) const = default;
+};
+
+/** The user-owned raster behind `Material::buffer()` (§4) — the Pool
+ *  contract for pixels: draw into `bitmap()` (or through `canvas()`),
+ *  then `commit()` to publish. The material's recipe carries
+ *  (source, revision), so nothing repaints between commits and one
+ *  commit patches exactly once on its next describe. `image()` snapshots
+ *  lazily, cached per revision — a describe that prunes never copies a
+ *  pixel. Not thread-safe by design (the Pool rule: one owner, one
+ *  writer). */
+class PixelBuffer {
+public:
+  PixelBuffer(int width, int height);
+  ~PixelBuffer();
+  PixelBuffer(const PixelBuffer &) = delete;
+  PixelBuffer &operator=(const PixelBuffer &) = delete;
+
+  /** The pixels, yours to write. N32 premul. */
+  SkBitmap &bitmap();
+  /** A raster canvas over the same pixels — the convenient writer. */
+  SkCanvas &canvas();
+  /** PUBLISH the edit: the next describe carries the new revision and
+   *  the reconciler repaints the material's node exactly once. */
+  void commit() { ++m_revision; }
+  uint64_t revision() const { return m_revision; }
+  /** The current snapshot (copied from the bitmap once per revision). */
+  sk_sp<SkImage> image();
+
+private:
+  struct State; // SkBitmap + SkCanvas live out of line (heavy includes)
+  std::unique_ptr<State> m_state;
+  uint64_t m_revision = 0;
+  uint64_t m_snapshotRevision = ~0ull;
+  sk_sp<SkImage> m_snapshot;
 };
 
 class Material;
@@ -98,6 +133,19 @@ public:
                         SkTileMode ty = SkTileMode::kClamp,
                         const SkMatrix &local = SkMatrix::I(),
                         SkSamplingOptions sampling = {});
+  /** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING (§4): a user-owned
+   *  raster the material samples — a simulation, a decoded video frame,
+   *  a paint surface, a scrollback. The seam Instances.h invented,
+   *  verbatim: you own the PixelBuffer, draw into it, `commit()`; the
+   *  material's recipe compares by (source, revision), so an identical
+   *  re-describe PRUNES between commits and the commit's next describe
+   *  patches exactly once. No `custom()` + `Cache::None`, no forfeited
+   *  picture caching, decorations intact. */
+  static Material buffer(std::shared_ptr<class PixelBuffer> source,
+                         SkTileMode tx = SkTileMode::kClamp,
+                         SkTileMode ty = SkTileMode::kClamp,
+                         const SkMatrix &local = SkMatrix::I(),
+                         SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
    *  once; bind live uniforms with uniform(name, &output) below. Declaring
    *  `uTime` or `uContentScale` takes the LIVE path (re-resolved each frame:

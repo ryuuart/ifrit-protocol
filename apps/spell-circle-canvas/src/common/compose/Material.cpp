@@ -10,6 +10,8 @@
 
 #include "ComposeInternal.h" // ElementNode, for Element::fill(Material)
 
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkTypes.h> // SkDebugf
@@ -69,6 +71,9 @@ struct Material::Recipe {
   SkSamplingOptions sampling;
   // Blend: layer materials (recursive Material equality) + modes.
   std::vector<std::pair<Material, SkBlendMode>> layers;
+  // Buffer (§4): the Instances pruning rule verbatim — identity + revision.
+  std::shared_ptr<PixelBuffer> source;
+  uint64_t revision = 0;
 
   bool operator==(const Recipe &o) const {
     if (kind != o.kind)
@@ -84,6 +89,9 @@ struct Material::Recipe {
              local == o.local && sampling == o.sampling;
     case Kind::Blend:
       return layers == o.layers;
+    case Kind::Buffer:
+      return source == o.source && revision == o.revision && tx == o.tx &&
+             ty == o.ty && local == o.local && sampling == o.sampling;
     }
     return false;
   }
@@ -299,6 +307,55 @@ Material Material::image(sk_sp<SkImage> image, SkTileMode tx, SkTileMode ty,
   rec->sampling = sampling;
   m.m_recipe = std::move(rec);
   return m;
+}
+
+Material Material::buffer(std::shared_ptr<PixelBuffer> source,
+                          SkTileMode tx, SkTileMode ty, const SkMatrix &local,
+                          SkSamplingOptions sampling) {
+  if (!source)
+    return {};
+  sk_sp<SkImage> snapshot = source->image();
+  if (!snapshot)
+    return {};
+  Material m = shader(SkShaders::Image(snapshot, tx, ty, sampling, &local));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Buffer;
+  rec->revision = source->revision();
+  rec->source = std::move(source);
+  rec->tx = tx;
+  rec->ty = ty;
+  rec->local = local;
+  rec->sampling = sampling;
+  m.m_recipe = std::move(rec);
+  return m;
+}
+
+// ---- PixelBuffer (§4) ------------------------------------------------------
+
+struct PixelBuffer::State {
+  SkBitmap bitmap;
+  std::unique_ptr<SkCanvas> canvas;
+};
+
+PixelBuffer::PixelBuffer(int width, int height)
+    : m_state(std::make_unique<State>()) {
+  m_state->bitmap.allocPixels(SkImageInfo::MakeN32Premul(
+      std::max(1, width), std::max(1, height)));
+  m_state->bitmap.eraseColor(SK_ColorTRANSPARENT);
+  m_state->canvas = std::make_unique<SkCanvas>(m_state->bitmap);
+}
+PixelBuffer::~PixelBuffer() = default;
+SkBitmap &PixelBuffer::bitmap() { return m_state->bitmap; }
+SkCanvas &PixelBuffer::canvas() { return *m_state->canvas; }
+sk_sp<SkImage> PixelBuffer::image() {
+  if (m_snapshotRevision != m_revision) {
+    // A COPY, once per commit: the user's bitmap stays mutable while the
+    // snapshot the shader holds is immutable — no torn frames, and a
+    // pruned describe never reaches this line.
+    m_snapshot = SkImages::RasterFromBitmap(m_state->bitmap);
+    m_snapshotRevision = m_revision;
+  }
+  return m_snapshot;
 }
 
 Material Material::sksl(sk_sp<SkRuntimeEffect> effect,

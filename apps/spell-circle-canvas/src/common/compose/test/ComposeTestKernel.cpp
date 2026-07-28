@@ -1746,5 +1746,42 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
 // ---------------------------------------------------------------------------
 // Material::buffer (§4): content that changes without re-describing.
 
+TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
+  // The Instances pruning rule, on pixels: identical re-describes prune
+  // while the revision holds; one commit() patches exactly once. Before
+  // this seam, anything with STATE — a simulation, a video frame, a
+  // scrollback — fell to custom() + Cache::None and forfeited every
+  // cache and decoration slot on the node.
+  auto src = std::make_shared<PixelBuffer>(40, 40);
+  src->canvas().clear(SkColorSetARGB(255, 255, 0, 0)); // red frame
+  src->commit();
+  Host host;
+  auto tree = [&] {
+    return box().child(box().width(100).height(100)
+                           .inset(0, 0, 100, 100).absolute()
+                           .fill(Material::buffer(src)));
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+  host.composer.render(tree()); // same revision: prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an uncommitted buffer re-patched";
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+
+  src->canvas().clear(SkColorSetARGB(255, 0, 0, 255)); // new frame…
+  src->commit();                                       // …published
+  host.composer.render(tree());
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "a commit must patch its node";
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+
+  // …and the new revision is itself stable.
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+}
 
 
