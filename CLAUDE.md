@@ -19,7 +19,9 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            EXR w/ layer selection, PSD, TIFF, HDR —
                            float sources land as F32 SkImages; http(s)://
                            URIs fetch via curl behind a disk cache
-                           [setNetworkCacheDir, poll() skips them] and
+                           [setNetworkCacheDir; offline-safe CacheFirst
+                           default, Refresh/Offline via
+                           setNetworkPolicy; poll() skips them] and
                            file:// strips to local; SVG decodes via
                            Skia's svg module — DecodeOptions.width/height
                            set the raster size),
@@ -40,19 +42,33 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            / API.md / STRESS_TESTS.md for
                            architecture, surface, measured numbers),
                            shape/ (SigilShape — higher-level drawing
-                           over Skia ONLY, no compose dependency:
+                           over Skia, no compose dependency; 3D data
+                           speaks glm [vec3/mat4 — Mesh/Curves/Points/
+                           Pop/Import/Camera], Skia stays the 2D+draw
+                           currency [SkPath, paint, textures], Space.h
+                           is the bridge:
                            Illustrator-style blend tool w/ spines +
                            OKLab color, Pathfinder booleans + offset +
                            Roughen/Zigzag/PuckerBloat/Twirl distorts
                            as non-destructive values [Ops.h],
                            procedural Mesh generators
                            [extrude/revolve/grid/torus/cylinderPanel],
+                           model import into the same Mesh currency
+                           [Import.h — OBJ via tinyobjloader, glTF/GLB
+                           via cgltf, STL + PLY by hand; PLY extra
+                           properties and glTF _NAME custom accessors
+                           become named attribute lanes, asCloud()
+                           pours them into Cloud/pops, and save::ply
+                           (Save.h) writes clouds/meshes BACK with
+                           all lanes — GPU readPoints to Blender;
+                           resolver-based external refs, textures
+                           stay encoded bytes],
                            3D splines w/ parallel-transport frames +
                            tube/ribbon sweeps + 2D projection
                            [Curves.h], point clouds w/ named attribute
                            lanes, instancing and billboard UI
-                           particles [Points.h], Skia-3D SkM44
-                           camera + SkVertices painter pipeline +
+                           particles [Points.h], glm camera +
+                           SkVertices painter pipeline +
                            perspective panels, and literal materials —
                            gold foil/chrome/glass SkSL over bevel
                            normal maps and equirect environments incl.
@@ -69,7 +85,20 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            volk + Homebrew-aware VolkShim.c; surfaces
                            are entt entities [Components.h publishes
                            Transform/Material, World::registry() for
-                           systems]; Scene.h = declarative node tree
+                           systems; Material uvScale/uvOffset = LIVE
+                           uv window (scroll with zero uploads) and
+                           setSurfaceMesh = in-place geometry update;
+                           addSweep + addFlock + pop::Chain
+                           combinators (addPoints/setPoints) = GPU
+                           compute geometry: POP-style operator
+                           values cooked over GPU attribute lanes —
+                           world_demo's marquee shows them: the yarn
+                           ball winding painted END TO END with one
+                           SigilCompose infinite-canvas strip
+                           (snapshot()-baked vector picture sliced
+                           into GPU tiles, one per arc, marching
+                           behind a chrome dart)];
+                           Scene.h = declarative node tree
                            reconciled into surfaces, compose's
                            describe+diff lesson without the kernel —
                            see its README.md)
