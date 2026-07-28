@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
@@ -288,4 +289,56 @@ TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
   EXPECT_FALSE(channels->floatingPoint);
   EXPECT_FLOAT_EQ(channels->at(0, 0, 0), 1.0f); // R
   EXPECT_FLOAT_EQ(channels->at(0, 0, 3), 1.0f); // A
+}
+
+TEST(LoaderNet, OfflinePolicyServesCacheAndNeverFetches) {
+  TempDir cache;
+  const std::string cached = "https://fake.invalid/have.txt";
+  std::ofstream(cache.path / networkCacheKey(cached), std::ios::binary)
+      << "kept";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkPolicy(NetworkPolicy::Offline);
+  EXPECT_EQ(hub.text(cached), "kept");
+  // A miss fails without touching the network (fake host untried).
+  EXPECT_EQ(hub.blob("https://fake.invalid/missing.txt"), nullptr);
+}
+
+TEST(LoaderNet, RefreshPolicyFallsBackToCacheOnFetchFailure) {
+  TempDir cache;
+  const std::string url = "https://fake.invalid/live.txt";
+  std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
+      << "yesterday's copy";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkPolicy(NetworkPolicy::Refresh);
+  // .invalid never resolves: the refetch fails, the cache answers.
+  EXPECT_EQ(hub.text(url), "yesterday's copy");
+}
+
+// Opt-in live-network round trip: fetch once, then read the same URL
+// back through a fresh hub locked Offline — the persisted cache is the
+// only possible source. Pinned to an immutable commit.
+//   SIGILLOADER_NET_TESTS=1 ./loader_test
+TEST(LoaderNet, LiveFetchThenOfflineRoundTrip) {
+  if (!std::getenv("SIGILLOADER_NET_TESTS"))
+    GTEST_SKIP() << "set SIGILLOADER_NET_TESTS=1 to run live-network "
+                    "tests";
+  TempDir cache;
+  const std::string url =
+      "https://raw.githubusercontent.com/KhronosGroup/"
+      "glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/"
+      "Models/Duck/glTF-Binary/Duck.glb";
+  Hub online;
+  online.setNetworkCacheDir(cache.path);
+  auto fetched = online.blob(url);
+  ASSERT_NE(fetched, nullptr);
+  EXPECT_EQ(fetched->bytes.size(), 120484u);
+
+  Hub offline;
+  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  auto replay = offline.blob(url);
+  ASSERT_NE(replay, nullptr);
+  EXPECT_EQ(replay->bytes.size(), fetched->bytes.size());
 }

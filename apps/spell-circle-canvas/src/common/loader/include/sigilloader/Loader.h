@@ -19,10 +19,14 @@
 // http:// and https:// URIs bypass mounts and fetch over the network
 // (libcurl: redirects followed, 20s timeout, HTTP errors fail).
 // Successful fetches persist in an on-disk cache (temp dir /
-// "sigilloader-net-cache"; override via setNetworkCacheDir), and a
-// cache hit never touches the network — offline runs keep working.
-// file:// URIs strip to plain local paths. poll() skips network
-// entries: they carry no mtime to watch.
+// "sigilloader-net-cache"; override via setNetworkCacheDir — point it
+// at an asset dir to make downloads survive reboots). Under the
+// default CacheFirst policy a cache hit never touches the network, so
+// offline runs keep working with no flag to set; setNetworkPolicy
+// picks Refresh (network first, cache as the fallback) or Offline
+// (cache only) when a host wants the explicit behavior. file:// URIs
+// strip to plain local paths. poll() skips network entries: they
+// carry no mtime to watch.
 //
 // The loader owns ACCESS: where bytes come from, caching, reload.
 // What pixels mean is SigilImage's concern (sigilimage/Decode.h) — the
@@ -66,6 +70,23 @@ struct ResourceInfo {
  *  format knowledge of its own. */
 using ImageOptions = sigil::image::DecodeOptions;
 
+/** When the hub may touch the network for http(s):// URIs. The policy
+ *  applies when a resource is first asked for (or asked again after
+ *  its entry was dropped); already-loaded entries stay as loaded. */
+enum class NetworkPolicy {
+  /** Default: a present cache file is served without any network
+   *  traffic; a miss fetches and persists. Offline-safe out of the
+   *  box once a resource has been seen. */
+  CacheFirst,
+  /** Ask the network first (pick up upstream changes); a failed fetch
+   *  falls back to the cached copy, so flaky networks degrade to
+   *  CacheFirst instead of failing. */
+  Refresh,
+  /** Never touch the network: cache hit or fail. For hermetic runs
+   *  and guaranteed-offline hosts. */
+  Offline,
+};
+
 /** The on-disk cache filename (no directory) a network URL maps to:
  *  hex of the URL's hash plus the URL path's extension, so decode
  *  pathHints keep working. Exposed for tests and cache pre-seeding. */
@@ -97,6 +118,9 @@ public:
    *  "sigilloader-net-cache"). Files land under networkCacheKey(url);
    *  a present file is served without touching the network. */
   void setNetworkCacheDir(std::filesystem::path dir);
+
+  /** How http(s):// asks may use the network (default: CacheFirst). */
+  void setNetworkPolicy(NetworkPolicy policy);
 
   /** Raw bytes; null when unresolvable/unreadable. */
   std::shared_ptr<const Blob> blob(std::string_view uri);
@@ -139,6 +163,7 @@ private:
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
   std::filesystem::path m_netCacheDir; // empty = the default temp dir
+  NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
 };
 
 } // namespace sigil::loader

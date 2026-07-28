@@ -85,20 +85,30 @@ struct FetchResult {
   std::filesystem::file_time_type mtime{};
 };
 
-/** Network fetch behind the disk cache: a present cache file is served
- *  without touching the network (offline-friendly); a fetch success
- *  persists for the next run. */
+/** Network fetch behind the disk cache. CacheFirst: a present cache
+ *  file is served without touching the network (offline-friendly).
+ *  Refresh: the network goes first, the cache catches its failures.
+ *  Offline: cache only. A fetch success always persists for the next
+ *  run. */
 FetchResult fetchNetwork(const std::filesystem::path &cacheDir,
-                         std::string_view url) {
+                         std::string_view url, NetworkPolicy policy) {
   std::error_code ec;
   std::filesystem::create_directories(cacheDir, ec);
   const std::filesystem::path cached = cacheDir / networkCacheKey(url);
-  if (std::filesystem::exists(cached, ec) && !ec)
-    if (auto blob = readFile(cached))
-      return {std::move(blob), cached, kNetworkMtime};
+  const auto fromCache = [&]() -> FetchResult {
+    if (std::filesystem::exists(cached, ec) && !ec)
+      if (auto blob = readFile(cached))
+        return {std::move(blob), cached, kNetworkMtime};
+    return {};
+  };
+  if (policy != NetworkPolicy::Refresh)
+    if (FetchResult hit = fromCache(); hit.blob)
+      return hit;
+  if (policy == NetworkPolicy::Offline)
+    return {};
   auto body = NetFetcher::get(url);
   if (!body)
-    return {};
+    return fromCache(); // Refresh degrades to the cached copy
   std::ofstream(cached, std::ios::binary)
       .write(reinterpret_cast<const char *>(body->data()),
              (std::streamsize)body->size()); // best-effort persist
@@ -111,13 +121,14 @@ FetchResult fetchNetwork(const std::filesystem::path &cacheDir,
  *  (through the disk cache), anything else → mounted filesystem. */
 FetchResult fetchResource(const Hub &hub,
                           const std::filesystem::path &netCacheDir,
+                          NetworkPolicy netPolicy,
                           std::string_view uri) {
   if (isNetworkUri(uri)) {
     const std::filesystem::path cacheDir =
         netCacheDir.empty() ? std::filesystem::temp_directory_path() /
                                   "sigilloader-net-cache"
                             : netCacheDir;
-    return fetchNetwork(cacheDir, uri);
+    return fetchNetwork(cacheDir, uri, netPolicy);
   }
   std::filesystem::path path = localPath(hub, uri);
   std::error_code ec;
@@ -172,6 +183,10 @@ void Hub::setNetworkCacheDir(std::filesystem::path dir) {
   m_netCacheDir = std::move(dir);
 }
 
+void Hub::setNetworkPolicy(NetworkPolicy policy) {
+  m_netPolicy = policy;
+}
+
 std::string Hub::cacheKey(std::string_view uri,
                           const ImageOptions *options) {
   std::string key(uri);
@@ -192,7 +207,8 @@ std::shared_ptr<const Blob> Hub::blob(std::string_view uri) {
   const std::string key = cacheKey(uri, nullptr);
   if (auto it = m_entries.find(key); it != m_entries.end())
     return it->second.blob;
-  FetchResult fetched = fetchResource(*this, m_netCacheDir, uri);
+  FetchResult fetched =
+      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
   if (!fetched.blob)
     return nullptr; // not cached: heals as soon as the file appears
   Entry entry;
@@ -213,7 +229,8 @@ Hub::image(std::string_view uri, const ImageOptions &options) {
   const std::string key = cacheKey(uri, &options);
   if (auto it = m_entries.find(key); it != m_entries.end())
     return it->second.image;
-  FetchResult fetched = fetchResource(*this, m_netCacheDir, uri);
+  FetchResult fetched =
+      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
   if (!fetched.blob)
     return nullptr;
   auto decoded = sigil::image::decodeImage(fetched.blob->bytes.data(),
@@ -234,7 +251,8 @@ Hub::channels(std::string_view uri) {
   const std::string key = std::string(uri) + "#channels";
   if (auto it = m_entries.find(key); it != m_entries.end())
     return it->second.channels;
-  FetchResult fetched = fetchResource(*this, m_netCacheDir, uri);
+  FetchResult fetched =
+      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
   if (!fetched.blob)
     return nullptr;
   auto decoded = sigil::image::decodeChannels(
@@ -251,7 +269,8 @@ Hub::channels(std::string_view uri) {
 }
 
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
-  FetchResult fetched = fetchResource(*this, m_netCacheDir, uri);
+  FetchResult fetched =
+      fetchResource(*this, m_netCacheDir, m_netPolicy, uri);
   if (!fetched.blob)
     return std::nullopt;
   if (auto probe = sigil::image::probeImage(fetched.blob->bytes.data(),
