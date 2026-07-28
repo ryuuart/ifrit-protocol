@@ -2753,6 +2753,13 @@ Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  `absolute().inset(0)` itself — which is exactly what
  *  `instancing::instances()` returns, for exactly this reason. */
 Element custom(PaintProgram program);
+/** The PRUNABLE spelling (§14): the key is the program's IDENTITY, on
+ *  the same author contract as `shapes::parametric(key, …)` — one key
+ *  always names one drawing at one parameterisation; fold anything that
+ *  varies into the key. Two describes with equal keys compare EQUAL and
+ *  the node prunes; the unkeyed form stays the escape hatch that
+ *  re-records every render(). */
+Element custom(std::string_view key, PaintProgram program);
 
 /** A container whose children are placed by @p scheme instead of
  *  flexbox (nests freely inside flex and vice versa). The container

@@ -135,6 +135,9 @@ struct ImageData {
 
 struct CustomData {
   PaintProgram program;
+  // custom(key, program): the program's declared identity (§14). Empty =
+  // unkeyed = conservatively unequal, as ever.
+  std::string key;
 };
 
 struct DeriveData {

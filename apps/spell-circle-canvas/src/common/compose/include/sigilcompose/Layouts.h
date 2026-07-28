@@ -39,6 +39,13 @@ struct Radial {
   float radiusFraction = 0.8f;
   float startDeg = -90.0f;
   float sweepDeg = 360.0f;
+  /** Per-child radius (§14): a fraction per index, overriding
+   *  `radiusFraction` where present — the data-driven ring the header
+   *  claims as native (an orbit diagram's bands, a skill wheel's tiers)
+   *  needed one radius PER CHILD and had one for all. Shorter than the
+   *  child list: the tail falls back to `radiusFraction`. Participates
+   *  in equality like every field. */
+  std::vector<float> radiusAt;
 
   std::vector<SkRect> place(const LayoutInput &in) const {
     const size_t n = in.childSizes.size();
@@ -47,7 +54,9 @@ struct Radial {
       return rects;
     const float cx = in.container.width() / 2;
     const float cy = in.container.height() / 2;
-    const float rx = cx * radiusFraction, ry = cy * radiusFraction;
+    auto frac = [&](size_t i) {
+      return i < radiusAt.size() ? radiusAt[i] : radiusFraction;
+    };
     // A full circle spaces n children evenly (endpoint excluded); a
     // partial sweep includes both endpoints.
     const bool full = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f;
@@ -55,6 +64,7 @@ struct Radial {
         n <= 1 ? 0.0f : sweepDeg / (full ? (float)n : (float)(n - 1));
     for (size_t i = 0; i < n; ++i) {
       const float a = (startDeg + step * (float)i) * SK_FloatPI / 180.0f;
+      const float rx = cx * frac(i), ry = cy * frac(i);
       rects[i] = detail::centeredAt(
           {cx + rx * std::cos(a), cy + ry * std::sin(a)}, in.childSizes[i]);
     }

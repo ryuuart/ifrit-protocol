@@ -664,6 +664,12 @@ Element custom(PaintProgram program) {
   return e;
 }
 
+Element custom(std::string_view key, PaintProgram program) {
+  Element e = custom(std::move(program));
+  e.node()->customData->key = std::string(key);
+  return e;
+}
+
 Element &Element::glyphFx(GlyphFx fx) {
   m_node->textData.ensure().glyphFx = std::move(fx);
   return *this;

@@ -1492,3 +1492,27 @@ TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   host.frame();                                // cached replay path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
+
+
+TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
+  // §14: the data-driven ring the header claims as native needed one
+  // radius PER CHILD. Shorter list = tail falls back to radiusFraction.
+  Host host;
+  std::vector<Element> dots;
+  for (int i = 0; i < 4; ++i)
+    dots.push_back(box().width(10).height(10).fill(red())
+                       .key("r" + std::to_string(i)));
+  host.composer.render(box().child(
+      layout(layouts::Radial{.radiusFraction = 0.8f,
+                             .radiusAt = {0.4f, 0.8f}})
+          .width(200).height(200).children(dots)));
+  host.frame();
+  auto center = [&](const char *k) {
+    auto r = host.composer.bounds(k);
+    return SkPoint{r->centerX(), r->centerY()};
+  };
+  EXPECT_NEAR(center("r0").y(), 60, 1);   // top, INNER ring (0.4 → r=40)
+  EXPECT_NEAR(center("r1").x(), 180, 1);  // right, outer (0.8 → r=80)
+  EXPECT_NEAR(center("r2").y(), 180, 1);  // bottom, fallback 0.8
+  EXPECT_NEAR(center("r3").x(), 20, 1);   // left, fallback 0.8
+}

@@ -63,6 +63,39 @@ inline Pattern stripes(float on, float off, SkColor4f color) {
   });
 }
 
+/** A COLOURED SEQUENCE of runs along +x (§14) — what a tartan sett, an
+ *  awning, a ribbon edge or a chart axis actually wants, and what
+ *  stripes()' single colour and linearUnit's stop model cannot express
+ *  (a 24-run sett against six stops). Each run is {width px, color};
+ *  the tile period is their sum; @p phase slides the whole sequence
+ *  along +x (px, wrapped). Rotate the Pattern for diagonals — stays
+ *  seamless. */
+inline Pattern sequence(std::vector<std::pair<float, SkColor4f>> runs,
+                        float phase = 0.0f) {
+  float period = 0;
+  for (const auto &[w, c] : runs)
+    period += std::max(w, 0.0f);
+  if (period <= 0)
+    return stripes(1, 0, {0, 0, 0, 0}); // degenerate: draws nothing
+  return Pattern::tile(
+      {period, 8},
+      [runs = std::move(runs), period, phase](SkCanvas &c, SkSize sz,
+                                              uint32_t) {
+        // Start one wrapped phase to the left and paint two periods, so
+        // the seam is covered whatever the phase.
+        float x = -std::fmod(std::fmod(phase, period) + period, period);
+        for (int rep = 0; rep < 2; ++rep)
+          for (const auto &[w, col] : runs) {
+            if (w <= 0)
+              continue;
+            SkPaint p;
+            p.setColor4f(col, nullptr);
+            c.drawRect(SkRect::MakeXYWH(x, 0, w, sz.height()), p);
+            x += w;
+          }
+      });
+}
+
 /** 2×2 checkerboard. */
 inline Pattern checker(float cell, SkColor4f a, SkColor4f b) {
   const float s = std::max(cell, 1.0f);

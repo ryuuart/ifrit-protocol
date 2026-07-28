@@ -57,7 +57,7 @@ struct Material::Live {
  *  equal (the §8.1 prune). Solid/raw-shader/sksl compare via Material's own
  *  state instead. */
 struct Material::Recipe {
-  enum class Kind : uint8_t { Linear, Radial, Sweep, Image, Blend };
+  enum class Kind : uint8_t { Linear, Radial, Sweep, Image, Blend, Buffer };
   Kind kind = Kind::Linear;
   // Gradients: endpoints/center + radius or sweep degrees + ramp.
   SkPoint p0 = {0, 0}, p1 = {0, 0};
@@ -201,6 +201,35 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
     }
     if (live.lastShader && inputs == live.lastInputs)
       return live.lastShader;
+  }
+  // §14: the sdf:: glow eats the shape silently. sdf::pad() is reserved
+  // INSIDE the node's box, so a 300×300 box with glowRadius 54 renders a
+  // ~1px disc and said nothing — sdf::minBoxFor() is the answer and
+  // nothing pointed at it from the call site. The numbers only meet HERE
+  // (uPad is a style constant, uResolution the laid-out size), so this is
+  // where the warning lives: once per process, on the sdf prelude's
+  // signature (uPad + uGlowR + uResolution), when pad >= half-size.
+  if (injectRes && ctx->size.width() > 0 && ctx->size.height() > 0) {
+    static bool warnedPad = false;
+    if (!warnedPad && validUniform(live.effect, "uPad", sizeof(float)) &&
+        validUniform(live.effect, "uGlowR", sizeof(float))) {
+      const float halfMin =
+          0.5f * std::min(ctx->size.width(), ctx->size.height());
+      for (const auto &[name, value] : live.constants)
+        if (name == "uPad" && value >= halfMin) {
+          warnedPad = true;
+          SkDebugf("[compose] sdf material: pad %.1f px >= half of the "
+                   "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
+                   "eats the whole interior and the visible shape is ~%.1f px "
+                   "across. Size the node with sdf::minBoxFor(style, "
+                   "contentPx) = content + 2*sdf::pad(style). (warned once)\n",
+                   value, ctx->size.width(), ctx->size.height(),
+                   std::max(1.0f, std::min(ctx->size.width(),
+                                           ctx->size.height()) -
+                                      2 * value));
+          break;
+        }
+    }
   }
   SkRuntimeShaderBuilder b(live.effect);
   for (const auto &[name, value] : live.constants)

@@ -1052,6 +1052,16 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   for (const Echo &e : echoesOf(node))
     bleed = std::max(
         bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
+  // A Material can declare a reserve too (§14): a fill whose outline
+  // (shape()) escapes the box truncated at the cached picture/texture
+  // bounds, and DecorationScheme::bleed() had no material counterpart.
+  // Both carriers — the live/geometry slot and the static recipe.
+  if (node.materialData) {
+    if (node.materialData->live)
+      bleed = std::max(bleed, node.materialData->live->bleed());
+    if (node.materialData->recipe)
+      bleed = std::max(bleed, node.materialData->recipe->bleed());
+  }
   if (bleed > 0)
     local.outset(bleed, bleed);
   // Routed elements paint their derive-resolved PATH, which is not bounded

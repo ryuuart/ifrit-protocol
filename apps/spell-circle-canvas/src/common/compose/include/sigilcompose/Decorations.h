@@ -265,7 +265,7 @@ struct PathSample {
 
 /** Walk the outline at `spacing` px intervals; at every sample the
  *  canvas is translated to the sample and rotated so +x follows the
- *  tangent. The general procedural border. Two bodies, composable:
+ *  tangent. The general procedural border. Three bodies, composable:
  *
  *  - `draw`: a raw program per sample (per-step images, SkSL, nested
  *    drawing). Set `animatedWalk` when it depends on
@@ -276,8 +276,10 @@ struct PathSample {
  *    the stamp's decorations may walk their own contours. With
  *    `animatedWalk` the stamp re-records each paint, sampling any
  *    bound ch::Outputs at their current values.
+ *  - `stampAt`: the SEQUENCE form of `stamp` (§14) — see its own note.
  *
- *  When both are set, `stamp` replays first, then `draw` runs on top. */
+ *  When several are set, the sample's stamp replays first (`stampAt`'s
+ *  element superseding `stamp` at that sample), then `draw` on top. */
 struct ContourWalk {
   float spacing = 16.0f;
   std::function<void(SkCanvas &, const PathSample &, const PaintContext &)>
@@ -286,10 +288,32 @@ struct ContourWalk {
 
   std::optional<Element> stamp;
 
+  /** Per-sample stamp SEQUENCE — ruler ticks with numbers, ribbon menus,
+   *  chained ornament. Called once per sample with the sample and its
+   *  running index (counting across contours); an Element returned is
+   *  baked via snapshot() at intrinsic size and replayed centered at the
+   *  sample exactly like `stamp`; std::nullopt falls back to `stamp`
+   *  (when set), so a numbered major tick every Nth sample rides over a
+   *  plain minor tick without two walks.
+   *
+   *  An incomparable callable, on the house convention: its presence
+   *  keeps the decoration conservatively unequal — which ContourWalk
+   *  already is for every instance (it has never had an operator==; the
+   *  raw `draw` callable made that decision long ago), so a walk never
+   *  prunes structurally: memo the host if the describe is hot.
+   *
+   *  THE BAKES ARE PER CALL, PER RECORD, UNCACHED — deliberately. Each
+   *  returned Element is a FRESH node, so the §16 instance-side
+   *  StampCache has nothing stable to key them on (per-index entries
+   *  would churn its slots and evict the node's real brush bakes). A
+   *  static walk pays the bakes once per describe; with `animatedWalk`
+   *  you pay them per frame, and that cost is the author's choice. */
+  std::function<std::optional<Element>(const PathSample &, size_t)> stampAt;
+
   bool isAnimated() const { return animatedWalk; }
 
   void paint(SkCanvas &canvas, const PaintContext &ctx) const {
-    if ((!draw && !stamp) || spacing <= 0)
+    if ((!draw && !stamp && !stampAt) || spacing <= 0)
       return;
 
     // Bake (or re-bake) the stamp element: once per description for
@@ -304,6 +328,7 @@ struct ContourWalk {
     const sk_sp<SkPicture> &stampPicture = stampCache->picture;
 
     SkContourMeasureIter iter(ctx.outline, false);
+    size_t index = 0; // runs across contours — the sequence's position
     while (sk_sp<SkContourMeasure> contour = iter.next()) {
       const float length = contour->length();
       for (float d = 0; d < length; d += spacing) {
@@ -312,19 +337,27 @@ struct ContourWalk {
         if (!contour->getPosTan(d, &pos, &tan))
           continue;
         PathSample sample{pos, tan, d, length > 0 ? d / length : 0};
+        // This sample's OWN art (stampAt): baked per call, uncached — see
+        // the field note. Shell box: snapshot ignores the ROOT's own dims.
+        sk_sp<SkPicture> own;
+        if (stampAt && ctx.fonts)
+          if (std::optional<Element> e = stampAt(sample, index))
+            own = snapshot(box().child(std::move(*e)), *ctx.fonts);
+        const sk_sp<SkPicture> &art = own ? own : stampPicture;
         canvas.save();
         canvas.translate(pos.x(), pos.y());
         canvas.rotate(std::atan2(tan.y(), tan.x()) * 180.0f / 3.14159265f);
-        if (stampPicture) {
-          const SkRect cull = stampPicture->cullRect();
+        if (art) {
+          const SkRect cull = art->cullRect();
           canvas.save();
           canvas.translate(-cull.width() / 2, -cull.height() / 2);
-          canvas.drawPicture(stampPicture);
+          canvas.drawPicture(art);
           canvas.restore();
         }
         if (draw)
           draw(canvas, sample, ctx);
         canvas.restore();
+        ++index;
       }
     }
   }

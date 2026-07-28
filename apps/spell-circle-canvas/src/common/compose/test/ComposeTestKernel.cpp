@@ -313,6 +313,49 @@ TEST(ComposeDecorations, AnimatedWalkDeclaresVolatility) {
   EXPECT_EQ(visits, 16); // 8 samples × 2 frames: repainted per frame
 }
 
+TEST(ComposeDecorations, ContourWalkStampAtSequencesPerSampleArt) {
+  // §14: ContourWalk sampled the tangent and rotated to it, then replayed
+  // ONE stamp. stampAt(sample, index) is the sequence form — ruler ticks
+  // with numbers, ribbon menus, chained ornament: per-index art, nullopt
+  // falling back to the shared `stamp`. The callable is incomparable and
+  // ContourWalk stays conservatively unequal as it always was (it has no
+  // operator== — the raw `draw` callable decided that long ago). The
+  // bakes are per call, per record, UNCACHED: each returned Element is a
+  // fresh node, so the §16 instance-side StampCache has nothing stable
+  // to key them on.
+  Host host;
+  static int asked;
+  asked = 0;
+  ContourWalk walk;
+  walk.spacing = 40.0f;
+  walk.stamp = box().width(10).height(10).fill(green());
+  walk.stampAt = [](const PathSample &s,
+                    size_t i) -> std::optional<Element> {
+    ++asked;
+    EXPECT_FLOAT_EQ(s.distance, 40.0f * (float)i); // the sequence contract
+    if (i % 2 == 1)
+      return std::nullopt; // odd samples: the shared stamp replays
+    return box().width(10).height(10).fill(red());
+  };
+  host.composer.render(box().child(
+      box().absolute().inset(20, 80, 20, 80)
+          .shape([](SkSize s) {
+            SkPathBuilder b;
+            b.moveTo(0, s.height() / 2);
+            b.lineTo(s.width(), s.height() / 2);
+            return b.detach();
+          })
+          .foreground(walk)));
+  host.frame();
+  // 160px rail, spacing 40 → samples at x = 20, 60, 100, 140 (y = 100).
+  EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);    // index 0: its own art
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorGREEN);  // index 1: fallback
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);   // index 2
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN); // index 3
+  EXPECT_EQ(asked, 4);
+  host.frame(); // a static walk records once and replays — no re-bakes
+  EXPECT_EQ(asked, 4);
+}
 
 TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   static int staticRuns;
@@ -1345,6 +1388,38 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   EXPECT_GT(lit, 80u); // exp(-6/12) · edge cutoff ≈ 0.51 → ~130
 }
 
+TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
+  // §14: sdf::pad() is reserved INSIDE the node's box, so a 60x60 box
+  // with glowRadius 20 (pad = 65) renders a ~1px speck and used to say
+  // NOTHING — sdf::minBoxFor() was the answer and no call site pointed
+  // at it. The numbers meet at resolve (uPad vs uResolution), and that
+  // is where the warning now lives.
+  const sdf::Style style{.fill = {1, 0, 0, 1},
+                         .glowRadius = 20,
+                         .glowColor = {1, 1, 1, 1}};
+  ASSERT_GE(sdf::pad(style), 30.0f); // the premise: pad >= half of 60
+  ::testing::internal::CaptureStderr();
+  {
+    Host host;
+    host.composer.render(box().child(
+        box().width(60).height(60).fill(sdf::material(sdf::circle(), style))));
+    host.frame();
+  }
+  const std::string first = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(first.find("sdf::minBoxFor"), std::string::npos) << first;
+  // Warned ONCE, process-wide: a second offender stays silent — the house
+  // diagnostic contract (renderSlot's unknown-name warning), not a
+  // per-frame log.
+  ::testing::internal::CaptureStderr();
+  {
+    Host host;
+    host.composer.render(box().child(
+        box().width(50).height(50).fill(sdf::material(sdf::circle(), style))));
+    host.frame();
+  }
+  EXPECT_EQ(::testing::internal::GetCapturedStderr().find("sdf::minBoxFor"),
+            std::string::npos);
+}
 
 // ---- Pattern: runtime-procedural regenerable tiles --------------------------
 
@@ -1549,6 +1624,53 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
   EXPECT_GT(SkColorGetR(host.pixel(70, 94)), 25u);
 }
 
+TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
+  // §14: a DecorationScheme can declare bleed() so the recording cull
+  // grows; a Material could not, so a fill on an outline that escapes
+  // the box (shape() overflow is legal) truncated at the cached bounds
+  // and the arithmetic fell to the caller. Material::bleed(px) declares
+  // the same number on the same word — pinned on BOTH carriers: the
+  // static recipe and the live/geometry slot. Cache::Texture makes the
+  // truncation hard (the bake surface is exactly recordBounds), so a
+  // surviving overflow proves the cull grew.
+  auto overflowShape = [](SkSize s) {
+    // A disc centered on the box, poking 20px beyond every edge.
+    SkPathBuilder b;
+    b.addOval(SkRect::MakeLTRB(-20, -20, s.width() + 20, s.height() + 20));
+    return b.detach();
+  };
+  {
+    Host host; // recipe carrier: a static solid material
+    host.composer.render(box().padding(40).child(
+        box().width(60).height(40).cache(Cache::Texture)
+            .shape(overflowShape)
+            .fill(Material::solid({1, 0, 0, 1}).bleed(24))));
+    host.frame();
+    host.frame(); // the cached replay is where truncation used to bite
+    // Node spans y∈[40,80); 14px below is inside the disc's overflow.
+    EXPECT_EQ(host.pixel(70, 94), SK_ColorRED);
+  }
+  {
+    Host host; // live carrier: a geometry-tier material (uResolution ramp)
+    host.composer.render(box().padding(40).child(
+        box().width(60).height(40).cache(Cache::Texture)
+            .shape(overflowShape)
+            .fill(Material::linearUnit({0, 0}, {1, 1},
+                                       {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
+                      .bleed(24))));
+    host.frame();
+    host.frame();
+    EXPECT_EQ(host.pixel(70, 94), SK_ColorRED);
+  }
+  // The reserve is recipe: it participates in equality, so a changed
+  // bleed re-records instead of replaying a stale, smaller cull.
+  Material a = Material::solid({1, 0, 0, 1});
+  Material b = Material::solid({1, 0, 0, 1});
+  b.bleed(24);
+  EXPECT_FALSE(a == b);
+  EXPECT_TRUE(a == Material::solid({1, 0, 0, 1}));
+  EXPECT_FLOAT_EQ(b.bleed(), 24.0f);
+}
 
 TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   Host host;
@@ -1784,4 +1906,62 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
+TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
+  // §14: custom() re-recorded every render() — an incomparable callable.
+  // custom(key, program) declares identity (the keyed-parametric
+  // contract); the unkeyed form stays the escape hatch.
+  static int runs;
+  runs = 0;
+  auto tree = [](const char *key, float shade) {
+    auto program = [shade](SkCanvas &c, const PaintContext &ctx) {
+      ++runs;
+      SkPaint p;
+      p.setColor4f({shade, 0, 0, 1});
+      c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+    };
+    return box().child(key ? custom(key, program).width(60).height(60)
+                           : custom(program).width(60).height(60));
+  };
+  Host host;
+  host.composer.render(tree("panel-a", 1.0f));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+  host.composer.render(tree("panel-a", 1.0f)); // same key: prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // A different key IS a change.
+  host.composer.render(tree("panel-b", 0.5f));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(30, 30)), 200u);
+  // Unkeyed: conservative forever.
+  Host raw;
+  raw.composer.render(tree(nullptr, 1.0f));
+  raw.frame();
+  raw.composer.render(tree(nullptr, 1.0f));
+  EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
+}
 
+TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
+  // §14: stripes() is single-colour and un-phased; a coloured sett was a
+  // hand-written PatternProgram every time.
+  auto sample = [](float phase, int x) {
+    Host host;
+    host.composer.render(box().child(
+        box().width(120).height(40).inset(0, 0, 80, 160).absolute().fill(
+            patterns::sequence({{10, {1, 0, 0, 1}},
+                                {10, {0, 1, 0, 1}},
+                                {10, {0, 0, 1, 1}}},
+                               phase)
+                .material())));
+    host.frame();
+    return host.pixel(x, 20);
+  };
+  EXPECT_EQ(sample(0.0f, 5), SK_ColorRED);    // run 1
+  EXPECT_EQ(sample(0.0f, 15), SK_ColorGREEN); // run 2
+  EXPECT_EQ(sample(0.0f, 25), SK_ColorBLUE);  // run 3
+  EXPECT_EQ(sample(0.0f, 35), SK_ColorRED);   // wraps
+  EXPECT_EQ(sample(10.0f, 5), SK_ColorGREEN); // slid one run: green leads
+  EXPECT_EQ(sample(10.0f, 15), SK_ColorBLUE);
+}
