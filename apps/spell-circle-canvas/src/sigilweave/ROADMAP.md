@@ -164,6 +164,18 @@ live territory. Measure atlas residency/eviction on a kinetic-heavy
 sketch before touching any number; if purging is spiky, m149's timed
 `performDeferredCleanup(maxDuration)` is the capping tool (this one
 does need the bump).
+**2026-07-27 — INSTRUMENTED AND MEASURED: the caps do not bind.**
+The arm now exists (`BM_Draw_KineticText_Graphite`, compose_bench — 14
+rows of cycling glyphFx reveal through the batched RSXform path) and
+the knob with it (`SIGILSKIA_GLYPH_ATLAS_BYTES` through the new
+`makeContextOptions()` funnel, env-gated, default behavior unchanged).
+Release, quiet, CVs ≤ 0.32%: **392.9 µs at the 8 MB default, 394.1 µs
+at 1 MB, 393.9 µs at 32 MB** — statistically flat across a 32× budget
+range. The library's own kinetic quantization (32 alpha steps, snapped
+rotations — the "already right" section) holds cardinality so low that
+even 1 MB never evicts. Defaults stay; the arm and knob remain for any
+future scene whose glyph cardinality actually grows (many faces/sizes
+live at once). Evidence-negative at the library's own workload.
 
 ## 7. The shape cache is clear-all, not LRU
 

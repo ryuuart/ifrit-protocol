@@ -9,9 +9,12 @@
 #include <include/core/SkBitmap.h>
 
 #include <gpu/graphite/Context.h>
+#include <gpu/graphite/ContextOptions.h>
 #include <gpu/graphite/Image.h>
 #include <gpu/graphite/ImageProvider.h>
 #include <gpu/graphite/Recorder.h>
+
+#include <cstdlib>
 
 #include <cstdint>
 #include <unordered_map>
@@ -65,6 +68,18 @@ private:
 };
 
 } // namespace
+
+skgpu::graphite::ContextOptions SkiaGraphiteContext::makeContextOptions() {
+  skgpu::graphite::ContextOptions options;
+  // Weave ROADMAP §6: the glyph-atlas budget is measurable only if it
+  // can be varied. Env-gated so default behavior never changes; the
+  // kinetic-text bench arm (compose_bench BM_Draw_KineticText_Graphite)
+  // is the instrument this knob exists for.
+  if (const char *bytes = std::getenv("SIGILSKIA_GLYPH_ATLAS_BYTES"))
+    if (const long parsed = std::strtol(bytes, nullptr, 10); parsed > 0)
+      options.fGlyphCacheTextureMaximumBytes = (size_t)parsed;
+  return options;
+}
 
 skgpu::graphite::RecorderOptions SkiaGraphiteContext::makeRecorderOptions() {
   skgpu::graphite::RecorderOptions options;

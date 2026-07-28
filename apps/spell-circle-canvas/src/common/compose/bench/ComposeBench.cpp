@@ -3,6 +3,7 @@
 // actually save. Reference numbers live in STRESS_TESTS.md.
 
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/Kinetic.h>
 #include <sigilcompose/Util.h>
 
 #include <include/effects/SkImageFilters.h>
@@ -300,6 +301,9 @@ static void BM_Draw_DenseText_SlugReplay(benchmark::State &state) {
       "The slot stays as the re-open hook if replay cost ever returns");
 }
 BENCHMARK(BM_Draw_DenseText_SlugReplay);
+
+
+
 
 /** The sparse case: the 100-row list texture-cached whole — blitting
  *  its mostly-empty full area vs replaying only the rows. */
@@ -615,6 +619,51 @@ static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Draw_DenseText_PictureReplay_Graphite);
+
+/** Weave ROADMAP §6's instrument: kinetic typography on Graphite — a
+ *  cycling glyphFx reveal drives per-frame batched RSXform glyph draws,
+ *  the glyph-atlas-heavy shape (alpha quantized to 32 steps and
+ *  rotations snapped by the kinetic path itself, so cardinality is the
+ *  library's own). Run at the default budget, then constrained via
+ *  SIGILSKIA_GLYPH_ATLAS_BYTES (the makeContextOptions knob), and read
+ *  the delta as eviction cost. */
+static void BM_Draw_KineticText_Graphite(benchmark::State &state) {
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 1200));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(800, 1200);
+  choreograph::Output<float> progress{0.0f};
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 22.0f;
+  auto block = box().column().gap(8).padding(16);
+  for (int i = 0; i < 14; ++i) {
+    GlyphFx fx;
+    fx.effect = glyphfx::rise(24);
+    fx.progress = &progress;
+    block.child(
+        text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
+            .glyphFx(std::move(fx)));
+  }
+  host.composer.render(block);
+  host.composer.draw(*surface->getCanvas());
+  submitGraphite(*graphiteContext);
+  float t = 0;
+  for (auto _ : state) {
+    t += 1.0f / 60.0f;
+    progress = std::fmod(t, 1.0f); // the reveal loops forever
+    host.composer.draw(*surface->getCanvas());
+    submitGraphite(*graphiteContext);
+  }
+}
+BENCHMARK(BM_Draw_KineticText_Graphite);
 
 /** The bake, on the same target: the pixels the atlas work is being
  *  compared against. Without this arm the picture-replay number has no

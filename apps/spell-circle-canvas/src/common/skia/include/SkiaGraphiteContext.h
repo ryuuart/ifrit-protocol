@@ -7,6 +7,7 @@ namespace skgpu::graphite {
 class Context;
 class Recorder;
 struct RecorderOptions;
+struct ContextOptions;
 } // namespace skgpu::graphite
 
 /**
@@ -52,6 +53,11 @@ public:
    *  implicit uploads — without a provider it silently drops any draw
    *  that samples a raster image. */
   static skgpu::graphite::RecorderOptions makeRecorderOptions();
+  /** One funnel for ContextOptions too (both backends). Honors
+   *  SIGILSKIA_GLYPH_ATLAS_BYTES (weave ROADMAP §6's experiment knob:
+   *  cap the Graphite glyph-atlas texture budget from the environment;
+   *  unset = Skia's default). */
+  static skgpu::graphite::ContextOptions makeContextOptions();
 
 private:
   SkiaGraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,

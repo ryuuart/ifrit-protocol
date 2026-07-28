@@ -27,7 +27,7 @@ SkiaGraphiteContext::createMetal(void *mtlDevice, void *mtlCommandQueue) {
       CFRetain(static_cast<CFTypeRef>(mtlCommandQueue)));
 
   std::unique_ptr<skgpu::graphite::Context> context =
-      skgpu::graphite::ContextFactory::MakeMetal(backendContext, {});
+      skgpu::graphite::ContextFactory::MakeMetal(backendContext, SkiaGraphiteContext::makeContextOptions());
   if (!context)
     return nullptr;
 

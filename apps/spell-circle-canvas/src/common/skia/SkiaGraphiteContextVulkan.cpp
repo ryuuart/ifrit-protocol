@@ -82,7 +82,7 @@ std::unique_ptr<SkiaGraphiteContext> SkiaGraphiteContext::create(QRhi *rhi) {
     return nullptr;
 
   std::unique_ptr<skgpu::graphite::Context> context =
-      skgpu::graphite::ContextFactory::MakeVulkan(backendContext, {});
+      skgpu::graphite::ContextFactory::MakeVulkan(backendContext, SkiaGraphiteContext::makeContextOptions());
   if (!context)
     return nullptr;
 
