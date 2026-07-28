@@ -12,10 +12,59 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <numbers>
 #include <span>
+#include <unordered_map>
 
 namespace sigil::weave {
+
+namespace {
+
+/** Skip-ink intercepts, memoized (ROADMAP §4 — measured +111 µs/frame
+ *  on the 300w bench before this existed). getIntercepts resolves a
+ *  strike and walks glyph outlines, and its inputs are layout-stable:
+ *  the blob (identified by uniqueID, which Skia never reuses, so a
+ *  freed-and-reallocated blob can't alias a stale entry) and the band
+ *  window. Thread-local like the emit scratch; clear-all at the cap,
+ *  the house shape (Shaper.cpp's shapeCache). */
+const std::vector<SkScalar> &cachedIntercepts(const SkTextBlob &blob,
+                                              const SkScalar bounds[2]) {
+  struct Key {
+    uint32_t blobId;
+    SkScalar lo, hi;
+    bool operator==(const Key &) const = default;
+  };
+  struct KeyHash {
+    size_t operator()(const Key &key) const {
+      size_t h = key.blobId * 0x9E3779B9u;
+      uint32_t lo, hi;
+      memcpy(&lo, &key.lo, sizeof lo);
+      memcpy(&hi, &key.hi, sizeof hi);
+      h ^= lo + 0x9E3779B9u + (h << 6) + (h >> 2);
+      h ^= hi + 0x9E3779B9u + (h << 6) + (h >> 2);
+      return h;
+    }
+  };
+  static thread_local std::unordered_map<Key, std::vector<SkScalar>, KeyHash>
+      cache;
+  constexpr size_t kMaxInterceptEntries = 1 << 12;
+  const Key key{blob.uniqueID(), bounds[0], bounds[1]};
+  if (auto it = cache.find(key); it != cache.end())
+    return it->second;
+  if (cache.size() >= kMaxInterceptEntries)
+    cache.clear();
+  std::vector<SkScalar> intercepts;
+  const int count = blob.getIntercepts(bounds, nullptr);
+  if (count >= 2) {
+    intercepts.resize(static_cast<size_t>(count));
+    blob.getIntercepts(bounds, intercepts.data());
+  }
+  return cache.emplace(key, std::move(intercepts)).first->second;
+}
+
+} // namespace
 
 namespace detail {
 
@@ -821,22 +870,21 @@ void forEachDecorationRect(const std::vector<PositionedRun> &runs,
       const SkScalar bounds[2] = {band.position,
                                   band.position + band.thickness};
       const float standoff = band.thickness;
-      static thread_local std::vector<SkScalar> interceptScratch;
       float cursor = groupStartX;
       for (size_t runIndex = groupStart; runIndex < groupEnd; ++runIndex) {
         const PositionedRun &run = runs[runIndex];
-        const int interceptCount = run.blob->getIntercepts(bounds, nullptr);
+        const std::vector<SkScalar> &intercepts =
+            cachedIntercepts(*run.blob, bounds);
+        const int interceptCount = static_cast<int>(intercepts.size());
         if (interceptCount < 2)
           continue;
-        interceptScratch.resize(static_cast<size_t>(interceptCount));
-        run.blob->getIntercepts(bounds, interceptScratch.data());
         for (int pair = 0; pair + 1 < interceptCount; pair += 2) {
           const float inkStart = run.origin.x() +
-                                 interceptScratch[static_cast<size_t>(pair)] -
+                                 intercepts[static_cast<size_t>(pair)] -
                                  standoff;
           const float inkEnd =
               run.origin.x() +
-              interceptScratch[static_cast<size_t>(pair + 1)] + standoff;
+              intercepts[static_cast<size_t>(pair + 1)] + standoff;
           if (inkStart > cursor)
             emitRect(SkRect::MakeLTRB(cursor, top,
                                       std::min(inkStart, groupEndX),
@@ -948,14 +996,16 @@ decorationSegments(const PositionedRun &run, const Decoration &decoration,
 
   // Blob-local intercepts of glyph ink with the band; grown by one
   // thickness so the line stands off the descender instead of touching it.
+  // Memoized (§4): the per-run path used to heap-allocate and re-walk the
+  // strike per run per frame.
   const SkScalar bounds[2] = {band.position, band.position + band.thickness};
-  const int interceptCount = run.blob->getIntercepts(bounds, nullptr);
+  const std::vector<SkScalar> &intercepts =
+      cachedIntercepts(*run.blob, bounds);
+  const int interceptCount = static_cast<int>(intercepts.size());
   if (interceptCount < 2) {
     segments.emplace_back(startX, endX);
     return segments;
   }
-  std::vector<SkScalar> intercepts(static_cast<size_t>(interceptCount));
-  run.blob->getIntercepts(bounds, intercepts.data());
 
   const float standoff = band.thickness;
   float cursor = startX;

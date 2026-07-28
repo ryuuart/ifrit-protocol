@@ -121,7 +121,15 @@ Release, quiet, CV ≤ 0.4%: plain 207 µs, `_PlainUnderline` 270 µs
 — +111 µs over the plain-underline control is the per-frame
 intercept + strike re-entry this entry names. The memo fix (intercepts
 keyed on layout-stable inputs beside blobCache, scratch for the
-per-run path) is now number-backed and next in line. Prior status:
+per-run path) is now number-backed and next in line — **and SHIPPED the same
+evening**: `cachedIntercepts` (ParagraphLayout.cpp, both the group and
+per-run paths) memoizes on (blob uniqueID — never reused by Skia, so no
+stale aliasing — band lo, band hi), thread-local, clear-all at 4096
+entries, the house cache shape. After (Release, quiet, CV ≤ 1.6%):
+plain 198 µs, `_PlainUnderline` 262 µs, `_SkipInkUnderline` **282 µs**
+— the skip-ink premium over the plain-underline control fell from
+**+111 µs to +20 µs** (the residual is segment math + memo lookups).
+weave_test 146/146. Prior status:
 `BM_DrawBatched_Raster_300w_SkipInkUnderline` registered in weave_bench
 beside plain `BM_DrawBatched_Raster_300w`, same corpus/flow/surface, one
 default underline decoration the only difference. Added with it:
