@@ -36,13 +36,24 @@ int main(int argc, char *argv[]) {
     // without a recompile, which is how `black watch` stayed wrong for its
     // whole life.
     double captureAt = -1.0;
+    // --ledger: byte-identity plates only — skip the benchmark phases and
+    // step every scene straight to its deterministic capture frame. This
+    // is what scripts/plate_ledger.py drives, in parallel, per scene.
+    bool ledger = false;
     for (int i = 2; i < argc; ++i) {
       const std::string arg = argv[i];
       if (arg == "--gpu")
         gpu = true;
       else if (arg == "--no-promotion") // force auto promotion off (the A/B)
         noPromotion = true;
-      else if (arg == "--scene" && i + 1 < argc)
+      else if (arg == "--ledger")
+        ledger = true;
+      else if (arg == "--list-scenes") { // machine-readable registry list —
+        // the CAPTURE spelling (registryName, §22), one per line
+        for (int s = 0; s < compose_gallery::kGallerySceneCount; ++s)
+          std::printf("%s\n", compose_gallery::registryName(s));
+        return 0;
+      } else if (arg == "--scene" && i + 1 < argc)
         only = argv[++i];
       else if (arg == "--capture-at" && i + 1 < argc)
         captureAt = std::atof(argv[++i]);
@@ -67,7 +78,7 @@ int main(int argc, char *argv[]) {
       }
     }
     return compose_gallery::runHeadless(outDir, gpu, sceneIndex, noPromotion,
-                                        captureAt);
+                                        captureAt, ledger);
   }
 
   // `--shot <png> [--scene <name|index>]`: bring the real window up, let it

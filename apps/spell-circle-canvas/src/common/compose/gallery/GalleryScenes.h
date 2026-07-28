@@ -211,7 +211,7 @@ inline std::unique_ptr<Scene> makeScene(int index) {
  *  printing the FPS table and writing a 2x PNG per scene. */
 inline int runHeadless(const std::string &outDir, bool gpu = false,
                        int only = -1, bool noPromotion = false,
-                       double captureAtOverride = -1.0) {
+                       double captureAtOverride = -1.0, bool ledger = false) {
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
   std::unique_ptr<SkiaGraphiteContext> graphite;
   if (gpu) {
@@ -307,32 +307,43 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     constexpr int kProbeFrames = 8, kMinSampleFrames = 24;
     constexpr int kMaxWarmFrames = 240 - kProbeFrames;
     constexpr int kMaxSampleFrames = 120;
-    for (int f = 0; f < kProbeFrames; ++f) {
-      surface->getCanvas()->clear(clearColor);
-      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
-    }
-    const double probeMs = std::max(0.01, stage.stats.average());
-    const int warmFrames = std::max(
-        0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
-    const int sampleFrames =
-        std::max(kMinSampleFrames,
-                 std::min(kMaxSampleFrames, (int)(sampleBudgetMs / probeMs)));
-    const bool shortened = warmFrames < kMaxWarmFrames;
-    anyShortened = anyShortened || shortened;
-    for (int f = 0; f < warmFrames; ++f) {
-      surface->getCanvas()->clear(clearColor);
-      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
-    }
-    stage.stats = {};
+    // --ledger skips the ENTIRE benchmark (probe/warm/sample) and goes
+    // straight to the exact-stepped capture below: a byte-identity sweep
+    // needs the plate, not the timing table, and the benchmark phases are
+    // most of a sweep's wall clock. The plate is bit-identical to the
+    // classic sweep's by the same equivalence §31 proved for
+    // --capture-at: the capture is a function of the declared time alone,
+    // stepped from zero, never of machine speed.
+    int warmFrames = 0, sampleFrames = kMinSampleFrames;
+    bool shortened = false;
     double reconcileMs = 0, layoutMs = 0, volatileMs = 0, paintMs = 0;
-    for (int f = 0; f < sampleFrames; ++f) {
-      surface->getCanvas()->clear(clearColor);
-      stage.frame(*surface->getCanvas(), 1.0 / 60.0);
-      const Composer::Stats &cs = stage.composer->stats();
-      reconcileMs += cs.reconcileMs;
-      layoutMs += cs.layoutMs;
-      volatileMs += cs.volatileMs;
-      paintMs += cs.paintMs;
+    if (!ledger) {
+      for (int f = 0; f < kProbeFrames; ++f) {
+        surface->getCanvas()->clear(clearColor);
+        stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+      }
+      const double probeMs = std::max(0.01, stage.stats.average());
+      warmFrames = std::max(
+          0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
+      sampleFrames =
+          std::max(kMinSampleFrames,
+                   std::min(kMaxSampleFrames, (int)(sampleBudgetMs / probeMs)));
+      shortened = warmFrames < kMaxWarmFrames;
+      anyShortened = anyShortened || shortened;
+      for (int f = 0; f < warmFrames; ++f) {
+        surface->getCanvas()->clear(clearColor);
+        stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+      }
+      stage.stats = {};
+      for (int f = 0; f < sampleFrames; ++f) {
+        surface->getCanvas()->clear(clearColor);
+        stage.frame(*surface->getCanvas(), 1.0 / 60.0);
+        const Composer::Stats &cs = stage.composer->stats();
+        reconcileMs += cs.reconcileMs;
+        layoutMs += cs.layoutMs;
+        volatileMs += cs.volatileMs;
+        paintMs += cs.paintMs;
+      }
     }
     // ---- capture determinism -------------------------------------------
     // Everything above is a TIME budget, so `warmFrames` and `sampleFrames`
@@ -371,8 +382,13 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // and therefore declares the same canvas; the sizes are asserted rather
     // than assumed, since a scene that resized on rebuild would otherwise
     // draw into a surface of the wrong shape and merely look odd.
-    const double declared = captureAtOverride > 0 ? captureAtOverride
-                                                  : stage.scene->captureSeconds();
+    double declared = captureAtOverride > 0 ? captureAtOverride
+                                            : stage.scene->captureSeconds();
+    // Ledger mode always takes the exact-stepped path; a scene with no
+    // declared moment gets the derived default, which is the identical
+    // frame the classic sweep captures (kCaptureFrame at 1/60).
+    if (ledger && declared <= 0)
+      declared = kCaptureFrame / 60.0;
     if (declared > 0) {
       stage.activate(makeScene(i));
       if (noPromotion)
@@ -402,15 +418,19 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     char nameLabel[40];
     std::snprintf(nameLabel, sizeof(nameLabel), "%s%s", stage.scene->name(),
                   shortened ? " *" : "");
-    const double n = (double)sampleFrames;
-    std::printf(
-        "%-20s %10s %8.2f %8.2f %9.0f %6.2f %6.2f %6.2f %6.2f   rec %zu "
-        "painted %zu\n",
-        nameLabel, canvasLabel, stage.stats.average(),
-        stage.stats.percentile(0.99), stage.stats.fps(), reconcileMs / n,
-        layoutMs / n, volatileMs / n, paintMs / n,
-        stage.composer->stats().picturesRecorded,
-        stage.composer->stats().nodesPainted);
+    if (ledger) {
+      std::printf("%-20s %10s  [ledger]\n", nameLabel, canvasLabel);
+    } else {
+      const double n = (double)sampleFrames;
+      std::printf(
+          "%-20s %10s %8.2f %8.2f %9.0f %6.2f %6.2f %6.2f %6.2f   rec %zu "
+          "painted %zu\n",
+          nameLabel, canvasLabel, stage.stats.average(),
+          stage.stats.percentile(0.99), stage.stats.fps(), reconcileMs / n,
+          layoutMs / n, volatileMs / n, paintMs / n,
+          stage.composer->stats().picturesRecorded,
+          stage.composer->stats().nodesPainted);
+    }
     // Capture the PNG at 2x: the stats above ran at 1x, but the saved
     // frame re-renders through a scaled canvas so review images are
     // sharp (Cache::Texture re-bakes at the capture scale). The studies

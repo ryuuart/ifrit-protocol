@@ -126,7 +126,12 @@ Vulkan/MoltenVK; the tests SKIP without a Vulkan runtime). `ComposeGallery` is a
 --headless <outdir> [--gpu] [--scene <name|index>]` — `--scene` takes a
 case-insensitive substring and renders just that one, which is the loop
 for visual work; `--shot <png> [--scene ...]` captures the APP instead
-(sidebar, folders, live metrics). Its registry is the catalog scenes
+(sidebar, folders, live metrics). Byte-identity plate sweeps run
+through `scripts/plate_ledger.py` (parallel `--ledger` renders — no
+benchmark phases — hashed against `build/plate_baseline_<config>.sha256`,
+known flappers auto-attributed; `--rebase` adopts a new baseline,
+`--stability N` re-renders movers to separate scene flap from code);
+~8 min for the full registry vs ~45 serial. Its registry is the catalog scenes
 PLUS every study sketch under `compose/sketch/sketches/`, compiled in
 through `SIGIL_SKETCH_STATIC` (the `SigilSketchStudies` object library)
 and grouped into collapsible folders — so a study is one file that is
