@@ -455,15 +455,28 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);   // untouched outside
 }
 
-// AUDIT-FLAG 2026-07-27 — VACUOUS (high): the word Once is never asserted (no bake counter; the pixel probe passes baked-once, baked-every-frame, or uncached); STRENGTHEN with texturesBaked.
 TEST(ComposeEffects, TextureBakesEffectOnce) {
+  // STRENGTHENED 2026-07-28 (audit): the word ONCE used to be asserted by
+  // nothing — a live texturesLive count and a non-black pixel pass equally
+  // well if the node re-bakes every single frame. `texturesBaked` is the
+  // per-draw pixel-bake count (Stats), so the claim is now literal: one on
+  // the frame that bakes, zero on every frame after it.
+  //
+  // profiledUnder(), not a plain parent: under a cacheable parent the second
+  // frame replays the PARENT's picture and never visits this node at all, so
+  // "0 bakes" would be true of a node that re-bakes every time it is asked.
+  // Cache::None on the wrapper keeps the subject painted every frame, which
+  // is what makes the second assertion a statement about the texture.
   Host host;
-  host.composer.render(box().child(
+  host.composer.render(profiledUnder(
       box().key("bloomed").width(60).height(60).fill(green())
           .effect(Effect::filter(SkImageFilters::Blur(4, 4, nullptr)))
           .cache(Cache::Texture)));
   host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the bake";
   host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+      << "…and the second frame blits it rather than re-baking";
   EXPECT_GE(host.composer.stats().texturesLive, 1u);
   EXPECT_NE(host.pixel(30, 30), SK_ColorBLACK); // filtered content present
 }
@@ -893,6 +906,49 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
   EXPECT_LT(dim, 110u);
 }
 
+TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
+  // §35.1. A blend has NO m_live of its own — it inherits liveness through
+  // m_recipe->layers — so asShader()'s live path (`build(*m_live, nullptr)`)
+  // dereferenced a null pointer for it. The reachable shape is a blend
+  // nested in another blend's layer list, because blend() calls asShader()
+  // on every layer: CONSTRUCTING `outer` below is what crashed.
+  choreograph::Output<float> k{0.8f};
+  Material inner = Material::blend({
+      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
+  });
+  ASSERT_TRUE(inner.isAnimated()); // inherited from the bound layer
+  Material outer = Material::blend({
+      {inner, SkBlendMode::kSrcOver}, // <- the null deref was HERE
+      {Material::solid({0, 0, 0, 1}), SkBlendMode::kPlus},
+  });
+  ASSERT_TRUE(outer.isAnimated()); // liveness survives one more nesting
+
+  // And the answer must be folded PER CALL. Merely guarding the null would
+  // fall through to m_shader — blend()'s eager snapshot, built once at
+  // construction — which is the stale-snapshot defect asShader()'s live
+  // branch exists to prevent; it would answer 0.8 forever.
+  auto sampleR = [](const Material &m) -> uint32_t {
+    sk_sp<SkShader> s = m.asShader();
+    EXPECT_TRUE(s);
+    sk_sp<SkSurface> surf =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
+    surf->getCanvas()->clear(SK_ColorBLACK);
+    SkPaint p;
+    p.setShader(std::move(s));
+    surf->getCanvas()->drawPaint(p);
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+    surf->readPixels(bm.pixmap(), 2, 2);
+    return SkColorGetR(bm.getColor(0, 0));
+  };
+  EXPECT_NEAR((int)sampleR(outer), 204, 12); // 0.8 · 255, through two blends
+  k = 0.3f;
+  EXPECT_NEAR((int)sampleR(outer), 77, 12); // 0.3 · 255 — the fold is fresh
+  // The same claim for the inner blend, which the outer one reaches through.
+  EXPECT_NEAR((int)sampleR(inner), 77, 12);
+}
+
 TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   // "Reading the clock IS the volatility declaration": an sksl effect that
   // declares uTime takes the live path with no bound Outputs — it re-resolves
@@ -1030,6 +1086,257 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   EXPECT_TRUE(host.composer.dirty());
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
+}
+
+// ---- the child slot: a SECOND source (ROADMAP §10f) ------------------------
+//
+// `Material::sksl()` had no child slot, so a material could read exactly one
+// image and every two-source rule — an index texture through a palette LUT,
+// a mask channel, a second gradient — had to leave the library. The slot is
+// `child(name, Material)` against a declared `uniform shader`, and the
+// driving case below is the paletted one: X-COM shades by index arithmetic
+// (`(src & 0xF0) | min(15, (src & 0x0F) + shade)`) with no multiplication in
+// the renderer at all, which is expressible over a LUT and not otherwise.
+
+namespace {
+
+/** A 1-row image whose pixels are the given colors (N32, no color space —
+ *  the Host surface has none either, so nothing converts and a byte written
+ *  here is the byte the shader reads). */
+sk_sp<SkImage> rowImage(const std::vector<SkColor> &pixels) {
+  SkBitmap bm;
+  bm.allocN32Pixels((int)pixels.size(), 1);
+  for (size_t i = 0; i < pixels.size(); ++i)
+    *bm.getAddr32((int)i, 0) = SkPreMultiplyColor(pixels[i]);
+  bm.setImmutable();
+  return bm.asImage();
+}
+
+/** THE PALETTED SHADER. `uIndex`'s red channel is a palette INDEX, not a
+ *  colour; `uPalette` is the 4-entry LUT it selects from. */
+sk_sp<SkRuntimeEffect> paletteEffect() {
+  static sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader uIndex;"
+                 "uniform shader uPalette;"
+                 "uniform float uShade;"
+                 "half4 main(float2 xy) {"
+                 "  float i = floor(uIndex.eval(xy).r * 255.0 + 0.5);"
+                 "  i = min(i + uShade, 3.0);" // X-COM's ramp arithmetic
+                 "  return uPalette.eval(float2(i + 0.5, 0.5));"
+                 "}"));
+    if (!effect)
+      ADD_FAILURE() << err.c_str();
+    return effect;
+  }();
+  return fx;
+}
+
+/** The IMAGES are process-wide, the way a decoded asset is: Material::image
+ *  compares by image POINTER (the documented recipe rule), so a helper that
+ *  minted a fresh SkImage per call would make every material unequal to
+ *  every other and the prune question below unaskable. */
+const sk_sp<SkImage> &indexImage() {
+  static sk_sp<SkImage> img = rowImage(
+      {SkColorSetARGB(255, 0, 0, 0), SkColorSetARGB(255, 1, 0, 0),
+       SkColorSetARGB(255, 2, 0, 0), SkColorSetARGB(255, 3, 0, 0)});
+  return img;
+}
+const sk_sp<SkImage> &rampPalette() {
+  static sk_sp<SkImage> img =
+      rowImage({SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE, SK_ColorWHITE});
+  return img;
+}
+const sk_sp<SkImage> &reversedPalette() {
+  static sk_sp<SkImage> img =
+      rowImage({SK_ColorWHITE, SK_ColorBLUE, SK_ColorGREEN, SK_ColorRED});
+  return img;
+}
+const sk_sp<SkImage> &flatWhitePalette() {
+  static sk_sp<SkImage> img = rowImage(
+      {SK_ColorWHITE, SK_ColorWHITE, SK_ColorWHITE, SK_ColorWHITE});
+  return img;
+}
+
+/** The index texture: four 1-px cells carrying indices 0..3, blown up to
+ *  20 px each so a node pixel lands unambiguously inside one cell. NEAREST
+ *  everywhere — an index sampled at kLinear is a blend of two unrelated
+ *  palette entries, which is the trap this whole texture kind carries. */
+Material indexSource() {
+  return Material::image(indexImage(), SkTileMode::kClamp, SkTileMode::kClamp,
+                         SkMatrix::Scale(20, 20),
+                         SkSamplingOptions(SkFilterMode::kNearest));
+}
+
+Material paletteSource(const sk_sp<SkImage> &lut) {
+  return Material::image(lut, SkTileMode::kClamp, SkTileMode::kClamp,
+                         SkMatrix::I(),
+                         SkSamplingOptions(SkFilterMode::kNearest));
+}
+
+} // namespace
+
+TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
+  // THE DRIVING CASE, end to end: two images, one shader, one draw. Neither
+  // source is the node's own painted content (that is Effect's `content`
+  // child) — they are sources the material brings with it.
+  Host host(80, 20);
+  host.composer.render(stack().child(box().absolute().inset(0).fill(
+      Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+          .child("uIndex", indexSource())
+          .child("uPalette", paletteSource(rampPalette())))));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "index 0";
+  EXPECT_EQ(host.pixel(30, 10), SK_ColorGREEN) << "index 1";
+  EXPECT_EQ(host.pixel(50, 10), SK_ColorBLUE) << "index 2";
+  EXPECT_EQ(host.pixel(70, 10), SK_ColorWHITE) << "index 3";
+
+  // The LUT is the point: re-authoring the palette re-colours the picture
+  // without touching the index texture — the paletted-shading trick itself.
+  Host swapped(80, 20);
+  swapped.composer.render(stack().child(box().absolute().inset(0).fill(
+      Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+          .child("uIndex", indexSource())
+          .child("uPalette", paletteSource(reversedPalette())))));
+  swapped.frame();
+  EXPECT_EQ(swapped.pixel(10, 10), SK_ColorWHITE) << "same indices, new LUT";
+  EXPECT_EQ(swapped.pixel(70, 10), SK_ColorRED);
+
+  // And the shade step is index ARITHMETIC, clamped at the ramp's end —
+  // every cell moves one entry down the palette and the last one sticks.
+  Host shaded(80, 20);
+  shaded.composer.render(stack().child(box().absolute().inset(0).fill(
+      Material::sksl(paletteEffect(), {{"uShade", 1.0f}})
+          .child("uIndex", indexSource())
+          .child("uPalette", paletteSource(rampPalette())))));
+  shaded.frame();
+  EXPECT_EQ(shaded.pixel(10, 10), SK_ColorGREEN) << "0 + 1";
+  EXPECT_EQ(shaded.pixel(50, 10), SK_ColorWHITE) << "2 + 1";
+  EXPECT_EQ(shaded.pixel(70, 10), SK_ColorWHITE) << "3 + 1, clamped";
+}
+
+TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
+  // THE CACHE CONDITION. A child read at paint time that did not
+  // participate in reconciler equality would leave a pruned node sampling
+  // the OLD palette forever (DESIGN.md's rule, stated for exactly this).
+  const Material a = Material::sksl(paletteEffect())
+                         .child("uPalette", paletteSource(rampPalette()));
+  const Material b = Material::sksl(paletteEffect())
+                         .child("uPalette", paletteSource(rampPalette()));
+  const Material c = Material::sksl(paletteEffect())
+                         .child("uPalette", paletteSource(flatWhitePalette()));
+  const Material bare = Material::sksl(paletteEffect());
+  EXPECT_TRUE(a == b) << "same effect, same child recipe → prunes";
+  EXPECT_FALSE(a == c) << "a different palette is a different material";
+  EXPECT_FALSE(a == bare) << "a filled slot is not an empty one";
+
+  // …and the reconciler agrees: identical describe prunes, a swapped
+  // palette patches and repaints.
+  Host host(80, 20);
+  auto tree = [](const sk_sp<SkImage> &lut) {
+    return stack().child(box().key("lut").absolute().inset(0).fill(
+        Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+            .child("uIndex", indexSource())
+            .child("uPalette", paletteSource(lut))));
+  };
+  host.composer.render(tree(rampPalette()));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+  host.composer.render(tree(rampPalette())); // identical recipe, fresh Materials…
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  host.composer.render(tree(flatWhitePalette()));
+  EXPECT_TRUE(host.composer.dirty()) << "over-prune guard";
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorWHITE);
+}
+
+TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
+  // TIER INHERITANCE, upward. The parent effect declares no uniform of its
+  // own and no clock: everything volatile about it belongs to the child.
+  // If the tier did not propagate, the parent would collapse to a Fill and
+  // freeze the child at whatever the Output read on the frame it recorded.
+  static const sk_sp<SkRuntimeEffect> passthrough = [] {
+    auto [fx, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader uSrc;"
+                 "half4 main(float2 p) { return uSrc.eval(p); }"));
+    return fx;
+  }();
+  ASSERT_TRUE(passthrough);
+  choreograph::Output<float> k{0.0f};
+  const Material live = Material::sksl(passthrough)
+                            .child("uSrc", Material::sksl(ukEffect())
+                                               .uniform("uK", &k));
+  EXPECT_TRUE(live.isAnimated()) << "the child's volatility is the parent's";
+  EXPECT_FALSE(Material::sksl(passthrough)
+                   .child("uSrc", Material::solid({0, 1, 0, 1}))
+                   .isAnimated())
+      << "…and a static child leaves the parent static";
+
+  Host host;
+  host.composer.render(
+      stack().child(box().absolute().inset(0).width(40).height(40).fill(live)));
+  host.frame();
+  EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u); // uK = 0 → black
+  k = 1.0f;                                        // no render()
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u) << "uK = 1 → red";
+}
+
+TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
+  // TIER INHERITANCE, the cheaper half: a child reading uResolution needs
+  // the PaintContext at RECORD time but not every frame, and it must read
+  // the parent NODE's box (there is one box here, not two).
+  static const sk_sp<SkRuntimeEffect> passthrough = [] {
+    auto [fx, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader uSrc;"
+                 "half4 main(float2 p) { return uSrc.eval(p); }"));
+    return fx;
+  }();
+  static const sk_sp<SkRuntimeEffect> unitRamp = [] {
+    auto [fx, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform float2 uResolution;"
+                 "half4 main(float2 p) {"
+                 "  return half4(half(p.x / max(uResolution.x, 1.0)), 0, 0, 1);"
+                 "}"));
+    return fx;
+  }();
+  ASSERT_TRUE(passthrough && unitRamp);
+  const Material m =
+      Material::sksl(passthrough).child("uSrc", Material::sksl(unitRamp));
+  EXPECT_TRUE(m.geometryDependent()) << "the child's tier is the parent's";
+  EXPECT_FALSE(m.isAnimated()) << "geometry is not live";
+
+  Host host(100, 20);
+  host.composer.render(stack().child(box().absolute().inset(0).fill(m)));
+  host.frame();
+  // The ramp spans the node's own width: dark at the left edge, bright at
+  // the right. A child resolved with a null context would read uResolution
+  // as 0 and clamp to full red everywhere.
+  EXPECT_LT(SkColorGetR(host.pixel(2, 10)), 40u);
+  EXPECT_GT(SkColorGetR(host.pixel(97, 10)), 200u);
+}
+
+TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
+  // uniform()'s guardrail, verbatim: assigning a child the effect does not
+  // declare SkDEBUGFAILs, which would kill the hot-reload host over one
+  // typo. Warn, ignore, keep painting.
+  Host host(80, 20);
+  Material m = Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+                   .child("uIndex", indexSource())
+                   .child("uPalette", paletteSource(rampPalette()))
+                   .child("uNoSuchSlot", Material::solid({1, 1, 1, 1}));
+  EXPECT_FALSE(m.isAnimated());
+  host.composer.render(stack().child(box().absolute().inset(0).fill(m)));
+  host.frame();
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "the declared slots still ran";
+
+  // And on a material with no slots at all it is a no-op, like uniform().
+  Material solid = Material::solid({0, 1, 0, 1}).child("uSrc", indexSource());
+  EXPECT_TRUE(solid.isSolid());
+  EXPECT_FALSE(solid.isAnimated());
 }
 
 // ---- rail(): the component that IS a line ----------------------------------

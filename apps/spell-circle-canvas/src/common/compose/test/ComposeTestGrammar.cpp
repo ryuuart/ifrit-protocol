@@ -38,8 +38,10 @@ SkPath unitBox() {
 
 } // namespace
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): the OutlineIsGone half asserts nothing; the file has the idiom (static_assert on the dead word) — add it.
-TEST(ComposeShapeRename, ShapeOverridesTheBoxAndOutlineIsGone) {
+// RENAMED 2026-07-28 (audit): the OutlineIsGone half asserted nothing — a
+// deleted word is a compile-time fact and this test only ever exercised the
+// surviving one.
+TEST(ComposeShapeRename, ShapeOverridesTheBox) {
   // `outline()` was deleted in R3; `shape()` is the one spelling, and what
   // it does is override the node's rect with a generated path.
   Host host(200, 200);
@@ -299,8 +301,10 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
       << "the middle was filled";
 }
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low-medium): one data point cannot show linearity, and this is the one machine-speed-dependent assertion in the file; rename to the 700ms-regression pin it actually is, or add a second radius.
-TEST(ComposeBand, ConstructionIsLinearInSpineLength) {
+// RENAMED 2026-07-28 (audit): one radius cannot show linearity. This is a
+// wall-clock ceiling against the measured 700 ms quadratic regression —
+// which is what the body says and now what the name says.
+TEST(ComposeBand, ConstructionStaysUnderTheQuadraticCeiling) {
   // sampleRail asked bandPointAt per sample, and bandPointAt re-measures the
   // whole path every call — quadratic. Measured at 700 ms for an r=550 ring.
   // The guard is a wall-clock ceiling, deliberately loose enough to survive a
@@ -576,21 +580,24 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
 }
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (medium): the Inner half is conceded untested in the closing comment (Align::Center only); real Inner coverage is in ReachReportsTheMarkWhereBleedReportsNothing — rename + drop the dead align param.
-TEST(ComposeComposites, TheRepairCoversShallowCrossingsAndInnerStrokes) {
-  // The disc this replaced under-covered twice over. At a SHALLOW angle the
-  // two marks overlap in a long lens whose extent goes as reach/sin(theta),
-  // so a disc sized for the perpendicular case left the under-strand
-  // showing straight across the over-strand. And an Align::Inner stroke
-  // reports bleed() == 0, so the derived radius was nonsense for it.
+// RENAMED 2026-07-28 (audit): the Inner half is conceded untested in this
+// test's own closing comment (every arm is Align::Center, because an open
+// rail has no inside) — Inner is covered by
+// ReachReportsTheMarkWhereBleedReportsNothing below. The dead align
+// parameter went with the name.
+TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
+  // The disc this replaced under-covered at a SHALLOW angle: the two marks
+  // overlap in a long lens whose extent goes as reach/sin(theta), so a disc
+  // sized for the perpendicular case left the under-strand showing straight
+  // across the over-strand.
   //
-  // Both are checked by sampling ALONG the over-strand through the meeting:
-  // every sample must be the over-strand's colour.
+  // Checked by sampling ALONG the over-strand through the meeting: every
+  // sample must be the over-strand's colour.
   //
   // The two strands are one segment rotated by +/- half the crossing angle
   // about the centre — NOT a shared dx with dy = dx*tan(angle), which sends
   // the coordinates to infinity at 90 degrees (it hung the first draft).
-  auto interruptions = [](float degrees, PathFormat::Align align) {
+  auto interruptions = [](float degrees) {
     Host host(400, 400);
     const float half = degrees * 0.5f * 3.14159265f / 180.0f;
     const float len = 180.0f;
@@ -602,9 +609,9 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossingsAndInnerStrokes) {
                       {mid.fX + d.x() * len, mid.fY + d.y() * len});
     };
     brush::Weave w = brush::weave(
-        {brush::Strand{strand::path(through(dirA)), util::stroke(9, red(), align)},
+        {brush::Strand{strand::path(through(dirA)), util::stroke(9, red())},
          brush::Strand{strand::path(through(dirB)),
-                       util::stroke(9, green(), align)}},
+                       util::stroke(9, green())}},
         crossing::alternate()); // strand 0 (red) passes OVER at crossing 0
     host.composer.render(stack().child(box().inset(0).stroke(w)));
     host.frame();
@@ -617,13 +624,14 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossingsAndInnerStrokes) {
     }
     return wrong;
   };
-  EXPECT_EQ(interruptions(90.0f, PathFormat::Align::Center), 0)
+  EXPECT_EQ(interruptions(90.0f), 0)
       << "even the perpendicular case exceeded the old derived radius";
-  EXPECT_EQ(interruptions(45.0f, PathFormat::Align::Center), 0);
-  EXPECT_EQ(interruptions(12.5f, PathFormat::Align::Center), 0)
+  EXPECT_EQ(interruptions(45.0f), 0);
+  EXPECT_EQ(interruptions(12.5f), 0)
       << "12.5 degrees: the disc's measured failure";
   // (Align::Inner is checked separately, below: it is meaningless on an OPEN
-  // strand — an open rail has no inside — so this geometry cannot show it.)
+  // strand — an open rail has no inside — so this geometry cannot show it,
+  // and the parameter that pretended it could is gone.)
 }
 
 TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
@@ -716,14 +724,15 @@ TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
   EXPECT_EQ(host.pixel(100, 120), SK_ColorBLACK) << "nothing else moved";
 }
 
-// AUDIT-FLAG 2026-07-27 — VACUOUS (high): three static_asserts compare a type to itself (R3's rename sweep turned the brushes::-identity pins into tautologies); trim to the two live assertions + retitle.
-TEST(ComposeBrushKinds, TheKindsAreTheOldTypesUnderTaughtNames) {
-  // Naming alignment only — no behaviour change, and the legacy spellings
-  // are the SAME types (§27).
+// TRIMMED + RENAMED 2026-07-28 (audit): three of the four static_asserts
+// compared a type to ITSELF — R3's rename sweep turned the brushes::-identity
+// pins into tautologies when it deleted the second spelling. The one that
+// still says something (brush::Solid IS PathFormat, the §27 no-behaviour-
+// change claim) stays, with the value equality under it.
+TEST(ComposeBrushKinds, SolidIsPathFormatUnderItsTaughtName) {
+  // Naming alignment only — no behaviour change, and the legacy spelling
+  // is the SAME type (§27).
   static_assert(std::is_same_v<brush::Solid, PathFormat>);
-  static_assert(std::is_same_v<brush::Pattern, brush::Pattern>);
-  static_assert(std::is_same_v<brush::Scatter, brush::Scatter>);
-  static_assert(std::is_same_v<brush::Art, brush::Art>);
   const brush::Solid a = brush::solid(2, red());
   const PathFormat b = util::stroke(2, red());
   EXPECT_TRUE(a == b) << "one value, two spellings";
@@ -942,29 +951,11 @@ TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
 
 // ---- 5. Ribbon on the profile seam ----------------------------------------
 
-namespace {
-/** A taper as a comparable profile — the shape widthFn used to need a
- *  lambda (and a second field) for. */
-struct LinearTaper {
-  float start = 20.0f, end = 4.0f;
-  float across(float along) const { return start + (end - start) * along; }
-  float max() const { return std::max(start, end); }
-  bool operator==(const LinearTaper &) const = default;
-};
-} // namespace
-
-// AUDIT-FLAG 2026-07-27 — REDUNDANT (medium): all three assertions remade with more in ComposeWidthProfile.TheLastNeverPruneRibbonsCanPruneNow; fraction-key reflexivity also in ComposeBand.ProfilesAreComparableAndReflexive; delete candidate.
-TEST(ComposeR1Ribbon, ProfileIsComparableAndBoundsItsOwnReach) {
-  brush::Ribbon a;
-  a.width = Profile(LinearTaper{});
-  a.fill = Fill::color({1, 0, 0, 1});
-  brush::Ribbon b = a;
-  EXPECT_TRUE(a == b) << "a profiled ribbon PRUNES; a widthFn one never did";
-  b.width = Profile(LinearTaper{20.0f, 6.0f});
-  EXPECT_FALSE(a == b);
-  // The trap the seam closes: bleed() can ask a profile how far it goes.
-  EXPECT_FLOAT_EQ(a.bleed(), 20.0f);
-}
+// (`ProfileIsComparableAndBoundsItsOwnReach` was deleted by the 2026-07-28
+//  audit ruling: comparability, non-equality and bleed() are all remade,
+//  with more around them, in ComposeWidthProfile.
+//  TheLastNeverPruneRibbonsCanPruneNow and ComposeBand.
+//  ProfilesAreComparableAndReflexive.)
 
 TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   Host host(200, 200);
@@ -1277,13 +1268,15 @@ TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
   EXPECT_GT(inkedCount(qualified), 10u) << "the wire actually drew";
 }
 
-// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): two-arm EXPECT_EQ with no liveness guard; add the inkedCount bound.
 TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
   auto draw = [](bool freeVerb) {
     Host host(300, 200);
+    // whiteStyle, not styleAt: the default foreground is BLACK on this
+    // host's black ground, so both arms used to compare two blank grids
+    // (the liveness bound below is what caught it).
     Element para = text(u8"one two three four five six seven eight nine ten "
                         u8"eleven twelve thirteen fourteen",
-                        styleAt(16));
+                        whiteStyle(16));
     if (freeVerb)
       para = derive::flowAround(std::move(para), "cut", 6.0f);
     else
@@ -1300,7 +1293,9 @@ TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
         out.push_back(host.pixel(x, y));
     return out;
   };
-  EXPECT_EQ(draw(true), draw(false));
+  const std::vector<SkColor> freeVerb = draw(true);
+  EXPECT_EQ(freeVerb, draw(false));
+  EXPECT_GT(inkedCount(freeVerb), 20u) << "the paragraph actually drew";
 }
 
 // ---- 7. the wrapping span (N7) ---------------------------------------------
@@ -1505,7 +1500,6 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
   EXPECT_LT(inkedCount(spanned), spanned.size());
 }
 
-// AUDIT-FLAG 2026-07-27 — VACUOUS (medium): EXPECT_EQ(two arms) cannot distinguish pin from wrap, and no inkedCount guard — blank==blank passes; add both.
 TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
   // Row: clamped behaviour — fractions outside [0,1] pin rather than
   // wrap. normalizeSpans clamps the same way.
@@ -1521,10 +1515,30 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
     host.frame();
     return boundaryRing(host);
   };
-  EXPECT_EQ(draw(false), draw(true));
+  const std::vector<SkColor> pinned = draw(false);
+  EXPECT_EQ(pinned, draw(true));
+  // STRENGTHENED 2026-07-28 (audit): two agreeing arms cannot tell a pin
+  // from a wrap, and two BLANK arms agree perfectly.
+  EXPECT_GT(inkedCount(pinned), 5u) << "the window painted at all";
+  // The discriminator, at named pixels: fraction 0 is the rect's start
+  // corner, so the CLAMPED window [0, 0.6] runs out partway round and the
+  // far side stays dark. The extra piece a WRAPPED [-0.4, 0.6] would show
+  // is exactly that far side. (An inked-fraction bound cannot say this:
+  // boundaryRing samples points outside the stroke too, so "not all of the
+  // ring" is true of every window.)
+  Host probe(200, 200);
+  probe.composer.render(stack().child(
+      revealBox().stroke(spans::range(-0.4f, 0.6f), util::stroke(6, red()))));
+  probe.frame();
+  // Fraction 0 is the bottom-left corner running UP the left edge, so the
+  // clamped [0, 0.6] is the left edge, the top edge and the top 40% of the
+  // right — and the BOTTOM edge ([0.75, 1]) is the piece a wrapped reading
+  // would add.
+  EXPECT_NE(probe.pixel(70, 20), SK_ColorBLACK) << "the top edge is inside";
+  EXPECT_EQ(probe.pixel(70, 120), SK_ColorBLACK)
+      << "…and the bottom edge is not: [-0.4, 0.6] PINNED, it did not wrap";
 }
 
-// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): EXPECT_EQ(armA, armB) with no inkedCount guard — a mutually blank render passes; add the bound the sibling rows carry.
 TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
   // Row: plain bound endpoints, both modes' shared case.
   choreograph::Output<float> begin, end;
@@ -1541,8 +1555,11 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
     end = e;
     trimmed.frame();
     spanned.frame();
-    EXPECT_EQ(boundaryRing(spanned), boundaryRing(trimmed))
-        << "window " << b << ".." << e;
+    const std::vector<SkColor> ring = boundaryRing(spanned);
+    EXPECT_EQ(ring, boundaryRing(trimmed)) << "window " << b << ".." << e;
+    // The liveness bound the sibling rows carry: two blank renders agree.
+    EXPECT_GT(inkedCount(ring), 5u) << "window " << b << ".." << e
+                                    << " painted nothing at all";
   }
 }
 
@@ -1580,7 +1597,6 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   }
 }
 
-// AUDIT-FLAG 2026-07-27 — LIVENESS (systemic): same as BoundEndpointsScrubTheSameWindow — add the inkedCount bound.
 TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
   // Row: composer-manufactured endpoints under Clamp.
   auto host = [](bool useLegacyTrim) {
@@ -1596,11 +1612,17 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
     return h;
   };
   std::unique_ptr<Host> t = host(true), s = host(false);
+  size_t lastInk = 0;
   for (int step = 0; step < 6; ++step) {
     t->frame(0.13);
     s->frame(0.13);
-    EXPECT_EQ(boundaryRing(*s), boundaryRing(*t)) << "step " << step;
+    const std::vector<SkColor> ring = boundaryRing(*s);
+    EXPECT_EQ(ring, boundaryRing(*t)) << "step " << step;
+    lastInk = inkedCount(ring);
   }
+  // The liveness bound: the ramp has run to 0.78 of an 800 ms entrance by
+  // the last step, so a render that painted nothing cannot pass here.
+  EXPECT_GT(lastInk, 5u) << "the ramp never painted";
 }
 
 TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {

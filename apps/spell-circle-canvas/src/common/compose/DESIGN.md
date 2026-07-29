@@ -47,7 +47,16 @@ Each hard subproblem has a proven owner already in our stack:
   over a pausable, time-scalable FrameClock and Ticker that reports
   "needs more frames" for event-driven hosts. (`sigil::weave::
   Choreograph` is the unrelated glyph-placement utility; namespaces
-  disambiguate.)
+  disambiguate.) SigilMotion also owns the animation VALUES —
+  `Transition`, the `ease::` curves, the `animate()` builders, `bind()`
+  and `Animatable<T>` — the property slot itself
+  (`<sigilmotion/Animation.h>`, moved out of `Compose.h` 2026-07-29,
+  ROADMAP §37). Compose re-exports them into `sigil::compose`, so
+  authoring is unchanged. What compose keeps is RESOLUTION: an
+  `Animatable` resolved against a `PaintContext` — node transition
+  policy, stagger, mount entrances, per-frame Composer state. Rule of
+  thumb: SigilMotion describes and drives motion, compose decides what a
+  described change MEANS to a node.
 - **Caching: SkPicture** display lists, textures under heavy effects.
 - **Text and paint: ours** (SigilWeave, SigilImage, SigilScry frames,
   raw Skia).

@@ -29,9 +29,22 @@ apps/spell-circle-canvas/  All C++/Swift code; src/ splits into:
                            HTML/CSS layout rendered
                            to SkImage frames for the canvases; GPU via a
                            Metal GPUDriver, CPU fallback), motion/
-                           (SigilMotion — FrameClock + Ticker driving
+                           (SigilMotion — animation with no renderer in
+                           it: the CLOCK, FrameClock + Ticker driving
                            choreograph timelines, event-driven redraw
-                           contract), compose/ (SigilCompose —
+                           contract; and the VALUES,
+                           <sigilmotion/Animation.h> — Transition, the
+                           ease:: house curves, animate()/from()/to()/
+                           through(), bind() shaped bindings and
+                           Animatable<T> the property slot, moved
+                           out of Compose.h 2026-07-29 so world/ and
+                           shape/ can reach them without linking a
+                           drawing library (RESOLVING an Animatable
+                           against a paint context stays in compose);
+                           compose re-exports them all
+                           into sigil::compose, ROADMAP §37. Links
+                           choreograph and NOTHING else — that is the
+                           boundary), compose/ (SigilCompose —
                            data-driven drawable components over
                            Yoga+SigilWeave+Choreograph: implemented
                            through the completeness round — kernel,

@@ -259,8 +259,11 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   EXPECT_LT(lit(bottom, 0, 110), 40);
 }
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (high on the claim): the mirroring comparison the comment sets up is never made (both arms measure the same whole-half ink); add the first/last-third comparison.
-TEST(ComposeText, OnPathWrapsTheSeamAndFlipsWithoutMirroring) {
+// RENAMED 2026-07-28 (audit): the mirroring half never makes the
+// first-third/last-third comparison its comment sets up — both arms measure
+// the same whole-half ink — so what is pinned is the SEAM straddle plus the
+// flipped run still occupying its half. Naming the weaker of the two.
+TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
   // Two bugs found by the Vertigo study, hours after onPath shipped.
   //
   // 1. Align::Center at at=0 on a CLOSED baseline put half the run at a
@@ -488,34 +491,14 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   EXPECT_LT((float)still, 0.25f * (float)redNow.size());
 }
 
-// AUDIT-FLAG 2026-07-27 — VACUOUS (high): asserts on a path built inside the test and never inspects the rendered node — measures Skia, not spans::wrap; the closed-contour seam law is unasserted anywhere; REWRITE against pixels like OpenContourWrapKeepsTwoPieces.
-TEST(ComposeMask, WrapSeamIsOneContour) {
-  // A seam-crossing wrap window must be ONE contour: two pieces would
-  // double-hit round caps / additive brushes at the joint.
-  Host host;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(50, 50, 50, 50)
-                                       .mask(by::spans(spans::wrap(0.9f, 1.1f)))
-                                       .foreground(util::stroke(4, green()))));
-  host.frame(); // renders — and the contour count proves the stitch:
-  SkPathBuilder b;
-  b.addRect(SkRect::MakeWH(100, 100));
-  SkPath boxPath = b.detach();
-  SkPathBuilder stitchedBuilder;
-  SkContourMeasureIter iter(boxPath, false);
-  while (sk_sp<SkContourMeasure> c = iter.next()) {
-    const float len = c->length();
-    (void)c->getSegment(0.9f * len, len, &stitchedBuilder, true);
-    (void)c->getSegment(0, 0.1f * len, &stitchedBuilder, false);
-  }
-  SkPath stitched = stitchedBuilder.detach();
-  int contours = 0;
-  SkContourMeasureIter check(stitched, false);
-  while (check.next())
-    ++contours;
-  EXPECT_EQ(contours, 1);
-}
+// (`ComposeMask.WrapSeamIsOneContour` was deleted by the 2026-07-28 audit
+//  ruling. It rendered a node and then asserted on a path it stitched
+//  ITSELF with SkContourMeasure, never reading the rendered result: it
+//  measured Skia's getSegment, and a total regression in spans::wrap would
+//  have left it green. The closed-contour seam law wants a pixel test in
+//  the shape of ComposeMask.OpenContourWrapKeepsTwoPieces; filed as
+//  ROADMAP §34's open remainder rather than left standing as a claim
+//  nothing checks.)
 
 TEST(ComposePatterns, HalftoneRampBandRemaps) {
   // rampFrom/rampTo confine the swell: with the band pushed to the bottom
@@ -929,8 +912,11 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
 // Cache::Auto texture promotion — the library fixing a slow frame by itself.
 
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): never establishes any node actually promoted (no profiledUnder/requireRow); if promotion silently stopped firing this compares two unpromoted renders; add liveness.
-TEST(ComposeCache, AutoPromotionIsPixelIdentical) {
+// RENAMED 2026-07-28 (audit): nothing here establishes that a node actually
+// promoted (no profiledUnder/requireRow), so if promotion stopped firing
+// this would compare two unpromoted renders and still pass. What it pins is
+// that flipping the SWITCH moves no pixel — which is the constraint below.
+TEST(ComposeCache, TheAutoPromotionSwitchChangesNoPixels) {
   // THE constraint. A texture cache that resolved at the wrong scale and
   // softened a hairline would trade a perf bug for a fidelity bug, and this
   // library's whole output is hairlines at 1x. So promotion bakes in DEVICE
@@ -959,8 +945,10 @@ TEST(ComposeCache, AutoPromotionIsPixelIdentical) {
       << differing << " pixels changed when the library promoted a node";
 }
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): promotion is OFF for the whole test, so visibility is only tested in the negative; live content is unique — rename.
-TEST(ComposeCache, PromotionIsVisibleInTheProfile) {
+// RENAMED 2026-07-28 (audit): promotion is OFF for the whole test, so the
+// reporting is only tested in the negative — which is exactly the claim the
+// body makes, and now the name makes it too.
+TEST(ComposeCache, NoRowReportsPromotedWhilePromotionIsOff) {
   // A silent good outcome and a silent bad outcome look identical without an
   // instrument, so a promotion the library performs must be attributable to
   // the library. Whether this particular node trips the threshold depends on

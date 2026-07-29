@@ -865,7 +865,7 @@ instrument — and it lands on something nothing else could have found.
   a comparable generator prunes
   (`ComposeShapeValues.TextOnAComparableBaselinePrunes`).
 
-## 10f. `Material::sksl()` has no child shader — but a LUT is NOT unreachable
+## 10f. `Material::sksl()` has no child shader — but a LUT is NOT unreachable — **CLOSED 2026-07-28**
 
 **Corrected before anyone built on it.** This entry said "a palette LUT
 is unreachable", which is too strong, and a researcher caught it by
@@ -889,6 +889,70 @@ Related and smaller, from the same study: X-COM's shading is
 multiplication anywhere in the renderer, and overflow snapping to
 absolute black rather than to the ramp's darkest entry. That is
 expressible as SkSL over a LUT and not otherwise.
+
+### CLOSED 2026-07-28 — the child slot
+
+**The surface is one verb**, beside `uniform()` and obeying its rules:
+
+```cpp
+Material::sksl(paletteFx, {{"uShade", 1.0f}})   // uniform shader uIndex;
+    .child("uIndex",   Material::image(indexTex, …, kNearest))
+    .child("uPalette", Material::image(lut, …, kNearest));
+```
+
+Any Material is a legal child, sksl ones included; the tree still compiles
+to ONE shader. `Material::Live` grew a `children` vector (name → Material)
+and nothing else moved: `build()` fills each declared slot from
+`child.resolve(ctx)` on the paint path and `child.asShader()` on the static
+snapshot, so a child sees the SAME PaintContext — the parent node's box, the
+parent's clock — because there is one node.
+
+**Three things were load-bearing, and each has a pin whose positive control
+was run** (break the mechanism, watch the named test fail, restore):
+
+1. **Tier inheritance.** `isAnimated()` and `geometryDependent()` recurse
+   into the children. Without it a live child is resolved once and frozen
+   into the parent's cache. `ALiveChildMakesTheParentLive`,
+   `AGeometryChildPropagatesTheGeometryTier`.
+2. **The resolve memo's blind spot.** `Live::lastInputs` is a digest of the
+   parent's OWN varying inputs and cannot see a child's, so a material with
+   a context-needing child skips the memo entirely. Left in, the second
+   frame returns the shader built on the first and the child never ticks
+   again — the control fails exactly there.
+3. **The prune signature.** Children compare recursively inside
+   `operator==`. A child read live that did not participate in reconciler
+   equality would leave a pruned node sampling last frame's palette forever
+   (DESIGN.md's rule, written for this case). `TheChildRidesThePruneSignature`
+   pins both halves: identical children prune (`patchedNodes == 0`,
+   `picturesRecorded == 0`), a swapped LUT patches and repaints.
+
+**The driving case is pinned end to end at pixels**
+(`AChildSlotSamplesAnIndexTextureThroughAPalette`): a 4-cell index texture,
+a 4-entry palette, one shader — the picture re-colours when the LUT is
+swapped with the index texture untouched, and `min(i + uShade, 3)` moves
+every cell one entry down the ramp and clamps at the end. `kNearest` is
+carried in the test's own comment because an index sampled at `kLinear` is
+a blend of two unrelated palette entries.
+
+§27 holds: the spelling is NEW and nothing existing calls it. For an
+existing material the whole change is an empty vector — `build()`'s
+`childNeedsCtx` scan is over nothing, equality compares two empty lists,
+and both tier queries loop zero times.
+
+**THE GATE, 2026-07-28.** Debug and Release both build clean and
+warning-free. `ctest -C Debug` **16/16, 430.13 s**. `compose_test`
+**461 cases / 83 suites** (462 before: −6 from the §34 audit ruling, +5
+here), 460 passed and 1 skipped (§34's variation-drive skip);
+`compose_kit_test` 47, unchanged. **PLATE LEDGER** (Release,
+`scripts/plate_ledger.py`, 58 scenes, `--no-promotion`): **54
+byte-identical, 3 attributed flappers** (`genesis_fire`,
+`hitman_verlet`, `slitscan_2001` — the documented quiet-machine list),
+**1 mover: `easel_playground`, attributed to SigilShape, NOT to this
+change.** That scene is one of the two that link SigilShape, whose
+sources were being edited in parallel; the Release `libSigilShape.a`
+rebuilt underneath the sweep (12:01) while the baseline predates those
+edits (Jul 27 19:24), and `easel_playground.cpp` itself is untouched.
+No rebase was taken.
 
 ## 10g. No way to propagate a THEME down a tree — *new, and structural*
 
@@ -3666,3 +3730,513 @@ Two consequences worth acting on, neither of them this phase's work:
   plate rendered here reproduces the note's number to within 3 pixels, so
   the CODE is right and that one PNG is a load-perturbed render. Recorded so
   nobody re-derives a verdict from it.
+
+## 34. THE TEST-AUDIT RULING — executed 2026-07-28
+
+The five-way audit of 2026-07-27 (commit ea70d78) read every case and left
+**23 `AUDIT-FLAG` comments** in place rather than touching a test, pending a
+ruling. The ruling: **true redundancy and vacuity are deleted; a name that
+claims more than its body proves is RENAMED, never deleted.** This is the
+manifest, and there are now zero `AUDIT-FLAG` comments in the tree.
+
+**Counts.** `compose_test` **462 → 461** cases (82 suites): −6 deleted, +5
+added by §10f. `compose_kit_test` 47, unchanged. The drop is exactly the six
+rows below.
+
+### DELETED — six
+
+| test | class | why |
+| --- | --- | --- |
+| `ComposeMotion.WithFromPlaysEntranceOnMount` | redundant (high) | strict subset of `AnimatePlaysEntranceOnMount`, which adds the mid-ramp pin. The R2 grammar port added the twin and never removed this one |
+| `ComposeMotion.WithFromColorSweepsOnMount` | redundant (high) | byte-duplicate of `AnimateColorSweepsOnMount`, same cause |
+| `ComposeR4Mask.StackedSpanGatesIntersectRatherThanUnion` | redundant (high) | same fixture and same mask pair as `TheIntersectionIsExactIntervalArithmetic`, which pins the intersection at PIXELS and refutes union with a disjoint pair |
+| `ComposeR1Ribbon.ProfileIsComparableAndBoundsItsOwnReach` | redundant (medium) | comparability, non-equality and `bleed()` are all remade with more in `ComposeWidthProfile.TheLastNeverPruneRibbonsCanPruneNow`; reflexivity also in `ComposeBand.ProfilesAreComparableAndReflexive`. Its `LinearTaper` fixture went with it |
+| `ComposeBrushes.PatternClosedSeamCornerUsesWrappedBisector` | redundant (medium) | one-pixel probe subsumed by `PatternCornerLandsOnTheVertexAndFacesTheBisector` (all four vertices including the seam, plus orientation) |
+| `ComposeMask.WrapSeamIsOneContour` | **vacuous (high)** | rendered a node and then asserted on a path it stitched ITSELF with `SkContourMeasure`, never reading the render: it measured Skia's `getSegment`, and a total regression in `spans::wrap` would have left it green |
+
+Every deletion names its survivor in a comment at the deletion site, so the
+next reader meets the reason where the test used to be.
+
+### RENAMED — ten, all kept
+
+| was | is | the overclaim |
+| --- | --- | --- |
+| `ComposePattern.ARepeatCanBePannedAndItsSamplingChosen` | `ARepeatCanBePanned` | both arms set kNearest; nothing contrasts kLinear |
+| `ComposeFx.EdgeGateIsBindableAndPaintOnly` | `EdgeGateIsBindableWithoutARedescribe` | no `bounds()`-unchanged check; paint-only is unasserted |
+| `ComposeText.OnPathWrapsTheSeamAndFlipsWithoutMirroring` | `…AndTheFlippedRunKeepsItsHalf` | the first-third/last-third comparison its comment sets up is never made |
+| `ComposeCache.AutoPromotionIsPixelIdentical` | `TheAutoPromotionSwitchChangesNoPixels` | nothing establishes that any node promoted |
+| `ComposeCache.PromotionIsVisibleInTheProfile` | `NoRowReportsPromotedWhilePromotionIsOff` | promotion is OFF for the whole test |
+| `ComposeR4Mask.S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting` | `S3TheGateRampsAcrossAnIfElse` | phase 0 parks at 0.0001, so retarget and fresh mount are numerically identical |
+| `ComposeR4Mask.ANamedMaskLeavesTheUnnamedMarksAlone` | `AnUnmatchedMaskNameIsASilentNoOp` | the fixture has one mark and no unnamed sibling |
+| `ComposeShapeRename.ShapeOverridesTheBoxAndOutlineIsGone` | `ShapeOverridesTheBox` | the OutlineIsGone half asserted nothing |
+| `ComposeBand.ConstructionIsLinearInSpineLength` | `ConstructionStaysUnderTheQuadraticCeiling` | one radius cannot show linearity; it is a wall-clock ceiling against the measured 700 ms regression |
+| `ComposeComposites.TheRepairCoversShallowCrossingsAndInnerStrokes` | `TheRepairCoversShallowCrossings` | the Inner half is conceded untested in the test's own closing comment; the dead `align` parameter went with the name |
+
+### STRENGTHENED — six, where the flag's remedy was an assertion, not a knife
+
+Each of these was flagged VACUOUS or LIVENESS with "add the bound" as its
+stated remedy; deleting them would have removed real coverage, so the bound
+was added and **each addition's positive control was run**.
+
+- `ComposeEffects.TextureBakesEffectOnce` — the word ONCE is now asserted by
+  `stats().texturesBaked` (1 on the baking frame, 0 after). It also moved
+  under `profiledUnder()`: under a cacheable parent the second frame replays
+  the PARENT's picture and never visits the node, so "0 bakes" was true of a
+  node that re-bakes every time it is asked. *Control: force the
+  `Cache::Texture` bake condition true → fails on the second frame.*
+- `ComposeR1TrimParity.ClampWindowOutsideZeroToOnePins` — two agreeing arms
+  could not tell a pin from a wrap and two BLANK arms agree perfectly. Now:
+  an ink bound, plus named pixels (fraction 0 is the bottom-left corner
+  running UP the left edge, so the clamped `[0, 0.6]` leaves the BOTTOM edge
+  dark, which is exactly the piece a wrap would add). **An inked-fraction
+  bound cannot state this** — `boundaryRing` samples points outside the
+  stroke, so "not all of the ring" is true of every window; that first
+  attempt passed its own control and was replaced. *Control: swap
+  `spans::range` for `spans::wrap` → the bottom-edge assertion fires.*
+- `ComposeR1TrimParity.BoundEndpointsScrubTheSameWindow`,
+  `AnimatedEndpointsRampTheSameWindow`, `ComposeR1Derive.FlowAroundAsAFreeVerbIsTheMethod`
+  — two-arm `EXPECT_EQ` with no liveness guard; `inkedCount` bounds added.
+  The flowAround one was drawing **black text on a black ground** and
+  comparing two blank grids — the guard caught it on its first run, and the
+  fixture now uses `whiteStyle`. *Controls: black-on-black strokes / the old
+  default style → all three fail.*
+- `ComposeVariationDrive.AdvanceVariantAxisIsRefused` — refused for the
+  wrong reason: `axisIsAdvanceInvariant` answers FALSE both for "the axis
+  moves advances" and for "there is no such axis", and on a face without
+  wght the pixels hold however the drive behaves. It now skips unless the
+  face DECLARES wght. On this machine's default face it **skips** — which is
+  the honest state, and is filed as §35's third remainder.
+
+### The remainder this ruling creates
+
+The closed-contour seam law (`spans::wrap` must produce ONE contour, or
+round caps and additive brushes double-hit at the joint) is now **asserted
+nowhere**. It wants a pixel test shaped like
+`ComposeMask.OpenContourWrapKeepsTwoPieces`. Deleting the test that only
+appeared to cover it is what makes that visible.
+
+**CLOSED 2026-07-28 — `ComposeMask.ClosedContourWrapSeamIsOnePiece`**, the
+twin, one test above its open sibling in `ComposeTestBrushes.cpp`. It reads
+only rendered pixels, which is the whole difference from the test it
+replaces.
+
+*The law HOLDS* — `spanPath`'s `seamStraddled` branch stitches correctly;
+this closes a coverage hole, not a bug.
+
+**The fixture parks the seam on a CORNER**, which is what makes one-vs-two
+pieces visible in pixels at all. A closed 160×160 rect whose `moveTo` is its
+top-left corner, `wrap(0.9, 1.2)` on a perimeter of 640: the window is 64 px
+UP the left edge into the seam plus 128 px right along the top edge. Stitched,
+the seam vertex carries a **miter join** and the outer corner square
+(canvas [17,20]²) is covered; as two runs it carries two butt caps and that
+square is empty — the "visible notch" `spanPath`'s own comment names. Probe
+`(18, 18)`. Three further probes keep the claim honest: one pixel on each
+piece (it really drew both) and one on the unclaimed right edge (the mask
+really masked), so a total `spans::wrap` regression cannot pass.
+
+*Positive control: `seamStraddled` forced false in `spanPath` → `(18, 18)`
+goes opaque black and ONLY that assertion fires; the other three hold, and
+the open sibling still passes (it never stitched).*
+
+## 35. Three things found while executing §34 and §10f — filed, not fixed
+
+1. **`Material::asShader()` can dereference a null `m_live`.** It reads `if
+   (isAnimated()) return build(*m_live, nullptr);` — and a `blend()` whose
+   LAYER is live has `isAnimated() == true` with `m_live == nullptr`
+   (liveness is inherited through `m_recipe->layers`). The corpus does not
+   hit it because `blend()` flattens through `resolve()`, and a blend nested
+   inside another blend's layer list is the shape that would. One-line
+   guard; left out of the child-slot change on purpose, because it is a
+   different claim and wants its own pin.
+
+   **CLOSED 2026-07-28 — and the one-line guard was the WRONG fix.**
+   *Repro:* two nested `blend()`s, the inner one carrying a `uniform("uK",
+   &output)` layer. Constructing the OUTER one segfaults — `blend()` calls
+   `asShader()` on every layer, so the crash is at describe time, not paint
+   time (`compose_test` exit 139, confirmed before any fix).
+
+   *Why not the guard.* `if (isAnimated() && m_live)` falls through to
+   `m_shader`, which for a blend is the snapshot `blend()` flattened at
+   CONSTRUCTION — the exact stale answer the live branch at `:715` exists to
+   prevent. Safe, and wrong: it converts a crash into a material that reports
+   `isAnimated()` and then answers with a frozen value forever. What a
+   live-layer blend's `asShader()` should return is the same fold `resolve()`
+   already does, minus the context. So the blend fold moved into one private
+   `Material::foldBlend(const PaintContext *ctx)` — `ctx` non-null is
+   `resolve()`'s per-frame form, null is `asShader()`'s context-free one —
+   and both call sites now go through it, which is also why they can no
+   longer drift apart. `resolve()` loses its inline copy; past the new blend
+   branch, `isAnimated()` implies `m_live`, since the other two liveness
+   sources both read it.
+
+   *Pin:* `ComposeMaterial.NestedBlendAsShaderFoldsItsLiveLayersPerCall`
+   (`ComposeTestKernel.cpp`, beside `BlendWithLiveLayerTracksOutputs`). It
+   draws the shader `asShader()` HANDS BACK into a raster surface and samples
+   it twice across a change to the bound Output.
+
+   *Positive controls, both run: (1) unfixed → SIGSEGV at the nested
+   `blend()` call; (2) the guard-only fix → the second sample still answers
+   0.8·255 and the test FAILS.* That second control is why the pin samples
+   twice: one sample cannot tell a fresh fold from a stale snapshot.
+
+   *Blast radius: none.* The only behavior that changed is a path that
+   previously crashed, so nothing in the corpus could have depended on it —
+   and the plate ledger agrees (byte-neutral).
+2. **The `S3` mask fixture cannot discriminate a retarget from a mount.**
+   §34 renamed it rather than re-fixturing it. Parking phase 0 ABOVE the
+   target (0.8 → 0.5) would make the two answers numerically different and
+   restore the stronger claim the old name made.
+3. **The VariationDrive refusal path has no coverage on this machine.** The
+   system UI face declares no wght axis, so `AdvanceVariantAxisIsRefused`
+   skips. The refusal is real (`Paint.cpp` gates on
+   `axisIsAdvanceInvariant`), but proving it needs a variable face with an
+   advance-VARIANT axis in the test assets — the same asset question
+   `GradDrivesPaintOnlyWhenAdvanceInvariant` already skips on.
+
+**THE GATE for §35.1 + §34's remainder, 2026-07-28.** Debug builds clean.
+`compose_test` **463 cases / 82 suites** (461 before, +2: one per item), 462
+passed and 1 skipped — the same `ComposeVariationDrive.AdvanceVariantAxisIsRefused`
+skip §35.3 files. `ctest -C Debug` **16/16, 430.24 s**. **PLATE LEDGER**
+(Release, 58 scenes): **55 byte-identical, 2 attributed flappers**
+(`hitman_verlet`, `slitscan_2001`; `genesis_fire` held still this sweep),
+**1 mover: `easel_playground`**, unchanged from the sweep above it — still
+SigilShape's uncommitted work, not this change. Re-rendered on its own it
+reproduces the SAME new hash (`39528e682c55`), so it is a deterministic
+consequence of that library's edits rather than a flapper, and the sketch
+calls `easel::blend` — SigilShape's blend TOOL — with no `Material::` term
+anywhere in it. No rebase was taken.
+
+## 36. The windowed/tiled bake — MEASURED AND CLOSED, 2026-07-28: the mechanism has a ceiling of zero
+
+Filed by SigilWorld's marquee. It authors ONE element tree ~33,000 px
+along (display type, tick ruler, waveform bars, swatch runs, `.grow()`
+spacers, absolute full-length rails), `snapshot()`s it to a vector
+picture — no texture-size limit at author time — and slices that picture
+into 8–10 GPU tiles of 324 x 4096, because no single texture could hold
+it. The gap as filed: *"snapshot() bakes whole-tree only; a native
+windowed/tiled bake (render picture region → texture set) is a
+candidate."*
+
+**The perf question was the whole load-bearing claim, and it is dead.**
+`BM_Bake_TiledStrip_*` (`bench/ComposeCoreBench.cpp`) bakes a strip of the
+marquee's own shape and density and slices it four ways. Release, this
+machine, milliseconds, at 2 / 10 / 40 tiles of 324 x 4096:
+
+| arm | 2 | 10 | 40 |
+|---|---|---|---|
+| `Snapshot` (the bake itself) | 0.533 | 2.93 | 12.7 |
+| `FullReplay` (status quo: every tile replays the whole picture) | 0.640 | 4.66 | 37.8 |
+| `RTreeReplay` (same, picture recorded behind a BBH) | 0.584 | **3.11** | **12.5** |
+| `PerTilePicture` (FLOOR: each tile's ops extracted in advance) | 0.584 | **3.13** | **12.5** |
+| `SurfacesOnly` (clear the tiles, draw nothing) | 0.167 | 0.836 | 3.34 |
+
+Read the middle two rows together. **A bounding-box hierarchy — one extra
+argument to `beginRecording` — lands EXACTLY on the extraction floor**,
+3.11 vs 3.13 at ten tiles and 12.5 vs 12.5 at forty. There is no residue
+for a bespoke region bake to collect. And the residue it would collect if
+the BBH did not exist is 1.55 ms at the marquee's actual size, ONCE, next
+to a 2.93 ms bake and a 0.836 ms floor of merely clearing the surfaces.
+
+Two things the table also settles. The quadratic is real but small:
+un-culled, every tile walks every tile's ops, so per-tile replay goes
+0.320 → 0.466 → 0.945 ms across the sweep while the culled floor stays
+flat at 0.292 / 0.313 / 0.313. And the BBH is not free — building it costs
+0.091 / 0.494 / 1.96 ms against savings of 0.056 / 1.55 / 25.3 — so it
+LOSES at two tiles and pays from about four on, which is why it is opt-in
+and not welded into `snapshot()`, whose overwhelming caller (brush and
+stamp bakes) replays whole and would only pay the record.
+
+**A region bake would also have been SLOWER, not faster.** The only way
+compose could serve a region natively is to keep a Composer alive and run
+`paint` once per region — and the paint traversal has no node-level
+quick-reject at all (`Paint.cpp` walks the whole instance tree and lets
+`SkCanvas` reject), so it would walk the same ops as the replay while
+doing strictly more per node. The candidate was structurally backwards.
+
+### The verdict: the door is the ORIENTATION, and it is 25 lines
+
+What actually cost time on the marquee was never the throughput. It was
+the transform: the slice math was re-derived wrong at least twice, always
+at the mirror, because a transpose has determinant -1 and composes with
+the ribbon wall's own mirrored sampling — so an unmirrored slice needs a
+flip that an along-oriented one does not. The settled marquee finally
+avoided the transpose entirely by authoring the strip as a COLUMN and
+mirroring in x. That lesson is the deliverable.
+
+Shipped in `Compose.h` beside `snapshot()`, implemented in `Composer.cpp`:
+
+```cpp
+namespace tiles {
+enum class Flow { Down, Across };
+enum class Facing { Forward, Mirrored };
+SkMatrix window(SkISize tile, int index, Flow = Flow::Down,
+                Facing = Facing::Forward);
+sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art);
+}
+```
+
+`Flow` offers **no transposing slice on purpose** — the header says
+author the strip in the tiles' orientation and says why. `Facing` is
+documented as a statement about the CONSUMER, not the picture: `Mirrored`
+pre-flips ACROSS the strip so a surface that samples backwards reads it
+the right way round. `sliceable()` is the BBH row of the table above,
+made a verb because the one-liner has its own trap — `drawPicture()` into
+a recorder stores a nested reference the hierarchy cannot index into,
+leaving the tree empty and the cost unchanged. That trap was hit once
+while building this bench, which is the evidence for spending a name on
+it.
+
+**Rejected, with reasons.** *(c) a `snapshot()` region overload*: ceiling
+of zero by the table, and structurally slower per the paint-traversal
+argument; it would also have to re-run reconcile+layout per region or
+retain a Composer, which is a lifecycle for no gain. *(a) documentation
+only*: necessary but not sufficient — the manager's bar was that a caller
+must not be able to get the mirror wrong, and prose cannot enforce a
+handedness. Both halves of (a) survive inside the shipped door as its
+header comment and the API.md section. *A tile helper that returns
+surfaces or images*: refused — raster vs GPU, colour type and alpha are
+consumer policy, and compose must know nothing about GPU tiles or worlds.
+It speaks pictures and transforms, which is exactly what `SkMatrix` and
+`SkPicture` are.
+
+### Pins (`ComposeTestContent.cpp`, suite `ComposeStripTiles`)
+
+Five, all in PIXELS, over a strip whose every tile carries one small mark
+near its top-left in a per-tile colour — so a tile reports its index by
+colour and its handedness by which side the mark landed on, and the mark
+is small enough that its own mirror image never overlaps it on either
+axis:
+
+- `ForwardWindowSlicesInOrderAndDoesNotMirror`
+- `MirroredWindowFlipsAcrossTheStripNotAlongIt`
+- `MirroredTileReadsForwardUnderMirroredSampling` — the contract itself:
+  bake mirrored, sample mirrored, get the forward bake back
+- `AcrossFlowStepsRightwardAndMirrorsInY`
+- `SliceableFlattensTheOpsAndChangesNoPixel` — counts NON-nested ops,
+  which is the only thing that tells `playback()` from `drawPicture()`
+
+**Positive controls, all four run, each rebuilt and restored.** (1) Mirror
+dropped from `Flow::Down` → `MirroredWindowFlipsAcrossTheStripNotAlongIt`
+and `MirroredTileReadsForwardUnderMirroredSampling` FAIL. (2) Mirror moved
+ALONG the flow instead of across → the same two FAIL, which is what makes
+the second pin's name true rather than decorative. (3) `sliceable()`
+nesting via `drawPicture()` → `SliceableFlattensTheOpsAndChangesNoPixel`
+FAILS on the op count while every pixel still matches, which is precisely
+the silent-cost shape the verb exists to prevent. (4) Tile step sign
+reversed → the two ordering pins and the mirror pin FAIL. No control was
+vacuous.
+
+**THE GATE, 2026-07-28.** Debug builds clean. `compose_test` **468 cases /
+83 suites** (463 / 82 before, +5 / +1: this entry's pins), 467 passed and 1
+skipped — the same `ComposeVariationDrive.AdvanceVariantAxisIsRefused`
+§35.3 files. `ctest -C Debug` **16/16, 429.43 s**. **PLATE LEDGER**
+(Release, 58 scenes): **55 byte-identical**, 2 attributed flappers
+(`genesis_fire`, `hitman_verlet`; `slitscan_2001` held still this sweep),
+**1 mover: `easel_playground`**, `187686f0e651 -> 39528e682c55` — the SAME
+hash §35 already attributed to SigilShape's uncommitted work, reproduced
+exactly, so it is that library's deterministic consequence and not this
+change. Byte-neutral, as a purely additive door must be. No rebase was
+taken.
+
+## 37. The animation VALUES were marooned inside a drawing library — MOVED to SigilMotion, 2026-07-29
+
+Filed by a cross-library sharing sweep. `Transition`, the `ease::` house
+curves, `Transitioned<T>` with the `animate()`/`from()`/`to()`/`through()`
+builders, and `Bound`/`BoundFloat`/`bind()` sat at the top of
+`<sigilcompose/Compose.h>` — lines 75–416, **342 lines** — and every one of
+them is choreograph, `<chrono>` and float math. Nothing else. They were
+reachable only by linking SigilCompose, which means Skia, Yoga, SigilWeave,
+SigilImage and the reconciler, for the privilege of writing
+`bind(&phase).target(-70, 170)`. SigilWorld and SigilShape both want shaped
+bindings; neither can afford that price. SigilCompose has linked SigilMotion
+since day one (`compose/CMakeLists.txt`), so the move cost compose nothing.
+
+**Verification first, because the whole thing turns on it.** The region was
+extracted and swept for `Sk*`, `YG`/Yoga, `weave::`, `image::`, and every
+kernel type (`Element`, `Instance`, `Composer`, `Material`, `Fill`). **Four
+hits, all four inside doc comments** — a cross-reference to the §8 stagger
+law, the `compose::from(...)` shadowing note, `through<SkColor4f>` as an
+example spelling, and the `ElementNode` block-split analogy in a comment
+that stayed behind anyway. **Zero code-level dependencies.** The corpus
+blast radius is 29 files under `compose/` touching the names, and — the
+number that actually mattered — **every internal use is unqualified inside
+`namespace sigil::compose`**, which is why the ruling below costs no edits.
+Outside `compose/` there are no users at all yet: that is the gap this
+closes, not a regression risk.
+
+**What moved:** all 342 lines, plus `Animatable<T>` itself (87 more —
+see the section below, which corrects the premise this entry started
+from), into `<sigilmotion/Animation.h>` — **478 lines** with its own file
+header and includes. The `animate()` family moved WITH `Transitioned<T>`
+deliberately: leaving the verbs behind would have given SigilMotion a value
+type with no ergonomic way to build one, which is most of what
+"independently usable" means.
+
+### The premise that was wrong — `Animatable<T>` moved too
+
+**This entry originally stopped at the values and left `Animatable<T>`
+behind, on a citation that does not survive contact with the source.** The
+claim was: its `index()` is documented as "the old variant's index order,
+**for the reconciler's compare**", `Reconcile.cpp` reads exactly that
+ordering, therefore `Animatable` encodes kernel semantics and can never
+leave. Two things are wrong with it.
+
+**The citation was wrong.** It pointed at `Compose.h:461`, which is the
+`Shape`/`ShapeScheme` seam. `Animatable` was at line 122.
+
+**The reading was wrong, and this is the part worth remembering.** That
+sentence is a COMPACTION note. It explains why the enum order was preserved
+when `Animatable` stopped being a `std::variant` — so a shaped binding
+sorts after a bare one rather than replacing it — and it names
+`propEqual` as the code that would notice if the order moved. A stable
+discriminant is what ANY consumer diffing two animatable values wants;
+compose's reconciler is the first such consumer, not the definition of the
+type. "The reconciler reads this" is not the same claim as "this belongs to
+the reconciler", and the entire no-move argument rested on eliding them.
+The comment has been rewritten in place so the next reader cannot make the
+same inference, and it now says so explicitly.
+
+**The proof, done the same way as for the values.** `Animatable<T>`'s four
+forms are a `T`, a `Transitioned<T>`, a `choreograph::Output<T>*` and a
+`BoundFloat` — every one of the last three already moved. Its privates are
+`Kind` (a `uint8_t` enum), `T m_plain`, the Output pointer and a
+`unique_ptr<Extra>`. No Skia type, no Yoga type, no kernel type, in the
+class or in any signature. Swept for friends and reach-ins: `Animatable`
+has **no friend declarations** and **nothing outside `Compose.h` touches
+`m_kind`/`m_extra`/`m_bound`/`m_plain`** (the greps that look like hits are
+`Shape::m_kind` in `Compose.cpp` and `Material::m_bound`, unrelated types).
+`propEqual` (`Reconcile.cpp`) goes through `index()`, `plain()`,
+`transitioned()`, `boundMap()` and `binding()` — all public — and **did not
+change by a character**; it now compares a `motion::Animatable<T>` and is
+none the wiser.
+
+**MEMORY LAYOUT PRESERVED, measured not asserted.** The out-of-line `Extra`
+block, the `Kind` enum and the mutually-exclusive-fat-forms trick are
+hard-won and were moved byte-for-byte. Compiled with SigilCompose's own
+Debug flags, before and after the move, arm64-osx:
+`sizeof(Animatable<float>)` **24 B, align 8** → **24 B, align 8**;
+`sizeof(Animatable<SkColor4f>)` **40 → 40**; `Transitioned<float>` 88;
+`BoundFloat` 80. Identical. The existing
+`static_assert(sizeof(ElementNode) <= 768)` in `Composer.cpp` is a
+compile-time pin on the downstream consequence and it holds in both configs
+— the documented `ElementNode 1288 B → 688 B` and `PaintProps 856 B →
+~250 B` results are untouched. Those numbers are the EVIDENCE for the
+layout, not a dependency on compose, and the doc comment now says that.
+
+**What stayed, and it is the right seam:** RESOLUTION. An `Animatable` is
+resolved against a `PaintContext` — node-level transition policy, stagger,
+mount entrances, per-frame Composer state (`Transitions.cpp`,
+`resolveFloat` and friends). That is compose deciding what a described
+change MEANS to a node, and it stays in compose. **SigilMotion ships no
+resolve surface at all**: the deliverable was the value type being
+reachable, and inventing a clock-only `resolve()` nobody has asked for
+would be exactly the speculative API this move is supposed to make
+unnecessary. A consumer that wants a naive read writes five lines — the
+pin below does, and that is the demonstration.
+
+**THE NAMESPACE RULING: compose re-exports, and the re-export is PERMANENT.**
+Fifteen `using motion::…` declarations (`Animatable` among them, by the
+same rule) plus `namespace ease = motion::ease;`
+in `Compose.h`, so `compose::Transition`, `compose::Animatable<float>`,
+bare `animate(...)` under a
+`using namespace sigil::compose;`, and the two qualified
+`sigil::compose::from(...)` sites in `sigillum_aemeth` all keep compiling
+untouched. No call site changed. **Does §32's "REPLACE, not converge" reach
+this? No, and the reason is not convenience.** That ruling governed
+GRAMMAR: two different WORDS for one intent, where keeping both left the
+library unable to say which one an author should reach for, and the fix was
+to delete the worse word. Here there is no second word. `compose::Transition`
+and `motion::Transition` are *the same entity* — a using-declaration, not an
+alias to a parallel definition — and the qualifier expresses which library
+DEFINES the concept, not which spelling an author prefers. There is nothing
+worse to delete and no author decision to disambiguate. Positively: these
+types appear in compose's OWN signatures (`Element::transition()`,
+`animate()`'s spec argument, every `Animatable` property), and a library
+names the vocabulary it speaks — the same reason an API taking a
+`std::filesystem::path` does not make its callers stop saying `path`.
+Deleting the compose spelling would break every sketch's
+`using namespace sigil::compose;` for zero naming gain, which is the exact
+inverse of what §32 was for. Extraction is not convergence.
+
+**The ruling was tested, not assumed.** A probe TU compiled against
+SigilCompose's own flags exercises every moved name in both the qualified
+(`sigil::compose::animate(sigil::compose::from(0.f).to(1.f), {520ms,
+sigil::compose::ease::outBack()})`) and the unqualified sketch spelling,
+plus `studio::ramp()` returning a `Transition`, an `Animatable<SkColor4f>`
+colour sweep, and a real `box().opacity(animate(...)).translateX(bind(...)
+.window(...).map(ease::outBack()).target(...)).transition({250ms})` chain.
+It compiles clean. Three `static_assert(std::is_same_v<...>)` pin that
+`compose::Transition` / `compose::Animatable<float>` / `compose::BoundFloat`
+ARE `motion::` ones — same entity, not parallel definitions — and the
+linker agrees out loud: unresolved symbols now read
+`sigil::compose::Element::opacity(sigil::motion::Animatable<float>)`.
+
+**THE PIN, and it is the entire point of the move.** `motion_test` links
+`SigilMotion` and gtest — nothing else — and now carries six
+`AnimationValues` cases: the empty-`ease` aggregate trap through
+`easing()`; the three `animate()` shapes (entrance / ramp-on-change /
+waypoint path, including the value-initialized degenerate `through({})`);
+the `Bound` chain composing in call order with `window`/`quantize`/`invert`/
+`clamp`; `TickerDrivesABoundChainWithNoRenderer`, which runs a
+choreograph Output through `ticker.timeline()` under `ease::outBack()` and
+reads it out as pixels through `bind(&phase).target(-70, 170)`; and two
+`Animatable` cases — `AnimatableHoldsAllFourFormsWithNoKernel` (all four
+forms, the discriminant order, `binding()` answering for both bound forms
+while `boundMap()` tells them apart, and the `Extra` block DEEP-copying
+rather than aliasing) and `AnimatableDrivenByTheTickerWithNoKernel`, which
+writes a five-line naive resolve and drives a health-bar width from 0 to
+240 px through the Ticker. The clock half and the value half of SigilMotion
+working together, property slot included, with no drawing library linked.
+
+**POSITIVE CONTROL for the pin.** A test asserting "usable without compose"
+is worthless if compose is on the include path anyway, so `MotionTest.cpp`
+opens with `#if __has_include(<sigilcompose/Compose.h>) #error`. Verified
+non-vacuous by compiling the same guard twice: silent with SigilMotion's
+include paths, and firing (`"GUARD FIRES"`) the moment
+`-Isrc/common/compose/include` is added. If SigilMotion ever grows a link
+edge that drags compose's headers in, the build stops instead of the pin
+quietly hollowing out.
+
+**SigilMotion's dependency set is UNCHANGED**: still
+`target_link_libraries(SigilMotion PUBLIC choreograph::choreograph)` and
+nothing else. That was the go/no-go condition and it held — the moved code
+needed `<chrono>`, `<cmath>`, `<functional>`, `<initializer_list>`,
+`<optional>`, `<utility>`, `<vector>` and choreograph, all of which it
+already had. The library goes **292 → 770 lines** and its CMake header now
+names both halves (the CLOCK and the VALUES) with the rule that anything
+dragging Skia, Yoga or a kernel type in does not belong there.
+
+**Header hygiene:** the moved region was the FIRST thing in `Compose.h`
+after the forward declarations (`Animatable` immediately after it, still
+ahead of `Fill` and every paint value), depended on no compose declaration,
+and nothing later depends on it being defined at that exact point — each
+re-export block sits exactly where its code was, so declaration order in
+`Compose.h` is unchanged.
+`<sigilmotion/Animation.h>` joins the existing `FrameClock.h`/`Ticker.h`
+includes at the top.
+
+**THE GATE, 2026-07-29.** Debug and Release both build clean (only the
+pre-existing `chladni_tab1` `nodiscard` warning). `compose_test` **468 / 83
+suites — UNCHANGED**, 467 passed, 1 skipped (`AdvanceVariantAxisIsRefused`,
+the expected §35.3 skip); a move must not move the count and it did not.
+`shape_test` **76**, `world_test` **34** — the latter matters because it
+links SigilCompose test-only, so a broken compose API would surface there.
+`motion_test` **5 → 11**, the +6 being this entry's pins — the ONLY
+suite-count change in the tree, and it is the pin. `ctest` **16/16 both
+configs** (Debug 430.48 s, Release 31.95 s).
+
+*Process note for the next person:* the first `ctest -C Debug` after
+editing only a COMMENT in `Animation.h` failed `compose_sketch_smoke` /
+`compose_sketch_stock` with *"A sketch compiled against skewed headers
+would corrupt the host ABI, so this build is refused rather than risked."*
+That guard hashes headers, not semantics — a comment is a skew. Rebuild
+BOTH configs before reading any sketch-host ctest result; after rebuilding,
+16/16 both configs with nothing else changed.
+
+**PLATE LEDGER** (Release, 58 scenes): **54 byte-identical**, 3 attributed
+flappers (`genesis_fire`, `hitman_verlet`, `slitscan_2001`), **1 mover:
+`easel_playground` `187686f0e651 -> 39528e682c55`** — the same hash §36
+already reproduced and attributed to SigilShape's uncommitted work, not to
+this change. Run twice, before and after `Animatable` joined the move, with
+**the same four lines both times**. **No other mover. Byte-neutral, as a
+move must be.** No rebase was taken.

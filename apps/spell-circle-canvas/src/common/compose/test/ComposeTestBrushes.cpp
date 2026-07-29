@@ -591,6 +591,42 @@ TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO chord between them
 }
 
+TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
+  // The twin of the test above, and §34's open remainder: on a CLOSED
+  // contour the two halves of a wrapped window ARE adjacent, so spanPath
+  // must stitch them into ONE run. The deleted WrapSeamIsOneContour
+  // asserted this on a path it stitched itself with SkContourMeasure; this
+  // one reads the RENDER.
+  //
+  // The seam is parked on a corner, which is what makes the law visible in
+  // pixels: one run puts a MITER JOIN there and the outer corner square is
+  // covered; two runs put two butt caps there and that square is empty —
+  // the "visible notch" spanPath's comment names.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .inset(20, 20, 20, 20)
+          .shape([](SkSize s) { // closed rect, seam at its top-left corner
+            SkPathBuilder b;
+            b.moveTo(0, 0);
+            b.lineTo(s.width(), 0);
+            b.lineTo(s.width(), s.height());
+            b.lineTo(0, s.height());
+            b.close();
+            return b.detach();
+          })
+          // perimeter 640: [0, 0.2] runs 128 px right along the top edge,
+          // [0.9, 1] runs the last 64 px UP the left edge into the seam.
+          .mask(by::spans(spans::wrap(0.9f, 1.2f)))
+          .stroke(util::stroke(6, green()))));
+  host.frame();
+  EXPECT_EQ(host.pixel(80, 20), SK_ColorGREEN);   // head piece, top edge
+  EXPECT_EQ(host.pixel(20, 50), SK_ColorGREEN);   // tail piece, left edge
+  EXPECT_EQ(host.pixel(180, 100), SK_ColorBLACK); // the mask still masks
+  EXPECT_EQ(host.pixel(18, 18), SK_ColorGREEN); // THE SEAM: joined, not capped
+}
+
 TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   // #9: a settled opacity transition must not leave the full-opacity
   // recording baked with leafDirectBlend.

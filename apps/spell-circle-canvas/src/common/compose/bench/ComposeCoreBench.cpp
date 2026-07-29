@@ -12,8 +12,13 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkBBHFactory.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
+
+#include <sigilweave/Paragraph.h>
 
 #include <benchmark/benchmark.h>
 
@@ -493,6 +498,231 @@ BENCHMARK(BM_Draw_GroupCache_LivePictures)
     ->Arg(16)
     ->Arg(64)
     ->Unit(benchmark::kMicrosecond);
+
+// ---- the windowed/tiled bake question ------------------------------------
+// A strip far wider than any texture is baked ONCE as a vector picture and
+// then sliced into tile rasters. The candidate mechanism was a "region
+// bake" that would hand back per-tile content directly; these three arms
+// measure what such a mechanism could possibly save. `FullReplay` is the
+// status quo (every tile replays the WHOLE picture behind a clip);
+// `PerTilePicture` pre-extracts one picture per tile and replays only that,
+// which is the FLOOR any region bake could reach — it has already paid the
+// op-selection cost outside the timed loop. The gap between them is the
+// entire budget a new mechanism has to spend.
+
+Element marqueeStrip(float acrossPx, float alongPx) {
+  auto label = [&](std::string text, float size, SkColor4f color) {
+    sigil::weave::TextStyle style;
+    style.shaping.fontSize = size;
+    style.paint.foreground.setColor(color.toSkColor());
+    auto paragraph = std::make_shared<sigil::weave::Paragraph>();
+    paragraph->appendText(
+        std::u8string_view((const char8_t *)text.c_str(), text.size()), style);
+    sigil::weave::ParagraphLayoutOptions centered;
+    centered.alignment = sigil::weave::TextAlignment::kCenter;
+    return sigil::compose::text(paragraph, centered);
+  };
+  auto root = box()
+                  .column()
+                  .width(acrossPx)
+                  .height(alongPx)
+                  .padding(52, 110)
+                  .child(box().left(10).top(0).bottom(0).width(6).fill(
+                      Fill::color({0.455f, 0.878f, 0.745f, 0.95f})))
+                  .child(box().right(10).top(0).bottom(0).width(4).fill(
+                      Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
+  const int sectors = (int)(alongPx / 930.0f); // the marquee's own density
+  for (int s = 0; s < sectors; ++s) {
+    root.child(box().grow());
+    root.child(label("— " + std::to_string(s + 1) + " —", 64.0f,
+                     {0.62f, 0.69f, 0.79f, 1.0f}));
+    root.child(label("nothing here tiles and nothing repeats: each sector "
+                     "is a different neighborhood of the same element tree, "
+                     "numbered as it passes.",
+                     44.0f, {0.93f, 0.96f, 1.0f, 1.0f}));
+    auto row = box().row().gap(6).alignItems(Align::End).height(170);
+    for (int i = 0; i < 44; ++i) {
+      const float beat =
+          0.5f + 0.35f * std::sin((float)i * 0.29f + (float)s * 1.7f);
+      row.child(box().width(6).height(28.0f + 134.0f * beat).corners({3}).fill(
+          Fill::color({0.455f, 0.878f, 0.745f, 0.45f + 0.5f * beat})));
+    }
+    root.child(std::move(row));
+  }
+  return root;
+}
+
+struct StripBake {
+  sk_sp<SkPicture> art;
+  int tiles = 0;
+  int acrossPx = 0;
+  int alongPx = 0;
+};
+
+StripBake bakeStrip(int tiles, int acrossPx, int tileAlongPx) {
+  StripBake out;
+  out.tiles = tiles;
+  out.acrossPx = acrossPx;
+  out.alongPx = tileAlongPx;
+  out.art = snapshot(marqueeStrip((float)acrossPx,
+                                  (float)(tiles * tileAlongPx)),
+                     coreFonts());
+  return out;
+}
+
+// One tile of the strip, drawn the way the marquee draws it: mirrored
+// across the band so the wall's u-mapping restores unmirrored glyphs, then
+// stepped to this tile's window.
+void drawTileWindow(SkCanvas *canvas, const StripBake &bake, int k) {
+  canvas->translate((float)bake.acrossPx, 0);
+  canvas->scale(-1, 1);
+  canvas->translate(0, -(float)(k * bake.alongPx));
+}
+
+sk_sp<SkSurface> tileSurface(const StripBake &bake) {
+  return SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(bake.acrossPx, bake.alongPx));
+}
+
+/** What the bake itself costs — the number the tiling saving has to be
+ *  read against, since both happen once. */
+static void BM_Bake_TiledStrip_Snapshot(benchmark::State &state) {
+  const int tiles = (int)state.range(0);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(
+        snapshot(marqueeStrip(324.0f, (float)(tiles * 4096)), coreFonts()));
+  state.counters["tiles"] = (double)tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_Snapshot)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Bake_TiledStrip_FullReplay(benchmark::State &state) {
+  const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
+  sk_sp<SkSurface> surface = tileSurface(bake);
+  for ([[maybe_unused]] auto iteration : state) {
+    for (int k = 0; k < bake.tiles; ++k) {
+      SkCanvas *canvas = surface->getCanvas();
+      SkAutoCanvasRestore restore(canvas, true);
+      canvas->clear(SK_ColorTRANSPARENT);
+      drawTileWindow(canvas, bake, k);
+      canvas->drawPicture(bake.art);
+    }
+    benchmark::DoNotOptimize(surface->makeImageSnapshot());
+  }
+  state.counters["ops"] = (double)bake.art->approximateOpCount(true);
+  state.counters["tiles"] = (double)bake.tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_FullReplay)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
+
+/** The same picture re-recorded behind an R-tree, so playback into a tile
+ *  visits only the ops whose bounds meet that tile. This is the cheapest
+ *  mechanism a "windowed bake" could actually be: one extra argument to
+ *  `beginRecording`. */
+sk_sp<SkPicture> withRTree(const sk_sp<SkPicture> &art) {
+  SkRTreeFactory rtree;
+  SkPictureRecorder recorder;
+  // playback(), not drawPicture(): drawPicture on a recording canvas stores
+  // a nested reference, which the R-tree cannot see into.
+  art->playback(recorder.beginRecording(art->cullRect(), &rtree));
+  return recorder.finishRecordingAsPicture();
+}
+
+static void BM_Bake_TiledStrip_RTreeReplay(benchmark::State &state) {
+  const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
+  const sk_sp<SkPicture> art = withRTree(bake.art);
+  sk_sp<SkSurface> surface = tileSurface(bake);
+  for ([[maybe_unused]] auto iteration : state) {
+    for (int k = 0; k < bake.tiles; ++k) {
+      SkCanvas *canvas = surface->getCanvas();
+      SkAutoCanvasRestore restore(canvas, true);
+      canvas->clear(SK_ColorTRANSPARENT);
+      drawTileWindow(canvas, bake, k);
+      canvas->drawPicture(art);
+    }
+    benchmark::DoNotOptimize(surface->makeImageSnapshot());
+  }
+  state.counters["ops"] = (double)art->approximateOpCount(true);
+  state.counters["tiles"] = (double)bake.tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_RTreeReplay)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
+
+/** What the R-tree recipe COSTS, so it can be told whether it pays: the
+ *  re-record plus the tree build, once. */
+static void BM_Bake_TiledStrip_RTreeBuild(benchmark::State &state) {
+  const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(withRTree(bake.art));
+  state.counters["tiles"] = (double)bake.tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_RTreeBuild)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
+
+/** The FLOOR: each tile's ops extracted into their own picture ONCE,
+ *  outside the timed loop, so the timed work is only what that tile
+ *  actually draws. No region bake can beat this. */
+static void BM_Bake_TiledStrip_PerTilePicture(benchmark::State &state) {
+  const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
+  const sk_sp<SkPicture> art = withRTree(bake.art);
+  std::vector<sk_sp<SkPicture>> windows;
+  double ops = 0;
+  for (int k = 0; k < bake.tiles; ++k) {
+    SkPictureRecorder recorder;
+    SkCanvas *rec =
+        recorder.beginRecording(SkRect::MakeIWH(bake.acrossPx, bake.alongPx));
+    drawTileWindow(rec, bake, k);
+    art->playback(rec); // R-tree culls against the recorder's cull rect
+    windows.push_back(recorder.finishRecordingAsPicture());
+    ops += (double)windows.back()->approximateOpCount(true);
+  }
+  sk_sp<SkSurface> surface = tileSurface(bake);
+  for ([[maybe_unused]] auto iteration : state) {
+    for (int k = 0; k < bake.tiles; ++k) {
+      SkCanvas *canvas = surface->getCanvas();
+      canvas->clear(SK_ColorTRANSPARENT);
+      canvas->drawPicture(windows[(size_t)k]);
+    }
+    benchmark::DoNotOptimize(surface->makeImageSnapshot());
+  }
+  state.counters["ops"] = ops / (double)bake.tiles;
+  state.counters["tiles"] = (double)bake.tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_PerTilePicture)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
+
+/** How much of a tile's cost is the raster itself: same tile count, same
+ *  surfaces, but nothing replayed. The floor under BOTH arms above. */
+static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State &state) {
+  const StripBake bake = bakeStrip((int)state.range(0), 324, 4096);
+  sk_sp<SkSurface> surface = tileSurface(bake);
+  for ([[maybe_unused]] auto iteration : state) {
+    for (int k = 0; k < bake.tiles; ++k)
+      surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    benchmark::DoNotOptimize(surface->makeImageSnapshot());
+  }
+  state.counters["tiles"] = (double)bake.tiles;
+}
+BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)
+    ->Arg(2)
+    ->Arg(10)
+    ->Arg(40)
+    ->Unit(benchmark::kMillisecond);
 
 static void BM_Draw_GroupCache_Blit(benchmark::State &state) {
   const int count = (int)state.range(0);

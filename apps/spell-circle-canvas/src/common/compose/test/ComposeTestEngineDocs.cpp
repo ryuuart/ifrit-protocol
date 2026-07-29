@@ -319,33 +319,10 @@ TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK); // NO invented chord
 }
 
-// AUDIT-FLAG 2026-07-27 — REDUNDANT (medium): one-pixel probe subsumed by PatternCornerLandsOnTheVertexAndFacesTheBisector (all four vertices incl. the seam, plus orientation); delete candidate.
-TEST(ComposeBrushes, PatternClosedSeamCornerUsesWrappedBisector) {
-  Host host;
-  brush::Pattern brush;
-  brush.side = box().width(20).height(2).fill(red());
-  // A thin bar exposes orientation: the rect seam exits upward and enters
-  // rightward, so its corner bisector points up-right (-45 degrees).
-  brush.corner = brush::CornerArt{box().width(20).height(4).fill(blue()),
-                                    brush::CornerAlign::Bisector};
-  brush.advance = 20;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(50)
-                                       .shape([](SkSize size) {
-                                         SkPathBuilder path;
-                                         path.moveTo(0, 0);
-                                         path.lineTo(size.width(), 0);
-                                         path.lineTo(size.width(),
-                                                     size.height());
-                                         path.lineTo(0, size.height());
-                                         path.close();
-                                         return path.detach();
-                                       })
-                                       .stroke(std::move(brush))));
-  host.frame();
-  EXPECT_EQ(host.pixel(56, 44), SK_ColorBLUE);
-}
+// (`PatternClosedSeamCornerUsesWrappedBisector` was deleted by the
+//  2026-07-28 audit ruling: its single-pixel probe of the seam corner is
+//  subsumed by ComposeBrushes.PatternCornerLandsOnTheVertexAndFacesTheBisector,
+//  which checks all four vertices — the seam among them — and orientation.)
 
 namespace {
 /** A corner tile whose EXTENT is symmetric but whose colour is not: a 24x8
@@ -1220,9 +1197,33 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
   EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".." << gradeMax; // visible thickening
 }
 
-// AUDIT-FLAG 2026-07-27 — VACUOUS (medium): on the default face the axis is ABSENT, so refusal fires for the wrong reason and the test cannot fail; needs the positive-control/skip its sibling has.
+namespace {
+/** Does @p face DECLARE @p tag at all? `axisIsAdvanceInvariant` answers
+ *  FALSE both for "the axis moves advances" and for "there is no such
+ *  axis", and this test needs to tell those apart: on a face without wght
+ *  the refusal fires for the wrong reason and the pixels hold no matter
+ *  what the drive does. (2026-07-28 audit.) */
+bool faceDeclaresAxis(const sk_sp<SkTypeface> &face, SkFourByteTag tag) {
+  if (!face)
+    return false;
+  const int count = face->getVariationDesignParameters({});
+  if (count <= 0)
+    return false;
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+  face->getVariationDesignParameters({axes.data(), axes.size()});
+  for (const auto &axis : axes)
+    if (axis.tag == tag)
+      return true;
+  return false;
+}
+} // namespace
+
 TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   sk_sp<SkTypeface> ui = fonts().defaultTypeface();
+  if (!faceDeclaresAxis(ui, SkSetFourByteTag('w', 'g', 'h', 't')))
+    GTEST_SKIP() << "this font has no wght axis at all: the refusal would "
+                    "fire for the wrong reason and the pixels would hold "
+                    "however the drive behaved";
   if (fonts().axisIsAdvanceInvariant(ui, "wght"))
     GTEST_SKIP() << "this font's wght is advance-invariant; nothing to refuse";
 

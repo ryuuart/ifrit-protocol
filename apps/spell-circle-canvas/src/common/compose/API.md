@@ -343,6 +343,14 @@ Element custom(PaintProgram program);
 
 ### Transition semantics — declarative state, not commands
 
+*(Where these types LIVE, since 2026-07-29: `Transition`, `ease::`,
+`Transitioned<T>`, the `animate()`/`from()`/`to()`/`through()` builders,
+`bind()`/`Bound`/`BoundFloat` and `Animatable<T>` are defined in
+SigilMotion, `<sigilmotion/Animation.h>`, and re-exported into
+`sigil::compose` — every spelling in this manual is unchanged and stays
+correct. What compose owns is the RESOLUTION described below: what a
+described change means to a node. ROADMAP §37.)*
+
 Transitions are not fire-and-forget animations; they are a standing
 declaration: *changes to this property converge smoothly instead of
 snapping*. The lifecycle rules, stated once:
@@ -1086,6 +1094,52 @@ SkSize measure(Element root, sigil::weave::FontContext &fonts,
                SkSize maxSize = {});
 ```
 
+### Slicing one long bake into tiles
+
+A strip longer than any texture — a marquee, a scrolling ribbon — is
+authored as ONE element tree and baked once with `snapshot()`, which has
+no size limit because a picture is vector. Cutting it into tile-sized
+rasters is a clip and a translate; **there is no windowed bake and none
+is needed** (ROADMAP §36 measured a bespoke region bake's ceiling at
+zero). What goes wrong is the transform, so `tiles::` owns it:
+
+```cpp
+namespace tiles {
+enum class Flow { Down, Across };        // which way the run marches
+enum class Facing { Forward, Mirrored }; // pre-flip for mirrored sampling
+
+/** The canvas transform bringing tile `index` into view. */
+SkMatrix window(SkISize tile, int index, Flow flow = Flow::Down,
+                Facing facing = Facing::Forward);
+
+/** The same picture behind a bounding-box hierarchy, so each replay
+ *  visits only its tile's ops. Pays from about four tiles on. */
+sk_sp<SkPicture> sliceable(const sk_sp<SkPicture> &art);
+}
+```
+
+```cpp
+sk_sp<SkPicture> strip = tiles::sliceable(snapshot(box().child(art), fonts));
+for (int k = 0; k < count; ++k) {
+  SkAutoCanvasRestore restore(canvas, true);
+  canvas->clear(SK_ColorTRANSPARENT);
+  canvas->concat(tiles::window(tileSize, k, tiles::Flow::Down,
+                               tiles::Facing::Mirrored));
+  canvas->drawPicture(strip);
+}
+```
+
+Two rules the door encodes rather than documents. **Author the strip in
+the tiles' orientation** — a `column()` for tall tiles, a `row()` for
+wide ones. `Flow` deliberately offers no transposing slice: a transpose
+has determinant -1 and composes with whatever mirroring the consumer's
+own sampling applies, at which point the bookkeeping is local to
+neither side. And **`Facing` describes the CONSUMER, not the picture**:
+`Mirrored` pre-flips across the strip so a surface that samples
+backwards reads it the right way round. The surface's own bounds are
+the clip, so neighbouring tiles share boundary texels and the seams
+vanish.
+
 ### Swapping children / updating data directly — the two write paths
 
 The model admits exactly two ways to change what's on screen, priced
@@ -1497,7 +1551,43 @@ Material::blend({{base, kSrcOver},                      // §5: layer STRENGTH �
                                                         // back), recipe-equal
 material.uniform("uGlow", &output);  // bind a ch::Output → material is LIVE
 material.quantizeTime(6.0f);         // step the injected uTime at 6 Hz
+material.child("uPalette", Material::image(lut, …));  // a SECOND source
 ```
+
+**The child slot — two sources in one shader (§10f).** An `sksl()`
+effect that declares `uniform shader NAME;` gets it filled with another
+whole Material:
+
+```cpp
+// index texture read through a palette LUT — paletted shading, and the
+// X-COM ramp arithmetic ((src & 0x0F) + shade) that has no other spelling
+Material::sksl(paletteFx, {{"uShade", 1.0f}})
+    .child("uIndex",   Material::image(indexTex, kClamp, kClamp,
+                                       SkMatrix::Scale(20, 20),
+                                       SkSamplingOptions(kNearest)))
+    .child("uPalette", Material::image(lut, kClamp, kClamp, SkMatrix::I(),
+                                       SkSamplingOptions(kNearest)));
+```
+
+`Effect::filter` has always had ONE child (`content`, the node's
+already-painted layer, which is why a LUT over painted content always
+worked); this is the door for the sources the node has NOT painted.
+Any Material is a legal child, sksl ones included, and the whole tree
+still compiles to one shader. Three rules:
+
+- **kNearest for anything whose pixel VALUES are data.** An index
+  texture sampled at kLinear is a blend of two unrelated palette
+  entries.
+- **The tier is inherited.** A live child makes the parent live; a
+  child reading `uResolution` propagates the geometry tier — and it
+  reads the PARENT NODE's box, because there is one box.
+- **The child rides the prune signature.** Two materials with
+  different children never compare equal; two with identical ones
+  prune. (Image children compare by image POINTER, as everywhere else
+  — hold the decoded LUT, do not re-decode it per describe.)
+
+An undeclared child name warns and is ignored, exactly like an
+undeclared uniform.
 
 Effects carry the same live contract (§11):
 
@@ -1533,7 +1623,8 @@ Three volatility tiers, decided by what the recipe reads:
 - **Geometry-dependent** (the effect declares `uResolution`): resolves
   when the node records, caches between layouts, re-records on size
   change.
-- **Live** (a bound `ch::Output` uniform, or the effect reads `uTime`
+- **Live** (a bound `ch::Output` uniform, a LIVE CHILD, or the effect
+  reads `uTime`
   or `uContentScale` — both change independently of the node, so
   *reading them IS the volatility declaration*): re-resolves every
   frame; the node paints live. `quantizeTime(hz)` steps the injected

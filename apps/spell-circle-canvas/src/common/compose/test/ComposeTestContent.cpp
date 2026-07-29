@@ -727,6 +727,165 @@ TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
   EXPECT_FLOAT_EQ(pic->cullRect().height(), 12.0f); // content height
 }
 
+// ---------------------------------------------------------------------------
+// tiles::window() / tiles::sliceable() — slicing one long bake into a run
+// of tile rasters. These pin the ORIENTATION CONVENTION IN PIXELS, which is
+// the whole reason the door exists: the marquee's slice math was re-derived
+// wrong more than once, always at the mirror.
+
+namespace {
+
+constexpr int kTileW = 40;
+constexpr int kTileH = 20;
+constexpr int kTileCount = 3;
+// The mark sits near the tile's top-left and is small enough that its own
+// mirror image never overlaps it — on EITHER axis, which is what lets a
+// single sample point tell a flip from no flip.
+constexpr float kMark = 3.0f;
+constexpr float kMarkSize = 6.0f;
+constexpr int kProbe = 5;      ///< inside the mark
+constexpr int kFarX = kTileW - kProbe;
+constexpr int kFarY = kTileH - kProbe;
+
+SkColor stripMark(int index) {
+  static const SkColor marks[3] = {SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE};
+  return marks[index % 3];
+}
+
+/** A strip whose every tile carries ONE mark, near the tile's top-LEFT and
+ *  in a per-tile colour — so a rendered tile reports its index by colour and
+ *  its handedness by which side the mark landed on. `flow` picks whether the
+ *  strip runs down (a column of tiles) or across (a row). */
+sk_sp<SkPicture> markedStrip(tiles::Flow flow) {
+  const bool down = flow == tiles::Flow::Down;
+  const float w = (float)(down ? kTileW : kTileW * kTileCount);
+  const float h = (float)(down ? kTileH * kTileCount : kTileH);
+  auto strip = box().width(w).height(h);
+  for (int j = 0; j < kTileCount; ++j)
+    strip.child(box()
+                    .absolute()
+                    .left(kMark + (down ? 0.0f : (float)(j * kTileW)))
+                    .top(kMark + (down ? (float)(j * kTileH) : 0.0f))
+                    .width(kMarkSize)
+                    .height(kMarkSize)
+                    .fill(Fill::color(SkColor4f::FromColor(stripMark(j)))));
+  // Shell box: snapshot() sizes by the ROOT's children, not its own dims.
+  return snapshot(box().child(std::move(strip)), fonts());
+}
+
+sk_sp<SkSurface> renderTile(const sk_sp<SkPicture> &pic, int index,
+                            tiles::Flow flow, tiles::Facing facing) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kTileW, kTileH));
+  SkCanvas *canvas = surface->getCanvas();
+  canvas->clear(SK_ColorBLACK);
+  canvas->concat(tiles::window({kTileW, kTileH}, index, flow, facing));
+  canvas->drawPicture(pic);
+  return surface;
+}
+
+SkColor tilePixel(SkSurface &surface, int x, int y) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  surface.readPixels(bm.pixmap(), x, y);
+  return bm.getColor(0, 0);
+}
+
+} // namespace
+
+TEST(ComposeStripTiles, ForwardWindowSlicesInOrderAndDoesNotMirror) {
+  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
+  ASSERT_NE(strip, nullptr);
+  for (int k = 0; k < kTileCount; ++k) {
+    sk_sp<SkSurface> tile =
+        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Forward);
+    // The mark keeps its own side and its own offset within the tile: the
+    // colour names the tile, so an off-by-one or a reversed step shows up
+    // as the WRONG colour here.
+    EXPECT_EQ(tilePixel(*tile, kProbe, kProbe), stripMark(k)) << "tile " << k;
+    EXPECT_EQ(tilePixel(*tile, kFarX, kProbe), SK_ColorBLACK)
+        << "tile " << k << " picked up a mirror it was not asked for";
+  }
+}
+
+TEST(ComposeStripTiles, MirroredWindowFlipsAcrossTheStripNotAlongIt) {
+  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
+  ASSERT_NE(strip, nullptr);
+  for (int k = 0; k < kTileCount; ++k) {
+    sk_sp<SkSurface> tile =
+        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Mirrored);
+    // ACROSS: x is reflected (4..12 becomes 28..36) …
+    EXPECT_EQ(tilePixel(*tile, kFarX, kProbe), stripMark(k)) << "tile " << k;
+    EXPECT_EQ(tilePixel(*tile, kProbe, kProbe), SK_ColorBLACK) << "tile " << k;
+    // … and NOT along: y is untouched, so the mark stays near the top. A
+    // flip on the flow axis would put it at kTileH - 8 and reverse the run.
+    EXPECT_EQ(tilePixel(*tile, kFarX, kFarY), SK_ColorBLACK)
+        << "tile " << k << " was mirrored along the flow, not across it";
+  }
+}
+
+TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
+  // The contract Facing::Mirrored actually states: bake mirrored, sample
+  // mirrored, and the strip reads exactly as the forward bake does. This is
+  // the claim the ribbon wall depends on.
+  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
+  ASSERT_NE(strip, nullptr);
+  for (int k = 0; k < kTileCount; ++k) {
+    sk_sp<SkSurface> forward =
+        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Forward);
+    sk_sp<SkSurface> mirrored =
+        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Mirrored);
+    for (int y = 1; y < kTileH; y += 3)
+      for (int x = 1; x < kTileW; x += 3)
+        ASSERT_EQ(tilePixel(*forward, x, y),
+                  tilePixel(*mirrored, kTileW - 1 - x, y))
+            << "tile " << k << " at " << x << "," << y;
+  }
+}
+
+TEST(ComposeStripTiles, AcrossFlowStepsRightwardAndMirrorsInY) {
+  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Across);
+  ASSERT_NE(strip, nullptr);
+  for (int k = 0; k < kTileCount; ++k) {
+    sk_sp<SkSurface> forward =
+        renderTile(strip, k, tiles::Flow::Across, tiles::Facing::Forward);
+    EXPECT_EQ(tilePixel(*forward, kProbe, kProbe), stripMark(k))
+        << "tile " << k;
+    sk_sp<SkSurface> mirrored =
+        renderTile(strip, k, tiles::Flow::Across, tiles::Facing::Mirrored);
+    // The across-flow mirror is in Y — perpendicular to the flow again, so
+    // x keeps its place and the mark drops to the bottom.
+    EXPECT_EQ(tilePixel(*mirrored, kProbe, kFarY), stripMark(k))
+        << "tile " << k;
+    EXPECT_EQ(tilePixel(*mirrored, kProbe, kProbe), SK_ColorBLACK)
+        << "tile " << k;
+  }
+}
+
+TEST(ComposeStripTiles, SliceableFlattensTheOpsAndChangesNoPixel) {
+  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
+  ASSERT_NE(strip, nullptr);
+  const sk_sp<SkPicture> sliced = tiles::sliceable(strip);
+  ASSERT_NE(sliced, nullptr);
+  // The trap this verb exists for: drawPicture() into the recorder would
+  // store ONE nested op the hierarchy cannot index into. Counting
+  // non-nested ops is what tells the two apart.
+  EXPECT_EQ(sliced->approximateOpCount(false),
+            strip->approximateOpCount(false))
+      << "sliceable() nested the picture instead of flattening it";
+  EXPECT_GT(sliced->approximateOpCount(false), 3);
+  for (int k = 0; k < kTileCount; ++k) {
+    sk_sp<SkSurface> plain =
+        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Mirrored);
+    sk_sp<SkSurface> fast =
+        renderTile(sliced, k, tiles::Flow::Down, tiles::Facing::Mirrored);
+    for (int y = 0; y < kTileH; ++y)
+      for (int x = 0; x < kTileW; ++x)
+        ASSERT_EQ(tilePixel(*plain, x, y), tilePixel(*fast, x, y))
+            << "tile " << k << " at " << x << "," << y;
+  }
+}
+
 TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
   static int stampDescribes;
   stampDescribes = 0;
@@ -1264,38 +1423,11 @@ TEST(ComposeReconcile, StructuralPruneNeedsNoMemo) {
 // Round-2 friction batch: mount entrances, trim wrap, per-side insets,
 // overflow-safe recording, stroke align, measure(), presets, marquee.
 
-// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): strict subset of AnimatePlaysEntranceOnMount (which adds the mid-ramp pin); delete candidate.
-TEST(ComposeMotion, WithFromPlaysEntranceOnMount) {
-  Host host;
-  host.composer.render(
-      box().child(box().width(80).height(80).fill(red()).opacity(
-          animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}))));
-  host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK); // enters invisible
-  host.frame(0.3);                              // ramp done
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-
-  // Re-describing the same entrance prunes clean — the entrance is a
-  // mount thing, not a per-render restart.
-  host.composer.render(
-      box().child(box().width(80).height(80).fill(red()).opacity(
-          animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}))));
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
-  host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED); // still settled
-}
-
-// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): byte-duplicate of AnimateColorSweepsOnMount — the R2 port added the twin and never removed this; delete candidate.
-TEST(ComposeMotion, WithFromColorSweepsOnMount) {
-  Host host;
-  host.composer.render(box().child(box().width(80).height(80).fill(
-      Animatable<Fill>(animate(from(Fill::color({1, 1, 1, 1})).to(red()),
-                               {200ms, &choreograph::easeNone})))));
-  host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE); // the declared "from"
-  host.frame(0.3);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-}
+// (`WithFromPlaysEntranceOnMount` and `WithFromColorSweepsOnMount` were
+//  deleted by the 2026-07-28 audit ruling. The R2 grammar port added
+//  AnimatePlaysEntranceOnMount and AnimateColorSweepsOnMount — the same two
+//  trees under the surviving spelling, the first with a mid-ramp pin these
+//  lacked — and never removed the originals.)
 
 // ---------------------------------------------------------------------------
 // The §32 authoring grammar: animate(from(a).to(b)) / animate(through({…})).

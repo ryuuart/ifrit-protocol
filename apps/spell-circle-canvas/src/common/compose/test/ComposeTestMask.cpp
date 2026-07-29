@@ -99,8 +99,11 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
 
 // ---- S3 · the retarget: one mask in both branches -------------------------
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (medium): phase-0 parks at 0.0001, so retarget vs fresh-mount are numerically indistinguishable; park ABOVE target (e.g. 0.8 -> 0.5) to discriminate.
-TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
+// RENAMED 2026-07-28 (audit): phase 0 parks at 0.0001, so a retarget and a
+// fresh mount from zero are numerically indistinguishable here — the test
+// discriminates a RAMP from a jump, not a retarget from a mount. (Parking
+// ABOVE the target, 0.8 → 0.5, is what would separate them.)
+TEST(ComposeR4Mask, S3TheGateRampsAcrossAnIfElse) {
   // ScenesBeethoven: phase 0 is unswept, phase 1 sweeps each arc over its
   // measured span. `animate(to(span))` is RAMP-ON-CHANGE — it starts from
   // the property's CURRENT value — so the gate must occupy the same
@@ -355,26 +358,10 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
 
 // ---- the intersection law, as arithmetic ---------------------------------
 
-// AUDIT-FLAG 2026-07-27 — REDUNDANT (high): same fixture/mask pair as TheIntersectionIsExactIntervalArithmetic, which pins pixels AND refutes union; delete candidate.
-TEST(ComposeR4Mask, StackedSpanGatesIntersectRatherThanUnion) {
-  // Union is spelled INSIDE a gate value (Spans::operator|); across masks
-  // there is only intersection, because two masks are two conditions and
-  // stacking them can only ever show less.
-  const auto ink = [](bool second) {
-    Host host(200, 200);
-    Element e = maskBox().stroke(util::stroke(6, red()));
-    e.mask(by::spans(spans::range(0.0f, 0.5f)));
-    if (second)
-      e.mask(by::spans(spans::range(0.3f, 1.0f)));
-    host.composer.render(stack().child(std::move(e)));
-    host.frame();
-    return inkedCount(boundaryRing(host));
-  };
-  const size_t one = ink(false), both = ink(true);
-  EXPECT_GT(one, 0u);
-  EXPECT_GT(both, 0u) << "[0.3,0.5] is not empty";
-  EXPECT_LT(both, one) << "the second mask can only narrow the first";
-}
+// (`StackedSpanGatesIntersectRatherThanUnion` was deleted by the 2026-07-28
+//  audit ruling: it ran the same fixture and the same mask pair as the test
+//  below, which pins the intersection at PIXELS and refutes union with a
+//  disjoint pair — strictly more, on the same claim.)
 
 TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
   // Pinned at pixels rather than at the helper, because the arithmetic is
@@ -438,8 +425,10 @@ TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
   EXPECT_LT(inkedCount(passDoor), passDoor.size());
 }
 
-// AUDIT-FLAG 2026-07-27 — NAME OVERCLAIM (low): fixture has no unnamed sibling; what it actually (uniquely) pins is the silent-no-op law for an unmatched label — rename, keep.
-TEST(ComposeR4Mask, ANamedMaskLeavesTheUnnamedMarksAlone) {
+// RENAMED 2026-07-28 (audit): the fixture carries ONE mark, so there is no
+// unnamed sibling to leave alone; what this uniquely pins is the
+// silent-no-op law for a label that matches nothing.
+TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
   // parts::named() addresses ONE mark by its LOCAL label. A label that
   // matches nothing selects nothing, silently — the same law as
   // spans::rest("unknown") and spans::fit("unknown").

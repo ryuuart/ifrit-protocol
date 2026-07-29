@@ -16,7 +16,8 @@
  *    when the node RECORDS and caches between layouts — it depends on the
  *    box, not on the clock (see geometryDependent()).
  *  - LIVE (an sksl() material with a ch::Output-bound uniform, or one
- *    reading `uTime`/`uContentScale`): carries the runtime-effect recipe
+ *    reading `uTime`/`uContentScale`, or one whose CHILD is live): carries
+ *    the runtime-effect recipe
  *    and is re-resolved every frame from the current values (resolve());
  *    its node is declared volatile exactly like a bound fill, so it paints
  *    live and never freezes into a cache. This is what makes
@@ -147,7 +148,10 @@ public:
                          const SkMatrix &local = SkMatrix::I(),
                          SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. `constants` set named float uniforms
-   *  once; bind live uniforms with uniform(name, &output) below. Declaring
+   *  once; bind live uniforms with uniform(name, &output) below, and fill
+   *  declared `uniform shader` slots with child(name, material) — a second
+   *  source (an index texture read through a palette, a mask, a noise field).
+   *  Declaring
    *  `uTime` or `uContentScale` takes the LIVE path (re-resolved each frame:
    *  the clock ticks and the host's zoom changes independently of the node —
    *  reading them IS the volatility declaration); declaring only
@@ -251,6 +255,40 @@ public:
   Material &uniform(std::string name, SkColor4f value);
   Material &uniform(std::string name, const choreograph::Output<float> *output);
 
+  /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material (§10f). The
+   *  effect declares `uniform shader NAME;` and this fills it with another
+   *  Material, so one shader can read two images and combine them by a rule
+   *  only SkSL can state: an index texture sampled through a palette LUT
+   *  (X-COM's `(src & 0xF0) | min(15, (src & 0x0F) + shade)` is index
+   *  arithmetic and expressible no other way), a mask channel, a noise
+   *  field, a second gradient. `Effect::filter` has always had ONE child
+   *  (`content`, the already-painted layer); this is the door for the
+   *  sources the node has NOT painted.
+   *
+   *  Any Material is a legal child, including another sksl() one — children
+   *  nest, and the whole tree still compiles to ONE shader (no saveLayer).
+   *  For an image child, wrap it: `child("uIndex", Material::image(img, ...))`
+   *  — and pass `SkSamplingOptions(SkFilterMode::kNearest)` for anything
+   *  whose pixel VALUES are data (an index texture read at kLinear samples
+   *  a blend of two unrelated palette entries).
+   *
+   *  TIER INHERITANCE, the load-bearing half: the parent inherits its
+   *  children's volatility. A live child (bound Output, uTime) makes the
+   *  parent live; a geometry-dependent child (uResolution) propagates the
+   *  geometry tier. The children also ride the prune signature, so two
+   *  materials with DIFFERENT children never compare equal and two with
+   *  identical ones prune — a child that did not participate in equality
+   *  would leave a pruned node sampling last frame's texture forever
+   *  (DESIGN.md: anything read live must participate in reconciler
+   *  equality).
+   *
+   *  Guardrails match uniform()'s: a name the effect does not declare as a
+   *  shader child is warned and IGNORED (assigning a missing child
+   *  SkDEBUGFAILs, which would kill the hot-reload host over one typo), and
+   *  on a non-sksl() material there is nothing to fill — no-op with a
+   *  warning. Copy-on-write like every other recipe mutation. */
+  Material &child(std::string name, Material source);
+
   /** LAYER STRENGTH inside a blend() — "soft-light this noise at 30%"
    *  (ROADMAP §5: the only route used to be forking the generator's SkSL
    *  to bake `0.5 + (v-0.5)*amp` into it). Photoshop layer-opacity
@@ -310,7 +348,8 @@ public:
   /** Always produces a shader (a solid becomes SkShaders::Color) — what
    *  blend() composes. For a live material this builds a fresh shader
    *  sampling bound Outputs at their CURRENT values (a snapshot, not a
-   *  binding); use resolve() for the per-frame paint path. */
+   *  binding); a blend() with a live LAYER folds its layers per call for the
+   *  same reason. Use resolve() for the per-frame paint path. */
   sk_sp<SkShader> asShader() const;
   /** The static collapse the Composer stores for a NON-live material, so it
    *  rides the existing fill caching/prune path. */
@@ -324,8 +363,9 @@ public:
    *  materials compare equal when they were built from the same recipe:
    *  solids by color; gradients by geometry + stops + tile; images by
    *  (image pointer, tiles, matrix, sampling); static sksl by (effect
-   *  pointer, constant values); blend stacks recursively by (layer recipes,
-   *  modes). Rebuilding the same describe code therefore yields EQUAL
+   *  pointer, constant values, CHILD materials); blend stacks recursively by
+   *  (layer recipes, modes). Rebuilding the same describe code therefore
+   *  yields EQUAL
    *  materials even though each build minted a fresh SkShader — which is
    *  what lets a material-filled node prune across re-renders. Raw
    *  shader() wraps compare by pointer; live (Output-bound) materials
@@ -336,6 +376,10 @@ private:
   struct Live;   // sksl recipe (effect + constants + Output bindings)
   struct Recipe; // comparable build recipe (gradients/image/blend)
   static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx);
+  /** Fold a Blend recipe's layers into one shader — `ctx` null is the
+   *  context-free form (asShader), non-null the per-frame one (resolve).
+   *  One function so the two can never disagree. */
+  sk_sp<SkShader> foldBlend(const PaintContext *ctx) const;
   void detachLive(); // copy-on-write before any recipe mutation
 
   bool m_isSolid = false;

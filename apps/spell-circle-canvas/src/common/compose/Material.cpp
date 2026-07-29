@@ -30,6 +30,10 @@ struct Material::Live {
   std::vector<std::pair<std::string, std::array<float, 2>>> constants2;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>> binds;
+  // child(): `uniform shader NAME` slots, filled with whole Materials (§10f).
+  // They are recipe (equality) AND volatility: the parent inherits each
+  // child's tier, and resolves every child with the same PaintContext.
+  std::vector<std::pair<std::string, Material>> children;
   // Context tiers (the REVIEW rule, refined by the leg review):
   //  - usesTime / usesScale: uTime changes every frame and uContentScale
   //    changes with the HOST's canvas scale (zoom) — neither is a function
@@ -128,6 +132,16 @@ bool validUniform(const sk_sp<SkRuntimeEffect> &effect, std::string_view name,
   return u && u->sizeInBytes() == bytes;
 }
 
+// A named child is usable iff the effect declares it as a SHADER child —
+// assigning a missing child SkDEBUGFAILs exactly like a missing uniform.
+bool validShaderChild(const sk_sp<SkRuntimeEffect> &effect,
+                      std::string_view name) {
+  if (!effect)
+    return false;
+  const SkRuntimeEffect::Child *c = effect->findChild(name);
+  return c && c->type == SkRuntimeEffect::ChildType::kShader;
+}
+
 void warnUnknownUniform(const char *what, const std::string &name) {
   SkDebugf("Material::%s: uniform \"%s\" is not declared by the effect at "
            "float size — ignored\n",
@@ -199,7 +213,17 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
       inputs.push_back(ctx->size.width());
       inputs.push_back(ctx->size.height());
     }
-    if (live.lastShader && inputs == live.lastInputs)
+    // THE MEMO'S BLIND SPOT, closed at the door rather than papered over: a
+    // child's varying inputs are the CHILD's (its own binds, its own uTime,
+    // its own uResolution) and this digest cannot see them, so a material
+    // with a context-needing child skips the memo entirely and rebuilds.
+    // Returning `lastShader` there would freeze the child at the frame it
+    // was first resolved. Static children (an image, a ramp) are recipe and
+    // never vary, so they leave the memo intact.
+    bool childNeedsCtx = false;
+    for (const auto &[name, child] : live.children)
+      childNeedsCtx |= child.isAnimated() || child.geometryDependent();
+    if (!childNeedsCtx && live.lastShader && inputs == live.lastInputs)
       return live.lastShader;
   }
   // §14: the sdf:: glow eats the shape silently. sdf::pad() is reserved
@@ -241,6 +265,22 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   for (const auto &[name, out] : live.binds)
     if (out)
       b.uniform(name.c_str()) = out->value();
+  // Children resolve with the SAME PaintContext the parent got (so a live
+  // child ticks and a geometry child reads the parent node's box), and with
+  // the null context on the static snapshot path.
+  for (const auto &[name, child] : live.children) {
+    sk_sp<SkShader> childShader;
+    if (ctx) {
+      const Fill f = child.resolve(*ctx);
+      if (f.kind == Fill::Kind::Shader)
+        childShader = f.shaderValue;
+      else if (f.kind == Fill::Kind::Color)
+        childShader = SkShaders::Color(f.colorValue, nullptr);
+    } else {
+      childShader = child.asShader();
+    }
+    b.child(name.c_str()) = std::move(childShader); // pre-validated at store
+  }
   if (ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
@@ -482,10 +522,14 @@ bool Material::operator==(const Material &o) const {
   if (m_live) {
     if (isAnimated() || o.isAnimated())
       return m_live == o.m_live;
+    // Children are recipe, recursively: two materials over one effect that
+    // sample DIFFERENT palettes are different materials, and a node that
+    // pruned across that swap would sample the old one forever.
     return m_live->effect == o.m_live->effect &&
            m_live->constants == o.m_live->constants &&
            m_live->constants2 == o.m_live->constants2 &&
-           m_live->constants4 == o.m_live->constants4;
+           m_live->constants4 == o.m_live->constants4 &&
+           m_live->children == o.m_live->children;
   }
   if ((m_recipe != nullptr) != (o.m_recipe != nullptr))
     return false;
@@ -523,6 +567,34 @@ Material &Material::uniform(std::string name, float value) {
   else if (name == "uContentScale")
     m_live->usesScale = false;
   m_live->constants.emplace_back(std::move(name), value);
+  m_shader = build(*m_live, nullptr); // refresh the static snapshot
+  return *this;
+}
+
+Material &Material::child(std::string name, Material source) {
+  if (!m_live) {
+    SkDebugf("Material::child(\"%s\"): ignored — this material has no shader "
+             "children (only sksl() does)\n",
+             name.c_str());
+    return *this;
+  }
+  if (!validShaderChild(m_live->effect, name)) {
+    SkDebugf("Material::child: \"%s\" is not declared by the effect as "
+             "`uniform shader` — ignored\n",
+             name.c_str());
+    return *this;
+  }
+  detachLive();
+  // Last write wins on a name, so re-filling a slot replaces rather than
+  // stacking (two entries would both be assigned and the second silently
+  // shadow the first in the builder).
+  for (auto &slot : m_live->children)
+    if (slot.first == name) {
+      slot.second = std::move(source);
+      m_shader = build(*m_live, nullptr);
+      return *this;
+    }
+  m_live->children.emplace_back(std::move(name), std::move(source));
   m_shader = build(*m_live, nullptr); // refresh the static snapshot
   return *this;
 }
@@ -574,6 +646,13 @@ bool Material::isAnimated() const {
   if (m_live &&
       (!m_live->binds.empty() || m_live->usesTime || m_live->usesScale))
     return true;
+  // A child slot's volatility is the parent's: the parent samples it, so a
+  // live child that did not lift the parent to the live path would be
+  // resolved once and frozen into the parent's cache.
+  if (m_live)
+    for (const auto &[name, child] : m_live->children)
+      if (child.isAnimated())
+        return true;
   // A blend inherits liveness from its layers (deferred fold in resolve()).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto &layer : m_recipe->layers)
@@ -585,6 +664,10 @@ bool Material::isAnimated() const {
 bool Material::geometryDependent() const {
   if (m_live && m_live->usesGeometry)
     return true;
+  if (m_live)
+    for (const auto &[name, child] : m_live->children)
+      if (child.geometryDependent())
+        return true;
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto &layer : m_recipe->layers)
       if (layer.first.geometryDependent())
@@ -628,10 +711,58 @@ Material &Material::uniform(std::string name, SkColor4f value) {
   return *this;
 }
 
+/** THE BLEND FOLD, in one place because it has two callers that must agree:
+ *  `ctx` non-null is resolve()'s per-frame form, null is asShader()'s
+ *  context-free one. Either way the LAYERS are re-read here rather than the
+ *  flattened snapshot blend() built, which is the whole point — a live layer
+ *  contributes its current value per call. */
+sk_sp<SkShader> Material::foldBlend(const PaintContext *ctx) const {
+  sk_sp<SkShader> acc;
+  bool first = true;
+  for (const auto &[mat, mode] : m_recipe->layers) {
+    sk_sp<SkShader> src;
+    if (ctx) {
+      const Fill f = mat.resolve(*ctx);
+      if (f.kind == Fill::Kind::Shader)
+        src = f.shaderValue;
+      else if (f.kind == Fill::Kind::Color)
+        src = SkShaders::Color(f.colorValue, nullptr);
+    } else {
+      src = mat.asShader(); // already turns a solid into SkShaders::Color
+    }
+    if (first) {
+      acc = std::move(src);
+      first = false;
+      continue;
+    }
+    if (!acc) {
+      acc = std::move(src);
+      continue;
+    }
+    if (!src)
+      continue;
+    const float amt = mat.m_amount; // same rule as the eager flatten
+    sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
+    acc = amt >= 1.0f ? std::move(blended)
+                      : mixShaders(std::move(acc), std::move(blended), amt);
+  }
+  return acc;
+}
+
 sk_sp<SkShader> Material::asShader() const {
+  // A BLEND has no m_live of its own — it inherits liveness through
+  // m_recipe->layers — so the live branch below would dereference null for
+  // it (§35.1; reachable by nesting a blend in another blend's layer list,
+  // because blend() calls asShader() on every layer). Guarding the null and
+  // falling through to m_shader would not be right either: m_shader is the
+  // eager snapshot blend() built, which is the exact stale answer the live
+  // branch exists to prevent. Fold the layers instead, per call.
+  if (m_recipe && m_recipe->kind == Recipe::Kind::Blend && isAnimated())
+    return foldBlend(nullptr);
   // A live material's m_shader snapshot predates its binds — rebuild fresh so
   // bound Outputs contribute their CURRENT values (what blend() flattens; the
-  // Fable audit's stale-snapshot defect).
+  // Fable audit's stale-snapshot defect). Past the blend case, isAnimated()
+  // implies m_live: the other two liveness sources both read it.
   if (isAnimated())
     return build(*m_live, nullptr);
   if (m_shader)
@@ -655,34 +786,8 @@ Fill Material::resolve(const PaintContext &ctx) const {
   // contributes its correct current form — the eager snapshot from blend()
   // would have baked those layers with a null context (uResolution = 0,0).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
-      (isAnimated() || geometryDependent())) {
-    sk_sp<SkShader> acc;
-    bool first = true;
-    for (const auto &[mat, mode] : m_recipe->layers) {
-      Fill f = mat.resolve(ctx);
-      sk_sp<SkShader> src;
-      if (f.kind == Fill::Kind::Shader)
-        src = f.shaderValue;
-      else if (f.kind == Fill::Kind::Color)
-        src = SkShaders::Color(f.colorValue, nullptr);
-      if (first) {
-        acc = std::move(src);
-        first = false;
-        continue;
-      }
-      if (!acc) {
-        acc = std::move(src);
-        continue;
-      }
-      if (!src)
-        continue;
-      const float amt = mat.m_amount; // same rule as the eager flatten
-      sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
-      acc = amt >= 1.0f ? std::move(blended)
-                        : mixShaders(std::move(acc), std::move(blended), amt);
-    }
-    return Fill::shader(std::move(acc));
-  }
+      (isAnimated() || geometryDependent()))
+    return Fill::shader(foldBlend(&ctx));
   if (isAnimated() || geometryDependent())
     return Fill::shader(build(*m_live, &ctx));
   return toFill();
