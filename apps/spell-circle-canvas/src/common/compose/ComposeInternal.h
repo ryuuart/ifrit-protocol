@@ -255,6 +255,12 @@ struct MemoData {
   std::any props;
   std::function<bool(const std::any &, const std::any &)> equal;
   std::function<Element(const std::any &)> invoke;
+  /** The `env::` bindings in scope where this memo was WRITTEN. A memo is
+   *  the one deferred describe in the library, so it is also the one place
+   *  an inherited value could go stale: the snapshot rides in the memo's
+   *  key (resolveMemo compares it before the props) and is re-established
+   *  around the invoke. Empty — hence free — when nothing is bound. */
+  EnvSnapshot env;
 };
 
 struct ElementNode {

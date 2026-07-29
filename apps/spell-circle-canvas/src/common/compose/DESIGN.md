@@ -262,7 +262,8 @@ text/image/custom leaves; `key` + `memo`; `Animatable`/`Transition` and
 the reconciled-vs-bound write paths; automatic caching; the stroke
 grammar (`shape`, the `stroke(where, what)` slot over `spans::`,
 `band`/`across`, and the `Profile` seam); the
-masking family (`mask` over `parts::`/`by::`, `Region`) — plus the
+masking family (`mask` over `parts::`/`by::`, `Region`); `env::` (the
+inherited value) — plus the
 element-surface conveniences that landed on `Element` itself (`echo`,
 `style`, `textFill`/`textStroke`, `glyphFx`,
 `variationDrive`, `staggerChildren`, `hitTestable`, `sampling`).
@@ -347,6 +348,35 @@ a third.
   compare conservatively unequal and therefore never prune — prefer
   comparable value forms (shaper structs over raw `ops::PathOp`
   lambdas), and memoize where a callable is unavoidable.
+- **AN INHERITED VALUE IS RESOLVED AT DESCRIBE, NEVER CARRIED INTO THE
+  TREE** (landed 2026-07-29, `env::`, ROADMAP §10g). Describe here is
+  eager, total and outside the kernel — `box().child(panel())` calls
+  `panel()` before the box exists — so the describe-time CALL STACK is
+  the element tree, and the inheritance mechanism is dynamic scope over
+  it (`env::Provide<T>` / `env::inherited<T>()`), not a provider node.
+  Three consequences are the rule:
+  - **the tree the Composer sees is environment-independent**, because
+    the value is already baked into the reading node's props, so
+    `propsEqual` is the exact dependency tracker and a theme change
+    costs only the nodes whose props actually moved. A provider node
+    with subtree invalidation was rejected for exactly this: a full CDE
+    palette change cost 237 re-records over 1270 nodes, and a provider
+    would have invalidated the desktop;
+  - **`memo` is a pure function of (props, ENVIRONMENT)** — it is the
+    one deferred describe in the library, so it captures the ambient
+    stack, compares it before its props, and re-establishes it around
+    the invoke. Every other callable the kernel holds (a `ContourWalk`
+    stamp, a `custom()` program) runs at derive or paint time with no
+    scope and must capture what it needs by value at the call site;
+  - **the key is a C++ TYPE, and a library component's key is its own
+    props type** (`console::Style`). There is no library-wide `Theme`:
+    the channel is kernel, the value is the author's, and the design-
+    token layer stays refused (archive/EXTRACT.md §4.7).
+
+  Resolving a theme at PAINT instead (bound `Fill`, live `Material`)
+  remains available per property and was measured losing as a mechanism:
+  0.33 ms/frame steady against 0.033 ms, for 40 colours that change
+  every three seconds. It also cannot serve anything layout reads.
 - **A default that encodes a judgement about the caller's art cannot
   be changed compatibly** — the test is whether any existing caller's
   *output* changes (the `cornerAlign` doctrine, ROADMAP §27; audit

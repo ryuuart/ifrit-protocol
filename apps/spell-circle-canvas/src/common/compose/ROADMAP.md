@@ -980,6 +980,182 @@ React's context — resolved during reconcile so a subtree reads it without
 being handed it. This is a kernel change and deserves a designed pass,
 not a bolt-on.
 
+### DESIGNED AND LANDED 2026-07-29 — `env::`, and why it costs the prune nothing
+
+**The tension, stated first, because resolving it is the whole entry.**
+Pruning is this library's central performance property: a re-described
+node that compares equal to its previous self does not re-layout,
+re-record or re-paint (§3 measured 43.4 of 43.5 ms lost on ONE node whose
+outline callable could not compare). An inherited value looks, by
+construction, like the thing that breaks it — an input a node reads
+without it appearing in that node's own props. A naive context
+invalidates everything below the provider and destroys pruning for the
+whole subtree.
+
+**It is a false dilemma, and one fact dissolves it: DESCRIBE IN THIS
+LIBRARY IS EAGER, TOTAL, AND OUTSIDE THE KERNEL.** `box().child(panel())`
+calls `panel()` before the box exists; components are plain functions and
+their arguments are evaluated inside the enclosing scope. The kernel
+never calls a component — it is handed a finished tree. So the
+describe-time CALL STACK is the element tree, and the C++ answer to
+"inherit down a call stack" is dynamic scope. A value read there lands in
+the reading node's own props before the Composer sees anything, which
+means:
+
+- **`propsEqual` is already the exact dependency tracker.** A node whose
+  props came out identical prunes, whether or not it read the
+  environment. A node whose colour actually moved re-patches. Nobody has
+  to record a read set, and the granularity is per-property, not
+  per-subtree.
+- **The element tree is environment-INDEPENDENT.** By reconcile time the
+  theme is baked in; no kernel phase learns a new concept.
+- **"Which nodes must re-describe" is nearly moot.** Every `render()`
+  already re-executes every component. The question that costs money is
+  which nodes PATCH, and that answer was already correct.
+
+The shipped shape is therefore **dynamic scope over the describe stack**:
+
+```cpp
+env::Provide<Palette> theme(dark);      // binds for this scope
+return box().child(panel());            // panel() -> … -> a chip four
+                                        // levels down reads it
+const Palette *p = env::inherited<Palette>();
+```
+
+**THE ONE PLACE THE KERNEL HAD TO LEARN IT is `memo`** — the only site in
+the library where a component function runs after the author's scope has
+ended (`resolveMemo`'s `invoke`, and grep confirms it is the only deferred
+describe: `Instances::variants` calls `make()` eagerly, `snapshot()` and
+`measure()` take a built tree). Left alone, a memo would hit on props
+alone and serve the theme it first described under forever. So a memo now
+captures the ambient stack at construction, compares it *before* its
+props, and re-establishes it around the deferred call — `memo` is a pure
+function of **(props, environment)**, which is the same purity contract it
+always claimed, honestly stated. That is the kernel change this entry
+predicted, and it is ~35 lines.
+
+Everything else that takes a callable — a `ContourWalk` stamp, a
+`custom()` program — runs at derive or paint time with NO scope, and
+`inherited<T>()` there returns null deterministically rather than
+something stale. The rule: such a lambda captures what it needs BY VALUE
+at the call site, which is where the scope still exists.
+
+**THE THREE REJECTED SHAPES.**
+
+- **(b) a provider NODE with subtree invalidation keyed on its value.**
+  Rejected: it buys nothing `propsEqual` does not already do better, and
+  it pays for it by re-recording subtrees whose props did not move. The
+  measurement is in this file already — the CDE study's palette switch,
+  with the colours as plain values, cost **237 re-records over a
+  1270-node desktop** on the switch frame and nothing on the other 299.
+  A provider node would have invalidated the provider's whole subtree,
+  which on that artefact is the desktop. It also puts a second identity
+  system in the kernel for a value the kernel never needs to see.
+- **(c) resolution at PAINT time.** This one deserved the serious weight
+  the brief gave it, and it is *already shipped* — a bound `Fill`, a live
+  `Material` uniform, resolved per paint with `animated()` declaring the
+  volatility (that is also §10h's half-closure). It was measured, on
+  exactly this artefact, and it lost: **40 bound `Fill` Outputs cost
+  0.33 ms/frame steady against 0.033 ms for the same 40 as plain values —
+  ten times the steady paint to save ~1.1 ms on one frame in three
+  hundred, 5.6x more total work per palette change** (`cde_motif.cpp`
+  header; captures pixel-identical both ways). It is also partial: it
+  serves colours and cannot serve a padding, a face, a type size — a
+  theme that changes text metrics must reach LAYOUT, and paint is
+  downstream of layout. Kept as the per-property escape for values that
+  genuinely move at 60 Hz; refused as the mechanism. (The real defect it
+  exposes is §Argument 3's, not this entry's: `isAnimated()` is per-node
+  and binary, so "repaints when the theme changes" and "repaints at 60 Hz"
+  are one declaration.)
+- **(a) a comparable `Theme` threaded through describe with reads
+  recorded.** This is what shipped, minus the read recording. Read sets
+  would buy exactly one thing: a memo that does NOT read the environment
+  could keep hitting through a theme change. Scoped, not built, because
+  the cost it avoids is a describe call whose result then prunes anyway,
+  and a thread-local read flag is only sound under memo's existing purity
+  assumption. Measure before building it.
+
+**(d) "stays out of the kernel entirely"** is what landed, to within the
+one memo seam — and the seam is not optional. Note also that this entry
+is NOT the palette/theme layer archive/EXTRACT.md §4.7 refused: bindings
+are keyed by C++ TYPE and the key a library component uses is its own
+existing props type (`console::Style`, which is now comparable and has an
+env-reading `console(ring)` overload). There is no `compose::Theme`, no
+role names, no scale — the library ships the CHANNEL, the author owns the
+value.
+
+**WHAT A THEME'S EQUALITY MEANS.** Two inherited values are equal exactly
+when describing anything under them yields props that compare equal under
+`propsEqual`. So the comparison is structural and exact — `SkColor4f`
+bitwise, typefaces by pointer identity — never perceptual, never
+epsilon'd, because the consumer of the answer is the prune and the prune's
+contract is "provably identical". One consequence is load-bearing:
+**materialise derivations INTO the value.** A theme carrying a
+`std::function` derivation rule is incomparable and turns every memo below
+it into a permanent miss, which is §3's wall in new clothes. Motif's
+`XmGetColors` is the model — run the function, store the eight-by-five
+colours it produced.
+
+**SURFACE** (kernel, `Compose.h`; API.md §env): `env::Provide<T>` (RAII,
+LIFO, an inner one shadows, other types unaffected), `env::inherited<T>()
+-> const T*` (null = use your own default, like a React context default),
+`env::inheritedOr<T>(fallback)`, `env::bound<T>()`. Free when unused: the
+snapshot on a memo is an empty vector, so no allocation and no compare.
+
+**PINS AND CONTROLS** (`ComposeTestKernel.cpp`, `ComposeEnv.*`, 6 cases).
+Every control was run — break the mechanism, confirm the NAMED test fails,
+restore:
+
+| Pin | Control | Result |
+| --- | --- | --- |
+| `UnchangedEnvironmentStillPrunes` — patchedNodes 0, `dirty()` false, picturesRecorded 0 | second render with a MOVED palette | fails: patchedNodes 1, dirty true, **picturesRecorded 4** |
+| same | `inherited<T>()` -> nullptr | fails (its `ASSERT_EQ` on the inherited colour) |
+| `ThemeChangeRepatchesOnlyTheNodesThatMoved` — patchedNodes **exactly 1** through four container levels and a plain sibling | `inherited<T>()` -> nullptr | fails |
+| `MemoIsAPureFunctionOfPropsAndEnvironment` | `envEqual` -> always true | fails: memo serves the stale colour |
+| same | `envEqual` -> always false | fails: memoHits 0 where 1, describeCalls 2 where 1 |
+| same | `EnvRestore` deleted | fails: the deferred describe reads the fallback |
+| `ALibraryComponentReadsTheEnvironmentByItsOwnPropsType` | overload ignores the binding | fails |
+
+**One control was VACUOUS on the first attempt and the pin was rewritten
+because of it.** Deleting `EnvRestore` did not fail anything, because the
+first draft called `render()` *inside* the `Provide` scope — the ambient
+stack was still live during reconcile and the restore had nothing to do.
+The pins now DESCRIBE inside the scope and RECONCILE after it ends, with
+an `ASSERT_FALSE(env::bound<T>())` between the two statements, which is
+also the honest model of the two phases. Separately,
+`UnchangedEnvironmentStillPrunes` was vacuous in a second way — with
+`inherited` broken it read the fallback both renders and pruned happily —
+so it now asserts the pixel IS the inherited colour before asserting the
+prune. Both are recorded here because the program's standing lesson is
+that a passing pin is not evidence until its control has failed.
+
+**THE GATE, 2026-07-29.** Debug and Release both build clean and
+warning-free. `ctest -C Debug` **16/16, 434.53 s** (both configs rebuilt
+in full first — the sketch host's header-skew guard hashes headers, and
+this change touches two). `compose_test` **477 cases / 85 suites** in
+BOTH configs (471 before: +6, the `ComposeEnv` slice), 476 passed and 1
+skipped (§34's variation-drive skip); `compose_kit_test` 47,
+`shape_test` 83, `world_test` 45, `motion_test` 11 — all unchanged.
+**PLATE LEDGER** (Release, `scripts/plate_ledger.py`, 58 scenes):
+**54 byte-identical, 3 attributed flappers** (`genesis_fire`,
+`hitman_verlet`, `slitscan_2001`), **1 mover: `easel_playground`
+187686f0e651 -> 39528e682c55**, which is the SigilShape-attributed hash
+this sweep was told to expect and not this change. Byte-neutral, as an
+additive feature should be. No rebase was taken.
+
+**SCOPED, NOT BUILT.** (1) Read tracking — a thread-local flag set by
+`inherited<T>()` so a memo that never read the environment keeps hitting
+through a theme change; sound under memo's existing purity assumption,
+and worth exactly one describe call that would prune anyway, so it wants
+a measurement first. (2) A second library consumer: `console::` is the
+worked example; `Debug.h`'s plates and the `kit::` frames are the obvious
+next keys, each on its own props type. (3) The `styles::` bundle the entry
+names does not exist yet — when it does it inherits by the same rule with
+no new mechanism. (4) Nothing was done about §Argument 3's real defect,
+which this entry keeps running into: `isAnimated()` is per-node and
+binary, so a property that changes every three seconds and one that
+changes at 60 Hz make the same declaration.
+
 ## 10h. Bound colours on decorations: PARTIALLY closed, and worth stating
 
 Filed as "`Decorations.h`, `Lines.h` and `Brushes.h` contain zero

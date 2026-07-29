@@ -741,8 +741,43 @@ Element makeMemo(std::any props,
   memo.props = std::move(props);
   memo.equal = std::move(equal);
   memo.invoke = std::move(invoke);
+  // Captured HERE, in the author's scope — the whole point. By the time
+  // the reconciler decides whether to call `invoke`, this stack is gone.
+  memo.env = envStack();
   return e;
 }
+
+// ---- env: the describe-time ambient stack (see Compose.h "env") ----------
+
+EnvSnapshot &envStack() {
+  static thread_local EnvSnapshot stack;
+  return stack;
+}
+
+bool envEqual(const EnvSnapshot &a, const EnvSnapshot &b) {
+  if (a.size() != b.size())
+    return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i].type != b[i].type)
+      return false;
+    if (a[i].value == b[i].value)
+      continue; // the same binding object: equal without asking
+    if (!a[i].equal || !a[i].value || !b[i].value)
+      return false;
+    if (!a[i].equal(a[i].value.get(), b[i].value.get()))
+      return false;
+  }
+  return true;
+}
+
+EnvRestore::EnvRestore(const EnvSnapshot &snapshot) {
+  EnvSnapshot next = snapshot; // copied first: `snapshot` may alias the stack
+  m_saved = std::move(envStack());
+  envStack() = std::move(next);
+}
+
+EnvRestore::~EnvRestore() { envStack() = std::move(m_saved); }
+
 } // namespace detail
 
 // ---------------------------------------------------------------------------

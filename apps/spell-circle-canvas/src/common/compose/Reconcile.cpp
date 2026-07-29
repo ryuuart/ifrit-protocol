@@ -433,7 +433,14 @@ Composer::Impl::resolveMemo(Instance *existing,
     described = true;
     return node;
   }
+  // A memo is a pure function of (props, ENVIRONMENT). The environment is
+  // compared first and for the same reason props are: an `env::` binding
+  // is read live by the deferred describe, so a memo that hit on props
+  // alone would serve the theme it first described under forever — the
+  // "anything read live must participate in reconciler equality" law
+  // (DESIGN, Growth rules), applied to the one deferred describe there is.
   if (existing && existing->memoShell &&
+      envEqual(existing->memoShell->memoData->env, node->memoData->env) &&
       existing->memoShell->memoData->equal(existing->memoShell->memoData->props,
                                            node->memoData->props)) {
     stats.memoHits++;
@@ -441,6 +448,9 @@ Composer::Impl::resolveMemo(Instance *existing,
     return existing->desc; // reuse the previously described payload
   }
   described = true;
+  // …and the deferred call runs under the bindings its AUTHOR had, not
+  // whatever scope this reconcile happens to sit inside (usually none).
+  EnvRestore restore(node->memoData->env);
   Element produced = node->memoData->invoke(node->memoData->props);
   return produced.node();
 }

@@ -712,7 +712,8 @@ Three layers keep the library lean and the call sites short:
 - **Kernel** (`<sigilcompose/Compose.h>`): elements/components/
   Composer, flex + `stack()`, stacking paint, `Fill::color/shader`,
   text/image/custom leaves, `key`/`memo`, `Animatable` + `Transition`,
-  automatic caching. Complete mental model, smallest possible surface.
+  `env::` (the inherited value — below), automatic caching. Complete
+  mental model, smallest possible surface.
 - **Util** (`<sigilcompose/Util.h>`, depends only on the kernel —
   deliberately *demoted* sugar that users could write themselves):
   gradient Fill constructors, `stroke()`/`shadow()` decoration
@@ -749,6 +750,69 @@ Three layers keep the library lean and the call sites short:
   presets), `Console.h` (the streaming log), `Instances.h`
   ("Instancing" below), `GpuImage.h` ("Drawing images portably"
   below), and `Debug.h` (assertions for GENERATED geometry — see below).
+
+### `env::` — an inherited value, read where a component is COMPOSED
+
+SwiftUI's `Environment` / React's context, for a library whose describe
+phase is an ordinary C++ call tree. Passing `const Theme&` is idiomatic
+for your own components; this exists for the ones you did not write — a
+`console::`, a decoration four levels down — which would otherwise have
+to be handed their colours by whoever composed them.
+
+```cpp
+Element scene(const Palette &p) {
+  env::Provide<Palette> theme(p);        // binds for THIS SCOPE
+  return box().child(panel());           // panel() -> … -> chip()
+}
+
+Element chip() {                          // handed nothing
+  const Palette c = env::inheritedOr(Palette{});   // or inherited<Palette>()
+  return box().width(20).height(20).fill(Fill::color(c.surface));
+}
+```
+
+| Call | Means |
+| --- | --- |
+| `env::Provide<T> g(value)` | bind `T` for the scope of `g`. RAII, LIFO; an inner one shadows, other types are unaffected. Not copyable — it is a scope. |
+| `env::inherited<T>()` | the nearest binding, or **nullptr** — the cue to use your own default, like a React context's default value |
+| `env::inheritedOr<T>(fallback)` | the value, or `fallback` |
+| `env::bound<T>()` | is one in scope? |
+
+**Bindings are keyed by C++ TYPE, and there is no library-wide `Theme`.**
+The key a library component uses is its own props type — `console::Style`,
+which is why `console::console(ring)` (no style argument) is themed by
+whoever composed it. A design-token layer is a header this library
+refused twice (archive/EXTRACT.md §4.7); what is shipped is the channel.
+
+**Three rules, and the second is the one that bites.**
+
+1. **Reads happen during DESCRIBE, and that is why it is free.** The
+   value lands in the reading node's own props, so the tree the Composer
+   sees is environment-independent and `propsEqual` is already the exact
+   dependency tracker: a theme change repatches the nodes whose props
+   moved and nothing else; an unchanged theme prunes normally. Pinned in
+   `ComposeEnv.*` — through four container levels, a colour change costs
+   `patchedNodes == 1`.
+2. **A callable the KERNEL invokes sees no scope.** `memo` is handled for
+   you — it captures the ambient bindings, compares them alongside its
+   props, and re-establishes them around the deferred call, so a memo can
+   never serve a stale theme. Everything else that defers (a
+   `ContourWalk` stamp, a `custom()` program, anything you store and call
+   later) runs at derive or paint time with an empty stack and
+   `inherited<T>()` returns null: **capture what such a lambda needs by
+   value at the call site**, where the scope still exists.
+3. **An inherited type is a comparable VALUE, and its equality means
+   "describes to the same props".** Structural and exact — colours
+   bitwise, typefaces by pointer — never perceptual. Materialise
+   derivations INTO it: a theme carrying a `std::function` rule is
+   incomparable and makes every memo below it a permanent miss. Run the
+   derivation, store the colours.
+
+A theme is a *describe-path* value by this design. If one property
+genuinely must move at 60 Hz, that is still the bind path (a bound
+`Fill`, a live `Material` uniform) — and it is priced: the CDE study
+measured 40 bound `Fill` Outputs at 0.33 ms/frame steady against
+0.033 ms as plain values. Bind the one thing that scrubs, not the theme.
 
 ## What the study program added
 

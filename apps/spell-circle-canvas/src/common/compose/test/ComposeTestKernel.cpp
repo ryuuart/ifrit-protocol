@@ -2272,3 +2272,200 @@ TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
   EXPECT_EQ(sample(10.0f, 5), SK_ColorGREEN); // slid one run: green leads
   EXPECT_EQ(sample(10.0f, 15), SK_ColorBLUE);
 }
+
+// ---------------------------------------------------------------------------
+// env — the inherited value (ROADMAP §10g)
+//
+// The property under test is not "a value arrives"; it is that the value
+// arrives WITHOUT COSTING THE PRUNE. Read during describe, an inherited
+// value lands in the reading node's own props, so `propsEqual` is already
+// the exact dependency tracker — which is what these pins state in
+// `patchedNodes` and `picturesRecorded` rather than in prose.
+
+namespace {
+
+struct EnvPalette {
+  SkColor4f surface{1, 0, 0, 1};
+  SkColor4f accent{0, 1, 0, 1};
+  bool operator==(const EnvPalette &) const = default;
+};
+
+/** A component four levels below whoever bound the value, handed nothing
+ *  and reading the environment — the `console::`/decoration case. */
+Element envThemedChip() {
+  return box().width(20).height(20).fill(
+      Fill::color(env::inheritedOr(EnvPalette{}).surface));
+}
+/** Its sibling, which reads nothing and must never repatch for a theme. */
+Element envPlainChip() { return box().width(20).height(20).fill(blue()); }
+
+Element envLevel3() {
+  return box().child(envThemedChip()).child(envPlainChip());
+}
+Element envLevel2() { return box().child(envLevel3()); }
+Element envLevel1() { return box().child(envLevel2()); }
+
+/** Describe under a binding, and hand back a tree the binding no longer
+ *  touches — the whole design in three lines. */
+Element envDescribeWith(EnvPalette p) {
+  env::Provide<EnvPalette> theme(std::move(p));
+  return box().child(envLevel1());
+}
+
+} // namespace
+
+TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
+  Host host;
+  Element tree = envDescribeWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
+  EXPECT_FALSE(env::bound<EnvPalette>()); // the scope ended; the VALUE is
+  host.composer.render(std::move(tree)); // already baked into the tree
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);   // the themed chip
+  EXPECT_EQ(host.pixel(5, 25), SK_ColorBLUE);  // its plain sibling
+
+  // Unbound: the component's own default, exactly like a React context's.
+  Host bare;
+  bare.composer.render(box().child(envLevel1()));
+  bare.frame();
+  EXPECT_EQ(bare.pixel(5, 5), SK_ColorRED);
+  EXPECT_FALSE(env::bound<EnvPalette>()); // and the scope unwound
+}
+
+TEST(ComposeEnv, UnchangedEnvironmentStillPrunes) {
+  // THE PRUNING PIN. A theme-reading node whose theme did not change must
+  // prune like any other structurally-equal description — no patch, no
+  // re-record, host free to skip the frame.
+  Host host;
+  const EnvPalette dark{{0, 0, 1, 1}, {1, 1, 0, 1}};
+  auto renderWith = [&](EnvPalette p) {
+    host.composer.render(envDescribeWith(std::move(p)));
+  };
+  renderWith(dark);
+  host.frame();
+  ASSERT_EQ(host.pixel(5, 5), SK_ColorBLUE); // it IS the inherited colour —
+                                             // without this the pin below
+                                             // would pass on a tree that
+                                             // never read the environment
+
+  renderWith(dark); // a DISTINCT palette object, equal by operator==
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  EXPECT_FALSE(host.composer.dirty());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
+TEST(ComposeEnv, ThemeChangeRepatchesOnlyTheNodesThatMoved) {
+  // The other half: a change costs exactly the readers whose props moved,
+  // not the provider's subtree. Four container levels and one plain
+  // sibling sit between the binding and the reader; none of them repatch.
+  Host host;
+  auto renderWith = [&](EnvPalette p) {
+    host.composer.render(envDescribeWith(std::move(p)));
+  };
+  renderWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
+  host.frame();
+
+  renderWith(EnvPalette{{0, 1, 0, 1}, {1, 1, 0, 1}}); // surface moved only
+  EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(5, 25), SK_ColorBLUE);
+}
+
+TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
+  // memo is the ONE deferred describe in the library, so it is the one
+  // place an inherited value could go stale: its `fn` runs inside the
+  // reconciler, long after the scope that bound the palette ended.
+  struct Props {
+    int id = 0;
+    bool operator==(const Props &) const = default;
+  };
+  static int describeCalls;
+  describeCalls = 0;
+  auto component = [](const Props &) {
+    ++describeCalls;
+    return box().width(20).height(20).fill(
+        Fill::color(env::inheritedOr(EnvPalette{}).surface));
+  };
+
+  Host host;
+  // DESCRIBED inside the scope, RECONCILED after it ends — which is the
+  // whole difficulty: `component` runs during render(), by which time the
+  // Provide below has been destroyed. Building the tree and handing it to
+  // the composer are two statements, deliberately.
+  auto describeWith = [&component](EnvPalette p) {
+    env::Provide<EnvPalette> theme(std::move(p));
+    return box().child(memo(Props{1}, component).key("m"));
+  };
+  auto renderWith = [&](EnvPalette p) {
+    Element tree = describeWith(std::move(p));
+    ASSERT_FALSE(env::bound<EnvPalette>()); // the binding is gone by here
+    host.composer.render(std::move(tree));
+  };
+
+  renderWith(EnvPalette{{0, 0, 1, 1}, {}});
+  host.frame();
+  EXPECT_EQ(describeCalls, 1);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE); // the captured stack reached fn
+
+  renderWith(EnvPalette{{0, 0, 1, 1}, {}}); // same props, EQUAL environment
+  EXPECT_EQ(describeCalls, 1);
+  EXPECT_EQ(host.composer.stats().memoHits, 1u);
+
+  renderWith(EnvPalette{{0, 1, 0, 1}, {}}); // same props, environment moved
+  EXPECT_EQ(describeCalls, 2);
+  EXPECT_EQ(host.composer.stats().memoHits, 0u);
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorGREEN); // not the stale blue
+}
+
+TEST(ComposeEnv, InnerProvideShadowsAndUnwinds) {
+  struct EnvOther {
+    int v = 0;
+    bool operator==(const EnvOther &) const = default;
+  };
+  env::Provide<EnvPalette> outer(EnvPalette{{1, 0, 0, 1}, {}});
+  ASSERT_TRUE(env::bound<EnvPalette>());
+  EXPECT_TRUE(env::inherited<EnvPalette>()->surface == SkColor4f({1, 0, 0, 1}));
+  {
+    env::Provide<EnvPalette> inner(EnvPalette{{0, 0, 1, 1}, {}});
+    env::Provide<EnvOther> other(EnvOther{7});
+    EXPECT_TRUE(env::inherited<EnvPalette>()->surface ==
+                SkColor4f({0, 0, 1, 1}));
+    EXPECT_EQ(env::inherited<EnvOther>()->v, 7); // keyed by TYPE, no crosstalk
+  }
+  EXPECT_TRUE(env::inherited<EnvPalette>()->surface == SkColor4f({1, 0, 0, 1}));
+  EXPECT_FALSE(env::bound<EnvOther>());
+}
+
+TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
+  // The entry's actual complaint: `console::` had to be handed its colours
+  // by whoever composed it. The env key is console::Style — the component's
+  // OWN props type — so no library-wide Theme exists or needs to.
+  console::LineRing ring;
+  ring.append(u8"ready.");
+
+  console::Style themed;
+  themed.text = whiteStyle(12);
+  themed.gap = 7.0f;
+
+  Element tree = [&] {
+    env::Provide<console::Style> style(themed);
+    return box().padding(4).child(box().child(console::console(ring)));
+  }();
+  ASSERT_FALSE(env::bound<console::Style>());
+
+  Host host;
+  host.composer.render(tree);
+  host.frame();
+  const SkRect got = *host.composer.bounds("con#1");
+  EXPECT_GT(got.width(), 0.0f);
+
+  // The unbound spelling still compiles to the component's own default —
+  // and a DIFFERENT default, which is what proves the binding was read.
+  Host bare;
+  bare.composer.render(box().padding(4).child(
+      box().child(console::console(ring, console::Style{}))));
+  bare.frame();
+  EXPECT_NE(bare.composer.bounds("con#1")->width(), got.width());
+}

@@ -31,6 +31,7 @@
 #include <include/core/SkSize.h>
 
 #include <any>
+#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <concepts>
@@ -41,6 +42,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -2685,6 +2687,171 @@ TextMetrics metrics(const sigil::weave::TextStyle &style,
 SkSize measure(Element root, sigil::weave::FontContext &fonts,
                SkSize maxSize = SkSize::MakeEmpty());
 
+// ---------------------------------------------------------------------------
+// env — an INHERITED VALUE, read where a component is composed
+//
+// SwiftUI's Environment and React's context, for a library whose describe
+// phase is an ordinary C++ call tree. Passing `const Theme&` is idiomatic
+// for your OWN components; what has no answer without this is the
+// library's own — a `console::`, a decoration nested four levels down —
+// each of which must otherwise be handed its colours by whoever composes
+// it, so a theme change is a mechanical edit at every call site.
+//
+// THE ONE THING TO UNDERSTAND. Describe here is EAGER and BOTTOM-UP:
+// `box().child(panel())` calls `panel()` before the box exists, and every
+// component is a plain function whose arguments are evaluated inside the
+// enclosing scope. So the describe-time call stack IS the element tree,
+// and the C++ answer to "inherit down a call stack" is dynamic scope:
+//
+//     env::Provide<Palette> theme(dark);      // binds for this scope
+//     return box().child(panel());            // panel() reads it
+//
+//     // …four levels down, in a component that was never handed it:
+//     const Palette *p = env::inherited<Palette>();
+//
+// WHY THIS DOES NOT COST THE PRUNE — the property this library is built
+// on. An inherited value is read DURING DESCRIBE and lands in the reading
+// node's own props, so `propsEqual` is already the exact dependency
+// tracker: a node whose props came out identical prunes, whether or not it
+// read the environment, and a node whose colour actually moved re-patches.
+// The element tree the Composer sees is environment-INDEPENDENT — the
+// value is already baked in — so no kernel phase learns a new concept and
+// nothing invalidates a subtree wholesale. (Resolving a theme at PAINT
+// instead, through bound Outputs, is the other shape and it was measured:
+// the CDE study priced 40 bound `Fill` Outputs at 0.33 ms/frame steady
+// against 0.033 ms for the same 40 as values — 10x the steady paint to
+// save ~1 ms on one frame in three hundred. ROADMAP §10g.)
+//
+// THE ONE PLACE THE KERNEL HAD TO LEARN IT is `memo`, the only site in
+// the library where a component function runs AFTER the author's scope
+// has ended. A memo therefore captures the ambient stack at construction,
+// compares it alongside its props, and re-establishes it around the
+// deferred call — so `memo` stays a pure function of (props, environment)
+// and cannot serve a stale theme. Everything else that takes a callable
+// (a `ContourWalk` stamp, a `custom()` program) runs at derive or paint
+// time with NO scope: capture what such a lambda needs by value at the
+// call site, which is where the scope still exists.
+//
+// REQUIREMENTS ON AN INHERITED TYPE, and what its equality means: it is
+// copyable and equality-comparable, and two values are equal exactly when
+// describing anything under them yields props that compare equal — so the
+// comparison is structural and exact (SkColor4f bitwise, typefaces by
+// pointer), never perceptual and never epsilon'd, because the consumer of
+// the answer is the prune. Materialise derived values INTO the type;
+// a theme carrying a `std::function` derivation rule is incomparable and
+// turns every memo below it into a permanent miss (ROADMAP §3's wall in
+// new clothes). Motif's XmGetColors is the model: run the function, store
+// the colours.
+//
+// There is deliberately NO library-wide `Theme` type. Bindings are keyed
+// by C++ TYPE, and the key a library component uses is its own existing
+// props type (`console::Style`), so this is a channel and not the design-
+// token layer the extraction pass refused (archive/EXTRACT.md §4.7).
+
+namespace detail {
+
+/** One ambient binding, type-erased. `type` is a per-T address so no RTTI
+ *  is needed and the type test is a pointer compare. */
+struct EnvEntry {
+  const void *type = nullptr;
+  std::shared_ptr<const void> value;
+  bool (*equal)(const void *, const void *) = nullptr;
+};
+
+/** A captured ambient stack, innermost LAST. Empty is the overwhelmingly
+ *  common case and costs one empty vector — the feature is free unused. */
+using EnvSnapshot = std::vector<EnvEntry>;
+
+/** The live describe-time stack. Thread-local: compose is a guest and
+ *  describes on whatever thread the host calls on. */
+EnvSnapshot &envStack();
+
+/** Value equality over two captured stacks: same bindings, in the same
+ *  order, each equal by its own `operator==`. Identical holders short-
+ *  circuit. This is what makes a memo's environment part of its key. */
+bool envEqual(const EnvSnapshot &a, const EnvSnapshot &b);
+
+/** Re-establishes a captured stack around a DEFERRED describe (the memo
+ *  invoke). Swaps rather than pushes: a deferred call must see exactly
+ *  what its author's scope had, not that stack plus whatever the current
+ *  reconcile walk happens to sit inside. */
+class EnvRestore {
+public:
+  explicit EnvRestore(const EnvSnapshot &snapshot);
+  ~EnvRestore();
+  EnvRestore(const EnvRestore &) = delete;
+  EnvRestore &operator=(const EnvRestore &) = delete;
+
+private:
+  EnvSnapshot m_saved;
+};
+
+template <class T> const void *envTypeTag() {
+  static const char tag = 0;
+  return &tag;
+}
+
+} // namespace detail
+
+namespace env {
+
+/** Bind `value` for every component described while this object lives.
+ *  RAII and LIFO; an inner `Provide<T>` shadows an outer one, and other
+ *  types are unaffected. Not copyable or movable — it is a scope. */
+template <class T> class Provide {
+public:
+  explicit Provide(T value) {
+    static_assert(std::is_copy_constructible_v<T>,
+                  "an inherited value is a value");
+    auto held = std::make_shared<const T>(std::move(value));
+    detail::envStack().push_back(
+        detail::EnvEntry{detail::envTypeTag<T>(),
+                         std::shared_ptr<const void>(std::move(held)),
+                         [](const void *a, const void *b) {
+                           return *static_cast<const T *>(a) ==
+                                  *static_cast<const T *>(b);
+                         }});
+    m_depth = detail::envStack().size();
+  }
+  ~Provide() {
+    detail::EnvSnapshot &stack = detail::envStack();
+    assert(stack.size() == m_depth && "env::Provide scopes must nest");
+    if (!stack.empty())
+      stack.pop_back();
+  }
+  Provide(const Provide &) = delete;
+  Provide &operator=(const Provide &) = delete;
+
+private:
+  size_t m_depth = 0;
+};
+
+/** The nearest enclosing binding of `T`, or nullptr when nothing bound
+ *  one — which is a component's cue to use its own default, exactly like
+ *  a React context's default value. Valid until the binding's scope ends
+ *  (i.e. for the rest of the describe call that read it). */
+template <class T> const T *inherited() {
+  const detail::EnvSnapshot &stack = detail::envStack();
+  const void *tag = detail::envTypeTag<T>();
+  for (size_t i = stack.size(); i-- > 0;)
+    if (stack[i].type == tag)
+      return static_cast<const T *>(stack[i].value.get());
+  return nullptr;
+}
+
+/** The inherited value, or `fallback` — the one-liner spelling for a
+ *  component that has a sensible default of its own. */
+template <class T> T inheritedOr(T fallback) {
+  const T *found = inherited<T>();
+  return found ? *found : std::move(fallback);
+}
+
+/** Is a binding of `T` in scope? For a component that must behave
+ *  differently rather than just fall back to a default. */
+template <class T> bool bound() { return inherited<T>() != nullptr; }
+
+} // namespace env
+
 namespace detail {
 Element makeMemo(std::any props,
                  std::function<bool(const std::any &, const std::any &)> equal,
@@ -2692,7 +2859,12 @@ Element makeMemo(std::any props,
 } // namespace detail
 
 /** Deferred description: `fn` runs only when `props` changed (by
- *  operator==) since the last render on this position/key. */
+ *  operator==) since the last render on this position/key — AND the
+ *  ambient `env::` bindings are unchanged, because a memo is a pure
+ *  function of (props, environment) and would otherwise serve the theme
+ *  it first described under forever. The captured stack is re-established
+ *  around the deferred call, so `env::inherited<T>()` inside `fn` reads
+ *  what was bound where the memo was WRITTEN, not where it runs. */
 template <ComponentProps P, ComponentFn<P> F> Element memo(P props, F fn) {
   return detail::makeMemo(
       std::any(std::move(props)),

@@ -69,11 +69,36 @@ struct Style {
   SkColor4f cursorColor = {0, 0, 0, 0};
   float cursorWidth = 8.0f, cursorHeight = 14.0f;
   const choreograph::Output<float> *cursorOpacity = nullptr;
+
+  /** Comparable, so a `Style` can BE an inherited value: `env::` bindings
+   *  are keyed by C++ type and the key a library component uses is its
+   *  own props type — which is how the console gets themed without the
+   *  library shipping a palette layer (see `console(const LineRing&)`
+   *  and Compose.h "env"). Exact and structural, like every other value
+   *  the reconciler compares: the binding pointer by identity, colours
+   *  bitwise. */
+  bool operator==(const Style &) const = default;
 };
 
 /** The console: the ring's last visibleLines as seq-keyed rows. Re-render
  *  on every append — reconciliation prices it at one mount (the tail), one
  *  unmount (the scrolled head), zero patches on surviving lines. */
+inline Element console(const LineRing &ring, const Style &style);
+
+/** The same console, styled by whoever composed it rather than by whoever
+ *  wrote this call — `env::Provide<console::Style>` upstream, nothing
+ *  threaded through the four containers in between. Falls back to a
+ *  default-constructed `Style` when nothing is bound, exactly like a React
+ *  context's default value.
+ *
+ *  This is the first library component on the env channel, and it is the
+ *  worked example of the rule: the KEY is the component's own existing
+ *  props type. There is no `compose::Theme` and there will not be one —
+ *  a design-token layer is the header archive/EXTRACT.md §4.7 refused. */
+inline Element console(const LineRing &ring) {
+  return console(ring, env::inheritedOr(Style{}));
+}
+
 inline Element console(const LineRing &ring, const Style &style) {
   auto panel = box().column().gap(style.gap).clip();
   const std::deque<Line> &lines = ring.lines();
