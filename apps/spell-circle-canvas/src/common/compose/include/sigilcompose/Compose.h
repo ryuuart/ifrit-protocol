@@ -42,6 +42,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
 #include <variant>
@@ -323,6 +324,21 @@ private:
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
+
+  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). operator== is
+   *  hand-written in Compose.cpp and reads these members directly; the state
+   *  is private, so the decomposition lives inside the class. */
+  static void fieldPin(Effect &v) {
+    auto &[filter, effect, uniforms, bound, chainA, chainB] = v;
+    static_assert(std::tuple_size_v<decltype(std::tie(filter, effect, uniforms,
+                                                      bound, chainA,
+                                                      chainB))> == 6,
+                  "Effect gained or lost a member — rule on it in "
+                  "Effect::operator== (Compose.cpp), then bump this count. "
+                  "(m_filter is EXCLUDED on the shader path because it is "
+                  "derived from m_effect + m_uniforms; m_chainA/B only exist "
+                  "on a live chain, which isAnimated() already refuses.)");
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -1058,6 +1074,19 @@ private:
   Kind m_kind = Kind::Own;
   SkRect m_rect = SkRect::MakeEmpty();
   SkPath m_path;
+
+  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). A Region rides
+   *  inside a mask gate, which is read LIVE every frame — a region that
+   *  compares equal when it isn't leaves a pruned node revealing to its
+   *  first frame forever. */
+  static void fieldPin(Region &v) {
+    auto &[kind, rect, path] = v;
+    static_assert(
+        std::tuple_size_v<decltype(std::tie(kind, rect, path))> == 3,
+        "Region gained or lost a member — rule on it in Region::operator== "
+        "(Compose.cpp, in the arm of the Kind that reads it), then bump this "
+        "count.");
+  }
 };
 
 /** WHICH of a node's paint outputs a mask applies to — a small comparable

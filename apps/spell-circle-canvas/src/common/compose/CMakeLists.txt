@@ -117,6 +117,9 @@ add_executable(compose_test
   test/ComposeTestQueriesStudio.cpp
   test/ComposeTestGrammar.cpp
   test/ComposeTestMask.cpp
+  # The field walks. Includes ComposeInternal.h (the only test TU that does)
+  # so the equality comparators can be called DIRECTLY — see the file header.
+  test/ComposeTestFieldPins.cpp
 )
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)

@@ -48,6 +48,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -393,6 +394,22 @@ private:
   std::shared_ptr<const Recipe> m_recipe; // comparable recipe (null for
                                           // solid/none/raw-shader/sksl —
                                           // those compare by their own state)
+
+  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block for the whole
+   *  argument). `operator==` is hand-written SIX HUNDRED LINES AWAY in
+   *  Material.cpp, and a material that compares equal when it isn't lets a
+   *  node prune and keep painting the old shader forever. The state is
+   *  private, so the decomposition lives inside the class; it names every
+   *  member and stops compiling the moment one is added. */
+  static void fieldPin(Material &v) {
+    auto &[isSolid, amount, bleed, solid, shader, live, recipe] = v;
+    static_assert(
+        std::tuple_size_v<decltype(std::tie(isSolid, amount, bleed, solid,
+                                            shader, live, recipe))> == 7,
+        "Material gained or lost a member — rule on it in Material::operator== "
+        "(Material.cpp: is it RECIPE, or is it derived from the recipe?), "
+        "then bump this count.");
+  }
 };
 
 

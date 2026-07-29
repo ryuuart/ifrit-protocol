@@ -584,10 +584,27 @@ struct Composer::Impl {
    *  three chances to disagree. */
   struct NodeTransform {
     float tx = 0, ty = 0, rot = 0, scl = 1, sx = 1, sy = 1, skx = 0, sky = 0;
-    /** Does anything past the translate need the origin pivot at all? */
+    /** Does anything past the translate need the origin pivot at all?
+     *
+     *  THE ONE DEFINITION, and every consumer asks it rather than writing
+     *  the condition out. `recordBounds()` used to spell its own and left
+     *  `sx`/`sy` out of it, which is how a per-axis-scaled child came to
+     *  contribute unscaled bounds to its parent's layers for as long as
+     *  the lanes existed. A lane added to this struct belongs in here. */
     bool pivoted() const {
       return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
              sky != 0;
+    }
+    /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). `pivoted()`
+     *  is a hand-written exhaustive list over these members, exactly like
+     *  a comparator, and fails the same way: silently, by not noticing. */
+    static void fieldPin(NodeTransform &v) {
+      auto &[tx, ty, rot, scl, sx, sy, skx, sky] = v;
+      static_assert(std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx,
+                                                        sy, skx, sky))> == 8,
+                    "NodeTransform gained or lost a lane — put it in "
+                    "pivoted() above (unless it is a pure translate), and "
+                    "in transformOf()'s resolve, then bump this count.");
     }
   };
   NodeTransform transformOf(detail::Instance &inst);

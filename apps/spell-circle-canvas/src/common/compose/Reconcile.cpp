@@ -71,10 +71,17 @@ bool easeEqual(const choreograph::EaseFn &a, const choreograph::EaseFn &b) {
   return pa && pb && *pa == *pb; // lambdas: unequal (conservative)
 }
 
+static_assert(kFieldCount<Transition> == 3,
+              "Transition gained or lost a field — rule on it in "
+              "transitionEqual() below, then bump this count.");
 bool transitionEqual(const Transition &a, const Transition &b) {
   return a.duration == b.duration && a.delay == b.delay &&
-         easeEqual(a.easing(), b.easing());
+         easeEqual(a.easing(), b.easing()); // `ease` is read through easing()
 }
+
+} // namespace
+
+namespace detail {
 
 /** Shaped bindings prune like anything else: same Output, same affine,
  *  same curve under easeEqual's conservative rule. A re-describe that
@@ -85,9 +92,26 @@ bool transitionEqual(const Transition &a, const Transition &b) {
  *  is invisible: two different shapings compare equal, the node prunes,
  *  and the instance keeps applying the OLD map forever while every
  *  existing test still passes. The wiggle() fields (2026-07-29) are the
- *  most recent five; `BoundMapEqualitySeesEveryField` in
- *  ComposeTestKernel.cpp is the positive control that a field left out of
- *  this list is caught. */
+ *  most recent five.
+ *
+ *  Three gates keep it honest, and they are the model for every
+ *  hand-written comparator in this file (see ComposeInternal.h's FIELD
+ *  PINS block):
+ *    1. the `kFieldCount` assert below — adding a field to BoundFloat does
+ *       not compile until someone bumps the count HERE, next to the list;
+ *    2. `ComposeReconcile.EveryBoundFloatFieldParticipatesInEquality` —
+ *       the field walk, which perturbs each tied field in turn and demands
+ *       this function say false, so a new field is covered the moment it
+ *       is named in `fields()`;
+ *    3. `ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`
+ *       — the end-to-end pin, through a real re-describe of the SAME node,
+ *       for the five wiggle fields. */
+static_assert(kFieldCount<BoundFloat> == 16,
+              "BoundFloat gained or lost a field. boundMapEqual() below "
+              "compares it BY HAND: rule on the new field (participate, or "
+              "a stated reason not to), then bump this count. A miss is "
+              "silent — the node prunes and keeps shaping through the old "
+              "map forever.");
 bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
   return a.source == b.source && a.inScale == b.inScale &&
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
@@ -99,6 +123,13 @@ bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
          a.wiggleFalloff == b.wiggleFalloff && easeEqual(a.curve, b.curve);
 }
 
+} // namespace detail
+
+namespace {
+
+static_assert(kFieldCount<Transitioned<float>> == 4,
+              "Transitioned gained or lost a field — rule on it in "
+              "propEqual() below, then bump this count.");
 template <typename T>
 bool propEqual(const Animatable<T> &a, const Animatable<T> &b) {
   if (a.index() != b.index())
@@ -132,6 +163,12 @@ bool effectEqual(const std::optional<Effect> &a,
 // ---- block equality (presence must match; then contents, preserving the
 // monolith's exact semantics — callables stay conservatively unequal) ----
 
+static_assert(kFieldCount<TextData> == 12,
+              "TextData gained or lost a field — rule on it in textEqual() "
+              "below, then bump this count. (`layoutOptions` is the one "
+              "field compared in PART, and only because the full-control "
+              "overload that can set the rest also sets paragraphOverride, "
+              "which is unconditionally conservative.)");
 bool textEqual(const ElementNode &a, const ElementNode &b) {
   if ((bool)a.textData != (bool)b.textData)
     return false;
@@ -183,6 +220,9 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
   return true;
 }
 
+static_assert(kFieldCount<DeriveData> == 14,
+              "DeriveData gained or lost a field — rule on it in "
+              "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
   if ((bool)a != (bool)b)
     return false;
@@ -211,6 +251,9 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
          a->borrowedPathKeys == b->borrowedPathKeys;
 }
 
+static_assert(kFieldCount<StrokeData> == 1 && kFieldCount<StrokePass> == 4,
+              "StrokeData/StrokePass gained or lost a field — rule on it in "
+              "strokeEqual() below, then bump this count.");
 bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
   if ((bool)a != (bool)b)
     return false;
@@ -227,6 +270,10 @@ bool strokeEqual(const Box<StrokeData> &a, const Box<StrokeData> &b) {
   return true;
 }
 
+static_assert(kFieldCount<FxData> == 8 && kFieldCount<Mask> == 2,
+              "FxData/Mask gained or lost a field — rule on it in fxEqual() "
+              "below (Mask::operator== is in Compose.h), then bump this "
+              "count.");
 bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
   if ((bool)a != (bool)b)
     return false;
@@ -257,6 +304,10 @@ bool fxEqual(const Box<FxData> &a, const Box<FxData> &b) {
          effectEqual(a->backdropEffect, b->backdropEffect);
 }
 
+static_assert(kFieldCount<MaterialData> == 2,
+              "MaterialData gained or lost a field — rule on it in "
+              "materialEqual() below (or in propsEqual, which owns the "
+              "->recipe half), then bump this count.");
 bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
   if ((bool)a != (bool)b)
     return false;
@@ -284,7 +335,15 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
  *  uses, which is why this body lives here rather than in the header.
  *  (§33's comparable-values law: anything an author hands the library
  *  participates in reconciler equality, or a pruned node reads a stale
- *  reveal forever.) */
+ *  reveal forever.)
+ *
+ *  The endpoint trio is compared only for the two rules that READ it
+ *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
+ *  nowhere else); every other field is unconditional. */
+static_assert(kFieldCount<Spans::Term> == 11,
+              "Spans::Term gained or lost a field — rule on it below, then "
+              "bump this count. A term field left out makes every claim of "
+              "that shape compare equal to every other one.");
 bool Spans::operator==(const Spans &other) const {
   if (terms.size() != other.terms.size())
     return false;
@@ -313,7 +372,14 @@ bool Spans::operator==(const Spans &other) const {
  *  (uTime or a bound uniform) never compares equal, exactly as a live
  *  material fill never does, because a shader that resolves per frame is
  *  not a value this frame can vouch for. A static one compares by recipe
- *  and prunes like any other. */
+ *  and prunes like any other.
+ *
+ *  Kind-scoped by construction — "only the members its Kind reads are
+ *  meaningful", the class's own contract — so each arm names exactly the
+ *  fields that arm resolves. */
+static_assert(kFieldCount<Gate> == 7,
+              "Gate gained or lost a field — rule on it below (in the arm "
+              "of the Kind that reads it), then bump this count.");
 bool Gate::operator==(const Gate &other) const {
   if (kind != other.kind)
     return false;
@@ -336,8 +402,30 @@ bool Gate::operator==(const Gate &other) const {
   return false;
 }
 
-namespace {
+namespace detail {
 
+/** THE STRUCTURAL PRUNE. Every field of ElementNode is ruled on here, and
+ *  every field of the three blocks it compares INLINE (PaintProps,
+ *  ImageData, CustomData, MotionPath) with it; the rest delegate to the
+ *  helpers above, each with its own pin.
+ *
+ *  The two legitimate exclusions, stated rather than assumed:
+ *  `memoData` is compared EARLIER and more strictly by resolveMemo()
+ *  (env snapshot + the author's own props comparator) and never reaches
+ *  here, because `inst.desc` holds the memo's PRODUCED payload; and
+ *  `children` are reconciled by key rather than compared — a node that
+ *  prunes still walks them. */
+static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
+                  kFieldCount<ImageData> == 3 &&
+                  kFieldCount<CustomData> == 2 &&
+                  kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
+              "A struct propsEqual() compares BY HAND gained or lost a "
+              "field. Rule on it below — participate, or a stated reason "
+              "not to — then bump this count. A miss is silent: the node "
+              "prunes, markPaintDirtyUp() never runs, a stale picture "
+              "replays, and applyTransitions() never ramps an animate() on "
+              "it. That is exactly how scaleX/scaleY were lost from the day "
+              "they landed until e37d58d.");
 bool propsEqual(const ElementNode &a, const ElementNode &b) {
   if (a.kind != b.kind || a.key != b.key)
     return false;
@@ -453,7 +541,7 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
   return true;
 }
 
-} // namespace
+} // namespace detail
 
 // ---------------------------------------------------------------------------
 

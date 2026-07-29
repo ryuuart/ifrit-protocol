@@ -4977,3 +4977,179 @@ refusal in one), `TheHitTestUndoesTheSameMatrixPaintApplied`,
 Sixteen positive controls run (mutate → named pin fails → restore, mtime
 stamped); every one failed the pin it was aimed at. Additive: no corpus
 scene uses `travel()` and the plate ledger is byte-neutral.
+
+## 40. THE EQUALITY AUDIT — every field of every hand-compared struct, and the pin that makes the next miss a build failure (2026-07-29)
+
+`propsEqual()` is what lets a re-described node PRUNE, and **a field
+missing from it is silently broken**: the node compares equal when it is
+not, the patch prunes, `markPaintDirtyUp()` never runs, a stale picture
+replays, and `applyTransitions()` — which only runs inside the `own`
+branch — never ramps an `animate()` on that property. Nothing errors. No
+test fails.
+
+That happened TWICE on one feature. `scaleX`/`scaleY` were missing from
+`propsEqual` from the day they landed until §39 (e37d58d), and the same
+pair was missing from `recordBounds()`'s transform gate, filed there and
+taken here. Two data points on one feature is a pattern, so this wave
+audited the whole surface and then closed the class.
+
+### THE AUDIT — 161 fields across 23 hand-compared structs
+
+Every count below is now a `static_assert` in the source, so the compiler
+verified them and will keep doing so. **152 participate; 9 are excluded,
+each with a stated reason.** No further miss was found — which is the
+finding: `scaleX`/`scaleY` was a slip, not a habit.
+
+**Tier 1 — `ElementNode`, 23 fields, 21 participate.** `kind`, `key`,
+`layout` (defaulted `==`), `paint`, `corners` (defaulted), `shapeFn`
+(the Shape seam), `clipContent`, `hitTestable`, `cacheMode`, `bakeScale`,
+`nodeTransition`, `backgrounds`, `foregrounds`, `textData`, `imageData`,
+`customData`, `deriveData`, `fxData`, `materialData`, `strokeData`,
+`motionData`. **Excluded:** `memoData` — compared EARLIER and more
+strictly by `resolveMemo()` (env snapshot, then the author's own props
+comparator) and never lands in `inst.desc`, which holds the memo's
+PRODUCED payload; `children` — reconciled BY KEY, never compared, which
+is the whole point of the structural prune.
+
+**Tier 2 — the blocks, compared by hand.** `PaintProps` 15/15 (the
+`scaleX` hole, now closed and walked); `TextData` 12 (11 full, plus
+`layoutOptions` compared only on `alignment` — legitimate, because the
+only builder that can set the rest is `text(paragraph, options)`, which
+also sets `paragraphOverride`, and a present override is unconditionally
+conservative); `ImageData` 3/3; `CustomData` 2 (`program` excluded — an
+incomparable callable, with equal non-empty `key` as the author's
+contract); `DeriveData` 14/14 (its three callables participate by FORCING
+inequality, which is participation); `FxData` 8/8; `StrokeData` 1/1 +
+`StrokePass` 4/4; `MaterialData` 2/2 (`recipe` is ruled on in
+`propsEqual` itself, beside the fill); `MemoData` 4 (`props` via the
+author's comparator, `env` via `envEqual`; `equal` and `invoke` excluded
+— they ARE the comparator and the deferred describe); `MotionPath` 3/3.
+
+**Tier 3 — the values compared by hand in `Reconcile.cpp`.** `BoundFloat`
+16/16; `Transition` 3/3; `Transitioned` 4/4; `Fill` 3/3; `Mask` 2/2;
+`Spans::Term` 11/11, with `begin`/`end`/`offset` scoped to Range and Wrap
+— sound, because `Spans::resolve` reads `values[3i..3i+2]` under those
+two rules and nowhere else; `Gate` 7/7, kind-scoped by the class's own
+"only the members its Kind reads are meaningful" contract. `Animatable`
+is NOT decomposed and needs no pin: `propEqual` reaches it only through
+the five public accessors, so a member no accessor exposes is invisible
+to everyone, not just to the reconciler.
+
+**Tier 4 — the delegated equalities.** `Material` 7/7; `Region` 3/3;
+`Effect` 6 (`m_effect` + `m_uniforms` compared; `m_filter` is DERIVED
+from them on the shader path and IS the comparison on the filter path;
+`m_chainA`/`m_chainB` are retained only on a LIVE chain, which
+`isAnimated()` refuses outright). `Shape`, `Decoration` and `Profile` are
+complete by construction — a type-erased `std::any` plus the held
+scheme's own comparator. Everything with a defaulted `operator==`
+(`LayoutProps`, `Corners`, `MarkLabel`, `Echo`, `Anchor`, `Across`,
+`Parts`, `Span`, `TextPath`, `ContentScalars`) is exhaustive by compiler
+and needs nothing.
+
+**Also audited, same hazard shape, no miss:** the four hand-written lists
+over `Instance::Slot` — `collectGroupScalars`, `computeVolatile`,
+`applyMountTransitions` and `applyTransitions` — each covers every one of
+the twelve slots that applies to it (`kFillLerp` and `kGlyphProgress` are
+CONTENT scalars and are pushed outside the transform block, not omitted).
+
+### FOUND AND FIXED — `recordBounds()`, the second site
+
+`NodeTransform::pivoted()` already spells the transform gate, and
+`paint()` and `hitInstance()` both ask it. `recordBounds()` was the one
+consumer of the three that hand-rolled the condition, and it left `sx`/`sy`
+out — against the resolver's own stated invariant that "the three must
+describe the same matrix or a node draws where it cannot be hit". A child
+whose ONLY transform was a per-axis scale therefore handed its parent
+UNSCALED bounds, and every consumer sized off them (the effect layer, the
+opacity layer, the texture bake) truncated the overflow.
+
+The fix is the gate ASKING `pivoted()` rather than copying it, plus
+`scl != 1 || sx != 1 || sy != 1` on the `preScale` step. Pinned by
+`ComposePaintBounds.PerAxisScaleReachesTheParentsChildBoundsUnion` (a
+per-axis-scaled bar under an identity `offset()` filter — the bounded
+`saveLayer` clips, so the scaled-out half is simply gone when the bounds
+are wrong).
+
+**Also corrected:** `boundMapEqual`'s invariant comment named
+`BoundMapEqualitySeesEveryField` as its positive control. No such test
+exists anywhere in the repo; the real one is
+`ComposeReconcile.WiggledBindingsPruneOnlyWhenEveryParameterMatches`, and
+it covers five of `BoundFloat`'s sixteen fields. The comment now names the
+tests that exist, and the other eleven fields have a control for the first
+time.
+
+### THE MECHANISM — a structured binding is this file's `variant_size_v`
+
+The pop wave's precedent is `kPopOpPso[]` under
+`static_assert(std::size(...) == std::variant_size_v<pop::Op>)`: appending
+an alternative without ruling on its row is a BUILD FAILURE. The
+equivalent for a STRUCT's fields is a **structured binding**, which names
+every direct non-static data member and stops compiling the moment the
+count changes:
+
+    error: type 'PaintProps' decomposes into 16 elements,
+           but only 15 names were provided
+
+It is EXACT where the obvious alternatives are not, and both alternatives
+were tried on paper and rejected. A `static_assert(sizeof(T) == N)` is
+walked straight past by a `bool` dropped into tail padding — which is
+precisely the shape of field `originPx` already sitting next to
+`originX`/`originY` in `PaintProps`. An aggregate-arity probe
+(`T{Any{}...}`, maximise N) counts the BRACE-ELIDED flattening of nested
+aggregates, so `LayoutProps` would report its `EdgeValues` as four floats
+and the number would move for reasons that are not fields. A byte-wise
+mutation walk is not available at all: these structs hold `std::string`,
+`std::function`, `std::any` and `sk_sp`, and flipping bytes in them is
+undefined behaviour, not a test.
+
+So: `ComposeInternal.h` gains a `fields()` decomposition per hand-compared
+struct and a `kFieldCount<T>`; `Reconcile.cpp` gains a `static_assert`
+beside each comparator naming what the author must rule on; and
+`Material`, `Effect`, `Region` and `NodeTransform` — whose state is
+private — carry the same pin as a private static member function, which
+is legal because a member function body is an access context for the
+decomposition.
+
+**And a third gate, which is the part that makes a ruling mechanical
+rather than a rubber stamp.** `test/ComposeTestFieldPins.cpp` walks the
+tied fields of `PaintProps`, `BoundFloat` and `ElementNode`, perturbs each
+in turn, and demands the comparator notice — so a new field is COVERED
+the moment it is named in `fields()`, with no second list to remember, and
+a field whose type has no perturbation does not compile either. The two
+legitimate `ElementNode` exclusions are asserted INERT there rather than
+merely described, so an exclusion that quietly starts mattering also
+fails. Comparing the values directly rather than counting
+`stats().patchedNodes` is deliberate: a prune is a statement about the
+SAME node across two describes, and a render-two-trees harness can pass
+while the comparator is broken, because keyed siblings never prune into
+one another. `propsEqual` and `boundMapEqual` moved out of the anonymous
+namespace into `detail::` for that reason and no other.
+
+### Pins and controls
+
+New: `ComposeReconcile.EveryPaintPropsFieldParticipatesInEquality`,
+`ComposeReconcile.EveryBoundFloatFieldParticipatesInEquality`,
+`ComposeReconcile.EveryElementNodeFieldParticipatesInEquality`,
+`ComposePaintBounds.PerAxisScaleReachesTheParentsChildBoundsUnion`.
+
+**Fifteen positive controls, all fired** (mutate → the NAMED gate fails →
+restore, mtime stamped): `scaleX`, `blendMode`, `bakeScale` and
+`hitTestable` each pulled out of `propsEqual`; `wiggleSeed` and `inOffset`
+pulled out of `boundMapEqual`; `memoData` wrongly ADDED to `propsEqual`
+(the exclusion direction); a new field added to each of `PaintProps`,
+`BoundFloat`, `Region`, `Effect`, `Material` and `NodeTransform` (six
+build failures, each at its own decomposition); and both halves of the
+`recordBounds` gate reverted.
+
+**Ledger: byte-neutral, and run TWICE for attribution.** Run 1 (pins
+only): 55/58 byte-identical — `easel_playground` at the documented
+`39528e682c55`, plus `genesis_fire` and `hitman_verlet`, all three on the
+known list. Run 2 (pins + the `recordBounds` fix): 54/58 — the same three
+plus `slitscan_2001`, also a documented flapper. **The bounds fix moved
+nothing**: no corpus scene has a per-axis-scaled child inside a
+layer-forming parent whose overflow was being clipped. That is the
+separate ledger run §39's filing asked for, and it came back empty.
+
+Suites: `compose_test` 500 (499 passed, 1 skipped — the expected
+`AdvanceVariantAxisIsRefused`), `compose_kit_test` 47, `motion_test` 15,
+`shape_test` 83, `world_test` 64, `ctest` 16/16 — both configs.

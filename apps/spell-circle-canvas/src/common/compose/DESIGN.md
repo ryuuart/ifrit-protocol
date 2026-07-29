@@ -428,6 +428,17 @@ a third.
   compare conservatively unequal and therefore never prune — prefer
   comparable value forms (shaper structs over raw `ops::PathOp`
   lambdas), and memoize where a callable is unavoidable.
+  **And the rule is ENFORCED, not remembered** (ROADMAP §40): every
+  struct compared by a hand-written comparator carries a structured-
+  binding FIELD PIN (`ComposeInternal.h`), so adding a field is a build
+  failure until someone rules on it — participate, or a stated reason
+  not to — and the field walks in `ComposeTestFieldPins.cpp` then cover
+  the new field automatically. A struct that can carry a defaulted
+  `operator==` should, and needs no pin: the compiler cannot forget a
+  field. A field left out of a comparator fails INVISIBLY — the node
+  prunes, a stale picture replays, and `applyTransitions()` never ramps
+  it — which is how `scaleX`/`scaleY` were lost at two separate sites
+  for as long as they existed.
 - **AN INHERITED VALUE IS RESOLVED AT DESCRIBE, NEVER CARRIED INTO THE
   TREE** (landed 2026-07-29, `env::`, ROADMAP §10g). Describe here is
   eager, total and outside the kernel — `box().child(panel())` calls

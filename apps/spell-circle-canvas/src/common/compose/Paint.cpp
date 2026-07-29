@@ -1204,13 +1204,22 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     SkRect cb = recordBounds(*child); // child-local
     const NodeTransform tf = transformOf(*child);
     SkMatrix m = SkMatrix::Translate(crect.left() + tf.tx, crect.top() + tf.ty);
-    if (tf.rot != 0 || tf.scl != 1 || tf.skx != 0 || tf.sky != 0) {
+    // THE GATE IS `pivoted()`, NOT A COPY OF IT. One resolver, three
+    // consumers — paint()'s matrix, this child union, and hitInstance()'s
+    // inverse — and the three must build the SAME matrix or a node draws
+    // where it cannot be hit. This was the only one of the three that
+    // hand-rolled the condition, and it omitted `sx`/`sy`: a child whose
+    // only transform was a per-axis scale contributed UNSCALED bounds, so
+    // its parent's effect layer, opacity layer and texture bake were all
+    // sized to the unscaled box and truncated the overflow. Same field,
+    // same feature, second site — filed by the travel() wave, taken here.
+    if (tf.pivoted()) {
       const SkPoint origin =
           resolveOrigin(cn.paint, crect.width(), crect.height());
       m.preTranslate(origin.x(), origin.y());
       if (tf.rot != 0)
         m.preRotate(tf.rot);
-      if (tf.scl != 1)
+      if (tf.scl != 1 || tf.sx != 1 || tf.sy != 1)
         m.preScale(tf.scl * tf.sx, tf.scl * tf.sy);
       if (tf.skx != 0 || tf.sky != 0)
         m.preSkew(std::tan(tf.skx * 0.017453293f),

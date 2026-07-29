@@ -7,6 +7,9 @@
 
 #include <sigilweave/Paragraph.h>
 
+#include <tuple>
+#include <utility>
+
 namespace sigil::compose::detail {
 
 enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
@@ -312,6 +315,184 @@ struct ElementNode {
                                                : nullptr;
   }
 };
+
+// ---------------------------------------------------------------------------
+// FIELD PINS — a field added to a props block is a BUILD FAILURE
+//
+// THE FAILURE THIS CLOSES IS INVISIBLE BY CONSTRUCTION. `propsEqual()` and
+// its helpers compare a description field by field; a field left out makes
+// two DIFFERENT descriptions compare EQUAL, so the patch prunes,
+// `markPaintDirtyUp()` never runs, a stale picture replays, and
+// `applyTransitions()` — which only runs inside the `own` branch — never
+// ramps an `animate()` on that property. Nothing errors. No test fails.
+// It happened twice on one feature: `scaleX`/`scaleY` were missing from
+// `propsEqual` from the day they landed until e37d58d, and the same pair is
+// still missing from `recordBounds()`'s transform gate (filed, ROADMAP).
+//
+// THE MECHANISM. `kPopOpPso[]` (world/) is index-aligned per variant
+// alternative under `static_assert(std::size(...) ==
+// std::variant_size_v<pop::Op>)`, so appending an op without ruling on its
+// row does not compile. The equivalent for a STRUCT's fields is a
+// structured binding: it names every direct non-static data member, and the
+// count is a hard error the moment the struct changes —
+//
+//     error: type 'PaintProps' decomposes into 16 elements,
+//            but only 15 names were provided
+//
+// — which is why the decompositions below are the pin. They are EXACT where
+// the obvious alternatives are not: a `static_assert(sizeof(T) == N)` is
+// walked straight past by a `bool` dropped into tail padding, and an
+// aggregate-arity probe (`T{Any{}...}`) counts the BRACE-ELIDED flattening
+// of nested aggregates rather than the fields. A structured binding does
+// neither.
+//
+// WHAT A PIN COSTS AND WHAT IT BUYS. Adding a field breaks the
+// decomposition HERE (name it), then the field-count `static_assert` in
+// Reconcile.cpp (rule on it in the comparator, then bump the count), and
+// then — for the two blocks whose fields are all comparable lanes — the
+// field walk `EveryPaintPropsFieldParticipatesInEquality` /
+// `EveryBoundFloatFieldParticipatesInEquality` in ComposeTestKernel.cpp
+// picks the new field up AUTOMATICALLY and fails until the comparator
+// notices it. Three gates, two of them the compiler's.
+//
+// NO PIN IS NEEDED for a struct whose equality is `= default`
+// (LayoutProps, Corners, MarkLabel, Echo, Anchor, Across, Parts, Span,
+// TextPath, ContentScalars): the compiler writes the exhaustive comparison
+// and cannot forget a field. A pin exists only for a comparator a human
+// wrote by hand — and the honest way to retire a pin is to give the struct
+// a defaulted `operator==`.
+//
+// CLASSES WITH PRIVATE STATE (Material, Effect, Region, Animatable, Shape,
+// Decoration, Profile) are NOT pinned here — a structured binding needs
+// access. Their hand-written comparators sit in the same header or TU as
+// their members, which is a far shorter distance than PaintProps (here) to
+// propsEqual (Reconcile.cpp); see the ROADMAP entry for the argument.
+
+inline auto fields(PaintProps &v) {
+  auto &[fill, opacity, blendMode, translateX, translateY, rotate, scale,
+         scaleX, scaleY, skewX, skewY, originX, originY, originPx, zIndex] = v;
+  return std::tie(fill, opacity, blendMode, translateX, translateY, rotate,
+                  scale, scaleX, scaleY, skewX, skewY, originX, originY,
+                  originPx, zIndex);
+}
+inline auto fields(TextData &v) {
+  auto &[hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
+         paragraphOverride, layoutOptions, glyphFx, driveTag, driveValue,
+         metricFill, onPath] = v;
+  return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
+                  paragraphOverride, layoutOptions, glyphFx, driveTag,
+                  driveValue, metricFill, onPath);
+}
+inline auto fields(ImageData &v) {
+  auto &[asset, region, sampling] = v;
+  return std::tie(asset, region, sampling);
+}
+inline auto fields(CustomData &v) {
+  auto &[program, key] = v;
+  return std::tie(program, key);
+}
+inline auto fields(DeriveData &v) {
+  auto &[placeFn, flowAroundKeys, flowAroundMargin, connectFrom, connectTo,
+         router, railAnchors, railRouter, bandSpine, bandAround, bandWidth,
+         bandFormation, spanFitKeys, borrowedPathKeys] = v;
+  return std::tie(placeFn, flowAroundKeys, flowAroundMargin, connectFrom,
+                  connectTo, router, railAnchors, railRouter, bandSpine,
+                  bandAround, bandWidth, bandFormation, spanFitKeys,
+                  borrowedPathKeys);
+}
+inline auto fields(StrokePass &v) {
+  auto &[where, what, name, half] = v;
+  return std::tie(where, what, name, half);
+}
+inline auto fields(StrokeData &v) {
+  auto &[passes] = v;
+  return std::tie(passes);
+}
+inline auto fields(FxData &v) {
+  auto &[layerEffect, backdropEffect, echoes, staggerChildrenMs, staggerFrom,
+         overlays, masks, markNames] = v;
+  return std::tie(layerEffect, backdropEffect, echoes, staggerChildrenMs,
+                  staggerFrom, overlays, masks, markNames);
+}
+inline auto fields(MaterialData &v) {
+  auto &[live, recipe] = v;
+  return std::tie(live, recipe);
+}
+inline auto fields(MemoData &v) {
+  auto &[props, equal, invoke, env] = v;
+  return std::tie(props, equal, invoke, env);
+}
+inline auto fields(ElementNode &v) {
+  auto &[kind, key, layout, paint, corners, shapeFn, clipContent, hitTestable,
+         cacheMode, bakeScale, nodeTransition, backgrounds, foregrounds,
+         textData, imageData, customData, deriveData, fxData, materialData,
+         strokeData, memoData, motionData, children] = v;
+  return std::tie(kind, key, layout, paint, corners, shapeFn, clipContent,
+                  hitTestable, cacheMode, bakeScale, nodeTransition,
+                  backgrounds, foregrounds, textData, imageData, customData,
+                  deriveData, fxData, materialData, strokeData, memoData,
+                  motionData, children);
+}
+// Public values with hand-written comparators. They live in Compose.h /
+// Animation.h; the pin lives here because the comparator does (Spans:: and
+// Gate::operator== are defined in Reconcile.cpp beside propEqual, and
+// BoundFloat/Transition/Transitioned/MotionPath/Fill/Mask are compared by
+// the helpers there).
+inline auto fields(MotionPath &v) {
+  auto &[path, t, lookAhead] = v;
+  return std::tie(path, t, lookAhead);
+}
+inline auto fields(BoundFloat &v) {
+  auto &[source, inScale, inOffset, curve, clampInput, steps, scale, offset,
+         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
+         wiggleOctaves, wiggleFalloff] = v;
+  return std::tie(source, inScale, inOffset, curve, clampInput, steps, scale,
+                  offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
+                  wiggleSeed, wiggleOctaves, wiggleFalloff);
+}
+inline auto fields(Transition &v) {
+  auto &[duration, ease, delay] = v;
+  return std::tie(duration, ease, delay);
+}
+template <typename T> auto fields(Transitioned<T> &v) {
+  auto &[value, spec, from, waypoints] = v;
+  return std::tie(value, spec, from, waypoints);
+}
+inline auto fields(Fill &v) {
+  auto &[kind, colorValue, shaderValue] = v;
+  return std::tie(kind, colorValue, shaderValue);
+}
+inline auto fields(Spans::Term &v) {
+  auto &[rule, begin, end, offset, arm, angleDeg, duty, margin, count, index,
+         key] = v;
+  return std::tie(rule, begin, end, offset, arm, angleDeg, duty, margin, count,
+                  index, key);
+}
+inline auto fields(Gate &v) {
+  auto &[kind, where, angleDeg, fraction, region, outside, coverage] = v;
+  return std::tie(kind, where, angleDeg, fraction, region, outside, coverage);
+}
+inline auto fields(Mask &v) {
+  auto &[what, with] = v;
+  return std::tie(what, with);
+}
+
+/** How many direct non-static data members @p T has, as the pinned
+ *  decomposition above sees them. `static_assert(kFieldCount<X> == N)` beside
+ *  a hand-written comparator is this file's `std::variant_size_v`. */
+template <class T>
+inline constexpr std::size_t kFieldCount =
+    std::tuple_size_v<decltype(fields(std::declval<T &>()))>;
+
+/** THE STRUCTURAL PRUNE (Reconcile.cpp). Declared here — rather than kept
+ *  in Reconcile.cpp's anonymous namespace — so the field-participation
+ *  controls can call the comparator DIRECTLY. Inferring it from
+ *  `stats().patchedNodes` needs a re-describe of the SAME node (keyed
+ *  siblings never prune into one another), which is exactly the trap that
+ *  made nine pins pass their own positive control this session. */
+bool propsEqual(const ElementNode &a, const ElementNode &b);
+/** The shaped-binding half of the same comparator (see its doc comment). */
+bool boundMapEqual(const BoundFloat &a, const BoundFloat &b);
 
 /** Clamp to [0,1], drop empties, sort and merge — the one normal form
  *  every span answer is in, so overlap tests and complements are honest
