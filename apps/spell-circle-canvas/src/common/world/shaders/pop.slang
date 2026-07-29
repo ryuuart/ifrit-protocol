@@ -19,6 +19,12 @@ struct Instance { float4 r0, r1, r2, tint, tex; }
 RWStructuredBuffer<Instance> g_Instances;
 struct LaneScratch { float x, y, z, w; }
 RWStructuredBuffer<LaneScratch> g_Scratch;
+// Every Lookup op's stop table, concatenated in chain order; each op
+// carries its own (offset, count) in PopParams. Its own element struct
+// — SPIRV-Cross names the MSL struct after the first variable, so two
+// buffers may not share one.
+struct Stop4 { float x, y, z, w; }
+StructuredBuffer<Stop4> g_Table;
 
 uint pointTotal() { return uint(PopParams.d.x); }
 int loopCount() { return int(PopParams.d.z); }
@@ -184,6 +190,36 @@ void CSAtlas(uint3 id: SV_DispatchThreadID)
     storeSlot(5, id.x,
               float4(float(cell % cols) * du, float(cell / cols) * dv,
                      du, dv));
+}
+
+// Drive one attribute from another through a stop table. The twin of
+// shape::popops' Lookup branch, formula for formula: same left-to-right
+// key sum, same clamp, same floor, same a + (b - a) * f.
+//   a = weights, b = (fromSlot, tableOffset, stopCount, -),
+//   c = (low, high, -, -), d.y = destination slot
+[shader("compute")]
+[numthreads(64, 1, 1)]
+void CSLookup(uint3 id: SV_DispatchThreadID)
+{
+    if (id.x >= pointTotal()) return;
+    int n = int(PopParams.b.z);
+    if (n <= 0) return; // an empty table is a no-op on both executors
+    int base = int(PopParams.b.y);
+    float4 s = loadSlot(int(PopParams.b.x), id.x);
+    float key = s.x * PopParams.a.x + s.y * PopParams.a.y +
+                s.z * PopParams.a.z + s.w * PopParams.a.w;
+    float denom = PopParams.c.y - PopParams.c.x;
+    float u = denom != 0.0 ? (key - PopParams.c.x) / denom : 0.0;
+    u = clamp(u, 0.0, 1.0);
+    float x = u * float(n - 1);
+    int i0 = clamp(int(floor(x)), 0, n - 1);
+    int i1 = min(i0 + 1, n - 1);
+    float f = x - float(i0);
+    Stop4 a = g_Table[uint(base + i0)];
+    Stop4 b = g_Table[uint(base + i1)];
+    float4 v0 = float4(a.x, a.y, a.z, a.w);
+    float4 v1 = float4(b.x, b.y, b.z, b.w);
+    storeSlot(int(PopParams.d.y), id.x, v0 + (v1 - v0) * f);
 }
 
 [shader("compute")]

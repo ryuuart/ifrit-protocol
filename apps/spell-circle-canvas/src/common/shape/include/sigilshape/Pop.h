@@ -147,11 +147,50 @@ struct pop {
     AttrRef from = Lane::Color;
     std::string to; ///< primitive lane name; empty = the source's name
   };
+  /** Filter (TouchDesigner's Lookup): DRIVE one attribute from another
+   *  through a table of stops. The key is dot(from, weights); it is
+   *  remapped from [low, high] onto the table's span and sampled with
+   *  linear interpolation, so the table is a curve, not a palette.
+   *
+   *  This is `fade` generalized — Ramp is the two-stop case driven by
+   *  T with no domain. Any source attribute, any number of stops, any
+   *  range: "colour by height", "size by density", a non-linear
+   *  falloff on a custom lane. Per-point and count-invariant, so BOTH
+   *  executors run it; an empty table is a no-op on both. */
+  struct Lookup {
+    AttrRef from = Lane::T;
+    glm::vec4 weights = {1, 0, 0, 0}; ///< key = dot(from, weights)
+    AttrRef to = Lane::Color;
+    std::vector<glm::vec4> stops = {{0, 0, 0, 1}, {1, 1, 1, 1}};
+    float low = 0, high = 1; ///< the source range the table spans
+  };
+  /** Filter, PERMUTATION class (TouchDesigner's Sort): reorder the
+   *  whole point set by dot(by, weights). Every lane travels with its
+   *  point — a permutation, not a rewrite, so the count never moves.
+   *
+   *  Chain ORDER is meaning here: the point sink draws in it (painter
+   *  order for transparent sprites, which is what the Skia sink has
+   *  instead of a depth buffer), the swept sinks thread their path
+   *  through it, and Relax smooths along it. Sorting is therefore an
+   *  authoring verb, not a display trick.
+   *
+   *  CPU-only, and stated as a boundary rather than a gap: a
+   *  permutation is not a per-point map, so it does not fit the GPU
+   *  executor's one-kernel-per-op arena model (it would want a sorting
+   *  NETWORK — log^2(n) dispatches and a ping-pong — which is a
+   *  different dispatch shape, not a different formula). SigilWorld
+   *  declines any chain holding one, the way it declines MeshScatter
+   *  and Promote. */
+  struct Sort {
+    AttrRef by = Lane::P;
+    glm::vec4 weights = {0, 0, 1, 0}; ///< key = dot(by, weights)
+    bool descending = false;
+  };
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */
   using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary,
                           LookAt, Math, Relax, MeshScatter, Set, Atlas,
-                          Promote>;
+                          Promote, Lookup, Sort>;
   using Chain = std::vector<Op>;
 
   /** The artist's spelling — TouchDesigner ergonomics over the same
@@ -246,6 +285,40 @@ struct pop {
       m_chain.push_back(Atlas{cols, rows, nextSeed()});
       return *this;
     }
+    /** Drive one attribute from another through a table of stops —
+     *  `fade` grown up: pick the source, pick which of its components
+     *  reads, give the range it spans, hand over as many stops as the
+     *  curve needs. `.rampBy(Lane::P, 1, {deep, shallow}, 0, 200)` is
+     *  "colour by height". */
+    Builder &rampBy(AttrRef from, int component,
+                    std::vector<glm::vec4> stops, float low = 0,
+                    float high = 1, AttrRef to = Lane::Color) {
+      m_chain.push_back(Lookup{std::move(from), componentWeight(component),
+                               std::move(to), std::move(stops), low,
+                               high});
+      return *this;
+    }
+    /** The loud-default spelling: a multi-stop gradient down T. */
+    Builder &rampBy(std::vector<glm::vec4> stops = {{0, 0, 0, 1},
+                                                    {1, 1, 1, 1}}) {
+      return rampBy(Lane::T, 0, std::move(stops));
+    }
+    /** Put the points in order along an axis — farthest-first painter
+     *  order for transparent sprites, or a re-threading of the path
+     *  the swept sinks follow. Pass the camera's forward vector and
+     *  `descending` for back-to-front. */
+    Builder &order(glm::vec3 axis = {0, 0, 1}, bool descending = false) {
+      m_chain.push_back(
+          Sort{Lane::P, {axis.x, axis.y, axis.z, 0}, descending});
+      return *this;
+    }
+    /** ...or by any attribute's component: `.orderBy("energy")`. */
+    Builder &orderBy(AttrRef by, int component = 0,
+                     bool descending = false) {
+      m_chain.push_back(
+          Sort{std::move(by), componentWeight(component), descending});
+      return *this;
+    }
     /** Carry a point attribute onto the PRIMITIVES the sink forms —
      *  the prim class, addressed by the same names. "Id" promotes the
      *  owning point's index. An empty @p to keeps the source's name. */
@@ -280,6 +353,11 @@ struct pop {
                int segments = 160) const;
 
   private:
+    static glm::vec4 componentWeight(int component) {
+      glm::vec4 w{0, 0, 0, 0};
+      w[component < 0 ? 0 : (component > 3 ? 3 : component)] = 1;
+      return w;
+    }
     uint32_t nextSeed() { return m_seed++; }
     Chain m_chain;
     uint32_t m_seed = 101;

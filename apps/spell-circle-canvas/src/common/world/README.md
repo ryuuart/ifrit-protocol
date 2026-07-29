@@ -158,10 +158,11 @@ stream; `setPoints(id, chain)` re-describes — same op kinds and count
 is a parameter re-cook, anything structural rebuilds lanes and
 bindings. The chain is data: edit a field, re-describe, nothing
 mutates upstream. Pinned by `PopChainCooksAndRedescribes` (which
-appends a Math mirror op live). v1 simplifications, on the roadmap to
-lift: the conventional lanes only (custom named lanes later),
-whole-chain re-cook (copy-on-write attribute references later), no
-Feedback/Delete/Sort yet.
+appends a Math mirror op live). Since written, custom named lanes and
+`Lookup` have landed (see below); still v1: whole-chain re-cook
+(copy-on-write attribute references later). Sort, Feedback and the
+count-changing ops are RULED ON, not pending — see *Lookup, and the
+permutation boundary*.
 
 The executor boundary, and how it declines (2026-07-28): this executor
 cooks the **point class** — named lanes in a device arena, packed into
@@ -181,6 +182,58 @@ MoltenVK gotcha for future operators:
 RWStructuredBuffers sharing one element struct collide in SPIRV-Cross
 MSL naming — give each lane a distinct struct type, and write whole
 elements, not members.
+
+### The variant→PSO map is a table now (2026-07-29)
+
+`popPsoIndex()` used to be arithmetic — `variantIndex <= 7 ?
+variantIndex : variantIndex - 1` — encoding the single hole
+`MeshScatter` left. It was already documented as WRONG for any variant
+past index 10 (it would land on the copy-back entry and cook the wrong
+kernel), and unreachable only because validation happened to decline
+those. It is now `kPopOpPso[]`, **one row per `pop::Op` alternative,
+index-aligned**, with `kPopNoKernel` for the CPU-only kinds — and a
+`static_assert` against `std::variant_size_v<pop::Op>`, so appending an
+op without ruling on its row is a BUILD failure instead of a runtime
+mystery. The same table drives validation (`popChainRunsOnGpu`), so the
+mapping and the decline list cannot drift apart, and `bindPopSrbs`
+refuses `kPopNoKernel` outright rather than binding a neighbour's PSO.
+Pinned by `EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu` — a chain
+carrying all eleven GPU ops, compared to the CPU cook lane by lane.
+(Control: restoring the old arithmetic fails it, while the two
+pre-existing parity tests still pass — the hazard really was unpinned.)
+
+### Lookup, and the permutation boundary (2026-07-29)
+
+`pop::Lookup` runs on **both** executors: a per-point remap of one
+attribute from another through a table of stops
+(`key = dot(from, weights)`, remapped from `[low, high]` onto the
+table's span, linearly sampled). Count-invariant and per-point, so it
+is one more dispatch — `CSLookup`, formula-matched to the C++ twin. The
+stops ride an IMMUTABLE `g_Table` structured buffer holding every
+Lookup op's table concatenated in chain order; each dispatch carries
+its own `(offset, count)` in `PopParams`. Consequence worth knowing: a
+**table edit is structural** — `setPoints` compares the concatenated
+table and takes the rebuild path, because the buffer it uploaded is
+immutable. Same reasoning as the generator's loop points.
+
+`pop::Sort` is **declined**, and that is a ruling, not a gap. A
+permutation is not a per-point map: it does not fit one-kernel-per-op
+over a fixed arena, it would want a sorting NETWORK (log²(n) dispatches
+plus a ping-pong), and its motivating consumer is the *Skia* point sink
+— which draws in chain order and has no depth buffer, so painter order
+is authored, not rasterised. The CPU executor does it; this one refuses
+the chain the way it refuses `MeshScatter` and `Promote`. Pinned by
+`PermutationClassChainsAreDeclinedNotDropped`.
+
+Filed, not built: **Copy / Merge / Delete** change the COUNT and so are
+not chain ops at all — see shape's README for the ruling. **Particle /
+Feedback** need cook N to read cook N−1, i.e. state and a clock; world
+owns no clock by design (see *Declared motion*), and a Chain whose cook
+is not a pure function of its own values stops being a description.
+**Field** wants a field-source currency (SDF/volume/texture) shape does
+not have yet; `Noise` is the procedural field we do have. **Line** is a
+generator, and the better shape for it is an `open` flag on
+`SplineScatter` rather than a fourteenth alternative.
 `Lighting`: one sun + sky/ground hemisphere — the ambient base that
 registry lights layer on top of.
 

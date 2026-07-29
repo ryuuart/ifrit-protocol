@@ -286,6 +286,67 @@ conventional lanes ("t", "tangent"/"normal"/"binormal", "size",
 "tint"), consumers read them by name, and cooked lanes (write your own
 vector per point) slot in anywhere a built-in one does.
 
+### Two pop verbs, and the count-invariance ruling (2026-07-29)
+
+`pop::Lookup` (`.rampBy`) and `pop::Sort` (`.order` / `.orderBy`) join
+the chain. Lookup is **`fade` grown up**: drive any attribute from any
+other through a table of stops — `key = dot(from, weights)`, remapped
+from `[low, high]` onto the table's span and sampled linearly, so the
+table is a *curve*, not a palette. `Ramp` is its two-stop case driven
+by `T`. Both ends reach customs, so `"energy" → "heat"` is one verb.
+Sort is a **permutation**: every lane travels with its point, stable,
+keyed by `dot(by, weights)` so an arbitrary axis works (pass the
+camera's forward and `descending` for painter order).
+
+Why Sort earns its place instead of being a display concern: **chain
+order is meaning here.** The point sink draws in it — and the Skia
+painter has no depth buffer, so back-to-front is authored, not
+rasterised. The swept sinks thread their path through it, so a sorted
+chain forms a genuinely different tube from the same points. `Relax`
+smooths along it. Pinned by `Pop.OrderPutsTheWholePointInDrawOrder`,
+which checks the reordering, lane coherence (matched by position, so
+it knows nothing of the permutation), the descending mirror, and the
+swept-path consequence.
+
+**The ruling on count.** Every pop op is count-invariant: N points in,
+N points out, lanes rewritten in place. That is not an accident of
+implementation — it is what lets the chain be *one description two
+executors run*, and what lets the GPU executor size a lane arena once
+and dispatch one kernel per op. So:
+
+- **Copy, Merge and Delete are NOT chain ops**, and the research list
+  naming them alongside Math and Noise is comparing different things.
+  They change TOPOLOGY, not attributes; a chain holding one would mean
+  every op after it addresses a different point set. They already have
+  a home: **composition**. `pop::on(const Chain &upstream)` feeds a
+  chain's cooked points into another's generator (`World::addPointsOn`
+  does it device-resident), which is Copy — a downstream chain with its
+  own count riding an upstream result — and stacking upstreams is
+  Merge. Delete is a SINK-side or generator-side concern (scatter
+  fewer, or filter the cooked Cloud), not a mid-program count edit.
+  Building them as ops would buy an upper-bound allocation and a live
+  count on the GPU, i.e. the arena model traded away, in exchange for
+  what composition already expresses.
+- **Sort and Lookup are count-invariant and are therefore the natural
+  first citizens** — agreed with, and shipped.
+- Lookup runs on **both** executors, bit-matched
+  (`World.EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu`). Sort is
+  **CPU-only**, declined by SigilWorld the way `MeshScatter` and
+  `Promote` are — a permutation is not a per-point map, so it wants a
+  sorting network rather than a kernel, and its motivating consumer is
+  the CPU sink anyway.
+
+Filed with reasons rather than built: **Particle** and **Feedback**
+need cook N to read cook N−1 — state plus a clock, which would end the
+property that a Chain's cook is a pure function of its own values
+(SigilWorld made the matching ruling for animation: it owns no clock).
+**Field** wants a field-source currency — SDF, volume, sampled texture
+— that shape has no type for yet; `Noise` is the procedural field we
+do have, and Lookup is now the remap that would consume a sampled one.
+**Line** is a generator, not a filter, and the honest shape for it is
+an `open` flag on `SplineScatter` (which is closed by construction
+today) rather than a fourteenth variant alternative.
+
 ### One scatter hash (2026-07-28)
 
 `detail/Hash.h` holds the single PCG the library scatters with —

@@ -1343,6 +1343,177 @@ TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
   EXPECT_TRUE(cpu.primIf("Color"));
 }
 
+TEST(World, EveryGpuOpMapsToItsOwnKernelAndAgreesWithTheCpu) {
+  // THE MAPPING PIN, and the parity pin for Lookup in one: a chain
+  // holding EVERY op the GPU executor runs, read back and compared to
+  // the CPU reference lane by lane. Variant index -> compute PSO is a
+  // table (kPopOpPso); if any row of it were off, or any kernel drifted
+  // from its C++ twin, at least one lane below diverges. Numbers only,
+  // no pixels -- this is arithmetic, not rendering.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
+    loop.push_back({170.0f * std::cos(a), 45.0f * std::sin(3 * a),
+                    170.0f * std::sin(a)});
+  }
+  // SplineScatter, Jitter, Noise, Relax, Set, Math, Vary, LookAt,
+  // Atlas, Ramp, Lookup -- all eleven, each writing a lane the
+  // readback below reads.
+  const shape::pop::Chain chain =
+      shape::pop::on(loop)
+          .count(384)
+          .window(0.85f, 0.7f)
+          .spread(12)
+          .seed(9)
+          .jitter(6)
+          .noise(14, 0.012f)
+          .smooth(0.4f, 2)
+          .set("energy", {0.5f, 0, 0, 0})
+          .op(shape::pop::Math{"energy", {3, 1, 1, 1}, {0.25f, 0, 0, 0}})
+          .vary(0.35f)
+          .lookAt({0, 220, 0})
+          .atlas(3, 2)
+          .fade({1, 0.2f, 0, 1}, {0, 0.4f, 1, 1})
+          .rampBy(shape::pop::Lane::P, 1,
+                  {{0, 0, 0, 0}, {1, 0, 0, 0}, {4, 0, 0, 0}}, -60, 60,
+                  "heat");
+  const uint32_t id = w->addPoints(shape::mesh::quad(4, 4), chain,
+                                   world::Material{});
+  ASSERT_NE(id, 0u) << "every op in this chain is GPU-executable";
+  ASSERT_TRUE(w->render()); // the cook
+
+  const shape::Cloud gpu = w->readPoints(id);
+  const shape::Cloud cpu = shape::popops::cook(chain);
+  ASSERT_EQ(gpu.size(), 384u);
+  ASSERT_EQ(cpu.size(), 384u);
+  const std::vector<float> *gpuT = gpu.scalarIf("t");
+  const std::vector<float> *cpuT = cpu.scalarIf("t");
+  const std::vector<glm::vec3> *gpuDir = gpu.vectorIf("dir");
+  const std::vector<glm::vec3> *cpuDir = cpu.vectorIf("dir");
+  const std::vector<float> *gpuSize = gpu.scalarIf("size");
+  const std::vector<float> *cpuSize = cpu.scalarIf("size");
+  const std::vector<glm::vec4> *gpuTint = gpu.colorIf("tint");
+  const std::vector<glm::vec4> *cpuTint = cpu.colorIf("tint");
+  const std::vector<glm::vec4> *gpuTex = gpu.colorIf("Tex");
+  const std::vector<glm::vec4> *cpuTex = cpu.colorIf("Tex");
+  const std::vector<glm::vec4> *gpuEnergy = gpu.colorIf("energy");
+  const std::vector<glm::vec4> *cpuEnergy = cpu.colorIf("energy");
+  const std::vector<glm::vec4> *gpuHeat = gpu.colorIf("heat");
+  const std::vector<glm::vec4> *cpuHeat = cpu.colorIf("heat");
+  ASSERT_TRUE(gpuT && cpuT && gpuDir && cpuDir && gpuSize && cpuSize);
+  ASSERT_TRUE(gpuTint && cpuTint && gpuTex && cpuTex);
+  ASSERT_TRUE(gpuEnergy && cpuEnergy && gpuHeat && cpuHeat);
+
+  float heatSpan = 0;
+  for (size_t i = 0; i < gpu.size(); i += 37) {
+    EXPECT_NEAR(gpu.positions[i].x, cpu.positions[i].x, 0.02f) << i;
+    EXPECT_NEAR(gpu.positions[i].y, cpu.positions[i].y, 0.02f) << i;
+    EXPECT_NEAR(gpu.positions[i].z, cpu.positions[i].z, 0.02f) << i;
+    EXPECT_NEAR((*gpuT)[i], (*cpuT)[i], 1e-4f) << i;
+    EXPECT_NEAR((*gpuDir)[i].x, (*cpuDir)[i].x, 1e-3f) << i;
+    EXPECT_NEAR((*gpuDir)[i].y, (*cpuDir)[i].y, 1e-3f) << i;
+    EXPECT_NEAR((*gpuSize)[i], (*cpuSize)[i], 1e-4f) << i;
+    EXPECT_NEAR((*gpuTint)[i].r, (*cpuTint)[i].r, 1e-3f) << i;
+    EXPECT_NEAR((*gpuTint)[i].b, (*cpuTint)[i].b, 1e-3f) << i;
+    EXPECT_NEAR((*gpuTex)[i].r, (*cpuTex)[i].r, 1e-4f) << i;
+    EXPECT_NEAR((*gpuTex)[i].g, (*cpuTex)[i].g, 1e-4f) << i;
+    EXPECT_NEAR((*gpuEnergy)[i].r, (*cpuEnergy)[i].r, 1e-4f) << i;
+    // The lookup lane: agreement AND a real spread, so a kernel that
+    // wrote a constant could not pass by matching a constant.
+    EXPECT_NEAR((*gpuHeat)[i].r, (*cpuHeat)[i].r, 1e-4f) << i;
+    heatSpan = std::max(heatSpan, std::abs((*gpuHeat)[i].r -
+                                           (*gpuHeat)[0].r));
+  }
+  EXPECT_GT(heatSpan, 0.5f) << "the lookup must vary across the cloud";
+
+  // A table EDIT is a re-describe: setPoints must notice the stops
+  // moved even though every op kind lines up, and re-cook against the
+  // new table rather than the buffer it uploaded first.
+  shape::pop::Chain edited = chain;
+  for (shape::pop::Op &op : edited)
+    if (auto *lookup = std::get_if<shape::pop::Lookup>(&op))
+      lookup->stops = {{100, 0, 0, 0}, {110, 0, 0, 0}, {140, 0, 0, 0}};
+  w->setPoints(id, edited);
+  ASSERT_TRUE(w->render());
+  const shape::Cloud reheated = w->readPoints(id);
+  const shape::Cloud cpuReheated = shape::popops::cook(edited);
+  const std::vector<glm::vec4> *gpuHeat2 = reheated.colorIf("heat");
+  const std::vector<glm::vec4> *cpuHeat2 = cpuReheated.colorIf("heat");
+  ASSERT_TRUE(gpuHeat2 && cpuHeat2);
+  for (size_t i = 0; i < reheated.size(); i += 37) {
+    EXPECT_GT((*gpuHeat2)[i].r, 50.0f) << "the new table must be live";
+    EXPECT_NEAR((*gpuHeat2)[i].r, (*cpuHeat2)[i].r, 1e-3f) << i;
+  }
+}
+
+TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
+  // The same graceful boundary MeshScatter and Promote get, for the
+  // same structural reason: pop::Sort permutes the whole point set,
+  // which is not a per-point map and so has no place in the executor's
+  // one-kernel-per-op arena model. Declining is the contract -- a
+  // dropped Sort would cook points in the WRONG ORDER, and order is
+  // load-bearing (painter order, swept paths, Relax neighbourhoods).
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    loop.push_back({150.0f * std::cos(a), 20.0f * std::sin(2 * a),
+                    150.0f * std::sin(a)});
+  }
+  const auto describe = [&](bool sort) {
+    shape::pop::Builder b = shape::pop::on(loop);
+    b.count(64).spread(8).fade({1, 0, 0, 1}, {0, 0, 1, 1});
+    if (sort)
+      b.order({0, 1, 0}, true);
+    return (shape::pop::Chain)b;
+  };
+  const shape::Mesh stamp = shape::mesh::quad(6, 6);
+
+  // The control: the same chain WITHOUT the sort cooks fine.
+  const uint32_t plain =
+      w->addPoints(stamp, describe(false), world::Material{});
+  ASSERT_NE(plain, 0u);
+  ASSERT_TRUE(w->render());
+  const shape::Cloud cooked = w->readPoints(plain);
+  ASSERT_EQ(cooked.size(), 64u);
+
+  EXPECT_EQ(w->addPoints(stamp, describe(true), world::Material{}), 0u);
+  EXPECT_EQ(w->addPointsOn(plain, stamp,
+                           (shape::pop::Chain)shape::pop::on(
+                               std::vector<glm::vec3>{})
+                               .count(32)
+                               .order({0, 1, 0}),
+                           world::Material{}),
+            0u)
+      << "the composing entry declines too";
+
+  // setPoints refuses the re-describe rather than half-applying it:
+  // the surface keeps cooking the chain it had.
+  w->setPoints(plain, describe(true));
+  ASSERT_TRUE(w->render());
+  const shape::Cloud after = w->readPoints(plain);
+  ASSERT_EQ(after.size(), 64u);
+  for (size_t i = 0; i < after.size(); i += 13)
+    EXPECT_NEAR(after.positions[i].y, cooked.positions[i].y, 1e-4f)
+        << "a declined re-describe must change nothing";
+
+  // ...and the CPU executor does the sort the GPU declined, so the
+  // capability is not lost, only located.
+  const shape::Cloud cpu = shape::popops::cook(describe(true));
+  ASSERT_EQ(cpu.size(), 64u);
+  for (size_t i = 1; i < cpu.size(); ++i)
+    EXPECT_GE(cpu.positions[i - 1].y, cpu.positions[i].y);
+}
+
 TEST(World, ChainsComposeOnDevice) {
   // Pops feed pops with NO CPU round trip: chain B's generator reads
   // chain A's cooked P lane straight from its arena — and the result

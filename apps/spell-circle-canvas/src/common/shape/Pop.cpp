@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <numeric>
 
 namespace sigil::shape {
 
@@ -168,6 +169,61 @@ Cloud cook(const pop::Chain &chain) {
               }
               for (size_t i = 0; i < count; ++i)
                 attrs.store(op.lane.name, i, next[i]);
+            }
+          } else if constexpr (std::is_same_v<T, pop::Lookup>) {
+            // Per-point remap through a stop table. Written with the
+            // same associations the kernel uses (the key's four
+            // products summed left to right, the lerp as
+            // a + (b - a) * f) — CSLookup is this function.
+            const int n = (int)op.stops.size();
+            if (n == 0)
+              return; // an empty table is a no-op on both executors
+            const float denom = op.high - op.low;
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 s = attrs.load(op.from.name, i);
+              const float key =
+                  s.x * op.weights.x + s.y * op.weights.y +
+                  s.z * op.weights.z + s.w * op.weights.w;
+              float u = denom != 0.0f ? (key - op.low) / denom : 0.0f;
+              u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
+              const float x = u * (float)(n - 1);
+              int i0 = (int)std::floor(x);
+              i0 = i0 < 0 ? 0 : (i0 > n - 1 ? n - 1 : i0);
+              const int i1 = i0 + 1 < n ? i0 + 1 : n - 1;
+              const float f = x - (float)i0;
+              attrs.store(op.to.name, i,
+                          op.stops[i0] +
+                              (op.stops[i1] - op.stops[i0]) * f);
+            }
+          } else if constexpr (std::is_same_v<T, pop::Sort>) {
+            // The permutation class: EVERY lane travels with its
+            // point, so the store stays coherent and only the order
+            // changes. Stable, so equal keys keep their cooked order
+            // and a re-cook is deterministic. Keys are read (and the
+            // source lane thereby created) BEFORE the lanes are
+            // permuted, so the map is not grown mid-walk.
+            std::vector<float> keys(count);
+            for (size_t i = 0; i < count; ++i) {
+              const glm::vec4 v = attrs.load(op.by.name, i);
+              const float k = v.x * op.weights.x + v.y * op.weights.y +
+                              v.z * op.weights.z + v.w * op.weights.w;
+              // A NaN key would break the comparator's strict weak
+              // ordering outright (UB in stable_sort), so it sorts as
+              // zero rather than corrupting the whole permutation.
+              keys[i] = std::isfinite(k) ? k : 0.0f;
+            }
+            std::vector<uint32_t> order(count);
+            std::iota(order.begin(), order.end(), 0u);
+            std::stable_sort(order.begin(), order.end(),
+                             [&](uint32_t a, uint32_t b) {
+                               return op.descending ? keys[a] > keys[b]
+                                                    : keys[a] < keys[b];
+                             });
+            std::vector<glm::vec4> next(count);
+            for (auto &[name, lane] : attrs.lanes) {
+              for (size_t i = 0; i < count; ++i)
+                next[i] = lane[order[i]];
+              lane = next;
             }
           } else if constexpr (std::is_same_v<T, pop::Set>) {
             for (size_t i = 0; i < count; ++i)

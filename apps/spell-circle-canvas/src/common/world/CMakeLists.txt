@@ -90,7 +90,8 @@ if(SLANGC_EXECUTABLE)
   set(_slang_dir ${CMAKE_CURRENT_LIST_DIR}/shaders)
   set(_spirv_dir ${CMAKE_CURRENT_BINARY_DIR}/spirv)
   set(_pop_entries CSSplineScatter CSJitter CSNoise CSRamp CSVary
-      CSLookAt CSMath CSRelax CSSet CSAtlas CSCopyBack CSPopPack)
+      CSLookAt CSMath CSRelax CSSet CSAtlas CSLookup CSCopyBack
+      CSPopPack)
   set(_spv_files)
   macro(_sigil_slang _file _entry)
     set(_spv ${_spirv_dir}/${_file}_${_entry}.spv)

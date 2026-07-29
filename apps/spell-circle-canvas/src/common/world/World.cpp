@@ -466,6 +466,11 @@ struct PopComponent {
    *  shape::popops' named Attrs store. */
   dg::RefCntAutoPtr<dg::IBuffer> lanes;
   dg::RefCntAutoPtr<dg::IBuffer> scratch; // Relax ping-pong
+  /** Every Lookup op's stop table, concatenated in chain order; each
+   *  dispatch gets its own (offset, count). Always non-null — a
+   *  chain with no Lookup still binds a one-element placeholder. */
+  dg::RefCntAutoPtr<dg::IBuffer> table;
+  std::vector<glm::vec4> tableData; ///< exactly what `table` holds
   std::vector<std::string> customNames;
   std::vector<dg::RefCntAutoPtr<dg::IShaderResourceBinding>> srbs;
   entt::entity upstream = entt::null; ///< device-resident compose
@@ -504,6 +509,11 @@ std::vector<std::string> popCustomNames(const World::pop::Chain &chain) {
             note(o.lane);
           else if constexpr (std::is_same_v<T, World::pop::Set>)
             note(o.attr);
+          else if constexpr (std::is_same_v<T, World::pop::Lookup>) {
+            // Both ends: a lookup may read a custom and write another.
+            note(o.from);
+            note(o.to);
+          }
         },
         op);
   return names;
@@ -1066,24 +1076,75 @@ World::Impl::createLoopBuffer(const std::vector<glm::vec3> &loop) {
 
 namespace {
 
-/** Entry point per Op variant index; the pack sink rides last. */
+/** Every compute entry, in PSO order; the copy-back and pack sinks
+ *  ride last because they belong to no op. */
 constexpr const char *kPopEntries[] = {
-    "CSSplineScatter", "CSJitter", "CSNoise",    "CSRamp",
-    "CSVary",          "CSLookAt", "CSMath",     "CSRelax",
-    "CSSet",           "CSAtlas",  "CSCopyBack", "CSPopPack",
+    "CSSplineScatter", "CSJitter",   "CSNoise",  "CSRamp",
+    "CSVary",          "CSLookAt",   "CSMath",   "CSRelax",
+    "CSSet",           "CSAtlas",    "CSLookup", "CSCopyBack",
+    "CSPopPack",
 };
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
-/** Op variant index -> compute PSO index. MeshScatter (variant 8)
- *  never reaches the GPU (validation declines it); Set/Atlas trail
- *  it in the variant but precede the copy-back/pack entries. Promote
- *  (variant 11) is the primitive class and is declined the same way,
- *  so it never asks for a PSO either — a chain that reached here
- *  holding one would land on the copy-back entry, which is precisely
- *  why popChainCount refuses it up front rather than dropping it. */
-size_t popPsoIndex(size_t variantIndex) {
-  return variantIndex <= 7 ? variantIndex : variantIndex - 1;
-}
 constexpr size_t kPopPackIndex = std::size(kPopEntries) - 1;
+
+/** No compute kernel: the op is CPU-only, and every door into the GPU
+ *  executor declines a chain holding it (never drops it). */
+constexpr size_t kPopNoKernel = (size_t)-1;
+/** Op variant index -> kPopEntries index, ONE ROW PER ALTERNATIVE and
+ *  index-aligned with pop::Op. This used to be arithmetic
+ *  (`i <= 7 ? i : i - 1`) encoding a single hole, which was already
+ *  wrong for anything past index 10 — it would have landed on the
+ *  copy-back entry, silently cooking the wrong kernel. A table cannot
+ *  be wrong by a fencepost, and the static_assert below makes
+ *  APPENDING an op without deciding its row a BUILD failure rather
+ *  than a runtime mystery. */
+constexpr size_t kPopOpPso[] = {
+    0,             // 0  SplineScatter
+    1,             // 1  Jitter
+    2,             // 2  Noise
+    3,             // 3  Ramp
+    4,             // 4  Vary
+    5,             // 5  LookAt
+    6,             // 6  Math
+    7,             // 7  Relax
+    kPopNoKernel,  // 8  MeshScatter — CPU-only (seeds from a Mesh)
+    8,             // 9  Set
+    9,             // 10 Atlas
+    kPopNoKernel,  // 11 Promote     — CPU-only (primitive class)
+    10,            // 12 Lookup
+    kPopNoKernel,  // 13 Sort        — CPU-only (permutation class)
+};
+static_assert(std::size(kPopOpPso) ==
+                  std::variant_size_v<World::pop::Op>,
+              "every pop::Op alternative needs a row here — appending "
+              "one without a ruling would land it on another op's "
+              "kernel");
+size_t popPsoIndex(size_t variantIndex) {
+  return variantIndex < std::size(kPopOpPso) ? kPopOpPso[variantIndex]
+                                             : kPopNoKernel;
+}
+/** The graceful boundary, in one place: the mapping table IS the
+ *  validation table, so the two can never drift apart. */
+bool popOpRunsOnGpu(const World::pop::Op &op) {
+  return popPsoIndex(op.index()) != kPopNoKernel;
+}
+bool popChainRunsOnGpu(const World::pop::Chain &chain) {
+  for (const World::pop::Op &op : chain)
+    if (!popOpRunsOnGpu(op))
+      return false;
+  return true;
+}
+/** Every Lookup op's stop table, concatenated in chain order — the
+ *  layout g_Table is uploaded with and the (offset, count) the cook
+ *  pass hands each dispatch. */
+std::vector<glm::vec4> popTable(const World::pop::Chain &chain) {
+  std::vector<glm::vec4> stops;
+  for (const World::pop::Op &op : chain)
+    if (const auto *lookup = std::get_if<World::pop::Lookup>(&op))
+      stops.insert(stops.end(), lookup->stops.begin(),
+                   lookup->stops.end());
+  return stops;
+}
 
 } // namespace
 
@@ -1149,6 +1210,8 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
                               dg::IBuffer *instanceBuffer) {
   using namespace dg;
   points.srbs.clear();
+  if (!points.table)
+    return false; // CSLookup's SRB binds it live; never null
   dg::IBuffer *loopBuffer = points.loop;
   if (!loopBuffer && registry.valid(points.upstream) &&
       registry.all_of<PopComponent>(points.upstream))
@@ -1170,12 +1233,17 @@ bool World::Impl::bindPopSrbs(PopComponent &points,
     set("g_Lanes", points.lanes, BUFFER_VIEW_UNORDERED_ACCESS);
     set("g_Instances", instanceBuffer, BUFFER_VIEW_UNORDERED_ACCESS);
     set("g_Scratch", points.scratch, BUFFER_VIEW_UNORDERED_ACCESS);
+    set("g_Table", points.table, BUFFER_VIEW_SHADER_RESOURCE);
     points.srbs.push_back(srb);
     return true;
   };
-  for (const pop::Op &op : points.chain)
-    if (!bindOne(popPsoIndex(op.index())))
+  for (const pop::Op &op : points.chain) {
+    const size_t psoIndex = popPsoIndex(op.index());
+    // Defence in depth behind the validation doors: a CPU-only op that
+    // ever reached here gets NO binding rather than another op's.
+    if (psoIndex == kPopNoKernel || !bindOne(psoIndex))
       return false;
+  }
   // The Relax copy-back rides second from last; the pack sink last.
   return bindOne(kPopCopyBackIndex) && bindOne(kPopPackIndex);
 }
@@ -1517,15 +1585,15 @@ namespace {
 int popChainCount(const World::pop::Chain &chain) {
   if (chain.empty())
     return 0;
-  // Custom attribute names get arena slots. Two op kinds stay
+  // Custom attribute names get arena slots. Three op kinds stay
   // CPU-cooked (shape::popops) and are declined here rather than
-  // silently dropped: mesh seeding, and Promote — the GPU executor
+  // silently dropped — mesh seeding; Promote, because the GPU executor
   // cooks the POINT class into lane arenas and has no primitive class
-  // to promote onto (its sink is instanced stamps, not a Mesh value).
-  for (const World::pop::Op &op : chain)
-    if (std::holds_alternative<World::pop::MeshScatter>(op) ||
-        std::holds_alternative<World::pop::Promote>(op))
-      return 0;
+  // to promote onto (its sink is instanced stamps, not a Mesh value);
+  // and Sort, because a permutation is not a per-point map. The
+  // kPopOpPso table is the single source of that ruling.
+  if (!popChainRunsOnGpu(chain))
+    return 0;
   if (const auto *scatter =
           std::get_if<World::pop::SplineScatter>(&chain.front()))
     return scatter->loop.size() >= 3 ? scatter->count : 0;
@@ -1549,6 +1617,30 @@ dg::RefCntAutoPtr<dg::IBuffer> createLaneBuffer(dg::IRenderDevice *device,
   desc.ElementByteStride = 4 * sizeof(float);
   desc.Size = (Uint64)zeros.size() * sizeof(float);
   BufferData data{zeros.data(), desc.Size};
+  RefCntAutoPtr<IBuffer> buffer;
+  device->CreateBuffer(desc, &data, &buffer);
+  return buffer;
+}
+
+/** The Lookup stop tables, concatenated. Immutable — the stops are
+ *  chain VALUES, so a table edit is a re-describe (setPoints sees a
+ *  different table and takes the structural path). A chain with no
+ *  Lookup still gets one placeholder element: CSLookup's SRB binds
+ *  g_Table live, and a null buffer view is not a thing. */
+dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
+    dg::IRenderDevice *device, const std::vector<glm::vec4> &stops) {
+  using namespace dg;
+  const std::vector<glm::vec4> contents =
+      stops.empty() ? std::vector<glm::vec4>{glm::vec4{0, 0, 0, 0}}
+                    : stops;
+  BufferDesc desc;
+  desc.Name = "sigilworld pop lookup table";
+  desc.Usage = USAGE_IMMUTABLE;
+  desc.BindFlags = BIND_SHADER_RESOURCE;
+  desc.Mode = BUFFER_MODE_STRUCTURED;
+  desc.ElementByteStride = 4 * sizeof(float);
+  desc.Size = (Uint64)contents.size() * 4 * sizeof(float);
+  BufferData data{contents.data(), desc.Size};
   RefCntAutoPtr<IBuffer> buffer;
   device->CreateBuffer(desc, &data, &buffer);
   return buffer;
@@ -1580,7 +1672,9 @@ uint32_t World::addPoints(const shape::Mesh &stamp,
       createLaneBuffer(impl.device, count, slots, "pop lanes");
   points.scratch =
       createLaneBuffer(impl.device, count, 1, "pop scratch");
-  if (!points.loop || !points.lanes || !points.scratch)
+  points.tableData = popTable(chain);
+  points.table = createTableBuffer(impl.device, points.tableData);
+  if (!points.loop || !points.lanes || !points.scratch || !points.table)
     return 0;
 
   GpuInstancedGeometry geometry;
@@ -1639,12 +1733,10 @@ uint32_t World::addPointsOn(uint32_t upstream,
   if (!scatter || scatter->count < 1 || stamp.positions.empty() ||
       stamp.indices.empty())
     return 0;
-  // Same graceful boundary popChainCount draws: CPU-only op kinds are
-  // declined outright, never dropped.
-  for (const pop::Op &op : chain)
-    if (std::holds_alternative<pop::MeshScatter>(op) ||
-        std::holds_alternative<pop::Promote>(op))
-      return 0;
+  // Same graceful boundary popChainCount draws, off the same table:
+  // CPU-only op kinds are declined outright, never dropped.
+  if (!popChainRunsOnGpu(chain))
+    return 0;
   if (!impl.ensurePopPipelines())
     return 0;
 
@@ -1661,7 +1753,9 @@ uint32_t World::addPointsOn(uint32_t upstream,
       createLaneBuffer(impl.device, count, slots, "pop lanes");
   points.scratch =
       createLaneBuffer(impl.device, count, 1, "pop scratch");
-  if (!points.lanes || !points.scratch)
+  points.tableData = popTable(chain);
+  points.table = createTableBuffer(impl.device, points.tableData);
+  if (!points.lanes || !points.scratch || !points.table)
     return 0;
 
   GpuInstancedGeometry geometry;
@@ -1732,9 +1826,14 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
 
   // Same op kinds and count: a parameter edit — keep buffers and
   // SRBs, just re-cook. Anything structural rebuilds lanes/bindings.
+  // Lookup's stop table rides an IMMUTABLE buffer, so a table edit is
+  // structural even when the op kinds line up — same reasoning the
+  // loop-content check below applies to the generator's control points.
+  const std::vector<glm::vec4> table = popTable(chain);
   const bool sameShape =
       count == points.count && chain.size() == points.chain.size() &&
       popCustomNames(chain) == points.customNames &&
+      table == points.tableData &&
       std::equal(chain.begin(), chain.end(), points.chain.begin(),
                  [](const pop::Op &a, const pop::Op &b) {
                    return a.index() == b.index();
@@ -1766,6 +1865,8 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
         "pop lanes");
     points.scratch =
         createLaneBuffer(impl.device, count, 1, "pop scratch");
+    points.tableData = table;
+    points.table = createTableBuffer(impl.device, points.tableData);
     geometry.instanceCount = (uint32_t)count;
     geometry.instanceBuffer.Release();
     BufferDesc ibDesc;
@@ -1777,7 +1878,7 @@ void World::setPoints(uint32_t id, const pop::Chain &chain) {
     ibDesc.Size = (Uint64)count * sizeof(InstanceAttribs);
     impl.device->CreateBuffer(ibDesc, nullptr,
                               &geometry.instanceBuffer);
-    if (!points.lanes || !points.scratch ||
+    if (!points.lanes || !points.scratch || !points.table ||
         !geometry.instanceBuffer) {
       points.count = 0; // null lanes must not reach readPoints' copy
       return;
@@ -2043,6 +2144,9 @@ bool World::render() {
         params.d[3] = 0.002f;
         return params;
       };
+      // Walks the chain in the SAME order popTable() concatenated in,
+      // so each Lookup dispatch gets the offset its stops landed at.
+      int tableCursor = 0;
       for (size_t i = 0; i < points.chain.size(); ++i) {
         PopParams params = base();
         std::visit(
@@ -2094,6 +2198,18 @@ bool World::render() {
                 params.a[0] = (float)op.cols;
                 params.a[1] = (float)op.rows;
                 params.a[2] = (float)op.seed;
+              } else if constexpr (std::is_same_v<T, pop::Lookup>) {
+                params.a[0] = op.weights.x;
+                params.a[1] = op.weights.y;
+                params.a[2] = op.weights.z;
+                params.a[3] = op.weights.w;
+                params.b[0] = (float)points.slotFor(op.from);
+                params.b[1] = (float)tableCursor;
+                params.b[2] = (float)op.stops.size();
+                params.c[0] = op.low;
+                params.c[1] = op.high;
+                params.d[1] = (float)points.slotFor(op.to);
+                tableCursor += (int)op.stops.size();
               } else if constexpr (std::is_same_v<T, pop::Math>) {
                 params.a[0] = op.mul.x;
                 params.a[1] = op.mul.y;

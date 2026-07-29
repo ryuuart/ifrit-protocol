@@ -2256,6 +2256,142 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   EXPECT_LT(hi, 1.6f);
 }
 
+TEST(Pop, RampByDrivesOneAttributeFromAnotherThroughATable) {
+  // The Lookup op: a value curve, not a palette. Colour is driven by
+  // P.y over an EXPLICIT domain, through three stops -- so the pin has
+  // to see the interpolation between them, not just the endpoints.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({200.0f * std::cos(a), 0, 200.0f * std::sin(a)});
+  }
+  const glm::vec4 lowStop{0, 0, 1, 1};
+  const glm::vec4 midStop{0, 1, 0, 1};
+  const glm::vec4 highStop{1, 0, 0, 1};
+
+  // Height is authored by hand so every sample point is known: P.y is
+  // set outright, then read back through the table over [-100, 100].
+  const auto colorAtHeight = [&](float y) {
+    const pop::Chain chain =
+        pop::on(loop)
+            .count(4)
+            .set(pop::Lane::P, {0, y, 0, 0})
+            .rampBy(pop::Lane::P, 1, {lowStop, midStop, highStop}, -100,
+                    100);
+    const Cloud cooked = popops::cook(chain);
+    const std::vector<glm::vec4> *tint = cooked.colorIf("tint");
+    EXPECT_TRUE(tint);
+    return tint ? (*tint)[0] : glm::vec4{0, 0, 0, 0};
+  };
+
+  // The stops themselves.
+  EXPECT_NEAR(colorAtHeight(-100).b, lowStop.b, 1e-5f);
+  EXPECT_NEAR(colorAtHeight(0).g, midStop.g, 1e-5f);
+  EXPECT_NEAR(colorAtHeight(100).r, highStop.r, 1e-5f);
+  // BETWEEN two stops: quarter of the way up is halfway from low to
+  // mid, and nothing of the far stop has leaked in. This is the pin
+  // that a nearest-stop lookup could not pass.
+  const glm::vec4 quarter = colorAtHeight(-50);
+  EXPECT_NEAR(quarter.b, 0.5f, 1e-5f);
+  EXPECT_NEAR(quarter.g, 0.5f, 1e-5f);
+  EXPECT_NEAR(quarter.r, 0.0f, 1e-5f);
+  const glm::vec4 threeQuarters = colorAtHeight(50);
+  EXPECT_NEAR(threeQuarters.g, 0.5f, 1e-5f);
+  EXPECT_NEAR(threeQuarters.r, 0.5f, 1e-5f);
+  // ...and the domain CLAMPS at both ends rather than extrapolating.
+  EXPECT_NEAR(colorAtHeight(-1e4f).b, lowStop.b, 1e-5f);
+  EXPECT_NEAR(colorAtHeight(1e4f).r, highStop.r, 1e-5f);
+  EXPECT_NEAR(colorAtHeight(1e4f).g, 0.0f, 1e-5f);
+
+  // It reaches customs at BOTH ends -- read one lane, write another.
+  const pop::Chain custom =
+      pop::on(loop)
+          .count(16)
+          .set("energy", {0.25f, 0, 0, 0})
+          .rampBy("energy", 0, {{10, 0, 0, 0}, {20, 0, 0, 0}}, 0, 1,
+                  "heat");
+  const Cloud cooked = popops::cook(custom);
+  const std::vector<glm::vec4> *heat = cooked.colorIf("heat");
+  ASSERT_TRUE(heat) << "a lookup must create the lane it writes";
+  EXPECT_NEAR((*heat)[0].r, 12.5f, 1e-4f);
+}
+
+TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
+  // The Sort op, permutation class. Two things must hold: the key
+  // really orders the points, and EVERY lane travels with its point --
+  // a sort that moved positions alone would silently shear the cloud.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    loop.push_back({180.0f * std::cos(a), 40.0f * std::sin(3 * a),
+                    180.0f * std::sin(a)});
+  }
+  const auto describe = [&](bool sorted, bool descending) {
+    pop::Builder b = pop::on(loop);
+    b.count(200).seed(3).spread(20).vary(0.4f).fade({0, 0, 0, 1},
+                                                    {1, 1, 1, 1});
+    if (sorted)
+      b.order({0, 1, 0}, descending);
+    return (pop::Chain)b;
+  };
+
+  const Cloud plain = popops::cook(describe(false, false));
+  const Cloud rising = popops::cook(describe(true, false));
+  ASSERT_EQ(plain.size(), 200u);
+  ASSERT_EQ(rising.size(), 200u);
+
+  // 1. The order is real, and it is not the order it started in.
+  for (size_t i = 1; i < rising.size(); ++i)
+    EXPECT_LE(rising.positions[i - 1].y, rising.positions[i].y);
+  size_t moved = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    if (plain.positions[i] != rising.positions[i])
+      ++moved;
+  EXPECT_GT(moved, 100u) << "the sort must actually reorder";
+
+  // 2. Coherence: each sorted point's t/size/tint are the ones its
+  // ORIGINAL position carried. Found by matching position, so the
+  // check knows nothing about the permutation itself.
+  const std::vector<float> *plainT = plain.scalarIf("t");
+  const std::vector<float> *risingT = rising.scalarIf("t");
+  const std::vector<float> *plainSize = plain.scalarIf("size");
+  const std::vector<float> *risingSize = rising.scalarIf("size");
+  const std::vector<glm::vec4> *plainTint = plain.colorIf("tint");
+  const std::vector<glm::vec4> *risingTint = rising.colorIf("tint");
+  ASSERT_TRUE(plainT && risingT && plainSize && risingSize &&
+              plainTint && risingTint);
+  size_t matched = 0;
+  for (size_t i = 0; i < rising.size(); ++i)
+    for (size_t j = 0; j < plain.size(); ++j)
+      if (rising.positions[i] == plain.positions[j]) {
+        EXPECT_FLOAT_EQ((*risingT)[i], (*plainT)[j]);
+        EXPECT_FLOAT_EQ((*risingSize)[i], (*plainSize)[j]);
+        EXPECT_FLOAT_EQ((*risingTint)[i].r, (*plainTint)[j].r);
+        ++matched;
+        break;
+      }
+  EXPECT_EQ(matched, rising.size()) << "every point must survive";
+
+  // 3. Descending is the same permutation reversed (keys are distinct
+  // here), which is the painter-order spelling: farthest first.
+  const Cloud falling = popops::cook(describe(true, true));
+  ASSERT_EQ(falling.size(), rising.size());
+  for (size_t i = 0; i < falling.size(); ++i)
+    EXPECT_EQ(falling.positions[i],
+              rising.positions[rising.size() - 1 - i]);
+
+  // 4. Chain order IS the swept path, so a sorted chain forms a
+  // DIFFERENT tube from the same points -- the reason Sort is an
+  // authoring verb here and not a display trick.
+  const Mesh unsorted = popops::cookTube(describe(false, false), 4);
+  const Mesh threaded = popops::cookTube(describe(true, false), 4);
+  ASSERT_EQ(unsorted.positions.size(), threaded.positions.size());
+  float drift = 0;
+  for (size_t i = 0; i < unsorted.positions.size(); ++i)
+    drift += glm::length(unsorted.positions[i] - threaded.positions[i]);
+  EXPECT_GT(drift, 1000.0f);
+}
+
 TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
   // ONE hash now (detail/Hash.h) feeds both the parity-locked pop
   // scatter and Points' PRNG. These goldens were captured from the two
