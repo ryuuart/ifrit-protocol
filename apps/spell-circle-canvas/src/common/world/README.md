@@ -301,8 +301,9 @@ Five components, all opt-in, all additive: `AnimatedTransform`
 `base * T * R * S` — the same order as `scene::Node::localMatrix()`),
 `AnimatedMaterial` (opacity → `baseColor.w`, emissiveStrength,
 uvOffsetX/Y, uvScaleX/Y), `AnimatedLight` (intensity, position x/y/z),
-`AnimatedCamera` (eye x/y/z, target x/y/z, fovYDeg, rollDeg — added
-2026-07-29, argued below) and `AnimatedWindow` (a generator's
+`AnimatedCamera` (eye x/y/z, target x/y/z, fovYDeg, rollDeg, plus a
+`CameraPath` that flies the eye along a `shape::Spline3` on ONE float
+lane — added 2026-07-29, both argued below) and `AnimatedWindow` (a generator's
 `head`/`span`). `resolveAnimation()` is the system, in two halves: a
 free function over a bare `entt::registry` for the component lanes, and
 a `World&` overload that adds the window lanes and is what `render()`
@@ -466,6 +467,139 @@ actually moves, and a different dt lands elsewhere at the same index),
 and `AnimatedCameraOutranksALaterSetCamera` (the precedence rule at the
 pixel — the animated frame equals a plain `setCamera()` at the same
 position and differs from the `setCamera()` issued after the lanes).
+
+### The camera path (2026-07-29)
+
+Eight independent float lanes can describe a POINT. They cannot describe
+a TRAJECTORY — there was no way to say "fly the eye along this spline",
+and doing it by hand means computing three numbers a frame and pushing
+them into `eyeX/Y/Z`, which is the imperative door wearing the
+declarative one's clothes. `AnimatedCamera::path` is the missing
+spelling:
+
+```cpp
+choreograph::Output<float> phase{0};
+ticker.timeline().apply(&phase).then<ch::RampTo>(1.0f, 12.0f);
+
+auto &reg = world.registry();
+const entt::entity eye = reg.create();
+reg.emplace<world::CameraComponent>(eye);           // active by default
+auto &animated = reg.emplace<world::AnimatedCamera>(eye);
+animated.fovYDeg = bind(&phase).target(52.0f, 34.0f);   // still lanes
+animated.rollDeg = bind(&phase).map(ease::inOutBack()).target(0.0f, 12.0f);
+
+world::CameraPath &flight = animated.path.emplace();
+flight.path.points = {{380, 120, 0}, {0, 260, 380},
+                      {-380, 120, 0}, {0, 60, -380}};
+flight.path.closed = true;                          // Catmull-Rom loop
+flight.t = bind(&phase).map(&choreograph::easeInOutQuad).target(0.0f, 2.0f);
+flight.lookAhead = 0.04f;                           // aim 4% up the curve
+
+for (int frame = 0; frame < 720; ++frame) {
+  ticker.tick(1.0 / 60.0);
+  world.render();
+}
+```
+
+Two laps of the loop, eased in and out, aiming where it is going, with a
+dutch tilt rolling in on top — and **the float-only ruling is not bent to
+do it.** The lane is `t`, the position ALONG the curve, so the entire
+normalise → curve → affine chain still applies, to the parameter instead
+of to the geometry: `.map()` shapes the schedule, `.target(0, 2)` flies
+two laps, `.window()` makes the flight a slice of a larger phase. The
+curve supplies the SHAPE, the lane supplies the SCHEDULE. That separation
+is the whole design, and it is why no `Animatable<glm::vec3>` was needed
+(the alternative — a vec3 lane holding the sampled position — would have
+been a slot with no chain at all, which ruling 1 already rejected).
+
+**It is a field on `AnimatedCamera`, not a component of its own.** A
+separate `CameraPathComponent` would let an entity carry a path without
+the eight lanes — worth roughly nothing, since every lane is already
+`optional` and an unengaged one costs a branch. What it would cost is the
+rule below: precedence between two components is precedence between two
+system loops, invisible at the call site and answerable only by reading
+the resolver. Beside the lanes it outranks, the rule is one sentence in
+one header. Same argument the camera lane itself made when it declined a
+`World::animatedCamera()` member: one camera concept, one place.
+
+**PRECEDENCE: whatever the path drives, it drives outright.**
+
+- It ALWAYS drives the eye. `eyeX/Y/Z` are ignored while a path is
+  engaged — not blended, not treated as an offset. A lane that
+  half-contradicts a curve can only place the camera off it, which is
+  never what either spelling asked for; and re-reading a lane as
+  "absolute normally, relative when a path is present" would make one
+  lane mean two things depending on a neighbouring field, which is worse
+  than the surprise it fixes. Dropping `path` hands the very same lanes
+  back, live.
+- It drives the target IF AND ONLY IF `lookAhead != 0`. That is not a
+  second rule, it is the same rule with a switch you can see at the call
+  site: `lookAhead` IS the caller's spelling of "aim it for me", so
+  `lookAhead = 0` says "I aim it myself" and leaves `targetX/Y/Z` (and an
+  authored target) untouched. The aim is the chord `position(t +
+  lookAhead) - position(t)`, so a negative value looks BACK down the
+  curve (a chase cam), and at the end of an open curve — where the
+  forward chord collapses — the last good chord is held rather than
+  aiming the camera at its own eye.
+- A path with no control points is not engaged at all.
+
+**WRAP: a closed spline wraps, an open one clamps.** On a loop, 0 and 1
+are the same point, so `t` past 1 comes round to `t - 1` (and negative
+`t` runs backwards); a hard stop mid-loop is never what "closed" meant,
+and wrapping is what makes `.target(0, 2)` above read as two laps with no
+extra API. An open curve parks at its ends, which is what
+`Spline3::position` already does — the rule makes that explicit rather
+than inventing a second behaviour. The wrap applies to the LOOK-AHEAD
+point too, so the aim reads across the seam instead of staring at the end
+of the loop while flying past it.
+
+**ARC LENGTH is the default** (`arcLength = false` opts out). A camera
+move wants constant SPEED: parameter-uniform motion on a Catmull-Rom loop
+sprints through tightly-spaced knots and crawls through loose ones, so
+the author would be tuning knot spacing to fix timing — exactly the
+coupling the lane exists to break. Opt out when the knots ARE the
+schedule.
+
+**Arc length costs a table, and the table is cached against the SPLINE.**
+Re-spacing needs a cumulative-length sweep (256 spline evaluations by
+default, `samples`), which must not run per frame. There is no dirty
+flag: `CameraPath` keeps the table beside a copy of the points, type and
+closure it was built from, and rebuilds when they no longer match. That
+is the house rule — compare against the destination, never a "have I
+run" flag — applied to the INPUT that determines the table, because
+comparing the table itself would mean building it, which is the cost
+being avoided. The payoff is that editing `path.points` in place, the way
+every other `shape` value is edited, cannot leave a stale curve behind;
+there is no setter to route through and none to forget.
+
+**ROLL composes with the flight rather than fighting it.** `rollDeg`
+resolves after the path, about the eye→target axis the path just
+produced, so a dutch tilt turns about the FLIGHT axis and follows the
+curve round — the same "lanes resolve in order" property the roll lane
+already relied on, and the reason the path had to live in this component
+rather than in a system that might run after it.
+
+Pinned by `WorldAnimation.CameraPathFliesTheEyeAlongTheSpline` (placement
+and the no-op resolve), `CameraPathArcLengthIsConstantSpeedByDefault`
+(equal steps along a deliberately uneven run; parameter-uniform on the
+same curve crawls 5 then sprints 45),
+`CameraPathAimsAheadUnlessLookAheadIsZero` and
+`CameraPathOutranksTheEyeLanes` (the two halves of precedence, including
+the lanes taking back over when the path is dropped),
+`CameraPathWrapsOnALoopAndClampsOnAnOpenCurve` (a lap and a quarter is a
+quarter, negative runs backwards, the aim chord across the seam is the
+same length as one mid-loop, and an open curve parks at both ends),
+`CameraPathTableRebuildsOnlyWhenTheSplineChanges` (which POISONS the
+cached table and shows a resolve honours the poison, then edits a control
+point and shows the same resolve rebuilds),
+`CameraPathRollTurnsAboutTheFlightAxis` (up lands a whole sign away from
+where the authored view axis would have put it), and
+`CameraPathTraceIsTheSameAtTheSameFrameIndex` +
+`CameraPathFrameRendersIdenticallyAcrossRuns` (determinism to the
+standard ruling 2 set: bit-identical at the same frame index, the flight
+actually moves, and a different dt lands elsewhere at the same index).
+Additive: `world_demo` does not adopt it and all 13 artifacts hash the
+same.
 
 ### Scene and Animation do not meet (2026-07-29)
 

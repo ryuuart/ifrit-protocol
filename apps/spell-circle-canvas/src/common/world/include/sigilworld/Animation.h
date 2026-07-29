@@ -80,11 +80,14 @@
 #include "sigilworld/Components.h"
 
 #include <sigilmotion/Animation.h>
+#include <sigilshape/Curves.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
+#include <vector>
 
 namespace sigil::world {
 
@@ -157,6 +160,88 @@ struct AnimatedLight {
   std::optional<Animatable<float>> x, y, z;
 };
 
+/** A FLIGHT PATH for the eye: a `shape::Spline3` plus the ONE float
+ *  lane that walks it. Added 2026-07-29 because eight independent float
+ *  lanes could not spell "fly along this curve" — three of them can
+ *  describe a point, but nothing could describe a TRAJECTORY, and
+ *  hand-driving `eyeX/Y/Z` from a spline means the caller computing
+ *  three numbers per frame, i.e. the imperative door wearing the
+ *  declarative one's clothes.
+ *
+ *  The float-only ruling is not bent to do it. The lane here is @ref t —
+ *  the position ALONG the curve — so the whole normalise → curve →
+ *  affine chain still applies, to the parameter rather than to the
+ *  geometry: `bind(&phase).map(&choreograph::easeInOutQuad)` eases the
+ *  flight in and out, `.target(0, 3)` flies three laps, `.window(...)`
+ *  makes the flight a slice of some larger phase. The curve supplies the
+ *  shape; the lane supplies the schedule. That separation is the whole
+ *  design.
+ *
+ *  Four rules, all argued in world/README.md (2026-07-29):
+ *
+ *  - **PRECEDENCE: whatever the path drives, it drives outright.** It
+ *    always drives the eye — that is what a path IS — so `eyeX/Y/Z` are
+ *    IGNORED while a path is engaged (not blended, not offset: a lane
+ *    that half-contradicts a curve can only produce a point off it). It
+ *    drives the target if and only if @ref lookAhead is non-zero, which
+ *    is the caller's own spelling of "aim it for me"; `lookAhead = 0`
+ *    means "I aim it myself" and leaves `targetX/Y/Z` (and an authored
+ *    target) untouched. One rule with a switch you can see at the call
+ *    site, not two rules.
+ *  - **WRAP: a closed spline wraps, an open one clamps.** `t` past 1 on
+ *    a loop comes round to `t - 1` (and negative `t` runs backwards),
+ *    because on a closed curve 0 and 1 are the same point and a hard
+ *    stop mid-loop is never what "closed" meant. An open curve parks at
+ *    its ends, which is what `Spline3::position` already does. The wrap
+ *    also applies to the look-ahead point, so the aim reads ACROSS the
+ *    seam instead of staring at the end of the loop while flying past it.
+ *  - **ARC LENGTH is the default.** A camera move wants constant SPEED,
+ *    and parameter-uniform motion on a Catmull-Rom loop sprints through
+ *    tight knots and crawls through loose ones. @ref arcLength = false
+ *    opts back out to parameter-uniform (which is what you want when the
+ *    knots ARE the schedule).
+ *  - **ROLL still composes.** `AnimatedCamera::rollDeg` resolves after
+ *    the path, from the eye/target the path just produced, so a dutch
+ *    tilt turns about the FLIGHT axis and follows the curve round.
+ *
+ *  A path with no control points is not engaged at all — the authored
+ *  camera and the eye lanes stand. */
+struct CameraPath {
+  /** The curve the eye rides. Held by value: edit `points` in place and
+   *  the next resolve picks it up (the table below re-derives). */
+  shape::Spline3 path;
+  /** WHERE along it, in [0,1] — arc-length fraction unless @ref
+   *  arcLength is false, in which case it is the curve parameter. One
+   *  float, so every `bind()` shaping verb still applies. */
+  Animatable<float> t = 0.0f;
+  /** How far ahead the camera looks, in the same units as @ref t. The
+   *  target becomes `eye + (position(t + lookAhead) - position(t))`, so
+   *  a negative value looks BACK down the curve (a chase cam) and
+   *  exactly 0 disengages the target entirely — see the precedence rule.
+   *  At the end of an OPEN curve, where the forward chord collapses, the
+   *  last good chord is held rather than aiming the camera at itself. */
+  float lookAhead = 0.05f;
+  /** Constant speed (true, the default) or constant parameter rate. */
+  bool arcLength = true;
+  /** Resolution of the arc-length table; ignored when @ref arcLength is
+   *  false. More samples = a truer speed on a wildly uneven curve. */
+  int samples = 256;
+
+  /** THE CACHE, written by `resolveAnimation()`: the cumulative chord
+   *  length at `samples + 1` uniform parameter steps, plus the spline it
+   *  was built from. Rebuilt when — and only when — that spline no
+   *  longer matches, which is the same "compare against the
+   *  destination" rule the value lanes use, applied to the INPUT that
+   *  determines this table (comparing the table itself would mean
+   *  building it, which is the cost being avoided). No dirty flag, so
+   *  poking `path.points` directly cannot leave a stale table behind. */
+  std::vector<float> arcTable;
+  std::vector<glm::vec3> tablePoints;
+  shape::Spline3::Type tableType = shape::Spline3::Type::CatmullRom;
+  bool tableClosed = false;
+  int tableSamples = 0;
+};
+
 /** PARTIAL overrides of a `CameraComponent`'s placement and lens (the
  *  same optional rule as AnimatedMaterial and for the same reason: the
  *  caller authors the camera, these lanes drive part of it).
@@ -186,8 +271,12 @@ struct AnimatedLight {
  *    (z-fighting that pops as it slides). They are scene-scale
  *    constants — set them on the component or through `setCamera()`.
  *
+ *  A ninth slot, @ref path, is not a lane but a CURVE plus one: it flies
+ *  the eye along a `shape::Spline3` and outranks `eyeX/Y/Z` while
+ *  engaged (@ref CameraPath has the whole argument).
+ *
  *  Lanes resolve in order, so @ref rollDeg sees the eye/target this
- *  frame's own lanes just produced. `active` is NOT consulted: it gates
+ *  frame's own lanes (or path) just produced. `active` is NOT consulted: it gates
  *  the RENDERER's choice of camera, not this system, so toggling a
  *  camera on never replays a backlog of missed frames.
  *
@@ -201,6 +290,14 @@ struct AnimatedCamera {
   /** The un-rolled up vector @ref rollDeg turns about the view axis.
    *  Not a lane — the fixed reference that keeps roll idempotent. */
   glm::vec3 rollReference{0, 1, 0};
+  /** A curve for the eye to fly, instead of `eyeX/Y/Z` — see
+   *  @ref CameraPath for the precedence, wrap and arc-length rules. It
+   *  lives HERE rather than in a component of its own because a path is
+   *  a way of driving this camera's eye, and putting it beside the lanes
+   *  it outranks is what makes that precedence statable in one place
+   *  (two components would leave the rule depending on which system ran
+   *  first — invisible at the call site). */
+  std::optional<CameraPath> path;
 };
 
 /** The GPU generator window — `addSweep`/`addFlock`/`addPoints`'s
@@ -255,6 +352,90 @@ inline float resolveValue(const Animatable<float> &v) {
     return *plain;
   return v.transitioned()->value;
 }
+
+namespace detail {
+
+/** The wrap rule: a closed curve comes round, an open one parks. */
+inline float wrapPathParameter(float t, bool closed) {
+  if (!closed)
+    return std::clamp(t, 0.0f, 1.0f);
+  const float wrapped = std::fmod(t, 1.0f);
+  return wrapped < 0.0f ? wrapped + 1.0f : wrapped;
+}
+
+/** Rebuild the cumulative-length table if — and only if — the spline it
+ *  was built from has changed. Comparison against the spline, not a
+ *  dirty flag: an equal spline has an equal table, so a caller who edits
+ *  `path.points` in place cannot end up flying a stale curve. */
+inline void refreshArcTable(CameraPath &p) {
+  const int samples = std::max(p.samples, 2);
+  if (p.tableSamples == samples && p.tableClosed == p.path.closed &&
+      p.tableType == p.path.type && p.tablePoints == p.path.points)
+    return;
+  p.arcTable.assign((size_t)samples + 1, 0.0f);
+  glm::vec3 prev = p.path.position(0.0f);
+  for (int i = 1; i <= samples; ++i) {
+    const glm::vec3 q = p.path.position((float)i / (float)samples);
+    p.arcTable[(size_t)i] =
+        p.arcTable[(size_t)i - 1] + glm::length(q - prev);
+    prev = q;
+  }
+  p.tablePoints = p.path.points;
+  p.tableType = p.path.type;
+  p.tableClosed = p.path.closed;
+  p.tableSamples = samples;
+}
+
+/** The curve PARAMETER at arc-length fraction @p s, by inverting the
+ *  table. A curve with no extent answers `s` — there is nothing to
+ *  re-space, and it keeps the degenerate case off the NaN path. */
+inline float parameterAtArcFraction(const CameraPath &p, float s) {
+  if (p.arcTable.size() < 2 || p.tableSamples < 1)
+    return s;
+  const float total = p.arcTable.back();
+  if (!(total > 0.0f))
+    return s;
+  const float target = s * total;
+  size_t hi = (size_t)std::distance(
+      p.arcTable.begin(),
+      std::upper_bound(p.arcTable.begin(), p.arcTable.end(), target));
+  hi = std::clamp<size_t>(hi, 1, p.arcTable.size() - 1);
+  const size_t lo = hi - 1;
+  const float span = p.arcTable[hi] - p.arcTable[lo];
+  const float local =
+      span < 1e-9f ? 0.0f : (target - p.arcTable[lo]) / span;
+  return ((float)lo + local) / (float)p.tableSamples;
+}
+
+/** Where a path puts the eye this frame, and the chord it aims along
+ *  (zero when the path is not aiming — `lookAhead == 0`, or a curve with
+ *  no extent at all). */
+struct CameraPathSample {
+  glm::vec3 eye{0, 0, 0};
+  glm::vec3 aim{0, 0, 0};
+};
+
+inline CameraPathSample samplePath(CameraPath &p) {
+  if (p.arcLength)
+    refreshArcTable(p);
+  const auto at = [&](float u) {
+    const float w = wrapPathParameter(u, p.path.closed);
+    return p.path.position(p.arcLength ? parameterAtArcFraction(p, w) : w);
+  };
+  CameraPathSample out;
+  const float s = resolveValue(p.t);
+  out.eye = at(s);
+  if (p.lookAhead != 0.0f) {
+    out.aim = at(s + p.lookAhead) - out.eye;
+    // At the end of an OPEN curve the forward chord collapses; hold the
+    // last good one rather than aiming the camera at its own eye.
+    if (glm::dot(out.aim, out.aim) <= 1e-12f)
+      out.aim = out.eye - at(s - p.lookAhead);
+  }
+  return out;
+}
+
+} // namespace detail
 
 /** THE SYSTEM, in its device-free half: resolve every animated
  *  component that writes nothing but registry state.
@@ -334,12 +515,37 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
        registry.view<AnimatedCamera, CameraComponent>().each()) {
     bool changed = false;
     shape::space::Camera &c = cameraComponent.camera;
-    put(c.eye.x, animated.eyeX, changed);
-    put(c.eye.y, animated.eyeY, changed);
-    put(c.eye.z, animated.eyeZ, changed);
-    put(c.target.x, animated.targetX, changed);
-    put(c.target.y, animated.targetY, changed);
-    put(c.target.z, animated.targetZ, changed);
+    // PRECEDENCE: an engaged path drives the eye outright, and the
+    // target too iff it was asked to aim (lookAhead != 0). What the path
+    // drives, the corresponding lanes do not — see CameraPath.
+    const bool pathDrivesEye =
+        animated.path && !animated.path->path.points.empty();
+    const bool pathDrivesTarget =
+        pathDrivesEye && animated.path->lookAhead != 0.0f;
+    if (pathDrivesEye) {
+      const detail::CameraPathSample flight =
+          detail::samplePath(*animated.path);
+      if (c.eye != flight.eye) {
+        c.eye = flight.eye;
+        changed = true;
+      }
+      if (pathDrivesTarget && glm::dot(flight.aim, flight.aim) > 0.0f) {
+        const glm::vec3 target = flight.eye + flight.aim;
+        if (c.target != target) {
+          c.target = target;
+          changed = true;
+        }
+      }
+    } else {
+      put(c.eye.x, animated.eyeX, changed);
+      put(c.eye.y, animated.eyeY, changed);
+      put(c.eye.z, animated.eyeZ, changed);
+    }
+    if (!pathDrivesTarget) {
+      put(c.target.x, animated.targetX, changed);
+      put(c.target.y, animated.targetY, changed);
+      put(c.target.z, animated.targetZ, changed);
+    }
     put(c.fovYDeg, animated.fovYDeg, changed);
     // Roll last, so it turns around the view axis the eye/target lanes
     // just produced. `up` is derived from the fixed rollReference, never

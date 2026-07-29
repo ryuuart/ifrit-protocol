@@ -2396,6 +2396,409 @@ TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
 }
 
 // ---------------------------------------------------------------------------
+// THE CAMERA PATH (2026-07-29) — one float lane walking a curve.
+//
+// Eight independent float lanes could describe a POINT but not a
+// TRAJECTORY. CameraPath adds the curve and keeps the float-only ruling
+// by making the LANE the parameter. These pins fix the four rules that
+// answer for it: precedence over the eye lanes, the wrap, arc-length by
+// default, and roll composing with the flight axis — plus the cache that
+// keeps the arc-length table off the per-frame bill.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/** An OPEN, deliberately uneven straight run: the first half of the
+ *  parameter covers 10 units and the second covers 90, so parameter-
+ *  uniform and arc-length walks answer differently at every sample and
+ *  the difference is arithmetic anyone can check by hand. */
+shape::Spline3 unevenRun() {
+  shape::Spline3 s;
+  s.points = {{0, 0, 0}, {10, 0, 0}, {100, 0, 0}};
+  s.type = shape::Spline3::Type::Linear;
+  s.closed = false;
+  return s;
+}
+
+/** A CLOSED loop through four points, for the wrap and roll pins. */
+shape::Spline3 diamondLoop() {
+  shape::Spline3 s;
+  s.points = {{100, 0, 0}, {0, 0, 100}, {-100, 0, 0}, {0, 0, -100}};
+  s.type = shape::Spline3::Type::CatmullRom;
+  s.closed = true;
+  return s;
+}
+
+/** The camera of the registry's sole camera entity. */
+const shape::space::Camera &cameraOf(entt::registry &registry,
+                                     entt::entity e) {
+  return registry.get<world::CameraComponent>(e).camera;
+}
+
+} // namespace
+
+TEST(WorldAnimation, CameraPathFliesTheEyeAlongTheSpline) {
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> along{0.0f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = unevenRun();
+  flight.t = &along;
+  flight.lookAhead = 0; // aim is a separate pin; this one is placement
+
+  along = 0.5f;
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  // Half the LENGTH, not half the parameter: 50 units along a 100-unit
+  // run, where the parameter midpoint is x = 10.
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 50.0f, 0.05f);
+  EXPECT_FLOAT_EQ(cameraOf(registry, e).eye.y, 0.0f);
+
+  // One rule everywhere: a parked lane writes nothing.
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 0)
+      << "an unmoved path parameter must not write";
+
+  along = 1.0f;
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 100.0f, 0.05f);
+}
+
+TEST(WorldAnimation, CameraPathArcLengthIsConstantSpeedByDefault) {
+  // THE OWNER'S RULING, pinned: a camera move wants constant SPEED, so
+  // arc-length is the default and the flag is the opt-out.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> along{0.0f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = unevenRun();
+  flight.t = &along;
+  flight.lookAhead = 0;
+
+  const auto walk = [&] {
+    std::vector<float> steps;
+    float previous = 0;
+    for (int i = 0; i <= 4; ++i) {
+      along = (float)i / 4.0f;
+      world::resolveAnimation(registry);
+      const float x = cameraOf(registry, e).eye.x;
+      if (i > 0)
+        steps.push_back(x - previous);
+      previous = x;
+    }
+    return steps;
+  };
+
+  const std::vector<float> even = walk();
+  ASSERT_EQ(even.size(), 4u);
+  for (const float step : even)
+    EXPECT_NEAR(step, 25.0f, 0.2f) << "arc-length walks at one speed";
+
+  flight.arcLength = false;
+  const std::vector<float> raw = walk();
+  ASSERT_EQ(raw.size(), 4u);
+  // Not vacuous: the same curve, parameter-uniform, crawls then sprints.
+  EXPECT_NEAR(raw[0], 5.0f, 0.05f);
+  EXPECT_NEAR(raw[3], 45.0f, 0.05f);
+}
+
+TEST(WorldAnimation, CameraPathAimsAheadUnlessLookAheadIsZero) {
+  // PRECEDENCE, target half: the path owns the target if and only if it
+  // was ASKED to aim. lookAhead = 0 is the spelling of "I aim it
+  // myself", and then the target lanes stand untouched.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  shape::space::Camera authored;
+  authored.target = {0, 90, 0};
+  registry.emplace<world::CameraComponent>(e, authored);
+  choreograph::Output<float> along{0.25f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  animated.targetY = 42.0f;
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = unevenRun();
+  flight.t = &along;
+  flight.lookAhead = 0.05f;
+
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  {
+    const shape::space::Camera &cam = cameraOf(registry, e);
+    EXPECT_NEAR(cam.eye.x, 25.0f, 0.05f);
+    // 5% of a 100-unit run ahead of the eye, and the aiming path owns
+    // the target outright, so the 42 lane does NOT get a say.
+    EXPECT_NEAR(cam.target.x, 30.0f, 0.1f);
+    EXPECT_NEAR(cam.target.y, 0.0f, 1e-4f)
+        << "an aiming path drives the whole target";
+  }
+
+  flight.lookAhead = 0;
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  {
+    const shape::space::Camera &cam = cameraOf(registry, e);
+    EXPECT_NEAR(cam.eye.x, 25.0f, 0.05f) << "the eye is still flown";
+    EXPECT_FLOAT_EQ(cam.target.y, 42.0f)
+        << "lookAhead = 0 hands the target back to the lanes";
+  }
+}
+
+TEST(WorldAnimation, CameraPathOutranksTheEyeLanes) {
+  // PRECEDENCE, eye half: whatever the path drives, it drives outright.
+  // A lane that half-contradicts a curve could only place the camera off
+  // it, so the eye lanes are ignored while a path is engaged.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> along{0.5f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  animated.eyeX = 999.0f;
+  animated.eyeY = 777.0f;
+  animated.eyeZ = 555.0f;
+  animated.targetZ = 7.0f;
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = unevenRun();
+  flight.t = &along;
+  flight.lookAhead = 0;
+
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  const shape::space::Camera &cam = cameraOf(registry, e);
+  EXPECT_NEAR(cam.eye.x, 50.0f, 0.05f) << "the curve places the eye";
+  EXPECT_FLOAT_EQ(cam.eye.y, 0.0f);
+  EXPECT_FLOAT_EQ(cam.eye.z, 0.0f);
+  EXPECT_FLOAT_EQ(cam.target.z, 7.0f)
+      << "a non-aiming path leaves the target lanes alone";
+
+  // And it is the PATH that outranks, not merely a later write: drop it
+  // and the very same lanes take over.
+  animated.path.reset();
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  EXPECT_FLOAT_EQ(cam.eye.x, 999.0f);
+  EXPECT_FLOAT_EQ(cam.eye.y, 777.0f);
+}
+
+TEST(WorldAnimation, CameraPathWrapsOnALoopAndClampsOnAnOpenCurve) {
+  // THE WRAP RULE. A closed curve comes round (0 and 1 are the same
+  // point, so a hard stop mid-loop is never what "closed" meant); an
+  // open one parks at its ends.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> along{0.25f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = diamondLoop();
+  flight.t = &along;
+  flight.lookAhead = 0.05f;
+
+  world::resolveAnimation(registry);
+  const glm::vec3 quarter = cameraOf(registry, e).eye;
+  along = 1.25f;
+  world::resolveAnimation(registry);
+  EXPECT_LT(glm::length(cameraOf(registry, e).eye - quarter), 1e-3f)
+      << "a lap and a quarter is a quarter";
+  along = -0.75f;
+  world::resolveAnimation(registry);
+  EXPECT_LT(glm::length(cameraOf(registry, e).eye - quarter), 1e-3f)
+      << "negative parameters run backwards round the loop";
+
+  // The look-ahead wraps too, so the aim reads ACROSS the seam instead
+  // of staring at the end of the loop while flying past it: on a smooth
+  // arc-length loop the aim chord is the same length everywhere.
+  along = 0.48f;
+  world::resolveAnimation(registry);
+  const float midChord = glm::length(cameraOf(registry, e).target -
+                                     cameraOf(registry, e).eye);
+  along = 0.98f;
+  world::resolveAnimation(registry);
+  const float seamChord = glm::length(cameraOf(registry, e).target -
+                                      cameraOf(registry, e).eye);
+  EXPECT_GT(midChord, 1.0f) << "the fixture must actually aim somewhere";
+  EXPECT_NEAR(seamChord, midChord, midChord * 0.05f)
+      << "the aim must read across the seam of a closed loop";
+
+  // Open: both ends park.
+  flight.path = unevenRun();
+  along = 1.5f;
+  world::resolveAnimation(registry);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 100.0f, 0.05f);
+  along = -0.5f;
+  world::resolveAnimation(registry);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 0.0f, 0.05f);
+}
+
+TEST(WorldAnimation, CameraPathTableRebuildsOnlyWhenTheSplineChanges) {
+  // THE COST RULE. The arc-length table is 256 spline evaluations; it
+  // must not be rebuilt per frame. There is no dirty flag — the cache
+  // is compared against the SPLINE that determines it — so this pin
+  // POISONS the table and shows a resolve honours the poison (i.e. did
+  // not rebuild), then edits the control points and shows the very same
+  // resolve does rebuild.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> along{0.5f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = unevenRun();
+  flight.t = &along;
+  flight.lookAhead = 0;
+
+  world::resolveAnimation(registry);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 50.0f, 0.05f);
+  EXPECT_EQ(flight.tableSamples, 256);
+  EXPECT_NEAR(flight.arcTable.back(), 100.0f, 0.05f);
+
+  // Poison: a flat table has no extent, so the resolver falls back to
+  // the raw parameter — x = 10 at t = 0.5 on this uneven run.
+  std::fill(flight.arcTable.begin(), flight.arcTable.end(), 0.0f);
+  world::resolveAnimation(registry);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 10.0f, 0.05f)
+      << "an unchanged spline must not rebuild its table";
+
+  // Edit a control point in place: the cache no longer matches the
+  // spline, so it rebuilds — no flag to forget to set.
+  flight.path.points[2] = {200, 0, 0};
+  world::resolveAnimation(registry);
+  EXPECT_NEAR(flight.arcTable.back(), 200.0f, 0.05f);
+  EXPECT_NEAR(cameraOf(registry, e).eye.x, 100.0f, 0.1f)
+      << "half of a 200-unit run";
+}
+
+TEST(WorldAnimation, CameraPathRollTurnsAboutTheFlightAxis) {
+  // Roll composes with the path rather than fighting it: rollDeg
+  // resolves AFTER the path, about the eye->target axis the path just
+  // produced, so a dutch tilt follows the curve round.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  shape::space::Camera authored;
+  authored.eye = {0, 0, 10};
+  authored.target = {0, 0, 0}; // forward -z, if roll ran before the path
+  registry.emplace<world::CameraComponent>(e, authored);
+  choreograph::Output<float> along{0.0f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  animated.rollDeg = 90.0f;
+  world::CameraPath &flight = animated.path.emplace();
+  flight.path = diamondLoop();
+  flight.t = &along;
+  flight.lookAhead = 0.005f;
+
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  const shape::space::Camera &cam = cameraOf(registry, e);
+  // At s = 0 the loop passes (100,0,0) along its Catmull-Rom tangent,
+  // the centred difference of the neighbouring knots: +z. Rolling
+  // world-up 90 degrees right-handed about +z lands up on -x.
+  EXPECT_NEAR(cam.up.x, -1.0f, 5e-2f);
+  EXPECT_NEAR(cam.up.y, 0.0f, 5e-2f);
+  EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-5f);
+  // Rolling about the AUTHORED axis (-z, from eye 0,0,10 to the origin)
+  // would have put up on +x instead — that is the difference this pin
+  // exists to see, and it is a whole sign apart.
+  EXPECT_LT(cam.up.x, 0.0f);
+
+  // Still idempotent with a path in front of it.
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 0);
+  EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-5f);
+}
+
+TEST(WorldAnimation, CameraPathTraceIsTheSameAtTheSameFrameIndex) {
+  // DETERMINISM for the path, to the standard ruling 2 set: same frame
+  // index, same numbers bit for bit; the trace must MOVE; and a
+  // different dt sequence must land elsewhere at the same index, so
+  // "identical" is not a claim about a constant.
+  const auto run = [](double dt, int frames) {
+    motion::Ticker ticker;
+    choreograph::Output<float> phase{0.0f};
+    ticker.timeline().apply(&phase).then<choreograph::RampTo>(1.0f, 1.0f);
+    entt::registry registry;
+    const entt::entity e = registry.create();
+    registry.emplace<world::CameraComponent>(e);
+    auto &animated = registry.emplace<world::AnimatedCamera>(e);
+    animated.rollDeg = world::bind(&phase).target(0.0f, 20.0f);
+    world::CameraPath &flight = animated.path.emplace();
+    flight.path = diamondLoop();
+    flight.t = world::bind(&phase).map(&choreograph::easeInOutQuad);
+    flight.lookAhead = 0.05f;
+    std::vector<float> trace;
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(dt);
+      world::resolveAnimation(registry);
+      const shape::space::Camera &cam = cameraOf(registry, e);
+      trace.push_back(cam.eye.x);
+      trace.push_back(cam.eye.z);
+      trace.push_back(cam.target.x);
+      trace.push_back(cam.up.x);
+    }
+    return trace;
+  };
+
+  const std::vector<float> a = run(1.0 / 60.0, 60);
+  const std::vector<float> b = run(1.0 / 60.0, 60);
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i)
+    EXPECT_EQ(a[i], b[i]) << "sample " << i << " must be bit-identical";
+
+  EXPECT_NE(a.front(), a[a.size() - 4]) << "the flight must actually move";
+  const std::vector<float> fast = run(1.0 / 30.0, 60);
+  EXPECT_NE(a[40], fast[40]);
+}
+
+TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
+  // Determinism half two: the path reaches the renderer, the same frame
+  // index is the same pixels, and the next frame is not — so the flight
+  // is genuinely under way rather than parked.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 72;
+  config.clearColor = {0, 0, 0, 1};
+
+  const auto runTo = [&](int frames, SkBitmap *out) {
+    MAKE_WORLD_OR_SKIP(w, config);
+    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                            world::Material{}),
+              0u);
+    entt::registry &registry = w->registry();
+    const entt::entity cam = registry.create();
+    registry.emplace<world::CameraComponent>(cam);
+
+    motion::Ticker ticker;
+    choreograph::Output<float> phase{0.0f};
+    ticker.timeline().apply(&phase).then<choreograph::RampTo>(1.0f, 1.0f);
+    auto &animated = registry.emplace<world::AnimatedCamera>(cam);
+    world::CameraPath &flight = animated.path.emplace();
+    flight.path.points = {{0, 40, 520}, {60, 80, 400}, {0, 20, 300}};
+    flight.path.type = shape::Spline3::Type::CatmullRom;
+    flight.t = world::bind(&phase).target(0.0f, 0.8f);
+    flight.lookAhead = 0.05f;
+
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(1.0 / 60.0);
+      ASSERT_TRUE(w->render());
+    }
+    sk_sp<SkImage> frame = w->readback();
+    ASSERT_TRUE(frame);
+    out->allocPixels(SkImageInfo::MakeN32Premul(config.width, config.height));
+    ASSERT_TRUE(frame->readPixels(nullptr, out->pixmap(), 0, 0));
+  };
+
+  SkBitmap first, second, later;
+  runTo(24, &first);
+  if (first.isNull())
+    GTEST_SKIP() << "no 3D backend";
+  runTo(24, &second);
+  runTo(25, &later);
+
+  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
+  EXPECT_EQ(std::memcmp(first.getPixels(), second.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "frame 24 of a flown camera must render identically across runs";
+  EXPECT_NE(std::memcmp(first.getPixels(), later.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "the camera must actually be flying";
+}
+
+// ---------------------------------------------------------------------------
 // SCENE x ANIMATION (2026-07-29) — the question nobody had asked.
 //
 // What happens to an Animated* component on an entity the reconciler
