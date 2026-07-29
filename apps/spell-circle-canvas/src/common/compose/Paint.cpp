@@ -1020,10 +1020,31 @@ void Composer::Impl::paintKineticText(Instance &inst, SkCanvas &canvas,
 /** The rect a node's RECORDING must cover, in its own local space: its box,
  *  grown by its decorations' declared bleed(), unioned with every child's
  *  bounds mapped through that child's layout offset and static paint
- *  transforms. SkPictureRecorder quick-rejects ops outside the cull rect at
- *  record time, so a child translated beyond its parent's box would silently
- *  vanish from the cached path without this (the same failure family as the
- *  bleed truncation — overflow is legal, the cull must hold it). Animated
+ *  transforms.
+ *
+ *  What this rect is NOT for, measured rather than assumed (the probe is
+ *  ComposeCullRect.PictureCullDoesNotCullWithoutABbh, Skia m151):
+ *  SkPictureRecorder does NOT reject ops outside the cull rect at record
+ *  time. An op drawn wholly outside it is still recorded
+ *  (approximateOpCount == 1), even when the cull rect is EMPTY, and a plain
+ *  drawPicture replays it — the pixels land. Culling against the cull rect
+ *  happens only when a bounding-box hierarchy is attached (SkRTreeFactory
+ *  clips each op's bounds to the cull rect as it builds the tree, so an
+ *  outside op is dropped at PLAYBACK); we pass no BBH, so the picture path
+ *  never culls. The old comment here claimed record-time quick-reject; it
+ *  was wrong, and the test that "proved" it passes with this whole child
+ *  union deleted.
+ *
+ *  What the rect IS load-bearing for are this function's other three
+ *  consumers, all of which clip for real: the BOUNDED saveLayer opened for
+ *  a group opacity/blend and for a layer effect (saveLayer bounds ARE a
+ *  clip), the Cache::Texture bake surface, which is literally sized from
+ *  this rect mapped to device, and the dstIn coverage drawRect. A child
+ *  translated beyond its parent's box vanishes through THOSE — pinned by
+ *  ComposeCache.OverflowingChildSurvives{GroupOpacityLayer,TextureBake},
+ *  both of which fail if this child union is removed. Overflow is legal;
+ *  the rect must hold it (the same failure family as the bleed
+ *  truncation). Animated
  *  transforms are fine: resolveFloat reads the record-time value, and a
  *  RUNNING transform makes the subtree volatile — nothing records at all.
  *  A clipped node contributes only its own box: children can't escape. */
@@ -2875,10 +2896,16 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A zero-sized node (auto-height layout() containers, spacer
-             // shims) must NOT record: SkPictureRecorder with an EMPTY cull
-             // rect rejects every op, silently swallowing overflowing
-             // children. Painted live instead — its children keep their own
-             // per-node caches, so the cost is one traversal shim.
+             // shims) must NOT record. NOT because an empty cull rect
+             // rejects ops — measured, it does not, see the note on
+             // ownPaintBounds — but because the recording is pure overhead
+             // and it opens a recordingDepth scope around the subtree,
+             // which is an input to promotion. Control: delete this size
+             // test and ComposeCache.{PromotionRefusesASubtreeThatBlends
+             // WithTheCanvas, TheBlendingChildIsWhatCausesTheRefusal,
+             // PromotionRefusesABackdropFilter} all fail. Painted live
+             // instead — its children keep their own per-node caches, so
+             // the cost is one traversal shim.
              rect.width() >= 0.5f && rect.height() >= 0.5f &&
              (node.cacheMode == Cache::Picture || !inst.children.empty() ||
               node.kind == Kind::Text || node.kind == Kind::Custom ||
@@ -2894,10 +2921,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     if (!inst.picture || inst.paintDirty ||
         memoStale || inst.bakedLeafOpacity != leafOpacity ||
         inst.bakedLeafBlend != leafBlend) {
-      // The cull must hold everything the subtree paints: declared
-      // decoration bleed (the aero-study fix) AND children that overflow
-      // the box via layout or static transforms (recordBounds) — the
-      // recorder quick-rejects ops outside it.
+      // The same rect the layers and bakes use. Its job HERE is only to be
+      // an honest bounds advertisement (SkPicture::cullRect) — this path
+      // attaches no BBH, so nothing is culled against it either at record
+      // or at playback; see the note on ownPaintBounds for the measurement.
       const SkRect cull = recordBounds(inst);
       SkPictureRecorder recorder;
       SkCanvas *rec = recorder.beginRecording(cull);

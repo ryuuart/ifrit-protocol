@@ -1,5 +1,7 @@
 #include "ComposeTestSupport.h"
 
+#include <include/core/SkBBHFactory.h>
+#include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/Console.h>
 
 TEST(ComposeConsole, AppendCostsOneMountNotOneRerecordPerLine) {
@@ -1610,6 +1612,94 @@ TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   EXPECT_LT((float)still, 0.2f * (float)lit0.size());
 }
 
+namespace {
+
+/** A red 40x40 rect at x=150 recorded into a picture whose cull rect is
+ *  the 100x100 box it escapes; replayed onto a 300x200 white surface.
+ *  Returns the pixel the escaped rect would paint. */
+sk_sp<SkPicture> escapingPicture(const SkRect &cull, SkBBHFactory *bbh) {
+  SkPictureRecorder rec;
+  SkCanvas *c = rec.beginRecording(cull, bbh);
+  SkPaint p;
+  p.setColor(SK_ColorRED);
+  c->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
+  return rec.finishRecordingAsPicture();
+}
+
+SkColor replayPixel(const sk_sp<SkPicture> &pic, int x, int y) {
+  auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
+  surf->getCanvas()->clear(SK_ColorWHITE);
+  surf->getCanvas()->drawPicture(pic);
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  surf->readPixels(bm.pixmap(), x, y);
+  return bm.getColor(0, 0);
+}
+
+} // namespace
+
+/** The Skia contract Composer::Impl::ownPaintBounds' doc block used to get
+ *  wrong, measured instead of read off a header. An op outside the cull
+ *  rect is NOT rejected at record time and NOT culled at plain playback;
+ *  the cull rect only bites through a bounding-box hierarchy, and the
+ *  clips that actually bite in the compose paint path are saveLayer bounds
+ *  and bake surfaces. Every arm below is asserted against its opposite, so
+ *  the test cannot pass by agreeing with itself. */
+TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
+  // (1) recorded: the op survives RECORDING despite sitting wholly
+  // outside the cull rect, and the picture keeps the rect it was given.
+  sk_sp<SkPicture> pic = escapingPicture(SkRect::MakeWH(100, 100), nullptr);
+  EXPECT_EQ(pic->approximateOpCount(true), 1);
+  EXPECT_EQ(pic->cullRect(), SkRect::MakeWH(100, 100));
+  // (2) and it survives PLAYBACK: the pixels land outside the cull rect.
+  EXPECT_EQ(replayPixel(pic, 170, 20), SK_ColorRED);
+
+  // (3) an EMPTY cull rect does not reject either — the zero-size-node
+  // guard in Paint.cpp is justified by promotion, not by op rejection.
+  sk_sp<SkPicture> empty = escapingPicture(SkRect::MakeWH(0, 0), nullptr);
+  EXPECT_EQ(empty->approximateOpCount(true), 1);
+  EXPECT_EQ(replayPixel(empty, 170, 20), SK_ColorRED);
+
+  // (4) nor is the whole picture quick-rejected when its cull rect misses
+  // the device entirely: an op inside the device still paints.
+  {
+    SkPictureRecorder rec;
+    SkPaint p;
+    p.setColor(SK_ColorRED);
+    rec.beginRecording(SkRect::MakeXYWH(1000, 1000, 100, 100))
+        ->drawRect(SkRect::MakeXYWH(20, 20, 40, 40), p);
+    EXPECT_EQ(replayPixel(rec.finishRecordingAsPicture(), 30, 30),
+              SK_ColorRED);
+  }
+
+  // (5) WITH a bbh the cull rect finally bites — still recorded, dropped
+  // at playback, because the RTree clips op bounds to the cull rect. This
+  // is the arm that makes (2) meaningful: same input, opposite outcome.
+  SkRTreeFactory bbh;
+  sk_sp<SkPicture> tree = escapingPicture(SkRect::MakeWH(100, 100), &bbh);
+  EXPECT_EQ(tree->approximateOpCount(true), 1);
+  EXPECT_EQ(replayPixel(tree, 170, 20), SK_ColorWHITE);
+
+  // (6) saveLayer bounds, by contrast, are a genuine clip — this is the
+  // mechanism recordBounds' child union is actually defending against.
+  {
+    auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
+    surf->getCanvas()->clear(SK_ColorWHITE);
+    const SkRect box = SkRect::MakeWH(100, 100);
+    SkPaint layer;
+    layer.setAlphaf(0.5f);
+    SkPaint p;
+    p.setColor(SK_ColorRED);
+    surf->getCanvas()->saveLayer(&box, &layer);
+    surf->getCanvas()->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
+    surf->getCanvas()->restore();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+    surf->readPixels(bm.pixmap(), 170, 20);
+    EXPECT_EQ(bm.getColor(0, 0), SK_ColorWHITE);
+  }
+}
+
 TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   // A child translated beyond its parent's box must not be quick-rejected
   // by the parent's recording cull (the recordBounds fix).
@@ -1624,6 +1714,42 @@ TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED); // fully outside parent's box
   host.frame();                                // cached replay path
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+}
+
+TEST(ComposeCache, OverflowingChildSurvivesGroupOpacityLayer) {
+  // The clip that actually bites: a group opacity opens a saveLayer
+  // BOUNDED by recordBounds, and saveLayer bounds are a real clip. Drop
+  // the child union from recordBounds and the overflowing child is gone.
+  Host host(300, 200);
+  host.composer.render(box().child(
+      box()
+          .width(100)
+          .height(100)
+          .fill(blue())
+          .opacity(0.5f)
+          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.frame();
+  EXPECT_GT(SkColorGetB(host.pixel(50, 20)), 100u);  // sanity: the parent
+  EXPECT_GT(SkColorGetR(host.pixel(170, 20)), 100u); // the escaped child
+}
+
+TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
+  // The second real clip: Cache::Texture bakes into a surface sized from
+  // recordBounds mapped to device, so anything the rect misses is
+  // truncated by the surface itself — no picture cull involved.
+  Host host(300, 200);
+  host.composer.render(box().child(
+      box()
+          .width(100)
+          .height(100)
+          .fill(blue())
+          .cache(Cache::Texture)
+          .child(box().width(40).height(40).fill(red()).translateX(150.0f))));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 20), SK_ColorBLUE);
+  EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+  host.frame(); // cached blit path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
 }
 
