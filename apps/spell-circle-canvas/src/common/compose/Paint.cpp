@@ -23,6 +23,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/core/SkSurface.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 
 #include <algorithm>
@@ -353,8 +354,9 @@ std::vector<float> detail::Instance::resolveGateValues() const {
 //    outline-tracing outputs trace — the surface (fill + echoes) and the
 //    marks. Content and children do not trace a boundary, so a spans gate
 //    over them is not a picture and does nothing.
-//  - EDGE / SHAPE / ALPHA cut the PLANE. They wrap the selected outputs in
-//    a canvas clip (edge, shape) or a kDstIn coverage layer (alpha).
+//  - EDGE / SHAPE / COVERAGE cut the PLANE. They wrap the selected outputs
+//    in a canvas clip (edge, shape) or a kDstIn/kDstOut coverage layer
+//    (alpha and luma, each with its complement).
 //
 // Both classes intersect for free, and across each other: span sets
 // intersect as interval arithmetic, nested clips intersect by definition,
@@ -386,6 +388,51 @@ SkPath gateOutline(const SkPath &src, const std::vector<Span> &show,
   if (show.empty())
     return SkPath();
   return detail::spanPath(src, show);
+}
+
+// ---- the coverage law, in one place ---------------------------------------
+//
+// A coverage gate (`by::alpha`, `by::luma` and their complements) draws the
+// Material over the masked group's layer and keeps what it covers. The gate
+// asks two INDEPENDENT questions and each has exactly one mechanism:
+//
+//  - WHICH CHANNEL (Gate::Channel) — Alpha is the shader's own alpha and
+//    needs no work at all. Luma weights the PREMULTIPLIED colour with
+//    Rec. 601 on the ENCODED values (by::luma states the law; DESIGN.md's
+//    colour rule is the argument). Premultiplied is what makes a
+//    TRANSPARENT matte read as black, the way After Effects' does.
+//  - WHICH SIDE (Gate::outside) — the complement is `kDstOut` instead of
+//    `kDstIn`. `dst * (1 - a)` IS `1 - coverage`, exactly, for any source,
+//    so an inverted matte costs one enum value and no shader.
+
+/** Rec. 601 luma of a resolved COLOUR, as a coverage alpha. `Fill`'s colour
+ *  is unpremultiplied, so the premultiplied reading is written out:
+ *  `a · dot(rgb, k)`. */
+SkColor4f lumaCoverageColor(const SkColor4f &c) {
+  const float y = 0.299f * c.fR + 0.587f * c.fG + 0.114f * c.fB;
+  return {0, 0, 0, std::clamp(c.fA * y, 0.0f, 1.0f)};
+}
+
+/** …and of a resolved SHADER. A shader's channels arrive PREMULTIPLIED, so
+ *  the same law is one dot product: `dot(a·rgb, k) == a · dot(rgb, k)`. The
+ *  result `(0,0,0,Y')` is a valid premultiplied colour because the
+ *  coefficients sum to 1, so `Y' <= a` always. */
+sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
+  static const SkRuntimeEffect *effect = [] {
+    auto result = SkRuntimeEffect::MakeForShader(SkString(R"(
+uniform shader src;
+half4 main(float2 p) {
+  half4 c = src.eval(p);
+  half y = clamp(dot(c.rgb, half3(0.299, 0.587, 0.114)), 0, 1);
+  return half4(0, 0, 0, y);
+}
+)"));
+    return result.effect.release();
+  }();
+  if (!effect || !src)
+    return src;
+  SkRuntimeEffect::ChildPtr child(std::move(src));
+  return effect->makeShader(nullptr, {&child, 1});
 }
 
 } // namespace
@@ -476,7 +523,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
         break;
       case Gate::Kind::Shape:
         break;
-      case Gate::Kind::Alpha:
+      case Gate::Kind::Coverage:
         if (m.with.coverage && m.with.coverage->isAnimated())
           maskOpaque = true;
         break;
@@ -1465,7 +1512,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     };
     for (const PlaneGate &g : plane) {
       const Mask &m = *g.mask;
-      if (!hit(m) || m.with.kind == Gate::Kind::Alpha)
+      if (!hit(m) || m.with.kind == Gate::Kind::Coverage)
         continue;
       if (base < 0)
         base = canvas.getSaveCount();
@@ -1488,7 +1535,7 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     }
     for (const PlaneGate &g : plane) {
       const Mask &m = *g.mask;
-      if (!hit(m) || m.with.kind != Gate::Kind::Alpha)
+      if (!hit(m) || m.with.kind != Gate::Kind::Coverage)
         continue;
       if (base < 0)
         base = canvas.getSaveCount();
@@ -1496,16 +1543,22 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
       canvas.saveLayer(&layerBox, nullptr);
       SkPaint cover;
       cover.setAntiAlias(true);
-      cover.setBlendMode(SkBlendMode::kDstIn);
+      // The complement is the blend mode and nothing else: kDstOut is
+      // dst·(1 - a), which is 1 - coverage exactly, for any source.
+      cover.setBlendMode(m.with.outside ? SkBlendMode::kDstOut
+                                        : SkBlendMode::kDstIn);
       if (m.with.coverage) {
         const Material &mat = *m.with.coverage;
         const Fill f = (mat.isAnimated() || mat.geometryDependent())
                            ? mat.resolve(paintCtx)
                            : mat.toFill();
+        const bool luma = m.with.channel == Gate::Channel::Luma;
         if (f.kind == Fill::Kind::Shader && f.shaderValue)
-          cover.setShader(f.shaderValue);
+          cover.setShader(luma ? lumaCoverageShader(f.shaderValue)
+                               : f.shaderValue);
         else if (f.kind == Fill::Kind::Color)
-          cover.setColor4f(f.colorValue, nullptr);
+          cover.setColor4f(luma ? lumaCoverageColor(f.colorValue) : f.colorValue,
+                           nullptr);
         else
           cover.setColor4f({0, 0, 0, 0}, nullptr); // Fill::none() shows nothing
       }

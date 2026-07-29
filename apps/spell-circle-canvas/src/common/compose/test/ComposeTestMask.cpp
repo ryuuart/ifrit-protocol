@@ -1,5 +1,7 @@
 #include "ComposeTestSupport.h"
 
+#include "../ComposeInternal.h" // propsEqual — the comparator, taken directly
+
 // ---------------------------------------------------------------------------
 // PHASE R4 — THE MASKING FAMILY
 //
@@ -285,6 +287,156 @@ TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
   EXPECT_GT(SkColorGetR(host.pixel(25, 100)), 200);
   EXPECT_LT(SkColorGetR(host.pixel(175, 100)), 40);
   EXPECT_GT(SkColorGetR(host.pixel(60, 100)), SkColorGetR(host.pixel(140, 100)));
+}
+
+// ---- S7c · the OTHER coverage channel, and both complements ---------------
+
+namespace {
+/** Five white plates side by side, each masked by its own coverage gate.
+ *  White over the black clear colour, so the byte a plate shows IS its
+ *  coverage times 255 and nothing else is in the arithmetic. */
+Element coveragePlates(const std::vector<Gate> &gates) {
+  Element root = stack();
+  int i = 0;
+  for (const Gate &g : gates) {
+    root.child(box()
+                   .absolute()
+                   .left(10.0f + 38.0f * (float)i)
+                   .top(20)
+                   .width(30)
+                   .height(160)
+                   .fill(Fill::color({1, 1, 1, 1}))
+                   .mask(g));
+    ++i;
+  }
+  return root;
+}
+int plateByte(Host &host, int i) {
+  return (int)SkColorGetR(host.pixel(25 + 38 * i, 100));
+}
+} // namespace
+
+TEST(ComposeR4Mask, S7cTheLumaGateIsRec601OnEncodedPremultipliedValues) {
+  // THE PIXEL PIN FOR THE LUMA LAW, and it is deliberately not pinned with
+  // greys: a grey pins NOTHING about the coefficients (every weighting of
+  // equal channels is the same number), and the primaries alone pin nothing
+  // about the transfer function (0 and 1 are the sRGB curve's fixed points,
+  // the trap `RendersClearColorWhenEmpty` fell into one library over).
+  //
+  // Five plates, five different wrong answers ruled out:
+  //
+  //   matte           Rec.601   Rec.709   any weights   unpremultiplied
+  //                   encoded   encoded   on LINEAR     luma
+  //   pure red         76        54        76            76
+  //   pure green      150       182       150           150
+  //   pure blue        29        18        29            29
+  //   50% grey        128       128        55           128
+  //   50% white       128       128        55           255
+  //
+  // Column 1 is the law (by::luma). Column 2 is the Poynton mistake —
+  // LUMINANCE coefficients, which are defined on linear light, applied to
+  // encoded values. Column 3 is linearising first, which compose has no
+  // stage for: its surfaces carry NO colour space, so a shader's channels
+  // are the display-encoded numbers the author wrote. Column 4 ignores the
+  // matte's alpha; premultiplied is what makes a transparent matte read as
+  // black, the way After Effects' luma matte does.
+  Host host(200, 200);
+  host.composer.render(coveragePlates({
+      by::luma(Material::solid({1, 0, 0, 1})),
+      by::luma(Material::solid({0, 1, 0, 1})),
+      by::luma(Material::solid({0, 0, 1, 1})),
+      by::luma(Material::solid({0.5f, 0.5f, 0.5f, 1})),
+      by::luma(Material::solid({1, 1, 1, 0.5f})),
+  }));
+  host.frame();
+  EXPECT_NEAR(plateByte(host, 0), 76, 2) << "red is 0.299, not 0.2126 (Rec.709 "
+                                            "luminance) and not 1/3";
+  EXPECT_NEAR(plateByte(host, 1), 150, 2) << "green is 0.587, not 0.7152";
+  EXPECT_NEAR(plateByte(host, 2), 29, 2) << "blue is 0.114, not 0.0722";
+  EXPECT_NEAR(plateByte(host, 3), 128, 2)
+      << "50% grey weighs 0.5 — the luma is taken on the ENCODED value. A "
+         "linearised reading gives 0.214 and this plate reads 55";
+  EXPECT_NEAR(plateByte(host, 4), 128, 2)
+      << "half-transparent white IS 50% grey: the luma is premultiplied, so "
+         "a transparent matte reads as black and hides";
+}
+
+TEST(ComposeR4Mask, S7cTheLumaLawIsTheSameThroughAShader) {
+  // The colour path and the shader path are two implementations of one law
+  // (a dot product in C++, an SkSL pass over the coverage layer), which is
+  // exactly the shape of asymmetry that ships wrong. One ramp, green to
+  // blue, checked at both ends and in the middle:
+  //   left  (0,1,0) -> 0.587          -> 150
+  //   mid   (0,.5,.5) -> .2935+.057   ->  89
+  //   right (0,0,1) -> 0.114          ->  29
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().absolute().left(20).top(20).width(160).height(160)
+          .fill(Fill::color({1, 1, 1, 1}))
+          .mask(by::luma(Material::linear({0, 0}, {160, 0},
+                                          {{0.0f, {0, 1, 0, 1}},
+                                           {1.0f, {0, 0, 1, 1}}})))));
+  host.frame();
+  EXPECT_NEAR((int)SkColorGetR(host.pixel(22, 100)), 150, 4) << "green end";
+  EXPECT_NEAR((int)SkColorGetR(host.pixel(100, 100)), 89, 4) << "the mix";
+  EXPECT_NEAR((int)SkColorGetR(host.pixel(177, 100)), 29, 4) << "blue end";
+}
+
+TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
+  // `by::outside(r)` made the region complement a TERM rather than a mode
+  // flag; the coverage sources get the same treatment and the same law —
+  // a gate is a SHOW set, and the complement shows exactly the rest.
+  // Mechanically it is kDstOut instead of kDstIn, which is dst·(1-a): the
+  // pair of plates must sum to 255 at every sample, not merely differ.
+  Host host(200, 200);
+  const Material ramp = Material::solid({0.5f, 0.5f, 0.5f, 0.25f});
+  host.composer.render(coveragePlates({
+      by::alpha(ramp),    // 0.25            ->  64
+      by::alphaOut(ramp), // 1 - 0.25        -> 191
+      by::luma(ramp),     // 0.25 * 0.5      ->  32
+      by::lumaOut(ramp),  // 1 - 0.125       -> 223
+  }));
+  host.frame();
+  EXPECT_NEAR(plateByte(host, 0), 64, 2);
+  EXPECT_NEAR(plateByte(host, 1), 191, 2) << "alphaOut is not alpha";
+  EXPECT_EQ(plateByte(host, 0) + plateByte(host, 1), 255)
+      << "the alpha complement must show exactly the rest";
+  EXPECT_NEAR(plateByte(host, 2), 32, 2);
+  EXPECT_NEAR(plateByte(host, 3), 223, 2) << "lumaOut is not luma";
+  EXPECT_EQ(plateByte(host, 2) + plateByte(host, 3), 255)
+      << "…and so must the luma complement";
+}
+
+TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
+  // THE COMPARATOR PIN, taken against propsEqual() DIRECTLY — the lesson of
+  // the equality audit is that a render-two-trees harness can pass while the
+  // comparator is broken, because keyed siblings never prune into one
+  // another.
+  //
+  // `channel` is a new field, so the structured-binding pin in
+  // ComposeInternal.h forced a ruling on it. `outside` is NOT new — it was
+  // already compared in the Shape arm — so nothing in the compiler would
+  // have noticed the Coverage arm ignoring it, and a matte would have
+  // compared equal to its own inverse: pruned, and stuck showing the wrong
+  // half for as long as the node lives.
+  const Material m = Material::solid({0.5f, 0.5f, 0.5f, 1});
+  const auto node = [&](Gate g) {
+    Element el = box().mask(std::move(g));
+    return el.node();
+  };
+  const auto same = [&](Gate a, Gate b) {
+    return detail::propsEqual(*node(std::move(a)), *node(std::move(b)));
+  };
+  EXPECT_TRUE(same(by::alpha(m), by::alpha(m))) << "a static matte prunes";
+  EXPECT_TRUE(same(by::lumaOut(m), by::lumaOut(m)));
+  EXPECT_FALSE(same(by::alpha(m), by::alphaOut(m)))
+      << "a matte compares equal to its own INVERSE — `outside` is missing "
+         "from the Coverage arm of Gate::operator==";
+  EXPECT_FALSE(same(by::luma(m), by::lumaOut(m))) << "…and for luma";
+  EXPECT_FALSE(same(by::alpha(m), by::luma(m)))
+      << "the two channels compare equal — `channel` is missing from the "
+         "Coverage arm of Gate::operator==";
+  EXPECT_FALSE(same(by::alphaOut(m), by::lumaOut(m)));
 }
 
 // ---- S8 · per-mark granularity -------------------------------------------

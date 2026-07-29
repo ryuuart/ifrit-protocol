@@ -273,8 +273,23 @@ Gate outside(Region r) {
 }
 Gate alpha(Material coverage) {
   Gate g;
-  g.kind = Gate::Kind::Alpha;
+  g.kind = Gate::Kind::Coverage;
   g.coverage = std::make_shared<const Material>(std::move(coverage));
+  return g;
+}
+Gate alphaOut(Material coverage) {
+  Gate g = alpha(std::move(coverage));
+  g.outside = true;
+  return g;
+}
+Gate luma(Material coverage) {
+  Gate g = alpha(std::move(coverage));
+  g.channel = Gate::Channel::Luma;
+  return g;
+}
+Gate lumaOut(Material coverage) {
+  Gate g = luma(std::move(coverage));
+  g.outside = true;
   return g;
 }
 } // namespace by
@@ -286,7 +301,7 @@ size_t Gate::valueCount() const {
   case Kind::Edge:
     return 1;
   case Kind::Shape:
-  case Kind::Alpha:
+  case Kind::Coverage:
     return 0;
   }
   return 0;

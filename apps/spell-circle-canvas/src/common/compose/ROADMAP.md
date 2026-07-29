@@ -5153,3 +5153,166 @@ separate ledger run §39's filing asked for, and it came back empty.
 Suites: `compose_test` 500 (499 passed, 1 skipped — the expected
 `AdvanceVariantAxisIsRefused`), `compose_kit_test` 47, `motion_test` 15,
 `shape_test` 83, `world_test` 64, `ctest` 16/16 — both configs.
+
+## 41. TRACK MATTES — the luma half, both complements, and the element-matte REFUSED (2026-07-29)
+
+After Effects' matte model is a compositing fundamental and compose had a
+quarter of it: `by::alpha(Material)`, one channel, one direction. The wave
+closed the cheap symmetric half and **declined the expensive half with an
+argument**, which is the more useful of the two results.
+
+### What shipped
+
+```cpp
+namespace by { Gate alpha(Material), alphaOut(Material),
+                    luma(Material),  lumaOut(Material); }
+```
+
+`Gate::Kind::Alpha` is renamed `Kind::Coverage` — the kind is the
+MECHANISM (a `saveLayer` and one compositing pass) and `alpha` was never
+the name of the mechanism, only of one reading of it. The two questions the
+four factories answer are two kind-scoped fields: a new
+`Gate::Channel channel` (Alpha | Luma) and the EXISTING `outside`, whose
+meaning widened from "the complement of a region" to "the complement of
+whatever this gate names".
+
+### Ruling 1 — the inversion is a TERM, and the word is borrowed
+
+The alternatives, weighed against how `by::shape`/`by::outside` already
+read:
+
+| candidate | why not |
+| --- | --- |
+| `.invert()` on the Gate | It is the MODE FLAG law 1 of the family explicitly forbids, and it would give `by::outside(r)` a second spelling. It would also be the only mutating verb in a vocabulary of pure factories. |
+| `by::invert(gate)` wrapper | Same second-spelling problem, without the mutation. |
+| `by::outside(Material)` overload | "Outside a gradient" is not a picture, and it cannot extend to luma without nesting (`outside(luma(m))`), at which point it is the wrapper above. |
+| **four factories** | **Chosen.** |
+
+The naming question that remains is only what to CALL the two new ones.
+`by::outside` is an English spatial word because a region has one; a
+coverage field does not. So the complement takes the morpheme the
+neighbourhood already uses for exactly this operation — Skia's `clipOut`,
+which is the call `by::outside`'s own doc comment cites as the thing it
+was written to replace. `alphaOut`/`lumaOut`. **Consistency was kept at
+the level that decides the audit (a term, not a flag); the word differs
+because the picture differs.**
+
+The mechanism is one enum value: the coverage layer composites with
+`kDstOut` instead of `kDstIn`, and `dst·(1-a)` IS `1 - coverage` exactly,
+for any source. No shader, no second path, no cost.
+
+### Ruling 2 — luma is Rec. 601, on ENCODED values, PREMULTIPLIED
+
+`Y' = 0.299 R' + 0.587 G' + 0.114 B'`, taken on the premultiplied colour.
+Three rulings, and each has a control that fires:
+
+**Encoded, because compose has no linear stage.** Every surface compose
+paints into — gallery, sketch host, `Cache::Texture` bakes, `snapshot()`,
+tests, the Metal/Graphite path — is `N32Premul` with a NULL
+`SkColorSpace`. Skia does no transfer-function work in that mode, so a
+shader's channels are the display-encoded numbers the author wrote.
+Linearising inside the luma would invent a transfer function nothing else
+in the pipeline applies, and would then multiply the result into an
+encoded destination anyway. **This was not written down anywhere before
+this wave** — DESIGN.md and API.md contained no colour-space statement at
+all — and it is now DESIGN.md's colour rule, with the consequence stated:
+giving compose a colour-managed surface is a breaking change, not a
+configuration.
+
+**Rec. 601, because those are the coefficients defined ON encoded
+R'G'B'.** Rec. 709's 0.2126/0.7152/0.0722 are LUMINANCE coefficients,
+defined on linear light; applying them to encoded values is the standard
+mistake (Poynton's "luma vs luminance"). `shape/Materials.cpp:104` already
+weights an encoded environment sample with the 601 set, so the repo had the
+precedent without the rule. Cost of being wrong: 22/255 on red, 33/255 on
+green.
+
+**Premultiplied, because a transparent matte must read as black.** That is
+AE's behaviour, and it falls out for free: a shader's channels arrive
+premultiplied, so `dot(a·rgb, k) == a · dot(rgb, k)` is one dot product.
+A half-transparent white and an opaque 50% grey are the same matte.
+
+**THE PIXEL PIN IS NOT MADE OF GREYS, AND THAT IS THE POINT.**
+`S7cTheLumaGateIsRec601OnEncodedPremultipliedValues` uses five plates —
+pure red, pure green, pure blue, 50% grey, 50%-transparent white — because
+greys pin nothing about the coefficients (every weighting of equal
+channels is the same number) and primaries pin nothing about the transfer
+function (0 and 1 are the sRGB curve's fixed points, the same trap
+`world/`'s `RendersClearColorWhenEmpty` fell into). Each wrong answer dies
+on a different plate, and the controls below show exactly that.
+
+### Ruling 3 — the ELEMENT MATTE IS REFUSED, and the argument is the deliverable
+
+AE's matte is another LAYER. The compose equivalent would be an element
+tree baked with `snapshot()` and used as coverage — `brush::Art`'s
+bake-and-replay, which exists and works. It is not built, and should not
+be, for five reasons in descending order of force:
+
+1. **THE FEATURE'S HEADLINE USE IS THE ONE IT HANDLES WORST.** `snapshot()`
+   samples bindings at current values and runs no transitions — there is no
+   live timeline in a one-shot render. So an ANIMATED matte tree, which is
+   what a matte layer is FOR, would be silently frozen unless re-baked every
+   frame, and re-baking every frame is item 2.
+2. **It inherits a known-open defect and puts it on the hot path.**
+   ROADMAP §16: a stamp bake lives in the VALUE and a fresh value per
+   describe re-bakes everything. `brush::Art` and `Pattern` both carry the
+   "build it ONCE and keep it" warning in their headers. The natural
+   authoring form for a matte is inline in the describe
+   (`.mask(by::luma(Material::element(row().child(…)))))`), which is exactly
+   the form that re-rasterises per frame — now inside a `saveLayer`'d group.
+3. **There is no answer for layout.** A matte must size against the MASKED
+   node's laid-out box, which is known only at paint. Nothing in the
+   architecture runs layout inside a recording, and adding that seam for
+   this feature would be the largest change in the wave by an order of
+   magnitude.
+4. **Identity for the prune would be pointer identity** (`art.node()`), the
+   weakest comparison in the library, on a value read live every frame.
+5. **AE needs a matte layer because a layer is its only unit** — a layer's
+   paint and its silhouette cannot be separated. Compose separates them
+   already. The 1:1 translation of most matte uses is *put the material on
+   the shaped node*: `textFill()` for a photo inside a headline, `Shape` /
+   `Region::path` / `by::shape` for a silhouette, a `Material` for anything
+   soft. The residual — genuinely arbitrary baked ART as coverage —
+   composes TODAY, in one line more than the hypothetical:
+
+   ```cpp
+   sk_sp<SkPicture> pic = snapshot(matteTree, fonts);   // author's bake,
+   // …raster it to an SkImage at a resolution the author chose…
+   el.mask(by::luma(Material::image(baked)));           // author's cache
+   ```
+
+   and that extra line is precisely where the caching decision belongs.
+
+**What would reopen it:** §16 landing a describe-keyed bake cache, plus a
+layout-at-record seam. Then `Material::element(Element)` — as a MATERIAL,
+not a Gate kind, so it composes with `blend`, with fills, and with all four
+matte variants at once — is a small feature. Until then it is a
+frame-rate cliff with a frozen animation in it.
+
+### Pins and controls
+
+New: `ComposeR4Mask.S7cTheLumaGateIsRec601OnEncodedPremultipliedValues`
+(the pixel pin), `ComposeR4Mask.S7cTheLumaLawIsTheSameThroughAShader`
+(the colour path and the SkSL path are two implementations of one law —
+the classic asymmetry), `ComposeR4Mask.S7dEachCoverageGateHasItsComplementAsItsOwnTerm`
+(the pair must SUM to 255, not merely differ),
+`ComposeR4Mask.ACoverageGatesChannelAndSenseReachTheComparator` (against
+`propsEqual` directly, per §40's lesson).
+
+**Six positive controls, all fired** (mutate → the NAMED test fails →
+restore):
+
+| control | what failed, and how |
+| --- | --- |
+| coefficients → Rec. 709, both paths | both luma tests fail; `S7d` PASSES, correctly — its matte is grey, and a grey cannot see a coefficient |
+| luma taken on LINEARISED values, both paths | the two luma tests fail **on the grey plates only** (55 vs 128, off by 73); the three primary plates pass, which is the demonstration that primaries alone would have pinned nothing |
+| luma NOT premultiplied (drop the `a` factor) | the transparent-white plate reads 255 vs 128; `S7d`'s luma pair fails too |
+| `outside` ignored (always `kDstIn`) | `S7d` fails on both complements; the luma tests pass, correctly |
+| `outside` dropped from the Coverage arm of `Gate::operator==` | the comparator test fails naming it — and NOTHING ELSE DOES, which is the whole reason it has a test: `outside` is not a new field, so no compile-time pin would have caught the new arm ignoring it |
+| `channel` dropped from the same arm | the comparator test fails naming it |
+
+**FIELD PIN.** `kFieldCount<Gate>` 7 → 8. Control: a `float feather` added
+to `Gate` fails the build at `ComposeInternal.h:472` ("type 'Gate'
+decomposes into 9 elements, but only 8 names were provided"); naming it in
+the decomposition then fails the second gate at `Reconcile.cpp:384` ("Gate
+gained or lost a field"). Two compiler errors, in order, as designed.

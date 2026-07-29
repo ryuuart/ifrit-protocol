@@ -469,8 +469,10 @@ inline auto fields(Spans::Term &v) {
                   index, key);
 }
 inline auto fields(Gate &v) {
-  auto &[kind, where, angleDeg, fraction, region, outside, coverage] = v;
-  return std::tie(kind, where, angleDeg, fraction, region, outside, coverage);
+  auto &[kind, where, angleDeg, fraction, region, outside, channel, coverage] =
+      v;
+  return std::tie(kind, where, angleDeg, fraction, region, outside, channel,
+                  coverage);
 }
 inline auto fields(Mask &v) {
   auto &[what, with] = v;

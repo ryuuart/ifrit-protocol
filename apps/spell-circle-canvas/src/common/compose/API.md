@@ -2349,7 +2349,7 @@ two questions are independent:
 | axis | question | vocabulary |
 | --- | --- | --- |
 | `parts::` | **which** of this node's paint outputs does the mask reach? | `all` · `marks` · `surface` · `content` · `children` · `named(label)` |
-| `by::` | **how** does that paint arrive — by what rule is it cut? | `spans` · `edge` · `shape` / `outside` · `alpha` |
+| `by::` | **how** does that paint arrive — by what rule is it cut? | `spans` · `edge` · `shape` / `outside` · `alpha` / `alphaOut` · `luma` / `lumaOut` |
 
 ```cpp
 .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))  // draws on
@@ -2357,6 +2357,8 @@ two questions are independent:
 .mask(by::shape(Region::path(seal)))                      // keep the silhouette
 .mask(by::outside(Region::rect(hole)))                    // …and the clipOut
 .mask(by::alpha(Material::linear(a, b, fade)))            // soft-edged coverage
+.mask(by::luma(Material::image(plate)))                   // …by BRIGHTNESS
+.mask(by::lumaOut(Material::image(plate)))                // …and the inverse
 
 .mask(parts::named("hazard"), by::edge(0.f, &armTime))    // ONE mark
 .mask(parts::marks(), by::spans(spans::upTo(&sweep)))     // every mark, no fill
@@ -2442,8 +2444,8 @@ A **spans** gate cuts the BOUNDARY, so it addresses the paint that traces
 one: the surface and the marks. Content and children do not trace a
 boundary, so an arc-length window over them is not a picture and does
 nothing — `mask(by::spans(...))` with the default `parts::all()` is
-therefore exactly the reveal `trim()` drew. **edge**, **shape** and
-**alpha** cut the PLANE and reach everything, `wipe()`'s reach.
+therefore exactly the reveal `trim()` drew. **edge**, **shape** and the two
+**coverage** sources cut the PLANE and reach everything, `wipe()`'s reach.
 
 A selection that matches no mark selects nothing, silently — the same law as
 `spans::rest("unknown")` and `spans::fit("unknown")`.
@@ -2453,11 +2455,71 @@ gate). The family accepts that and documents the sensible ones rather than
 adding a compatibility table, because a two-factor API is honest about a
 complexity that exists whether or not it is named.
 
+### The two coverage sources, and the four mattes (2026-07-29)
+
+A **coverage** gate takes its show set from a `Material` rather than from
+geometry, and there are two readings of a material and two sides of each —
+After Effects' four track-matte variants, and the same four pictures:
+
+| | keep what it covers | keep the rest |
+| --- | --- | --- |
+| the material's **alpha** | `by::alpha(m)` | `by::alphaOut(m)` |
+| the material's **luma** | `by::luma(m)` | `by::lumaOut(m)` |
+
+```cpp
+// A title card wiped in by a paper texture: the grain's own brightness is
+// the dissolve, so the reveal has the edge quality of the plate and not of
+// a gradient. `bind` animates the threshold; the matte itself is static.
+row().child(text(u8"MERIDIAN", display96))
+     .mask(by::luma(Material::blend({
+         {Material::image(grain), SkBlendMode::kSrcOver},
+         {Material::linearUnit({0, 0}, {1, 0},
+                               {{0.f, {1, 1, 1, 1}}, {1.f, {0, 0, 0, 1}}}),
+          SkBlendMode::kMultiply}})));
+```
+
+**The luma law, stated once.** `Y' = 0.299 R' + 0.587 G' + 0.114 B'` —
+**Rec. 601 coefficients, on the ENCODED values, taken on the PREMULTIPLIED
+colour.** Each of those three words is a ruling, and DESIGN.md's colour rule
+is the argument:
+
+- **encoded**, because compose has no linear stage: its surfaces carry no
+  `SkColorSpace`, so a shader's channels are the display-encoded numbers the
+  author wrote. Linearising here would invent a transfer function no other
+  part of the pipeline applies.
+- **Rec. 601**, because those are the coefficients *defined* on gamma-encoded
+  R'G'B'. Rec. 709's 0.2126/0.7152/0.0722 are LUMINANCE coefficients, defined
+  on linear light; using them on encoded values is the classic mistake, and
+  it is 22/255 wrong on red and 33/255 on green.
+- **premultiplied**, because a transparent matte must read as black and hide,
+  the way AE's does. A half-transparent white and an opaque 50% grey are the
+  same matte.
+
+Pinned by `S7cTheLumaGateIsRec601OnEncodedPremultipliedValues`, whose five
+plates rule out each wrong answer separately — and deliberately not with
+greys, which pin nothing about the coefficients, nor with primaries alone,
+which pin nothing about the transfer function because 0 and 1 are the sRGB
+curve's fixed points.
+
+**Why four terms and not a flag.** Law 1 below says the complement is a
+term, never a mode flag; `by::outside(r)` is that word for a region.
+A coverage source has no English spatial complement ("outside a gradient" is
+not a picture), so the inversion takes the morpheme the neighbourhood
+already uses for exactly this — Skia's `clipOut`, the very call `by::outside`
+was written to replace. The alternative considered and rejected was
+`.invert()` on the gate value: it is the mode flag law 1 forbids, it would
+give `by::outside(r)` a second spelling, and it would be the only mutating
+verb in a vocabulary of factories.
+
 ### Cost, and the cache class
 
 `spans` rides a path effect, `edge` and `shape` ride a canvas clip — all
-three are the cheap paths those mechanisms already used. **`alpha` costs a
-`saveLayer` per masked group** and is the expensive member.
+three are the cheap paths those mechanisms already used. **The coverage
+gates cost a `saveLayer` per masked group** and are the expensive members.
+Within them nothing else costs anything: the complement is `kDstOut` instead
+of `kDstIn` (`dst·(1-a)` IS `1 - coverage`, for any source), and `luma` adds
+one dot product in C++ when the material resolves to a colour, or one SkSL
+pass over the coverage layer when it resolves to a shader.
 
 A mask whose selection is EVERYTHING is hoisted to wrap the whole node once,
 rather than per paint group. That is both the fast path and the exact one: a

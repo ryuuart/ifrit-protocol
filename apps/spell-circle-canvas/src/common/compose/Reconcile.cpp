@@ -368,7 +368,7 @@ bool Spans::operator==(const Spans &other) const {
 }
 
 /** A Gate compares the same way, and for the same reason — with one extra
- *  clause worth naming. An `alpha` gate holds a Material; a LIVE material
+ *  clause worth naming. A COVERAGE gate holds a Material; a LIVE material
  *  (uTime or a bound uniform) never compares equal, exactly as a live
  *  material fill never does, because a shader that resolves per frame is
  *  not a value this frame can vouch for. A static one compares by recipe
@@ -376,8 +376,12 @@ bool Spans::operator==(const Spans &other) const {
  *
  *  Kind-scoped by construction — "only the members its Kind reads are
  *  meaningful", the class's own contract — so each arm names exactly the
- *  fields that arm resolves. */
-static_assert(kFieldCount<Gate> == 7,
+ *  fields that arm resolves. `outside` is read by TWO arms — it is the one
+ *  complement question ("which side of the show set?") asked of a region
+ *  and of a coverage source — and leaving it out of either would make a
+ *  matte compare equal to its own inverse, so a pruned node would keep
+ *  showing the wrong half forever. */
+static_assert(kFieldCount<Gate> == 8,
               "Gate gained or lost a field — rule on it below (in the arm "
               "of the Kind that reads it), then bump this count.");
 bool Gate::operator==(const Gate &other) const {
@@ -390,7 +394,9 @@ bool Gate::operator==(const Gate &other) const {
     return angleDeg == other.angleDeg && propEqual(fraction, other.fraction);
   case Kind::Shape:
     return outside == other.outside && region == other.region;
-  case Kind::Alpha:
+  case Kind::Coverage:
+    if (outside != other.outside || channel != other.channel)
+      return false;
     if ((bool)coverage != (bool)other.coverage)
       return false;
     if (!coverage)

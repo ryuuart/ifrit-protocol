@@ -1202,6 +1202,36 @@ Gate outside(Region r);
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
 Gate alpha(Material coverage);
+/** …and its complement, a term of its own exactly as `outside` is: the
+ *  selected paint keeps what the Material does NOT cover. After Effects'
+ *  Alpha Inverted Matte. Costs nothing beyond `alpha` — the coverage layer
+ *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
+ *  and needs no shader. */
+Gate alphaOut(Material coverage);
+/** The OTHER coverage source, and the half the family was missing: the
+ *  selected paint keeps the Material's LUMA. After Effects' Luma Matte —
+ *  paint a matte in greys (or in anything) and its brightness is the
+ *  coverage.
+ *
+ *  **The luma law, stated once** (and `DESIGN.md`'s colour rule is the
+ *  argument): `Y' = 0.299 R' + 0.587 G' + 0.114 B'` — **Rec. 601
+ *  coefficients on the ENCODED values, taken on the PREMULTIPLIED
+ *  colour.** Compose paints into surfaces with NO colour space attached, so
+ *  a shader's channels are the display-encoded numbers the author wrote and
+ *  there is no linear stage to weight; Rec. 601's luma coefficients are the
+ *  set DEFINED on gamma-encoded R'G'B' (Rec. 709's 0.2126/0.7152/0.0722 are
+ *  LUMINANCE coefficients, defined on linear light, and using them here
+ *  would be the classic Poynton mistake). Premultiplied means a
+ *  TRANSPARENT matte reads as black and hides, the same way AE's does — a
+ *  half-transparent white and an opaque 50% grey are the same matte.
+ *
+ *  Same cost as `alpha` plus one SkSL pass over the coverage layer (none at
+ *  all when the Material resolves to a colour — the weighting is one dot
+ *  product in C++). */
+Gate luma(Material coverage);
+/** …and ITS complement: the selected paint keeps what the Material's luma
+ *  leaves DARK. After Effects' Luma Inverted Matte. */
+Gate lumaOut(Material coverage);
 } // namespace by
 
 /** HOW paint arrives past a mask — a comparable value built by the `by::`
@@ -1209,14 +1239,23 @@ Gate alpha(Material coverage);
  *  keep their defaults so the value compares. */
 class Gate {
 public:
-  enum class Kind : uint8_t { Spans, Edge, Shape, Alpha };
+  enum class Kind : uint8_t { Spans, Edge, Shape, Coverage };
+  /** Coverage: WHICH channel of the Material becomes coverage. The two
+   *  members are one mechanism — the same `saveLayer` and the same
+   *  compositing pass — so they are a field of one Kind and not two Kinds.
+   *  See `by::alpha` / `by::luma` for the law each names. */
+  enum class Channel : uint8_t { Alpha, Luma };
   Kind kind = Kind::Spans;
   Spans where;                       ///< Spans
   float angleDeg = 0.0f;             ///< Edge
   Animatable<float> fraction = 1.0f; ///< Edge
   Region region;                     ///< Shape
-  bool outside = false;              ///< Shape: keep what is OUTSIDE
-  /** Alpha. Held out of line because Material is declared in its own
+  /** Shape AND Coverage: keep the COMPLEMENT of what this gate names —
+   *  `by::outside`, `by::alphaOut`, `by::lumaOut`. One field because it is
+   *  one question ("which side of the show set?"), asked of two kinds. */
+  bool outside = false;
+  Channel channel = Channel::Alpha; ///< Coverage
+  /** Coverage. Held out of line because Material is declared in its own
    *  header, which includes this one. */
   std::shared_ptr<const Material> coverage;
 
@@ -1226,7 +1265,7 @@ public:
   bool operator==(const Gate &other) const;
   /** How many animatable floats this gate contributes, in the order
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
-   *  offset), one for an Edge fraction, none for Shape or Alpha (a
+   *  offset), one for an Edge fraction, none for Shape or Coverage (a
    *  Region is static and a Material animates itself). */
   size_t valueCount() const;
 };

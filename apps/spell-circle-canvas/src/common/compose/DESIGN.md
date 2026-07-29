@@ -142,6 +142,32 @@ CSS's model, simplified and explicit:
   bake has no live destination to read; see §Direction for the
   declared-input fix).
 
+**THE COLOUR RULE — compose composites in ENCODED sRGB, and there is no
+linear stage** (written down 2026-07-29, when `by::luma` forced someone to
+name it; true since the beginning). Every surface compose paints into is
+`N32Premul` with **no `SkColorSpace` attached** — the gallery's, the
+sketch host's, `Cache::Texture`'s bakes, `snapshot()`'s picture, the
+tests'. Skia does no transfer-function work in that mode, so an
+`SkColor4f` an author writes is the display-encoded number that lands in
+the byte, and a shader's channels are those same encoded numbers. This is
+the same convention SigilWorld's clear colour is pinned to (`world/`,
+846e184) and the reason SigilShape's blend tool linearises EXPLICITLY
+before going to OKLab: linear light is something a caller opts into for a
+particular computation, never the space the pipeline is in.
+
+Two consequences worth stating, because both are invisible until a
+specific picture goes wrong:
+
+- **Any weighting of colour channels inside compose uses coefficients
+  defined on ENCODED values.** `by::luma` is Rec. 601 (0.299/0.587/0.114)
+  for exactly this reason; Rec. 709's set is defined on linear light and
+  would be wrong here by 22/255 on red.
+- **A colour-managed surface would be a breaking change, not a
+  configuration.** If compose is ever given one, every such coefficient
+  is a site that must be ruled on again — starting with `by::luma`, whose
+  test would fail loudly and correctly. `ocio::` is deliberately an
+  output-stage LUT and not a working-space change for the same reason.
+
 ## Animation — one engine, two write paths, named grammars
 
 The substrate is single: choreograph Outputs stepped by one Ticker,
@@ -509,8 +535,13 @@ a third.
   and `wipe()` are DELETED, not aliased. Four rules generalise past
   this family:
   - **a gate is a SHOW set, and the complement is a term, never a mode
-    flag** (`by::outside`, `spans::rest`) — a reader auditing a picture
-    reads which way round it is off the call site;
+    flag** (`by::outside`, `spans::rest`, and — 2026-07-29 —
+    `by::alphaOut`/`by::lumaOut`) — a reader auditing a picture reads
+    which way round it is off the call site. The 2026-07-29 extension is
+    the rule's own test: an `.invert()` modifier on the gate value was
+    the obvious spelling and it is precisely the mode flag this forbids,
+    so the complement stayed a term even where English had no word for
+    it and the name had to be borrowed from `clipOut`;
   - **stacking intersects; union is spelled inside one value** — two
     conditions can only ever show less, and `Spans::operator|` is where
     "or" lives;
