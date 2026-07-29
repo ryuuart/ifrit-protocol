@@ -1,5 +1,6 @@
 #include "sigilworld/World.h"
 
+#include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 
 #include <sigilshape/detail/VecMath.h>
@@ -1898,6 +1899,15 @@ bool World::render() {
   Impl &impl = *m_impl;
   if (!impl.context)
     return false;
+
+  // Declared motion, before anything reads a component: resolve every
+  // animated lane into the TransformComponent / MaterialComponent /
+  // LightComponent / generator window it drives (Animation.h). A frame
+  // with no Animated* component walks four empty views and writes
+  // nothing — the imperative setters are untouched by this. NOTE: no
+  // clock is stepped here, by design; the caller owns the Ticker, so a
+  // headless render stays a pure function of the Outputs' values.
+  resolveAnimation(*this);
 
   // GPU sweeps first: rewrite every dirty sweep surface's vertices in
   // place (the POP-style generator pass), then draw them like any

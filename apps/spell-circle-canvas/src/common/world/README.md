@@ -194,7 +194,9 @@ objects. `World::registry()` opens the door to systems: attach your
 own components, iterate views, mutate transforms/material parameters
 and the next `render()` draws the result (texture swaps still
 re-create the surface — the SRB is baked). The scene layer below and
-any gameplay/animation systems above meet in the same registry.
+any gameplay/animation systems above meet in the same registry — and
+since 2026-07-29 one of those systems ships here: see **Declared
+motion** below for the `Animated*` components and `resolveAnimation()`.
 
 Lights and cameras are entities too:
 
@@ -210,6 +212,119 @@ Lights and cameras are entities too:
   `setCamera()` (which stays the fallback); deactivate or destroy it
   to fall back. Keep one active: with several, whichever the registry
   iterates first wins.
+
+## Declared motion (2026-07-29)
+
+`Animation.h` adds the SECOND animation door, next to — never instead
+of — the imperative setters. Until this date world's only way to move
+anything was two floats per frame: compute a value, call a setter. That
+still works, is still pinned, and is still the right tool for a one-off
+poke. What it could not do is DECLARE. `Animatable<float>` is that
+declaration, and it became reachable here when `Transition`,
+`Transitioned<T>`, `ease::`, `bind()` and `Animatable<T>` moved out of
+SigilCompose into `<sigilmotion/Animation.h>`: SigilMotion links
+choreograph and nothing else, so **SigilWorld now depends on SigilMotion
+(PUBLIC)** and remains compose-free.
+
+```cpp
+choreograph::Output<float> phase{0};
+ticker.timeline().apply(&phase).then<ch::RampTo>(1.0f, 8.0f);
+
+auto &reg = world.registry();
+reg.emplace<AnimatedMaterial>(entity(bandId)).uvOffsetX =
+    bind(&phase).target(0.0f, 1.0f);
+reg.emplace<AnimatedTransform>(entity(dartId), base).yawDeg =
+    bind(&phase).map(ease::inOutBack()).target(0.0f, 360.0f);
+
+for (int frame = 0; frame < 600; ++frame) {
+  ticker.tick(1.0 / 60.0);   // the CALLER owns the clock
+  world.render();            // resolves, then draws
+}
+```
+
+Four components, all opt-in, all additive: `AnimatedTransform`
+(base matrix + x/y/z + yaw/pitch/roll + scaleX/Y/Z, composed as
+`base * T * R * S` — the same order as `scene::Node::localMatrix()`),
+`AnimatedMaterial` (opacity → `baseColor.w`, emissiveStrength,
+uvOffsetX/Y, uvScaleX/Y), `AnimatedLight` (intensity, position x/y/z)
+and `AnimatedWindow` (a generator's `head`/`span`).
+`resolveAnimation()` is the system, in two halves: a free function over
+a bare `entt::registry` for the component lanes, and a `World&` overload
+that adds the window lanes and is what `render()` calls first thing.
+Both return `AnimationStats{transforms, materials, lights, windows}` —
+the same "pruning is observable" contract `scene::Scene::Stats` sets.
+
+Five rulings, because each of them is a thing we chose NOT to build:
+
+1. **Every lane is a float.** Not `Animatable<glm::vec3>`; a position is
+   three lanes. `bind()`'s normalise → curve → affine chain
+   (`source`/`window`/`map`/`target`/`quantize`/`clamp`) is FLOAT-ONLY,
+   and that chain is most of the value of the door — a vec3 slot could
+   hold only a plain constant or a raw binding, i.e. a weaker lane
+   wearing a fancier type. `Animatable<float>` converts implicitly from
+   float, so `at(0, 60, 0)` still reads like a position.
+2. **World owns no clock.** No `world.tick()`, no `render(dt)`, no
+   FrameClock in here. `FrameClock::tick()` reads `steady_clock`; a
+   world that ticked one inside `render()` would make every headless
+   plate a function of wall time, and the 13 `world_demo` artifacts must
+   be byte-reproducible. The caller steps a `motion::Ticker` with the
+   delta it chooses and `render()` stays a pure function of whatever the
+   Outputs hold. Pinned twice — `WorldAnimation.SameTimeYieldsTheSameNumber`
+   (frame *k* resolves bit-identically across runs, and a different dt
+   sequence lands elsewhere, so the claim is not about a constant) and
+   `WorldAnimation.AnimatedFrameRendersIdenticallyAcrossRuns` (frame 30
+   of two fresh Worlds is byte-equal, frame 31 is not). Inject a
+   wall-clock term into `resolveValue` and both fail.
+3. **`animate(...)` lands on its SETTLED value.** The lanes accept
+   `animate(to(v))` / `animate(from(a).to(b))` because they are the same
+   slot type compose uses — but ramp-on-change needs a CHANGE event, and
+   world has no describe/diff over components (they are mutated in
+   place). So a transitioned value resolves to its target with no ramp,
+   the way compose's `snapshot()` bakes one. To actually ramp, put the
+   ramp on the timeline and bind it.
+   (`AnimateFormLandsOnItsSettledValue`.)
+4. **The GPU-window lane is included, but only because it is
+   change-detected.** `AnimatedWindow` is the one lane in front of a
+   compute RE-COOK rather than a live shader parameter, and it is
+   exactly where an `Animatable` would have been a trap: an
+   unconditional write marks the surface dirty every frame and
+   re-dispatches forever, even while the bound Output sits still — a
+   300k-point flock re-scattering for nothing. So resolve writes ONLY
+   what moved, and for one rule everywhere, every other lane is
+   change-detected too (compared against the destination, so the first
+   resolve of an already-correct value is a no-op as well). A constant
+   lane costs exactly one re-cook, ever. The window routes through the
+   three public setters, each a documented no-op on a surface of the
+   wrong kind, so one component covers sweeps, flocks and pop chains
+   without world publishing which kind an entity is. Pinned by
+   `WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves` (which also
+   requires the animated cook to match the imperative
+   `setPointsWindow` cook point for point) and
+   `ResolveIsIdempotentAndReportsOnlyWhatMoved`.
+5. **Material/light lanes are `optional`, transform lanes are not.** A
+   transform component describes the WHOLE placement, so an unmentioned
+   lane genuinely means "no translation" / "unit scale". Material and
+   light lanes are PARTIAL overrides of a component the caller also
+   authors, so plain defaults would slam a pane's authored alpha 0.4 to
+   1 the moment you engaged `uvOffsetX`
+   (`MaterialLanesOverrideOnlyWhatTheyDeclare`).
+
+Declined on purpose, and why: **colour** (three independent linear-RGB
+float lanes are the wrong default for a colour ramp — this repo runs
+OKLab in `shape::blend` for precisely that reason, so a colour lane
+wants a colour type, not four floats in a trench coat); **the camera**
+(the "two floats per frame" pain scales with the number of surfaces, and
+there is exactly one camera, already moved by one `setCamera()` call —
+7 lanes for eye/target/fov buy nothing today, and it is the obvious next
+lane if a declared dolly is ever wanted); **quaternion rotation** (slerp
+needs an `Output<glm::quat>` and gets no `bind()` chain, so euler degrees
+— what `scene::Node` and the easel already speak — is the honest v1);
+**`pop::Chain` operator parameters** (a jitter amplitude or a ramp
+endpoint is just as animatable as a window, but the chain is a SigilShape
+value and putting `Animatable` inside it is that library's design, not
+this one's); and **`Material::texture`** (the SRB is baked, so it is not
+a live lane at all). `world_demo` was deliberately left on the imperative
+door: all 13 artifacts hash the same before and after this change.
 
 ## Instancing
 
@@ -274,7 +389,7 @@ panels are stable by construction.
 
 ```
 ./build/bin/Debug/world_demo [outdir] [assetdir]   # 6 PNG camera shots + scroll frames
-./build/bin/Debug/world_test                        # 34 tests; skips without a Vulkan runtime
+./build/bin/Debug/world_test                        # 43 tests; device-backed ones skip without a Vulkan runtime
 ```
 
 The demo builds a cockpit: three emissive UI cards, a curved

@@ -1,3 +1,4 @@
+#include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 #include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
@@ -13,14 +14,17 @@
 #include <include/core/SkSurface.h>
 
 #include <sigilcompose/Compose.h>
+#include <sigilmotion/Ticker.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 using namespace sigil;
 
@@ -1634,4 +1638,334 @@ TEST(WorldMarqueeSlice, SliceableReplaysTheSamePixels) {
               0)
         << "sliceable() replay differs on tile " << k;
   }
+}
+
+// ---------------------------------------------------------------------------
+// DECLARED MOTION (2026-07-29) — Animation.h.
+//
+// The second animation door: Animatable<float> lanes on registry
+// components, resolved by resolveAnimation() (which render() calls
+// itself). The imperative setters above are untouched; these pins
+// cover the new surface AND the three design rulings it rests on
+// (float-only lanes, no clock in world, animate() lands settled).
+// ---------------------------------------------------------------------------
+
+TEST(WorldAnimation, BoundLaneDrivesTheTransformWithoutADevice) {
+  // The device-free half of the system is a free function over a plain
+  // entt::registry — which is what makes the semantics pinnable on a
+  // machine with no Vulkan, where every world test above skips.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::TransformComponent>(e);
+  choreograph::Output<float> slide{0.0f};
+  registry.emplace<world::AnimatedTransform>(e).x = &slide;
+
+  slide = 40.0f;
+  world::AnimationStats stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.transforms, 1);
+  EXPECT_FLOAT_EQ(registry.get<world::TransformComponent>(e).model[3][0],
+                  40.0f);
+
+  slide = -12.5f;
+  stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.transforms, 1);
+  EXPECT_FLOAT_EQ(registry.get<world::TransformComponent>(e).model[3][0],
+                  -12.5f);
+}
+
+TEST(WorldAnimation, ShapedBindingRunsItsChainOnTheLane) {
+  // Ruling 1: lanes are float SO THAT bind()'s normalise -> curve ->
+  // affine chain reaches them. If the chain were dropped and the raw
+  // Output landed on the lane, this yaw would be 1 degree instead of
+  // 22.5 — the whole reason a vec3 lane was rejected.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::TransformComponent>(e);
+  choreograph::Output<float> phase{1.0f};
+  registry.emplace<world::AnimatedTransform>(e).yawDeg =
+      world::bind(&phase)
+          .window(0.0f, 2.0f)            // 1.0 -> 0.5
+          .map(&choreograph::easeInQuad) // 0.5 -> 0.25
+          .target(0.0f, 90.0f);          // 0.25 -> 22.5 deg
+  world::resolveAnimation(registry);
+
+  const glm::mat4 &m = registry.get<world::TransformComponent>(e).model;
+  EXPECT_NEAR(m[0][0], std::cos(22.5f * (float)M_PI / 180.0f), 1e-5f);
+  // A raw (unshaped) binding would have yawed 1 degree: cos = 0.99985.
+  EXPECT_LT(m[0][0], 0.99f) << "the bind() chain must run";
+}
+
+TEST(WorldAnimation, AnimateFormLandsOnItsSettledValue) {
+  // Ruling 3: these lanes accept compose's animate() because they are
+  // the same slot type — but ramp-on-change needs a CHANGE event, and
+  // world has no describe/diff over components. So a transitioned value
+  // resolves to its TARGET, no ramp, the way compose's snapshot() bakes
+  // one. Landing on the `from` (or on a zero) would be the bug.
+  using namespace std::chrono_literals;
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::TransformComponent>(e);
+  auto &animated = registry.emplace<world::AnimatedTransform>(e);
+  animated.z = world::animate(world::from(0.0f).to(7.0f), {500ms});
+  animated.x = world::animate(world::to(3.0f));
+  world::resolveAnimation(registry);
+
+  const glm::mat4 &m = registry.get<world::TransformComponent>(e).model;
+  EXPECT_FLOAT_EQ(m[3][2], 7.0f) << "from().to() settles on the target";
+  EXPECT_FLOAT_EQ(m[3][0], 3.0f);
+}
+
+TEST(WorldAnimation, MaterialLanesOverrideOnlyWhatTheyDeclare) {
+  // The optional lanes are not decoration: a component with plain
+  // defaults would slam this pane's authored alpha 0.4 to 1 and its
+  // uvScale 2 to 1 the moment uvOffsetX was engaged.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  world::Material authored;
+  authored.baseColor = {0.2f, 0.3f, 0.4f, 0.4f};
+  authored.emissiveStrength = 5.0f;
+  authored.uvScale = {2, 2};
+  registry.emplace<world::MaterialComponent>(e, authored);
+  choreograph::Output<float> scroll{0.0f};
+  registry.emplace<world::AnimatedMaterial>(e).uvOffsetX =
+      world::bind(&scroll).target(0.0f, 1.0f);
+
+  scroll = 0.25f;
+  const world::AnimationStats stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.materials, 1);
+  const world::Material &m =
+      registry.get<world::MaterialComponent>(e).material;
+  EXPECT_FLOAT_EQ(m.uvOffset.x, 0.25f);
+  EXPECT_FLOAT_EQ(m.baseColor.w, 0.4f) << "an undeclared lane is not driven";
+  EXPECT_FLOAT_EQ(m.uvScale.x, 2.0f);
+  EXPECT_FLOAT_EQ(m.emissiveStrength, 5.0f);
+  EXPECT_FLOAT_EQ(m.uvOffset.y, 0.0f);
+}
+
+TEST(WorldAnimation, ResolveIsIdempotentAndReportsOnlyWhatMoved) {
+  // Change detection, the property that keeps a lane in front of a GPU
+  // re-cook honest — and the reason AnimationStats exists at all
+  // (scene::Scene::Stats' "pruning is observable" contract).
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::TransformComponent>(e);
+  registry.emplace<world::MaterialComponent>(e);
+  registry.emplace<world::LightComponent>(e);
+  choreograph::Output<float> lift{0.0f};
+  choreograph::Output<float> fade{1.0f};
+  choreograph::Output<float> glow{1.0f};
+  registry.emplace<world::AnimatedTransform>(e).y = &lift;
+  registry.emplace<world::AnimatedMaterial>(e).opacity = &fade;
+  registry.emplace<world::AnimatedLight>(e).intensity = &glow;
+
+  // Every lane resolves to what the component already held, so the
+  // FIRST resolve is a no-op too — change detection compares against
+  // the destination, not against a "have I run yet" flag.
+  world::AnimationStats stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.transforms, 0) << "the composed matrix was already identity";
+  EXPECT_EQ(stats.materials, 0) << "alpha was already 1";
+  EXPECT_EQ(stats.lights, 0) << "intensity was already 1";
+
+  lift = 20.0f;
+  fade = 0.5f;
+  glow = 3.0f;
+  stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.transforms, 1);
+  EXPECT_EQ(stats.materials, 1);
+  EXPECT_EQ(stats.lights, 1);
+
+  // Nothing moved: a second resolve must write nothing at all.
+  stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.transforms, 0);
+  EXPECT_EQ(stats.materials, 0);
+  EXPECT_EQ(stats.lights, 0);
+  EXPECT_FLOAT_EQ(registry.get<world::TransformComponent>(e).model[3][1],
+                  20.0f);
+}
+
+TEST(WorldAnimation, SameTimeYieldsTheSameNumber) {
+  // DETERMINISM, half one: world owns NO clock (ruling 2). The caller
+  // steps a motion::Ticker with the delta it chooses, so the same frame
+  // index resolves to the same number, bit for bit, in a fresh process
+  // state — which is what makes a headless plate reproducible.
+  const auto run = [](double dt, int frames) {
+    motion::Ticker ticker;
+    choreograph::Output<float> phase{0.0f};
+    ticker.timeline().apply(&phase).then<choreograph::RampTo>(120.0f, 1.0f);
+    entt::registry registry;
+    const entt::entity e = registry.create();
+    registry.emplace<world::TransformComponent>(e);
+    registry.emplace<world::AnimatedTransform>(e).x =
+        world::bind(&phase).map(&choreograph::easeInOutQuad).scale(1.0f);
+    std::vector<float> trace;
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(dt);
+      world::resolveAnimation(registry);
+      trace.push_back(registry.get<world::TransformComponent>(e).model[3][0]);
+    }
+    return trace;
+  };
+
+  const std::vector<float> a = run(1.0 / 60.0, 60);
+  const std::vector<float> b = run(1.0 / 60.0, 60);
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i)
+    EXPECT_EQ(a[i], b[i]) << "frame " << i << " must be bit-identical";
+
+  // Not vacuous: the trace has to actually move, and a DIFFERENT dt
+  // sequence has to land somewhere else at the same frame index —
+  // otherwise "identical" would be a claim about a constant.
+  EXPECT_NE(a.front(), a.back());
+  const std::vector<float> fast = run(1.0 / 30.0, 60);
+  EXPECT_NE(a[10], fast[10]);
+}
+
+TEST(WorldAnimation, RenderResolvesTheLanesItself) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(40, 40), glm::mat4(1.0f),
+                    world::Material{});
+  ASSERT_NE(id, 0u);
+  choreograph::Output<float> fade{0.25f};
+  w->registry()
+      .emplace<world::AnimatedMaterial>(world::entity(id))
+      .opacity = &fade;
+
+  // No explicit resolveAnimation() call: render() owns that step.
+  ASSERT_TRUE(w->render());
+  EXPECT_FLOAT_EQ(w->registry()
+                      .get<world::MaterialComponent>(world::entity(id))
+                      .material.baseColor.w,
+                  0.25f);
+}
+
+TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
+  // DETERMINISM, half two: the same frame INDEX must produce the same
+  // pixels. If the new door made plates a function of wall time this is
+  // the test that would catch it.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 72;
+  config.clearColor = {0, 0, 0, 1};
+
+  const auto runTo = [&](int frames, SkBitmap *out) {
+    MAKE_WORLD_OR_SKIP(w, config);
+    shape::space::Camera camera;
+    camera.eye = {0, 0, 260};
+    camera.target = {0, 0, 0};
+    w->setCamera(camera);
+    const uint32_t id =
+        w->addSurface(shape::mesh::quad(90, 90), glm::mat4(1.0f),
+                      world::Material{});
+    ASSERT_NE(id, 0u);
+
+    motion::Ticker ticker;
+    choreograph::Output<float> spin{0.0f};
+    ticker.timeline().apply(&spin).then<choreograph::RampTo>(70.0f, 1.0f);
+    w->registry()
+        .emplace<world::AnimatedTransform>(world::entity(id))
+        .yawDeg = &spin;
+
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(1.0 / 60.0);
+      ASSERT_TRUE(w->render());
+    }
+    sk_sp<SkImage> frame = w->readback();
+    ASSERT_TRUE(frame);
+    out->allocPixels(
+        SkImageInfo::MakeN32Premul(config.width, config.height));
+    ASSERT_TRUE(frame->readPixels(nullptr, out->pixmap(), 0, 0));
+  };
+
+  SkBitmap first, second, later;
+  runTo(30, &first);
+  if (first.isNull())
+    GTEST_SKIP() << "no 3D backend";
+  runTo(30, &second);
+  runTo(31, &later);
+
+  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
+  EXPECT_EQ(std::memcmp(first.getPixels(), second.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "frame 30 must render identically across runs";
+  // Not vacuous: frame 31 is a different frame, so it must differ.
+  EXPECT_NE(std::memcmp(first.getPixels(), later.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "the animation must actually be moving";
+}
+
+TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
+  // The one lane sitting in front of a GPU RE-COOK. Two claims: it
+  // lands exactly where the imperative setter lands, and a lane that is
+  // not moving costs zero dispatches (without that, every animated
+  // flock would re-scatter forever behind a parked Output).
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    loop.push_back({140.0f * std::cos(a), 40.0f * std::sin(2 * a),
+                    140.0f * std::sin(a)});
+  }
+  const auto chain = [&] {
+    return (shape::pop::Chain)shape::pop::on(loop)
+        .count(128)
+        .window(1.0f, 0.5f)
+        .spread(9)
+        .seed(6)
+        .vary(0.3f);
+  };
+  const uint32_t animatedId =
+      w->addPoints(shape::mesh::quad(3, 3), chain(), world::Material{});
+  const uint32_t manualId =
+      w->addPoints(shape::mesh::quad(3, 3), chain(), world::Material{});
+  ASSERT_NE(animatedId, 0u);
+  ASSERT_NE(manualId, 0u);
+
+  choreograph::Output<float> head{0.35f};
+  auto &window =
+      w->registry().emplace<world::AnimatedWindow>(world::entity(animatedId));
+  window.head = &head;
+  window.span = 0.2f;
+
+  world::AnimationStats stats = world::resolveAnimation(*w);
+  EXPECT_EQ(stats.windows, 1);
+  // Parked Output: the second resolve must not touch the generator.
+  stats = world::resolveAnimation(*w);
+  EXPECT_EQ(stats.windows, 0) << "an unmoved lane must not re-cook";
+
+  w->setPointsWindow(manualId, 0.35f, 0.2f);
+  ASSERT_TRUE(w->render());
+  const shape::Cloud animatedCloud = w->readPoints(animatedId);
+  const shape::Cloud manualCloud = w->readPoints(manualId);
+  ASSERT_EQ(animatedCloud.size(), 128u);
+  ASSERT_EQ(manualCloud.size(), 128u);
+  for (size_t i : {size_t(0), size_t(64), size_t(127)}) {
+    EXPECT_NEAR(animatedCloud.positions[i].x, manualCloud.positions[i].x,
+                1e-4f);
+    EXPECT_NEAR(animatedCloud.positions[i].y, manualCloud.positions[i].y,
+                1e-4f);
+    EXPECT_NEAR(animatedCloud.positions[i].z, manualCloud.positions[i].z,
+                1e-4f);
+  }
+
+  // And it slides: move the Output and the cooked points move with it.
+  head = 0.8f;
+  stats = world::resolveAnimation(*w);
+  EXPECT_EQ(stats.windows, 1);
+  ASSERT_TRUE(w->render());
+  const shape::Cloud slid = w->readPoints(animatedId);
+  float moved = 0;
+  for (size_t i : {size_t(0), size_t(64), size_t(127)})
+    moved += glm::length(slid.positions[i] - animatedCloud.positions[i]);
+  EXPECT_GT(moved, 1.0f) << "the animated window must actually slide";
 }

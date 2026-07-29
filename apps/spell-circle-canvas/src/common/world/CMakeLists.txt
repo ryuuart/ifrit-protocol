@@ -14,6 +14,7 @@ add_library(SigilWorld STATIC
   Scene.cpp
   VolkShim.c
   World.cpp
+  include/sigilworld/Animation.h
   include/sigilworld/Components.h
   include/sigilworld/Easel.h
   include/sigilworld/Scene.h
@@ -39,8 +40,14 @@ if(APPLE)
     "VK_USE_PLATFORM_METAL_EXT=1;VK_USE_PLATFORM_MACOS_MVK=1")
 endif()
 
+# SigilMotion is PUBLIC because Animation.h puts motion::Animatable in
+# the public component surface. It links choreograph and nothing else —
+# no Skia, no Yoga, no kernel — which is exactly why the animation
+# VALUES could move out of SigilCompose (2026-07-29) and land here.
+# SigilWorld stays compose-free; world_test links SigilCompose
+# TEST-ONLY, below.
 target_link_libraries(SigilWorld
-  PUBLIC SigilShape unofficial::skia::skia EnTT::EnTT
+  PUBLIC SigilShape unofficial::skia::skia EnTT::EnTT SigilMotion
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 
