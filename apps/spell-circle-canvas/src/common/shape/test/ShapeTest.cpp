@@ -1362,6 +1362,268 @@ TEST(Import, PlyPartialSuffixTriplesStayScalarAndRgbFoldsAlphaOne) {
   EXPECT_EQ(part.scalarLanes.count("warm_b"), 0u);
 }
 
+TEST(Save, PlyRoundTripsPrimitiveLanes) {
+  // The PRIMITIVE class's closed loop: prim lanes write as PLY face
+  // properties and read back into Mesh::prims under the SAME names,
+  // through both spellings. A custom name rides along with the
+  // conventional "Color" — nothing here is special-cased by name.
+  Mesh quad = mesh::quad(10, 6); // 4 vertices, 2 triangles
+  ASSERT_EQ(quad.triangleCount(), 2u);
+  quad.prim("Color") = {{1, 0, 0, 1}, {0, 0.5f, 1, 0.25f}};
+  quad.prim("Charge") = {{0.5f, -2, 7, 1.0f / 3.0f},
+                         {1e-5f, 3, 0, 1}};
+
+  for (const bool binary : {false, true}) {
+    const std::string bytes = save::ply(quad, {.binary = binary});
+    ASSERT_FALSE(bytes.empty());
+    auto model = import::model(bytes.data(), bytes.size(), "prim.ply");
+    ASSERT_TRUE(model.has_value());
+    const import::Part &part = model->parts.front();
+    const Mesh &back = part.mesh;
+    ASSERT_EQ(back.triangleCount(), 2u);
+
+    const std::vector<glm::vec4> *color = back.primIf("Color");
+    ASSERT_NE(color, nullptr) << "binary=" << binary;
+    ASSERT_EQ(color->size(), 2u);
+    const std::vector<glm::vec4> *charge = back.primIf("Charge");
+    ASSERT_NE(charge, nullptr) << "binary=" << binary;
+    ASSERT_EQ(charge->size(), 2u);
+    // ascii pays %g's six significant digits; binary is bit-exact.
+    const float tol = binary ? 0.0f : 1e-6f;
+    for (size_t t = 0; t < 2; ++t)
+      for (int c = 0; c < 4; ++c) {
+        EXPECT_NEAR((*color)[t][c], quad.prims.at("Color")[t][c], tol);
+        EXPECT_NEAR((*charge)[t][c], quad.prims.at("Charge")[t][c],
+                    std::abs(quad.prims.at("Charge")[t][c]) * tol + tol);
+      }
+    if (binary) {
+      EXPECT_FLOAT_EQ((*charge)[0].w, 1.0f / 3.0f);
+      EXPECT_FLOAT_EQ((*charge)[1].x, 1e-5f);
+    }
+
+    // Cardinality stays unmistakable: the per-face lanes are NOT point
+    // lanes, so neither the Part's lanes nor asCloud() carry them.
+    EXPECT_EQ(part.scalarLanes.count("Color_r"), 0u);
+    EXPECT_EQ(part.colorLanes.count("Color"), 0u);
+    EXPECT_EQ(part.colorLanes.count("Charge"), 0u);
+    const Cloud cloud = part.asCloud();
+    EXPECT_EQ(cloud.colorIf("Charge"), nullptr);
+
+    // And merged() carries them out through Mesh::append.
+    EXPECT_EQ(model->merged().prims.count("Charge"), 1u);
+  }
+}
+
+TEST(Import, PlyFacePropertiesReplicateAcrossFanTriangles) {
+  // The trap: the reader fan-triangulates an n-gon into n-2 triangles,
+  // so ONE source face's attribute must be REPLICATED across all of
+  // them. A quad (2) plus a pentagon (3) gives 5 triangles from 2 face
+  // rows — a triangles-only file would prove nothing about this.
+  const char *ascii =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 6\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 2\n"
+      "property list uchar int vertex_indices\n"
+      "property float Color_r\nproperty float Color_g\n"
+      "property float Color_b\nproperty float Color_a\n"
+      "property float density\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n1 1 0\n0 1 0\n2 1 0\n2 0 0\n"
+      "4 0 1 2 3 1 0 0 1 2.5\n"
+      "5 1 2 3 4 5 0 0.25 0.5 0.75 -1.5\n";
+  auto model = import::model(ascii, std::strlen(ascii), "fan.ply");
+  ASSERT_TRUE(model.has_value());
+  const Mesh &mesh = model->parts.front().mesh;
+  ASSERT_EQ(mesh.triangleCount(), 5u); // 2 from the quad, 3 from the pent
+  const std::vector<glm::vec4> *color = mesh.primIf("Color");
+  ASSERT_NE(color, nullptr);
+  ASSERT_EQ(color->size(), 5u);
+  for (size_t t = 0; t < 2; ++t) {
+    EXPECT_FLOAT_EQ((*color)[t].x, 1.0f);
+    EXPECT_FLOAT_EQ((*color)[t].w, 1.0f);
+  }
+  for (size_t t = 2; t < 5; ++t) {
+    EXPECT_FLOAT_EQ((*color)[t].x, 0.0f);
+    EXPECT_FLOAT_EQ((*color)[t].y, 0.25f);
+    EXPECT_FLOAT_EQ((*color)[t].z, 0.5f);
+    EXPECT_FLOAT_EQ((*color)[t].w, 0.75f);
+  }
+  // A lone per-face scalar widens into .x — the "Id" convention.
+  const std::vector<glm::vec4> *density = mesh.primIf("density");
+  ASSERT_NE(density, nullptr);
+  ASSERT_EQ(density->size(), 5u);
+  EXPECT_FLOAT_EQ((*density)[1].x, 2.5f);
+  EXPECT_FLOAT_EQ((*density)[2].x, -1.5f);
+  EXPECT_FLOAT_EQ((*density)[4].x, -1.5f);
+  EXPECT_FLOAT_EQ((*density)[0].y, 0.0f);
+
+  // binary_little_endian fans identically: uchar count, int32 indices,
+  // then the face's raw floats.
+  std::vector<std::byte> bin;
+  const auto push = [&](const void *p, size_t n) {
+    const auto *b = static_cast<const std::byte *>(p);
+    bin.insert(bin.end(), b, b + n);
+  };
+  const char *header =
+      "ply\nformat binary_little_endian 1.0\n"
+      "element vertex 6\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 2\n"
+      "property list uchar int vertex_indices\n"
+      "property float Color_r\nproperty float Color_g\n"
+      "property float Color_b\nproperty float Color_a\n"
+      "property float density\n"
+      "end_header\n";
+  push(header, std::strlen(header));
+  const float verts[] = {0, 0, 0, 1, 0, 0, 1, 1, 0,
+                         0, 1, 0, 2, 1, 0, 2, 0, 0};
+  push(verts, sizeof(verts));
+  const uint8_t quadCount = 4;
+  const int32_t quadIdx[] = {0, 1, 2, 3};
+  const float quadAttrs[] = {1, 0, 0, 1, 2.5f};
+  push(&quadCount, 1);
+  push(quadIdx, sizeof(quadIdx));
+  push(quadAttrs, sizeof(quadAttrs));
+  const uint8_t pentCount = 5;
+  const int32_t pentIdx[] = {1, 2, 3, 4, 5};
+  const float pentAttrs[] = {0, 0.25f, 0.5f, 0.75f, -1.5f};
+  push(&pentCount, 1);
+  push(pentIdx, sizeof(pentIdx));
+  push(pentAttrs, sizeof(pentAttrs));
+  auto binModel = import::model(bin.data(), bin.size(), "fan.ply");
+  ASSERT_TRUE(binModel.has_value());
+  const Mesh &binMesh = binModel->parts.front().mesh;
+  ASSERT_EQ(binMesh.triangleCount(), 5u);
+  ASSERT_NE(binMesh.primIf("Color"), nullptr);
+  ASSERT_EQ(binMesh.primIf("Color")->size(), 5u);
+  EXPECT_FLOAT_EQ((*binMesh.primIf("Color"))[1].x, 1.0f);
+  EXPECT_FLOAT_EQ((*binMesh.primIf("Color"))[2].y, 0.25f);
+  ASSERT_NE(binMesh.primIf("density"), nullptr);
+  EXPECT_FLOAT_EQ((*binMesh.primIf("density"))[4].x, -1.5f);
+}
+
+TEST(Import, PlyFaceLanesTakeConventionalColorAndAnyDeclaredOrder) {
+  // (a) MeshLab spells per-face color red/green/blue/alpha; it lands in
+  // the same "Color" lane save::ply writes, integers normalized.
+  // (b) The face properties may be declared BEFORE the index list —
+  // the row is buffered, so the triangle count a lane replicates
+  // across does not depend on where the list sits.
+  const char *ascii =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 4\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 2\n"
+      "property uchar red\nproperty uchar green\n"
+      "property uchar blue\n"
+      "property float heat\n"
+      "property list uchar int vertex_indices\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n1 1 0\n0 1 0\n"
+      "255 0 0 9 3 0 1 2\n"
+      "0 255 255 4 4 0 1 2 3\n";
+  auto model = import::model(ascii, std::strlen(ascii), "meshlab.ply");
+  ASSERT_TRUE(model.has_value());
+  const Mesh &mesh = model->parts.front().mesh;
+  ASSERT_EQ(mesh.triangleCount(), 3u); // 1 triangle + a fanned quad
+  const std::vector<glm::vec4> *color = mesh.primIf("Color");
+  ASSERT_NE(color, nullptr);
+  ASSERT_EQ(color->size(), 3u);
+  EXPECT_NEAR((*color)[0].x, 1.0f, 1e-3f); // uchar normalized
+  EXPECT_NEAR((*color)[0].y, 0.0f, 1e-3f);
+  EXPECT_FLOAT_EQ((*color)[0].w, 1.0f); // no alpha channel -> 1
+  EXPECT_NEAR((*color)[1].z, 1.0f, 1e-3f);
+  EXPECT_NEAR((*color)[2].y, 1.0f, 1e-3f);
+  const std::vector<glm::vec4> *heat = mesh.primIf("heat");
+  ASSERT_NE(heat, nullptr);
+  ASSERT_EQ(heat->size(), 3u);
+  EXPECT_FLOAT_EQ((*heat)[0].x, 9.0f); // raw: ids stay ids
+  EXPECT_FLOAT_EQ((*heat)[1].x, 4.0f);
+  EXPECT_FLOAT_EQ((*heat)[2].x, 4.0f);
+}
+
+TEST(Import, PlyFaceLanesSurviveHostileFaceHeaders) {
+  // (a) A face naming a vertex past the count is dropped whole, and
+  // its per-face values go with it: the lane stays sized to
+  // triangleCount() rather than carrying a phantom entry.
+  const char *dropped =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 2\n"
+      "property list uchar int vertex_indices\n"
+      "property float Color_r\nproperty float Color_g\n"
+      "property float Color_b\nproperty float Color_a\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n"
+      "3 0 1 9 1 1 1 1\n"
+      "3 0 1 2 0.5 0.25 0.125 1\n";
+  auto model = import::model(dropped, std::strlen(dropped), "drop.ply");
+  ASSERT_TRUE(model.has_value());
+  const Mesh &mesh = model->parts.front().mesh;
+  ASSERT_EQ(mesh.triangleCount(), 1u);
+  ASSERT_NE(mesh.primIf("Color"), nullptr);
+  ASSERT_EQ(mesh.primIf("Color")->size(), 1u);
+  // The SURVIVING face's value, not the dropped one's.
+  EXPECT_FLOAT_EQ((*mesh.primIf("Color"))[0].x, 0.5f);
+
+  // (b) A face count no data could back is rejected before anything is
+  // sized from it — the prim path never resizes on a declared count.
+  const char *hugeFaces =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 4000000000\n"
+      "property list uchar int vertex_indices\n"
+      "property float Color_r\nproperty float Color_g\n"
+      "property float Color_b\nproperty float Color_a\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n"
+      "3 0 1 2 1 1 1 1\n";
+  EXPECT_FALSE(
+      import::model(hugeFaces, std::strlen(hugeFaces), "huge.ply")
+          .has_value());
+
+  // (c) A header promising more face rows than the body delivers fails
+  // the read instead of publishing a short lane.
+  const char *shortBody =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 3\n"
+      "property list uchar int vertex_indices\n"
+      "property float Color_r\nproperty float Color_g\n"
+      "property float Color_b\nproperty float Color_a\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n"
+      "3 0 1 2 1 1 1 1\n";
+  EXPECT_FALSE(
+      import::model(shortBody, std::strlen(shortBody), "short.ply")
+          .has_value());
+
+  // (d) A duplicate face property claims its lane once: the second
+  // declaration is read and discarded rather than appending a second
+  // time and desyncing the lane off triangleCount().
+  const char *duplicate =
+      "ply\nformat ascii 1.0\n"
+      "element vertex 3\n"
+      "property float x\nproperty float y\nproperty float z\n"
+      "element face 1\n"
+      "property list uchar int vertex_indices\n"
+      "property float heat\nproperty float heat\n"
+      "end_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n"
+      "3 0 1 2 6 7\n";
+  auto dupModel =
+      import::model(duplicate, std::strlen(duplicate), "dup.ply");
+  ASSERT_TRUE(dupModel.has_value());
+  const Mesh &dupMesh = dupModel->parts.front().mesh;
+  ASSERT_EQ(dupMesh.triangleCount(), 1u);
+  ASSERT_NE(dupMesh.primIf("heat"), nullptr);
+  ASSERT_EQ(dupMesh.primIf("heat")->size(), 1u);
+  EXPECT_FLOAT_EQ((*dupMesh.primIf("heat"))[0].x, 6.0f);
+}
+
 namespace {
 
 /** An Ogawa archive written fully in memory: a translated xform

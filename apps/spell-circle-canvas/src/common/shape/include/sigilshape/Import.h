@@ -10,7 +10,8 @@
  *    whether embedded (GLB chunk, data: URIs) or external files;
  *  - STL, ascii and binary: the 3D-print staple;
  *  - PLY, ascii and binary little-endian: THE attribute carrier —
- *    every non-conventional vertex property becomes a named lane, and
+ *    every non-conventional vertex property becomes a named lane,
+ *    every FACE property a primitive lane on Mesh::prims, and
  *    faceless files are honest point clouds;
  *  - Alembic, .abc Ogawa: the vfx cache — meshes and point clouds at
  *    a chosen time, arbGeomParams as lanes (Alembic library).
@@ -67,10 +68,27 @@ struct Part {
    *  spells as _NAME accessors and PLY as extra properties. Names
    *  arrive verbatim (glTF's leading underscore stripped). Routing by
    *  width: 1 -> scalars, 3 -> vectors, 2 and 4 -> colors (vec4,
-   *  zero-padded) — the same lane shapes Cloud speaks. */
+   *  zero-padded) — the same lane shapes Cloud speaks.
+   *
+   *  These three are the POINT class, one value per VERTEX. Per-face
+   *  attributes are a different cardinality and live in a different
+   *  container: `mesh.prims` (see below). */
   std::map<std::string, std::vector<float>, std::less<>> scalarLanes;
   std::map<std::string, std::vector<glm::vec3>, std::less<>> vectorLanes;
   std::map<std::string, std::vector<glm::vec4>, std::less<>> colorLanes;
+
+  /** Per-PRIMITIVE attributes need no member of their own: they land
+   *  in `mesh.prims`, the Mesh currency's primitive-lane container,
+   *  which is triangleCount()-sized by definition — so a per-face lane
+   *  can never be read as a per-vertex one, and Model::merged()
+   *  carries them through Mesh::append for free. PLY face properties
+   *  are the source (the read leg of save::ply's per-face write):
+   *  `name_r/_g/_b/_a` folds to the vec4 lane `name` (alpha defaults
+   *  to 1), `name_x/_y/_z` to `name` with w = 0, conventional
+   *  `red/green/blue/alpha` to "Color", and any lone scalar to `.x`
+   *  (the "Id" convention). A polygon that fan-triangulates replicates
+   *  its value across every triangle it produced. asCloud() is
+   *  point-class and does NOT carry them. */
 
   /** This part's vertices as a Cloud: positions, the conventional
    *  lanes ("t" by index, "normal", "uv", "tint" when colors exist),

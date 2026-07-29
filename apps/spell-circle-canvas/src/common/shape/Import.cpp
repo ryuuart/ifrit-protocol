@@ -542,6 +542,11 @@ std::optional<Model> importStl(const std::byte *bytes, size_t size) {
 // 0..1); EVERY other vertex property becomes a scalar lane under its
 // own name. Files without a face element are honest point clouds
 // (empty indices) — asCloud() is their natural consumer.
+//
+// FACE properties are the PRIMITIVE class and land in Mesh::prims, the
+// read leg of save::ply's per-face write: one value per TRIANGLE,
+// replicated when a polygon fans. Point lanes and prim lanes never
+// share a container, so their cardinalities cannot be confused.
 
 struct PlyScalarType {
   int size = 0;
@@ -604,6 +609,72 @@ struct PlyElement {
   size_t count = 0;
   std::vector<PlyProperty> properties;
 };
+
+/** Fold suffixed scalar triples/quads back into wide lanes — the
+ *  return leg of save::ply's spelling (name_x/_y/_z, name_r/_g/_b/_a)
+ *  — so a round trip reconstitutes vectors and colors, not loose
+ *  floats. Alpha is optional; it defaults to 1. Consumed components
+ *  leave @p scalars; a partial group, or one whose members disagree on
+ *  length, stays scalar.
+ *
+ *  BOTH attribute classes fold through here: the POINT lanes on the
+ *  Part and the PRIMITIVE lanes bound for Mesh::prims. The suffix
+ *  grammar is one grammar, so it gets one implementation — a second
+ *  copy would be the thing that drifts. */
+void foldSuffixedLanes(
+    std::map<std::string, std::vector<float>, std::less<>> &scalars,
+    std::map<std::string, std::vector<glm::vec3>, std::less<>> &vectors,
+    std::map<std::string, std::vector<glm::vec4>, std::less<>> &colors) {
+  std::vector<std::string> vectorBases, colorBases;
+  for (const auto &[name, lane] : scalars) {
+    if (name.size() > 2 && name.ends_with("_x"))
+      vectorBases.push_back(name.substr(0, name.size() - 2));
+    else if (name.size() > 2 && name.ends_with("_r"))
+      colorBases.push_back(name.substr(0, name.size() - 2));
+  }
+  for (const std::string &base : vectorBases) {
+    const auto x = scalars.find(base + "_x");
+    const auto y = scalars.find(base + "_y");
+    const auto z = scalars.find(base + "_z");
+    if (x == scalars.end() || y == scalars.end() || z == scalars.end())
+      continue;
+    const size_t n = x->second.size();
+    if (y->second.size() != n || z->second.size() != n)
+      continue;
+    std::vector<glm::vec3> &lane = vectors[base];
+    lane.resize(n);
+    for (size_t i = 0; i < n; ++i)
+      lane[i] = {x->second[i], y->second[i], z->second[i]};
+    scalars.erase(x);
+    scalars.erase(y);
+    scalars.erase(z);
+  }
+  for (const std::string &base : colorBases) {
+    const auto r = scalars.find(base + "_r");
+    const auto g = scalars.find(base + "_g");
+    const auto b = scalars.find(base + "_b");
+    if (r == scalars.end() || g == scalars.end() || b == scalars.end())
+      continue;
+    const size_t n = r->second.size();
+    if (g->second.size() != n || b->second.size() != n)
+      continue;
+    const auto alpha = scalars.find(base + "_a");
+    const bool alphaMatched =
+        alpha != scalars.end() && alpha->second.size() == n;
+    std::vector<glm::vec4> &lane = colors[base];
+    lane.resize(n);
+    for (size_t i = 0; i < n; ++i)
+      lane[i] = {r->second[i], g->second[i], b->second[i],
+                 alphaMatched ? alpha->second[i] : 1.0f};
+    scalars.erase(r);
+    scalars.erase(g);
+    scalars.erase(b);
+    // A size-mismatched "_a" was ignored above; only a consumed alpha
+    // lane is erased.
+    if (alphaMatched)
+      scalars.erase(base + "_a");
+  }
+}
 
 std::optional<Model> importPly(const std::byte *bytes, size_t size) {
   const std::string_view text = asText(bytes, size);
@@ -681,6 +752,12 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
   Part part;
   Mesh &mesh = part.mesh;
   bool hasNormals = false;
+  /** PRIMITIVE-class values as they arrive: raw floats under the
+   *  property's own name, one entry per TRIANGLE (not per face row —
+   *  see the fan replication below). Accumulated across every face
+   *  element, folded and widened into Mesh::prims once the body is
+   *  read. */
+  std::map<std::string, std::vector<float>, std::less<>> primScalars;
 
   // One reader per source; ascii tokenizes, binary walks a cursor.
   std::istringstream ascii(
@@ -772,8 +849,56 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
       }
     }
 
+    // Per-face lane targets, resolved once and parallel to
+    // element.properties (null for lists, for an unnamed property, and
+    // for a name already claimed in THIS element — a duplicate
+    // property would append twice and desync its lane). Nothing is
+    // sized from element.count: a header that promises face rows it
+    // never delivers allocates nothing here.
+    struct FaceLane {
+      std::vector<float> *lane = nullptr;
+      double scale = 1;
+    };
+    std::vector<FaceLane> faceLanes;
+    std::vector<double> faceRow;
+    if (isFace) {
+      faceLanes.resize(element.properties.size());
+      faceRow.assign(element.properties.size(), 0.0);
+      for (size_t p = 0; p < element.properties.size(); ++p) {
+        const PlyProperty &property = element.properties[p];
+        if (property.list || property.name.empty())
+          continue;
+        // MeshLab-style conventional per-face color is spelled
+        // red/green/blue/alpha; it is collected under the SUFFIXED
+        // name so the one folder below reconstitutes it as the same
+        // "Color" lane save::ply writes as Color_r/_g/_b/_a. Integer
+        // channels normalize, exactly like the vertex leg; every other
+        // property stays raw (ids stay ids).
+        const std::string &n = property.name;
+        const std::string laneName = n == "red"     ? "Color_r"
+                                     : n == "green" ? "Color_g"
+                                     : n == "blue"  ? "Color_b"
+                                     : n == "alpha" ? "Color_a"
+                                                    : n;
+        std::vector<float> *target = &primScalars[laneName];
+        const bool duplicate =
+            std::any_of(faceLanes.begin(),
+                        faceLanes.begin() + (std::ptrdiff_t)p,
+                        [target](const FaceLane &existing) {
+                          return existing.lane == target;
+                        });
+        if (duplicate)
+          continue;
+        const bool color = laneName != n;
+        faceLanes[p] = {target, color && !property.type.floating
+                                    ? 1.0 / property.type.intMax
+                                    : 1.0};
+      }
+    }
+
     for (size_t i = 0; i < element.count; ++i) {
       size_t sink = 0;
+      size_t faceTriangles = 0;
       for (const PlyProperty &property : element.properties) {
         if (property.list) {
           double countValue = 0;
@@ -806,10 +931,12 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
                 row.begin(), row.end(), [&mesh](uint32_t v) {
                   return (size_t)v < mesh.positions.size();
                 });
-            if (inRange)
+            if (inRange) {
               for (size_t k = 1; k + 1 < row.size(); ++k)
                 mesh.indices.insert(mesh.indices.end(),
                                     {row[0], row[k], row[k + 1]});
+              faceTriangles += row.size() > 2 ? row.size() - 2 : 0;
+            }
           }
         } else {
           double value = 0;
@@ -817,71 +944,67 @@ std::optional<Model> importPly(const std::byte *bytes, size_t size) {
             return std::nullopt;
           if (isVertex)
             sinks[sink](i, value);
+          else if (isFace)
+            faceRow[sink] = value;
         }
         ++sink;
       }
+      // The row's per-face values are REPLICATED across exactly the
+      // triangles the row produced: an n-gon fans into n-2 triangles,
+      // and a face naming a vertex that does not exist produces NONE.
+      // So the lanes stay in lockstep with triangleCount() by
+      // construction, and every byte allocated here is backed by index
+      // data that was actually read.
+      for (size_t p = 0; faceTriangles > 0 && p < faceLanes.size(); ++p)
+        if (faceLanes[p].lane)
+          faceLanes[p].lane->insert(
+              faceLanes[p].lane->end(), faceTriangles,
+              (float)(faceRow[p] * faceLanes[p].scale));
     }
   }
 
   if (mesh.positions.empty())
     return std::nullopt;
 
-  // Fold suffixed scalar triples/quads back into wide lanes — the
-  // return leg of save::ply's spelling (name_x/_y/_z, name_r/_g/_b/_a)
-  // — so a round trip reconstitutes vectors and colors, not loose
-  // floats. Alpha is optional; it defaults to 1.
+  foldSuffixedLanes(part.scalarLanes, part.vectorLanes, part.colorLanes);
+
+  // The PRIMITIVE class comes home to Mesh::prims — its OWN container,
+  // triangleCount()-sized BY DEFINITION, so a per-face lane can never
+  // be mistaken for a per-vertex one: Part's scalar/vector/color lanes
+  // and asCloud() stay strictly point-class. Same folder as the point
+  // lanes, then widened to the vec4 currency prims speak: a folded
+  // color IS the vec4 (this is save::ply's own Color_r/_g/_b/_a leg),
+  // a folded vector takes w = 0 (Mesh::append's pad for non-"Color"
+  // lanes), and a lone scalar lands in .x — the "Id" convention.
   {
-    std::vector<std::string> vectorBases, colorBases;
-    for (const auto &[name, lane] : part.scalarLanes) {
-      if (name.size() > 2 && name.ends_with("_x"))
-        vectorBases.push_back(name.substr(0, name.size() - 2));
-      else if (name.size() > 2 && name.ends_with("_r"))
-        colorBases.push_back(name.substr(0, name.size() - 2));
-    }
-    for (const std::string &base : vectorBases) {
-      const auto x = part.scalarLanes.find(base + "_x");
-      const auto y = part.scalarLanes.find(base + "_y");
-      const auto z = part.scalarLanes.find(base + "_z");
-      if (x == part.scalarLanes.end() || y == part.scalarLanes.end() ||
-          z == part.scalarLanes.end())
-        continue;
-      const size_t n = x->second.size();
-      if (y->second.size() != n || z->second.size() != n)
-        continue;
-      std::vector<glm::vec3> &lane = part.vectorLanes[base];
-      lane.resize(n);
-      for (size_t i = 0; i < n; ++i)
-        lane[i] = {x->second[i], y->second[i], z->second[i]};
-      part.scalarLanes.erase(x);
-      part.scalarLanes.erase(y);
-      part.scalarLanes.erase(z);
-    }
-    for (const std::string &base : colorBases) {
-      const auto r = part.scalarLanes.find(base + "_r");
-      const auto g = part.scalarLanes.find(base + "_g");
-      const auto b = part.scalarLanes.find(base + "_b");
-      if (r == part.scalarLanes.end() || g == part.scalarLanes.end() ||
-          b == part.scalarLanes.end())
-        continue;
-      const size_t n = r->second.size();
-      if (g->second.size() != n || b->second.size() != n)
-        continue;
-      const auto alpha = part.scalarLanes.find(base + "_a");
-      const bool alphaMatched = alpha != part.scalarLanes.end() &&
-                                alpha->second.size() == n;
-      std::vector<glm::vec4> &lane = part.colorLanes[base];
-      lane.resize(n);
-      for (size_t i = 0; i < n; ++i)
-        lane[i] = {r->second[i], g->second[i], b->second[i],
-                   alphaMatched ? alpha->second[i] : 1.0f};
-      part.scalarLanes.erase(r);
-      part.scalarLanes.erase(g);
-      part.scalarLanes.erase(b);
-      // A size-mismatched "_a" was ignored above; only a consumed
-      // alpha lane is erased.
-      if (alphaMatched)
-        part.scalarLanes.erase(base + "_a");
-    }
+    std::map<std::string, std::vector<glm::vec3>, std::less<>> primVectors;
+    std::map<std::string, std::vector<glm::vec4>, std::less<>> primColors;
+    foldSuffixedLanes(primScalars, primVectors, primColors);
+    const size_t tris = mesh.triangleCount();
+    // A lane the file under- or over-supplied is DROPPED whole rather
+    // than published at a lying cardinality — the same posture the
+    // dropped-face path takes, and the reason a header that promises
+    // face properties it never delivers cannot desync mesh.prims.
+    const auto publish = [tris](const std::string &name, size_t n) {
+      return tris > 0 && n == tris && !name.empty();
+    };
+    for (const auto &[name, lane] : primColors)
+      if (publish(name, lane.size()))
+        mesh.prims[name] = lane;
+    for (const auto &[name, lane] : primVectors)
+      if (publish(name, lane.size())) {
+        std::vector<glm::vec4> &out = mesh.prims[name];
+        out.resize(lane.size());
+        for (size_t i = 0; i < lane.size(); ++i)
+          out[i] = glm::vec4(lane[i], 0.0f);
+      }
+    for (const auto &[name, lane] : primScalars)
+      if (publish(name, lane.size())) {
+        std::vector<glm::vec4> &out = mesh.prims[name];
+        out.assign(lane.size(), glm::vec4{0});
+        for (size_t i = 0; i < lane.size(); ++i)
+          out[i].x = lane[i];
+      }
   }
 
   finishPart(part, hasNormals);

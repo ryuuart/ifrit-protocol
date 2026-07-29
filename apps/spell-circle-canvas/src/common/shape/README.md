@@ -35,7 +35,8 @@ Import.h     model files into that Mesh currency: OBJ (+MTL, via
              transforms baked, base-color material + texture),
              ascii/binary STL, and PLY (ascii + binary LE; hand-
              rolled) — THE attribute carrier: every non-conventional
-             vertex property becomes a named lane, faceless files are
+             vertex property becomes a named lane, every FACE property
+             a primitive lane on Mesh::prims, faceless files are
              point clouds — and Alembic .abc (Ogawa; meshes + point
              clouds at a chosen nearest-sample time, arbGeomParams as
              lanes). glTF _NAME custom accessors (Blender/
@@ -69,8 +70,9 @@ Save.h       the return leg of Import.h: save::ply(cloud|mesh) —
              smaller and bit-exact for big point dumps) with EVERY
              lane written ("normal" as nx/ny/nz,
              "tint" as uchar colors, customs as name / name_x.. /
-             name_r..; the importer folds them back, so round trips
-             are lossless). Loudest use: World::readPoints a
+             name_r..; prim lanes as FACE properties; the importer
+             folds them all back, so round trips are lossless for the
+             point AND primitive classes). Loudest use: World::readPoints a
              GPU-cooked pop surface and hand the file to Houdini or
              Blender
 Materials.h  literal materials: gold foil / chrome / glass SkSL
@@ -183,7 +185,9 @@ Three ways in and three ways out:
   vertex-only renderer — show flat per-primitive colour unchanged.
 - **Out, to the interchange world**: `save::ply` declares each lane on
   the PLY **face** element (`name_r/_g/_b/_a`, after the index list),
-  which is how Houdini and Blender read per-face attributes.
+  which is how Houdini and Blender read per-face attributes — and
+  `import::model` reads them back into `Mesh::prims` (2026-07-29,
+  below), so the trip is a round one.
 
 Executor boundary, stated: prim lanes are **CPU-only** in this pass.
 The GPU executor cooks the point class into lane arenas and has no
@@ -194,9 +198,47 @@ rather than dropping it silently — the same graceful boundary
 
 Deferred on purpose: the swept sinks (`cookTube`/`cookRibbon`/
 `cookSweep`) promote nothing — their triangles ride RESAMPLED
-cross-sections, so there is no owning point; the PLY *importer* skips
-face properties, so prim lanes are export-only today; and no edge
-class exists (nothing in the library addresses half-edges).
+cross-sections, so there is no owning point; and no edge class exists
+(nothing in the library addresses half-edges).
+
+### The prim lanes' way back in (2026-07-29)
+
+The read leg lands, so the PLY round trip is **closed for both
+attribute classes**: face properties import into `Mesh::prims` under
+the same names `save::ply` wrote them with, ascii and
+`binary_little_endian` alike. Blender or Houdini can now be a step in
+the middle of the pipe, not just the end of it.
+
+They need no new member on `import::Part`. `mesh.prims` is already
+`triangleCount()`-sized *by definition*, which is the whole point: a
+per-face lane parked next to `Part::scalarLanes` would be one
+`asCloud()` away from a silent per-vertex misread, and putting it in
+its own container makes the cardinality unmistakable and carries it
+through `Model::merged()` (via `Mesh::append`) for free.
+
+The suffix grammar is **one** grammar, so it has one implementation —
+`foldSuffixedLanes` folds `_x/_y/_z` and `_r/_g/_b/_a` for the point
+lanes and the prim lanes both (neuter it and tests of both classes
+fail). Prims speak `vec4` only, so a folded colour IS the vec4 (alpha
+defaults to 1), a folded vector takes `w = 0` (`append`'s pad for
+non-`"Color"` lanes), and a lone scalar lands in `.x` — the `"Id"`
+convention. Conventional per-face `red/green/blue/alpha` (what MeshLab
+writes) is collected under the suffixed spelling, so it reconstitutes
+as the same `"Color"` lane with integers normalized.
+
+**Fan triangulation is the case that breaks.** The reader fans an
+n-gon into n-2 triangles, so a face row's value is REPLICATED across
+exactly the triangles that row produced — and a face naming a vertex
+that does not exist produces NONE, so its values are dropped with it.
+Face rows are therefore BUFFERED: the lanes cannot be appended until
+the row's triangle count is known, which also means the face
+properties may be declared before or after the index list. Nothing on
+this path is sized from a declared count, so a header promising face
+properties the body never delivers fails the read instead of
+over-allocating, and a duplicate face property claims its lane once
+rather than appending twice. Lanes that still end up off
+`triangleCount()` are dropped whole rather than published at a lying
+cardinality.
 
 ## Space (Skia's 3D)
 
@@ -278,5 +320,6 @@ lanes, instancing, billboard coverage, extrude caps, grid/torus
 normals, camera projection, material shader compilation, the import
 formats (OBJ/glTF/GLB/STL/PLY/Alembic) and PLY save round trips, the
 pop chains and their sinks, and the primitive attribute layer
-(lane sizing/append padding, promote, flat draw, bakePrimColor, PLY
-face properties).
+(lane sizing/append padding, promote, flat draw, bakePrimColor, and
+the PLY face-property round trip both ways through both spellings —
+fan triangulation, conventional per-face colour, hostile headers).
