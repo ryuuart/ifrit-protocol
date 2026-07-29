@@ -208,18 +208,16 @@ Element &corners(Corners);
 // hold ONE Shape value (copies of one Shape compare equal).
 Element &shape(Shape);                           // `outline()` DELETED (R3)
 Element &clip(bool = true);
-// Trim Path (Lottie/sksg) — CONDEMNED, and one of the three legacies R3
-// did NOT delete (see the R3 note in ROADMAP §33: 2 of its 17 remaining
-// sites reveal a PAINTING FILL, which spans has no spelling for, so the
-// replacement interface is still to be designed).
-// It reveals the fill surface AND every outline-following
-// decoration at once, which is why it moved: a reveal belongs to a
-// PASS. `.stroke(spans::upTo(t), brush)` is the taught spelling,
-// `spans::wrap` is TrimMode::Wrap, and `.offset(o)` is the third
-// argument. Paint-phase only: clipping and hit-testing keep the
-// untrimmed shape.
-Element &trim(Animatable<float> start, Animatable<float> end,
-              Animatable<float> offset = 0.0f, TrimMode = TrimMode::Clamp);
+// Trim Path (Lottie/sksg) was `Element &trim(start, end, offset, TrimMode)`
+// here. R4 DELETED it along with `wipe()`, and the `TrimMode` enum with it
+// — see the fold table under "Masking" below, which is the same statement
+// this section used to contradict. It revealed the fill surface AND every
+// outline-following decoration at once, and that is why it moved: a reveal
+// belongs to a PASS.
+//   trim(a, b)          -> .stroke(spans::upTo(t), brush) for the marks,
+//                          .mask(by::spans(...)) when the FILL must reveal
+//   TrimMode::Wrap      -> spans::wrap(begin, end)
+//   the offset argument -> spans::….offset(o)
 
 // ---- paint (ours; stacking per DESIGN.md) ----
 // .fill() is kernel; every setter takes an Animatable, so
@@ -2674,7 +2672,7 @@ Used deliberately, for errors and ergonomics rather than cleverness:
 - **Defaulted `operator==`** makes any aggregate usable as props:
   `struct RowData { ...; bool operator==(const RowData&) const = default; };`
   — memo works with zero ceremony; **designated initializers** make
-  call sites self-documenting (`Grid{.columns = 3, .gap = 12}`).
+  call sites self-documenting (`RowData{.name = "…", .score = 12}`).
 - **Ranges**: `children()` accepts any range of `Element`, so
   `column.children(rows | std::views::transform(scoreRow))` replaces
   the loop.

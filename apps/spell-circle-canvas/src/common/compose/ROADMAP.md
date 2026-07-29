@@ -1857,6 +1857,100 @@ a property of the FRAME and not of text, and every consumer of a circular
 contour wanted it. A field on `TextPath` would have been the fifth copy
 of the arithmetic wearing the name of its first caller.
 
+### 2026-07-29 — the guard is GENERATED now, and it found four more
+
+The entry's own lesson was about the guard, so the guard is what changed.
+`test/docs/api_doc_probes.py` reads `API.md`, `DESIGN.md` and
+`STRESS_TESTS.md`, extracts every documented name, and emits
+`ComposeApiDocProbes.cpp` — a TU in `compose_test` that only builds if
+the headers still spell those names that way. CMake regenerates it
+whenever a doc or a public header changes, so a section written tomorrow
+is covered tomorrow. **Nothing is registered per section**, which is the
+one property the hand-transcribed guards did not have.
+
+**Coverage, before and after.** Across `API.md`'s 42 `cpp` blocks there
+are 217 qualified-name instances. The four `ComposeDocs.EverySignature…`
+tests together name **60 of them, touching 18 of the 37 blocks that carry
+names at all** — and nothing outside the blocks. The generated TU checks
+**207 of 217, in all 37**, plus every name in the prose's inline spans,
+plus both other documents: **167 using-probes + 52 member-probes + 25
+designated-initialiser probes + 34 header-index checks = 278 checked
+names, 23 excluded with a written reason, 0 unresolved**.
+
+**Why generated names and not compiled blocks.** The obvious mechanical
+route — compile each ```cpp block — was measured and rejected: **5 of 42
+blocks compile verbatim**, and the 5 are the WORST case, not the best.
+`struct PaintContext {…}` and `class Composer {…}` "compile" inside a
+function body by declaring a LOCAL type that touches no header at all, so
+block compilation would report success on precisely the header
+recitations it is supposed to check. The other 37 are pedagogical by
+design: dangling `.stroke(…)` fragments with no receiver, menus with no
+semicolons, `{...}` and `…` elisions. Making them compile means rewriting
+the document into a literate program, and any transformation clever
+enough to fix them (inserting receivers, semicolons, a placeholder
+vocabulary) is magic that hides errors. So the mechanical thing that IS
+extractable is the NAMES, and they are extracted exhaustively. The four
+hand-written tests stay: they check argument ORDER (which is what caught
+`brush::restyle`), and no name probe can.
+
+**Three probe forms**, because one does not fit. A namespace-scope entity
+is a `using`-declaration — the only spelling that works uniformly for
+overload sets, types, variables and enumerators. A class member is a
+`requires` disjunction. A designated initialiser gets its own form,
+`T{.field = Any{}}`, for two reasons: `PathFormat{.effects = …}` never
+spells `PathFormat::effects`, which is exactly how the §25 defect
+survived; and it asks a STRICTER question than existence, because
+`PathFormat{.paint = …}` names the real member function `paint` and every
+existence form answers yes while the initialiser still does not compile.
+
+**The positive control found a hole in the guard's own first draft.**
+Reintroducing `PathFormat{.effects = …, .paint = …}` verbatim, the guard
+PASSED. Its exclusion table had entries for those two spellings, added on
+the theory that API.md names them in prose to warn against them — an
+exclusion that disarmed the guard for the one defect it exists to
+prevent. (API.md spells that warning as bare `paint`/`effects`, which is
+not a probed form; no exclusion was ever needed.) Removed, and the table
+now says in writing that nothing may name a defect spelling. With that
+fixed the control fails the BUILD, both designators named, and two more
+controls — a renamed `shapes::chamfered` and an invented `ClipMode` —
+fail the compile and the generator respectively.
+
+**What the widened guard caught**, beyond the ten:
+
+1. **`API.md` documented `Element &trim(...)` and `TrimMode` as live
+   API.** R4 deleted both with `wipe()`. The document contradicted
+   ITSELF — its own masking fold table says "`trim()` and `wipe()` are
+   **deleted**" 2000 lines later. The signature block is replaced by the
+   fold: `spans::upTo` / `by::spans` for the reveal, `spans::wrap` for
+   `TrimMode::Wrap`, `.offset(o)` for the third argument.
+2. **`STRESS_TESTS.md` named a layout scheme that does not exist** —
+   `Grid{.columns, .gap}`; the header ships `layouts::ModularGrid` with
+   `columns`/`rows`/`gutter`, no `gap`.
+3. **`API.md` illustrated designated-initialiser syntax with `Grid{.columns
+   = 3, .gap = 12}`** — a made-up example name that collides with the real
+   `kit::Grid`, so the doc reads as documenting a type it is not. Now
+   `RowData{…}`, the fiction the same bullet already introduces.
+4. **A stale header comment, REPORTED not fixed** (headers win, and this
+   is a behaviour question): `Decorations.h:578` still calls `gappedRule`
+   "one of the two legacies R3 did not delete (with `Element::trim`…)".
+   R4 deleted `Element::trim`, so the sentence counts a legacy that is
+   gone. Same for `Compose.h:2457`, which lists `trim()` among the things
+   that dress a rail.
+
+**23 exclusions, each with a reason**, are the cost of probing prose as
+well as blocks: `API.md` deliberately names deleted spellings
+(`Rail::offset`, `Brush::op`, `Ribbon::widthFn`, the R3 rename tables),
+worked-example fictions (`Palette`, `RowData`), and one name a study
+reached for and did not find (`shapes::subtract`). An exclusion is keyed
+to the exact spelling so it can never widen to a sibling.
+
+Doc and test changes only — no compose behaviour moved, so no plate
+ledger. `compose_test` is 484 (483 + the 1 expected skip); the new case
+is `ComposeDocs.EveryNameInTheDocsResolvesAgainstTheHeaders`, which
+asserts the extractor still matches something, because a guard whose
+extractor silently matches nothing compiles perfectly and proves nothing
+— the §25 failure one level up.
+
 ## 26. Two studies are not reproducible captures, and every pixel sweep will blame the wrong change — CLOSED
 Two studies drew their own measured timings into their own plates, so any
 pixel sweep reported them as changed by a patch that changed nothing;

@@ -226,7 +226,8 @@ measurement. Phases refer to DESIGN.md's plan.
 
 ## Layout (P1, P4)
 
-6. **Lightweight grid** — `LayoutScheme` grid (`Grid{.columns, .gap}`)
+6. **Lightweight grid** — `LayoutScheme` grid
+   (`layouts::ModularGrid{.columns, .rows, .gutter}`)
    with flex content nested inside cells and the grid nested inside a
    flex column. Exercises: custom layout protocol, Yoga interop both
    directions. *golden*

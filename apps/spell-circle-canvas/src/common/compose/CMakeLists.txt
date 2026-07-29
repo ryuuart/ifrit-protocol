@@ -75,7 +75,39 @@ endif()
 # slice's dominant theme; suites interleave across slices because the
 # original file grew chronologically, and reshuffling 440 tests by suite
 # was judged a bigger risk than a name that is only mostly right.
+# The docs' documented names, compiled against the headers that own them.
+# ROADMAP §25: the hand-transcribed `ComposeDocs.EverySignature…` guards
+# cover the sections someone remembered to transcribe, which is how a
+# `PathFormat{.effects = …}` that does not compile reached page one. This
+# TU is GENERATED from the docs on every build, so a new section is covered
+# the moment it is written and a rename that the prose misses is a build
+# break rather than a confident wrong answer. The generator FAILS on a
+# documented name no header declares — the guard cannot go quiet.
+set(COMPOSE_API_DOC_PROBES
+    ${CMAKE_CURRENT_BINARY_DIR}/ComposeApiDocProbes.cpp)
+file(GLOB_RECURSE COMPOSE_PUBLIC_HEADERS
+     CONFIGURE_DEPENDS include/sigilcompose/*.h)
+add_custom_command(
+  OUTPUT ${COMPOSE_API_DOC_PROBES}
+  COMMAND ${CMAKE_COMMAND} -E env python3
+          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/API.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/DESIGN.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/STRESS_TESTS.md
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
+          --out ${COMPOSE_API_DOC_PROBES}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/API.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/DESIGN.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/STRESS_TESTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
+          ${COMPOSE_PUBLIC_HEADERS}
+  COMMENT "Extracting the compose docs' documented names into compile probes"
+  VERBATIM)
+
 add_executable(compose_test
+  ${COMPOSE_API_DOC_PROBES}
   test/ComposeTestKernel.cpp
   test/ComposeTestContent.cpp
   test/ComposeTestLines.cpp
@@ -88,6 +120,9 @@ add_executable(compose_test
 )
 target_link_libraries(compose_test PRIVATE
   SigilCompose SigilWeavePorts GTest::gtest_main)
+# The generated probe TU lives in the binary dir and includes the shared
+# harness by name, like every hand-written slice does.
+target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 add_test(NAME compose_test COMMAND compose_test)
 
 # The kit tier (include/sigilcompose/kit/*.h). Separate binary rather than
