@@ -1776,6 +1776,13 @@ public:
   Element &margin(float all);
   Element &margin(float horizontal, float vertical);
   Element &margin(float left, float top, float right, float bottom);
+  /** The flex BASIS, not a guarantee. `shrink` defaults to 1 (faithful
+   *  Yoga/CSS), so a `width(150)` child of a row that overflows is 150 px
+   *  wide only until the row runs out of room — then it gives some back,
+   *  and the failure is silent overlap rather than an error. Pair with
+   *  `.shrink(0)` when `width(150)` means "this IS 150" (ROADMAP §14: the
+   *  call site reads like a promise, and one study spent an iteration on
+   *  it). The same holds for `height()` in a column. */
   Element &width(Dim d);
   Element &height(Dim d);
   Element &minWidth(Dim d);

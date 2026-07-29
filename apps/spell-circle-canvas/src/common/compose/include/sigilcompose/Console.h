@@ -80,6 +80,31 @@ struct Style {
   bool operator==(const Style &) const = default;
 };
 
+/** ONE console row — the exact Element `console()` builds for each line,
+ *  including the `con#<seq>` key the whole O(1) append story rests on.
+ *
+ *  Exposed because `console()` builds its rows internally, and a row built
+ *  internally cannot be given an entrance: `staggerChildren()` delays the
+ *  `animate()` mount transitions its children DECLARE, and a plain `text()`
+ *  declares none, so "the console types out on mount" was inexpressible
+ *  through the component (ROADMAP §14 — this is the entry's own second
+ *  option, and the smaller one; `Style::entrance` would have been a
+ *  decision about what an entrance IS).
+ *
+ *      auto panel = box().column().gap(st.gap).clip().staggerChildren(40ms);
+ *      for (const console::Line &l : ring.lines())
+ *        panel.child(console::line(l, st).opacity(
+ *            animate(from(0.0f).to(1.0f), {180ms, &choreograph::easeNone})));
+ *
+ *  The window is yours in that spelling — `console()` shows the last
+ *  `Style::visibleLines`, three lines of arithmetic you now own. */
+inline Element line(const Line &l, const Style &style) {
+  const sigil::weave::TextStyle &ts = l.paletteIndex < style.palette.size()
+                                          ? style.palette[l.paletteIndex]
+                                          : style.text;
+  return text(l.text, ts).key("con#" + std::to_string(l.seq));
+}
+
 /** The console: the ring's last visibleLines as seq-keyed rows. Re-render
  *  on every append — reconciliation prices it at one mount (the tail), one
  *  unmount (the scrolled head), zero patches on surviving lines. */
@@ -104,15 +129,8 @@ inline Element console(const LineRing &ring, const Style &style) {
   const std::deque<Line> &lines = ring.lines();
   const size_t n = lines.size();
   const size_t from = n > style.visibleLines ? n - style.visibleLines : 0;
-  for (size_t i = from; i < n; ++i) {
-    const Line &line = lines[i];
-    const sigil::weave::TextStyle &ts =
-        line.paletteIndex < style.palette.size()
-            ? style.palette[line.paletteIndex]
-            : style.text;
-    panel.child(
-        text(line.text, ts).key("con#" + std::to_string(line.seq)));
-  }
+  for (size_t i = from; i < n; ++i)
+    panel.child(line(lines[i], style)); // console::line — the row, exposed
   if (style.cursorColor.fA > 0) {
     Element cursor = box().width(style.cursorWidth)
                          .height(style.cursorHeight)
@@ -123,6 +141,66 @@ inline Element console(const LineRing &ring, const Style &style) {
     panel.child(std::move(cursor));
   }
   return panel;
+}
+
+/** How tall a console of `lines` rows is at this `style` — the number
+ *  `Style::visibleLines` always implied and never gave (ROADMAP §21).
+ *
+ *  Filed by `dunhuang_star_chart`, which stacks three `LineRing`s with
+ *  hairline dividers inside ONE fixed-height panel and had to hand-tune
+ *  that height against 9.2 px mono × 12 lines. With this the panel is
+ *  arithmetic over an answer:
+ *
+ *      const float rows = console::height(logStyle(), fonts);
+ *      const float h = 2 * padY + 3 * rows + 4 * gap + 2 * dividerWidth;
+ *
+ *  **It measures, it does not compute.** A probe ring of `lines` rows goes
+ *  through the real `console()` and the real `compose::measure()`, so the
+ *  answer includes `Style::gap` between the rows, the cursor row when
+ *  `cursorColor` is opaque, and whatever SigilWeave's line metrics and
+ *  Yoga's pixel grid do to a text node. The arithmetic spelling —
+ *  `metrics(style.text, fonts).lineHeight * lines + gap * (lines - 1)` —
+ *  is not merely less tidy, it is WRONG by most of a row: at the study's
+ *  9.2 px mono × 12 it answers 121.4 where the laid-out console is 131,
+ *  because each row is ceil()ed to the pixel grid before the gaps are
+ *  added and the arithmetic ceils nothing (measured as this function's
+ *  positive control).
+ *
+ *  Three properties worth knowing:
+ *
+ *  - **It clamps to the window.** The probe runs through `console()`, which
+ *    shows only the last `visibleLines`, so `height(style, 400, fonts)` on
+ *    a 12-line window is the 12-line height. That is the point: the console
+ *    is virtualized and its height is bounded by its style.
+ *  - **Rows are measured at `Style::text`.** `Line::paletteIndex` selects
+ *    another `TextStyle`, and a palette entry at a different SIZE makes its
+ *    row a different height. Every plate in the corpus varies palette
+ *    entries by COLOUR only (`monoStyle` enforces exactly that), so this is
+ *    the honest answer for them and a lower bound for anyone who does
+ *    otherwise.
+ *  - **A row that WRAPS is taller.** The probe measures unconstrained, so
+ *    each row is one line box. A real row long enough to wrap at the
+ *    console's final width takes two, which is what `clip()` is for.
+ *
+ *  The `box()` shell is the `snapshot()`/`measure()` sizing rule
+ *  (Instances.h, Brushes.h): those size by the root's CHILDREN, not the
+ *  root's own dims. It does not bite here — `console()` returns a panel
+ *  that never sets its own width or height — and the shell keeps it that
+ *  way if that ever changes. The pin asserts both spellings agree rather
+ *  than assuming it — see
+ *  `ComposeConsole.VisibleLinesHasAHeightAndThreeRingsFitOnePanel`. */
+inline float height(const Style &style, size_t lines,
+                    sigil::weave::FontContext &fonts) {
+  LineRing probe(lines > 0 ? lines : 1);
+  for (size_t i = 0; i < lines; ++i)
+    probe.append(u8"H");
+  return compose::measure(box().child(console(probe, style)), fonts).height();
+}
+
+/** The height of the style's OWN window — `height(style, style.visibleLines,
+ *  fonts)`, which is what an author laying out a console panel wants. */
+inline float height(const Style &style, sigil::weave::FontContext &fonts) {
+  return height(style, style.visibleLines, fonts);
 }
 
 // ---------------------------------------------------------------------------

@@ -340,6 +340,30 @@ TEST(ComposePaint, EchoStampsShapeUnderTheFill) {
   EXPECT_EQ(host.pixel(115, 115), SK_ColorGREEN);
 }
 
+TEST(ComposePaint, EchoesAppendSoRegistrationDoublingIsTwoCalls) {
+  // ROADMAP §14 filed "echo() takes a single stamp — registration doubling
+  // on a light display face wants one each side of the glyph run, not one
+  // behind it". NEVER REAL: Echo is stored in a VECTOR and echo() appends,
+  // so one call each side is the whole feature. The symptom was real (the
+  // author wanted two); the mechanism was a guess.
+  Host host;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(60, 60, 100, 100)
+                                       .fill(red())
+                                       .echo({-14, -14}, {0, 0, 1, 1})
+                                       .echo({14, 14}, {0, 1, 0, 1})
+                                       .echo({20, 20}, {1, 1, 0, 1})));
+  host.frame();
+  EXPECT_EQ(host.pixel(90, 90), SK_ColorRED);     // the real pass, on top
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);    // one stamp up-left…
+  EXPECT_EQ(host.pixel(76, 110), SK_ColorGREEN);  // …one down-right
+  EXPECT_EQ(host.pixel(118, 118), SK_ColorYELLOW);
+  // Declaration order is bottom-first, so the LAST echo wins where they
+  // overlap — three stamps, not one, and they are ordered.
+  EXPECT_EQ(host.pixel(110, 110), SK_ColorYELLOW);
+}
+
 TEST(ComposeText, EchoStampsTextUnderThePass) {
   Host host(300, 120);
   host.composer.render(box().padding(20).child(

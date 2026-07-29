@@ -1310,6 +1310,16 @@ signatures.
 
 ## 14. Smaller, but each cost someone an iteration
 
+**SWEPT 2026-07-29.** Eleven sub-items; each checked against the SOURCE
+rather than against its own text. Result: **six were already closed** and
+verified still present (`minBoxFor` warning in `Material.cpp`,
+`Material::bleed`, `patterns::sequence`, `custom(key, program)`,
+`Radial::radiusAt`, `ContourWalk::stampAt`); **two closed today**
+(`console::line`, the `width()`/shrink documentation); **one was NEVER
+REAL** (`echo()` — it appends, so registration doubling is two calls, and
+that is now pinned); **two stay open and are marked with why**. Status is
+inline per bullet below.
+
 - ~~**`sdf::` glow eats the shape silently.** `pad()` is reserved *inside*
   the node's box, so a 300×300 box with `glowRadius: 54` renders a 0.5 px
   disc and says nothing. `sdf::minBoxFor()` is the answer and nothing
@@ -1323,6 +1333,8 @@ signatures.
   + uResolution) and firing when pad >= half of the box's min
   dimension; the message states the pad, the box, the ~px the shape
   shrank to, and names `sdf::minBoxFor(style, contentPx)` as the fix.
+  *(Re-verified 2026-07-29: the warning is live in `Material.cpp`;
+  `Style::glowOutside` is still unbuilt and still unrequested.)*
   Stderr only, zero pixels moved. Pinned by
   `ComposeSdf.PadSwallowingTheBoxWarnsOnceNamingMinBoxFor` (fires once,
   silent on the second offender; control run: fails with the warning
@@ -1338,7 +1350,8 @@ signatures.
   the live/geometry slot and the static recipe — and max-accumulated
   with the decorations' bleeds, so a fill on a `shape()` outline that
   escapes the box survives the picture cull and the Cache::Texture bake
-  alike. Default 0 changes nothing (§27). Pinned by
+  alike. Default 0 changes nothing (§27). *(Re-verified 2026-07-29:
+  `Material::bleed` at Material.h:314.)* Pinned by
   `ComposeMaterial.DeclaredBleedGrowsTheRecordingCull` (both carriers,
   under Cache::Texture where truncation is hard; control run: pixels go
   black with the recordBounds hookup disabled). 457/457; ledger 55/58
@@ -1350,30 +1363,75 @@ signatures.
   `offset(PropValue<SkPoint>)` under the paint-only volatility contract
   bound transforms already have, so a conveyor or a marching weave
   animates without re-describing.
+  **STILL OPEN 2026-07-29 — LEFT, needs a ruling.** Verified in source:
+  `Pattern::offset(SkPoint)` is describe-time, folded into the
+  `SkMatrix` handed to `Material::image`, which stores it in the recipe
+  and compares it — so moving it re-records. Making it live is not a
+  `Pattern.h` change: `Material`'s only live channel is `sksl()`
+  uniforms bound to `ch::Output`, so this wants a NEW bound-matrix
+  channel on `Material` plus a decision about what volatility a panning
+  pattern declares (paint-only, or does the node go live?). That is a
+  Material/Paint change with a contract attached, not a papercut.
 - ~~**`patterns::stripes` is single-colour and un-phased.**~~ **CLOSED
   2026-07-27 — `patterns::sequence(runs, phase)` shipped**: {width px,
   color} runs along +x, period = their sum, wrapped phase, seam covered
   by painting two periods; rotate the Pattern for diagonals. Pinned by
-  `ComposePatterns.SequencePaintsColouredRunsAndPhaseSlides`. (The stop
+  `ComposePatterns.SequencePaintsColouredRunsAndPhaseSlides`.
+  *(Re-verified 2026-07-29: `patterns::sequence` at Patterns.h:73.)* (The stop
   model was never the tool: a 24-run sett is runs, not stops.) 453/453.
 - **`HyphenationOptions` has no hyphenation in it.** `enabled` and
   `penalty` read like a hyphenator; the engine breaks solely at U+00AD
   discretionaries the author typed. A legitimate contract, badly named.
-- **`console::console()` admits no entrance choreography.** It builds its
+  **STILL OPEN 2026-07-29 — LEFT, needs a ruling, and it is not a
+  compose item.** The type lives in
+  `src/sigilweave/include/sigilweave/ParagraphLayout.h:47`, and its doc
+  comment there already reads "Controls soft-hyphen handling
+  independently from the break strategy" — so the contract is stated and
+  only the NAME misleads. Renaming it (`SoftHyphenOptions`,
+  `DiscretionaryOptions`) is a SigilWeave API break and the owner's call;
+  the alternative — a doc sharpen saying outright that there is no
+  hyphenation dictionary — is a comment in a header that rebuilds
+  SigilWeave, every weave target, SpellCircle and all of compose in both
+  configs, which is not a trade an overnight batch should make on its
+  own authority. Bundle it with the next SigilWeave change.
+- ~~**`console::console()` admits no entrance choreography.** It builds its
   line Elements internally, so `staggerChildren()` on the returned panel
   is a no-op and "the console types out on mount" is inexpressible.
-  Wanted: `console::Style::entrance`, or expose `console::line(...)`.
+  Wanted: `console::Style::entrance`, or expose `console::line(...)`.~~
+  **CLOSED 2026-07-29 — `console::line(const Line&, const Style&)`
+  shipped, the entry's own second option and the smaller one.** The
+  entry's mechanism was RIGHT, which is worth recording in a list with
+  this one's error rate: `staggerChildren()` delays the `animate()` mount
+  transitions a child DECLARES, and `console()`'s rows are plain `text()`
+  nodes that declare none — so the no-op was real and had that cause.
+  `line()` is the row `console()` builds (it now calls it), key and
+  palette resolution included, so an author who wants an entrance owns
+  the loop and the three-line window and nothing else:
+  `p.staggerChildren(40ms)` over `console::line(l, st).opacity(animate(…))`.
+  `Style::entrance` stays unbuilt on purpose — it would be a decision
+  about what an entrance IS, and §27 says a default that encodes a
+  judgement about the caller's art cannot be changed compatibly. Pinned
+  by `ComposeConsole.LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance`
+  (controls: the palette lookup dropped → the palette assertion fires;
+  the `con#<seq>` key renamed → the key assertion fires; the panel's own
+  spelling changed → the hand-rebuild prune fires; the stagger removed →
+  the delayed-row assertion fires). Noted in the test itself: the prune
+  assertion CANNOT falsify `line()`, because `console()` delegates to it
+  and a break breaks both sides equally — what it pins is the panel
+  spelling the doc comment tells authors to reproduce.
 - ~~**`custom()` re-records on every `render()`** — its program is an
   incomparable callable. Wanted: a `custom(key, program)` overload, or let
   `Cache::None` imply "nothing to invalidate".~~ **CLOSED 2026-07-27 —
   `custom(key, program)` shipped**: the key declares the program's
   identity on the keyed-parametric contract (one key = one drawing; fold
   what varies into the key); equal keys prune, the unkeyed form stays
-  the escape hatch. Pinned by
+  the escape hatch. *(Re-verified 2026-07-29: the keyed overload at
+  Compose.h:2397.)* Pinned by
   `ComposeContent.AKeyedCustomPrunesAndTheKeyIsHonest`. 452/452.
 - ~~**`layouts::Radial` has one radius for all children.**~~ **CLOSED
   2026-07-27 — `Radial::radiusAt`**: a per-index fraction vector
-  overriding `radiusFraction`, tail falling back to it. Pinned by
+  overriding `radiusFraction`, tail falling back to it. *(Re-verified
+  2026-07-29: `Radial::radiusAt` at Layouts.h:48.)* Pinned by
   `ComposeLayouts.RadialRadiusAtGivesEachChildItsOwnRing`. 454/454;
   rode the sequence arm's ledger (byte-neutral, movers = flappers + the
   shape/-attributed easel_playground at its unchanged attributed hash).
@@ -1393,18 +1451,39 @@ signatures.
   churn its slots and evict the node's real brush bakes); the callable
   keeps the decoration conservatively unequal, which every ContourWalk
   already was (no operator== — the raw `draw` callable decided that
-  long ago). Pinned by
+  long ago). *(Re-verified 2026-07-29: `stampAt` documented and live in
+  Decorations.h.)* Pinned by
   `ComposeDecorations.ContourWalkStampAtSequencesPerSampleArt`
   (control run: test fails with the mechanism disabled). 457/457;
   ledger 55/58 byte-identical — movers were the two documented flappers
   plus the shape-attributed `easel_playground` (concurrent shape/
   session).
-- **`echo()` takes a single stamp.** Registration doubling on a light
-  display face wants one each side of the glyph run, not one behind it.
-- **A fixed `width()` flex child still shrinks**, and the failure is
+- ~~**`echo()` takes a single stamp.** Registration doubling on a light
+  display face wants one each side of the glyph run, not one behind it.~~
+  **NEVER REAL — settled 2026-07-29, and it is the preamble's pattern
+  exactly.** `Echo` is stored in a `std::vector` (`ComposeInternal.h:219`),
+  `Element::echo()` PUSHES BACK (`Compose.cpp:472`), and the paint pass
+  replays all of them bottom-first (`Paint.cpp:1566`, `:1633` — shape and
+  text). One call each side of the glyph run has always been the whole
+  feature; three calls is three stamps, ordered. The symptom was real (the
+  author wanted two) and the mechanism was a guess written in the same
+  confident voice. What made it survive is that the only two echo tests in
+  the suite each used ONE echo, so nothing in the corpus contradicted it.
+  Now pinned by `ComposePaint.EchoesAppendSoRegistrationDoublingIsTwoCalls`
+  (three stamps, one up-left and two down-right, plus the declaration
+  order where the last two overlap; control: make `echo()` clear before
+  pushing → two of the three stamp assertions fire).
+- ~~**A fixed `width()` flex child still shrinks**, and the failure is
   silent overlap. Faithful Yoga semantics, so not a bug — but `width(150)`
   reads as "this is 150" at the call site. One sentence in API.md's layout
-  section (pair with `.shrink(0)` when you mean it) would pay for itself.
+  section (pair with `.shrink(0)` when you mean it) would pay for itself.~~
+  **CLOSED 2026-07-29 — documented in BOTH places, header first.**
+  `Element::width()`/`height()` had no doc comment at all; they now carry
+  the one the entry asked for (the flex BASIS, not a guarantee; `shrink`
+  defaults to 1; pair with `.shrink(0)` when you mean it), and API.md's
+  layout block repeats it where a reader scanning the surface will hit it.
+  No test: there is no behaviour here to pin — the semantics are Yoga's
+  and correct, and the defect was that nothing said so at the call site.
 
 ---
 
@@ -1621,12 +1700,63 @@ replays). The acceptance test exists and is deliberately red:
 `ComposeR4Mask.DISABLED_ASettledBoundGateRecachesWithoutAnyNewApi` —
 enable it when the release lands.
 
-## 21. `console::Style::visibleLines` gives no height
+## 21. `console::Style::visibleLines` gives no height — **CLOSED 2026-07-29**
 
 Filed by `dunhuang_star_chart`: fitting three `LineRing`s in one panel
 meant hand-tuning panel height against font size × line count.
 `compose::measure()` answering for a console element would close it.
 `Console.h` is the extraction layer's file; coordinate before touching.
+
+**CLOSED 2026-07-29 — `console::height(style, lines, fonts)` and
+`console::height(style, fonts)`, entirely inside `Console.h`, no kernel
+change.** The panel the study hand-tuned is now arithmetic over an
+answer:
+
+```cpp
+const float rows = console::height(logStyle(), fonts);
+const float h = 2 * padY + 3 * rows + 4 * gap + 2 * dividerWidth;
+```
+
+Three things worth keeping:
+
+- **It MEASURES, it does not compute.** A probe ring of `lines` rows runs
+  through the real `console()` and the real `compose::measure()`. The
+  obvious arithmetic — `metrics(style.text, fonts).lineHeight * lines +
+  gap * (lines − 1)` — is wrong by most of a row: at the study's 9.2 px
+  mono × 12 it answers **121.4 where the laid-out console is 131**,
+  because each row is `ceil()`ed onto Yoga's pixel grid before the gaps
+  are added. That number is a measurement, taken as this function's own
+  positive control (control 2 below).
+- **It clamps to the window**, because the probe goes through the
+  component: `height(style, 400, fonts)` on a 12-line window is the
+  12-line height. Virtualization is the whole point of `visibleLines`,
+  and its height is bounded by it.
+- **The children-not-root rule was demonstrated, not assumed.**
+  `snapshot()`/`measure()` size by the root's CHILDREN, and the pin
+  asserts that the shelled spelling `measure(box().child(console(…)))`
+  and the bare `measure(console(…))` return the SAME number — true
+  because `console()` returns a panel that sets neither width nor
+  height. The shell stays in the implementation so it remains true if
+  that ever changes.
+
+Pinned by `ComposeConsole.VisibleLinesHasAHeightAndThreeRingsFitOnePanel`,
+which is the study's shape: three rings, two hairline dividers, one
+column panel sized from the answer with no room to spare. A wrong height
+there is SILENT — flex `shrink` (default 1) absorbs the deficit and every
+ring quietly loses rows, which is exactly how the study lost its
+iteration — so the test asserts each ring's laid-out height EQUALS the
+answer. Three positive controls, each failing the named test: (1) drop
+`Style::gap` from the measurement → the shelled/bare equality fires
+(131 vs 120); (2) the metrics arithmetic instead of the measurement →
+the ring-height assertion fires (121.4 vs a laid-out 121, against a true
+131); (3) drop the window clamp → the clamp assertion fires (4399 vs
+131).
+
+Not built, deliberately: `panelHeight(Panel, fonts)` for `console::panel`
+— one line of arithmetic at the call site, and the corpus's plates are
+hand-built rather than `panel()`-built. The `env::`-reading overload
+(`height(fonts)` off `env::inheritedOr(Style{})`) is also unbuilt; ask
+for it when a component needs its own inherited height.
 
 ## 22. Two names for one identity, and it contaminates the guard
 

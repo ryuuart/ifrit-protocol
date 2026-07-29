@@ -717,6 +717,155 @@ TEST(ComposeConsole, PanelIsTheBorderedPlateSevenStudiesBuiltByHand) {
   EXPECT_FLOAT_EQ(mono.palette[2].paint.foreground.getColor4f().fG, 0.0f);
 }
 
+TEST(ComposeConsole, VisibleLinesHasAHeightAndThreeRingsFitOnePanel) {
+  // ROADMAP §21, filed by dunhuang_star_chart: three LineRings with hairline
+  // dividers inside ONE fixed-height panel meant hand-tuning that height
+  // against font size × line count. console::height() is that number, and
+  // the shape below is the study's (consolePanel(), 9.2 px mono, gap 1,
+  // visibleLines 12, padY 9, column gap 6, two 1 px dividers).
+  console::Style st;
+  st.text = studio::type({.size = 9.2f, .color = {1, 1, 1, 1}});
+  st.gap = 1.0f;
+  st.visibleLines = 12;
+
+  const float rows = console::height(st, fonts());
+  EXPECT_GT(rows, 12.0f * 9.2f) << "twelve 9.2 px rows plus eleven gaps";
+  EXPECT_LT(rows, 12.0f * 9.2f * 3.0f);
+
+  // The window CLAMPS: the console shows the last visibleLines, so asking
+  // for more rows than the style shows is the same height.
+  EXPECT_FLOAT_EQ(console::height(st, 400, fonts()), rows);
+  EXPECT_LT(console::height(st, 6, fonts()), rows);
+
+  // The snapshot()/measure() rule — those size by the root's CHILDREN, not
+  // the root's own dims — is DEMONSTRATED, not assumed: console() returns a
+  // panel that sets neither width nor height, so the shell box the
+  // implementation wraps it in cannot change the answer.
+  console::LineRing full;
+  for (int i = 0; i < 20; ++i)
+    full.append(u8"the ring outruns its window");
+  EXPECT_FLOAT_EQ(measure(console::console(full, st), fonts()).height(), rows)
+      << "the un-shelled spelling disagrees — console() grew its own dims";
+
+  // And it is the height the console ACTUALLY takes when laid out: three
+  // rings and two dividers in a column panel sized from the answer, with no
+  // room to spare, must not shrink. (A wrong answer here is SILENT — flex
+  // shrink absorbs the deficit and every ring loses rows, which is exactly
+  // how the study lost its iteration.)
+  console::LineRing a, b, c;
+  for (int i = 0; i < 20; ++i) {
+    a.append(u8"alpha");
+    b.append(u8"beta");
+    c.append(u8"gamma");
+  }
+  const float padY = 9.0f, gap = 6.0f, div = 1.0f;
+  const float panelH = 2 * padY + 3 * rows + 4 * gap + 2 * div;
+
+  Host host(320, (int)std::ceil(panelH) + 40);
+  auto divider = [&] { return box().height(div).fill(green()); };
+  host.composer.render(box().child(
+      box()
+          .key("panel")
+          .padding(12.0f, padY)
+          .column()
+          .gap(gap)
+          .child(console::console(a, st).key("ringA"))
+          .child(divider())
+          .child(console::console(b, st).key("ringB"))
+          .child(divider())
+          .child(console::console(c, st).key("ringC"))
+          .rect(SkRect::MakeXYWH(10, 10, 300, panelH))));
+  host.frame();
+
+  ASSERT_TRUE(host.composer.bounds("panel").has_value());
+  EXPECT_FLOAT_EQ(host.composer.bounds("panel")->height(), panelH);
+  for (const char *k : {"ringA", "ringB", "ringC"}) {
+    ASSERT_TRUE(host.composer.bounds(k).has_value()) << k;
+    EXPECT_FLOAT_EQ(host.composer.bounds(k)->height(), rows)
+        << k << " shrank: console::height() is not the laid-out height";
+  }
+  // The three rings tile the interior exactly — the last one ends on the
+  // padding, with nothing clipped and nothing left over.
+  EXPECT_FLOAT_EQ(host.composer.bounds("ringC")->bottom(),
+                  10.0f + panelH - padY);
+}
+
+TEST(ComposeConsole, LineIsTheRowTheComponentBuildsAndCanBeGivenAnEntrance) {
+  // ROADMAP §14: "console::console() admits no entrance choreography — it
+  // builds its line Elements internally, so staggerChildren() on the
+  // returned panel is a no-op". The mechanism is right: staggerChildren
+  // delays the animate() mount transitions a child DECLARES, and a plain
+  // text() declares none. console::line() is the entry's own second remedy.
+  console::Style st;
+  st.text = studio::type({.size = 20, .color = {1, 1, 1, 1}});
+  st.palette = {studio::type({.size = 20, .color = {1, 0, 0, 1}})};
+  st.gap = 4.0f;
+  console::LineRing ring;
+  ring.append(u8"AAAA");
+  ring.append(u8"BBBB", 0);
+
+  // (a) The hand-rebuild recipe in line()'s doc comment IS the component:
+  //     a panel spelled column().gap(style.gap).clip() with one line() per
+  //     row reconciles onto console() with zero patched nodes. Note what
+  //     this can and cannot falsify — console() DELEGATES to line(), so
+  //     breaking line() breaks both sides equally and leaves this green;
+  //     what it pins is the PANEL spelling an author has to reproduce.
+  //     (b) and (c) below are what hold line() itself.
+  Host host(220, 90);
+  host.composer.render(box().child(console::console(ring, st)));
+  host.frame();
+  auto byHand = [&](bool staggered) {
+    auto p = box().column().gap(st.gap).clip();
+    if (staggered)
+      p.staggerChildren(400ms);
+    for (const console::Line &l : ring.lines()) {
+      Element row = console::line(l, st);
+      if (staggered)
+        row.opacity(animate(from(0.0f).to(1.0f),
+                            {200ms, &choreograph::easeNone}));
+      p.child(std::move(row));
+    }
+    return box().child(std::move(p));
+  };
+  host.composer.render(byHand(false));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "console()'s panel is not the spelling line()'s doc tells "
+         "authors to write";
+
+  // (b) It carries the con#<seq> key and honours Line::paletteIndex.
+  ASSERT_TRUE(host.composer.bounds("con#1").has_value());
+  ASSERT_TRUE(host.composer.bounds("con#2").has_value());
+  const SkRect band = *host.composer.bounds("con#2");
+  int redInk = 0;
+  for (int y = (int)band.top(); y < (int)band.bottom(); ++y)
+    for (int x = (int)band.left(); x < (int)band.right(); ++x) {
+      const SkColor c = host.pixel(x, y);
+      redInk += SkColorGetR(c) > 150 && SkColorGetG(c) < 80;
+    }
+  EXPECT_GT(redInk, 10) << "the paletteIndex row did not take palette[0]";
+
+  // (c) And now the console types out: each row's OWN mount animation is
+  //     what staggerChildren has to delay, so row 2 is still dark while
+  //     row 1 has finished.
+  auto brightest = [](Host &h, SkRect r) {
+    int best = 0;
+    for (int y = (int)r.top(); y < (int)r.bottom(); ++y)
+      for (int x = (int)r.left(); x < (int)r.right(); ++x)
+        best = std::max(best, (int)SkColorGetR(h.pixel(x, y)));
+    return best;
+  };
+  Host typed(220, 90);
+  typed.composer.render(byHand(true));
+  typed.frame(0.25); // row 1's 200 ms is done; row 2 waits out its 400 ms
+  const SkRect r1 = *typed.composer.bounds("con#1");
+  const SkRect r2 = *typed.composer.bounds("con#2");
+  EXPECT_GT(brightest(typed, r1), 150);
+  EXPECT_LT(brightest(typed, r2), 40) << "the stagger did not delay row 2";
+  typed.frame(0.5); // t = 0.75 — row 2 is 350 ms into its own 200 ms
+  EXPECT_GT(brightest(typed, r2), 150);
+}
+
 TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // Both proving plates in the corpus prove themselves on screen and neither
   // can be falsified by its own output: 53 fmt() calls producing strings

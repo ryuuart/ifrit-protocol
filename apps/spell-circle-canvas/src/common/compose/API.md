@@ -180,6 +180,10 @@ Element &margin(float all);
 Element &width(Dim); Element &height(Dim); Element &aspect(float);
 Element &minWidth(Dim); Element &maxWidth(Dim);              // + heights
 Element &grow(float = 1); Element &shrink(float); Element &basis(Dim);
+// width()/height() are the flex BASIS, not a guarantee: `shrink` defaults
+// to 1, so a width(150) child of an overflowing row gives some back and the
+// failure is silent overlap. Pair with `.shrink(0)` when width(150) means
+// "this IS 150". Faithful Yoga/CSS; it still costs an iteration each time.
 Element &alignItems(Align); Element &alignSelf(Align);       // Baseline!
 Element &justify(Justify);
 Element &absolute(); Element &inset(float all);   // + per-edge, + Dim-valued
