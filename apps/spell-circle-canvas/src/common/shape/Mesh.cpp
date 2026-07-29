@@ -15,22 +15,119 @@ namespace sigil::shape {
 using detail::normalized;
 using glm::cross;
 
+namespace {
+
+/** The pad value Mesh::append fills a missing primitive lane with, BY
+ *  NAME — a missing "Color" means white (an untinted primitive), every
+ *  other lane zeros. The prim-class twin of Points.cpp's
+ *  scalarDefault/colorDefault. */
+glm::vec4 primDefault(std::string_view name) {
+  return name == "Color" ? glm::vec4{1, 1, 1, 1} : glm::vec4{0, 0, 0, 0};
+}
+
+/** The pad Mesh::append fills a MISSING vertex normal with.
+ *
+ *  Deliberately NOT zero. A zero normal is degenerate three ways over:
+ *  Mesh::transform's normalized() keeps a zero vector zero forever, so
+ *  the pad would never recover; every lighting term (N.L, N.V, the GGX
+ *  half-vector) collapses, so the padded half renders BLACK — a louder
+ *  wrong than the unlit merge this pad exists to fix; and shader-side
+ *  normalize() of a zero vector is undefined.
+ *
+ *  +Z is the library's standing answer for "no direction" —
+ *  detail::normalized's fallback and basisFor's axis both use it. It is
+ *  unit length, survives every normalize() downstream, and shades the
+ *  padded half like a flat card facing the default camera. Callers who
+ *  want the geometric truth call computeNormals() on the merge: append
+ *  concatenates lanes, it does not invent geometry. */
+const glm::vec3 kNormalPad{0, 0, 1};
+
+/** A missing uv samples texel (0, 0) — no arbitrary "interesting"
+ *  coordinate, and the same convention Cloud::append gives a missing
+ *  "uv" lane (Points.cpp). */
+const glm::vec2 kUvPad{0, 0};
+
+/** A missing vertex colour is WHITE — the multiplicative identity every
+ *  consumer applies it as (space::drawMesh, world's vertex tint), so an
+ *  untinted half of a merge keeps looking untinted. The vertex twin of
+ *  primDefault("Color"). */
+const glm::vec4 kColorPad{1, 1, 1, 1};
+
+} // namespace
+
+std::vector<glm::vec4> &Mesh::prim(const std::string &name,
+                                   glm::vec4 fill) {
+  std::vector<glm::vec4> &lane = prims[name];
+  lane.resize(triangleCount(), fill);
+  return lane;
+}
+
+const std::vector<glm::vec4> *Mesh::primIf(std::string_view name) const {
+  auto it = prims.find(name);
+  return it == prims.end() ? nullptr : &it->second;
+}
+
 void Mesh::append(const Mesh &other) {
   const uint32_t base = (uint32_t)positions.size();
-  // Color lanes stay coherent: if either side tints, both end up sized.
+  // The vertex count the merged mesh will have. Every per-vertex lane
+  // below pads to exactly this, which is also what repairs a SHORT
+  // incoming lane (see the colors/normals/uvs blocks).
+  const size_t merged = positions.size() + other.positions.size();
+  // Primitive lanes: union of both sides, each missing side padded with
+  // the lane NAME's conventional default. Counted BEFORE the indices
+  // grow, so the "ours" pad lands at the old triangle count.
+  if (!prims.empty() || !other.prims.empty()) {
+    const size_t oldTris = triangleCount();
+    const size_t newTris = oldTris + other.triangleCount();
+    for (auto &[name, lane] : prims)
+      lane.resize(oldTris, primDefault(name));
+    for (const auto &[name, lane] : other.prims) {
+      std::vector<glm::vec4> &mine = prims[name];
+      mine.resize(oldTris, primDefault(name));
+      mine.insert(mine.end(), lane.begin(), lane.end());
+    }
+    // The trailing pad is what repairs a SHORT incoming prim lane: an
+    // `other` lane holding fewer entries than other.triangleCount()
+    // leaves `mine` under newTris after the insert, and this resize
+    // tops it up by name. (A too-LONG lane is truncated by the same
+    // call.) Verified by Mesh.AppendRepairsShortIncomingLanes.
+    for (auto &[name, lane] : prims)
+      lane.resize(newTris, primDefault(name));
+  }
+  // Color lanes get the same coherence dance as normals and uvs below,
+  // for the same reason: consumers read "lane sized to positions" as
+  // the tint-present bit for the WHOLE mesh, so a bare insert of a
+  // short or absent incoming lane leaves the merge undersized. Pad ours
+  // to the old count, take theirs, pad the tail to the new count — the
+  // trailing resize also repairs a SHORT incoming lane.
   if (!colors.empty() || !other.colors.empty()) {
-    colors.resize(positions.size(), glm::vec4{1, 1, 1, 1});
-    if (other.colors.empty())
-      colors.resize(positions.size() + other.positions.size(),
-                    glm::vec4{1, 1, 1, 1});
-    else
-      colors.insert(colors.end(), other.colors.begin(),
-                    other.colors.end());
+    colors.resize(positions.size(), kColorPad);
+    colors.insert(colors.end(), other.colors.begin(), other.colors.end());
+    colors.resize(merged, kColorPad);
+  }
+  // Normals and uvs get the SAME coherence dance, and for a sharper
+  // reason than colors: every consumer reads "lane sized to positions"
+  // as the presence bit for the whole mesh. space::drawMesh sets
+  // hasNormals = normals.size() == positions.size(), so a bare insert
+  // of a normal-less side (points::instance over a stamp with no
+  // normals is the everyday source) silently drops lighting for the
+  // MERGED mesh, not just for the half that lacked them. Same story for
+  // uvs and texturing.
+  // Pad ours to the old count, take theirs, pad the tail to the new
+  // count — the trailing resize also repairs a short incoming lane.
+  if (!normals.empty() || !other.normals.empty()) {
+    normals.resize(positions.size(), kNormalPad);
+    normals.insert(normals.end(), other.normals.begin(),
+                   other.normals.end());
+    normals.resize(merged, kNormalPad);
+  }
+  if (!uvs.empty() || !other.uvs.empty()) {
+    uvs.resize(positions.size(), kUvPad);
+    uvs.insert(uvs.end(), other.uvs.begin(), other.uvs.end());
+    uvs.resize(merged, kUvPad);
   }
   positions.insert(positions.end(), other.positions.begin(),
                    other.positions.end());
-  normals.insert(normals.end(), other.normals.begin(), other.normals.end());
-  uvs.insert(uvs.end(), other.uvs.begin(), other.uvs.end());
   indices.reserve(indices.size() + other.indices.size());
   for (uint32_t i : other.indices)
     indices.push_back(base + i);
@@ -383,6 +480,40 @@ Mesh quad(float width, float height) {
   return grid(2, 2, [=](float u, float v) -> glm::vec3 {
     return {(u - 0.5f) * width, (v - 0.5f) * height, 0};
   });
+}
+
+Mesh bakePrimColor(const Mesh &mesh, std::string_view lane) {
+  const std::vector<glm::vec4> *prim = mesh.primIf(lane);
+  const size_t tris = mesh.triangleCount();
+  if (!prim || prim->size() != tris || tris == 0)
+    return mesh;
+
+  Mesh out;
+  out.prims = mesh.prims; // triangle order survives the unweld
+  const bool normals = mesh.normals.size() == mesh.positions.size();
+  const bool uvs = mesh.uvs.size() == mesh.positions.size();
+  const bool colors = mesh.colors.size() == mesh.positions.size();
+  out.positions.reserve(tris * 3);
+  out.indices.reserve(tris * 3);
+  if (normals)
+    out.normals.reserve(tris * 3);
+  if (uvs)
+    out.uvs.reserve(tris * 3);
+  out.colors.reserve(tris * 3);
+  for (size_t t = 0; t < tris; ++t) {
+    const glm::vec4 flat = (*prim)[t];
+    for (size_t k = 0; k < 3; ++k) {
+      const uint32_t idx = mesh.indices[t * 3 + k];
+      out.indices.push_back((uint32_t)out.positions.size());
+      out.positions.push_back(mesh.positions[idx]);
+      if (normals)
+        out.normals.push_back(mesh.normals[idx]);
+      if (uvs)
+        out.uvs.push_back(mesh.uvs[idx]);
+      out.colors.push_back(colors ? mesh.colors[idx] * flat : flat);
+    }
+  }
+  return out;
 }
 
 } // namespace mesh

@@ -1,5 +1,6 @@
 #include "sigilshape/Points.h"
 
+#include "sigilshape/detail/Hash.h"
 #include "sigilshape/detail/VecMath.h"
 
 #include <include/core/SkBitmap.h>
@@ -19,10 +20,11 @@ using glm::cross;
 
 namespace {
 
+/** The shared hash driven as a PRNG: advance the carried state, mix a
+ *  copy of it. Same bits the local copy produced (detail/Hash.h). */
 uint32_t pcg(uint32_t &state) {
-  state = state * 747796405u + 2891336453u;
-  uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-  return (word >> 22u) ^ word;
+  state = detail::pcgAdvance(state);
+  return detail::pcgMix(state);
 }
 
 float rand01(uint32_t &state) {
@@ -356,6 +358,54 @@ Mesh instance(const Cloud &cloud, const Mesh &stamp,
 Mesh panels(const Cloud &cloud, float width, float height,
             const InstanceOptions &options) {
   return instance(cloud, mesh::quad(width, height), options);
+}
+
+void promoteToPrims(Mesh &mesh, const Cloud &cloud,
+                    std::string_view cloudLane,
+                    const std::string &primLane) {
+  const size_t points = cloud.size();
+  const size_t tris = mesh.triangleCount();
+  if (points == 0 || tris == 0 || tris % points != 0)
+    return;
+  const size_t perPoint = tris / points;
+
+  // "Id" is the reserved source: the owning point's own index, the
+  // only per-piece identity this layer needs (a stamp instance is a
+  // run of triangles sharing an Id value, not a separate container).
+  const bool wantId = cloudLane == "Id";
+  const std::vector<float> *scalars =
+      wantId ? nullptr : cloud.scalarIf(cloudLane);
+  const std::vector<glm::vec3> *vectors =
+      wantId ? nullptr : cloud.vectorIf(cloudLane);
+  const std::vector<glm::vec4> *colors =
+      wantId ? nullptr : cloud.colorIf(cloudLane);
+  if (!wantId && !scalars && !vectors && !colors)
+    return;
+
+  std::vector<glm::vec4> &lane = mesh.prim(primLane);
+  lane.assign(tris, glm::vec4{0, 0, 0, 0});
+  for (size_t i = 0; i < points; ++i) {
+    glm::vec4 value{0, 0, 0, 0};
+    if (wantId) {
+      value = {(float)i, 0, 0, 0};
+    } else if (scalars) {
+      if (i >= scalars->size())
+        continue;
+      const float s = (*scalars)[i];
+      value = {s, s, s, s};
+    } else if (vectors) {
+      if (i >= vectors->size())
+        continue;
+      const glm::vec3 &v = (*vectors)[i];
+      value = {v.x, v.y, v.z, 0};
+    } else {
+      if (i >= colors->size())
+        continue;
+      value = (*colors)[i];
+    }
+    for (size_t k = 0; k < perPoint; ++k)
+      lane[i * perPoint + k] = value;
+  }
 }
 
 void drawBillboards(SkCanvas &canvas, const Cloud &cloud,

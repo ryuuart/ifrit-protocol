@@ -84,6 +84,11 @@ struct MeshStyle {
   /** Wrap the texture when uvs leave [0,1] (a scrolling band on a
    *  closed loop); off = clamp, the panel default. */
   bool tileTexture = false;
+  /** PRIMITIVE lane (Mesh::prims) multiplied into each triangle's
+   *  colour — flat per-face tint, no vertex duplication. Empty = off;
+   *  a missing or mis-sized lane is ignored. Lit mode only: Normals
+   *  and Uv render BUFFERS, and a tint there would corrupt them. */
+  std::string primColorLane;
   bool backfaceCull = true;
   bool depthSort = true;
 };

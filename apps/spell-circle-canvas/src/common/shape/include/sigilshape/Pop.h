@@ -131,8 +131,27 @@ struct pop {
     int cols = 2, rows = 2;
     uint32_t seed = 17;
   };
+  /** Filter, PRIMITIVE class (TD/Houdini's Attribute Promote,
+   *  point -> prim): bake a point attribute onto the PRIMITIVES the
+   *  chain's forming sink builds — Mesh::prims[to], one float4 per
+   *  triangle. The reserved source name "Id" writes the owning point's
+   *  index instead of reading a lane.
+   *
+   *  Class boundaries, stated: inert on the point sink (a Cloud has no
+   *  primitives) and on the swept sinks (their triangles ride
+   *  RESAMPLED cross-sections, not points — there is no owning point
+   *  to promote from); honoured by the stamping sink cookMesh(). The
+   *  GPU executor cooks POINTS only and declines any chain holding
+   *  this op outright rather than dropping it silently. */
+  struct Promote {
+    AttrRef from = Lane::Color;
+    std::string to; ///< primitive lane name; empty = the source's name
+  };
+  /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
+   *  a compute PSO. New ops are APPENDED, never inserted. */
   using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary,
-                          LookAt, Math, Relax, MeshScatter, Set, Atlas>;
+                          LookAt, Math, Relax, MeshScatter, Set, Atlas,
+                          Promote>;
   using Chain = std::vector<Op>;
 
   /** The artist's spelling — TouchDesigner ergonomics over the same
@@ -225,6 +244,15 @@ struct pop {
     /** Texture hint: a stable per-point sprite-atlas cell in "Tex". */
     Builder &atlas(int cols, int rows) {
       m_chain.push_back(Atlas{cols, rows, nextSeed()});
+      return *this;
+    }
+    /** Carry a point attribute onto the PRIMITIVES the sink forms —
+     *  the prim class, addressed by the same names. "Id" promotes the
+     *  owning point's index. An empty @p to keeps the source's name. */
+    Builder &promote(AttrRef from, std::string to = {}) {
+      if (to.empty())
+        to = from.name;
+      m_chain.push_back(Promote{std::move(from), std::move(to)});
       return *this;
     }
     /** Heal kinks: neighborhood smoothing on P (the ribbon-saver). */

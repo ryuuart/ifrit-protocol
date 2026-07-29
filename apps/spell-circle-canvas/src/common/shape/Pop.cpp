@@ -1,6 +1,7 @@
 #include "sigilshape/Pop.h"
 
 #include "sigilshape/Geometry.h"
+#include "sigilshape/detail/Hash.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,12 +11,11 @@ namespace sigil::shape {
 
 namespace {
 
-/** The GPU kernels' hash, bit for bit (see world's pop kernels). */
+/** The GPU kernels' hash, bit for bit (see world's pop kernels) —
+ *  detail::pcgHash IS that hash; only the float squeeze (24 mantissa
+ *  bits over 2^24) lives here, because it is what the kernels do. */
 float hash1(uint32_t x) {
-  x = x * 747796405u + 2891336453u;
-  x = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;
-  x = (x >> 22u) ^ x;
-  return (float)(x & 0x00FFFFFFu) / 16777216.0f;
+  return (float)(detail::pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
 }
 
 glm::vec3 drift(glm::vec3 p, float freq, float seed) {
@@ -148,6 +148,10 @@ Cloud cook(const pop::Chain &chain) {
           if constexpr (std::is_same_v<T, pop::SplineScatter> ||
                         std::is_same_v<T, pop::MeshScatter>) {
             // generators only lead a chain; ignore mid-chain
+          } else if constexpr (std::is_same_v<T, pop::Promote>) {
+            // The PRIMITIVE class: nothing to do on the point sink —
+            // a Cloud has no primitives. cookMesh() reads these ops
+            // back off the chain once the stamps exist.
           } else if constexpr (std::is_same_v<T, pop::Relax>) {
             // Neighborhood op: double-buffered, read-old/write-new —
             // the same shape the GPU's parallel pass has.
@@ -265,6 +269,23 @@ Cloud cook(const pop::Chain &chain) {
   return out;
 }
 
+namespace {
+
+/** pop's attribute names -> the Cloud lane cook() exported them under.
+ *  The builtins land on the conventional lowercase lanes; "Tex" and
+ *  every custom keep their own name. One table, so the prim class
+ *  addresses attributes with exactly the same spelling the point class
+ *  does. "Id" is reserved and handled by promoteToPrims. */
+std::string cloudLaneFor(const std::string &attr) {
+  if (attr == "T") return "t";
+  if (attr == "Dir") return "dir";
+  if (attr == "Scale") return "size";
+  if (attr == "Color") return "tint";
+  return attr; // "P" has no lane; "Tex" and customs keep their names
+}
+
+} // namespace
+
 Mesh cookMesh(const pop::Chain &chain, const Mesh &stamp) {
   const Cloud cloud = cook(chain);
   points::InstanceOptions options;
@@ -289,6 +310,17 @@ Mesh cookMesh(const pop::Chain &chain, const Mesh &stamp) {
       }
     }
   }
+  // The PRIMITIVE class: every Promote op bakes a point lane onto the
+  // stamped triangles. Each point owns stamp.triangleCount() of them,
+  // which is exactly the run points::promoteToPrims addresses.
+  for (const pop::Op &op : chain)
+    if (const auto *promote = std::get_if<pop::Promote>(&op))
+      points::promoteToPrims(out, cloud,
+                             promote->from.name == "Id"
+                                 ? "Id"
+                                 : cloudLaneFor(promote->from.name),
+                             promote->to.empty() ? promote->from.name
+                                                 : promote->to);
   return out;
 }
 

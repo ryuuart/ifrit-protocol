@@ -26,7 +26,10 @@ Ops.h        the Pathfinder panel (unite/subtract/intersect/exclude/
              simplify/offset over Skia pathops) and the Distort menu
              (Roughen/Zigzag/PuckerBloat/Twirl as parameter values;
              chain() composes non-destructive recipes)
-Mesh.h       renderer-neutral Mesh + procedural generators
+Mesh.h       renderer-neutral Mesh + procedural generators, plus the
+             PRIMITIVE attribute lanes (Mesh::prims — one float4 per
+             TRIANGLE, named like the point lanes) and
+             bakePrimColor()
 Import.h     model files into that Mesh currency: OBJ (+MTL, via
              tinyobjloader), glTF 2.0 .gltf/.glb (cgltf; node
              transforms baked, base-color material + texture),
@@ -52,7 +55,8 @@ Space.h      Skia's 3D: the glm camera + painter-pipeline drawMesh,
              perspective drawPanel / drawImagePanel (toSkM44 seam)
 Pop.h        POP combinators as VALUES: a Chain of operator values
              (SplineScatter generator; Jitter/Noise/Ramp/Vary/LookAt/
-             Math filters) with CPU executors — cook() -> Cloud,
+             Math filters, Promote for the prim class) with CPU
+             executors — cook() -> Cloud,
              cookMesh(stamp) -> one Mesh, cookTube()/cookRibbon()
              sweep the cooked points as a path. The same Chain runs
              GPU-side in SigilWorld (addPoints); formulas match bit
@@ -114,6 +118,86 @@ Conventions: mesh space is y-UP right-handed (extrude flips the y-down
 path upright and centers on its bounds); UVs are image-convention —
 (0,0) samples the texture's top-left — in BOTH renderers.
 
+### Append keeps every lane coherent (2026-07-28)
+
+`Mesh::append` used to concatenate `normals` and `uvs` with bare
+`insert` calls while `colors` (and later `prims`) got a padding dance.
+That is not a cosmetic asymmetry: every consumer reads "lane sized to
+positions" as the mesh's presence bit — `space::drawMesh` literally sets
+`hasNormals = normals.size() == positions.size()` — so merging a
+normal-less mesh into a normal-bearing one dropped lighting for the
+WHOLE merge, not just the half that lacked normals. Same for `uvs` and
+texturing. The everyday source is `points::instance` over a stamp
+authored with positions and indices only, and `import`'s `merged()`
+across model parts.
+
+Both lanes now pad like `colors`: if EITHER side authors the lane, the
+merged mesh carries it sized to `positions`; if neither does, the lane
+stays empty (append pads an existing lane, it never conjures one).
+
+The pads, and why: a missing **normal** pads `{0, 0, 1}`, not zero. A
+zero normal is degenerate three ways — `Mesh::transform`'s
+`normalized()` keeps it zero forever, every lighting term collapses so
+the padded half renders BLACK (louder than the bug being fixed), and
+shader-side `normalize()` of it is undefined. +Z is already the
+library's answer for "no direction" (`detail::normalized`'s fallback,
+`basisFor`'s axis), is unit length, and shades the padded half like a
+flat card. Callers wanting the geometric truth call `computeNormals()`
+on the merge. A missing **uv** pads `{0, 0}` — texel (0,0), the same
+convention `Cloud::append` gives a missing `"uv"` lane.
+
+Pinned by `Mesh.AppendKeepsNormalAndUvLanesSizedToPositions`. No
+`shape_demo` panel moved (all 14 byte-identical): the catalog never
+merges a mixed pair.
+
+### Primitive attributes (2026-07-28)
+
+The TouchDesigner/Houdini **prim class**, the point lanes' sibling. A
+primitive here IS a **triangle** — one index triple — because Mesh is
+the currency both renderers already consume; every other candidate
+(a stamp instance, a swept ring, a cooked contour) is a GROUPING of
+triangles and is expressible as a lane VALUE instead of a second
+container, which is exactly what the reserved `"Id"` lane does.
+
+`Mesh::prims` is a name -> `vector<vec4>` map sized to
+`triangleCount()`, addressed by the same names `pop::AttrRef` uses:
+`prim(name)` creates on touch, `primIf(name)` reads. Conventional
+names are `"Color"` (flat per-primitive tint) and `"Id"` (`.x` = the
+piece the triangle belongs to); anything else is a custom lane.
+`Mesh::append` concatenates lanes and pads a missing side by name
+("Color" pads white, everything else zeros) — the posture
+`Cloud::append` takes for the point class.
+
+Three ways in and three ways out:
+
+- **In, by hand**: write `mesh.prim("Color")` on any formed model.
+- **In, from the point class**: `points::promoteToPrims(mesh, cloud,
+  cloudLane, primLane)` (Houdini's Attribute Promote) for anything
+  `points::instance` stamped, and `pop::Promote` — the chain op,
+  spelled `.promote(from, to)` — which `popops::cookMesh` honours.
+- **Out, natively**: `space::MeshStyle::primColorLane` multiplies the
+  lane into each triangle's colour with no vertex duplication (Lit
+  mode only; Normals/Uv are buffers and stay unmodulated).
+- **Out, portably**: `mesh::bakePrimColor(mesh, lane)` unwelds into
+  per-vertex colours, so SigilWorld's Diligent pipelines — or any
+  vertex-only renderer — show flat per-primitive colour unchanged.
+- **Out, to the interchange world**: `save::ply` declares each lane on
+  the PLY **face** element (`name_r/_g/_b/_a`, after the index list),
+  which is how Houdini and Blender read per-face attributes.
+
+Executor boundary, stated: prim lanes are **CPU-only** in this pass.
+The GPU executor cooks the point class into lane arenas and has no
+Mesh value to promote onto, so `World::addPoints`/`addPointsOn`/
+`setPoints` **decline** any chain holding `pop::Promote` (return 0)
+rather than dropping it silently — the same graceful boundary
+`MeshScatter` gets.
+
+Deferred on purpose: the swept sinks (`cookTube`/`cookRibbon`/
+`cookSweep`) promote nothing — their triangles ride RESAMPLED
+cross-sections, so there is no owning point; the PLY *importer* skips
+face properties, so prim lanes are export-only today; and no edge
+class exists (nothing in the library addresses half-edges).
+
 ## Space (Skia's 3D)
 
 One `Camera` (eye/target/up/fovY) drives two devices:
@@ -160,20 +244,39 @@ conventional lanes ("t", "tangent"/"normal"/"binormal", "size",
 "tint"), consumers read them by name, and cooked lanes (write your own
 vector per point) slot in anywhere a built-in one does.
 
+### One scatter hash (2026-07-28)
+
+`detail/Hash.h` holds the single PCG the library scatters with —
+`pcgAdvance` / `pcgMix` / `pcgHash`. `Pop.cpp`'s `hash1` (bit-matched to
+the Slang pop kernels, so this is ABI) and `Points.cpp`'s `pcg` PRNG were
+two copies of the same arithmetic; only `Pop.cpp`'s was covered by the
+GPU-parity exemption. They were verified bit-identical over 2^26 inputs
+before merging, and the merged definition reproduces both streams
+exactly (`comet_points.ply` from `world_demo` is byte-identical across
+the change). `Pop.SharedPcgHashKeepsBothConsumersBitStable` pins goldens
+taken from the two originals through both public surfaces. The scatter
+BASIS stays literal at the `Pop.cpp` site, as `VecMath.h` already notes.
+
 ## Demo and tests
 
 ```
-./build/bin/Debug/shape_demo [outdir] [assetdir]   # 9 PNG panels, +1 with assets
+./build/bin/Debug/shape_demo [outdir] [assetdir]   # 12 PNG panels, +2 with assets
 ./build/bin/Debug/shape_test
 ```
 
 Panels: blend_morph, blend_color, blend_spine, materials,
 mesh_perspective, mesh_chrome, panels_space, pathfinder,
-splines_particles — and materials_hdri when `fetch_assets` has
+splines_particles, pop_models, pop_prims, yarn_marquee — and
+materials_hdri / imported_models when `fetch_assets` has
 populated the asset dir (the Poly Haven studio HDRI through
-SigilLoader/OIIO). `shape_test` (32 tests) covers resampling
+SigilLoader/OIIO, the Khronos Avocado glTF). `shape_test` (75 tests)
+covers resampling
 invariants, blend endpoint/spacing/OKLab rules, pathfinder booleans and
 offset, distort sanity, spline interpolation/arc-length/frame
 orthonormality, tube/ribbon well-formedness, cloud generators and
 lanes, instancing, billboard coverage, extrude caps, grid/torus
-normals, camera projection, and material shader compilation.
+normals, camera projection, material shader compilation, the import
+formats (OBJ/glTF/GLB/STL/PLY/Alembic) and PLY save round trips, the
+pop chains and their sinks, and the primitive attribute layer
+(lane sizing/append padding, promote, flat draw, bakePrimColor, PLY
+face properties).

@@ -916,6 +916,86 @@ void panelPop(SkCanvas &canvas) {
                   jade);
 }
 
+// The PRIMITIVE class: attributes that live on TRIANGLES, the sibling
+// of the point lanes. Three stanzas, left to right:
+//
+//  1. facets — a prim "Color" lane written per triangle and read
+//     natively by MeshStyle::primColorLane. The two triangles of each
+//     quad alternate brightness, which is the whole point: no point or
+//     vertex attribute can say that.
+//  2. baked — the SAME lane through mesh::bakePrimColor, which unwelds
+//     into per-vertex colours and needs no lane support at all. This is
+//     how the layer reaches SigilWorld's vertex-only pipelines; both
+//     styles here run flat (no specular/rim) so the match is honest.
+//  3. pieces — the point class promoted INTO the prim class:
+//     .promote("Id") stamps each triangle with its owning point's
+//     index, and the demo colours by it. A stamp instance is a run of
+//     triangles sharing an Id value, not a second container.
+void panelPopPrims(SkCanvas &canvas) {
+  const SkSize viewport = {1240, 720};
+  space::Camera camera;
+  camera.eye = {0, 210, 900};
+  camera.target = {0, 0, 0};
+  camera.fovYDeg = 42;
+
+  const auto wheel = [](float h, float value) -> glm::vec4 {
+    const auto channel = [&](float offset) {
+      return value * (0.55f + 0.45f * std::cos(6.2831853f * (h + offset)));
+    };
+    return {channel(0.0f), channel(0.33f), channel(0.67f), 1.0f};
+  };
+
+  space::MeshStyle flat;
+  flat.baseColor = {1, 1, 1, 1};
+  flat.ambient = {0.34f, 0.34f, 0.38f, 1};
+  flat.specular = 0; // keep 1 and 2 comparable: no view-dependent terms
+  flat.rim = 0;
+
+  // 1. A prim lane written straight onto a formed model.
+  Mesh facets = mesh::torus(130, 46, 34, 14);
+  std::vector<glm::vec4> &color = facets.prim("Color");
+  for (size_t t = 0; t < color.size(); ++t)
+    color[t] = wheel((float)(t / 2) / (float)(color.size() / 2),
+                     t % 2 == 0 ? 1.0f : 0.55f);
+  space::MeshStyle lit = flat;
+  lit.primColorLane = "Color";
+  space::drawMesh(canvas, facets, space::place({-380, 10, 0}, 0, -28),
+                  camera, viewport, lit);
+
+  // 2. The same lane, baked into vertices for renderers without one.
+  space::drawMesh(canvas, mesh::bakePrimColor(facets, "Color"),
+                  space::place({0, 10, 0}, 0, -28), camera, viewport,
+                  flat);
+
+  // 3. The promote: point class -> prim class, addressed by name.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i / 12.0f * 2.0f * (float)M_PI;
+    loop.push_back({160.0f * std::cos(a), 40.0f * std::sin(a * 3.0f),
+                    160.0f * std::sin(a)});
+  }
+  const int kPieces = 64;
+  Mesh pieces = pop::on(loop)
+                    .count(kPieces)
+                    .spread(30)
+                    .vary(0.45f)
+                    .lookAt(camera.eye)
+                    .promote("Id")
+                    .stamps(mesh::quad(46, 46));
+  if (const std::vector<glm::vec4> *ids = pieces.primIf("Id")) {
+    std::vector<glm::vec4> &tint = pieces.prim("Color");
+    for (size_t t = 0; t < tint.size(); ++t) {
+      const int id = (int)(*ids)[t].x;
+      tint[t] = wheel((float)(id * 19 % kPieces) / (float)kPieces,
+                      t % 2 == 0 ? 1.0f : 0.62f);
+    }
+  }
+  space::MeshStyle stamped = lit;
+  stamped.ambient = {0.9f, 0.9f, 0.95f, 1};
+  space::drawMesh(canvas, pieces, space::place({380, 10, 0}), camera,
+                  viewport, stamped);
+}
+
 // The Skia yarn marquee: the SAME idea as SigilWorld's — a ball
 // winding painted end to end with one compose column, perpendicular
 // text — but formed by curves::banner and drawn by the PAINTER
@@ -1068,6 +1148,7 @@ int main(int argc, char **argv) {
       {"pathfinder.png", panelPathfinder, 0xff101014},
       {"splines_particles.png", panelSplines, 0xff07070c},
       {"pop_models.png", panelPop, 0xff0d0d13},
+      {"pop_prims.png", panelPopPrims, 0xff0d0d13},
       {"yarn_marquee.png", panelYarnMarquee, 0xff08080d},
   };
 

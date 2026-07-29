@@ -202,8 +202,23 @@ std::string ply(const Mesh &mesh, const PlyOptions &options) {
     out += kUvProps;
   if (colors)
     out += kColorProps;
-  out += "element face " + std::to_string(mesh.triangleCount()) + "\n";
+  const size_t tris = mesh.triangleCount();
+  out += "element face " + std::to_string(tris) + "\n";
   out += "property list uchar int vertex_indices\n";
+  // The PRIMITIVE class rides the face element — PLY's one native slot
+  // for per-face attributes, which is how Houdini and Blender read
+  // them. Same _r/_g/_b/_a spelling the wide point lanes use. The list
+  // property comes FIRST: readers (ours included) walk properties in
+  // declared order, and a scalar ahead of the index list would be
+  // parsed as part of the face row's leading count.
+  const auto exportablePrim = [&](const std::string &name,
+                                  const std::vector<glm::vec4> &lane) {
+    return lane.size() == tris && exportableLaneName(name);
+  };
+  for (const auto &[name, lane] : mesh.prims)
+    if (exportablePrim(name, lane))
+      for (const char *channel : {"_r", "_g", "_b", "_a"})
+        out += "property float " + name + channel + "\n";
   out += "end_header\n";
   Sink sink{out, options.binary};
   for (size_t i = 0; i < n; ++i) {
@@ -223,6 +238,10 @@ std::string ply(const Mesh &mesh, const PlyOptions &options) {
     sink.putInt((int32_t)mesh.indices[t]);
     sink.putInt((int32_t)mesh.indices[t + 1]);
     sink.putInt((int32_t)mesh.indices[t + 2]);
+    for (const auto &[name, lane] : mesh.prims)
+      if (exportablePrim(name, lane))
+        for (int c = 0; c < 4; ++c)
+          sink.put(lane[t / 3][c]);
     sink.endRow();
   }
   return out;

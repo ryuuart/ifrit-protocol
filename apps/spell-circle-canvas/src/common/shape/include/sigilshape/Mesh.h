@@ -24,6 +24,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
+#include <string>
 #include <vector>
 
 namespace sigil::shape {
@@ -40,10 +42,43 @@ struct Mesh {
   std::vector<glm::vec4> colors;
   std::vector<uint32_t> indices;
 
+  /** PRIMITIVE attribute lanes — the Houdini/TouchDesigner prim class,
+   *  the point lanes' sibling. A primitive here IS a TRIANGLE (one
+   *  index triple), so every lane holds exactly triangleCount() float4
+   *  values, addressed BY NAME exactly like Cloud's point lanes and
+   *  pop's AttrRef: no second identity system, just a second class.
+   *
+   *  Conventional names (nothing enforces them): "Color" (flat
+   *  per-primitive tint — space::MeshStyle::primColorLane reads it and
+   *  mesh::bakePrimColor bakes it for vertex-only renderers) and "Id"
+   *  (.x = the piece the triangle belongs to; instancing writes the
+   *  owning point's index, so "a stamp instance" is expressible as a
+   *  lane VALUE rather than a new container). Any other name is a
+   *  custom lane, create-on-first-touch. */
+  std::map<std::string, std::vector<glm::vec4>, std::less<>> prims;
+
   size_t vertexCount() const { return positions.size(); }
   size_t triangleCount() const { return indices.size() / 3; }
 
-  /** Append another mesh (indices re-based). */
+  /** Primitive-lane accessor, create-on-touch, sized to
+   *  triangleCount(). */
+  std::vector<glm::vec4> &prim(const std::string &name,
+                               glm::vec4 fill = {1, 1, 1, 1});
+  /** Read-only primitive-lane lookup; null when absent. */
+  const std::vector<glm::vec4> *primIf(std::string_view name) const;
+
+  /** Append another mesh (indices re-based). Primitive lanes
+   *  concatenate; a lane missing on one side pads by NAME convention
+   *  ("Color" pads white, everything else zeros) — the same posture
+   *  Cloud::append takes for point lanes.
+   *
+   *  Every optional lane comes out sized to the merge: colors, normals
+   *  and uvs to positions.size(), prims to triangleCount(). That holds
+   *  whether a side lacks the lane entirely or carries a SHORT one —
+   *  consumers read "lane sized to positions" as the presence bit for
+   *  the whole mesh (space::drawMesh's hasNormals is exactly that), so
+   *  an undersized merge would turn lighting, texturing or tinting off
+   *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0). */
   void append(const Mesh &other);
   /** Transform positions by @p m and normals by its inverse transpose. */
   void transform(const glm::mat4 &m);
@@ -101,6 +136,15 @@ Mesh cylinderPanel(float width, float height, float radius, int nu = 32,
 
 /** Flat quad panel in the xy plane facing +z, centered at origin. */
 Mesh quad(float width, float height);
+
+/** The primitive layer's PORTABLE consumer: bake a primitive lane into
+ *  per-vertex colors by unsharing vertices (three per triangle), so a
+ *  renderer that speaks only vertex attributes — SigilWorld's Diligent
+ *  pipelines, any GPU vertex buffer — shows flat per-primitive colour
+ *  with no shader change. Existing vertex colors multiply through; a
+ *  missing or mis-sized lane returns the mesh unchanged. Primitive
+ *  lanes survive on the result (triangle order is preserved). */
+Mesh bakePrimColor(const Mesh &mesh, std::string_view lane = "Color");
 
 } // namespace mesh
 

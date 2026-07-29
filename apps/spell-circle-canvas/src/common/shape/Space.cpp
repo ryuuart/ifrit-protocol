@@ -63,6 +63,20 @@ Mat3 normalMatrix(const SkM44 &src) {
   return out;
 }
 
+/** Multiply a shaded vertex colour by a primitive lane value. The
+ *  shaded colour is already sRGB-encoded bytes, so this is a plain
+ *  byte-domain modulate — the same posture SkBlendMode::kModulate has
+ *  for the texture path. */
+SkColor modulate(SkColor c, glm::vec4 m) {
+  const auto scale = [](U8CPU channel, float k) -> U8CPU {
+    return (U8CPU)std::clamp((float)channel * k + 0.5f, 0.0f, 255.0f);
+  };
+  return SkColorSetARGB(scale(SkColorGetA(c), m.a),
+                        scale(SkColorGetR(c), m.r),
+                        scale(SkColorGetG(c), m.g),
+                        scale(SkColorGetB(c), m.b));
+}
+
 SkColor toColor(glm::vec3 rgb, float a) {
   const SkColor4f c = {std::clamp(rgb.x, 0.0f, 1.0f),
                        std::clamp(rgb.y, 0.0f, 1.0f),
@@ -197,10 +211,21 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
     }
   }
 
+  // The PRIMITIVE lane: one float4 per triangle, multiplied into that
+  // triangle's emitted vertex colours. Lit mode only — the Normals and
+  // Uv buffers must stay unmodulated.
+  const std::vector<glm::vec4> *primColor =
+      style.primColorLane.empty() || style.mode != MeshStyle::Mode::Lit
+          ? nullptr
+          : mesh.primIf(style.primColorLane);
+  if (primColor && primColor->size() != mesh.triangleCount())
+    primColor = nullptr;
+
   // Assemble triangles: near-plane reject, backface cull, depth sort.
   struct Tri {
     uint32_t i0, i1, i2;
     float depth;
+    uint32_t index; ///< primitive index, for the prim lanes
   };
   std::vector<Tri> tris;
   tris.reserve(mesh.indices.size() / 3);
@@ -219,7 +244,8 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
         continue;
     }
     tris.push_back({i0, i1, i2,
-                    (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f});
+                    (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f,
+                    (uint32_t)(t / 3)});
   }
   if (style.depthSort)
     std::sort(tris.begin(), tris.end(),
@@ -252,9 +278,12 @@ void drawMesh(SkCanvas &canvas, const Mesh &mesh, const glm::mat4 &model,
       tex.reserve(count * 3);
     for (size_t k = 0; k < count; ++k) {
       const Tri &tri = tris[start + k];
+      const glm::vec4 flat =
+          primColor ? (*primColor)[tri.index] : glm::vec4{1, 1, 1, 1};
       for (uint32_t idx : {tri.i0, tri.i1, tri.i2}) {
         pos.push_back(screen[idx]);
-        col.push_back(shaded[idx]);
+        col.push_back(primColor ? modulate(shaded[idx], flat)
+                                : shaded[idx]);
         if (textured) {
           const SkPoint uv = style.uvTransform.mapPoint(
               {mesh.uvs[idx].x, mesh.uvs[idx].y});

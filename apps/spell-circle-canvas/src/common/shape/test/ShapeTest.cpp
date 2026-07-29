@@ -271,6 +271,121 @@ TEST(Mesh, TransformRotatesNormalsForward) {
   }
 }
 
+TEST(Mesh, AppendKeepsNormalAndUvLanesSizedToPositions) {
+  // The everyday break: a stamp authored with positions + indices only
+  // instances into a normal-less, uv-less Mesh (points::instance copies
+  // only the lanes the stamp has), and merging THAT into a lit mesh used
+  // to leave normals.size() != positions.size(). space::drawMesh reads
+  // exactly that comparison as its hasNormals bit, so lighting died for
+  // the WHOLE merge — torus included, not just the flat flakes.
+  Mesh stamp; // a bare triangle: no normals, no uvs
+  stamp.positions = {{-2, -2, 0}, {2, -2, 0}, {0, 2, 0}};
+  stamp.indices = {0, 1, 2};
+  const Cloud cloud = points::ring({0, 0, 0}, 50, 4);
+  const Mesh flakes = points::instance(cloud, stamp);
+  ASSERT_TRUE(flakes.normals.empty()) << "the real source of the defect";
+  ASSERT_TRUE(flakes.uvs.empty());
+
+  Mesh lit = mesh::torus(40, 8, 12, 8);
+  ASSERT_EQ(lit.normals.size(), lit.positions.size());
+  ASSERT_EQ(lit.uvs.size(), lit.positions.size());
+  const size_t litVerts = lit.positions.size();
+  const glm::vec3 keptNormal = lit.normals.front();
+  const glm::vec2 keptUv = lit.uvs.front();
+
+  lit.append(flakes);
+  EXPECT_EQ(lit.normals.size(), lit.positions.size()) << "hasNormals";
+  EXPECT_EQ(lit.uvs.size(), lit.positions.size());
+  EXPECT_NEAR(glm::length(lit.normals.front() - keptNormal), 0.0f, 1e-6f);
+  EXPECT_NEAR(glm::length(lit.uvs.front() - keptUv), 0.0f, 1e-6f);
+  // The padded half carries a UNIT +Z normal, never a degenerate zero:
+  // zero shades black and never recovers through Mesh::transform.
+  for (size_t i = litVerts; i < lit.normals.size(); ++i) {
+    EXPECT_NEAR(glm::length(lit.normals[i]), 1.0f, 1e-6f) << "vertex " << i;
+    EXPECT_NEAR(lit.normals[i].z, 1.0f, 1e-6f);
+    EXPECT_NEAR(lit.uvs[i].x, 0.0f, 1e-6f);
+    EXPECT_NEAR(lit.uvs[i].y, 0.0f, 1e-6f);
+  }
+
+  // Same in the other order — the pad has to land at the FRONT.
+  Mesh reversed = points::instance(cloud, stamp);
+  const size_t flakeVerts = reversed.positions.size();
+  reversed.append(mesh::torus(40, 8, 12, 8));
+  ASSERT_EQ(reversed.normals.size(), reversed.positions.size());
+  ASSERT_EQ(reversed.uvs.size(), reversed.positions.size());
+  for (size_t i = 0; i < flakeVerts; ++i)
+    EXPECT_NEAR(glm::length(reversed.normals[i]), 1.0f, 1e-6f);
+
+  // Neither side authoring a lane still means NO lane: append pads an
+  // existing lane, it does not conjure one onto a flat merge.
+  Mesh bare = points::instance(cloud, stamp);
+  bare.append(points::instance(cloud, stamp));
+  EXPECT_TRUE(bare.normals.empty());
+  EXPECT_TRUE(bare.uvs.empty());
+}
+
+TEST(Mesh, AppendRepairsShortIncomingLanes) {
+  // The remaining hole in the same family: a lane authored SHORTER than
+  // its own mesh's element count. A bare insert leaves the MERGED lane
+  // undersized, and every consumer reads "lane sized to positions" (or
+  // to triangleCount, for prims) as the presence bit for the whole
+  // mesh — so one short lane on one side turns tinting, lighting or
+  // texturing off for the merge. Short lanes come from hand-built and
+  // imported meshes (a PLY whose extra property list ran out early).
+  Mesh a;
+  a.positions = {{-50, -50, 0}, {50, -50, 0}, {50, 50, 0}, {-50, 50, 0}};
+  a.indices = {0, 1, 2, 0, 2, 3};
+  a.colors.assign(4, glm::vec4{1, 0, 0, 1});
+  a.normals.assign(4, glm::vec3{0, 0, 1});
+  a.uvs.assign(4, glm::vec2{0.25f, 0.5f});
+
+  Mesh b; // 4 vertices / 2 triangles, but every lane one entry short
+  b.positions = {{0, 0, 10}, {10, 0, 10}, {10, 10, 10}, {0, 10, 10}};
+  b.indices = {0, 1, 2, 0, 2, 3};
+  b.colors = {{0, 1, 0, 1}, {0, 1, 0, 1}, {0, 1, 0, 1}};
+  b.normals = {{1, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+  b.uvs = {{1, 1}, {1, 1}, {1, 1}};
+  b.prims["heat"] = {{5, 0, 0, 0}}; // 1 entry for 2 triangles
+
+  a.append(b);
+  ASSERT_EQ(a.positions.size(), 8u);
+  EXPECT_EQ(a.colors.size(), a.positions.size()) << "short colors lane";
+  EXPECT_EQ(a.normals.size(), a.positions.size());
+  EXPECT_EQ(a.uvs.size(), a.positions.size());
+  ASSERT_EQ(a.colors.size(), 8u);
+  // Ours survived, theirs landed at the right run, and the hole pads
+  // WHITE — the untinted identity. Black would darken the merged half.
+  EXPECT_EQ(a.colors[0], (glm::vec4{1, 0, 0, 1}));
+  EXPECT_EQ(a.colors[4], (glm::vec4{0, 1, 0, 1}));
+  EXPECT_EQ(a.colors[7], (glm::vec4{1, 1, 1, 1})) << "pad stays white";
+  EXPECT_NEAR(a.normals[7].z, 1.0f, 1e-6f); // +Z, never a zero normal
+  EXPECT_NEAR(a.uvs[7].x, 0.0f, 1e-6f);
+  EXPECT_NEAR(a.uvs[7].y, 0.0f, 1e-6f);
+  // Prim lanes count per TRIANGLE; the prims block's trailing resize is
+  // what covers the same hole there, padding by lane name.
+  ASSERT_EQ(a.triangleCount(), 4u);
+  const std::vector<glm::vec4> *heat = a.primIf("heat");
+  ASSERT_TRUE(heat);
+  ASSERT_EQ(heat->size(), 4u) << "short incoming prim lane";
+  EXPECT_FLOAT_EQ((*heat)[2].x, 5.0f); // theirs
+  EXPECT_FLOAT_EQ((*heat)[3].x, 0.0f); // padded by name
+
+  // The short lane on OUR side is the mirror case: pad-to-old-count
+  // repairs it before theirs is taken.
+  Mesh shortSide;
+  shortSide.positions = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}};
+  shortSide.indices = {0, 1, 2};
+  shortSide.colors = {{0, 0, 1, 1}}; // 1 entry for 3 vertices
+  Mesh full;
+  full.positions = {{5, 0, 0}, {6, 0, 0}, {6, 1, 0}};
+  full.indices = {0, 1, 2};
+  full.colors.assign(3, glm::vec4{1, 1, 0, 1});
+  shortSide.append(full);
+  ASSERT_EQ(shortSide.colors.size(), 6u);
+  EXPECT_EQ(shortSide.colors[1], (glm::vec4{1, 1, 1, 1}));
+  EXPECT_EQ(shortSide.colors[3], (glm::vec4{1, 1, 0, 1}));
+}
+
 // --- Space ----------------------------------------------------------------
 
 TEST(Space, CameraProjectsCenterToViewportCenter) {
@@ -1776,6 +1891,48 @@ TEST(Pop, NamedAttributesFlowAndExport) {
   EXPECT_LT(hi, 1.6f);
 }
 
+TEST(Pop, SharedPcgHashKeepsBothConsumersBitStable) {
+  // ONE hash now (detail/Hash.h) feeds both the parity-locked pop
+  // scatter and Points' PRNG. These goldens were captured from the two
+  // separate copies that preceded it, so they fail if the shared
+  // definition drifts a single bit -- which would silently desync the
+  // CPU executor from the Slang kernels.
+  //
+  // Pop side: Jitter with amplitude 0.5 on a zeroed lane IS
+  // hash1(i*3 + seed) - 0.5, undiluted.
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({100.0f * std::cos(a), 0, 100.0f * std::sin(a)});
+  }
+  const Cloud cooked = popops::cook(pop::on(loop)
+                                        .count(6)
+                                        .set("h", {0, 0, 0, 0})
+                                        .op(pop::Jitter{"h", 0.5f, 0}));
+  const std::vector<glm::vec4> *h = cooked.colorIf("h");
+  ASSERT_TRUE(h);
+  ASSERT_EQ(h->size(), 6u);
+  const float popGolden[6] = {0.231199384f,  -0.441547632f,
+                              -0.184789419f, 0.0919363499f,
+                              0.274898827f,  0.0884094238f};
+  for (size_t i = 0; i < 6; ++i)
+    EXPECT_NEAR((*h)[i].x, popGolden[i], 1e-7f) << "pop hash lane " << i;
+
+  // Points side: a unit-box scatter is the raw rand01 stream, in order.
+  const Cloud box =
+      points::scatterBox({0, 0, 0}, {1, 1, 1}, 4, /*seed=*/7);
+  ASSERT_EQ(box.positions.size(), 4u);
+  const float pointsGolden[12] = {
+      0.985658824f, 0.420034766f,  0.98710376f,  0.480089128f,
+      0.151413783f, 0.589045703f,  0.263890147f, 0.0428663865f,
+      0.913271964f, 0.0273712128f, 0.317990124f, 0.787527025f};
+  for (size_t i = 0; i < 4; ++i) {
+    EXPECT_NEAR(box.positions[i].x, pointsGolden[i * 3], 1e-7f);
+    EXPECT_NEAR(box.positions[i].y, pointsGolden[i * 3 + 1], 1e-7f);
+    EXPECT_NEAR(box.positions[i].z, pointsGolden[i * 3 + 2], 1e-7f);
+  }
+}
+
 TEST(Pop, AtlasTexHintsRemapStampUvs) {
   std::vector<glm::vec3> loop;
   for (int i = 0; i < 8; ++i) {
@@ -1806,4 +1963,192 @@ TEST(Pop, AtlasTexHintsRemapStampUvs) {
   for (int c : cellsSeen)
     distinct += c > 0 ? 1 : 0;
   EXPECT_GE(distinct, 3) << "the hash should spread across cells";
+}
+
+// --- Primitive attribute lanes --------------------------------------------
+
+namespace {
+
+/** Two triangles splitting a 100x100 square along the (-,-)->(+,+)
+ *  diagonal, wound CCW in the y-up world so both survive backface
+ *  culling. Triangle 0 is the lower-right half, triangle 1 the upper
+ *  left — the flat-tint test samples one pixel inside each. */
+Mesh splitQuad() {
+  Mesh m;
+  m.positions = {{-50, -50, 0}, {50, -50, 0}, {50, 50, 0}, {-50, 50, 0}};
+  m.indices = {0, 1, 2, 0, 2, 3};
+  return m;
+}
+
+} // namespace
+
+TEST(Mesh, PrimLanesSizeToTrianglesAndAppendPadsByName) {
+  Mesh a = splitQuad();
+  EXPECT_EQ(a.triangleCount(), 2u);
+  EXPECT_EQ(a.primIf("Color"), nullptr) << "absent until touched";
+  a.prim("Color")[0] = {1, 0, 0, 1};
+  ASSERT_TRUE(a.primIf("Color"));
+  ASSERT_EQ(a.primIf("Color")->size(), 2u) << "one float4 per triangle";
+  EXPECT_EQ((*a.primIf("Color"))[1], (glm::vec4{1, 1, 1, 1}))
+      << "\"Color\" creates white";
+  a.prim("heat", {0, 0, 0, 0})[1] = {9, 0, 0, 0};
+
+  // Appending a lane-less mesh pads OUR lanes by name convention.
+  Mesh b = splitQuad();
+  a.append(b);
+  ASSERT_EQ(a.triangleCount(), 4u);
+  ASSERT_EQ(a.primIf("Color")->size(), 4u);
+  EXPECT_EQ((*a.primIf("Color"))[2], (glm::vec4{1, 1, 1, 1}));
+  EXPECT_EQ((*a.primIf("heat"))[3], (glm::vec4{0, 0, 0, 0}));
+
+  // ...and the other direction: THEIR lane pads over our old triangles.
+  Mesh c = splitQuad();
+  c.prim("heat", {0, 0, 0, 0})[0] = {5, 0, 0, 0};
+  a.append(c);
+  ASSERT_EQ(a.triangleCount(), 6u);
+  const std::vector<glm::vec4> *heat = a.primIf("heat");
+  ASSERT_EQ(heat->size(), 6u);
+  EXPECT_FLOAT_EQ((*heat)[1].x, 9.0f);  // ours survived
+  EXPECT_FLOAT_EQ((*heat)[2].x, 0.0f);  // padded
+  EXPECT_FLOAT_EQ((*heat)[4].x, 5.0f);  // theirs landed at the right run
+  EXPECT_EQ(a.primIf("Color")->size(), 6u);
+}
+
+TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
+  Mesh m = splitQuad();
+  m.colors.assign(4, glm::vec4{1, 1, 1, 0.5f});
+  m.prim("Color")[0] = {1, 0, 0, 1};
+  m.prim("Color")[1] = {0, 0, 1, 1};
+  const Mesh baked = mesh::bakePrimColor(m, "Color");
+  // Vertices unshared: three per triangle, indices renumbered.
+  ASSERT_EQ(baked.vertexCount(), 6u);
+  ASSERT_EQ(baked.triangleCount(), 2u);
+  ASSERT_EQ(baked.colors.size(), 6u);
+  for (size_t k = 0; k < 3; ++k) {
+    EXPECT_FLOAT_EQ(baked.colors[k].r, 1.0f);
+    EXPECT_FLOAT_EQ(baked.colors[k].b, 0.0f);
+    EXPECT_FLOAT_EQ(baked.colors[3 + k].b, 1.0f);
+    EXPECT_FLOAT_EQ(baked.colors[3 + k].r, 0.0f);
+    // The pre-existing vertex colour multiplies through.
+    EXPECT_FLOAT_EQ(baked.colors[k].a, 0.5f);
+  }
+  EXPECT_EQ(baked.positions[3], m.positions[0]) << "triangle order kept";
+  EXPECT_TRUE(baked.primIf("Color")) << "lanes survive the unweld";
+  // A missing lane is a no-op, not a corruption.
+  EXPECT_EQ(mesh::bakePrimColor(m, "absent").vertexCount(), 4u);
+}
+
+TEST(Space, PrimColorLaneTintsTrianglesFlat) {
+  Mesh m = splitQuad();
+  m.prim("Color")[0] = {1, 0, 0, 1}; // lower-right half
+  m.prim("Color")[1] = {0, 0, 1, 1}; // upper-left half
+
+  space::Camera camera;
+  camera.eye = {0, 0, 300};
+  space::MeshStyle style;
+  style.baseColor = {1, 1, 1, 1};
+
+  const auto render = [&](const space::MeshStyle &s) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    space::drawMesh(*surface->getCanvas(), m, glm::mat4(1.0f), camera,
+                    {200, 150}, s);
+    SkBitmap bm;
+    bm.allocPixels(surface->imageInfo());
+    EXPECT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+    return bm;
+  };
+
+  // Control: no lane named, both halves shade identically.
+  const SkBitmap plain = render(style);
+  EXPECT_EQ(plain.getColor(120, 95), plain.getColor(79, 54));
+
+  style.primColorLane = "Color";
+  const SkBitmap tinted = render(style);
+  const SkColor lowerRight = tinted.getColor(120, 95);
+  const SkColor upperLeft = tinted.getColor(79, 54);
+  EXPECT_GT(SkColorGetR(lowerRight), SkColorGetB(lowerRight) + 40u);
+  EXPECT_GT(SkColorGetB(upperLeft), SkColorGetR(upperLeft) + 40u);
+
+  // The Normals G-buffer is a BUFFER: the tint must not touch it.
+  style.mode = space::MeshStyle::Mode::Normals;
+  space::MeshStyle bare = style;
+  bare.primColorLane.clear();
+  EXPECT_EQ(render(style).getColor(120, 95), render(bare).getColor(120, 95));
+}
+
+TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.push_back({180.0f * std::cos(a), 0, 180.0f * std::sin(a)});
+  }
+  const int kPoints = 24;
+  const Mesh stamp = mesh::quad(6, 6);
+  const pop::Chain chain = pop::on(loop)
+                               .count(kPoints)
+                               .fade({1, 0, 0, 1}, {0, 0, 1, 1})
+                               .vary(0.5f)
+                               .promote(pop::Lane::Color)
+                               .promote("Id", "Id")
+                               .promote(pop::Lane::Scale, "size");
+
+  // The point sink is untouched: a Cloud has no primitive class.
+  const Cloud cooked = popops::cook(chain);
+  ASSERT_EQ(cooked.size(), (size_t)kPoints);
+
+  const Mesh model = popops::cookMesh(chain, stamp);
+  const size_t perStamp = stamp.triangleCount();
+  ASSERT_EQ(model.triangleCount(), (size_t)kPoints * perStamp);
+
+  const std::vector<glm::vec4> *color = model.primIf("Color");
+  const std::vector<glm::vec4> *id = model.primIf("Id");
+  const std::vector<glm::vec4> *size = model.primIf("size");
+  ASSERT_TRUE(color && id && size);
+  ASSERT_EQ(color->size(), model.triangleCount());
+
+  const std::vector<glm::vec4> *tint = cooked.colorIf("tint");
+  const std::vector<float> *sizes = cooked.scalarIf("size");
+  ASSERT_TRUE(tint && sizes);
+  for (size_t p = 0; p < (size_t)kPoints; ++p)
+    for (size_t k = 0; k < perStamp; ++k) {
+      const size_t tri = p * perStamp + k;
+      // Every triangle of a stamp carries its owning POINT's values...
+      EXPECT_EQ((*color)[tri], (*tint)[p]);
+      EXPECT_FLOAT_EQ((*size)[tri].x, (*sizes)[p]);
+      // ...and "Id" is the owning point itself: one piece, one value.
+      EXPECT_FLOAT_EQ((*id)[tri].x, (float)p);
+    }
+  // The ramp really varied, so this is not a constant-lane tautology.
+  EXPECT_GT((*color)[model.triangleCount() - 1].b, (*color)[0].b + 0.5f);
+
+  // Class boundary: the swept sinks resample, so they promote nothing.
+  EXPECT_TRUE(popops::cookTube(chain, 4).prims.empty());
+}
+
+TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
+  Mesh m = splitQuad();
+  m.prim("Color")[0] = {1, 0, 0, 1};
+  m.prim("Color")[1] = {0, 0.25f, 0, 1};
+  const std::string text = save::ply(m);
+  ASSERT_FALSE(text.empty());
+  // Declared on the FACE element, after the index list.
+  const size_t face = text.find("element face 2");
+  const size_t list = text.find("property list uchar int vertex_indices");
+  const size_t prop = text.find("property float Color_r");
+  ASSERT_NE(face, std::string::npos);
+  ASSERT_NE(prop, std::string::npos);
+  EXPECT_LT(face, list);
+  EXPECT_LT(list, prop);
+  EXPECT_NE(text.find("property float Color_a"), std::string::npos);
+  // ...and written on each face row, after the three indices.
+  EXPECT_NE(text.find("3 0 1 2 1 0 0 1\n"), std::string::npos);
+  EXPECT_NE(text.find("3 0 2 3 0 0.25 0 1\n"), std::string::npos);
+  // Geometry still round-trips through our own importer, which skips
+  // face properties it does not know (prim lanes are export-only).
+  auto back = import::model(text.data(), text.size(), "prims.ply");
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(back->parts.size(), 1u);
+  EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
 }

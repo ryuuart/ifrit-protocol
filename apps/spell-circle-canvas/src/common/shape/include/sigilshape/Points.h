@@ -123,6 +123,21 @@ Mesh instance(const Cloud &cloud, const Mesh &stamp,
 Mesh panels(const Cloud &cloud, float width, float height,
             const InstanceOptions &options = {});
 
+/** The point class -> PRIMITIVE class bridge (Houdini's Attribute
+ *  Promote), the instancing companion: an instanced @p mesh lays each
+ *  point's stamp down as a consecutive run of triangles, so triangle
+ *  index / (triangles per stamp) IS the owning point. Fills
+ *  Mesh::prims[@p primLane] from the cloud lane @p cloudLane —
+ *  scalars broadcast to all four components, vectors take w = 0,
+ *  colors copy — and the RESERVED source name "Id" writes the owning
+ *  point's index in .x instead of reading a lane.
+ *
+ *  No-op unless the mesh's triangle count divides evenly by the
+ *  cloud's point count (i.e. it really is @p cloud instanced). */
+void promoteToPrims(Mesh &mesh, const Cloud &cloud,
+                    std::string_view cloudLane,
+                    const std::string &primLane);
+
 struct BillboardStyle {
   /** Sprite image; null draws a soft radial dot. */
   sk_sp<SkImage> sprite;
