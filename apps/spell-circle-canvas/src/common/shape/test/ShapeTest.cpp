@@ -1628,8 +1628,10 @@ namespace {
 
 /** An Ogawa archive written fully in memory: a translated xform
  *  holding a static clockwise triangle with a kVertexScope arb param,
- *  and an animated top-level point cloud (2 samples at 24 fps) with
- *  ids on the first sample. */
+ *  an animated top-level point cloud (2 samples at 24 fps) with ids on
+ *  the first sample, and "uvquad"/"uvweld" — one topology written twice,
+ *  with FACEVARYING and with VERTEX-scope uvs, the two sides of the
+ *  (point, uv, normal) dedup. See AlembicFacevaryingUvsFlipAndDedup. */
 std::string alembicArchiveBytes() {
   namespace Abc = Alembic::Abc;
   namespace AbcGeom = Alembic::AbcGeom;
@@ -1659,6 +1661,35 @@ std::string alembicArchiveBytes() {
     energy.set(AbcGeom::OFloatGeomParam::Sample(
         Abc::FloatArraySample(values), AbcGeom::kVertexScope));
 
+    // Two triangles sharing the 0-2 diagonal of a unit square, written
+    // TWICE with the same topology and different uv scopes — the two
+    // sides of the dedup. 4 points, 6 corners either way.
+    const std::vector<Imath::V3f> qpos = {
+        {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
+    const std::vector<int32_t> qidx = {0, 2, 1, 0, 3, 2}; // clockwise
+    const std::vector<int32_t> qcounts = {3, 3};
+    // FACEVARYING: one uv per corner. Corners 1 and 5 are the same
+    // point with different uvs; corners 0 and 3 are the same point with
+    // the SAME uv — and still do not weld, because the key is the
+    // corner INDEX, not the value.
+    AbcGeom::OPolyMesh uvObj(archive.getTop(), "uvquad");
+    const std::vector<Imath::V2f> quv = {{0, 0}, {1, 1}, {1, 0},
+                                         {0, 0}, {0, 1}, {0.25f, 0.75f}};
+    uvObj.getSchema().set(AbcGeom::OPolyMeshSchema::Sample(
+        Abc::P3fArraySample(qpos), Abc::Int32ArraySample(qidx),
+        Abc::Int32ArraySample(qcounts),
+        AbcGeom::OV2fGeomParam::Sample(Abc::V2fArraySample(quv),
+                                       AbcGeom::kFacevaryingScope)));
+    // VERTEX scope: one uv per point, so every corner of a point keys
+    // the same and the six corners weld back down to four vertices.
+    AbcGeom::OPolyMesh weldObj(archive.getTop(), "uvweld");
+    const std::vector<Imath::V2f> wuv = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+    weldObj.getSchema().set(AbcGeom::OPolyMeshSchema::Sample(
+        Abc::P3fArraySample(qpos), Abc::Int32ArraySample(qidx),
+        Abc::Int32ArraySample(qcounts),
+        AbcGeom::OV2fGeomParam::Sample(Abc::V2fArraySample(wuv),
+                                       AbcGeom::kVertexScope)));
+
     AbcGeom::OPoints pointsObj(archive.getTop(), "cloud", ts); // animated
     const std::vector<uint64_t> ids = {0, 1};
     const std::vector<Imath::V3f> frame0 = {{0, 0, 0}, {1, 0, 0}};
@@ -1679,7 +1710,7 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   // No useful extension on the hint: the Ogawa magic routes it.
   auto model = import::model(bytes.data(), bytes.size(), "download");
   ASSERT_TRUE(model.has_value());
-  ASSERT_EQ(model->parts.size(), 2u);
+  ASSERT_EQ(model->parts.size(), 4u); // tri, uvquad, uvweld, cloud
   const auto find = [&](std::string_view name) -> const Part * {
     for (const Part &part : model->parts)
       if (part.name == name)
@@ -1727,6 +1758,78 @@ TEST(Import, AlembicMeshPointsAndLanes) {
   EXPECT_FALSE(import::alembic(garbage, sizeof(garbage)).has_value());
   EXPECT_FALSE(
       import::alembic(bytes.data(), bytes.size() / 2).has_value());
+}
+
+TEST(Import, AlembicFacevaryingUvsFlipAndDedup) {
+  // The uv path had no Alembic coverage at all. Two claims, one fixture:
+  // (1) Alembic's uv origin is BOTTOM-left and Mesh's is top-left, so v
+  // flips on the way in; (2) corners dedup OBJ-style on (point, uv,
+  // normal) — agreeing corners merge, a uv disagreement splits a point
+  // into two vertices.
+  const std::string bytes = alembicArchiveBytes();
+  auto model = import::alembic(bytes.data(), bytes.size());
+  ASSERT_TRUE(model.has_value());
+  const auto part = [&](std::string_view name) -> const Part * {
+    for (const Part &p : model->parts)
+      if (p.name == name)
+        return &p;
+    return nullptr;
+  };
+  // uvs indexed by POSITION — insertion order is a detail of the walk.
+  const auto uvsAt = [](const Mesh &m, glm::vec3 p) {
+    std::vector<glm::vec2> found;
+    for (size_t i = 0; i < m.positions.size(); ++i)
+      if (glm::length(m.positions[i] - p) < 1e-6f)
+        found.push_back(m.uvs[i]);
+    std::sort(found.begin(), found.end(),
+              [](glm::vec2 a, glm::vec2 b) { return a.x < b.x; });
+    return found;
+  };
+
+  // --- FACEVARYING: the dedup keys on the corner INDEX, so every corner
+  // is its own vertex. 6 corners -> 6 vertices, even where two of them
+  // carry an identical uv. That is the "sources" simplification the
+  // importAbcMesh header declares, pinned rather than assumed.
+  const Part *quad = part("uvquad");
+  ASSERT_NE(quad, nullptr);
+  const Mesh &fv = quad->mesh;
+  ASSERT_EQ(fv.positions.size(), 6u);
+  ASSERT_EQ(fv.uvs.size(), 6u);
+  EXPECT_EQ(fv.triangleCount(), 2u);
+  // The v FLIP: file uv (0,0) at the origin corner arrives as (0,1) — a
+  // v of 0 becoming 1 is something no non-flipping reader produces.
+  const std::vector<glm::vec2> atOrigin = uvsAt(fv, {0, 0, 0});
+  ASSERT_EQ(atOrigin.size(), 2u); // corners 0 and 3, NOT welded
+  for (const glm::vec2 &uv : atOrigin) {
+    EXPECT_FLOAT_EQ(uv.x, 0.0f);
+    EXPECT_FLOAT_EQ(uv.y, 1.0f);
+  }
+  EXPECT_FLOAT_EQ(uvsAt(fv, {0, 1, 0}).at(0).y, 0.0f); // file v=1 -> 0
+  // The shared point at (1,1,0) carried two different uvs; both survive,
+  // both flipped.
+  const std::vector<glm::vec2> shared = uvsAt(fv, {1, 1, 0});
+  ASSERT_EQ(shared.size(), 2u);
+  EXPECT_FLOAT_EQ(shared[0].x, 0.25f);
+  EXPECT_FLOAT_EQ(shared[0].y, 0.25f); // file (0.25, 0.75)
+  EXPECT_FLOAT_EQ(shared[1].x, 1.0f);
+  EXPECT_FLOAT_EQ(shared[1].y, 0.0f); // file (1, 1)
+
+  // --- VERTEX scope: the uv source IS the point, so the six corners
+  // weld back to four vertices. Same topology, same flip.
+  const Part *weld = part("uvweld");
+  ASSERT_NE(weld, nullptr);
+  const Mesh &vw = weld->mesh;
+  ASSERT_EQ(vw.positions.size(), 4u); // the merge the facevarying case
+  ASSERT_EQ(vw.uvs.size(), 4u);       // cannot make
+  EXPECT_EQ(vw.triangleCount(), 2u);
+  const std::vector<glm::vec2> weldOrigin = uvsAt(vw, {0, 0, 0});
+  ASSERT_EQ(weldOrigin.size(), 1u);
+  EXPECT_FLOAT_EQ(weldOrigin[0].x, 0.0f);
+  EXPECT_FLOAT_EQ(weldOrigin[0].y, 1.0f); // file (0,0) -> (0,1)
+  const std::vector<glm::vec2> weldShared = uvsAt(vw, {1, 1, 0});
+  ASSERT_EQ(weldShared.size(), 1u);
+  EXPECT_FLOAT_EQ(weldShared[0].x, 1.0f);
+  EXPECT_FLOAT_EQ(weldShared[0].y, 0.0f); // file (1,1) -> (1,0)
 }
 
 TEST(Import, AlembicTimeSampleSelection) {

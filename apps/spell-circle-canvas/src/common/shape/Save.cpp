@@ -207,10 +207,17 @@ std::string ply(const Mesh &mesh, const PlyOptions &options) {
   out += "property list uchar int vertex_indices\n";
   // The PRIMITIVE class rides the face element — PLY's one native slot
   // for per-face attributes, which is how Houdini and Blender read
-  // them. Same _r/_g/_b/_a spelling the wide point lanes use. The list
-  // property comes FIRST: readers (ours included) walk properties in
-  // declared order, and a scalar ahead of the index list would be
-  // parsed as part of the face row's leading count.
+  // them. Same _r/_g/_b/_a spelling the wide point lanes use.
+  //
+  // The list property is written FIRST for FOREIGN readers, not for
+  // ours. Declaration order is what a PLY reader is supposed to honor,
+  // and ours does — Import.PlyFaceLanesTakeConventionalColorAndAnyDe
+  // claredOrder case (b) imports a file that declares three scalars
+  // AHEAD of vertex_indices and gets the lanes right. So this ordering
+  // is a compatibility CHOICE, not a correctness one: list-first is the
+  // layout every tool in the exchange path already emits and expects,
+  // and the cost of matching it is zero. Do not reorder to suit a
+  // caller — files in this shape are already out there being read.
   const auto exportablePrim = [&](const std::string &name,
                                   const std::vector<glm::vec4> &lane) {
     return lane.size() == tris && exportableLaneName(name);

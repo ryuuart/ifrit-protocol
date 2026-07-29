@@ -20,7 +20,9 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <istream>
 #include <sstream>
+#include <streambuf>
 
 namespace sigil::shape::import {
 
@@ -1037,6 +1039,60 @@ namespace Abc = Alembic::Abc;
 namespace AbcA = Alembic::AbcCoreAbstract;
 namespace AbcGeom = Alembic::AbcGeom;
 
+/** A read-only streambuf over bytes the CALLER owns — no copy. Ogawa
+ *  reads its archive lazily and by SEEK (a header, then jumps to group
+ *  offsets), so an istream is the only shape the factory accepts; what
+ *  it does not need is a second copy of the whole cache, which
+ *  istringstream forces and which doubles peak memory on the caches
+ *  this format exists for.
+ *
+ *  The get area IS the caller's buffer, so the only override that has
+ *  to do real work is the seek pair (std::streambuf's own seekoff
+ *  fails); sgetc/sbumpc/sgetn already read straight out of it.
+ *
+ *  LIFETIME: the buffer, the stream over it, and the caller's bytes all
+ *  have to outlive the IArchive, because the archive keeps reading
+ *  after getArchive() returns. Enforced by declaration ORDER in the one
+ *  function that builds them — buf, then stream, then archive, all in
+ *  the same scope, so destruction unwinds archive first. Do not hoist
+ *  the archive out of that scope or hand it back to a caller. */
+class NonOwningStreamBuf final : public std::streambuf {
+public:
+  NonOwningStreamBuf(const void *bytes, size_t size) {
+    // setg's non-const signature is a formality: nothing here writes,
+    // and no overflow/pbackfail path can reach the pointers.
+    char *begin = const_cast<char *>(static_cast<const char *>(bytes));
+    setg(begin, begin, begin + size);
+  }
+
+protected:
+  std::streamsize showmanyc() override { return egptr() - gptr(); }
+
+  pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+                   std::ios_base::openmode which) override {
+    if (!(which & std::ios_base::in))
+      return pos_type(off_type(-1));
+    const off_type size = egptr() - eback();
+    off_type target = off;
+    if (dir == std::ios_base::cur)
+      target += gptr() - eback();
+    else if (dir == std::ios_base::end)
+      target += size;
+    // A seek PAST the end is a failure, not a clamp: Ogawa uses a
+    // short read to detect truncation, and clamping would hand it a
+    // valid-looking position into a file that has no such bytes.
+    if (target < 0 || target > size)
+      return pos_type(off_type(-1));
+    setg(eback(), eback() + target, egptr());
+    return pos_type(target);
+  }
+
+  pos_type seekpos(pos_type pos,
+                   std::ios_base::openmode which) override {
+    return seekoff(off_type(pos), std::ios_base::beg, which);
+  }
+};
+
 /** XformSample matrices are row-vector M44d; glm's mat4 is column-
  *  vector. Reading the 16 doubles in memory order through make_mat4
  *  IS the row->column conversion — no explicit transpose — so the
@@ -1505,11 +1561,12 @@ std::optional<Model> alembic(const void *bytes, size_t size,
   // The library can still throw on malformed input despite the quiet
   // policy below — one net turns every failure into nullopt.
   try {
-    // The stream must outlive the archive; both stay stack-local, and
-    // the archive is never returned or stored.
-    std::istringstream stream(
-        std::string(static_cast<const char *>(bytes), size),
-        std::ios::binary);
+    // The buffer and the stream must outlive the archive; all three
+    // stay stack-local IN THIS ORDER, so unwinding destroys the archive
+    // first, and the archive is never returned or stored. The buffer is
+    // non-owning — the caller's bytes are read in place, never copied.
+    NonOwningStreamBuf buf(bytes, size);
+    std::istream stream(&buf);
     Alembic::AbcCoreFactory::IFactory factory;
     factory.setPolicy(Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
     Alembic::AbcCoreFactory::IFactory::CoreType core =
