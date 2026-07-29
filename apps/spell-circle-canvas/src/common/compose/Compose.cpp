@@ -508,6 +508,10 @@ Element &Element::translateY(Animatable<float> v) {
   m_node->paint.translateY = std::move(v);
   return *this;
 }
+Element &Element::travel(MotionPath along) {
+  m_node->motionData.ensure() = std::move(along);
+  return *this;
+}
 Element &Element::rotate(Animatable<float> v) {
   m_node->paint.rotate = std::move(v);
   return *this;

@@ -416,9 +416,30 @@ bool propsEqual(const ElementNode &a, const ElementNode &b) {
       !propEqual(pa.translateX, pb.translateX) ||
       !propEqual(pa.translateY, pb.translateY) ||
       !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
+      // scaleX/scaleY were MISSING from this list since they landed: two
+      // descriptions differing only in a per-axis scale compared EQUAL,
+      // so the patch pruned, the node was never marked paint-dirty, and a
+      // bar re-described at a new width kept the old one's picture (and an
+      // animate() on scaleX never ramped, since applyTransitions only runs
+      // inside the `own` branch). Found by the travel() equality audit.
+      !propEqual(pa.scaleX, pb.scaleX) || !propEqual(pa.scaleY, pb.scaleY) ||
       !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
       pa.originX != pb.originX || pa.originY != pb.originY ||
       pa.originPx != pb.originPx || pa.zIndex != pb.zIndex)
+    return false;
+  // travel(): a motion path is read live at paint, so it participates in
+  // reconciler equality — every field, or a change to one of them would
+  // prune into its predecessor. `path` carries the shape seam's own
+  // contract (a comparable scheme prunes; the raw-callable escape hatch
+  // never compares equal), `t` compares as any Animatable lane does, and
+  // `lookAhead` is a plain float that changes the ORIENTATION and so
+  // cannot be left out — the wiggle-wave trap, one field at a time.
+  if ((bool)a.motionData != (bool)b.motionData)
+    return false;
+  if (a.motionData &&
+      (!(a.motionData->path == b.motionData->path) ||
+       !propEqual(a.motionData->t, b.motionData->t) ||
+       a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
   // Content.
   if (!textEqual(a, b))

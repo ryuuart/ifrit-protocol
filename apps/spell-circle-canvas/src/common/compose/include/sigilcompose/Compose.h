@@ -463,6 +463,90 @@ private:
   std::shared_ptr<const State> m_state;
 };
 
+/** A SPATIAL PATH for a node to ride — After Effects' motion model, and
+ *  the 2D port of `world::CameraPath` (world/README.md, 2026-07-29).
+ *
+ *  `translateX`/`translateY` are two independent lanes. Two lanes can
+ *  describe a POINT; they cannot describe a TRAJECTORY, and hand-driving
+ *  a curve through them means the author computing two numbers a frame,
+ *  which is the imperative door wearing the declarative one's clothes.
+ *
+ *  The float-only ruling is not bent to do it. The lane here is @ref t —
+ *  WHERE ALONG the curve — so the whole `bind()` chain still applies, to
+ *  the SCHEDULE rather than to the geometry: `.map(&choreograph::easeInOutQuad)`
+ *  eases the move in and out, `.target(0, 2)` runs two laps of a closed
+ *  curve, `.window(...)` makes the move a slice of a larger phase. The
+ *  curve supplies the SHAPE, the lane supplies the SCHEDULE. That
+ *  separation is the whole design.
+ *
+ *      .travel({.path = shapes::circle(),
+ *               .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0, 1)})
+ *
+ *  The rules, argued in DESIGN.md (§ The motion path, 2026-07-29):
+ *
+ *  - **The curve is resolved against the PARENT's box, not the node's.**
+ *    A `Shape` is a function of a size, and the size that makes a motion
+ *    path mean anything is the FRAME the node moves in — `shapes::circle()`
+ *    on a 40 px dot inside a 400 px card is a 400 px orbit, not a 40 px
+ *    twitch. (A root node with no parent resolves against its own box,
+ *    which is the canvas.)
+ *  - **The transform ORIGIN is what rides the curve.** AE moves the
+ *    layer's anchor point; `transformOrigin()` is Compose's anchor point,
+ *    and it is already the pivot rotate/scale/skew turn about, so the
+ *    point on the curve is fixed under all of them. The default (0.5,
+ *    0.5) rides the node's centre.
+ *  - **PRECEDENCE: whatever the path drives, it drives outright.** It
+ *    always drives position, so `translateX`/`translateY` are IGNORED
+ *    while a path is engaged — not blended, not treated as an offset (a
+ *    lane that half-contradicts a curve can only place the node off it).
+ *    Dropping the path hands the very same lanes back, live.
+ *  - **Auto-orient ADDS to `rotate()`, it does not replace it.** This is
+ *    the one place the 2D port departs from `CameraPath`, and it departs
+ *    towards that header's OTHER rule: an eye cannot be in two places, so
+ *    the path takes the eye outright — but `AnimatedCamera::rollDeg`
+ *    composes with the flight, and a tangent angle plus an authored spin
+ *    is exactly that composition (it is also what AE does: auto-orient
+ *    sets the base orientation and the Rotation property adds on top). So
+ *    `rotate(&spin)` on a travelling node spins it AS it banks.
+ *  - **WRAP on a closed curve, CLAMP on an open one.** On a closed
+ *    outline 0 and 1 are the same point, so `t` past 1 comes round (and
+ *    negative `t` runs backwards) — that is what makes `.target(0, 2)`
+ *    read as two laps with no extra API. An open curve parks at its ends.
+ *    A path is closed when EVERY contour it resolved to is closed.
+ *  - **ARC LENGTH is the only parameterisation, and it came free.** `t`
+ *    is a fraction of the path's TOTAL arc length across every contour —
+ *    the same coordinate `bandPointAt`, `spans::` and `SkTrimPathEffect`
+ *    already speak, so a motion path and a span reveal of the same numbers
+ *    describe the same run. `SkContourMeasure` measures nothing else,
+ *    which is why there is no `arcLength` flag to turn off (the 3D header
+ *    needs one because a `Spline3` has a native parameter; an `SkPath` has
+ *    no parameter at all, only length).
+ *  - **A path that resolves to no length is not engaged**, exactly as a
+ *    `CameraPath` with no control points is not.
+ *
+ *  Paint-only, like the lanes it outranks: a travelling node never
+ *  relayouts, and its content picture replays under the new transform.
+ *
+ *  PRUNING follows the shape seam it is built from: a comparable scheme
+ *  (any `shapes::` generator) prunes, the raw-callable escape hatch never
+ *  compares equal and keeps the node conservatively un-pruned — the same
+ *  contract, and the same cost, `Element::shape()` documents. */
+struct MotionPath {
+  /** The curve, resolved against the PARENT's laid-out box. */
+  Shape path;
+  /** WHERE along it, as a fraction of total arc length. One float, so
+   *  every `bind()`/`animate()` verb still applies. */
+  Animatable<float> t = 0.0f;
+  /** Auto-orient: how far ahead the node looks, in the same units as
+   *  @ref t. Non-zero adds `atan2` of the chord `position(t + lookAhead)
+   *  - position(t)` to `rotate()`, so a negative value faces BACK down
+   *  the curve. Exactly 0 (the default, matching AE's unchecked box)
+   *  leaves orientation alone. At the end of an OPEN curve, where the
+   *  forward chord collapses, the last good chord is held rather than
+   *  yielding a NaN angle. */
+  float lookAhead = 0.0f;
+};
+
 /** Text whose BASELINE is a path (`Element::onPath`).
  *
  *  The run is shaped once — real kerning, real ligatures, real advances —
@@ -2115,6 +2199,16 @@ public:
   Element &blend(SkBlendMode mode);
   Element &translateX(Animatable<float> v);
   Element &translateY(Animatable<float> v);
+  /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
+   *  for the six rules). Paint-only like the lanes it outranks; the
+   *  node's transform origin is the point that lands on the curve, and
+   *  the curve is resolved against the PARENT's box.
+   *
+   *      .travel({.path = shapes::circle(),
+   *               .t = bind(&phase).target(0, 1),
+   *               .lookAhead = 0.02f})   // auto-orient along the tangent
+   */
+  Element &travel(MotionPath along);
   Element &rotate(Animatable<float> degrees);
   Element &scale(Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().

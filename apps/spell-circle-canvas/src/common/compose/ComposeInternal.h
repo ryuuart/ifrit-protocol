@@ -294,6 +294,11 @@ struct ElementNode {
   Box<MaterialData> materialData;
   Box<StrokeData> strokeData; // span-qualified stroke passes (rare)
   Box<MemoData> memoData;     // present ⇔ this is a memo shell
+  // Element::travel(): the node's position IS a curve. A block rather than
+  // a PaintProps field because a Shape plus an Animatable is ~120 B on
+  // every node in the tree for a property a handful of them use, and
+  // Composer.cpp's static_assert is the rule that says so.
+  Box<MotionPath> motionData;
 
   std::vector<Element> children;
 

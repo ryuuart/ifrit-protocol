@@ -89,8 +89,10 @@ value-semantic `Box<T>` blocks — absent costs one null pointer.
 variant; the fat `Transitioned` payload boxes out-of-line. A
 `static_assert(sizeof(ElementNode) <= 768)` in `Composer.cpp` enforces
 it structurally: **new rare or kind-specific state goes in a block,
-never the base.** (2752 → 688 bytes at the §15 split; 744 today with
-the stroke block, guard ≤ 768; STRESS_TESTS.)
+never the base.** (2752 → 688 bytes at the §15 split; **736 today**,
+re-measured 2026-07-29 — the figure here read 744 and was stale; it was
+728 before `travel()`'s motion block, and every one of those +8s is a
+`Box`, which is the rule working. Guard ≤ 768; STRESS_TESTS.)
 
 ## The pipeline — five phases, procedural entry at each
 
@@ -181,6 +183,84 @@ is bind-path with one gate — the axis must be advance-invariant,
 *proved per font* by sampling every glyph advance at the axis extremes.
 wght is refused with a warning (text draws unvaried); GRAD is the
 advance-invariant weight.
+
+### The motion path — SPACE and TIME are separate concerns (2026-07-29)
+
+`translateX`/`translateY` are two independent `Animatable<float>` lanes.
+Two lanes describe a POINT; they cannot describe a TRAJECTORY, and
+driving a curve through them means the author computing two numbers a
+frame — the imperative door wearing the declarative one's clothes.
+`Element::travel(MotionPath)` is the missing spelling, and it is the 2D
+port of `world::CameraPath` (world/README.md, same date).
+
+**The float-only ruling is not bent to do it: the lane is `t`, the
+position ALONG the curve.** So the whole `bind()` chain still applies —
+to the SCHEDULE rather than to the geometry. The curve supplies the
+shape, the lane supplies the timing. That separation is the whole
+design, and it is why no `Animatable<SkPoint>` was needed (a point lane
+would be a slot with no chain at all).
+
+Three rulings are Compose's own, because the currency here is not a
+`shape::Spline3` — SigilCompose does not depend on SigilShape, so the
+path value is the `Shape` seam (`ShapeScheme`: `path(SkSize)` plus
+equality). Two consequences follow from `Shape` being SIZE-DEPENDENT,
+which the 3D case never faced:
+
+1. **The curve resolves against the PARENT's box, not the node's.** The
+   size that makes a motion path mean anything is the FRAME the node
+   moves in; `shapes::circle()` on a 14 px comet inside a 400 px card
+   must be a 400 px orbit, not a 14 px twitch. This also matches where
+   the numbers land: paint applies the translate in the node's laid-out
+   frame, i.e. the parent's coordinate space, which is exactly the space
+   the resolved path lives in. A root node has no parent and resolves
+   against its own box, which is the canvas.
+2. **A relayout re-shapes the curve and leaves `t` alone.** The node
+   slides to the same fraction of the NEW curve; it does not jump phase
+   and it does not freeze on the old curve. `t` is the schedule and a
+   layout change is not a schedule change. (Rejected: freezing the path
+   at first resolve — it contradicts "compare against the destination,
+   never a have-I-run flag" and leaves a wrong curve forever; and
+   holding constant ARC LENGTH in px — a shrink would push `t` past 1
+   and the node off its own path.) The arc-length table is therefore
+   cached against BOTH inputs that determine it, the `Shape` value and
+   the size, with no dirty flag.
+3. **Pruning is inherited from the shape seam, not re-invented.** A
+   comparable scheme prunes; the raw-callable escape hatch never
+   compares equal and keeps the node conservatively un-pruned — the same
+   contract, and the same cost, `.shape()` already documents. Every
+   field of `MotionPath` participates in `propsEqual`, one control per
+   field, because a motion path is read live at paint.
+
+**PRECEDENCE, and the one place the 2D port departs from the 3D one.**
+Position is driven OUTRIGHT: `translateX`/`translateY` are ignored while
+a path is engaged, because a lane that half-contradicts a curve can only
+place the node off it. But **auto-orient ADDS to `rotate()`** rather than
+replacing it. That is not a weakening of `CameraPath`'s rule, it is the
+other rule in the same header: an eye cannot be in two places, so the
+flight takes the eye whole — but `AnimatedCamera::rollDeg` COMPOSES with
+the flight, and a tangent angle plus an authored spin is exactly that
+composition. It is also what After Effects does (auto-orient sets the
+base orientation; the Rotation property adds on top), and unlike
+position it is geometrically well-defined. Auto-orient is spelled as
+`lookAhead != 0` — one field, visible at the call site — and the chord
+`position(t + lookAhead) - position(t)` is used rather than the exact
+tangent so that a negative value reads back down the curve and a hard
+corner (a star's spike) is smoothed rather than snapped.
+
+**Arc length came free, and the flag went with it.** `t` is a fraction
+of the path's TOTAL arc length across every contour — the coordinate
+`bandPointAt`, `spans::` and `SkTrimPathEffect` already speak.
+`SkContourMeasure` (already in `Brushes.h` for exactly this) measures
+nothing else, so unlike `CameraPath` there is no table to build, no
+`samples` knob, and no `arcLength = false` to opt back to: an `SkPath`
+has no native parameter to opt back TO.
+
+Paint-only, like the lanes it outranks — a travelling node never
+relayouts, and `bounds()` keeps reporting the laid-out box. Paint,
+`recordBounds` and the hit-test inverse now share ONE transform
+resolver (one function in `Paint.cpp`), because a property that
+replaces the translate and adds to the rotation is three chances for
+three hand-written copies to disagree about where a node is.
 
 ## Caching — automatic because provable
 

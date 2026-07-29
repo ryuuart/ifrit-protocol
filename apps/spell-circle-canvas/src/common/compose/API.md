@@ -287,6 +287,8 @@ Element &effect(Effect); Element &backdrop(Effect);
 Element &opacity(Animatable<float>);
 Element &blend(SkBlendMode);
 Element &translateX(Animatable<float>); Element &translateY(Animatable<float>);
+Element &travel(MotionPath);               // a CURVE instead of two lanes
+                                           // (see "The motion path")
 Element &rotate(Animatable<float>); Element &scale(Animatable<float>);
 Element &skewX(Animatable<float>); Element &skewY(Animatable<float>);
                                            // degrees; the ATLUS diagonal —
@@ -408,6 +410,95 @@ snapping*. The lifecycle rules, stated once:
   Output dies — removed list rows can't leak motions by construction.
 - **Keys carry state**: a keyed node that moves in the tree keeps its
   instance, so mid-flight transitions survive reorders.
+
+### The motion path — `travel()` (2026-07-29)
+
+After Effects' core motion model: a layer's position follows a SPATIAL
+path through the comp, and its temporal easing is a separate concern.
+`translateX`/`translateY` are two lanes; two lanes describe a POINT, not
+a TRAJECTORY, and driving a curve through them means computing two
+numbers a frame — the imperative door wearing the declarative one's
+clothes.
+
+```cpp
+struct MotionPath {
+  Shape path;                    // resolved against the PARENT's box
+  Animatable<float> t = 0.0f;    // WHERE ALONG it, by arc length
+  float lookAhead = 0.0f;        // auto-orient; 0 = leave rotation alone
+};
+Element &travel(MotionPath along);
+```
+
+The float-only ruling is not bent to do it. The lane is `t`, so the
+whole `bind()` chain still applies — to the SCHEDULE rather than to the
+geometry. The curve supplies the shape, the lane supplies the timing:
+
+```cpp
+choreograph::Output<float> phase{0};
+ticker.timeline().apply(&phase).then<ch::RampTo>(1.0f, 6.0f);
+
+box().key("comet").rect({0, 0, 14, 14}).fill(gradient(...))
+    .travel({.path = shapes::circle(),                      // the shape
+             .t = bind(&phase).map(&choreograph::easeInOutQuad)      // the schedule
+                              .target(0, 2),                // two laps
+             .lookAhead = 0.02f})                           // auto-orient
+    .rotate(bind(&phase).target(0, 360));   // …and it still spins on top
+```
+
+Six rules, argued in DESIGN.md § The motion path:
+
+- **The curve is resolved against the PARENT's box.** A `Shape` is a
+  function of a size, and the size that makes a motion path mean
+  anything is the FRAME the node moves in — `shapes::circle()` on a
+  14 px comet inside a 400 px card is a 400 px orbit, not a 14 px
+  twitch. A root node with no parent resolves against its own box,
+  which is the canvas.
+- **The transform ORIGIN is what rides the curve** — AE's anchor point,
+  and already the pivot `rotate`/`scale`/`skew` turn about, so the point
+  on the curve is fixed under all of them. Default (0.5, 0.5) rides the
+  centre; `transformOrigin(0, 0)` rides the top-left.
+- **PRECEDENCE: whatever the path drives, it drives outright.**
+  `translateX`/`translateY` are IGNORED while a path is engaged — not
+  blended, not an offset. Dropping the path hands the same lanes back,
+  live. (A path that is absent, empty, or resolves to no measurable
+  length is not engaged at all.)
+- **Auto-orient ADDS to `rotate()`.** `lookAhead != 0` adds the angle of
+  the chord `position(t + lookAhead) - position(t)` to whatever
+  `rotate()` says — so a travelling node can bank AND spin, which is
+  what AE does (auto-orient sets the base orientation, the Rotation
+  property adds). Negative faces back down the curve. This is the one
+  place the 2D port departs from `world::CameraPath`, and it departs
+  towards that header's own `rollDeg` rule; the argument is in
+  DESIGN.md.
+- **WRAP on a closed curve, CLAMP on an open one.** `.target(0, 2)`
+  reads as two laps with no extra API; negative `t` runs backwards; an
+  open curve parks at its ends and HOLDS the last good chord there, so
+  the orientation at the end of an L still points down the last leg.
+  Closed means every contour the path resolved to is closed.
+- **`t` is a fraction of TOTAL arc length across every contour** — the
+  same coordinate `bandPointAt`, `spans::` and `SkTrimPathEffect`
+  already speak. There is no `arcLength` flag: `SkContourMeasure`
+  measures nothing else, and an `SkPath` has no native parameter to opt
+  back to.
+
+Paint-only, like the lanes it outranks: a travelling node never
+relayouts, its content picture replays under the new transform, and
+`bounds()` keeps reporting the LAID-OUT box. `hitTest` follows the
+painted position (paint, bounds and the hit-test inverse share one
+transform resolver).
+
+Pruning follows the shape seam it is built from: `.travel({.path =
+shapes::circle(), ...})` prunes while its fields hold, a raw
+`[](SkSize){...}` never compares equal and keeps the node
+conservatively un-pruned — the same contract, and the same cost,
+`.shape()` documents.
+
+**A relayout re-shapes the curve and leaves `t` alone.** The node slides
+to the same fraction of the NEW curve rather than jumping phase or
+freezing on the old one; on a proportional resize the motion looks
+identical, just scaled. The arc-length table is cached against the two
+inputs that determine it — the `Shape` VALUE and the size it was
+resolved at — never behind a dirty flag.
 
 ## Composer — the retained side, and the whole canvas contract
 

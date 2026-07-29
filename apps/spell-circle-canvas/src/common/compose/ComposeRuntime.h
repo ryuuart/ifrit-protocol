@@ -12,6 +12,7 @@
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
 // types must be complete here (not merely forward-declared).
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
@@ -67,7 +68,7 @@ struct Instance {
   // with trim() and wipe()).
   enum Slot : int {
     kOpacity, kTx, kTy, kRotate, kScale, kFillLerp,
-    kGlyphProgress, kSkewX, kSkewY, kScaleX, kScaleY,
+    kGlyphProgress, kSkewX, kSkewY, kScaleX, kScaleY, kMotionT,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
@@ -318,6 +319,25 @@ struct Instance {
   // its art's bake instead of re-rastering it.
   StampCache stampCache;
 
+  /** THE MOTION-PATH TABLE — `Element::travel()`'s measured curve.
+   *
+   *  Cached against the two INPUTS that determine it, never behind a
+   *  dirty flag: the `Shape` VALUE (so a comparable scheme keeps its
+   *  table across describes, and the raw-callable escape hatch re-measures
+   *  exactly as it re-describes) and the SIZE it was resolved at (which is
+   *  the parent's box, so a relayout re-measures). That is the house rule
+   *  `world::CameraPath` states — compare against the destination, not a
+   *  "have I run" flag — with the second input the 3D case never had. */
+  struct MotionCache {
+    Shape shape;                  // the value this table was built from
+    SkSize size{-1.0f, -1.0f};    // …at this parent size
+    std::vector<sk_sp<SkContourMeasure>> contours;
+    std::vector<float> starts;    // cumulative length before each contour
+    float total = 0;
+    bool closed = false;          // every contour closed → t WRAPS
+  };
+  std::unique_ptr<MotionCache> motion;
+
   ~Instance();
   float resolveFloat(Instance::Slot slot, const Animatable<float> &v) const;
   /** The same resolution over an explicitly-held motion — the span
@@ -552,6 +572,32 @@ struct Composer::Impl {
   bool resolveDerived();
   bool deriveFlow(detail::Instance &inst);
   void deriveRoute(detail::Instance &inst);
+
+  // ---- the node's paint transform, resolved once (Paint.cpp) ----
+  /** Every animated number in paint()'s matrix stack, for ONE frame.
+   *
+   *  One resolver, three consumers — paint()'s matrix, recordBounds()'s
+   *  child union and hitInstance()'s inverse — because the three must
+   *  describe the same matrix or a node draws where it cannot be hit.
+   *  They used to resolve eight slots each, by hand, three times; adding
+   *  `travel()` (which REPLACES tx/ty and ADDS to rot) would have been
+   *  three chances to disagree. */
+  struct NodeTransform {
+    float tx = 0, ty = 0, rot = 0, scl = 1, sx = 1, sy = 1, skx = 0, sky = 0;
+    /** Does anything past the translate need the origin pivot at all? */
+    bool pivoted() const {
+      return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
+             sky != 0;
+    }
+  };
+  NodeTransform transformOf(detail::Instance &inst);
+  /** Where on its motion path this node sits, in its PARENT's space, and
+   *  the auto-orient angle in degrees. Nullopt when no path is engaged
+   *  (absent, empty, or resolving to no measurable length) — the
+   *  translate lanes then stand. Rebuilds the instance's arc-length table
+   *  when the Shape value or the parent size no longer matches. */
+  std::optional<std::pair<SkPoint, float>>
+  motionPathSample(detail::Instance &inst, const SkSize &frame);
 
   // ---- paint (Paint.cpp) ----
   float hostScale = 1.0f; // device px per layout px at draw() entry

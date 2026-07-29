@@ -4855,3 +4855,125 @@ holding still but which never releases the FLAG — so it buys promotion
 for ITSELF (`temporallyStable`) and nothing for its ancestors. That
 asymmetry between the two existing stability machineries is worth
 closing in the same pass.
+
+---
+
+## 39. The MOTION PATH — After Effects' spatial/temporal split, ported from the 3D camera — LANDED 2026-07-29
+
+`translateX`/`translateY` were two independent `Animatable<float>` lanes,
+which is exactly where SigilWorld's camera was two days ago. Two lanes
+describe a POINT. They cannot describe a TRAJECTORY, and driving a curve
+through them means the author computing two numbers a frame — the
+imperative door wearing the declarative one's clothes.
+
+`Element::travel(MotionPath)` closes it, and the pattern is not invented
+here: `world::CameraPath` (world/README.md, 2026-07-29) is the proven
+shape and four of its rulings port unchanged — the lane is `t` (position
+ALONG the curve, so the whole `bind()` chain applies to the SCHEDULE
+rather than the geometry), whatever the path drives it drives outright,
+closed curves WRAP and open ones CLAMP, and the arc-length table is
+cached against the INPUT that determines it rather than behind a dirty
+flag.
+
+```cpp
+box().key("comet").rect({0, 0, 14, 14}).fill(gradient(...))
+    .travel({.path = shapes::circle(),                    // the shape
+             .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0, 2),
+             .lookAhead = 0.02f})                         // auto-orient
+    .rotate(bind(&phase).target(0, 360));   // …and it still spins on top
+```
+
+### WHAT DID NOT PORT, AND WHY — the complication is real but not fatal
+
+SigilCompose must not depend on SigilShape, so `shape::Spline3` is
+unavailable: the path currency is Compose's own `Shape` value. **A
+`Shape` is a function of a SIZE.** Three consequences, all ruled and
+pinned (the arguments are in DESIGN.md § The motion path):
+
+- **It resolves against the PARENT's box.** `shapes::circle()` on a
+  14 px comet inside a 400 px card must be a 400 px orbit, not a 14 px
+  twitch — and the parent's space is also, exactly, the space paint
+  applies the translate in. Rejected: the node's own box (useless), and
+  the canvas (wrong under any nesting).
+- **A relayout re-shapes the curve and leaves `t` alone.** The node
+  slides to the same fraction of the NEW curve. `t` is the schedule; a
+  layout change is not a schedule change. Rejected: freezing the path at
+  first resolve (a wrong curve forever, and it contradicts the
+  compare-against-the-destination rule), and holding constant px arc
+  length (a shrink pushes `t` past 1 and the node off its own path).
+  The table is cached against BOTH inputs — the `Shape` value AND the
+  size — with no dirty flag.
+- **Pruning is the shape seam's contract, inherited not re-invented.**
+  A comparable scheme prunes; a raw callable never compares equal and
+  keeps the node conservatively un-pruned.
+
+### THE ONE DELIBERATE DEPARTURE — auto-orient ADDS to `rotate()`
+
+`CameraPath` takes the eye outright. Position here does too, for the same
+reason (a lane that half-contradicts a curve can only place the node off
+it). Orientation does NOT: `lookAhead != 0` ADDS the chord angle to
+whatever `rotate()` says. That is not a weakening of the rule, it is the
+OTHER rule in the same header — `AnimatedCamera::rollDeg` composes with
+the flight — and unlike position, tangent-plus-spin is geometrically
+well-defined. It is also what AE does. So a comet can bank along its
+orbit and spin on its own axis at once, which the outright reading
+forbids for nothing.
+
+The chord (not the exact tangent) is used so a negative `lookAhead` reads
+back down the curve and a hard corner is smoothed rather than snapped;
+at the end of an open curve the last good chord is held.
+
+### ARC LENGTH CAME FREE, AND TOOK THE FLAG WITH IT
+
+`SkContourMeasure` — already in `Brushes.h` for exactly this — is
+arc-length parameterised by construction, so there is no table to build,
+no `samples` knob, and **no `arcLength = false`**: `CameraPath` needs the
+opt-out because a `Spline3` has a native parameter to opt back to, and an
+`SkPath` has none. `t` is a fraction of the TOTAL length across every
+contour, which is the coordinate `bandPointAt`, `spans::` and
+`SkTrimPathEffect` already speak.
+
+### FOUND ON THE WAY — `scaleX`/`scaleY` were never in `propsEqual`
+
+The equality audit the brief demanded for `MotionPath` found that the
+per-axis scale lanes have been MISSING from `Reconcile.cpp`'s
+`propsEqual` since they landed. Two descriptions differing only in
+`scaleX` compared EQUAL, so the patch pruned, `markPaintDirtyUp()` never
+ran, and a bar re-described at a new width replayed the old picture — and
+because `applyTransitions()` only runs inside the `own` branch, an
+`animate()` on `scaleX` never ramped either. Fixed in the same wave and
+pinned with its own control per axis
+(`ComposeTravel.PerAxisScaleParticipatesInReconcilerEquality`).
+
+**Also corrected:** DESIGN.md § Element memory quoted `sizeof(ElementNode)`
+as 744. Measured on the way in: it was **728** before this change and is
+**736** after (one `Box`, which is the rule working). The stale figure is
+replaced with the measured pair and the date.
+
+**Filed, not fixed:** `recordBounds()`'s child-transform gate reads
+`rot != 0 || scl != 1 || skx != 0 || sky != 0` and its scale step reads
+`if (scl != 1) m.preScale(scl * sx, scl * sy)` — both omit `sx`/`sy`, so
+a child whose only transform is a per-axis scale contributes UNSCALED
+bounds to its parent's record bounds. Left exactly as it was because
+changing paint bounds moves cull and bake rectangles across the whole
+corpus and that wants its own ledger run; the same wave's shared
+`transformOf()` resolver makes it a two-line fix when it is taken.
+
+### Pins (`ComposeTestKernel.cpp`, suite `ComposeTravel` — ten)
+
+`PlacesTheTransformOriginOnTheParentSizedCurve` (the PIXEL pin: four
+quadrant points of the parent-sized circle scanned out of the frame, plus
+the origin ruling), `TIsAFractionOfTotalArcLengthAcrossEveryContour`,
+`WrapsOnAClosedCurveAndClampsOnAnOpenOne`,
+`OutranksTheTranslateLanesAndHandsThemBack`,
+`AutoOrientAddsToRotateAndHoldsTheLastGoodChord`,
+`PrunesOnlyWhenEveryFieldOfThePathMatches` (the PRUNE pin: one control
+per field, plus the raw-callable escape hatch),
+`IsPaintOnlyAndAResizedFrameKeepsT` (the size ruling and the layout
+refusal in one), `TheHitTestUndoesTheSameMatrixPaintApplied`,
+`APathWithNoMeasurableLengthLeavesTheLanesStanding`,
+`PerAxisScaleParticipatesInReconcilerEquality`.
+
+Sixteen positive controls run (mutate → named pin fails → restore, mtime
+stamped); every one failed the pin it was aimed at. Additive: no corpus
+scene uses `travel()` and the plate ledger is byte-neutral.

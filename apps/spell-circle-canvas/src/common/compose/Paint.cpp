@@ -157,6 +157,8 @@ void collectGroupScalars(const Instance &inst, bool root,
     push(Instance::kScaleY, node.paint.scaleY);
     push(Instance::kSkewX, node.paint.skewX);
     push(Instance::kSkewY, node.paint.skewY);
+    if (node.motionData)
+      push(Instance::kMotionT, node.motionData->t);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE
   // values are pushed, so the vector's LENGTH still carries a motion
@@ -501,6 +503,10 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   moving |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
   moving |= boundOrRunning(Instance::kScaleX, node.paint.scaleX);
   moving |= boundOrRunning(Instance::kScaleY, node.paint.scaleY);
+  // travel(): the `t` lane moves the node exactly as tx/ty do — and it is
+  // the GEOMETRIC half, so a device-space bake is refused while it runs.
+  if (node.motionData)
+    moving |= boundOrRunning(Instance::kMotionT, node.motionData->t);
   inst.transformLive = moving;
   ownPaint |= moving;
 
@@ -1071,6 +1077,122 @@ SkRect Composer::Impl::ownPaintBounds(Instance &inst) {
   return local;
 }
 
+// ---------------------------------------------------------------------------
+// travel(): the motion path
+//
+// The 2D port of world::CameraPath. The lane is `t` — WHERE ALONG the curve —
+// so the whole bind() chain applies to the schedule while the Shape supplies
+// the geometry. What the 3D case never faced is that a Shape is a function of
+// a SIZE: the curve is resolved against the PARENT's box (the frame the node
+// moves in), so a relayout re-shapes the curve under a moving node. `t` is
+// untouched by that — the node slides to the same fraction of the new curve
+// rather than jumping to a different phase of its schedule.
+
+std::optional<std::pair<SkPoint, float>>
+Composer::Impl::motionPathSample(Instance &inst, const SkSize &frame) {
+  const ElementNode &node = *inst.desc;
+  if (!node.motionData || !(bool)node.motionData->path)
+    return std::nullopt;
+  const MotionPath &spec = *node.motionData;
+
+  // The table, cached against the two inputs that determine it: the Shape
+  // VALUE and the size it was resolved at. No dirty flag — a comparable
+  // scheme keeps its table across describes, a raw callable re-measures
+  // (which is the escape hatch's documented cost, here as everywhere).
+  if (!inst.motion)
+    inst.motion = std::make_unique<Instance::MotionCache>();
+  Instance::MotionCache &cache = *inst.motion;
+  if (!(cache.shape == spec.path) || cache.size.width() != frame.width() ||
+      cache.size.height() != frame.height()) {
+    cache.shape = spec.path;
+    cache.size = frame;
+    cache.contours.clear();
+    cache.starts.clear();
+    cache.total = 0;
+    cache.closed = true;
+    const SkPath resolved = spec.path(frame);
+    SkContourMeasureIter iter(resolved, false);
+    while (sk_sp<SkContourMeasure> contour = iter.next()) {
+      const float len = contour->length();
+      if (!(len > 0))
+        continue;
+      cache.closed = cache.closed && contour->isClosed();
+      cache.starts.push_back(cache.total);
+      cache.total += len;
+      cache.contours.push_back(std::move(contour));
+    }
+    if (cache.contours.empty())
+      cache.closed = false;
+  }
+  if (!(cache.total > 0))
+    return std::nullopt; // no measurable length ⇒ not engaged
+
+  // WRAP on a closed curve, CLAMP on an open one — the CameraPath rule.
+  const auto walk = [&](float u) {
+    float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
+    if (cache.closed && w < 0.0f)
+      w += 1.0f;
+    const float want = w * cache.total;
+    size_t i = cache.contours.size() - 1;
+    for (size_t c = 0; c + 1 < cache.contours.size(); ++c)
+      if (want < cache.starts[c + 1]) {
+        i = c;
+        break;
+      }
+    SkPoint pos{0, 0};
+    SkVector tan{0, 0};
+    const float len = cache.contours[i]->length();
+    (void)cache.contours[i]->getPosTan(
+        std::clamp(want - cache.starts[i], 0.0f, len), &pos, &tan);
+    return pos;
+  };
+
+  const float t = inst.resolveFloat(Instance::kMotionT, spec.t);
+  const SkPoint here = walk(t);
+  float orient = 0;
+  if (spec.lookAhead != 0.0f) {
+    SkVector chord = walk(t + spec.lookAhead) - here;
+    // At the end of an OPEN curve the forward chord collapses; hold the
+    // last good one rather than reading atan2(0, 0).
+    if (chord.length() <= 1e-6f)
+      chord = here - walk(t - spec.lookAhead);
+    if (chord.length() > 1e-6f)
+      orient = std::atan2(chord.y(), chord.x()) * 180.0f / SK_FloatPI;
+  }
+  return std::make_pair(here, orient);
+}
+
+Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance &inst) {
+  const ElementNode &node = *inst.desc;
+  NodeTransform out;
+  out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
+  out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
+  out.sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
+  out.sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
+  out.skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
+  out.sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
+
+  const SkRect rect = instanceRect(inst);
+  // The curve is resolved in the frame the node MOVES in — its parent's
+  // box (a root node has none, so its own box, which is the canvas).
+  const SkRect frameRect = inst.parent ? instanceRect(*inst.parent) : rect;
+  if (std::optional<std::pair<SkPoint, float>> sample = motionPathSample(
+          inst, SkSize{frameRect.width(), frameRect.height()})) {
+    // PRECEDENCE: the path drives position OUTRIGHT (the lanes are not
+    // read at all), and ADDS its tangent angle to rotate() rather than
+    // replacing it — see MotionPath.
+    const SkPoint origin =
+        resolveOrigin(node.paint, rect.width(), rect.height());
+    out.tx = sample->first.x() - rect.left() - origin.x();
+    out.ty = sample->first.y() - rect.top() - origin.y();
+    out.rot += sample->second;
+    return out;
+  }
+  out.tx = inst.resolveFloat(Instance::kTx, node.paint.translateX);
+  out.ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
+  return out;
+}
+
 SkRect Composer::Impl::recordBounds(Instance &inst) {
   const ElementNode &node = *inst.desc;
   SkRect local = ownPaintBounds(inst);
@@ -1080,25 +1202,19 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     const ElementNode &cn = *child->desc;
     const SkRect crect = instanceRect(*child);
     SkRect cb = recordBounds(*child); // child-local
-    const float tx = child->resolveFloat(Instance::kTx, cn.paint.translateX);
-    const float ty = child->resolveFloat(Instance::kTy, cn.paint.translateY);
-    const float rot = child->resolveFloat(Instance::kRotate, cn.paint.rotate);
-    const float scl = child->resolveFloat(Instance::kScale, cn.paint.scale);
-    const float sx = child->resolveFloat(Instance::kScaleX, cn.paint.scaleX);
-    const float sy = child->resolveFloat(Instance::kScaleY, cn.paint.scaleY);
-    const float skx = child->resolveFloat(Instance::kSkewX, cn.paint.skewX);
-    const float sky = child->resolveFloat(Instance::kSkewY, cn.paint.skewY);
-    SkMatrix m = SkMatrix::Translate(crect.left() + tx, crect.top() + ty);
-    if (rot != 0 || scl != 1 || skx != 0 || sky != 0) {
+    const NodeTransform tf = transformOf(*child);
+    SkMatrix m = SkMatrix::Translate(crect.left() + tf.tx, crect.top() + tf.ty);
+    if (tf.rot != 0 || tf.scl != 1 || tf.skx != 0 || tf.sky != 0) {
       const SkPoint origin =
           resolveOrigin(cn.paint, crect.width(), crect.height());
       m.preTranslate(origin.x(), origin.y());
-      if (rot != 0)
-        m.preRotate(rot);
-      if (scl != 1)
-        m.preScale(scl * sx, scl * sy);
-      if (skx != 0 || sky != 0)
-        m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
+      if (tf.rot != 0)
+        m.preRotate(tf.rot);
+      if (tf.scl != 1)
+        m.preScale(tf.scl * tf.sx, tf.scl * tf.sy);
+      if (tf.skx != 0 || tf.sky != 0)
+        m.preSkew(std::tan(tf.skx * 0.017453293f),
+                  std::tan(tf.sky * 0.017453293f));
       m.preTranslate(-origin.x(), -origin.y());
     }
     local.join(m.mapRect(cb));
@@ -1910,27 +2026,20 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   canvas.save();
   canvas.translate(rect.left(), rect.top());
 
-  const float tx = inst.resolveFloat(Instance::kTx, node.paint.translateX);
-  const float ty = inst.resolveFloat(Instance::kTy, node.paint.translateY);
-  const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
-  const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  const float sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
-  const float sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
-  const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
-  const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
-  if (tx != 0 || ty != 0)
-    canvas.translate(tx, ty);
-  if (rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 || sky != 0) {
+  const NodeTransform tf = transformOf(inst);
+  if (tf.tx != 0 || tf.ty != 0)
+    canvas.translate(tf.tx, tf.ty);
+  if (tf.pivoted()) {
     const SkPoint origin =
         resolveOrigin(node.paint, rect.width(), rect.height());
     canvas.translate(origin.x(), origin.y());
-    if (rot != 0)
-      canvas.rotate(rot);
-    if (scl != 1 || sx != 1 || sy != 1)
-      canvas.scale(scl * sx, scl * sy);
-    if (skx != 0 || sky != 0)
-      canvas.skew(std::tan(skx * 0.017453293f),
-                  std::tan(sky * 0.017453293f));
+    if (tf.rot != 0)
+      canvas.rotate(tf.rot);
+    if (tf.scl != 1 || tf.sx != 1 || tf.sy != 1)
+      canvas.scale(tf.scl * tf.sx, tf.scl * tf.sy);
+    if (tf.skx != 0 || tf.sky != 0)
+      canvas.skew(std::tan(tf.skx * 0.017453293f),
+                  std::tan(tf.sky * 0.017453293f));
     canvas.translate(-origin.x(), -origin.y());
   }
 

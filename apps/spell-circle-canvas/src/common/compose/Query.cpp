@@ -51,16 +51,18 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
   // exact inverse of paint()'s matrix stack).
   const SkRect rect = instanceRect(inst);
   SkPoint local{parentPt.x() - rect.left(), parentPt.y() - rect.top()};
-  local.offset(-inst.resolveFloat(Instance::kTx, node.paint.translateX),
-               -inst.resolveFloat(Instance::kTy, node.paint.translateY));
-  const float rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
-  const float scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
-  const float sx = inst.resolveFloat(Instance::kScaleX, node.paint.scaleX);
-  const float sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
-  const float skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
-  const float sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
-  if (rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
-      sky != 0) {
+  // ONE resolver for the whole matrix (Paint.cpp) — a travelling node's
+  // position replaces the translate lanes and its auto-orient adds to
+  // rotate, and the hit test must undo exactly what paint() applied.
+  const NodeTransform tf = transformOf(inst);
+  local.offset(-tf.tx, -tf.ty);
+  const float rot = tf.rot;
+  const float scl = tf.scl;
+  const float sx = tf.sx;
+  const float sy = tf.sy;
+  const float skx = tf.skx;
+  const float sky = tf.sky;
+  if (tf.pivoted()) {
     const SkPoint origin =
         resolveOrigin(node.paint, rect.width(), rect.height());
     SkPoint v{local.x() - origin.x(), local.y() - origin.y()};

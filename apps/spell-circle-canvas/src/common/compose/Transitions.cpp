@@ -234,6 +234,8 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
   entrance(Instance::kSkewY, node.paint.skewY);
   entrance(Instance::kScaleX, node.paint.scaleX);
   entrance(Instance::kScaleY, node.paint.scaleY);
+  if (node.motionData) // travel(): the `t` lane is a slot like any other
+    entrance(Instance::kMotionT, node.motionData->t);
   if (node.textData && node.textData->glyphFx)
     entrance(Instance::kGlyphProgress, node.textData->glyphFx->progress);
   // Span reveals: `.stroke(spans::upTo(animate(...)), brush)` is a mount
@@ -301,6 +303,15 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                   next.paint.scaleX, nd);
   transitionFloat(*this, inst, Instance::kScaleY, prev.paint.scaleY,
                   next.paint.scaleY, nd);
+  // travel(): `t` ramps like any other lane. A node that GAINS or LOSES a
+  // path has no previous/next `t` to ramp from, so the standing zero is
+  // the endpoint — the same "positional list" rule the span endpoints use.
+  if (prev.motionData || next.motionData) {
+    static const Animatable<float> kZero = 0.0f;
+    transitionFloat(*this, inst, Instance::kMotionT,
+                    prev.motionData ? prev.motionData->t : kZero,
+                    next.motionData ? next.motionData->t : kZero, nd);
+  }
   {
     const GlyphFx *pg =
         prev.textData && prev.textData->glyphFx ? &*prev.textData->glyphFx

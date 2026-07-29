@@ -84,6 +84,16 @@ EXCLUDED_SPELLED = {
     "SkiaGraphiteContext::makeRecorderOptions":
         "src/common/skia's Graphite bring-up class — outside the compose "
         "surface and off compose_test's include path",
+    # travel()'s design (API.md / DESIGN.md § The motion path) argues from
+    # the 3D pattern it ports.  SigilCompose deliberately does NOT depend on
+    # SigilWorld or SigilShape — that refusal is the whole complication the
+    # section exists to explain — so these three are cited, never called.
+    "world::CameraPath": "the 3D pattern travel() ports; SigilWorld is not a "
+                         "compose dependency, by design",
+    "shape::Spline3": "CameraPath's curve currency, named to say why compose "
+                      "could not use it (no SigilShape dependency)",
+    "AnimatedCamera::rollDeg": "the SigilWorld rule travel()'s auto-orient "
+                               "follows; cited from world/Animation.h",
 }
 
 # Names API.md spells on purpose that no header can resolve.  Each needs a
