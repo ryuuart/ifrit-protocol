@@ -58,6 +58,9 @@ set(SIGIL_SKETCH_STUDIES
   eva_magi_defense lain_navi eva_magi_interior
   # The kit itself
   hello stock_materials stroke_atlas shapeworks_lab easel_playground
+  # One sketch per API — legible over pretty. Each is a place to stand:
+  # small, single-purpose, and captioned with the call that made it.
+  travel_path wiggle_shake env_theme material_child matte_luma pop_lanes
 )
 set(sigil_study_sources "")
 foreach(study IN LISTS SIGIL_SKETCH_STUDIES)
@@ -107,8 +110,16 @@ if(APPLE)
   # host able to re-export it. Until then a sketch had to link libskia.a
   # itself, leaving two Skia images in the process whose objects could not
   # be exchanged — see the split-Skia note on compose_sketch_stock below.
+  # SigilShape was missing from this list until 2026-07-29, and the symptom
+  # is the "two registries of one fact" shape again: the kit's PUBLIC
+  # dependencies decide what a sketch may #include (via sketch_flags.rsp),
+  # this list decides what a sketch may LINK, and nothing checked that they
+  # agree. So shapeworks_lab, easel_playground and pop_lanes all compiled,
+  # all ran as compiled-in gallery scenes, and all failed to dlopen —
+  # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
+  # added to SigilSketchKit's PUBLIC libraries belongs here too.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilCompose SigilImage
-                              SigilLoader SigilMotion SigilWeave
+                              SigilLoader SigilMotion SigilShape SigilWeave
                               SigilWeavePorts
                               unofficial::skia::skia)
     target_link_options(ComposeSketch PRIVATE

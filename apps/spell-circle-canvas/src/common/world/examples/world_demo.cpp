@@ -5,7 +5,14 @@
 // assets). With fetch_assets run, the tiger SVG lands on a poster panel
 // through SigilLoader's SVG decode; without it the scene simply omits
 // the poster.
+//
+// The last shot is the odd one out and the only one not aimed by hand:
+// world_camera_flight.png is the DECLARED camera (AnimatedCamera +
+// CameraPath + a wiggled roll lane), and it lives here rather than in a
+// ComposeSketch study because the sketch host has no Vulkan device. See
+// the block at the bottom of main().
 
+#include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 #include "sigilworld/Easel.h"
 #include "sigilworld/Scene.h"
@@ -19,6 +26,7 @@
 #include <sigilshape/Save.h>
 
 #include <sigilcompose/Compose.h>
+#include <sigilmotion/Ticker.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweavekit/SigilWeaveKit.h>
@@ -787,6 +795,72 @@ int main(int argc, char **argv) {
     }
     if (animFrames > 0)
       std::printf("anim frames: %d/%d\n", animWritten, animFrames);
+  }
+
+  // --- the DECLARED camera: a flight path and a wiggled lane --------------
+  // Everything above aims the camera the imperative way — `setCamera()` with
+  // two vectors per shot, which is still the right tool for a still. This
+  // shot is the other door, and it is here rather than in a ComposeSketch
+  // study for one blunt reason: the sketch host has no Vulkan device.
+  //
+  //  · `AnimatedCamera` is the fifth Animated* component and needed no new
+  //    home — a camera is already a registry entity, and an ACTIVE
+  //    `CameraComponent` outranks `World::setCamera` while it exists.
+  //  · `CameraPath` flies the EYE along a `shape::Spline3`; the lane is `t`,
+  //    WHERE ALONG it, so the whole bind() chain shapes the SCHEDULE while
+  //    the curve supplies the shape. `lookAhead != 0` is the caller's
+  //    spelling of "aim it for me", so the framing is the tangent and the
+  //    target lanes are ignored outright.
+  //  · `rollDeg` is the one wiggled lane: a handheld dutch tilt. `wiggle()`
+  //    reads NO CLOCK — it is a pure function of the normalised input — so
+  //    this PNG is a function of the frame index and nothing else, which is
+  //    the only reason a wiggled artifact can be byte-reproducible at all.
+  //
+  // ADDITIVE by construction: the entity is created after every artifact
+  // above is on disk, so an active camera cannot reframe a shot already
+  // taken, and this PNG is outside `written`/`total`.
+  {
+    entt::registry &registry = w->registry();
+    const entt::entity cam = registry.create();
+    registry.emplace<world::CameraComponent>(cam);
+
+    // A closed loop threaded THROUGH the set — dive past the cockpit, sweep
+    // the poster wall, climb out over the yarn ball. Aiming down the tangent
+    // only frames something if the curve goes somewhere.
+    shape::Spline3 flight;
+    flight.closed = true;
+    flight.points = {{1650, 520, 1450},   {320, 150, 780},
+                     {-1080, 360, 340},   {-1500, 880, -1050},
+                     {180, 1020, -760},   {1700, 700, -260}};
+
+    // The caller owns the clock: world has none, by ruling.
+    motion::Ticker ticker;
+    choreograph::Output<float> along{0.0f};
+    ticker.timeline().apply(&along).then<choreograph::RampTo>(1.0f, 8.0f);
+
+    world::AnimatedCamera &lens =
+        registry.emplace<world::AnimatedCamera>(cam);
+    lens.fovYDeg = 54.0f;
+    world::CameraPath &path = lens.path.emplace();
+    path.path = flight;
+    path.t = world::bind(&along)
+                 .map(&choreograph::easeInOutQuad) // eased flight…
+                 .target(0.0f, 1.0f);              // …one lap of the loop
+    path.lookAhead = 0.05f;                        // aim down the tangent
+    lens.rollDeg = world::wiggle(&along, 3.5f, 24.0f, 5, 2);
+
+    const int kCameraFrame = 140; // 2.3 s into an 8 s eased lap
+    for (int i = 0; i < kCameraFrame; ++i)
+      ticker.tick(1.0 / 60.0);
+    if (w->render() && w->savePng(outDir / "world_camera_flight.png")) {
+      const shape::space::Camera &c =
+          registry.get<world::CameraComponent>(cam).camera;
+      std::printf("camera flight: t=%.3f -> eye (%.0f %.0f %.0f) aimed down "
+                  "the tangent, roll wiggled +-3.5 deg at 24 Hz\n",
+                  along.value(), c.eye.x, c.eye.y, c.eye.z);
+    } else {
+      std::fprintf(stderr, "write failed: world_camera_flight.png\n");
+    }
   }
 
   std::printf("wrote %d/%d shots to %s\n", written, total,

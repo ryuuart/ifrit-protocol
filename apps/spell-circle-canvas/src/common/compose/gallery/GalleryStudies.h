@@ -166,6 +166,29 @@ inline constexpr StudyInfo kStudies[] = {
     {"easel_playground", "easel playground", "Kit",
      "The artist surface \xe2\x80\x94 easel:: chains that read like "
      "sentences: shape recipes, blends, wires, particles"},
+
+    // ---- One sketch per API ----
+    // Not finished artwork and not trying to be: each of these is a place
+    // to stand for ONE call, structured so a number can be changed and the
+    // consequence seen. A test proves a mechanism; these say what it is for.
+    {"travel_path", "travel path", "Kit \xc2\xb7 API",
+     "Element::travel() \xe2\x80\x94 five tracks, the curve DRAWN as well as "
+     "ridden: lookAhead, rotate on top, two laps, an open curve"},
+    {"wiggle_shake", "wiggle shake", "Kit \xc2\xb7 API",
+     "wiggle() reads no clock, so it GRAPHS \xe2\x80\x94 the shared-seed "
+     "diagonal beside the fix, and the amplitude bound at six octaves"},
+    {"env_theme", "env theme", "Kit \xc2\xb7 API",
+     "env::Provide / inherited \xe2\x80\x94 one tree, three environments; "
+     "console::Style is the worked library consumer"},
+    {"material_child", "material child", "Kit \xc2\xb7 API",
+     "Material::child() \xe2\x80\x94 an index texture through a palette LUT, "
+     "with the LUT swapped live by update()"},
+    {"matte_luma", "matte luma", "Kit \xc2\xb7 API",
+     "by::alpha / alphaOut / luma / lumaOut on one content \xe2\x80\x94 and "
+     "the Rec. 601 pairs that prove the law"},
+    {"pop_lanes", "pop lanes", "Kit \xc2\xb7 API",
+     "shape::pop rampBy() and order() \xe2\x80\x94 colour by height, and "
+     "painter order on a sink with no depth buffer"},
 };
 inline constexpr int kStudyCount = (int)(sizeof(kStudies) /
                                          sizeof(kStudies[0]));
