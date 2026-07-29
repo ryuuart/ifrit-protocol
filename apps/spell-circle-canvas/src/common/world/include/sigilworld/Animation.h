@@ -63,6 +63,18 @@
  *
  * The caller owns the `choreograph::Output`s a lane points at; a bound
  * lane outliving its Output dangles (the same contract compose has).
+ *
+ * The camera joined on 2026-07-29 as `AnimatedCamera` — a fifth
+ * component on the same footing as the rest, because a camera is
+ * already a registry entity (`CameraComponent`) and needed no new home.
+ *
+ * WHAT THIS HEADER DOES NOT REACH: `scene::Scene`-managed surfaces.
+ * The reconciler keeps its entity ids private, so there is no supported
+ * way to attach an `Animated*` to a declared node; and a leaf whose
+ * mesh or material changes is remove+add, i.e. a NEW entity, so a
+ * component found by other means would vanish there. Camera lanes are
+ * the exception that composes freely — the camera is not a scene node.
+ * Pinned by the `WorldSceneAnimation` tests and argued in the README.
  */
 
 #include "sigilworld/Components.h"
@@ -145,6 +157,52 @@ struct AnimatedLight {
   std::optional<Animatable<float>> x, y, z;
 };
 
+/** PARTIAL overrides of a `CameraComponent`'s placement and lens (the
+ *  same optional rule as AnimatedMaterial and for the same reason: the
+ *  caller authors the camera, these lanes drive part of it).
+ *
+ *  The camera needed NO new home. Every other lane in this header hangs
+ *  off a registry entity, and since Components.h a camera is a registry
+ *  entity too — `CameraComponent{camera, active}`, whose documented,
+ *  already-pinned rule is that an ACTIVE one overrides `World::setCamera`
+ *  while it exists. So an animated camera is just a camera entity whose
+ *  fields a system writes, this resolve stays in the device-free half
+ *  (a camera lane is pinnable on a machine with no Vulkan), and the
+ *  precedence question answers itself — see the README, 2026-07-29.
+ *
+ *  Eight lanes, and the two absences are the argument:
+ *
+ *  - `up` gets NO lanes. It must stay a unit vector roughly out of the
+ *    view axis, which three free floats cannot promise — the same
+ *    refusal AnimatedLight makes for a directional light's `direction`.
+ *    @ref rollDeg is the safe single-float parameterisation of it (and
+ *    the only way to declare a dutch tilt at all): it turns
+ *    @ref rollReference right-handed about the eye→target axis, so the
+ *    camera rolls CLOCKWISE seen from behind it and the scene tips
+ *    counter-clockwise in frame. Recomputed from the fixed reference
+ *    every resolve, so it neither drifts nor accumulates.
+ *  - `zNear`/`zFar` get no lanes. Nobody ramps a clip plane on purpose:
+ *    a moving near plane buys nothing and spends depth precision
+ *    (z-fighting that pops as it slides). They are scene-scale
+ *    constants — set them on the component or through `setCamera()`.
+ *
+ *  Lanes resolve in order, so @ref rollDeg sees the eye/target this
+ *  frame's own lanes just produced. `active` is NOT consulted: it gates
+ *  the RENDERER's choice of camera, not this system, so toggling a
+ *  camera on never replays a backlog of missed frames.
+ *
+ *  This component OWNS the CameraComponent fields it engages. Do not
+ *  also write them by hand — the next resolve would win. */
+struct AnimatedCamera {
+  std::optional<Animatable<float>> eyeX, eyeY, eyeZ;
+  std::optional<Animatable<float>> targetX, targetY, targetZ;
+  std::optional<Animatable<float>> fovYDeg;
+  std::optional<Animatable<float>> rollDeg;
+  /** The un-rolled up vector @ref rollDeg turns about the view axis.
+   *  Not a lane — the fixed reference that keeps roll idempotent. */
+  glm::vec3 rollReference{0, 1, 0};
+};
+
 /** The GPU generator window — `addSweep`/`addFlock`/`addPoints`'s
  *  `(head, span)`, the single most-animated pair in the whole corpus
  *  (world_demo's entire flight is this).
@@ -180,6 +238,7 @@ struct AnimationStats {
   int transforms = 0;
   int materials = 0;
   int lights = 0;
+  int cameras = 0;
   int windows = 0;
 };
 
@@ -269,6 +328,37 @@ inline AnimationStats resolveAnimation(entt::registry &registry) {
     put(light.position.z, animated.z, changed);
     if (changed)
       ++stats.lights;
+  }
+
+  for (auto [e, animated, cameraComponent] :
+       registry.view<AnimatedCamera, CameraComponent>().each()) {
+    bool changed = false;
+    shape::space::Camera &c = cameraComponent.camera;
+    put(c.eye.x, animated.eyeX, changed);
+    put(c.eye.y, animated.eyeY, changed);
+    put(c.eye.z, animated.eyeZ, changed);
+    put(c.target.x, animated.targetX, changed);
+    put(c.target.y, animated.targetY, changed);
+    put(c.target.z, animated.targetZ, changed);
+    put(c.fovYDeg, animated.fovYDeg, changed);
+    // Roll last, so it turns around the view axis the eye/target lanes
+    // just produced. `up` is derived from the fixed rollReference, never
+    // from its own previous value, so resolving twice lands twice.
+    if (animated.rollDeg) {
+      const glm::vec3 forward = c.target - c.eye;
+      if (const float length = glm::length(forward); length > 0) {
+        const float roll = resolveValue(*animated.rollDeg) * kDegToRad;
+        const glm::vec3 up = glm::vec3(
+            glm::rotate(glm::mat4(1.0f), roll, forward / length) *
+            glm::vec4(animated.rollReference, 0.0f));
+        if (c.up != up) {
+          c.up = up;
+          changed = true;
+        }
+      }
+    }
+    if (changed)
+      ++stats.cameras;
   }
 
   return stats;

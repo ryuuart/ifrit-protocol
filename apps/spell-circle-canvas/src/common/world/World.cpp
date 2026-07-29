@@ -2003,8 +2003,10 @@ bool World::render() {
 
   // Declared motion, before anything reads a component: resolve every
   // animated lane into the TransformComponent / MaterialComponent /
-  // LightComponent / generator window it drives (Animation.h). A frame
-  // with no Animated* component walks four empty views and writes
+  // LightComponent / CameraComponent / generator window it drives
+  // (Animation.h) — the camera lanes land here too, so the pick below
+  // reads this frame's dolly. A frame
+  // with no Animated* component walks five empty views and writes
   // nothing — the imperative setters are untouched by this. NOTE: no
   // clock is stepped here, by design; the caller owns the Ticker, so a
   // headless render stays a pure function of the Outputs' values.

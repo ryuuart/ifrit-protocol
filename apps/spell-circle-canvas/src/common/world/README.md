@@ -264,7 +264,8 @@ Lights and cameras are entities too:
 - **`CameraComponent`** — an entity with `active = true` overrides
   `setCamera()` (which stays the fallback); deactivate or destroy it
   to fall back. Keep one active: with several, whichever the registry
-  iterates first wins.
+  iterates first wins. This one rule is also the whole precedence
+  story for the animated camera — see **The camera lane** below.
 
 ## Declared motion (2026-07-29)
 
@@ -295,16 +296,18 @@ for (int frame = 0; frame < 600; ++frame) {
 }
 ```
 
-Four components, all opt-in, all additive: `AnimatedTransform`
+Five components, all opt-in, all additive: `AnimatedTransform`
 (base matrix + x/y/z + yaw/pitch/roll + scaleX/Y/Z, composed as
 `base * T * R * S` — the same order as `scene::Node::localMatrix()`),
 `AnimatedMaterial` (opacity → `baseColor.w`, emissiveStrength,
-uvOffsetX/Y, uvScaleX/Y), `AnimatedLight` (intensity, position x/y/z)
-and `AnimatedWindow` (a generator's `head`/`span`).
-`resolveAnimation()` is the system, in two halves: a free function over
-a bare `entt::registry` for the component lanes, and a `World&` overload
-that adds the window lanes and is what `render()` calls first thing.
-Both return `AnimationStats{transforms, materials, lights, windows}` —
+uvOffsetX/Y, uvScaleX/Y), `AnimatedLight` (intensity, position x/y/z),
+`AnimatedCamera` (eye x/y/z, target x/y/z, fovYDeg, rollDeg — added
+2026-07-29, argued below) and `AnimatedWindow` (a generator's
+`head`/`span`). `resolveAnimation()` is the system, in two halves: a
+free function over a bare `entt::registry` for the component lanes, and
+a `World&` overload that adds the window lanes and is what `render()`
+calls first thing. Both return
+`AnimationStats{transforms, materials, lights, cameras, windows}` —
 the same "pruning is observable" contract `scene::Scene::Stats` sets.
 
 Five rulings, because each of them is a thing we chose NOT to build:
@@ -365,11 +368,7 @@ Five rulings, because each of them is a thing we chose NOT to build:
 Declined on purpose, and why: **colour** (three independent linear-RGB
 float lanes are the wrong default for a colour ramp — this repo runs
 OKLab in `shape::blend` for precisely that reason, so a colour lane
-wants a colour type, not four floats in a trench coat); **the camera**
-(the "two floats per frame" pain scales with the number of surfaces, and
-there is exactly one camera, already moved by one `setCamera()` call —
-7 lanes for eye/target/fov buy nothing today, and it is the obvious next
-lane if a declared dolly is ever wanted); **quaternion rotation** (slerp
+wants a colour type, not four floats in a trench coat); **quaternion rotation** (slerp
 needs an `Output<glm::quat>` and gets no `bind()` chain, so euler degrees
 — what `scene::Node` and the easel already speak — is the honest v1);
 **`pop::Chain` operator parameters** (a jitter amplitude or a ramp
@@ -377,7 +376,146 @@ endpoint is just as animatable as a window, but the chain is a SigilShape
 value and putting `Animatable` inside it is that library's design, not
 this one's); and **`Material::texture`** (the SRB is baked, so it is not
 a live lane at all). `world_demo` was deliberately left on the imperative
-door: all 13 artifacts hash the same before and after this change.
+door: all 13 artifacts hash the same before and after this change (and
+after the camera lane below).
+
+### The camera lane (2026-07-29)
+
+The first wave declined the camera and called it "the obvious next
+increment". It is now `AnimatedCamera`, and the interesting part is how
+little it needed.
+
+**It needed no new home.** Every other lane hangs off a registry entity,
+and a camera has been one since `CameraComponent` landed: an entity
+carrying `{shape::space::Camera camera; bool active;}`. So an animated
+camera is a camera entity whose fields a system writes, and everything
+falls out of that — resolution lives in the DEVICE-FREE half
+(`resolveAnimation(entt::registry&)`), so a camera lane is pinnable on
+a machine where every Vulkan test skips, which is the same property that
+made the other lanes testable.
+
+Two alternatives were live and both are worse:
+
+- **A member on `World`** (`World::animatedCamera()`). It would make the
+  camera the one lane not declared in the registry, force resolution
+  into the `World&` overload — so the semantics could only be pinned on
+  a machine with a GPU — and it would create a genuine ambiguity, two
+  different things writing the same `impl.camera`, which is exactly the
+  precedence mess the entity answer avoids.
+- **A reserved entity** (id 1 as "the camera", next to the id-0
+  reservation that makes 0 mean failure). A second magic number for no
+  payoff, and it contradicts the model already shipped: several camera
+  entities are legal today (documented, first active wins), so a single
+  reserved slot would be a narrower world, not a simpler one.
+
+(A third, putting `Animatable` fields inside `shape::space::Camera`
+itself, is declined for the reason `pop::Chain` parameters are: that is
+a SigilShape value used by the Skia painter path, and motion slots in it
+would be that library's design decision, not this one's.)
+
+**Eight lanes: `eyeX/Y/Z`, `targetX/Y/Z`, `fovYDeg`, `rollDeg`** — a
+dolly, a look-at, a zoom, a tilt. All `std::optional`, because a camera
+is a component the caller also authors (ruling 5), so engaging `fovYDeg`
+must not slam an authored eye to the origin. The two absences are the
+argument:
+
+- **`up` gets no lanes.** It has to stay a unit vector out of the view
+  axis and three free floats cannot promise that — the same refusal
+  `AnimatedLight` already makes for a directional light's `direction`.
+  `rollDeg` is the safe single-float parameterisation and the only way
+  to declare a dutch tilt at all: it turns `AnimatedCamera::rollReference`
+  (a plain `glm::vec3`, default world-up — the fixed base, playing the
+  part `AnimatedTransform::base` plays) right-handed about the eye→target
+  axis, so positive roll rolls the CAMERA clockwise seen from behind it
+  and the scene tips counter-clockwise in frame. Derived from the
+  reference every resolve rather than from its own last value, so it
+  cannot drift or double up; the pin asserts the angle, `length(up) == 1`
+  and idempotence.
+- **`zNear`/`zFar` get no lanes.** Nobody ramps a clip plane on purpose.
+  A sliding near plane buys nothing and spends depth precision — the
+  z-fighting pops as it moves. They are scene-scale constants: set them
+  on the component, or through `setCamera()`.
+
+Roll resolves last, so it turns around the view axis this frame's own
+eye/target lanes just produced. `active` is not consulted by the
+resolver: it gates the RENDERER's choice of camera, not this system, so
+flipping a camera on never replays a backlog of missed frames.
+
+**The precedence rule, and it is not a new one: an active
+`CameraComponent` beats `setCamera()`, including a `setCamera()` called
+afterwards.** An animated camera IS a camera entity, so it inherits the
+rule that already shipped and is documented under **The entity layer**.
+To hand control back to `setCamera()`, use the two verbs that already
+existed — set `active = false`, or destroy the entity.
+
+The rejected alternative was "last writer wins", and it is rejected
+because a declared lane has no call order: it resolves every frame,
+forever. A rule where the frame depends on whether you happened to call
+`setCamera()` before or after some `render()` is precisely the surprise.
+The imperative door is untouched and still the fallback — `world_demo`
+never creates a camera entity and renders exactly as before.
+
+Pinned by `WorldAnimation.CameraLanesDriveACameraEntityWithoutADevice`
+(the lanes land, and an unmoved lane writes nothing),
+`CameraLanesOverrideOnlyWhatTheyDeclare` (the optional rule, incl. the
+untouched clip planes), `CameraRollTurnsUpAboutTheViewAxisAndStaysUnit`,
+`CameraTraceIsTheSameAtTheSameFrameIndex` +
+`AnimatedCameraFrameRendersIdenticallyAcrossRuns` (determinism to the
+standard ruling 2 set: bit-identical at the same frame index, the trace
+actually moves, and a different dt lands elsewhere at the same index),
+and `AnimatedCameraOutranksALaterSetCamera` (the precedence rule at the
+pixel — the animated frame equals a plain `setCamera()` at the same
+position and differs from the `setCamera()` issued after the lanes).
+
+### Scene and Animation do not meet (2026-07-29)
+
+The question nobody had asked: when `scene::Scene` reconciles, what
+happens to `Animated*` components on the entities it manages? Answered
+by reading and by three pins, not by guessing — and the headline is that
+**there is no supported way to put them together at all.**
+
+`Scene` keeps its entity ids private (`Scene::Entry::id`); `render()`
+returns only `Stats`, and `Node` has no animation slots. So nothing in
+the public API hands you a scene-managed entity to attach a lane to. The
+two systems meet only if you go around the reconciler and find the
+entity by iterating the registry — which is what the pins do, precisely
+so the three behaviours behind that door are written down:
+
+1. **A kept leaf rides its entity, so a lane survives — and then
+   silently OUTRANKS the description.** `AnimatedTransform` owns the
+   whole `TransformComponent`, and `render()` resolves it after
+   `Scene::render()` has called `setTransform()`. Worse, the reconciler
+   compares against its OWN cached `Entry::world`, not against the
+   component, so it never notices and never corrects: the surface stays
+   where the lane puts it while `Stats` reports `kept`. This is the
+   header's existing "do not also drive it with `setTransform()`" rule
+   meeting a `setTransform()` driver.
+   (`WorldSceneAnimation.KeptLeavesRideTheirEntityAndTheirLanesOutrankIt`.)
+2. **A changed leaf destroys the lane.** Reuse needs the mesh POINTER
+   and the material to compare equal; change either and the path is
+   `removeSurface` + `addSurface`, and `removeSurface` calls
+   `registry.destroy()` — so every user component on that entity goes
+   with it, silently, and the system afterwards resolves nothing. The
+   failure is at least safe rather than corrupting: the old id is
+   invalid, so a stale `setTransform()` on it is a no-op too.
+   (`AChangedLeafRecreatesTheEntityAndDropsItsLanes`.)
+3. **The camera is the exception, by construction.** A camera is not a
+   scene node, so no reconcile can add, remove or recreate it: a declared
+   dolly over a declared scene composes freely, through leaves being
+   recreated and a full `Scene::clear()`.
+   (`CameraLanesAreUntouchedByReconciliation`.)
+
+**Filed, not fixed.** (1) and (2) are only reachable by reaching around
+the API, and closing them properly means choosing a door — either
+`Scene` publishes identity (`std::optional<uint32_t> find(keyPath)`, at
+which point (2) becomes a real hazard needing a re-attach signal or a
+carry-over on recreate), or `Node` grows animation slots and the
+reconciler carries lanes across a recreate. Both are integrations nobody
+has asked for, and the simplification in `Scene.h` has already been
+judged deliberate. Until someone wants a declared node to carry a
+declared lane, the honest statement is the one above: **animate entities
+you got from `addSurface`/`addSweep`/`addFlock`/`addPoints`, not
+entities the reconciler owns; the camera is fine either way.**
 
 ## Instancing
 
@@ -438,11 +576,16 @@ visibility compose's ledgers taught. Identity is the key path; meshes
 reuse by shared_ptr identity; `panel()` quads are cached per size so
 panels are stable by construction.
 
+It publishes no entity ids, and that is what keeps it from meeting the
+`Animated*` components: see **Scene and Animation do not meet**
+(2026-07-29) above for the three behaviours behind that door and why
+they are filed rather than fixed.
+
 ## Demo and tests
 
 ```
 ./build/bin/Debug/world_demo [outdir] [assetdir]   # 6 PNG camera shots + scroll frames
-./build/bin/Debug/world_test                        # 43 tests; device-backed ones skip without a Vulkan runtime
+./build/bin/Debug/world_test                        # 54 tests; device-backed ones skip without a Vulkan runtime
 ```
 
 The demo builds a cockpit: three emissive UI cards, a curved

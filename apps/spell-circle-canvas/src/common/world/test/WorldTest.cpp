@@ -2140,3 +2140,413 @@ TEST(WorldAnimation, WindowLaneReachesTheGpuAndRecooksOnlyWhenItMoves) {
     moved += glm::length(slid.positions[i] - animatedCloud.positions[i]);
   EXPECT_GT(moved, 1.0f) << "the animated window must actually slide";
 }
+
+// ---------------------------------------------------------------------------
+// THE CAMERA LANE (2026-07-29) — AnimatedCamera.
+//
+// The camera needed no new home: it is already a registry entity
+// (CameraComponent), so the lanes hang off an entity like every other
+// lane and resolve in the DEVICE-FREE half. Precedence is not a new
+// rule either — an active CameraComponent beats setCamera(), which is
+// what these pins nail down at the pixel level.
+// ---------------------------------------------------------------------------
+
+TEST(WorldAnimation, CameraLanesDriveACameraEntityWithoutADevice) {
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::CameraComponent>(e);
+  choreograph::Output<float> dolly{0.0f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(e);
+  animated.eyeZ = world::bind(&dolly).target(600.0f, 200.0f);
+  animated.fovYDeg = world::bind(&dolly).target(40.0f, 18.0f);
+
+  dolly = 0.5f;
+  world::AnimationStats stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.cameras, 1);
+  const shape::space::Camera &cam =
+      registry.get<world::CameraComponent>(e).camera;
+  EXPECT_FLOAT_EQ(cam.eye.z, 400.0f);
+  EXPECT_FLOAT_EQ(cam.fovYDeg, 29.0f);
+
+  // Change detection is the same one rule: a parked Output writes zero.
+  stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.cameras, 0) << "an unmoved camera lane must not write";
+}
+
+TEST(WorldAnimation, CameraLanesOverrideOnlyWhatTheyDeclare) {
+  // Ruling 5 applied to the camera: it is a component the caller also
+  // authors, so the lanes are optional. Plain defaults would slam this
+  // camera's authored 12-degree lens back to 40 and its target to the
+  // origin the moment eyeX was engaged.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  shape::space::Camera authored;
+  authored.eye = {10, 20, 30};
+  authored.target = {0, 90, 0};
+  authored.fovYDeg = 12;
+  authored.zNear = 2;
+  authored.zFar = 9000;
+  registry.emplace<world::CameraComponent>(e, authored);
+  choreograph::Output<float> pan{0.0f};
+  registry.emplace<world::AnimatedCamera>(e).eyeX =
+      world::bind(&pan).target(0.0f, 100.0f);
+
+  pan = 0.25f;
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  const shape::space::Camera &cam =
+      registry.get<world::CameraComponent>(e).camera;
+  EXPECT_FLOAT_EQ(cam.eye.x, 25.0f);
+  EXPECT_FLOAT_EQ(cam.eye.y, 20.0f) << "an undeclared lane is not driven";
+  EXPECT_FLOAT_EQ(cam.eye.z, 30.0f);
+  EXPECT_FLOAT_EQ(cam.target.y, 90.0f);
+  EXPECT_FLOAT_EQ(cam.fovYDeg, 12.0f);
+  EXPECT_FLOAT_EQ(cam.zNear, 2.0f) << "clip planes have no lanes at all";
+  EXPECT_FLOAT_EQ(cam.zFar, 9000.0f);
+}
+
+TEST(WorldAnimation, CameraRollTurnsUpAboutTheViewAxisAndStaysUnit) {
+  // `up` gets no lanes because three free floats cannot promise a unit
+  // vector; rollDeg is the safe parameterisation, and this is the pin
+  // that says so — the derived up stays exactly unit length, and it is
+  // recomputed from rollReference every resolve, so it cannot drift.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  shape::space::Camera authored;
+  authored.eye = {0, 0, 10};
+  authored.target = {0, 0, 0};
+  registry.emplace<world::CameraComponent>(e, authored);
+  choreograph::Output<float> tilt{90.0f};
+  registry.emplace<world::AnimatedCamera>(e).rollDeg = &tilt;
+
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  const shape::space::Camera &cam =
+      registry.get<world::CameraComponent>(e).camera;
+  // Right-handed about the eye->target axis (0,0,-1): +y goes to +x.
+  EXPECT_NEAR(cam.up.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(cam.up.y, 0.0f, 1e-6f);
+  EXPECT_NEAR(cam.up.z, 0.0f, 1e-6f);
+  EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-6f);
+
+  // Idempotent: resolving twice at the same angle is not two rolls.
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 0);
+  EXPECT_NEAR(cam.up.x, 1.0f, 1e-6f);
+  EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-6f);
+
+  // And it is a real lane, not a constant: a new angle turns further.
+  tilt = 180.0f;
+  EXPECT_EQ(world::resolveAnimation(registry).cameras, 1);
+  EXPECT_NEAR(cam.up.y, -1.0f, 1e-6f);
+  EXPECT_NEAR(glm::length(cam.up), 1.0f, 1e-6f);
+}
+
+TEST(WorldAnimation, CameraTraceIsTheSameAtTheSameFrameIndex) {
+  // DETERMINISM for the camera lanes, to the standard ruling 2 set:
+  // same frame index, same numbers bit for bit; the trace must MOVE;
+  // and a different dt sequence must land elsewhere at the same index,
+  // so "identical" is not a claim about a constant.
+  const auto run = [](double dt, int frames) {
+    motion::Ticker ticker;
+    choreograph::Output<float> phase{0.0f};
+    ticker.timeline().apply(&phase).then<choreograph::RampTo>(1.0f, 1.0f);
+    entt::registry registry;
+    const entt::entity e = registry.create();
+    registry.emplace<world::CameraComponent>(e);
+    auto &animated = registry.emplace<world::AnimatedCamera>(e);
+    animated.eyeZ = world::bind(&phase)
+                        .map(&choreograph::easeInOutQuad)
+                        .target(700.0f, 180.0f);
+    animated.fovYDeg = world::bind(&phase).target(45.0f, 22.0f);
+    animated.rollDeg = world::bind(&phase).target(0.0f, 30.0f);
+    std::vector<float> trace;
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(dt);
+      world::resolveAnimation(registry);
+      const shape::space::Camera &cam =
+          registry.get<world::CameraComponent>(e).camera;
+      trace.push_back(cam.eye.z);
+      trace.push_back(cam.fovYDeg);
+      trace.push_back(cam.up.x);
+    }
+    return trace;
+  };
+
+  const std::vector<float> a = run(1.0 / 60.0, 60);
+  const std::vector<float> b = run(1.0 / 60.0, 60);
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i)
+    EXPECT_EQ(a[i], b[i]) << "sample " << i << " must be bit-identical";
+
+  EXPECT_NE(a.front(), a[a.size() - 3]) << "the dolly must actually move";
+  const std::vector<float> fast = run(1.0 / 30.0, 60);
+  EXPECT_NE(a[30], fast[30]);
+}
+
+TEST(WorldAnimation, AnimatedCameraOutranksALaterSetCamera) {
+  // THE PRECEDENCE RULE, at the pixel: an animated camera IS a camera
+  // entity, and an active CameraComponent beats setCamera() — including
+  // a setCamera() called after the lanes were engaged. Reversing that
+  // (last writer wins) would make the frame depend on call order, which
+  // a declared lane has none of.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 72;
+  config.clearColor = {0, 0, 0, 1};
+
+  const auto shoot = [&](float eyeZ, bool animate, SkBitmap *out) {
+    MAKE_WORLD_OR_SKIP(w, config);
+    shape::space::Camera far;
+    far.eye = {0, 0, 900};
+    far.target = {0, 0, 0};
+    w->setCamera(far);
+    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                            world::Material{}),
+              0u);
+    if (animate) {
+      entt::registry &registry = w->registry();
+      const entt::entity cam = registry.create();
+      registry.emplace<world::CameraComponent>(cam);
+      auto &animated = registry.emplace<world::AnimatedCamera>(cam);
+      animated.eyeZ = eyeZ;
+      animated.targetZ = 0.0f;
+      // The imperative door, used AFTER the lanes exist: it must lose.
+      w->setCamera(far);
+    } else {
+      shape::space::Camera plain;
+      plain.eye = {0, 0, eyeZ};
+      plain.target = {0, 0, 0};
+      w->setCamera(plain);
+    }
+    ASSERT_TRUE(w->render());
+    sk_sp<SkImage> frame = w->readback();
+    ASSERT_TRUE(frame);
+    out->allocPixels(SkImageInfo::MakeN32Premul(config.width, config.height));
+    ASSERT_TRUE(frame->readPixels(nullptr, out->pixmap(), 0, 0));
+  };
+
+  SkBitmap plainNear, plainFar, animatedNear;
+  shoot(240.0f, false, &plainNear);
+  if (plainNear.isNull())
+    GTEST_SKIP() << "no 3D backend";
+  shoot(900.0f, false, &plainFar);
+  shoot(240.0f, true, &animatedNear);
+
+  ASSERT_EQ(plainNear.computeByteSize(), animatedNear.computeByteSize());
+  // Not vacuous: the two setCamera() positions genuinely differ.
+  EXPECT_NE(std::memcmp(plainNear.getPixels(), plainFar.getPixels(),
+                        plainNear.computeByteSize()),
+            0);
+  EXPECT_EQ(std::memcmp(plainNear.getPixels(), animatedNear.getPixels(),
+                        plainNear.computeByteSize()),
+            0)
+      << "the lane's camera must render, not the later setCamera()";
+}
+
+TEST(WorldAnimation, AnimatedCameraFrameRendersIdenticallyAcrossRuns) {
+  // Determinism half two for the camera, mirroring
+  // AnimatedFrameRendersIdenticallyAcrossRuns: same frame index, same
+  // pixels; the next frame differs, so the dolly is really moving.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 72;
+  config.clearColor = {0, 0, 0, 1};
+
+  const auto runTo = [&](int frames, SkBitmap *out) {
+    MAKE_WORLD_OR_SKIP(w, config);
+    ASSERT_NE(w->addSurface(shape::mesh::quad(120, 120), glm::mat4(1.0f),
+                            world::Material{}),
+              0u);
+    entt::registry &registry = w->registry();
+    const entt::entity cam = registry.create();
+    registry.emplace<world::CameraComponent>(cam);
+
+    motion::Ticker ticker;
+    choreograph::Output<float> push{0.0f};
+    ticker.timeline().apply(&push).then<choreograph::RampTo>(1.0f, 1.0f);
+    auto &animated = registry.emplace<world::AnimatedCamera>(cam);
+    animated.eyeZ = world::bind(&push).target(900.0f, 260.0f);
+    animated.targetZ = 0.0f;
+    animated.rollDeg = world::bind(&push).target(0.0f, 25.0f);
+
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(1.0 / 60.0);
+      ASSERT_TRUE(w->render());
+    }
+    sk_sp<SkImage> frame = w->readback();
+    ASSERT_TRUE(frame);
+    out->allocPixels(SkImageInfo::MakeN32Premul(config.width, config.height));
+    ASSERT_TRUE(frame->readPixels(nullptr, out->pixmap(), 0, 0));
+  };
+
+  SkBitmap first, second, later;
+  runTo(30, &first);
+  if (first.isNull())
+    GTEST_SKIP() << "no 3D backend";
+  runTo(30, &second);
+  runTo(31, &later);
+
+  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
+  EXPECT_EQ(std::memcmp(first.getPixels(), second.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "frame 30 must render identically across runs";
+  EXPECT_NE(std::memcmp(first.getPixels(), later.getPixels(),
+                        first.computeByteSize()),
+            0)
+      << "the camera must actually be moving";
+}
+
+// ---------------------------------------------------------------------------
+// SCENE x ANIMATION (2026-07-29) — the question nobody had asked.
+//
+// What happens to an Animated* component on an entity the reconciler
+// manages? Three pins, and they answer it: a kept leaf rides its
+// entity and keeps its lanes (but the lanes then OUTRANK the declared
+// placement, silently); a leaf whose material or mesh changed is
+// remove+add, so its lanes are destroyed with the entity; and the
+// camera is the one lane that composes freely, because a camera is not
+// a scene node. Note what none of these tests can do through the public
+// API: ASK the Scene for an entity id. It publishes none — which is
+// why "these two systems do not meet" is the honest headline.
+// ---------------------------------------------------------------------------
+
+namespace {
+/** The registry's one and only surface entity — reconstructed by
+ *  iteration precisely BECAUSE scene::Scene publishes no ids. */
+entt::entity soleSurfaceEntity(world::World &world) {
+  entt::entity found = entt::null;
+  int count = 0;
+  for (const entt::entity e :
+       world.registry().view<world::TransformComponent>()) {
+    found = e;
+    ++count;
+  }
+  EXPECT_EQ(count, 1) << "the fixture expects exactly one surface";
+  return found;
+}
+} // namespace
+
+TEST(WorldSceneAnimation, KeptLeavesRideTheirEntityAndTheirLanesOutrankIt) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  const auto describe = [&] {
+    return world::scene::group().key("set").child(
+        world::scene::surface(mesh, world::Material{})
+            .key("card")
+            .at({100, 0, 0}));
+  };
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene.render(describe()).added, 1);
+
+  const entt::entity e = soleSurfaceEntity(*w);
+  ASSERT_TRUE(e != entt::null);
+  choreograph::Output<float> lift{0.0f};
+  w->registry().emplace<world::AnimatedTransform>(e).y = &lift;
+
+  // The entity is kept, so the component rides along.
+  const world::scene::Scene::Stats stats = scene.render(describe());
+  EXPECT_EQ(stats.kept, 1);
+  EXPECT_EQ(stats.added, 0);
+  EXPECT_EQ(stats.removed, 0);
+  ASSERT_TRUE(w->registry().valid(e));
+  ASSERT_TRUE(w->registry().all_of<world::AnimatedTransform>(e));
+
+  // ...and then WINS. AnimatedTransform owns the whole placement, so
+  // the node's declared x=100 is gone: the surface sits at the lane's
+  // origin plus lift, and the reconciler reports `kept` while the
+  // surface is nowhere the tree says. This is the documented "do not
+  // also drive it with setTransform()" rule meeting a setTransform()
+  // driver, and it is why a declared node should not carry a lane.
+  lift = 55.0f;
+  ASSERT_TRUE(w->render());
+  const glm::mat4 &model = w->registry().get<world::TransformComponent>(e).model;
+  EXPECT_FLOAT_EQ(model[3][1], 55.0f);
+  EXPECT_FLOAT_EQ(model[3][0], 0.0f)
+      << "the lane overrides the node's declared placement";
+}
+
+TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  const auto describe = [&](const world::Material &material) {
+    return world::scene::group().key("set").child(
+        world::scene::surface(mesh, material).key("card"));
+  };
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene.render(describe({})).added, 1);
+
+  const entt::entity e = soleSurfaceEntity(*w);
+  ASSERT_TRUE(e != entt::null);
+  choreograph::Output<float> lift{20.0f};
+  w->registry().emplace<world::AnimatedTransform>(e).y = &lift;
+  EXPECT_EQ(world::resolveAnimation(w->registry()).transforms, 1);
+
+  // Change the material: reuse needs mesh pointer AND material equal,
+  // so this leaf is remove + add — a NEW entity.
+  world::Material recoloured;
+  recoloured.baseColor = {1, 0, 0, 1};
+  const world::scene::Scene::Stats stats = scene.render(describe(recoloured));
+  EXPECT_EQ(stats.removed, 1);
+  EXPECT_EQ(stats.added, 1);
+
+  EXPECT_FALSE(w->registry().valid(e))
+      << "the old entity is destroyed, not reused in place";
+  EXPECT_EQ(w->registry().view<world::AnimatedTransform>().size(), 0u)
+      << "the lane went with it — silently";
+  // The whole system now resolves nothing at all, which is exactly the
+  // failure mode that costs an afternoon if it is not written down.
+  EXPECT_EQ(world::resolveAnimation(*w).transforms, 0);
+  const entt::entity replacement = soleSurfaceEntity(*w);
+  EXPECT_NE(replacement, e);
+  EXPECT_FALSE(w->registry().all_of<world::AnimatedTransform>(replacement));
+}
+
+TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
+  // The one place the two systems DO compose, and by construction: a
+  // camera is not a scene node, so no reconcile can add, remove or
+  // recreate it. A declared dolly over a declared scene is fine.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  entt::registry &registry = w->registry();
+  const entt::entity cam = registry.create();
+  registry.emplace<world::CameraComponent>(cam);
+  choreograph::Output<float> dolly{0.0f};
+  auto &animated = registry.emplace<world::AnimatedCamera>(cam);
+  animated.eyeZ = world::bind(&dolly).target(800.0f, 200.0f);
+  animated.targetZ = 0.0f;
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  world::scene::Scene scene(*w);
+  const auto describe = [&](const world::Material &material) {
+    return world::scene::group().key("set").child(
+        world::scene::surface(mesh, material).key("card"));
+  };
+  ASSERT_EQ(scene.render(describe({})).added, 1);
+
+  dolly = 0.5f;
+  ASSERT_TRUE(w->render());
+  EXPECT_FLOAT_EQ(registry.get<world::CameraComponent>(cam).camera.eye.z,
+                  500.0f);
+
+  // Churn the scene hard: recreate the leaf, then drop it entirely.
+  world::Material recoloured;
+  recoloured.baseColor = {0, 1, 0, 1};
+  ASSERT_EQ(scene.render(describe(recoloured)).added, 1);
+  scene.clear();
+  dolly = 1.0f;
+  ASSERT_TRUE(w->render());
+  ASSERT_TRUE(registry.valid(cam));
+  ASSERT_TRUE(registry.all_of<world::AnimatedCamera>(cam));
+  EXPECT_FLOAT_EQ(registry.get<world::CameraComponent>(cam).camera.eye.z,
+                  200.0f);
+}
