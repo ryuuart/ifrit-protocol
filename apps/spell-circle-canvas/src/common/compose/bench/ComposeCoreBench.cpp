@@ -229,6 +229,77 @@ Element groupScene(int count, Cache mode) {
   return box().cache(Cache::None).absolute().inset(0).child(std::move(group));
 }
 
+// ---- ROADMAP §Argument 3 / §10g(4): what the BINARY volatility
+// ---- declaration costs a node whose bound property barely moves.
+//
+// A panel of `count` stroked, shaped cells — each records its own picture —
+// plus ONE accent cell in the same row whose fill is either bound to an
+// external Output or a plain value. The accent's ancestors (the row, the
+// frame, the root) are what a bound fill poisons: `computeVolatile` walks
+// the volatility UP, so the row and the root drop their pictures and lose
+// texture promotion for as long as the binding exists, whether or not it
+// has moved this frame. Everything else about the three arms is identical.
+
+enum class AccentFill { Bound, Plain };
+
+Element slowThemedPanel(int count, AccentFill mode,
+                        const choreograph::Output<Fill> *bound,
+                        SkColor4f plain) {
+  auto row = box().key("row").row().wrapLines().gap(2);
+  for (int id = 0; id < count; ++id)
+    row.child(box()
+                  .key("c" + std::to_string(id))
+                  .width(26)
+                  .height(26)
+                  .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+                  .fill(cellFill(id, -1, 0))
+                  .stroke(brush::solid(
+                      1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f}))));
+  Element accent = box()
+                       .key("accent")
+                       .width(26)
+                       .height(26)
+                       .shape(shapes::star(7, 0.45f, 0.08f))
+                       .stroke(brush::solid(
+                           1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})));
+  if (mode == AccentFill::Bound)
+    accent.fill(Animatable<Fill>(bound));
+  else
+    accent.fill(Fill::color(plain));
+  row.child(std::move(accent));
+  // Two container levels above the row, so the ancestor chain the poison
+  // climbs is a realistic panel/frame/root, not a single node.
+  return box().key("root").column().padding(6).child(
+      box().key("frame").column().padding(4).child(std::move(row)));
+}
+
+/** Per-frame cache work, averaged, so the arms are comparable in NUMBERS
+ *  and not only in wall time. */
+struct CacheTally {
+  double recorded = 0, baked = 0, painted = 0, live = 0, tex = 0, frames = 0;
+  void add(const Composer::Stats &s) {
+    recorded += (double)s.picturesRecorded;
+    baked += (double)s.texturesBaked;
+    painted += (double)s.nodesPainted;
+    live += (double)s.picturesLive;
+    tex += (double)s.texturesLive;
+    frames += 1;
+  }
+  void report(benchmark::State &state) const {
+    const double f = frames > 0 ? frames : 1;
+    state.counters["rec/frame"] = recorded / f;
+    state.counters["bake/frame"] = baked / f;
+    state.counters["livePaint/frame"] = painted / f;
+    state.counters["pics"] = live / f;
+    state.counters["textures"] = tex / f;
+  }
+};
+
+SkColor4f accentColor(int step) {
+  const float t = (float)(step % 5) / 5.0f;
+  return {0.20f + 0.70f * t, 0.55f - 0.30f * t, 0.85f - 0.40f * t, 1.0f};
+}
+
 } // namespace
 
 // ---- describe / reconcile -------------------------------------------------
@@ -743,4 +814,132 @@ static void BM_Draw_GroupCache_Blit(benchmark::State &state) {
 BENCHMARK(BM_Draw_GroupCache_Blit)
     ->Arg(16)
     ->Arg(64)
+    ->Unit(benchmark::kMicrosecond);
+
+// ---- §Argument 3: the binary volatility declaration -----------------------
+//
+// PAIR ONE — the property does not move AT ALL. Same tree, same pixels; the
+// only difference is that one arm spells the accent's colour as a binding.
+// Whatever separates these two arms is paid by a node that is provably
+// holding still, which is the defect stated as a measurement.
+
+static void BM_Draw_StillAccent_Bound(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
+  CoreHost host(900, 900);
+  host.composer.render(
+      slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
+  for (int warm = 0; warm < 16; ++warm)
+    host.draw(); // past kScalarSettleFrames and any promotion warmup
+  if (getenv("COMPOSE_BENCH_WHY")) {
+    host.composer.setProfiling(true);
+    host.draw();
+    for (const auto &row : host.composer.profile())
+      if (row.depth <= 3)
+        printf("  [why] %-28s self=%7.3f ms cache=%d promotion=%d\n",
+               row.label.c_str(), row.selfMs, (int)row.cacheState,
+               (int)row.promotion);
+    host.composer.setProfiling(false);
+  }
+  CacheTally tally;
+  for ([[maybe_unused]] auto iteration : state) {
+    host.draw();
+    tally.add(host.composer.stats());
+  }
+  tally.report(state);
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Draw_StillAccent_Bound)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
+    ->Unit(benchmark::kMicrosecond);
+
+static void BM_Draw_StillAccent_Plain(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  CoreHost host(900, 900);
+  host.composer.render(
+      slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
+  for (int warm = 0; warm < 16; ++warm)
+    host.draw();
+  if (getenv("COMPOSE_BENCH_WHY")) {
+    host.composer.setProfiling(true);
+    host.draw();
+    for (const auto &row : host.composer.profile())
+      if (row.depth <= 3)
+        printf("  [why] %-28s self=%7.3f ms cache=%d promotion=%d\n",
+               row.label.c_str(), row.selfMs, (int)row.cacheState,
+               (int)row.promotion);
+    host.composer.setProfiling(false);
+  }
+  CacheTally tally;
+  for ([[maybe_unused]] auto iteration : state) {
+    host.draw();
+    tally.add(host.composer.stats());
+  }
+  tally.report(state);
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Draw_StillAccent_Plain)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
+    ->Unit(benchmark::kMicrosecond);
+
+// PAIR TWO — the same colour actually moves, once every 180 frames (three
+// seconds at 60 Hz, the entry's own example). Each arm does the minimum
+// work its spelling requires: the bound arm assigns the Output and never
+// re-describes; the plain arm re-describes only on the frame it changes,
+// and prunes everything but the one node that moved.
+
+constexpr int kSlowPeriod = 180;
+
+static void BM_Draw_SlowAccent_Bound(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
+  CoreHost host(900, 900);
+  host.composer.render(
+      slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
+  for (int warm = 0; warm < 16; ++warm)
+    host.draw();
+  CacheTally tally;
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (++frame % kSlowPeriod == 0)
+      tint = Fill::color(accentColor(frame / kSlowPeriod));
+    host.draw();
+    tally.add(host.composer.stats());
+  }
+  tally.report(state);
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Draw_SlowAccent_Bound)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
+    ->Unit(benchmark::kMicrosecond);
+
+static void BM_Draw_SlowAccent_Plain(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  CoreHost host(900, 900);
+  host.composer.render(
+      slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
+  for (int warm = 0; warm < 16; ++warm)
+    host.draw();
+  CacheTally tally;
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    if (++frame % kSlowPeriod == 0)
+      host.composer.render(slowThemedPanel(
+          count, AccentFill::Plain, nullptr, accentColor(frame / kSlowPeriod)));
+    host.draw();
+    tally.add(host.composer.stats());
+  }
+  tally.report(state);
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Draw_SlowAccent_Plain)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
     ->Unit(benchmark::kMicrosecond);

@@ -99,11 +99,15 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
 
 // ---- S3 · the retarget: one mask in both branches -------------------------
 
-// RENAMED 2026-07-28 (audit): phase 0 parks at 0.0001, so a retarget and a
-// fresh mount from zero are numerically indistinguishable here — the test
-// discriminates a RAMP from a jump, not a retarget from a mount. (Parking
-// ABOVE the target, 0.8 → 0.5, is what would separate them.)
-TEST(ComposeR4Mask, S3TheGateRampsAcrossAnIfElse) {
+// RE-FIXTURED 2026-07-29 (ROADMAP §35.2), and the ORIGINAL NAME IS BACK.
+// §34's audit renamed this rather than repairing it: phase 0 parked at
+// 0.0001, so a retarget from 0.0001 and a fresh mount from 0 both ramp UP
+// to 0.5 and no assertion here could tell them apart. Phase 0 now parks
+// ABOVE the target — 0.8 → 0.5 — which makes the two hypotheses point in
+// OPPOSITE DIRECTIONS: a retarget ramps DOWN through 0.65, a mount from
+// zero ramps UP through 0.25. The midpoint sample separates them, and
+// `half > settled` is the assertion that could not previously exist.
+TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
   // ScenesBeethoven: phase 0 is unswept, phase 1 sweeps each arc over its
   // measured span. `animate(to(span))` is RAMP-ON-CHANGE — it starts from
   // the property's CURRENT value — so the gate must occupy the same
@@ -112,7 +116,7 @@ TEST(ComposeR4Mask, S3TheGateRampsAcrossAnIfElse) {
   const auto tree = [](int phase) {
     Element e = maskBox().stroke(util::stroke(6, red()));
     if (phase == 0)
-      e.mask(by::spans(spans::upTo(0.0001f)));
+      e.mask(by::spans(spans::upTo(0.8f)));
     else
       e.mask(by::spans(
           spans::upTo(animate(to(0.5f), {400ms, &choreograph::easeNone}))));
@@ -121,15 +125,19 @@ TEST(ComposeR4Mask, S3TheGateRampsAcrossAnIfElse) {
   Host host(200, 200);
   host.composer.render(tree(0));
   host.frame();
-  const size_t unswept = inkedCount(boundaryRing(host));
-  EXPECT_LE(unswept, 2u) << "phase 0 is the 0.0001 nub and nothing else";
+  const size_t parked = inkedCount(boundaryRing(host));
   host.composer.render(tree(1));
-  host.frame(0.2); // halfway: a RAMP from 0, not a jump to 0.5
+  host.frame(0.2); // halfway
   const size_t half = inkedCount(boundaryRing(host));
-  host.frame(0.25); // settled
+  host.frame(0.25); // settled at 0.5
   const size_t settled = inkedCount(boundaryRing(host));
-  EXPECT_GT(half, unswept + 5u) << "the ramp started";
-  EXPECT_GT(settled, half) << "…and it retargeted rather than mounting";
+  EXPECT_GT(parked, settled + 5u) << "0.8 shows more arc than 0.5";
+  EXPECT_LT(half, parked) << "the gate left its parked value";
+  // THE DISCRIMINATING ASSERTION. A retarget descends 0.8 → 0.5 and is
+  // ABOVE 0.5 at the midpoint; a mount from zero ascends 0 → 0.5 and is
+  // BELOW it. Only one of the two can satisfy this line.
+  EXPECT_GT(half, settled + 2u)
+      << "the gate mounted from zero instead of retargeting from 0.8";
 }
 
 // ---- S4 · a gate applied conditionally to an ALREADY-BUILT element --------
@@ -832,3 +840,116 @@ TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
   EXPECT_LT(inkAfter, inkBefore / 2)
       << "the moved gate did not repaint — a stale picture replayed";
 }
+
+// ---- §17/§20's memo carve-outs: the three lanes they forgot ---------------
+//
+// `computeVolatile` enumerated its content-volatility terms four times —
+// once for `ownContent`, once for the group memo, once inside each of the
+// two memo carve-outs. The two carve-outs never mentioned a bound fill or
+// a live effect, so a node carrying one of those AND an animated gate took
+// a memo it had no right to and replayed a recording that had baked the
+// old colour. Each test below was RED before the terms were derived by
+// subtraction; each control is the removal of exactly one term.
+
+TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
+  // A node carrying BOTH a bound fill() and an animated mask gate. §17's
+  // scalarMemo holds the recording while the GATE's floats hold still —
+  // and the recording baked the fill colour. If the bound fill is not part
+  // of the memo's compare, moving it while the gate holds replays the old
+  // colour.
+  choreograph::Output<float> reveal{1.0f};
+  choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})}; // red
+  Host host(200, 200);
+  host.composer.render(box().child(
+      maskBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
+  host.frame();
+  for (int i = 0; i < 4; ++i)
+    host.frame(0.016); // let the memo bake and hold
+  EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
+  // THE CACHING NUMBERS, which are the price of the fix and are stated
+  // rather than implied: the node takes NO memo, so it never records and
+  // paints live every frame for as long as both inputs are attached.
+  unsigned records = 0, live = 0;
+  for (int i = 0; i < 4; ++i) {
+    host.frame(0.016);
+    records += host.composer.stats().picturesRecorded;
+    live += host.composer.stats().nodesPainted;
+  }
+  EXPECT_EQ(records, 0u) << "a node with no memo records nothing";
+  EXPECT_EQ(live, 8u) << "the node and its parent paint live, 4 frames each";
+  tint = Fill::color({0, 0, 1, 1}); // …now turn it blue, gate unmoved
+  host.frame(0.016);
+  EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
+      << "the bound fill moved and the node replayed a stale recording";
+}
+
+TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
+  // Same hole, a different lane: a LIVE effect (§11 bound uniform) is
+  // captured by the recording, and the §17 scalar memo's refusal list
+  // does not mention it.
+  static sk_sp<SkRuntimeEffect> fx = [] {
+    auto [e, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader content; uniform float amt;"
+                 "half4 main(float2 p) { half4 c = content.eval(p);"
+                 "  return half4(c.r * half(amt), c.g, c.b, c.a); }"));
+    if (!e)
+      ADD_FAILURE() << err.c_str();
+    return e;
+  }();
+  choreograph::Output<float> reveal{1.0f};
+  choreograph::Output<float> amt{1.0f};
+  Host host(200, 200);
+  host.composer.render(box().child(
+      maskBox()
+          .fill(Fill::color({1, 0, 0, 1}))
+          .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))
+          .mask(by::spans(spans::upTo(&reveal)))));
+  host.frame();
+  for (int i = 0; i < 4; ++i)
+    host.frame(0.016);
+  EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
+  amt = 0.0f; // the effect must now kill the red channel
+  host.frame(0.016);
+  EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
+      << "the live effect moved and the node replayed a stale recording";
+}
+
+TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
+  // The OTHER memo, same hole: liveMatOnly holds the recording while the
+  // MATERIAL's resolved shader pointer is stable, and its refusal list
+  // does not mention a live effect either.
+  static sk_sp<SkRuntimeEffect> fx = [] {
+    auto [e, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader content; uniform float amt;"
+                 "half4 main(float2 p) { half4 c = content.eval(p);"
+                 "  return half4(c.r * half(amt), c.g, c.b, c.a); }"));
+    if (!e)
+      ADD_FAILURE() << err.c_str();
+    return e;
+  }();
+  static sk_sp<SkRuntimeEffect> matfx = [] {
+    auto [e, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform float lift;"
+                 "half4 main(float2 p) { return half4(1.0, half(lift), 0.0,"
+                 "                                    1.0); }"));
+    if (!e)
+      ADD_FAILURE() << err.c_str();
+    return e;
+  }();
+  choreograph::Output<float> lift{0.0f}; // the material's own bound uniform
+  choreograph::Output<float> amt{1.0f};  // the effect's
+  Host host(200, 200);
+  host.composer.render(box().child(
+      maskBox()
+          .fill(Material::sksl(matfx).uniform("lift", &lift))
+          .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))));
+  host.frame();
+  for (int i = 0; i < 4; ++i)
+    host.frame(0.016);
+  EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
+  amt = 0.0f; // the material holds; only the EFFECT moves
+  host.frame(0.016);
+  EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
+      << "the live effect moved and the live-material memo replayed stale";
+}
+

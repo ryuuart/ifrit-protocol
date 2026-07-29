@@ -4062,6 +4062,31 @@ the open sibling still passes (it never stitched).*
    §34 renamed it rather than re-fixturing it. Parking phase 0 ABOVE the
    target (0.8 → 0.5) would make the two answers numerically different and
    restore the stronger claim the old name made.
+
+   **CLOSED 2026-07-29 — re-fixtured, and the original name is back.**
+   Phase 0 now parks at **0.8** against a target of **0.5**, which makes
+   the two hypotheses point in OPPOSITE DIRECTIONS: a retarget descends
+   through ~0.65 at the midpoint, a mount from zero ascends through
+   ~0.25. The new assertion is `half > settled`, which only the retarget
+   can satisfy, and `ComposeR4Mask.S3TheGateRetargetsAcrossAnIfElse
+   InsteadOfMounting` is the name §34 took away.
+
+   *Positive control — the one that matters, and it is why the entry was
+   worth closing properly.* Breaking the slot reuse in `Transitions.cpp`
+   so the gate MOUNTS FROM ZERO (`transitionFloatAt` handed a zero
+   previous value instead of `*prevGates[i]`): the new fixture FAILS,
+   `half` **53** against `settled` **106** — and the OLD fixture, run
+   side by side under the identical break, **PASSES**. That is §35.2's
+   claim demonstrated rather than asserted: the old test could not see
+   this failure at all.
+
+   *A second control was run and is recorded as the weaker one:* clearing
+   `maskAnims` unconditionally makes the gate JUMP to its target rather
+   than mount from zero, and both fixtures fail — the old one by a
+   zero-pixel margin (104 vs 104, failing only because `>` is strict),
+   the new one by the directional assertion. A tie is not a
+   discrimination, which is the other half of why the re-fixture was
+   worth doing.
 3. **The VariationDrive refusal path has no coverage on this machine.** The
    system UI face declares no wght axis, so `AdvanceVariantAxisIsRefused`
    skips. The refusal is real (`Paint.cpp` gates on
@@ -4416,3 +4441,193 @@ already reproduced and attributed to SigilShape's uncommitted work, not to
 this change. Run twice, before and after `Animatable` joined the move, with
 **the same four lines both times**. **No other mover. Byte-neutral, as a
 move must be.** No rebase was taken.
+
+## 38. §Argument 3's binary volatility declaration — MEASURED, and the measurement found a staleness bug instead
+
+§10g's closing item (4) and §Argument 3 both name the same defect:
+`isAnimated()` is per-node and binary, so "changes every three seconds"
+and "changes at 60 Hz" make one declaration. Two waves filed it without
+measuring it. This is the measurement.
+
+### THE MEASUREMENT — the cost is real, and it is 19.6×
+
+`compose_bench`, Release, quiet machine (load 1.8, no other build
+running), four new arms in `bench/ComposeCoreBench.cpp`. The tree is a
+panel — root → frame → wrapping row → N stroked, shaped cells, each of
+which records its own picture — plus ONE accent cell in the same row.
+The arms differ in exactly one thing: whether the accent's colour is
+spelled `fill(&output)` or `fill(Fill::color(...))`.
+
+**Pair one, the property never moves at all** (`BM_Draw_StillAccent_*`,
+µs/frame, 5 repetitions, cv ≤ 0.6 %):
+
+| cells (nodes) | bound | plain | delta | textures live |
+| --- | --- | --- | --- | --- |
+| 32 (35) | 344 | 343 | **none** | 0 / 0 |
+| 128 (131) | 1337 | 254 | **+1.08 ms, 5.3×** | 0 / 1 |
+| 512 (515) | 5284 | 269 | **+5.02 ms, 19.6×** | 0 / 1 |
+
+**Pair two, the colour actually moves once every 180 frames** — three
+seconds at 60 Hz, the entry's own example — each arm doing the minimum
+its spelling requires (the bound arm assigns the Output and never
+re-describes; the plain arm re-describes only on the frame it changes):
+512 cells, bound **5326 µs**, plain **289 µs**. Paying the full
+re-describe, re-record and re-bake, amortized, costs the plain spelling
+20 µs/frame and it still wins by **5.04 ms/frame**.
+
+**THE CAUSAL PROOF, from the profiler §29 built** (`COMPOSE_BENCH_WHY=1`,
+depth ≤ 3):
+
+```
+bound:  root/frame/row/accent   cache=Live      promotion=Volatile
+        c0…c511                 cache=Picture   promotion=Cheap   ~0.011 ms each
+plain:  root                    cache=Promoted  promotion=Promoted  0.263 ms, one blit
+```
+
+So the chain is exact and has nothing to do with traversal overhead:
+one bound `fill()` on one leaf sets `ownContent`, `computeVolatile`
+carries it up, the root is `subtreeVolatile`, `contentStable` is false,
+promotion is refused with `Promotion::Volatile`, and 512 cells replay
+512 pictures at ~11 µs each forever. **Picture caching does not save
+this** — a picture records the DRAW CALLS and re-runs every one. Texture
+promotion is the only thing that saves it, and the binary declaration is
+what denies it.
+
+**Where the cost is ZERO, stated because it bounds the claim:** at 35
+nodes the plain arm is not promoted either (`Promotion::Cheap`), and the
+two arms are within 1 µs. The defect costs exactly what promotion would
+have been worth, and nothing where promotion would not have fired.
+
+**VERDICT: the cost justifies a mechanism.** 5 ms/frame on a 515-node
+panel, for a property holding perfectly still, is the §3 wall in new
+clothes.
+
+### WHAT THE MEASUREMENT FOUND ON THE WAY — three silent staleness bugs
+
+Reading `computeVolatile` to design the extension turned up that the
+content-volatility enumeration is written **four times**: once for
+`ownContent`, once for §30's `opaqueToTheMemo`, and once inside each of
+the two memo carve-outs (`liveMatOnly`, `scalarMemo`). Three of the four
+had drifted. Neither carve-out mentioned a **bound fill** or a **live
+effect**, both of which the recording bakes in — so a node carrying one
+of those AND an animated gate took a memo it had no right to, kept a
+recording made with the old value, and replayed it for as long as the
+gate held still.
+
+Reproduced before anything was changed, three red tests, all three
+`8100 vs 100` red pixels — the colour simply never changed:
+
+| Pin (`ComposeCache`, `ComposeTestMask.cpp`) | the combination |
+| --- | --- |
+| `ABoundFillMovingUnderAHeldGateRepaints` | `fill(&out)` + `by::spans` |
+| `ALiveEffectMovingUnderAHeldGateRepaints` | `effect(…uniform(&out))` + `by::spans` |
+| `ALiveEffectMovingOverAHeldMaterialRepaints` | live `Material` + live `effect` |
+
+**THE FIX is the root cause, not the three symptoms.** The terms are
+named ONCE (`fillLerp`, `boundFill`, `liveMat`, `metricLive`,
+`cacheNone`, `decorLive`, `imageLive`, `driveLive`, `liveEffect`,
+`spanVolatile`, `maskOpaque`, `scalarContent`) and every consumer is a
+SUBTRACTION from that one list — `otherThanScalar`, `otherThanLiveMat` —
+so `ownContent == scalarContent | otherThanScalar == liveMat |
+otherThanLiveMat` holds by construction rather than by review. The two
+carve-outs are now one line each. 121 lines of hand-maintained
+enumeration became 55.
+
+The change is **monotonically more conservative**: every consumer gains
+terms and loses none, so caching can only decrease. That is why it is
+safe, and it is also why `maskOpaque` — added to `scalarMemo` by the
+same construction and not separately reproduced — needs no pin of its
+own: it is a tightening derived from the list, not a new claim.
+
+**CONTROLS, one per term, each run and each restored.** Every control
+removes exactly one term from exactly one list:
+
+| Control | Result |
+| --- | --- |
+| `boundFill` out of `otherThanScalar` | `ABoundFillMovingUnderAHeldGateRepaints` FAILS; other two OK |
+| `liveEffect` out of `otherThanScalar` | `ALiveEffectMovingUnderAHeldGateRepaints` FAILS; other two OK |
+| `liveEffect` out of `otherThanLiveMat` | `ALiveEffectMovingOverAHeldMaterialRepaints` FAILS; other two OK |
+
+A first attempt at these controls was **VACUOUS in the other
+direction** and is recorded because it would have proved too much:
+`opaqueToTheMemo && !term` does not remove one term from a disjunction,
+it nulls the whole thing whenever that term is true, so it failed two
+tests at once and said nothing about either. The controls above edit the
+term list itself.
+
+**THE STATS PIN**, in numbers, because this is a caching change: with the
+memo correctly refused, four held frames give `picturesRecorded == 0`
+and `nodesPainted == 8` (the node and its parent, live, four frames
+each). Before the fix both were 0 — the memo held and nothing painted,
+which is the bug stated arithmetically. The control on `boundFill` fails
+on this assertion before it reaches the pixels.
+
+**PLATE LEDGER** (Release, 58 scenes): **55 byte-identical, 2 attributed
+flappers** (`genesis_fire`, `hitman_verlet`; `slitscan_2001` held still),
+**1 mover: `easel_playground` `187686f0e651 -> 39528e682c55`** — the
+same SigilShape-attributed hash §35 and §37 both already recorded, not
+this change. Byte-neutral, which is the expected result of a change that
+can only remove caching: no corpus scene was hitting the bug. No rebase.
+
+### THE DESIGN FOR THE PERF DEFECT — §20 IS the mechanism, and it is short of coverage
+
+Weighed against §10g's list:
+
+- **Per-PROPERTY volatility rather than per-node** — already shipped, and
+  re-filing it would be the fourth near-rebuild this session.
+  `computeVolatile` splits per property four ways today: `ownPaint`
+  (transforms/opacity, outside the content cache), `ownContent`,
+  `scalarContent` (memo-visible floats), `opaqueToTheMemo` (what a group
+  bake cannot see). What is binary is not the PROPERTY axis. It is the
+  TIME axis.
+- **A rate or an epoch, so "changed since last frame" is answerable** —
+  this is what §20 already implements, and it does it with values rather
+  than epochs: `settledScalars` is the snapshot, `scanReleasedScalars()`
+  re-resolves it once per draw and re-declares volatility the frame it
+  moves, before anything paints. An epoch would be cheaper only for
+  values too expensive to compare, and none of these are.
+- **A settle mechanism** — §20 shipped exactly this: `kScalarSettleFrames
+  = 8`, a paint-side counter, a walk-side release, a per-draw movement
+  scan. **It is most of the answer, and the remaining gap is purely its
+  COVERAGE.** `scalarContent` admits two lanes — mask gates and glyph
+  progress — because `ContentScalars` is `{float glyph;
+  std::vector<float> gates;}`. A bound `Fill` is not in it, and §20's own
+  text says why: *"there is no equivalent of 'the numbers the recording
+  was baked with' for the general case."*
+
+**THAT SENTENCE IS FALSE FOR A BOUND FILL, AND THAT IS THE WHOLE
+DESIGN.** `Fill::operator==` (`Compose.h:146`) is kind + `SkColor4f`
+bitwise + shader POINTER identity — structurally exact, never
+perceptual, never epsilon'd. It is the same equality `bakedLiveShader`
+already uses to hold the live-material memo, and the same rule §10g
+wrote down for an inherited theme's equality. Resolving one costs a
+pointer dereference (`binding()->value()`, `Paint.cpp:1579`). So the
+extension is: `ContentScalars` gains a `Fill` lane, `boundFill` moves
+from the unconditional `ownContent` terms into `scalarContent`,
+`resolveGateValues()` gains a sibling, and `scanReleasedScalars()`
+compares it. No new concept, no new API, no author knowledge — §20's
+preferred shape, on one more lane.
+
+**SCOPED, NOT BUILT, and the reason is the direction of the change.**
+Tonight's fix only ever REMOVES caching, which is why it could be landed
+on a measurement and a ledger at the end of one night. The extension only
+ever ADDS it, which is the direction that produces stale pixels — the
+exact failure mode the three bugs above were. It needs its own pass:
+the release must be proven against `Promotion::Volatile`'s
+`contentStable` as well as against the recording (promotion is the whole
+5 ms, and it is a SEPARATE consumer of `subtreeVolatile` from the memo),
+the `opaqueToTheMemo` group lane must be decided separately rather than
+carried along, and it wants the ledger run against a corpus that
+actually contains a slow bound fill — which, per this sweep, none of the
+58 scenes does. The measurement above is the argument for doing it; it
+is not the licence to do it at five in the morning.
+
+**Two further lanes the same extension would want, named so the next
+pass does not re-derive them:** a bound TRANSFORM (`ownPaint`/`moving`,
+which does not block the node's own content cache but does block every
+ancestor and every promotion, so a slow-moving position costs the same
+5 ms), and a live `Material` whose `liveStableRate` already proves it is
+holding still but which never releases the FLAG — so it buys promotion
+for ITSELF (`temporallyStable`) and nothing for its ancestors. That
+asymmetry between the two existing stability machineries is worth
+closing in the same pass.

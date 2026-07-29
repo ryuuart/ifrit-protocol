@@ -507,33 +507,49 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // Content volatility: what actually invalidates the node's own recording
   // (bound/lerping fills, per-frame programs, animated decorations and image
   // frames).
-  bool ownContent = inst.anims[Instance::kFillLerp] &&
-                    inst.anims[Instance::kFillLerp]->value.isConnected();
-  const bool nonLiveMatContent = ownContent; // everything below except the
-                                             // live material slot
-  if (node.paint.fill && node.paint.fill->binding())
-    ownContent = true;
+  //
+  // THE TERMS ARE NAMED ONCE, AND EVERY CONSUMER IS A SUBTRACTION FROM
+  // THEM. Four questions are asked of this one list — "is anything
+  // volatile" (ownContent), "can a group's float memo SEE it"
+  // (opaqueToTheMemo), "is the live material the ONLY one" (liveMatOnly),
+  // "are the animated scalars the only ones" (scalarMemo) — and each used
+  // to re-enumerate the list by hand. Three of the four copies drifted:
+  // neither memo carve-out mentioned a bound fill or a live effect, so a
+  // node carrying one of those AND an animated gate took a memo, kept the
+  // recording that had baked the old colour, and replayed it for as long
+  // as the gate held still (three reproduced staleness cases, pinned in
+  // ComposeR4Mask). Deriving each consumer by subtraction is what makes
+  // `ownContent == liveMat | otherThanLiveMat == scalarContent |
+  // otherThanScalar` true BY CONSTRUCTION rather than by review.
+  const bool fillLerp = inst.anims[Instance::kFillLerp] &&
+                        inst.anims[Instance::kFillLerp]->value.isConnected();
+  const bool boundFill = node.paint.fill && node.paint.fill->binding();
   const Material *nodeLiveMat = liveMaterialOf(node);
+  // truly live (bound/uTime) — geometry-dependent materials resolve at
+  // record time and stay cacheable
   const bool liveMat = nodeLiveMat && nodeLiveMat->isAnimated();
-  if (liveMat)
-    ownContent = true; // truly live (bound/uTime) — geometry-dependent
-                       // materials resolve at record time and stay cacheable
-  if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
-    ownContent = true; // animated chrome type paints per frame
-  if (node.cacheMode == Cache::None)
-    ownContent = true;
-  for (const Decoration &d : node.backgrounds)
-    ownContent |= d.isAnimated();
-  for (const Decoration &d : node.foregrounds)
-    ownContent |= d.isAnimated();
-  if (node.fxData)
-    for (const Decoration &d : node.fxData->overlays)
-      ownContent |= d.isAnimated();
-  if (node.kind == Kind::Image && imageAssetOf(node) &&
-      imageAssetOf(node)->animated())
-    ownContent = true;
-  ownContent |= spanVolatile;
-  ownContent |= maskOpaque;
+  const Material *mfLive = metricFillOf(node);
+  const bool metricLive = mfLive && mfLive->isAnimated(); // chrome type
+  const bool cacheNone = node.cacheMode == Cache::None;
+  const bool decorLive = [&] {
+    bool live = false;
+    for (const Decoration &d : node.backgrounds)
+      live |= d.isAnimated();
+    for (const Decoration &d : node.foregrounds)
+      live |= d.isAnimated();
+    if (node.fxData)
+      for (const Decoration &d : node.fxData->overlays)
+        live |= d.isAnimated();
+    return live;
+  }();
+  const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
+                         imageAssetOf(node)->animated();
+  const bool driveLive = node.textData && node.textData->driveValue != nullptr;
+  // A LIVE effect (§11): the filter is captured by the recording, so bound
+  // uniforms are content volatility — the material rule on the effect seam.
+  const bool liveEffect =
+      (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
+      (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
   // can sit still for a long time inside a running motion (§17).
@@ -541,6 +557,11 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
   if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
     scalarContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
+  /** The pre-release reading. §20 below may set `scalarContent` false for a
+   *  node that is provably holding still; the LIVE-MATERIAL memo must keep
+   *  answering about such a node exactly as it did before that release
+   *  existed, so it subtracts this and not the released value. */
+  const bool scalarDeclared = scalarContent;
   // §20: the measured-stability RELEASE, read side. The settle counter
   // accumulates at PAINT time — this walk re-runs only on reconcile or
   // while the TICKER is active, which is exactly why the flag never
@@ -563,16 +584,6 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       inst.settledScalars = std::move(now);
     }
   }
-  ownContent |= scalarContent;
-  if (node.textData && node.textData->driveValue)
-    ownContent = true; // VariationDrive repaints per frame (no reshape)
-  // A LIVE effect (§11): the filter is captured by the recording, so bound
-  // uniforms are content volatility — the material rule on the effect seam.
-  const bool liveEffect =
-      (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
-      (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
-  ownContent |= liveEffect;
-
   // §30: what a SUBTREE VALUE MEMO can and cannot see. A group bake is held
   // by comparing floats, so every source of volatility in it must either BE
   // a float this frame can read back (the transform slots, opacity, the
@@ -582,31 +593,22 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // a group holding a bake across one of them would blit last second's
   // picture forever. Refused outright rather than approximated — this is the
   // whole risk of the feature, and it is the one place to be conservative.
-  bool opaqueToTheMemo = false;
-  if (node.paint.fill && node.paint.fill->binding())
-    opaqueToTheMemo = true; // a Fill is not a float
-  if (liveMat)
-    opaqueToTheMemo = true; // uTime / a bound uniform
-  if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
-    opaqueToTheMemo = true;
-  if (node.cacheMode == Cache::None)
-    opaqueToTheMemo = true; // declared per-frame volatility
-  for (const Decoration &d : node.backgrounds)
-    opaqueToTheMemo |= d.isAnimated();
-  for (const Decoration &d : node.foregrounds)
-    opaqueToTheMemo |= d.isAnimated();
-  if (node.fxData)
-    for (const Decoration &d : node.fxData->overlays)
-      opaqueToTheMemo |= d.isAnimated();
-  if (node.kind == Kind::Image && imageAssetOf(node) &&
-      imageAssetOf(node)->animated())
-    opaqueToTheMemo = true;
-  if (node.textData && node.textData->driveValue)
-    opaqueToTheMemo = true;
-  opaqueToTheMemo |= spanVolatile;
-  opaqueToTheMemo |= maskOpaque; // an alpha gate on a LIVE material
-  opaqueToTheMemo |= liveEffect; // a bound effect uniform is not a float
-                                 // the memo tracks
+  // (A Fill is not a float; nor is a live material's uTime, an animated
+  // decoration, a GIF frame, a variable-font drive or a bound effect
+  // uniform.)
+  const bool opaqueToTheMemo = boundFill || liveMat || metricLive ||
+                               cacheNone || decorLive || imageLive ||
+                               driveLive || spanVolatile || maskOpaque ||
+                               liveEffect;
+  // Everything volatile about this node EXCEPT its animated scalars, and
+  // everything EXCEPT its live material. The two memo carve-outs below are
+  // exactly these two subtractions, which is why neither can forget a term.
+  const bool otherThanScalar = opaqueToTheMemo || fillLerp;
+  const bool otherThanLiveMat = fillLerp || boundFill || metricLive ||
+                                cacheNone || decorLive || imageLive ||
+                                driveLive || spanVolatile || maskOpaque ||
+                                liveEffect || scalarDeclared;
+  const bool ownContent = otherThanScalar || scalarContent;
 
   bool childrenVolatile = false;
   bool childReadsBackdrop = false;
@@ -673,34 +675,9 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     inst.ownImage.reset(); // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
-  // stable and re-records only when the shader actually changes.
-  const Material *mfLive = metricFillOf(node);
-  inst.liveMatOnly = liveMat && ownContent && !nonLiveMatContent &&
-                     !(mfLive && mfLive->isAnimated()) &&
-                     node.cacheMode != Cache::None && !childrenVolatile;
-  // (decoration/image/trim/glyph volatility all set ownContent through
-  // nonLiveMatContent's snapshot point or below — re-derive precisely:)
-  if (inst.liveMatOnly) {
-    bool other = nonLiveMatContent;
-    for (const Decoration &d : node.backgrounds)
-      other |= d.isAnimated();
-    for (const Decoration &d : node.foregrounds)
-      other |= d.isAnimated();
-    if (node.fxData)
-      for (const Decoration &d : node.fxData->overlays)
-        other |= d.isAnimated();
-    if (node.kind == Kind::Image && imageAssetOf(node) &&
-        imageAssetOf(node)->animated())
-      other = true;
-    other |= maskScalarLive || maskOpaque;
-    if (const GlyphFx *g = glyphFxOf(node))
-      other |= boundOrRunning(Instance::kGlyphProgress, g->progress);
-    if (node.textData && node.textData->driveValue)
-      other = true;
-    other |= spanVolatile;
-    if (other)
-      inst.liveMatOnly = false;
-  }
+  // stable and re-records only when the shader actually changes. Stated as
+  // the subtraction it is, so it cannot fall behind the list again.
+  inst.liveMatOnly = liveMat && !otherThanLiveMat && !childrenVolatile;
   // §17: the same carve-out for animated SCALARS. A node whose content
   // volatility is entirely mask gates and glyph progress keeps its
   // recording and
@@ -709,27 +686,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // a node with BOTH a live material and an animated trim takes neither
   // memo, which is the conservative answer and costs only what it costs
   // today.
-  inst.scalarMemo = false;
-  if (scalarContent && !liveMat && node.cacheMode != Cache::None &&
-      !childrenVolatile) {
-    bool other = nonLiveMatContent; // the fill lerp
-    for (const Decoration &d : node.backgrounds)
-      other |= d.isAnimated();
-    for (const Decoration &d : node.foregrounds)
-      other |= d.isAnimated();
-    if (node.fxData)
-      for (const Decoration &d : node.fxData->overlays)
-        other |= d.isAnimated();
-    if (node.kind == Kind::Image && imageAssetOf(node) &&
-        imageAssetOf(node)->animated())
-      other = true;
-    if (const Material *mf = metricFillOf(node); mf && mf->isAnimated())
-      other = true;
-    if (node.textData && node.textData->driveValue)
-      other = true;
-    other |= spanVolatile;
-    inst.scalarMemo = !other;
-  }
+  inst.scalarMemo = scalarContent && !otherThanScalar && !childrenVolatile;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
