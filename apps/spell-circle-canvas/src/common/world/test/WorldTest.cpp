@@ -8,13 +8,18 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
+
+#include <sigilcompose/Compose.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 
 using namespace sigil;
@@ -57,6 +62,43 @@ TEST(World, RendersClearColorWhenEmpty) {
   const SkColor c = bm.getColor(32, 32);
   EXPECT_GT(SkColorGetR(c), 200u);
   EXPECT_LT(SkColorGetG(c), 40u);
+}
+
+// PIN — the COLOUR SPACE of WorldConfig::clearColor.
+//
+// clearColor is ENCODED sRGB; every other colour in the API is linear.
+// The clear writes straight into the RGBA8_UNORM target with no shader
+// in the way, so its components are the bytes the background pixel
+// gets. RendersClearColorWhenEmpty above cannot see this — it uses 0
+// and 1, the two fixed points of the sRGB curve — so this test picks
+// mid-tones, where the two readings are far apart.
+//
+// It exists to fail loudly if someone "fixes" the asymmetry by running
+// clearColor through the encode: every world plate's background would
+// move (the default from (7, 8, 11) to (47, 48, 60)). The ruling and
+// its evidence are dated 2026-07-28 in world/README.md.
+TEST(World, ClearColorIsEncodedSrgbNotLinear) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  config.clearColor = {0.5f, 0.25f, 0.75f, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  ASSERT_TRUE(w->render());
+  sk_sp<SkImage> frame = w->readback();
+  ASSERT_TRUE(frame);
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  ASSERT_TRUE(frame->readPixels(nullptr, bm.pixmap(), 0, 0));
+  const SkColor c = bm.getColor(16, 16);
+  // Encoded reading: the components ARE the bytes (x255).
+  EXPECT_NEAR((int)SkColorGetR(c), 128, 2) << "clearColor is encoded sRGB";
+  EXPECT_NEAR((int)SkColorGetG(c), 64, 2);
+  EXPECT_NEAR((int)SkColorGetB(c), 191, 2);
+  // Linear reading — what an added encode would give — is (188, 137,
+  // 225). Nowhere near, in every channel.
+  EXPECT_LT(SkColorGetR(c), 160u) << "clearColor must NOT be encoded";
+  EXPECT_LT(SkColorGetG(c), 100u);
+  EXPECT_LT(SkColorGetB(c), 208u);
 }
 
 TEST(World, RendersLitQuadCoveringCenter) {
@@ -739,6 +781,69 @@ TEST(World, UvScaleOffsetSelectsTexelLiveAcrossFrames) {
   EXPECT_LT(SkColorGetG(second), 100u);
 }
 
+TEST(World, UnlitSrgbTexelSurvivesTheRoundTrip) {
+  // The transfer-function pin. Panel textures are uploaded
+  // RGBA8_UNORM_SRGB, so the sampler DECODES with the piecewise sRGB
+  // curve; the render target is plain UNORM, so the shader ENCODES by
+  // hand. Those two must be inverses, or an unlit panel — a pure
+  // pass-through path — does not pass through. The old pow(c, 1/2.2)
+  // encode was not the inverse: it pushed 8/255 out to ~17/255 and shed
+  // 5-8/255 across the dark-to-mid range.
+  //
+  // uvScale {0,0} collapses sampling to the single texel uvOffset
+  // names, so this is filtering- and geometry-proof: whatever byte goes
+  // in must come back out, within the 1/255 the UNORM target rounds to.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  config.clearColor = {0, 0, 0, 1};
+  MAKE_WORLD_OR_SKIP(w, config);
+  shape::space::Camera camera;
+  camera.eye = {0, 0, 500};
+  camera.target = {0, 0, 0};
+  w->setCamera(camera);
+
+  // Greys across the range, weighted toward the dark end where the
+  // curves diverge hardest (the piecewise linear toe lives below ~11).
+  const uint8_t levels[] = {2, 8, 24, 55, 96, 128, 170, 210, 250};
+  const int count = (int)(sizeof(levels) / sizeof(levels[0]));
+  SkBitmap texels;
+  texels.allocPixels(SkImageInfo::MakeN32Premul(count, 1));
+  for (int i = 0; i < count; ++i)
+    texels.erase(SkColorSetARGB(255, levels[i], levels[i], levels[i]),
+                 SkIRect::MakeXYWH(i, 0, 1, 1));
+  texels.setImmutable();
+
+  world::Material screen;
+  screen.unlit = true;
+  screen.baseColor = {1, 1, 1, 1}; // no tint: the texel, undiluted
+  screen.texture = texels.asImage();
+  screen.uvScale = {0, 0};
+  screen.uvOffset = {0.5f / (float)count, 0.5f};
+  const uint32_t id =
+      w->addSurface(shape::mesh::quad(600, 600), glm::mat4(1.0f), screen);
+  ASSERT_NE(id, 0u);
+  auto &material =
+      w->registry().get<world::MaterialComponent>(world::entity(id));
+
+  for (int i = 0; i < count; ++i) {
+    material.material.uvOffset = {((float)i + 0.5f) / (float)count, 0.5f};
+    ASSERT_TRUE(w->render());
+    sk_sp<SkImage> frame = w->readback();
+    ASSERT_TRUE(frame);
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+    ASSERT_TRUE(frame->readPixels(nullptr, bm.pixmap(), 0, 0));
+    const SkColor c = bm.getColor(16, 16);
+    EXPECT_NEAR((int)SkColorGetR(c), (int)levels[i], 1)
+        << "level " << (int)levels[i] << " R";
+    EXPECT_NEAR((int)SkColorGetG(c), (int)levels[i], 1)
+        << "level " << (int)levels[i] << " G";
+    EXPECT_NEAR((int)SkColorGetB(c), (int)levels[i], 1)
+        << "level " << (int)levels[i] << " B";
+  }
+}
+
 TEST(World, SetSurfaceMeshMovesGeometryInPlace) {
   // The towed-flag contract: same topology updates the GPU buffers in
   // place; a different shape recreates them; material and entity
@@ -1184,6 +1289,56 @@ TEST(World, CustomAttributesCookOnTheGpu) {
     EXPECT_NEAR((*gpuEnergy)[i].r, (*cpuEnergy)[i].r, 1e-4f);
 }
 
+TEST(World, PrimitiveClassChainsAreDeclinedNotDropped) {
+  // The graceful boundary, the house pattern: the GPU executor cooks
+  // the POINT class only. A chain carrying a primitive-class op
+  // (pop::Promote) must be REFUSED outright — dropping it would cook
+  // silently-wrong geometry, and its variant index does not even map
+  // to a real compute PSO. Same treatment MeshScatter gets.
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    loop.push_back({150.0f * std::cos(a), 0, 150.0f * std::sin(a)});
+  }
+  const auto describe = [&](bool promote) {
+    shape::pop::Builder b = shape::pop::on(loop);
+    b.count(64).fade({1, 0, 0, 1}, {0, 0, 1, 1});
+    if (promote)
+      b.promote(shape::pop::Lane::Color);
+    return (shape::pop::Chain)b;
+  };
+  const shape::Mesh stamp = shape::mesh::quad(6, 6);
+
+  // The control: the same chain WITHOUT the prim op cooks fine.
+  const uint32_t plain = w->addPoints(stamp, describe(false),
+                                      world::Material{});
+  ASSERT_NE(plain, 0u);
+
+  EXPECT_EQ(w->addPoints(stamp, describe(true), world::Material{}), 0u);
+  const uint32_t upstream =
+      w->addPointsOn(plain, stamp,
+                     (shape::pop::Chain)shape::pop::on(
+                         std::vector<glm::vec3>{})
+                         .count(32)
+                         .promote(shape::pop::Lane::Color),
+                     world::Material{});
+  EXPECT_EQ(upstream, 0u) << "the composing entry declines too";
+
+  // setPoints refuses the re-describe rather than half-applying it.
+  w->setPoints(plain, describe(true));
+  EXPECT_TRUE(w->render());
+
+  // ...and the CPU executor still forms the prim lanes the GPU cannot.
+  const shape::Mesh cpu =
+      shape::popops::cookMesh(describe(true), stamp);
+  EXPECT_TRUE(cpu.primIf("Color"));
+}
+
 TEST(World, ChainsComposeOnDevice) {
   // Pops feed pops with NO CPU round trip: chain B's generator reads
   // chain A's cooked P lane straight from its arena — and the result
@@ -1379,5 +1534,104 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
     EXPECT_NEAR(slid.positions[i].x, cpu.positions[i].x, 0.05f);
     EXPECT_NEAR(slid.positions[i].y, cpu.positions[i].y, 0.05f);
     EXPECT_NEAR(slid.positions[i].z, cpu.positions[i].z, 0.05f);
+  }
+}
+
+// --- the marquee's slice ---------------------------------------------------
+// world_demo paints THE YARN as one tall SigilCompose column, snapshots
+// it to a vector picture, and cuts it into GPU tiles through compose's
+// sigil::compose::tiles:: door (2026-07-28 — it used to do the matrix by
+// hand, and got it wrong twice). The band's legibility on the ribbon
+// wall rests entirely on that transform, so it is pinned here: these are
+// the marquee's own tile geometry and orientation, and if a future
+// tiles:: change moves them the band silently mirrors or steps wrong.
+
+TEST(WorldMarqueeSlice, TileWindowsStepDownAndMirrorAcross) {
+  namespace tiles = sigil::compose::tiles;
+  // world_demo's real strip: a 506 px wide column cut into ten
+  // 4096 px tiles, mirrored across because the sweep wall's u runs
+  // backwards.
+  const SkISize tile = SkISize::Make(506, 4096);
+  const float w = (float)tile.width();
+  const float h = (float)tile.height();
+
+  for (int k : {0, 1, 5, 9}) {
+    const SkMatrix got =
+        tiles::window(tile, k, tiles::Flow::Down, tiles::Facing::Mirrored);
+
+    // (i) Exactly the concatenation world_demo used to spell out:
+    //     translate(w, 0) . scale(-1, 1) . translate(0, -k*h).
+    SkMatrix byHand = SkMatrix::Translate(w, 0);
+    byHand.preScale(-1, 1);
+    byHand.preTranslate(0, -(float)k * h);
+    EXPECT_EQ(got, byHand) << "tile " << k << " transform moved";
+
+    // (ii) And what that means in points, so a future rewrite that
+    //      happens to differ has to differ HERE too: the k-th slice's
+    //      top-left corner of the column lands on the tile's top-RIGHT
+    //      (the mirror), and its bottom-right on the bottom-left.
+    EXPECT_EQ(got.mapPoint({0, (float)k * h}), (SkPoint{w, 0}));
+    EXPECT_EQ(got.mapPoint({w, (float)k * h + h}), (SkPoint{0, h}));
+    // The slice is a pure step along y: no scaling of the band, and no
+    // transpose (the trap the door exists to close).
+    EXPECT_FLOAT_EQ(std::abs(got.getScaleX()), 1.0f);
+    EXPECT_FLOAT_EQ(got.getScaleY(), 1.0f);
+    EXPECT_FLOAT_EQ(got.getSkewX(), 0.0f);
+    EXPECT_FLOAT_EQ(got.getSkewY(), 0.0f);
+  }
+
+  // (iii) The two knobs the marquee chose are load-bearing: an unmirrored
+  //       tile, or a row slice, is a different picture.
+  EXPECT_NE(tiles::window(tile, 3, tiles::Flow::Down, tiles::Facing::Forward),
+            tiles::window(tile, 3, tiles::Flow::Down,
+                          tiles::Facing::Mirrored));
+  EXPECT_NE(tiles::window(tile, 3, tiles::Flow::Across,
+                          tiles::Facing::Mirrored),
+            tiles::window(tile, 3, tiles::Flow::Down,
+                          tiles::Facing::Mirrored));
+}
+
+TEST(WorldMarqueeSlice, SliceableReplaysTheSamePixels) {
+  namespace tiles = sigil::compose::tiles;
+  // The marquee draws the SLICEABLE re-recording, not the snapshot, so
+  // the plates only stay put while the two replay identically.
+  const SkISize tile = SkISize::Make(24, 32);
+  const int tileCount = 3;
+  SkPictureRecorder recorder;
+  {
+    SkCanvas *c = recorder.beginRecording(SkRect::MakeWH(
+        (float)tile.width(), (float)tile.height() * (float)tileCount));
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    for (int i = 0; i < 40; ++i) {
+      paint.setColor(SkColorSetARGB(255, (uint8_t)(i * 6), 120,
+                                    (uint8_t)(255 - i * 5)));
+      c->drawRect(SkRect::MakeXYWH((float)(i % 7) * 3.0f, (float)i * 2.4f,
+                                   9.0f, 5.0f),
+                  paint);
+    }
+  }
+  const sk_sp<SkPicture> art = recorder.finishRecordingAsPicture();
+  const sk_sp<SkPicture> sliced = tiles::sliceable(art);
+  ASSERT_TRUE(sliced);
+
+  const auto slice = [&](const sk_sp<SkPicture> &picture, int k) {
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(tile.width(), tile.height());
+    SkCanvas canvas(bitmap);
+    canvas.clear(SK_ColorTRANSPARENT);
+    canvas.concat(
+        tiles::window(tile, k, tiles::Flow::Down, tiles::Facing::Mirrored));
+    canvas.drawPicture(picture);
+    return bitmap;
+  };
+  for (int k = 0; k < tileCount; ++k) {
+    const SkBitmap raw = slice(art, k);
+    const SkBitmap fast = slice(sliced, k);
+    ASSERT_EQ(raw.computeByteSize(), fast.computeByteSize());
+    EXPECT_EQ(std::memcmp(raw.getPixels(), fast.getPixels(),
+                          raw.computeByteSize()),
+              0)
+        << "sliceable() replay differs on tile " << k;
   }
 }

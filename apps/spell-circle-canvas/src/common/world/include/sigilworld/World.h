@@ -51,6 +51,25 @@ struct WorldConfig {
   enum class Backend : uint8_t { Auto, Vulkan } backend = Backend::Auto;
   int sampleCount = 4;  ///< MSAA; falls back to 1 when unsupported
   bool validation = false;
+
+  /** Background colour, in **encoded sRGB** — the deliberate exception
+   *  to the rest of this API.
+   *
+   *  Every other colour here (Material::baseColor and emissive, the
+   *  Lighting sun/sky/ground, LightComponent colours) is LINEAR: the
+   *  shader shades in linear and runs its own LinearToSrgb() on the way
+   *  to the plain RGBA8_UNORM target. The clear does not go through a
+   *  shader — it writes the value straight into that target — so these
+   *  components ARE the bytes the background pixel gets: the default
+   *  reads back as (7, 8, 11), a near-black navy, not the (47, 48, 60)
+   *  slate an encode would produce.
+   *
+   *  This is intentional and pinned by
+   *  World.ClearColorIsEncodedSrgbNotLinear; see the 2026-07-28 note in
+   *  world/README.md. Authoring a background is picking the pixel you
+   *  want to see, which is what a display-space value means; matching a
+   *  linear Material colour instead means encoding it yourself
+   *  (shape::blend's linearToSrgb curve). */
   glm::vec4 clearColor = {0.028f, 0.03f, 0.045f, 1};
 };
 

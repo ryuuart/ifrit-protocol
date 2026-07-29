@@ -47,6 +47,72 @@ path work without environment surgery:
   clip-space y, so the projection carries no flip (the
   `QuadAtPositiveYAppearsInTopHalf` test pins this).
 
+### The transfer function, made symmetric (2026-07-28)
+
+**Every world plate moved on this date, on purpose.** Panel textures are
+uploaded `TEX_FORMAT_RGBA8_UNORM_SRGB`, so the sampler decodes with the
+exact piecewise IEC 61966-2-1 curve; the render target is plain
+`RGBA8_UNORM`, so the encode is the shader's to spell. It used to spell
+`pow(c, 1/2.2)` — in BOTH the unlit and the lit/tonemapped branch — and
+that is not the inverse of the piecewise curve. An unlit panel is
+supposed to be a pure pass-through path, and it was not passing through:
+a compose-authored texel came back out of the readback shifted, +9/255
+at byte 8, +6 at bytes 2 and 24, +3 at byte 55, converging inside 1/255
+only above ~96.
+
+Both branches now use `LinearToSrgb()`, the piecewise encode
+(`c <= 0.0031308 ? c*12.92 : 1.055*pow(c, 1/2.4) - 0.055`), constants
+matched EXACTLY to `shape/Blend.cpp`'s `linearToSrgb()`. The cost is
+that every rendered plate shifts: all 12 `world_demo` PNGs moved, mean
+absolute delta 0.53–3.65/255, max 9/255, darkest content moving most
+(`world_close_panel` 86% of bytes, the marquee frames ~19%). The
+`shape_demo` panels do not use this path and are byte-identical.
+
+`World.UnlitSrgbTexelSurvivesTheRoundTrip` is the pin: nine grey levels
+sampled one texel at a time (`uvScale {0,0}`, so no filtering) must
+survive upload → sRGB decode → shader encode → UNORM readback within
+1/255. Restore the old `pow(1/2.2)` and it fails on the first four
+levels.
+
+### `clearColor` is encoded sRGB, by intent (2026-07-28)
+
+The transfer-function work above raises the obvious next question, and
+the answer is a deliberate asymmetry worth writing down: **every colour
+in this API is linear EXCEPT `WorldConfig::clearColor`, which is encoded
+sRGB.** `Material::baseColor`/`emissive`, `Lighting`'s sun/sky/ground and
+the registry `LightComponent` colours all reach the target through the
+shader, which shades in linear and applies `LinearToSrgb()` on the way
+out. The clear does not pass a shader — `ClearRenderTarget` writes the
+value straight into the `RGBA8_UNORM` target — so its components ARE the
+bytes the background pixel gets.
+
+The ruling is that this is correct, on three pieces of evidence:
+
+1. **The default renders as what it says.** `{0.028, 0.03, 0.045}` lands
+   as byte `(7, 8, 11)`, a near-black navy, and that exact triple is the
+   single most common pixel in `world_poster`, `world_stream`,
+   `world_cockpit` and `world_low_orbit` — 23–47% of each frame. Read as
+   linear, it would encode to `(47, 48, 60)`, a mid slate that would
+   wash the backdrop out of every "space" shot. The plates were authored
+   and accepted against the dark reading.
+2. **It was born an `SkColor4f`** (commit `0fda6c3`, retyped to
+   `glm::vec4` only for the glm migration in `f6f0e94`), and this repo's
+   `SkColor4f` convention is display-encoded: `shape/Blend.cpp` runs
+   `srgbToLinear()` on `SkColor4f` components before going to OKLab.
+3. **It is the meaning that matches the job.** Authoring a background is
+   choosing the pixel you want to see; a display-space number is exactly
+   that. Nothing composites the clear with lighting, so there is no
+   linear-math argument pulling the other way.
+
+Pinned by `World.ClearColorIsEncodedSrgbNotLinear`, which clears
+`{0.5, 0.25, 0.75}` and requires bytes `(128, 64, 191)` — the existing
+`RendersClearColorWhenEmpty` uses 0 and 1, the fixed points of the sRGB
+curve, and so pins nothing about the space. Add an encode and the pin
+fails on all three channels (it would read `(188, 137, 225)`), which is
+the point: doing so would move every world plate a second time. A caller
+who wants a background matching a linear `Material` colour encodes it
+themselves with `shape::blend`'s `linearToSrgb` curve.
+
 `Material`: baseColor (alpha < 1 routes to the blended, depth-sorted
 pass), metallic/roughness, emissive, texture (sRGB view), unlit, and
 a uv window (`uvScale`/`uvOffset`, applied at sample time, clamped at
@@ -95,7 +161,23 @@ mutates upstream. Pinned by `PopChainCooksAndRedescribes` (which
 appends a Math mirror op live). v1 simplifications, on the roadmap to
 lift: the conventional lanes only (custom named lanes later),
 whole-chain re-cook (copy-on-write attribute references later), no
-Feedback/Delete/Sort yet. MoltenVK gotcha for future operators:
+Feedback/Delete/Sort yet.
+
+The executor boundary, and how it declines (2026-07-28): this executor
+cooks the **point class** — named lanes in a device arena, packed into
+the instanced stream. SigilShape's **primitive class**
+(`Mesh::prims`, see its README) has no counterpart here, because the
+GPU sink is instanced stamps rather than a `Mesh` value. So
+`addPoints`, `addPointsOn` and `setPoints` **DECLINE** (return 0 / no
+change) any chain carrying `pop::Promote`, exactly as they decline
+`pop::MeshScatter` — never drop the op and cook something subtly
+wrong. Pinned by `PrimitiveClassChainsAreDeclinedNotDropped`. Note for
+whoever lifts this: the op variant's ORDER is ABI — `popPsoIndex()`
+maps variant index to compute PSO, `Promote` (variant 11) has no PSO
+of its own, and new ops must be APPENDED to the variant, never
+inserted.
+
+MoltenVK gotcha for future operators:
 RWStructuredBuffers sharing one element struct collide in SPIRV-Cross
 MSL naming — give each lane a distinct struct type, and write whole
 elements, not members.
@@ -192,7 +274,7 @@ panels are stable by construction.
 
 ```
 ./build/bin/Debug/world_demo [outdir] [assetdir]   # 6 PNG camera shots + scroll frames
-./build/bin/Debug/world_test                        # skips without a Vulkan runtime
+./build/bin/Debug/world_test                        # 34 tests; skips without a Vulkan runtime
 ```
 
 The demo builds a cockpit: three emissive UI cards, a curved
@@ -228,7 +310,26 @@ the march is ten `setSweepWindow()` calls (two floats each) and ten
 compute dispatches; no CPU mesh exists for the band at all. A
 300,000-particle `addFlock()` comet streams behind the dart on the
 same loop (tail-fading tint ramp, drift noise), its instance stream
-packed by compute each frame. Timed on Apple-silicon Vulkan-on-Metal,
+packed by compute each frame.
+
+The slice goes through compose's door now (2026-07-28). It used to be
+three canvas calls spelled out in `world_demo.cpp` — `translate(w, 0)`,
+`scale(-1, 1)`, `translate(0, -k*h)` — and that expression was derived
+by hand and gotten wrong twice, because the mirror is not the picture's
+business: the sweep wall samples its own u backwards, so the tile has
+to be baked reversed to read forwards on the band. It is now one call,
+`sigil::compose::tiles::window({506, 4096}, k, Flow::Down,
+Facing::Mirrored)`, with the orientation trap documented on compose's
+side and the marquee's own tile geometry pinned in `world_test`
+(`WorldMarqueeSlice`) so a change over there cannot silently mirror or
+step the band. The migration is byte-identical: all 13 demo artifacts,
+PNGs and `comet_points.ply`, hash the same before and after. The strip
+also draws through `tiles::sliceable()`, the same picture re-recorded
+behind a bounding-box hierarchy so each tile replays only the ops that
+meet it — on this strip (10 tiles of 506x4096 over a 40960 px column,
+5202 ops) 6.81 ms of raw replay becomes 0.39 ms of build plus ~4.4 ms
+of replay, ~30% off the marquee's one-time bake, pixel-identical.
+Timed on Apple-silicon Vulkan-on-Metal,
 1440x810 MSAA 4x, full set: ~2.7 ms/frame submitted+flushed — and at
 one million comet particles, ~5.8 ms, all raster fill; the CPU never
 touches a point. SigilWorld does NOT depend on compose

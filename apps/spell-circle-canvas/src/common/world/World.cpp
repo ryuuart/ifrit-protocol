@@ -180,6 +180,25 @@ void VSInstanced(in VSInstIn IN, out PSIn OUT)
     OUT.Tint = IN.Color * IN.Tint;
 }
 
+// The EXACT inverse of the hardware sRGB decode.
+//
+// Panel textures are created TEX_FORMAT_RGBA8_UNORM_SRGB, so the sampler
+// linearizes with the piecewise IEC 61966-2-1 curve. The render target is
+// plain RGBA8_UNORM, so the encode is ours to spell — and it has to be
+// the same curve, or an unlit pass-through panel does not pass through.
+// pow(c, 1/2.2) is NOT that curve; it shifted compose-authored texels by
+// up to 9/255 through the dark-to-mid range (measured by
+// World.UnlitSrgbTexelSurvivesTheRoundTrip). Constants match
+// shape/Blend.cpp's linearToSrgb() exactly. step(c, k) is 1 where
+// k >= c, i.e. where c <= k — the same inclusive branch point.
+float3 LinearToSrgb(float3 c)
+{
+    c = clamp(c, 0.0, 1.0);
+    float3 lo = c * 12.92;
+    float3 hi = 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    return lerp(hi, lo, step(c, 0.0031308));
+}
+
 float4 PSMain(in PSIn IN) : SV_TARGET
 {
     float2 uv   = IN.UV * g_UvScaleOffset.xy + g_UvScaleOffset.zw;
@@ -189,9 +208,11 @@ float4 PSMain(in PSIn IN) : SV_TARGET
     if (g_MatParams.w > 0.5)
     {
         // Unlit screens: skip lighting/tonemap but still re-encode the
-        // linearized sRGB sample for the UNORM target.
+        // linearized sRGB sample for the UNORM target. With the exact
+        // inverse curve this branch is a true pass-through: an
+        // untinted texel lands in the readback as its own byte.
         float3 unlit = base.rgb + g_Emissive.rgb * g_MatParams.z;
-        return float4(pow(max(unlit, 0.0), 1.0 / 2.2), base.a);
+        return float4(LinearToSrgb(unlit), base.a);
     }
 
     float3 N = normalize(IN.Normal);
@@ -266,10 +287,10 @@ float4 PSMain(in PSIn IN) : SV_TARGET
 
     float3 color = direct + ambient + g_Emissive.rgb * g_MatParams.z;
 
-    // Filmic-ish tonemap + gamma.
+    // Filmic-ish tonemap, then the same sRGB encode as the unlit
+    // branch — one transfer function for the whole target.
     color = color / (color + 1.0);
-    color = pow(color, 1.0 / 2.2);
-    return float4(color, base.a);
+    return float4(LinearToSrgb(color), base.a);
 }
 )";
 
@@ -1053,7 +1074,11 @@ constexpr const char *kPopEntries[] = {
 constexpr size_t kPopCopyBackIndex = std::size(kPopEntries) - 2;
 /** Op variant index -> compute PSO index. MeshScatter (variant 8)
  *  never reaches the GPU (validation declines it); Set/Atlas trail
- *  it in the variant but precede the copy-back/pack entries. */
+ *  it in the variant but precede the copy-back/pack entries. Promote
+ *  (variant 11) is the primitive class and is declined the same way,
+ *  so it never asks for a PSO either — a chain that reached here
+ *  holding one would land on the copy-back entry, which is precisely
+ *  why popChainCount refuses it up front rather than dropping it. */
 size_t popPsoIndex(size_t variantIndex) {
   return variantIndex <= 7 ? variantIndex : variantIndex - 1;
 }
@@ -1491,10 +1516,14 @@ namespace {
 int popChainCount(const World::pop::Chain &chain) {
   if (chain.empty())
     return 0;
-  // Custom attribute names get arena slots; only mesh seeding stays
-  // CPU-cooked (shape::popops), declined here.
+  // Custom attribute names get arena slots. Two op kinds stay
+  // CPU-cooked (shape::popops) and are declined here rather than
+  // silently dropped: mesh seeding, and Promote — the GPU executor
+  // cooks the POINT class into lane arenas and has no primitive class
+  // to promote onto (its sink is instanced stamps, not a Mesh value).
   for (const World::pop::Op &op : chain)
-    if (std::holds_alternative<World::pop::MeshScatter>(op))
+    if (std::holds_alternative<World::pop::MeshScatter>(op) ||
+        std::holds_alternative<World::pop::Promote>(op))
       return 0;
   if (const auto *scatter =
           std::get_if<World::pop::SplineScatter>(&chain.front()))
@@ -1609,8 +1638,11 @@ uint32_t World::addPointsOn(uint32_t upstream,
   if (!scatter || scatter->count < 1 || stamp.positions.empty() ||
       stamp.indices.empty())
     return 0;
+  // Same graceful boundary popChainCount draws: CPU-only op kinds are
+  // declined outright, never dropped.
   for (const pop::Op &op : chain)
-    if (std::holds_alternative<pop::MeshScatter>(op))
+    if (std::holds_alternative<pop::MeshScatter>(op) ||
+        std::holds_alternative<pop::Promote>(op))
       return 0;
   if (!impl.ensurePopPipelines())
     return 0;

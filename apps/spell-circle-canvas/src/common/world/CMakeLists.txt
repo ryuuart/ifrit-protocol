@@ -48,7 +48,12 @@ add_executable(world_test
   test/WorldTest.cpp
 )
 
-target_link_libraries(world_test PRIVATE SigilWorld GTest::gtest_main)
+# SigilCompose is a TEST-ONLY dependency here (the library above stays
+# compose-free): world_demo's marquee slices its strip through compose's
+# tiles:: door, and WorldMarqueeSlice pins the transforms that slice
+# depends on so a change over there cannot silently move the band.
+target_link_libraries(world_test PRIVATE SigilWorld SigilCompose
+  GTest::gtest_main)
 
 add_test(NAME world_test COMMAND world_test)
 
