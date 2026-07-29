@@ -79,13 +79,24 @@ bool transitionEqual(const Transition &a, const Transition &b) {
 /** Shaped bindings prune like anything else: same Output, same affine,
  *  same curve under easeEqual's conservative rule. A re-describe that
  *  only changes the CURVE must NOT prune — the map is read live, so a
- *  pruned node would keep shaping through the old one forever. */
+ *  pruned node would keep shaping through the old one forever.
+ *
+ *  EVERY FIELD OF BoundFloat MUST APPEAR HERE. The failure of an omission
+ *  is invisible: two different shapings compare equal, the node prunes,
+ *  and the instance keeps applying the OLD map forever while every
+ *  existing test still passes. The wiggle() fields (2026-07-29) are the
+ *  most recent five; `BoundMapEqualitySeesEveryField` in
+ *  ComposeTestKernel.cpp is the positive control that a field left out of
+ *  this list is caught. */
 bool boundMapEqual(const BoundFloat &a, const BoundFloat &b) {
   return a.source == b.source && a.inScale == b.inScale &&
          a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
          a.steps == b.steps && a.scale == b.scale &&
          a.offset == b.offset && a.clamped == b.clamped && a.lo == b.lo &&
-         a.hi == b.hi && easeEqual(a.curve, b.curve);
+         a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
+         a.wiggleFrequency == b.wiggleFrequency &&
+         a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
+         a.wiggleFalloff == b.wiggleFalloff && easeEqual(a.curve, b.curve);
 }
 
 template <typename T>

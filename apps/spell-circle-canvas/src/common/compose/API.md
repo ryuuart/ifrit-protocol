@@ -129,14 +129,43 @@ Bound bind(const ch::Output<float> *source);
 //      Winamp's volume really is round(percent*28), not a sampled slider)
 //   4. scale/offset/target/invert — affine, composed in CALL ORDER;
 //      clamp(lo, hi) always applies last, wherever it is written
+//   5. wiggle(amount, frequency, seed, octaves, falloff) — smooth
+//      procedural noise, added AFTER the affine chain and before clamp
   .translateX(bind(&phase).target(-70, 170))        // [0,1] → px
   .opacity(bind(&progress).map(ease::outBack()).clamp(0, 1))
   .scaleX(bind(&hp).source(0, maxHp))               // a health bar
 // `.scale(240).offset(-70)` is v*240-70; `.offset(-70).scale(240)` is
 // (v-70)*240 — reading order is evaluation order.
 // Prunes like anything else (same Output, same affine, same curve under
-// the conservative easeEqual rule), so a re-describe that changes only
-// the range actually repatches.
+// the conservative easeEqual rule, and every wiggle parameter), so a
+// re-describe that changes only the range — or only the seed — actually
+// repatches.
+
+// ---- wiggle(): procedural noise (2026-07-29, lives in SigilMotion) ----
+// After Effects' most-used expression, and the source of camera shake,
+// handheld drift, organic jitter and turbulence. Two rulings:
+//   • It reads NO CLOCK. The noise is a pure function of the NORMALISED
+//     input (post source()/window(), pre map()), so "wiggle over time"
+//     means binding a phase that ramps with time — which every animation
+//     already has in hand. apply() stays a pure float→float map and
+//     snapshot()/plate renders stay byte-reproducible for free.
+//   • `amount` is in the PROPERTY'S OWN UNITS — px, degrees, alpha —
+//     because the stage sits after the affine chain. It is a BOUND: the
+//     noise is normalised to [-1,1] whatever the octave count, so the
+//     value never leaves ±amount of the un-wiggled one, and clamp()
+//     still applies last.
+// The curve shapes the SIGNAL, not the schedule: .map()/.quantize() do
+// not ease or stair-step the wiggle. Under window() the phase clamps
+// with the input, so a wiggle scoped to a beat holds outside it.
+wiggle(&out, amount, frequency, seed, octaves, falloff)  // = bind(&out)
+                            // .scale(0).wiggle(…) — noise around REST,
+                            // which is what a shake rig wants
+  .translateX(wiggle(&seconds, 12.f, 7.f, 1))   // a camera shake: ±12 px
+  .translateY(wiggle(&seconds, 12.f, 7.f, 2))   // @ 7 Hz, DIFFERENT seeds
+  .rotate(wiggle(&seconds, 1.5f, 5.f, 3))       // — shared seeds would
+                                                //   slide it on a diagonal
+  .opacity(bind(&t).target(0.9f, 1).wiggle(0.4f, 20.f, 4, 3).clamp(0, 1))
+                                    // 3 octaves = flicker, not drift
 ```
 
 ## Elements

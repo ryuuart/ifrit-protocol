@@ -103,6 +103,7 @@ using motion::bind;
 using motion::from;
 using motion::through;
 using motion::to;
+using motion::wiggle;
 namespace ease = motion::ease;
 
 /** `Animatable<T>` — THE PROPERTY SLOT: a value that can move. Plain T,

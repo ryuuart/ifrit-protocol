@@ -2469,3 +2469,125 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   bare.frame();
   EXPECT_NE(bare.composer.bounds("con#1")->width(), got.width());
 }
+
+// ---------------------------------------------------------------------------
+// wiggle() and the reconciler — the prune pin for the noise stage added to
+// BoundFloat on 2026-07-29 (SigilMotion, Animation.h).
+
+TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
+  // THE TRAP, pinned. `boundMapEqual()` in Reconcile.cpp compares BoundFloat
+  // FIELD BY FIELD, and a field left out of that list fails INVISIBLY: two
+  // different wiggles compare equal, the node prunes, and the instance keeps
+  // applying the OLD map forever while every other test still passes. So
+  // each of the five wiggle fields gets its own re-describe here.
+  //
+  // If this test fails, do not relax it — a field is missing from
+  // boundMapEqual().
+  static choreograph::Output<float> phase;
+  phase = 0.35f;
+  struct Rig {
+    float amount = 12.0f;
+    float frequency = 7.0f;
+    uint32_t seed = 1;
+    int octaves = 1;
+    float falloff = 0.5f;
+  };
+  auto tree = [](Rig r) {
+    return box().child(box().key("shaken").width(40).height(40).fill(red())
+                           .translateX(bind(&phase)
+                                           .target(-70.0f, 170.0f)
+                                           .wiggle(r.amount, r.frequency,
+                                                   r.seed, r.octaves,
+                                                   r.falloff)));
+  };
+
+  Host host;
+  host.composer.render(tree({}));
+  host.frame();
+
+  // The prune half: an identical re-describe costs nothing.
+  host.composer.render(tree({}));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical wiggle must still prune";
+  EXPECT_FALSE(host.composer.dirty());
+
+  // The over-prune half, one field at a time. Each of these is a DIFFERENT
+  // wiggle and must reach the instance.
+  const Rig moved[] = {
+      {.amount = 20.0f},    {.frequency = 11.0f}, {.seed = 2},
+      {.octaves = 3},       {.falloff = 0.9f},
+  };
+  const char *named[] = {"amount", "frequency", "seed", "octaves", "falloff"};
+  for (size_t i = 0; i < std::size(moved); ++i) {
+    host.composer.render(tree({})); // back to the baseline rig
+    host.frame();
+    host.composer.render(tree(moved[i]));
+    EXPECT_GT(host.composer.stats().patchedNodes, 0u)
+        << named[i] << " changed and the node PRUNED — boundMapEqual() is "
+                       "missing that field";
+    EXPECT_TRUE(host.composer.dirty()) << named[i];
+  }
+}
+
+TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
+  // The whole path in PIXELS: two seeds, two marks, and the displacement
+  // the paint actually produced. (Not a prune pin — keyed siblings never
+  // prune into one another; the prune pin is the test above. This one
+  // proves the seed survives Element → reconciler → paint, which is what
+  // makes a two-axis shake possible instead of a diagonal slide.)
+  static choreograph::Output<float> t;
+  t = 0.0f;
+  Host host(200, 200);
+  auto tree = [] {
+    // stack(): both marks lay out at the origin, so each row below is
+    // unambiguously one of them.
+    return stack()
+        .child(box().key("x").width(8).height(8).fill(red())
+                   .translateX(wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
+                   .translateY(30.0f))
+        .child(box().key("y").width(8).height(8).fill(green())
+                   .translateX(wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
+                   .translateY(90.0f));
+  };
+  host.composer.render(tree());
+
+  // bounds() is the LAYOUT rect and a translate is paint-only, so the
+  // observation has to be pixels: where the mark actually landed.
+  const auto centerOf = [&host](int row, SkColor want) {
+    int lo = -1, hi = -1;
+    for (int x = 0; x < 200; ++x)
+      if (host.pixel(x, row) == want) {
+        if (lo < 0)
+          lo = x;
+        hi = x;
+      }
+    return lo < 0 ? -1.0f : 0.5f * (float)(lo + hi);
+  };
+
+  bool everApart = false, xMoved = false, yMoved = false;
+  float firstX = -1, firstY = -1;
+  for (int frame = 0; frame < 90; ++frame) {
+    t = (float)frame / 30.0f;
+    host.frame();
+    const float x = centerOf(34, SK_ColorRED);
+    const float y = centerOf(94, SK_ColorGREEN);
+    ASSERT_GE(x, 0.0f) << "frame " << frame;
+    ASSERT_GE(y, 0.0f) << "frame " << frame;
+    if (firstX < 0) {
+      firstX = x;
+      firstY = y;
+    }
+    if (std::fabs(x - firstX) > 4.0f)
+      xMoved = true;
+    if (std::fabs(y - firstY) > 4.0f)
+      yMoved = true;
+    if (std::fabs(x - y) > 6.0f)
+      everApart = true;
+  }
+  EXPECT_TRUE(xMoved) << "the x shake never moved";
+  EXPECT_TRUE(yMoved) << "the y shake never moved";
+  EXPECT_TRUE(everApart)
+      << "two seeds produced the same displacement every frame — either the "
+         "seed is not reaching the noise, or the second node pruned into the "
+         "first";
+}

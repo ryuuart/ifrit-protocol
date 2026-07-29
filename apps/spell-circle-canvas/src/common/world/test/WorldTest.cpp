@@ -1991,6 +1991,65 @@ TEST(WorldAnimation, SameTimeYieldsTheSameNumber) {
   EXPECT_NE(a[10], fast[10]);
 }
 
+TEST(WorldAnimation, WiggledLanesShakeDeterministicallyAndPerSeed) {
+  // The wiggle() stage landed in SigilMotion (2026-07-29), so world
+  // inherits AE's most-used expression on every lane for free. The
+  // reason it may: the noise is a pure function of the NORMALISED input,
+  // never of a clock — so ruling 2 stands and this test can hold the
+  // same bar as SameTimeYieldsTheSameNumber above.
+  const auto run = [](double dt, int frames, uint32_t seedX, uint32_t seedY) {
+    motion::Ticker ticker;
+    choreograph::Output<float> seconds{0.0f};
+    ticker.timeline().apply(&seconds).then<choreograph::RampTo>(2.0f, 2.0f);
+    entt::registry registry;
+    const entt::entity e = registry.create();
+    registry.emplace<world::TransformComponent>(e);
+    world::AnimatedTransform &lanes =
+        registry.emplace<world::AnimatedTransform>(e);
+    lanes.x = world::wiggle(&seconds, 0.6f, 7.0f, seedX); // ±0.6 world units
+    lanes.y = world::wiggle(&seconds, 0.6f, 7.0f, seedY);
+    std::vector<std::pair<float, float>> trace;
+    for (int i = 0; i < frames; ++i) {
+      ticker.tick(dt);
+      world::resolveAnimation(registry);
+      const glm::mat4 &m = registry.get<world::TransformComponent>(e).model;
+      trace.emplace_back(m[3][0], m[3][1]);
+    }
+    return trace;
+  };
+
+  const auto a = run(1.0 / 60.0, 90, 1, 2);
+  const auto b = run(1.0 / 60.0, 90, 1, 2);
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i)
+    EXPECT_EQ(a[i], b[i]) << "frame " << i << " must be bit-identical";
+
+  // Not vacuous, to the same three-part standard: the shake MOVES, it
+  // stays inside its declared ±0.6, and a different dt sequence lands
+  // elsewhere at the same frame index.
+  float span = 0.0f;
+  for (const auto &[x, y] : a) {
+    EXPECT_LE(std::fabs(x), 0.6f + 1e-4f);
+    EXPECT_LE(std::fabs(y), 0.6f + 1e-4f);
+    span = std::max(span, std::fabs(x - a.front().first));
+  }
+  EXPECT_GT(span, 0.3f) << "the shake never moved";
+  const auto fast = run(1.0 / 30.0, 90, 1, 2);
+  EXPECT_NE(a[10], fast[10]);
+
+  // SEEDING: two lanes with the same seed are the SAME shake (a diagonal
+  // slide), two with different seeds are independent. Both halves, or
+  // neither claim means anything.
+  const auto shared = run(1.0 / 60.0, 90, 5, 5);
+  for (const auto &[x, y] : shared)
+    EXPECT_FLOAT_EQ(x, y);
+  int apart = 0;
+  for (const auto &[x, y] : a)
+    if (std::fabs(x - y) > 0.2f)
+      ++apart;
+  EXPECT_GT(apart, 10) << "seeds 1 and 2 shook together";
+}
+
 TEST(WorldAnimation, RenderResolvesTheLanesItself) {
   world::WorldConfig config;
   config.width = 32;

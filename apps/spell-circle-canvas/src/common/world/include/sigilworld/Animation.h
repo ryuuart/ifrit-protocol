@@ -103,6 +103,7 @@ using motion::bind;
 using motion::from;
 using motion::through;
 using motion::to;
+using motion::wiggle;
 namespace ease = motion::ease;
 
 /** A COMPLETE placement, composed each resolve as

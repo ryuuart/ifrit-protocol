@@ -9,6 +9,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
 // POSITIVE CONTROL for the "SigilMotion alone" pin below. The whole point
 // of moving the animation values out of <sigilcompose/Compose.h> is that a
 // consumer can drive them without a drawing library, and a test asserting
@@ -161,6 +165,253 @@ TEST(AnimationValues, BoundChainComposesInCallOrder) {
   EXPECT_NEAR(bind(&phase).quantize(5).value().apply(0.31f), 0.25f, 1e-4f);
   EXPECT_NEAR(bind(&phase).invert().value().apply(0.25f), 0.75f, 1e-4f);
   EXPECT_NEAR(bind(&phase).clamp(0, 1).value().apply(4.0f), 1.0f, 1e-4f);
+}
+
+// ---------------------------------------------------------------------------
+// wiggle() — the procedural noise stage (2026-07-29). AE's most-used
+// expression, phased off the NORMALISED INPUT rather than off a clock; see
+// Bound::wiggle for both rulings.
+
+namespace {
+/** Sample a shaped binding across a phase sweep — the trace every wiggle
+ *  pin below reasons about. */
+std::vector<float> trace(const BoundFloat &b, float from, float to, int n) {
+  std::vector<float> out;
+  out.reserve((size_t)n);
+  for (int i = 0; i < n; ++i)
+    out.push_back(b.apply(from + (to - from) * (float)i / (float)(n - 1)));
+  return out;
+}
+float spread(const std::vector<float> &v) {
+  return *std::max_element(v.begin(), v.end()) -
+         *std::min_element(v.begin(), v.end());
+}
+} // namespace
+
+TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
+  ch::Output<float> phase = 0.0f;
+
+  // AMPLITUDE IS IN OUTPUT UNITS — the whole reason the stage sits after
+  // the affine chain. ±12 around a target range of [-70, 170]: the value
+  // never leaves the range widened by exactly 12, and it does leave the
+  // un-widened one (otherwise "bounded" would be vacuous).
+  const BoundFloat px =
+      bind(&phase).target(-70.f, 170.f).wiggle(12.f, 9.f, 4).value();
+  const std::vector<float> shaken = trace(px, 0.f, 1.f, 2001);
+  const BoundFloat plain = bind(&phase).target(-70.f, 170.f).value();
+  bool leftTheRange = false;
+  for (size_t i = 0; i < shaken.size(); ++i) {
+    const float base = plain.apply((float)i / (float)(shaken.size() - 1));
+    EXPECT_LE(std::fabs(shaken[i] - base), 12.0f + 1e-3f) << "at " << i;
+    if (shaken[i] < -70.f || shaken[i] > 170.f)
+      leftTheRange = true;
+  }
+  EXPECT_TRUE(leftTheRange) << "±12 px that never leaves the range is not a "
+                               "wiggle — the bound claim would be vacuous";
+
+  // SMOOTH, not white. Consecutive samples of a 9-cycle wiggle sampled
+  // 2000× must step by far less than the peak-to-peak of the noise
+  // itself; white noise would step by ~2·amount every sample.
+  float maxStep = 0.0f;
+  for (size_t i = 1; i < shaken.size(); ++i)
+    maxStep = std::max(maxStep, std::fabs(shaken[i] - shaken[i - 1]));
+  EXPECT_LT(maxStep, 1.0f) << "the trace teleports — this is not value noise";
+
+  // …and the negative half of the same claim: at ONE sample per cycle the
+  // very same field DOES jump, so the smoothness above is a property of
+  // the noise and not of a wiggle too quiet to see.
+  const std::vector<float> undersampled = trace(px, 0.f, 20.f, 181);
+  float coarseStep = 0.0f;
+  for (size_t i = 1; i < undersampled.size(); ++i)
+    coarseStep = std::max(coarseStep, std::fabs(undersampled[i] -
+                                                undersampled[i - 1]));
+  EXPECT_GT(coarseStep, 4.0f);
+
+  // amount == 0 is the whole stage disengaged, exactly.
+  for (float v : {0.f, 0.3f, 0.77f, 1.f})
+    EXPECT_FLOAT_EQ(bind(&phase).target(-70.f, 170.f).wiggle(0.f, 9.f).value()
+                        .apply(v),
+                    plain.apply(v));
+}
+
+TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
+  ch::Output<float> phase = 0.0f;
+  // PURE noise, no base contribution: a rig carrying `.target(-70, 170)`
+  // would make every claim below about the RAMP rather than about the
+  // wiggle (the correlation check in 4 read 0.999 on such a rig — the
+  // shared ramp, not a shared noise field).
+  const auto rig = [](uint32_t seed) {
+    return bind((const ch::Output<float> *)nullptr)
+        .scale(0.f)
+        .wiggle(12.f, 9.f, seed)
+        .value();
+  };
+
+  // 1. SAME INPUT, SAME NUMBER — across independently built maps and
+  //    across repeated evaluation. No clock is read anywhere in apply().
+  const std::vector<float> a = trace(rig(7), 0.f, 3.f, 601);
+  const std::vector<float> b = trace(rig(7), 0.f, 3.f, 601);
+  EXPECT_EQ(a, b);
+  const float once = rig(7).apply(0.418f);
+  for (int repeat = 0; repeat < 4; ++repeat)
+    EXPECT_FLOAT_EQ(rig(7).apply(0.418f), once);
+
+  // 2. …AND THE TRACE ACTUALLY MOVES. Without this, "identical across
+  //    runs" is a claim about a constant. It must swing most of the way
+  //    to its ±12 bound over three cycles.
+  EXPECT_GT(spread(a), 12.0f);
+
+  // 3. …AND A DIFFERENT INPUT SEQUENCE LANDS ELSEWHERE. Same seed, same
+  //    shaping, a phase window shifted by half a cycle: the traces must
+  //    NOT coincide.
+  const std::vector<float> shifted = trace(rig(7), 0.055f, 3.055f, 601);
+  EXPECT_NE(a, shifted);
+  double drift = 0.0;
+  for (size_t i = 0; i < a.size(); ++i)
+    drift += std::fabs(a[i] - shifted[i]);
+  EXPECT_GT(drift / (double)a.size(), 1.0);
+
+  // 4. SEEDING. Same seed ⇒ identical, different seed ⇒ independent —
+  //    the property that makes a two-axis shake possible at all. Two
+  //    lanes sharing a seed move on a diagonal; these must not.
+  EXPECT_EQ(trace(rig(1), 0.f, 3.f, 601), trace(rig(1), 0.f, 3.f, 601));
+  const std::vector<float> x = trace(rig(1), 0.f, 3.f, 601);
+  const std::vector<float> y = trace(rig(2), 0.f, 3.f, 601);
+  EXPECT_NE(x, y);
+  // Correlated axes are the real failure, not merely unequal ones: the
+  // centred traces must be near-uncorrelated (adjacent SEEDS is the case
+  // a weak hash gets wrong).
+  double mx = 0, my = 0;
+  for (size_t i = 0; i < x.size(); ++i) { mx += x[i]; my += y[i]; }
+  mx /= (double)x.size();
+  my /= (double)y.size();
+  double cov = 0, vx = 0, vy = 0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    cov += (x[i] - mx) * (y[i] - my);
+    vx += (x[i] - mx) * (x[i] - mx);
+    vy += (y[i] - my) * (y[i] - my);
+  }
+  EXPECT_GT(vx, 0.0);
+  EXPECT_GT(vy, 0.0);
+  EXPECT_LT(std::fabs(cov / std::sqrt(vx * vy)), 0.35)
+      << "seeds 1 and 2 wiggle together — a two-axis shake would slide "
+         "along a diagonal";
+}
+
+TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
+  // RULING 2's other half: the noise PHASE is read off the normalised
+  // input, so the affine chain moves the wiggle's SIZE and never its
+  // TIMING. Two chains whose outputs differ only by a factor of 10 must
+  // wiggle in step, not at ten times the rate.
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat small = bind(&phase).scale(0.f).wiggle(1.f, 6.f, 3).value();
+  const BoundFloat big = bind(&phase).scale(0.f).wiggle(10.f, 6.f, 3).value();
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 100.0f;
+    EXPECT_NEAR(big.apply(v), small.apply(v) * 10.0f, 1e-3f) << "at " << v;
+  }
+
+  // The CURVE shapes the signal, not the schedule: sampling the phase
+  // before map() means an eased chain's wiggle keeps its own rate.
+  const BoundFloat eased =
+      bind(&phase).scale(0.f).map(&choreograph::easeInQuint).wiggle(1.f, 6.f, 3)
+          .value();
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 200.0f;
+    EXPECT_NEAR(eased.apply(v), small.apply(v), 1e-4f) << "at " << v;
+  }
+
+  // quantize() likewise stair-steps the signal, never the wiggle.
+  const BoundFloat stepped =
+      bind(&phase).scale(0.f).quantize(4).wiggle(1.f, 6.f, 3).value();
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 200.0f;
+    EXPECT_NEAR(stepped.apply(v), small.apply(v), 1e-4f);
+  }
+
+  // window() clamps the input, and the phase rides that clamp: a wiggle
+  // scoped to a beat HOLDS outside it.
+  const BoundFloat scoped =
+      bind(&phase).window(0.2f, 0.4f).scale(0.f).wiggle(5.f, 6.f, 3).value();
+  EXPECT_FLOAT_EQ(scoped.apply(0.9f), scoped.apply(2.0f));
+  EXPECT_NE(scoped.apply(0.9f), scoped.apply(0.3f));
+
+  // clamp() still applies LAST — a wiggled opacity lands in [0,1].
+  const BoundFloat op =
+      bind(&phase).target(0.9f, 1.0f).wiggle(0.4f, 12.f, 5).clamp(0.f, 1.f)
+          .value();
+  for (int i = 0; i <= 500; ++i) {
+    const float v = op.apply((float)i / 500.0f);
+    EXPECT_GE(v, 0.0f);
+    EXPECT_LE(v, 1.0f);
+  }
+
+  // OCTAVES change the TEXTURE, not the SIZE — the normalisation ruling,
+  // and the reason the two extra fields earn their place. The claim is
+  // "a fine TREMBLE rides on the drift", so the honest metric is how
+  // many times the trace turns around, not how far it travels: at
+  // falloff 0.5 each octave carries the same slope, so total variation
+  // only reads 1.26× (and a max single step reads 0.5× — the normaliser
+  // hides it). Direction reversals see the tremble directly.
+  const auto reversals = [](const std::vector<float> &v) {
+    int n = 0;
+    for (size_t i = 2; i < v.size(); ++i)
+      if ((v[i] - v[i - 1] > 0) != (v[i - 1] - v[i - 2] > 0))
+        ++n;
+    return n;
+  };
+  const std::vector<float> one =
+      trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 1).value(), 0, 4, 4001);
+  const std::vector<float> three =
+      trace(bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 3).value(), 0, 4, 4001);
+  // Measured 19 → 46 reversals (2.4×). Not the 4× the frequency ladder
+  // suggests, because at falloff 0.5 the fine octaves carry the same
+  // slope as the base and so only reverse the SUM about half the time —
+  // which is also why `falloff` is worth exposing: 0.9 is turbulence,
+  // 0.2 is a drift with a whisper on it.
+  EXPECT_GT(reversals(three), reversals(one) * 2)
+      << "octaves added no detail — they are not earning their two fields";
+  EXPECT_LE(spread(three), 20.0f + 1e-3f); // still inside ±10: the SIZE
+  EXPECT_LE(spread(one), 20.0f + 1e-3f);   // promise survives the octaves
+}
+
+TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
+  // The marquee case, and the one that proves seeding: a camera shake.
+  // `wiggle(&out, …)` is `bind(&out).scale(0).wiggle(…)` named, so the
+  // property sits at REST and only the noise moves it — the phase still
+  // comes from the (contribution-zeroed) schedule.
+  Ticker ticker;
+  ch::Output<float> seconds = 0.0f;
+  ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f); // 1:1
+
+  const BoundFloat shakeX = wiggle(&seconds, 12.f, 7.f, 1).value();
+  const BoundFloat shakeY = wiggle(&seconds, 12.f, 7.f, 2).value();
+  EXPECT_EQ(wiggle(&seconds, 12.f, 7.f, 1).value().source, &seconds);
+
+  float maxX = 0, maxY = 0, sameSign = 0;
+  int samples = 0;
+  for (int frame = 0; frame < 120; ++frame) {
+    ticker.tick(1.0 / 60.0);
+    const float x = shakeX.apply(seconds.value());
+    const float y = shakeY.apply(seconds.value());
+    EXPECT_LE(std::fabs(x), 12.0f + 1e-3f);
+    EXPECT_LE(std::fabs(y), 12.0f + 1e-3f);
+    maxX = std::max(maxX, std::fabs(x));
+    maxY = std::max(maxY, std::fabs(y));
+    if ((x > 0) == (y > 0))
+      ++sameSign;
+    ++samples;
+  }
+  EXPECT_GT(maxX, 6.0f) << "the rig never moved";
+  EXPECT_GT(maxY, 6.0f);
+  // Not a diagonal: if the two axes shared a field they would agree in
+  // sign on every single frame.
+  EXPECT_LT(sameSign / (float)samples, 0.8f);
+
+  // .offset() parks the shake somewhere other than zero, and it composes
+  // in call order like any affine stage.
+  const BoundFloat parked = wiggle(&seconds, 3.f, 7.f, 1).offset(100.f).value();
+  EXPECT_NEAR(parked.apply(0.5f), 100.f + shakeX.apply(0.5f) / 4.0f, 1e-3f);
 }
 
 TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {

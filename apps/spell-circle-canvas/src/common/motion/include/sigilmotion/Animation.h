@@ -232,6 +232,86 @@ Transitioned<T> animate(Waypoints<T> w,
   return t;
 }
 
+namespace detail {
+
+/** THE NOISE FIELD behind `Bound::wiggle()` — SigilMotion's own, and
+ *  deliberately NOT shared with `shape::Pop`'s `hash1`/`drift`. Those are
+ *  bit-matched to the Slang GPU kernels and covered by numeric parity
+ *  tests; a CPU authoring verb reaching into them would couple an
+ *  animation curve to a GPU ABI, and the next parity fix would silently
+ *  move every wiggle in the corpus. Different job, different noise.
+ *
+ *  A 32-bit avalanche (the murmur3-style finaliser, `lowbias32`
+ *  constants): every input bit reaches every output bit, so adjacent
+ *  lattice cells and adjacent SEEDS are uncorrelated. */
+inline uint32_t wiggleHash(uint32_t x) {
+  x ^= x >> 16;
+  x *= 0x7feb352du;
+  x ^= x >> 15;
+  x *= 0x846ca68bu;
+  x ^= x >> 16;
+  return x;
+}
+
+/** The lattice value at integer cell @p cell for @p seed, in [-1, 1).
+ *  The seed is hashed BEFORE it is mixed with the cell, so seeds 0 and 1
+ *  are as independent as seeds 0 and 5731. */
+inline float wiggleLattice(int32_t cell, uint32_t seed) {
+  const uint32_t h = wiggleHash((uint32_t)cell * 0x9e3779b9u ^
+                                wiggleHash(seed + 0x85ebca6bu));
+  return (float)(h >> 8) * (1.0f / 8388608.0f) - 1.0f;
+}
+
+/** ONE octave of 1-D VALUE noise, quintic-smoothed.
+ *
+ *  Value noise, not white noise, is the whole point: `wiggle()` exists
+ *  because a property that teleports to a new random number every sample
+ *  is not what any motion designer means by a shake — it reads as
+ *  strobing, not as movement. The quintic fade (`6t⁵−15t⁴+10t³`,
+ *  Perlin's improved-noise curve) is C² at the lattice, so neither the
+ *  value nor its velocity nor its acceleration kinks as the phase
+ *  crosses a cell boundary; the cheaper cubic smoothstep leaves a visible
+ *  tick in a slow drift.
+ *
+ *  Out-of-range phases answer 0 rather than reinterpreting a float too
+ *  large for `int32_t` (UB). A phase that big is a bug upstream, and a
+ *  frozen wiggle is a debuggable symptom where UB is not. */
+inline float wiggleOctave(float x, uint32_t seed) {
+  const float base = std::floor(x);
+  if (!(base > -2.0e9f && base < 2.0e9f))
+    return 0.0f;
+  const float t = x - base;
+  const int32_t cell = (int32_t)base;
+  const float u = t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+  const float a = wiggleLattice(cell, seed);
+  const float b = wiggleLattice(cell + 1, seed);
+  return a + (b - a) * u;
+}
+
+/** Fractal sum of @p octaves octaves, each half the wavelength and
+ *  @p falloff the amplitude of the one before — and NORMALISED by the
+ *  weight sum, so the result stays in [-1, 1] whatever the octave count.
+ *
+ *  After Effects does not normalise: its `wiggle(f, a, octaves)` gets
+ *  LOUDER as you add detail, and every AE user has then hand-corrected
+ *  `a` back down. Here `amount` is a promise about peak displacement in
+ *  the property's own units (see `Bound::wiggle`), and a promise that
+ *  changes when you add detail is not one. Adding an octave here changes
+ *  the TEXTURE, not the size. */
+inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
+  const int n = octaves < 1 ? 1 : (octaves > 8 ? 8 : octaves);
+  float sum = 0.0f, weight = 0.0f, amp = 1.0f, freq = 1.0f;
+  for (int i = 0; i < n; ++i) {
+    sum += amp * wiggleOctave(x * freq, seed + (uint32_t)i * 0x9e3779b9u);
+    weight += amp;
+    amp *= falloff;
+    freq *= 2.0f;
+  }
+  return weight > 0.0f ? sum / weight : 0.0f;
+}
+
+} // namespace detail
+
 /** A live binding, SHAPED on its way to the property.
  *
  *  A bare `&output` binding lands on the property RAW, which was the
@@ -257,6 +337,10 @@ Transitioned<T> animate(Waypoints<T> w,
  *       in CALL ORDER, so `.scale(240).offset(-70)` is `v*240 - 70` and
  *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
  *       it looks. `clamp` always applies last.
+ *    4. `wiggle(amount, …)` adds smooth procedural noise in OUTPUT
+ *       units, after the affine chain and before `clamp` — AE's
+ *       `wiggle()`, phased off the normalised input rather than off a
+ *       clock. See the verb for both rulings.
  *
  *  Costs nothing a bare binding does not: still paint-only, still read
  *  through the pointer each frame, still no relayout. sizeof(Animatable)
@@ -271,16 +355,32 @@ struct BoundFloat {
   float scale = 1.0f, offset = 0.0f;     // the affine chain
   bool clamped = false;
   float lo = 0.0f, hi = 1.0f;
+  // wiggle(): the procedural noise stage. amount == 0 is "no noise" and
+  // costs one float compare. See Bound::wiggle for the whole argument.
+  float wiggleAmount = 0.0f;    // peak displacement, in OUTPUT units
+  float wiggleFrequency = 2.0f; // cycles per unit of NORMALISED input
+  uint32_t wiggleSeed = 0;
+  int wiggleOctaves = 1;
+  float wiggleFalloff = 0.5f;
 
   float apply(float v) const {
     v = v * inScale + inOffset;
     if (clampInput)
       v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+    // The noise PHASE is read here — off the normalised schedule, before
+    // the curve shapes it and before the affine chain puts it in output
+    // units. See Bound::wiggle: phase from the schedule, amplitude in
+    // output units, which is the pair AE spells as (time, property units).
+    const float phase = v;
     if (curve)
       v = curve(v);
     if (steps > 1)
       v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
     v = v * scale + offset;
+    if (wiggleAmount != 0.0f)
+      v += wiggleAmount * detail::wiggleNoise(phase * wiggleFrequency,
+                                              wiggleSeed, wiggleOctaves,
+                                              wiggleFalloff);
     if (clamped)
       v = v < lo ? lo : (v > hi ? hi : v);
     return v;
@@ -358,6 +458,78 @@ public:
     m_b.steps = steps > 1 ? steps : 0;
     return *this;
   }
+  /** PROCEDURAL NOISE on the way out — After Effects' `wiggle()`, and the
+   *  source of camera shake, handheld drift, organic jitter and
+   *  turbulence. All five parameters are defaulted, so `.wiggle()` alone
+   *  is ±1 output unit at 2 cycles per unit of input.
+   *
+   *  @param amount    PEAK displacement, in the PROPERTY'S OWN UNITS —
+   *                   pixels on translateX, degrees on rotate, alpha on
+   *                   opacity. Bounded: the noise is normalised to
+   *                   [-1, 1], so the value never leaves ±amount of what
+   *                   the chain would otherwise have produced.
+   *  @param frequency Cycles per unit of NORMALISED input. Bind a phase
+   *                   ramping in SECONDS with no source() and this is
+   *                   literally Hz; bind a [0,1] progress and it is
+   *                   cycles across the beat.
+   *  @param seed      Which noise. Same seed ⇒ same wiggle, always;
+   *                   different seed ⇒ an independent one. This is not a
+   *                   nicety — a two-axis shake whose x and y share a
+   *                   seed moves the layer along a diagonal, which is the
+   *                   one thing a shake must not do.
+   *  @param octaves   1 is a smooth drift; 2–3 adds the fine tremble that
+   *                   makes an impact read as an impact. Clamped to 1..8.
+   *  @param falloff   How much quieter each octave is than the last
+   *                   (AE's `amp_mult`). Clamped to [0,1].
+   *
+   *  TWO RULINGS, both load-bearing (2026-07-29):
+   *
+   *  1. **It reads NO CLOCK.** `wiggle()` in AE is a function of time;
+   *     this one is a pure function of the bound Output, sampled at the
+   *     NORMALISED input (post `source()`/`window()`, pre `map()`). So
+   *     "wiggle over time" is spelled by binding to a phase that ramps
+   *     with time — which every animation in both libraries already has
+   *     in hand. `BoundFloat::apply()` stays a pure float→float map,
+   *     `World::render()` stays a pure function of what the Outputs hold,
+   *     and headless plates stay byte-reproducible for free rather than
+   *     by defending a rule. The alternative — a `steady_clock` read
+   *     inside `apply()` — would have made every world_demo artifact and
+   *     every ComposeGallery plate a function of wall time.
+   *
+   *     Sampling the phase BEFORE the curve is the other half of that:
+   *     the curve shapes the SIGNAL, not the schedule, so `.map()` does
+   *     not make the shake ease out with it, and `.quantize()` does not
+   *     make it stair-step. Under `window()` the phase clamps with the
+   *     input, so a wiggle scoped to a beat holds still outside it —
+   *     which is what "this beat and nothing else" already meant.
+   *
+   *  2. **The amplitude is added AFTER the affine chain**, before
+   *     `clamp()`. `wiggle(30)` therefore means 30 PIXELS on a
+   *     `.target(-70, 170)` translation, exactly as an AE author expects
+   *     of `wiggle(2, 30)`. Adding it to the normalised input instead
+   *     would have made `amount` a fraction of a range the author does
+   *     not name at that point in the chain, so the same number would
+   *     mean 0.05 px on one property and 12 px on the next. `clamp()`
+   *     still applies last, so a wiggled opacity still lands in [0,1].
+   *
+   *  A shake rig, both axes, in two lines — note the different seeds and
+   *  `scale(0)`, which drops the phase's own contribution so the property
+   *  holds at rest and ONLY the noise moves it (the free `wiggle(&out,
+   *  …)` below is that spelling, named):
+   *
+   *      .translateX(bind(&seconds).scale(0).wiggle(12.f, 7.f, 1))
+   *      .translateY(bind(&seconds).scale(0).wiggle(12.f, 7.f, 2))
+   */
+  Bound &wiggle(float amount = 1.0f, float frequency = 2.0f,
+                uint32_t seed = 0, int octaves = 1, float falloff = 0.5f) {
+    m_b.wiggleAmount = amount;
+    m_b.wiggleFrequency = frequency;
+    m_b.wiggleSeed = seed;
+    m_b.wiggleOctaves = octaves < 1 ? 1 : (octaves > 8 ? 8 : octaves);
+    m_b.wiggleFalloff =
+        falloff < 0.0f ? 0.0f : (falloff > 1.0f ? 1.0f : falloff);
+    return *this;
+  }
   /** Bound the OUTPUT; always applied last, whenever it is written. */
   Bound &clamp(float lo, float hi) {
     m_b.clamped = true;
@@ -376,6 +548,32 @@ private:
  *  works and stays the zero-overhead form. */
 inline Bound bind(const choreograph::Output<float> *source) {
   return Bound{source};
+}
+
+/** PURE NOISE around rest — `bind(&out).scale(0).wiggle(…)`, named.
+ *
+ *  A shake rig is the majority of what `wiggle()` is for, and in that
+ *  case the bound Output is a SCHEDULE, not a value: the author wants
+ *  the property to sit at rest and only the noise to move it. Spelled
+ *  through `bind()` that needs a `.scale(0)` whose omission is a slow,
+ *  confusing drift off screen (the property tracking the phase itself),
+ *  so the case gets its own word:
+ *
+ *      .translateX(wiggle(&seconds, 12.f, 7.f, 1))   // ±12 px @ 7 Hz
+ *      .translateY(wiggle(&seconds, 12.f, 7.f, 2))   // ← different seed
+ *      .rotate(wiggle(&seconds, 1.5f, 5.f, 3))       // ±1.5°
+ *
+ *  Different seeds per axis is the whole rig: shared seeds move the
+ *  layer along a diagonal. It returns an ordinary `Bound`, so
+ *  `.offset(restValue)` parks the shake somewhere other than zero and
+ *  `.clamp()` still bounds it. */
+inline Bound wiggle(const choreograph::Output<float> *source,
+                    float amount = 1.0f, float frequency = 2.0f,
+                    uint32_t seed = 0, int octaves = 1,
+                    float falloff = 0.5f) {
+  Bound b{source};
+  b.scale(0.0f).wiggle(amount, frequency, seed, octaves, falloff);
+  return b;
 }
 /**
  * An ANIMATABLE property value — the slot type behind every property

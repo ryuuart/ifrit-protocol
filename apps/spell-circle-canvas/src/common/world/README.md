@@ -311,11 +311,32 @@ calls first thing. Both return
 `AnimationStats{transforms, materials, lights, cameras, windows}` —
 the same "pruning is observable" contract `scene::Scene::Stats` sets.
 
+Every lane inherits `bind()`'s **`wiggle()`** stage for free (SigilMotion,
+2026-07-29) — After Effects' `wiggle()`, i.e. camera shake, handheld
+drift and turbulence, on any of these floats:
+
+```cpp
+auto &cam = reg.emplace<AnimatedCamera>(entity(cameraId));
+cam.path = CameraPath{.path = flight, .t = bind(&phase).target(0, 1)};
+cam.rollDeg = wiggle(&seconds, 0.8f, 6.0f, /*seed*/ 1);   // handheld
+cam.fovYDeg = bind(&phase).target(52, 34).wiggle(0.4f, 11.f, 2);
+```
+
+It does **not** breach ruling 2 below, and that is a design constraint
+rather than a coincidence: the noise is a pure function of the
+NORMALISED INPUT, never of a clock, so `render()` stays a pure function
+of what the Outputs hold and world_demo's 13 artifacts stay
+byte-reproducible. Amplitude is in the lane's own units (degrees on
+`rollDeg`, world units on `eyeX`) because the stage sits after the
+affine chain; `seed` is explicit and stable, which is what lets two
+lanes shake independently instead of together. The whole argument is on
+`Bound::wiggle` in `<sigilmotion/Animation.h>`.
+
 Five rulings, because each of them is a thing we chose NOT to build:
 
 1. **Every lane is a float.** Not `Animatable<glm::vec3>`; a position is
    three lanes. `bind()`'s normalise → curve → affine chain
-   (`source`/`window`/`map`/`target`/`quantize`/`clamp`) is FLOAT-ONLY,
+   (`source`/`window`/`map`/`target`/`quantize`/`clamp`/`wiggle`) is FLOAT-ONLY,
    and that chain is most of the value of the door — a vec3 slot could
    hold only a plain constant or a raw binding, i.e. a weaker lane
    wearing a fancier type. `Animatable<float>` converts implicitly from
