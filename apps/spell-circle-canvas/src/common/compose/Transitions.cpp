@@ -222,22 +222,12 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
         tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
         tr->spec.easing());
   };
-  auto entrance = [&](Instance::Slot slot, const Animatable<float> &v) {
-    entranceAt(inst.anims[slot], v);
-  };
-  entrance(Instance::kOpacity, node.paint.opacity);
-  entrance(Instance::kTx, node.paint.translateX);
-  entrance(Instance::kTy, node.paint.translateY);
-  entrance(Instance::kRotate, node.paint.rotate);
-  entrance(Instance::kScale, node.paint.scale);
-  entrance(Instance::kSkewX, node.paint.skewX);
-  entrance(Instance::kSkewY, node.paint.skewY);
-  entrance(Instance::kScaleX, node.paint.scaleX);
-  entrance(Instance::kScaleY, node.paint.scaleY);
-  if (node.motionData) // travel(): the `t` lane is a slot like any other
-    entrance(Instance::kMotionT, node.motionData->t);
-  if (node.textData && node.textData->glyphFx)
-    entrance(Instance::kGlyphProgress, node.textData->glyphFx->progress);
+  // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
+  // enumeration of Instance::Slot). A mount entrance asks nothing of a
+  // slot's ROLE: the description either declared a `from` or it did not.
+  for (const SlotSpec &spec : kSlotSpecs)
+    if (const Animatable<float> *v = slotValueOf(spec, node))
+      entranceAt(inst.anims[spec.slot], *v);
   // Span reveals: `.stroke(spans::upTo(animate(...)), brush)` is a mount
   // entrance like any other — the reveal is a property of the PASS, so
   // its motions live in a per-description vector rather than a slot.
@@ -256,7 +246,9 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
       entranceAt(inst.maskAnims[i], *gates[i]);
   }
 
-  // Color fill entrance: from → to through the kFillLerp progress.
+  // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
+  // 0→1 progress, because the description holds an Animatable<Fill> and no
+  // float for the table to point at.
   if (node.paint.fill) {
     const Transitioned<Fill> *tr =
         node.paint.fill->transitioned();
@@ -285,46 +277,21 @@ void Composer::Impl::applyMountTransitions(Instance &inst,
 void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
                                       const ElementNode &next) {
   const auto &nd = next.nodeTransition;
-  transitionFloat(*this, inst, Instance::kOpacity, prev.paint.opacity,
-                  next.paint.opacity, nd);
-  transitionFloat(*this, inst, Instance::kTx, prev.paint.translateX,
-                  next.paint.translateX, nd);
-  transitionFloat(*this, inst, Instance::kTy, prev.paint.translateY,
-                  next.paint.translateY, nd);
-  transitionFloat(*this, inst, Instance::kRotate, prev.paint.rotate,
-                  next.paint.rotate, nd);
-  transitionFloat(*this, inst, Instance::kScale, prev.paint.scale,
-                  next.paint.scale, nd);
-  transitionFloat(*this, inst, Instance::kSkewX, prev.paint.skewX,
-                  next.paint.skewX, nd);
-  transitionFloat(*this, inst, Instance::kSkewY, prev.paint.skewY,
-                  next.paint.skewY, nd);
-  transitionFloat(*this, inst, Instance::kScaleX, prev.paint.scaleX,
-                  next.paint.scaleX, nd);
-  transitionFloat(*this, inst, Instance::kScaleY, prev.paint.scaleY,
-                  next.paint.scaleY, nd);
-  // travel(): `t` ramps like any other lane. A node that GAINS or LOSES a
-  // path has no previous/next `t` to ramp from, so the standing zero is
-  // the endpoint — the same "positional list" rule the span endpoints use.
-  if (prev.motionData || next.motionData) {
-    static const Animatable<float> kZero = 0.0f;
-    transitionFloat(*this, inst, Instance::kMotionT,
-                    prev.motionData ? prev.motionData->t : kZero,
-                    next.motionData ? next.motionData->t : kZero, nd);
-  }
-  {
-    const GlyphFx *pg =
-        prev.textData && prev.textData->glyphFx ? &*prev.textData->glyphFx
-                                                : nullptr;
-    const GlyphFx *ng =
-        next.textData && next.textData->glyphFx ? &*next.textData->glyphFx
-                                                : nullptr;
-    if (pg || ng) {
-      static const Animatable<float> kFullProgress = 1.0f;
-      transitionFloat(*this, inst, Instance::kGlyphProgress,
-                      pg ? pg->progress : kFullProgress,
-                      ng ? ng->progress : kFullProgress, nd);
-    }
+  // Every slot the table can reach (kSlotSpecs, ComposeRuntime.h — the one
+  // enumeration of Instance::Slot). A patch asks nothing of a slot's ROLE
+  // either; what it needs is the pair of endpoints, and the ONE extra fact
+  // the table carries for it: a node that GAINS or LOSES the block holding
+  // a slot (a `travel()` path, kinetic text) has no previous or next value
+  // there, so the field's own default stands in as the endpoint. That is
+  // the same "positional list" rule the span endpoints below use.
+  for (const SlotSpec &spec : kSlotSpecs) {
+    const Animatable<float> *p = slotValueOf(spec, prev);
+    const Animatable<float> *n = slotValueOf(spec, next);
+    if (!p && !n)
+      continue; // neither description carries it: nothing to ramp
+    const Animatable<float> standing = spec.standing;
+    transitionFloat(*this, inst, spec.slot, p ? *p : standing,
+                    n ? *n : standing, nd);
   }
 
   // Span reveals. The endpoint list is positional, so a description that
@@ -377,9 +344,10 @@ void Composer::Impl::applyTransitions(Instance &inst, const ElementNode &prev,
     }
   }
 
-  // Fill: color→color lerp via a progress output. A next fill with NO
-  // transition is a plain snap — disconnect any in-flight lerp so the
-  // description lands (the same shadow rule as the float slots).
+  // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
+  // synthesized progress output. A next fill with NO transition is a plain
+  // snap — disconnect any in-flight lerp so the description lands (the same
+  // shadow rule as the float slots).
   bool nextFillTransitions = false;
   if (next.paint.fill) {
     ResolvedProp<Fill> nf = resolveProp(*next.paint.fill, nd);

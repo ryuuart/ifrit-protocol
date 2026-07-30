@@ -117,12 +117,17 @@ add_executable(compose_test
   test/ComposeTestQueriesStudio.cpp
   test/ComposeTestGrammar.cpp
   test/ComposeTestMask.cpp
-  # The field walks. Includes ComposeInternal.h (the only test TU that does)
-  # so the equality comparators can be called DIRECTLY — see the file header.
+  # The field walks. Includes ComposeInternal.h AND ComposeRuntime.h (the
+  # only test TU that does either) so the equality comparators and the
+  # kSlotSpecs table can be reached DIRECTLY — see the file header.
   test/ComposeTestFieldPins.cpp
 )
+# yoga::yogacore is PRIVATE to SigilCompose, so its headers are not on this
+# target's path by inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>.
+# Listed for the INCLUDE PATH; the archive itself was already in the link
+# closure.
 target_link_libraries(compose_test PRIVATE
-  SigilCompose SigilWeavePorts GTest::gtest_main)
+  SigilCompose SigilWeavePorts yoga::yogacore GTest::gtest_main)
 # The generated probe TU lives in the binary dir and includes the shared
 # harness by name, like every hand-written slice does.
 target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)

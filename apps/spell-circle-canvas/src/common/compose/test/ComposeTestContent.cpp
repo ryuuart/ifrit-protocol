@@ -1197,6 +1197,46 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
                                                  (int)b->bottom())));
 }
 
+TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
+  // §38's CLASS, at the glyph slot — found by a positive control that did NOT
+  // fire, which is the finding. Glyph progress must be CONTENT volatility
+  // (kSlotSpecs' SlotRole::Content): it rebuilds the glyph geometry, so the
+  // node's own recording is invalid the moment it ticks. Classify it as
+  // paint-only instead and computeVolatile leaves `ownContent` false,
+  // `subtreeVolatile` false, the picture un-reset — and the reveal FREEZES at
+  // whatever progress the last describe happened to record.
+  //
+  // Every other kinetic test moved the reveal by RE-DESCRIBING, which marks
+  // the node paint-dirty and hides the question entirely; the one transitioned
+  // case asserts only that some ink exists after settling, which a frozen
+  // half-revealed recording satisfies. So the whole family passed with glyph
+  // progress miscategorised. A BOUND Output is what closes it: the value
+  // moves with no patch anywhere.
+  Host host;
+  choreograph::Output<float> progress{0.0f};
+  GlyphFx fx;
+  fx.effect = glyphfx::rise(24);
+  fx.stagger = {.eachMs = 40, .durationMs = 200};
+  fx.progress = &progress;
+  host.composer.render(box().padding(10).child(
+      text(u8"IIIIIIIIIIII", whiteStyle(32)).key("k").glyphFx(std::move(fx))));
+  host.frame();
+  auto b = host.composer.bounds("k");
+  ASSERT_TRUE(b.has_value());
+  const SkIRect tail =
+      SkIRect::MakeLTRB((int)b->right() - 24, (int)b->top(), (int)b->right(),
+                        (int)b->bottom());
+  ASSERT_FALSE(anyWhiteIn(host, tail))
+      << "the tail was already revealed at progress 0, so the check below "
+         "cannot tell a live reveal from a frozen one";
+
+  progress = 1.0f; // ONE describe, and the value moves underneath it
+  host.frame();
+  EXPECT_TRUE(anyWhiteIn(host, tail))
+      << "the tail never appeared: the node replayed the recording it made at "
+         "progress 0, so glyph progress is not invalidating its own picture";
+}
+
 TEST(ComposeLayouts, BaselineGridRendersInsideStackedAbsoluteColumn) {
   // Regression probe for the beethoven-sketch report: text inside a
   // BaselineGrid nested in an absolute column inside a stack() must paint.

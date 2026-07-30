@@ -148,18 +148,22 @@ void collectGroupScalars(const Instance &inst, bool root,
         (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
       out.push_back(inst.resolveFloat(slot, v));
   };
-  if (!root) {
-    push(Instance::kOpacity, node.paint.opacity);
-    push(Instance::kTx, node.paint.translateX);
-    push(Instance::kTy, node.paint.translateY);
-    push(Instance::kRotate, node.paint.rotate);
-    push(Instance::kScale, node.paint.scale);
-    push(Instance::kScaleX, node.paint.scaleX);
-    push(Instance::kScaleY, node.paint.scaleY);
-    push(Instance::kSkewX, node.paint.skewX);
-    push(Instance::kSkewY, node.paint.skewY);
-    if (node.motionData)
-      push(Instance::kMotionT, node.motionData->t);
+  // Every slot the table can reach, in enum order (kSlotSpecs,
+  // ComposeRuntime.h — the one enumeration of Instance::Slot). The root's
+  // own transform and opacity are the exclusion argued above; its CONTENT
+  // scalars are inside paintContent and are gathered like everyone else's.
+  //
+  // THE ORDER OF THIS VECTOR IS ARBITRARY BUT MUST BE STABLE. It is only
+  // ever compared against the vector this same function produced on the
+  // previous frame (Impl::paint, `groupScratch == inst.groupPrev`), so any
+  // fixed permutation of the gathered values computes the identical verdict
+  // — which is what let the enumeration move into a table whose order is
+  // the enum's rather than this function's.
+  for (const SlotSpec &spec : kSlotSpecs) {
+    if (root && spec.role != SlotRole::Content)
+      continue;
+    if (const Animatable<float> *v = slotValueOf(spec, node))
+      push(spec.slot, *v);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE
   // values are pushed, so the vector's LENGTH still carries a motion
@@ -184,8 +188,8 @@ void collectGroupScalars(const Instance &inst, bool root,
         pushGate(m.with.fraction);
     }
   }
-  if (const GlyphFx *g = glyphFxOf(node))
-    push(Instance::kGlyphProgress, g->progress);
+  // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
+  // Animatable in the description, so it is read straight off the motion.
   if (inst.anims[Instance::kFillLerp] &&
       inst.anims[Instance::kFillLerp]->value.isConnected())
     out.push_back(inst.anims[Instance::kFillLerp]->value.value());
@@ -530,30 +534,42 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       }
     }
   }
-  // Paint-only volatility: transforms and opacity apply OUTSIDE the node's
-  // content (in paint()'s matrix/layer stack), so a node animated only here
-  // still replays its content picture — a spinning ornament re-records
-  // nothing. Ancestors still can't cache across it (their recording would
-  // freeze the motion), hence the return value.
+  // THE SLOT ROLES, in one walk of kSlotSpecs (ComposeRuntime.h). This split
+  // is where the table's three roles come FROM; the other three consumers
+  // read it or ignore it, and none of them wanted a fourth thing.
+  //
+  //  - Opacity applies OUTSIDE the node's content (in paint()'s layer
+  //    stack), so a node animated only there still replays its content
+  //    picture — a fading ornament re-records nothing. Ancestors still
+  //    can't cache across it (their recording would freeze the motion),
+  //    hence the return value.
+  //  - Geometric is kept separately because a texture bake taken in device
+  //    space is pinned to one device rect and may only be taken while the
+  //    node is not moving. Opacity is deliberately not part of it — it does
+  //    not move the rect.
+  //  - Content rebuilds the recording, and joins `scalarContent` below,
+  //    which is the memoizable half of content volatility (§17).
   bool ownPaint = false;
-  ownPaint |= boundOrRunning(Instance::kOpacity, node.paint.opacity);
-  // The GEOMETRIC half, kept separately: a texture bake taken in device
-  // space is pinned to one device rect, so it may only be taken when the
-  // node is not moving. Opacity is deliberately not part of this — it does
-  // not move the rect.
   bool moving = false;
-  moving |= boundOrRunning(Instance::kTx, node.paint.translateX);
-  moving |= boundOrRunning(Instance::kTy, node.paint.translateY);
-  moving |= boundOrRunning(Instance::kRotate, node.paint.rotate);
-  moving |= boundOrRunning(Instance::kScale, node.paint.scale);
-  moving |= boundOrRunning(Instance::kSkewX, node.paint.skewX);
-  moving |= boundOrRunning(Instance::kSkewY, node.paint.skewY);
-  moving |= boundOrRunning(Instance::kScaleX, node.paint.scaleX);
-  moving |= boundOrRunning(Instance::kScaleY, node.paint.scaleY);
-  // travel(): the `t` lane moves the node exactly as tx/ty do — and it is
-  // the GEOMETRIC half, so a device-space bake is refused while it runs.
-  if (node.motionData)
-    moving |= boundOrRunning(Instance::kMotionT, node.motionData->t);
+  bool scalarContent = false;
+  for (const SlotSpec &spec : kSlotSpecs) {
+    const Animatable<float> *v = slotValueOf(spec, node);
+    if (!v)
+      continue; // this node does not carry the block that holds the slot
+    switch (spec.role) {
+    case SlotRole::Opacity:
+      ownPaint |= boundOrRunning(spec.slot, *v);
+      break;
+    case SlotRole::Geometric:
+      moving |= boundOrRunning(spec.slot, *v);
+      break;
+    case SlotRole::Content:
+      scalarContent |= boundOrRunning(spec.slot, *v);
+      break;
+    case SlotRole::Bespoke:
+      break; // unreachable: slotValueOf answers nullptr for a Bespoke row
+    }
+  }
   inst.transformLive = moving;
   ownPaint |= moving;
 
@@ -605,11 +621,11 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
       (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each
   // rebuilds the painted geometry when it moves, and each is a number that
-  // can sit still for a long time inside a running motion (§17).
-  bool scalarContent = false;
+  // can sit still for a long time inside a running motion (§17). Declared
+  // and filled with every SlotRole::Content slot up in the table walk; the
+  // MASK GATES join here, because their count is a property of the
+  // description and no fixed slot can hold them.
   scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
-  if (const GlyphFx *g = glyphFxOf(node)) // moving glyph progress rebuilds
-    scalarContent |= boundOrRunning(Instance::kGlyphProgress, g->progress);
   /** The pre-release reading. §20 below may set `scalarContent` false for a
    *  node that is provably holding still; the LIVE-MATERIAL memo must keep
    *  answering about such a node exactly as it did before that release

@@ -176,3 +176,29 @@ add_test(NAME compose_sketch_stock
   COMMAND ComposeSketch
     ${CMAKE_CURRENT_LIST_DIR}/sketches/stock_materials.cpp
     --frame ${CMAKE_BINARY_DIR}/compose_sketch_stock.png)
+
+# THE LINK-SURFACE GUARD, and the reason it is a third test rather than a
+# case in either of the two above: what it watches is not a compile and not
+# a pixel, it is the -force_load list.
+#
+# SigilShape was missing from that list from the day sketches could use it
+# until 2026-07-29. Every shape-using sketch compiled (the kit's PUBLIC
+# dependencies decide what a sketch may #include, via sketch_flags.rsp) and
+# every one ran fine as a compiled-in gallery scene (SigilSketchStudies is
+# an object library linked into ComposeGallery, which resolves nothing
+# dynamically) — and all three failed at dlopen with `symbol not found in
+# flat namespace ..._ZN5sigil5shape...`, because the HOST never re-exported
+# the archive. Two registries of one fact, and nothing compared them.
+#
+# So this test must go through the DYNAMIC path, which `--frame` does: it
+# compiles the file with sketch_flags.rsp, dlopens the dylib, runs it, and
+# exits nonzero when the load fails. shapeworks_lab.cpp is the widest shape
+# surface of the three (Blend, Materials, Mesh, Space), so it is the one
+# most likely to catch a PARTIAL regression too.
+#
+# hello.cpp and stock_materials.cpp cannot cover this: neither names a
+# shape:: symbol, so both load happily with SigilShape absent.
+add_test(NAME compose_sketch_shape
+  COMMAND ComposeSketch
+    ${CMAKE_CURRENT_LIST_DIR}/sketches/shapeworks_lab.cpp
+    --frame ${CMAKE_BINARY_DIR}/compose_sketch_shape.png)

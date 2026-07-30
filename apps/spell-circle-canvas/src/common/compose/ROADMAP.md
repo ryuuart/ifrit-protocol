@@ -5316,3 +5316,162 @@ to `Gate` fails the build at `ComposeInternal.h:472` ("type 'Gate'
 decomposes into 9 elements, but only 8 names were provided"); naming it in
 the decomposition then fails the second gate at `Reconcile.cpp:384` ("Gate
 gained or lost a field"). Two compiler errors, in order, as designed.
+
+## 42. THE SLOT TABLE, and the shape-sketch link guard — two silent classes made loud (2026-07-29)
+
+Both items are the same move made twice: take a mistake that compiles and
+passes, and make it a build or test failure. §40 filed the first; the sketch
+wave of f206364 filed the second.
+
+### 42a. `Instance::Slot` had FOUR hand-written enumerations
+
+`collectGroupScalars` and `computeVolatile` (Paint.cpp),
+`applyMountTransitions` and `applyTransitions` (Transitions.cpp) each walked
+the twelve slots by hand. §40 verified all four were complete and closed
+with the hazard: nothing structural held them that way, and every absence is
+silent —
+
+| absent from | the symptom, and why nothing catches it |
+| --- | --- |
+| `applyTransitions` | `animate()` snaps instead of ramping; reads as a missing transition spec |
+| `applyMountTransitions` | `animate(from().to())` plays no entrance; the node just appears settled |
+| `computeVolatile` | the property is not volatility, so an ancestor caches across it and the motion FREEZES in a replayed picture — perfect in any still |
+| `collectGroupScalars` | a `Cache::Group` holds its bake while the property moves, i.e. blits last second's pixels |
+
+Not distant, either: `computeVolatile` is where §38's staleness bug lived —
+the same function, one level up, four copies of a list, three of them
+drifted.
+
+**ONE TABLE SERVES ALL FOUR, and the reason is that the four wanted the same
+two things.** `kSlotSpecs` (ComposeRuntime.h) is `kPopOpPso[]`'s shape: one
+row per enum value, index-aligned, carrying
+
+  - `of` — the description's `Animatable<float>` for the slot, null when the
+    node does not carry the block that holds it, and
+  - `role` — Opacity / Geometric / Content.
+
+**The three roles are not a taxonomy invented for the table.** They are the
+split `computeVolatile` ALREADY made: opacity is applied by paint()'s
+saveLayer (a fading node replays its picture and does not move its device
+rect), geometric by paint()'s matrix (so it refuses a device-pinned bake),
+content rebuilds the recording. `collectGroupScalars` reads the same split
+for its root exclusion; the two transition functions ignore it entirely. No
+consumer wanted a fourth thing, which is what makes one table honest rather
+than a lowest common denominator. `applyTransitions` needed exactly ONE
+extra fact — the endpoint to ramp from when a node GAINS or LOSES the block
+(a `travel()` path, kinetic text) — and that is `standing`, which is in
+every case the field's own default and is pinned to it.
+
+**WHY A TABLE HERE AND A SUBTRACTION IN §38.** §40 asked whether
+`computeVolatile`'s cure (name the terms once, derive every consumer as a
+subtraction) was the better model. It is the better model for THAT list and
+not for this one. The content terms are a heterogeneous bag of booleans — a
+bound fill, a GIF frame, a live effect — with no enum behind them, so the
+only thing that can hold them together is a single named expression. These
+twelve are an ENUMERATED AXIS, and an enumerated axis gets the
+`variant_size_v` treatment, because the compiler can count it.
+
+**THE ONE SLOT THAT DOES NOT FIT, said out loud.** `kFillLerp` is a
+synthesized 0→1 progress over `paint.fill`'s `Transitioned<Fill>`; there is
+no `Animatable<float>` in the description to point at. It carries a
+`SlotRole::Bespoke` row with a written reason, `slotValueOf()` answers
+nullptr for it so a consumer that forgets to special-case it is INERT rather
+than crashing, and all four hand-written sites are labelled "the kFillLerp
+row". The escape hatch cannot be taken blank: `role == Bespoke` ⇔ `of ==
+nullptr` ⇔ `bespoke != nullptr` is a `static_assert`.
+
+**THE HAZARD A TABLE INTRODUCES, and its pin.** Twelve separate call sites
+could not MISAIM; a table can — a copy-pasted row returning the neighbouring
+field would compile, and then `.scaleY(animate(…))` would ramp `scaleX` in
+all four consumers at once. `ComposeSlotPins.EverySlotRowReachesItsOwnFieldAtItsStandingDefault`
+walks the rows on a node carrying every block and demands each answer with a
+DISTINCT address at its declared `standing` default.
+
+**Behaviour-preserving, with one stated non-identity.**
+`collectGroupScalars`'s vector now gathers in enum order, so its ELEMENT
+ORDER changed (glyph progress moved ahead of the mask gates, scaleX/scaleY
+ahead of skewX/skewY). The predicate is unchanged: the vector is only ever
+compared against the vector this same function produced on the previous
+frame (`groupScratch == inst.groupPrev`, Paint.cpp), so any fixed
+permutation computes the identical verdict. Positional identity of that
+vector is not achievable through a table at all, since the mask gates are
+not slots and sit in the middle of it — which is why the property is stated
+as stability rather than order.
+
+**Ten positive controls, all fired** (mutate → the NAMED gate fails →
+restore, mtime stamped):
+
+| control | gate that failed |
+| --- | --- |
+| a 13th slot appended with no row | build: `std::size(kSlotSpecs) == Instance::kSlots` |
+| a row's `slot` duplicated (kScaleY → kScaleX) | build: `slotTableWellFormed()` — index alignment |
+| the Bespoke row's reason blanked to nullptr | build: `slotTableWellFormed()` |
+| kScaleY's accessor aimed at `paint.scaleX` | `ComposeSlotPins.EverySlotRow…` (distinct addresses) |
+| kMotionT's `standing` 0 → 1 | `ComposeSlotPins.EverySlotRow…` (the field default) |
+| `applyTransitions` skips Geometric rows | `ComposeTransitions.RampsAndRetargetsFromCurrent` |
+| `applyMountTransitions` skips the Opacity row | `ComposeMotion.AnimatePlaysEntranceOnMount` |
+| kOpacity's role → Geometric | `ComposeCache.AGroupsOwnFadeDoesNotDropItsBake` |
+| `collectGroupScalars` drops the root exclusion | `ComposeCache.AGroupsOwnFadeDoesNotDropItsBake` |
+| `collectGroupScalars` stops gathering children's transforms | `ComposeCache.GroupDropsTheBakeOnTheFrameABindingTicks` |
+
+### FOUND BY A CONTROL THAT DID NOT FIRE — glyph progress had no pin
+
+The eleventh control was kGlyphProgress's role Content → Opacity, and it
+PASSED against 66 tests of `ComposeKinetic`, `ComposeR4Mask` and
+`ComposeCache`. Per the house rule, the pin is wrong and not the control:
+**nothing in the repo checked that glyph progress is content volatility.**
+
+Misclassify it and `computeVolatile` leaves `ownContent` false,
+`subtreeVolatile` false, the picture un-reset — and a reveal FREEZES at
+whatever progress the last describe happened to record. The reason the whole
+kinetic family was blind is uniform: `StaggeredRiseRevealsInOrder` moves the
+reveal by RE-DESCRIBING, which marks the node paint-dirty and never asks the
+question; `TransitionedProgressPaintsLive` asserts only that some ink exists
+after settling, which a frozen half-revealed recording satisfies exactly.
+`ComposeKinetic.ABoundProgressRevealsWithoutARedescribe` closes it with a
+BOUND Output — one describe, and the value moves underneath it. The control
+then fired. This is §38's class at a second slot, and §40's audit had marked
+this list "complete" with no test behind the word.
+
+### 42b. A shape-using sketch could never hot-reload — now ctest 16 → 17
+
+`SigilShape` was missing from the sketch host's `-force_load` list from the
+day sketches could use it until f206364. Two registries of one fact: the
+kit's PUBLIC dependencies decide what a sketch may `#include` (through
+`sketch_flags.rsp`), the `-force_load` list decides what a sketch may LINK,
+and nothing compared them. So `shapeworks_lab`, `easel_playground` and
+`pop_lanes` all compiled, all ran as compiled-in gallery scenes — an object
+library resolves nothing dynamically — and all three failed at `dlopen`.
+
+Neither existing guard could see it: `compose_sketch_smoke` (hello.cpp) and
+`compose_sketch_stock` (stock_materials.cpp) name no `shape::` symbol, so
+both load happily with the archive absent. **Measured, not argued:** with
+`SigilShape` removed again, both PASSED while the new test failed.
+
+`compose_sketch_shape` runs `ComposeSketch sketches/shapeworks_lab.cpp
+--frame …`, which is the real dynamic path — compile with sketch_flags.rsp,
+`dlopen`, run, nonzero exit on a load failure. shapeworks_lab is the widest
+shape surface of the three (Blend, Materials, Mesh, Space), so it also
+stands a chance against a PARTIAL regression. 2.8 s Debug, 1.6 s Release.
+
+**Positive control, fired**, with the actual message:
+
+    sketch failed to build:
+    dlopen(…/sketch_1.dylib, 0x0006): symbol not found in flat namespace
+    '__ZN5sigil5shape4mesh5torusEffii'
+
+### Suites and ledger
+
+`compose_test` **506** (505 passed, 1 skipped — the expected
+`AdvanceVariantAxisIsRefused`; +2: the slot walk and the glyph-progress
+pin), `compose_kit_test` 47, `motion_test` 15, `shape_test` 83,
+`world_test` 64, `ctest` **17/17** — both configs.
+
+**Ledger: byte-neutral, as a behaviour-preserving refactor must be.**
+55 byte-identical, 3 moved, 6 not in baseline, 0 failed. The three movers
+are all attributed: `easel_playground` at the documented `39528e682c55`,
+plus `genesis_fire` and `slitscan_2001` on the self-nondeterministic list
+(`hitman_verlet` happened to land identical this run). The six are
+`travel_path`, `wiggle_shake`, `env_theme`, `material_child`, `matte_luma`
+and `pop_lanes` — the sketches of f206364, still unadopted; adopting them is
+the owner's call.

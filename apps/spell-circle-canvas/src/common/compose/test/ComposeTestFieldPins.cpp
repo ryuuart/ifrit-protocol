@@ -24,6 +24,9 @@
 #include "ComposeTestSupport.h"
 
 #include "../ComposeInternal.h"
+// …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
+// It is the reason this target links yoga::yogacore (see CMakeLists.txt).
+#include "../ComposeRuntime.h"
 
 namespace cd = sigil::compose::detail;
 
@@ -214,4 +217,62 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       false, // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propsEqual, kNames, kParticipates);
+}
+
+// ---------------------------------------------------------------------------
+// THE SLOT WALK — the runtime half of ComposeRuntime.h's kSlotSpecs table.
+//
+// The table closes the OMISSION hazard by construction (index-aligned rows
+// under compile-time asserts, so a new Instance::Slot cannot be added
+// without ruling on it). What it opens instead is a MISAIMING hazard that
+// twelve separate hand-written call sites did not have: a copy-pasted row
+// whose accessor returns the neighbouring field would compile, and then
+// `.scaleY(animate(...))` would ramp `scaleX` on every one of the four
+// consumers at once. This walk is what makes that fail.
+
+TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
+  // Every block a slot can hide behind, PRESENT and defaulted — so every
+  // non-Bespoke row must answer with a pointer, and that pointer must be at
+  // the field's own default value.
+  cd::ElementNode node;
+  node.motionData.ensure();                  // travel(): carries kMotionT
+  node.textData.ensure().glyphFx.emplace();  // kinetic text: kGlyphProgress
+
+  std::vector<const Animatable<float> *> seen;
+  int bespoke = 0, opacityRows = 0;
+  for (const cd::SlotSpec &spec : cd::kSlotSpecs) {
+    const int index = (int)spec.slot;
+    if (spec.role == cd::SlotRole::Bespoke) {
+      ++bespoke;
+      // The compile-time assert already pairs "no accessor" with "declared
+      // Bespoke, with a reason"; this is the runtime half of the same claim.
+      EXPECT_EQ(spec.of, nullptr) << "slot " << index;
+      EXPECT_EQ(cd::slotValueOf(spec, node), nullptr)
+          << "slot " << index << ": a Bespoke row must be INERT through "
+             "slotValueOf, so a consumer that walks the table without "
+             "special-casing it does nothing rather than crashing";
+      continue;
+    }
+    if (spec.role == cd::SlotRole::Opacity)
+      ++opacityRows;
+    const Animatable<float> *v = cd::slotValueOf(spec, node);
+    ASSERT_NE(v, nullptr) << "slot " << index << "'s accessor reaches nothing "
+                             "on a node carrying every block";
+    // THE MISAIM. Two rows answering with the same address means one of them
+    // is pointed at the other's field, and every consumer inherits the error.
+    for (size_t i = 0; i < seen.size(); ++i)
+      EXPECT_NE(v, seen[i]) << "slot " << index << " and slot " << i
+                            << " aim at the SAME field";
+    seen.push_back(v);
+    // …and the STANDING endpoint applyTransitions substitutes when a node
+    // gains or loses the block really is this field's own default. A wrong
+    // number here is a node that jumps on the frame it starts travelling.
+    ASSERT_NE(v->plain(), nullptr) << "slot " << index;
+    EXPECT_FLOAT_EQ(*v->plain(), spec.standing)
+        << "slot " << index << "'s `standing` is not the field's default";
+  }
+  EXPECT_EQ((int)seen.size() + bespoke, (int)cd::Instance::kSlots);
+  EXPECT_EQ(opacityRows, 1)
+      << "exactly one slot is applied by paint()'s saveLayer rather than its "
+         "matrix; computeVolatile's device-bake refusal reads that split";
 }
