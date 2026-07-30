@@ -142,18 +142,20 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
 }
 
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
-  // ALL SIXTEEN, against boundMapEqual() directly. The wiggle wave pinned
+  // ALL SEVENTEEN, against boundMapEqual() directly. The wiggle wave pinned
   // five of them end to end
   // (WiggledBindingsPruneOnlyWhenEveryParameterMatches); the other eleven had
-  // no control at all until this walk.
+  // no control at all until this walk. `wrapPeriod` (the derive() wave,
+  // 2026-07-29) is read live like every other stage, so it participates.
   static const char *const kNames[] = {
       "source",       "inScale",         "inOffset",     "curve",
       "clampInput",   "steps",           "scale",        "offset",
       "clamped",      "lo",              "hi",           "wiggleAmount",
-      "wiggleFrequency", "wiggleSeed",   "wiggleOctaves", "wiggleFalloff"};
+      "wiggleFrequency", "wiggleSeed",   "wiggleOctaves", "wiggleFalloff",
+      "wrapPeriod"};
   static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true, true,
-                                       true, true, true, true};
+                                       true, true, true, true, true};
   walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
 }
 

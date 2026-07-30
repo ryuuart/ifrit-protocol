@@ -233,7 +233,7 @@ struct AeroDesktopScene final : Scene {
       // 8 Hz-stepped breathing: invisible on a soft glow, and the stepped
       // value holds between steps so the taskbar plane can blit instead
       // of re-rastering (the live-resolve/stability rule, host-side).
-      const double q = std::floor(t * 8.0) / 8.0;
+      const double q = quantizeTime(t, 8.0);
       orbGlow = 0.55f + 0.25f * (float)std::sin(q * 1.4);
       return true;
     });

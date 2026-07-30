@@ -93,6 +93,30 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
 }
 } // namespace ease
 
+/** THE CANONICAL TIME QUANTIZER — `floor(t·hz)/hz`, held still between
+ *  steps: posterize time, at a declared rate.
+ *
+ *  One idea existed at three altitudes before this function (ROADMAP
+ *  §43.12 item 4): `Material::quantizeTime(hz)` steps a shader's
+ *  injected uTime, `Bound::quantize(steps)` snaps a NORMALISED property
+ *  chain, and eight-plus host steppables hand-rolled `floor(t*N)/N` on
+ *  their own accumulated seconds. The shader path and the hand-rolled
+ *  sites are the SAME arithmetic and now route here; `Bound::quantize`
+ *  stays its own stage because it is genuinely a different shape —
+ *  `round()` to N LEVELS across [0,1] (Winamp's 28-frame slider), not a
+ *  rate on unbounded seconds — and the different word (`quantize` vs
+ *  `quantizeTime`) marks the different contract.
+ *
+ *  Deliberately a template on ONE type: every call site keeps its own
+ *  precision (`quantizeTime(t, 8.0)` is double math, `quantizeTime(ft,
+ *  8.0f)` float), so routing an existing `std::floor(t * hz) / hz`
+ *  through here is bit-identical, not merely close. `hz <= 0` answers
+ *  the input unchanged — "continuous" — matching
+ *  `Material::quantizeTime(0)`. */
+template <typename T> inline T quantizeTime(T t, T hz) {
+  return hz > T(0) ? std::floor(t * hz) / hz : t;
+}
+
 template <typename T> struct Transitioned {
   /** Value-initialized, not default-initialized: `animate(through({}))`
    *  builds one of these and then fills nothing, and for a scalar T that
@@ -337,10 +361,13 @@ inline float wiggleNoise(float x, uint32_t seed, int octaves, float falloff) {
  *       in CALL ORDER, so `.scale(240).offset(-70)` is `v*240 - 70` and
  *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
  *       it looks. `clamp` always applies last.
- *    4. `wiggle(amount, …)` adds smooth procedural noise in OUTPUT
- *       units, after the affine chain and before `clamp` — AE's
- *       `wiggle()`, phased off the normalised input rather than off a
- *       clock. See the verb for both rulings.
+ *    4. `wrap(period)` folds the post-affine value into [0, period) —
+ *       the looping-phase stage (`std::fmod(t*k, 1.0)` in six-plus
+ *       sketches, named).
+ *    5. `wiggle(amount, …)` adds smooth procedural noise in OUTPUT
+ *       units, after the affine chain (and any wrap) and before
+ *       `clamp` — AE's `wiggle()`, phased off the normalised input
+ *       rather than off a clock. See the verb for both rulings.
  *
  *  Costs nothing a bare binding does not: still paint-only, still read
  *  through the pointer each frame, still no relayout. sizeof(Animatable)
@@ -362,6 +389,8 @@ struct BoundFloat {
   uint32_t wiggleSeed = 0;
   int wiggleOctaves = 1;
   float wiggleFalloff = 0.5f;
+  // wrap(): fold the post-affine value into [0, period). 0 = no wrap.
+  float wrapPeriod = 0.0f;
 
   float apply(float v) const {
     v = v * inScale + inOffset;
@@ -377,6 +406,14 @@ struct BoundFloat {
     if (steps > 1)
       v = std::round(v * (float)(steps - 1)) / (float)(steps - 1);
     v = v * scale + offset;
+    // AFTER the affine chain, BEFORE wiggle: the noise phase above reads
+    // the unwrapped schedule, so a wrapped phase wiggles continuously
+    // across the seam instead of repeating its shake every lap.
+    if (wrapPeriod > 0.0f) {
+      v = std::fmod(v, wrapPeriod);
+      if (v < 0.0f)
+        v += wrapPeriod;
+    }
     if (wiggleAmount != 0.0f)
       v += wiggleAmount * detail::wiggleNoise(phase * wiggleFrequency,
                                               wiggleSeed, wiggleOctaves,
@@ -456,6 +493,23 @@ public:
    *  sampled at draw time is a different widget. */
   Bound &quantize(int steps) {
     m_b.steps = steps > 1 ? steps : 0;
+    return *this;
+  }
+  /** LOOP the shaped value: fold the post-affine value into
+   *  [0, @p period) — floor-convention, so a DESCENDING schedule wraps
+   *  up into range instead of going negative. The missing word for the
+   *  corpus's most-repeated phase idiom, `std::fmod(t * k, 1.0)`
+   *  (skill-tree ring phases, Veloren's xp sawtooth, six-plus sketches):
+   *  `bind(&seconds).scale(k).wrap(1.0f)` is that line, and for a
+   *  POSITIVE schedule it is bit-identical to it.
+   *
+   *  Sits AFTER the affine chain and BEFORE `wiggle`/`clamp`, so a
+   *  wrapped phase still wiggles continuously across the seam (the noise
+   *  phase reads the unwrapped schedule) and a clamp still bounds the
+   *  folded value. `period <= 0` is a NO-OP, not a division — "no wrap"
+   *  is a representable ask, and the default. */
+  Bound &wrap(float period) {
+    m_b.wrapPeriod = period > 0.0f ? period : 0.0f;
     return *this;
   }
   /** PROCEDURAL NOISE on the way out — After Effects' `wiggle()`, and the

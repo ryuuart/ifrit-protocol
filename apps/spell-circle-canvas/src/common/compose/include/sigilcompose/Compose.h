@@ -106,6 +106,16 @@ using motion::through;
 using motion::to;
 using motion::wiggle;
 namespace ease = motion::ease;
+/** The canonical `floor(t·hz)/hz` time quantizer — the arithmetic
+ *  `Material::quantizeTime(hz)` applies to a shader's uTime, exported so
+ *  host steppables quantizing their OWN schedules spell the same idea
+ *  with the same word instead of hand-rolling it (ROADMAP §43.12 item 4).
+ *
+ *  NOTE the derivation verb itself is `Ticker::derive(dst, bind(&src)…)`
+ *  — a Ticker member, not a free factory — so it needs no re-export and
+ *  cannot collide with compose's `derive::` namespace (the geometry
+ *  derive phase below), which already owns the word at namespace scope. */
+using motion::quantizeTime;
 
 /** `Animatable<T>` — THE PROPERTY SLOT: a value that can move. Plain T,
  *  a Transitioned<T>, a live `choreograph::Output<T>*`, or that binding

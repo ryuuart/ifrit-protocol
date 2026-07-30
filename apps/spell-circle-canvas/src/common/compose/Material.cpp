@@ -202,9 +202,11 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
     for (const auto &[name, out] : live.binds)
       inputs.push_back(out ? out->value() : 0.0f);
     if (injectTime) {
-      double t = ctx->elapsedSeconds;
-      if (live.timeQuantizeHz > 0)
-        t = std::floor(t * live.timeQuantizeHz) / live.timeQuantizeHz;
+      // Routed through the canonical quantizer (motion::quantizeTime) at
+      // the SAME precision — double in, hz promoted exactly as the old
+      // inline floor did — so this is a spelling change, not a pixel one.
+      const double t =
+          motion::quantizeTime(ctx->elapsedSeconds, (double)live.timeQuantizeHz);
       inputs.push_back((float)t);
     }
     if (injectScale)
@@ -285,10 +287,8 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
     if (injectTime) {
-      double t = ctx->elapsedSeconds;
-      if (live.timeQuantizeHz > 0)
-        t = std::floor(t * live.timeQuantizeHz) / live.timeQuantizeHz;
-      b.uniform("uTime") = (float)t;
+      b.uniform("uTime") = (float)motion::quantizeTime(
+          ctx->elapsedSeconds, (double)live.timeQuantizeHz);
     }
     if (injectScale)
       b.uniform("uContentScale") = ctx->contentScale;

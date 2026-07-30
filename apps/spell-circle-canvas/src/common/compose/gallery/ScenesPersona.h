@@ -254,7 +254,7 @@ struct PersonaMenuScene final : Scene {
       namespace ch = choreograph;
       t += dt;
       // sec.1 CRITICAL TEXTURE: caustics step time at 6 Hz.
-      qTime = (float)(std::floor(t * 6.0) / 6.0);
+      qTime = (float)quantizeTime(t, 6.0);
       // Idle heartbeat: wedge 1 -> 1.05 (100ms) -> 1 (50ms) every 600ms.
       const double ph = std::fmod(t, 0.6);
       float s = 1.0f;

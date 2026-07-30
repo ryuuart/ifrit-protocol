@@ -1913,6 +1913,43 @@ TEST(WorldAnimation, MaterialLanesOverrideOnlyWhatTheyDeclare) {
   EXPECT_FLOAT_EQ(m.uvOffset.y, 0.0f);
 }
 
+TEST(WorldAnimation, DerivedOutputDrivesAWorldLaneDeviceFree) {
+  // THE CROSS-LIBRARY COMPOSITION PIN for Ticker::derive() (SigilMotion,
+  // 2026-07-29): a derived Output is an ordinary Output, so a world lane
+  // consumes it through the same bind() chain as any hand-stepped cell —
+  // no world code knows or cares that the Ticker owns the write. Device-
+  // free: the ticker steps, resolveAnimation() reads, nothing renders.
+  entt::registry registry;
+  const entt::entity e = registry.create();
+  registry.emplace<world::MaterialComponent>(e);
+
+  motion::Ticker ticker;
+  choreograph::Output<float> phase{0.0f}, trail{0.0f};
+  ticker.timeline().apply(&phase).then<choreograph::RampTo>(1.0f, 1.0f);
+  // Registered BEFORE the ramp above would ever be stepped, and shaped
+  // through the ordinary chain: the pen-tip idiom, one level.
+  ASSERT_TRUE(
+      ticker.derive(&trail, world::bind(&phase).offset(-0.25f).clamp(0, 1)));
+
+  registry.emplace<world::AnimatedMaterial>(e).uvOffsetX =
+      world::bind(&trail).target(0.0f, 2.0f);
+
+  ticker.tick(0.5); // phase 0.5 -> trail 0.25, SAME frame (two-phase step)
+  world::AnimationStats stats = world::resolveAnimation(registry);
+  EXPECT_EQ(stats.materials, 1);
+  const world::Material &m =
+      registry.get<world::MaterialComponent>(e).material;
+  EXPECT_FLOAT_EQ(m.uvOffset.x, 0.5f)
+      << "the lane must read the derived cell's SAME-frame value: "
+         "(0.5 - 0.25) * 2";
+
+  ticker.tick(0.25);
+  world::resolveAnimation(registry);
+  EXPECT_FLOAT_EQ(registry.get<world::MaterialComponent>(e)
+                      .material.uvOffset.x,
+                  1.0f);
+}
+
 TEST(WorldAnimation, ResolveIsIdempotentAndReportsOnlyWhatMoved) {
   // Change detection, the property that keeps a lane in front of a GPU
   // re-cook honest — and the reason AnimationStats exists at all

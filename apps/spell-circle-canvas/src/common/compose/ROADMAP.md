@@ -6066,3 +6066,130 @@ owner's call, exactly as f206364's six unadopted sketches are.
    what `twoadvanced_v4.cpp:360` and twelve other sites hand-roll. Filed,
    NOT designed here, because it retimes only one of the two channels and
    this entry's whole argument is that a half-retime must not be silent.
+
+### 43.13 SHIPPED 2026-07-29 — `derive()` as `Ticker::derive`, the quantize consolidation, and the verb audit
+
+**The §43.11 plan is executed, with one deliberate deviation, named
+first.** Plan item 2 called for a free `derive(&src)` factory over the
+existing builder, "so the call site reads as a derivation rather than as
+a property binding." **Not shipped, and the collision is the argument:**
+`sigil::compose::derive` is already a NAMESPACE (the geometry derive
+phase — `derive::around`, `derive::rail`), so the factory could never be
+re-exported into compose — the library where most authors live — and a
+verb that spells differently per library is worse than no synonym at
+all. The verb is the MEMBER, `Ticker::derive(dst, chain)`, which is
+where the new thing (the write) actually happens; the chain is `bind()`,
+which the author already knows, verbatim. One word per idea, same
+spelling in every library:
+
+```cpp
+choreograph::Output<float> phase, penTip, stepped, backwards, ring;
+ticker.add([&](double) { phase = ...; return true; });
+ticker.derive(&penTip,    bind(&phase).offset(-0.008f).clamp(0, 1));
+ticker.derive(&stepped,   bind(&phase).quantize(8));   // posterize
+ticker.derive(&backwards, bind(&phase).invert());      // reverse
+ticker.derive(&ring,      bind(&phase).scale(0.5f).wrap(1.0f)); // loop
+```
+
+**What shipped, against the plan:**
+
+1. **`Bound::wrap(period)`** — the one new stage. Floor-convention fold
+   into [0, period) AFTER the affine chain, BEFORE wiggle (the noise
+   phase reads the unwrapped schedule, so a wrapped phase wiggles
+   continuously across the seam — pinned) and clamp. `period <= 0` is a
+   no-op, not a division. Bit-identical to the corpus's
+   `std::fmod(t*k, 1.0)` for positive schedules — pinned as identity,
+   not approximation. BoundFloat 16 → 17 fields; the FIELD PIN chain
+   ruled on it end to end (`fields()`, `kFieldCount == 17`,
+   `boundMapEqual`, the walk row — positive control run: dropping the
+   comparator term fails `EveryBoundFloatFieldParticipatesInEquality`
+   naming field #16).
+2. **`Ticker::derive(dst, chain)` + the TWO-PHASE STEP** (§43.3 ruling
+   (a)): `tick()` steps the timeline and every steppable first, then
+   every derivation, so **a derivation never reads a stale source**,
+   whatever the registration order. The pin registers the derivation
+   BEFORE its source's writer — the arrangement that is one frame stale
+   under any registration-order step — and its positive control (step
+   derivations first) fails it with the stale value, restored. The
+   ONE-LEVEL rule is enforced loudly at registration, both directions
+   plus self-derivation and double-write, each with a stderr warning and
+   a false return (`DeriveEnforcesTheOneLevelRuleLoudly`). Derivations
+   apply once at registration (correct before the first tick), are pure
+   in their sources, and do NOT hold `active()` — hosts stay
+   event-driven (pinned).
+3. **The affine-equivalence limit is in the doc comment** on
+   `Ticker::derive`, per the plan: derive() remaps a schedule's VALUE,
+   which equals a time remap exactly when the schedule is affine in
+   time. DESIGN.md's animation grammar table gained the row.
+4. **Cross-library composition pinned device-free**:
+   `WorldAnimation.DerivedOutputDrivesAWorldLaneDeviceFree` — a Ticker
+   derivation feeding an `AnimatedMaterial` uv lane through
+   `bind(&trail).target(...)`, resolved by
+   `resolveAnimation(entt::registry&)` with no device; control (skip
+   phase two) fails it on the same-frame assertion, restored.
+   `bind(&derived)` and `wiggle(&derived, …)` are pinned in motion_test.
+5. **Corpus idioms, bit-exact**: vertigo's penTip offset, skill-tree's
+   pulse affine, the fmod ring phase, the inverted sawtooth, and
+   window-vs-clamp on a dyadic grid
+   (`ChainStagesReproduceTheCorpusIdiomsBitExactly`).
+
+**§43.12 item 4 executed — the quantize consolidation.** The canonical
+definition is `motion::quantizeTime(t, hz)` (Animation.h): a template on
+ONE type so every routed site keeps its own precision and the rewrite is
+bit-identical. Re-exported as `compose::quantizeTime`. Dispositions:
+
+| site | disposition |
+| --- | --- |
+| `Material.cpp:207/290` (uTime digest + uniform) | ROUTED, double precision preserved |
+| `ScenesAero.h:236` (8 Hz breathing) | ROUTED (double) |
+| `ScenesPersona.h:257` (6 Hz caustics) | ROUTED (double, float cast kept) |
+| `ksp_mapview.cpp:1845` (8 Hz instrument glow) | ROUTED (float) |
+| `eva_magi_interior.cpp:1831` | KEPT + comment: deliberate `kPhase` stagger and `1e-6` epsilon — not the canonical arithmetic |
+| `winamp_base.cpp:1417/1435` | KEPT + comment at :1435: step INDEX (hash key / edge detector), not requantized time |
+| `lain_navi.cpp:1244/1260-62`, `cde_motif.cpp:2046-47` | KEPT, no comment: `floor` as int index / next-boundary math, visibly a different idea |
+| winamp's `round(pct*28)` sliders | KEPT: that is `Bound::quantize`'s LEVELS shape (round on [0,1]), already named differently on purpose |
+
+Byte-neutrality PROVEN, not assumed: a targeted `plate_ledger.py
+--scenes` sweep over all eight affected scenes (aero desktop, persona
+menu, ksp_mapview, twoadvanced_v4, spacejam_1996, ds2_bench,
+eva_magi_interior, winamp_base) — **8 byte-identical, 0 moved**. No full
+ledger run was needed: no other scene's code path changed, and the
+routed arithmetic is type-identical by construction. No `--rebase`.
+
+**The verb audit (2026-07-29), against the owner's four lenses (unify
+verbs / consistency / no exceptional paths / composition):**
+
+- `lookAhead`: compose's `travel()` reused world's `CameraPath` word,
+  same meaning, same units convention. HOLDS.
+- `t` as "the schedule lane": `MotionPath::t` == `CameraPath::t`. HOLDS.
+- `wiggle`: one word, three altitudes (stage, free rig factory, world
+  re-export), one semantics. The free `wiggle(&out,…)` DOCUMENTED
+  exception (names `bind().scale(0).wiggle()`) holds up: it prevents a
+  silent drift bug, returns an ordinary Bound, adds no second mechanism.
+- The `Bespoke` slot row: confirmed as a documented exception with an
+  argument; not relitigated.
+- `quantize` vs `quantizeTime`: two contracts (levels/round on [0,1] vs
+  rate/floor on seconds) — the DIFFERENT words are correct; the doc on
+  the canonical function now states the split so nobody unifies them
+  wrongly.
+- **FIXED (cheap, new-this-wave):** the free `derive()` factory was cut
+  before landing (the collision above) rather than shipped asymmetric.
+- **FINDING, filed:** `shape::Pop`'s `.order(axis)` vs `.orderBy(attr)`
+  mirrors `rampBy`'s overload family; consistent internally, but note
+  `rampBy` has no bare `ramp` sibling while `order`/`orderBy` are a
+  pair — a naming asymmetry, harmless, not churned.
+- **FINDING, filed:** DESIGN.md §43.0's quotes name vendored choreograph
+  members (`Output::inputPtr` etc.); the doc-probe gate refused them
+  (correctly — they are outside the scanned headers) and they are now
+  EXCLUDED_SPELLED with reasons in api_doc_probes.py. The previous wave
+  left this latent: DESIGN.md was edited without rebuilding compose_test.
+
+**Gates:** motion_test 15 → 21, world_test 64 → 65, compose_test 506
+(505 + 1 expected skip), compose_kit_test 47, shape_test 83 — both
+configs. Positive controls run and restored (mtime stamped) for: the
+staleness pin, the wrap pins, the BoundFloat field walk, the world
+cross-library pin.
+
+**NOT adopted, per the plan:** the ~30 sketches that hand-roll shadow
+cells. Corpus edits are the owner's call, as f206364's six unadopted
+sketches are.

@@ -195,6 +195,7 @@ Everything the API offers is one of these, wearing a grammar. The map
 | `glyphFx` + Animatable progress | either | per-glyph typography |
 | `custom()` + `Cache::None` + `elapsedSeconds` | floor | immediate-mode escape hatch |
 | pool `Mode::Live` / `Mode::Data` | the two paths verbatim | instanced masses |
+| `Ticker::derive(dst, bind(&src)…)` — the chain reaching an OUTPUT | bind (it writes a source) | schedule remaps: holds (`window`), posterize (`quantize`), reverse (`invert`), loops (`wrap`) — a time remap exactly when the schedule is affine in time (SigilMotion, ROADMAP §43) |
 
 Transition lifecycle: a standing declaration, one motion per (instance,
 property), retarget-from-current, reset-is-description; mount applies

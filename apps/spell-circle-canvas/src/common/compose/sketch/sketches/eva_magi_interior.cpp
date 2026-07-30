@@ -1828,6 +1828,10 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
     static const double kSteps[3] = {20.0, 32.0, 8.0};
     static const double kPhase[3] = {0.0, 0.0, 0.37};
     const double n = kSteps[i];
+    // NOT motion::quantizeTime(frac, n): the kPhase de-syncs the three
+    // panels' step boundaries (0.37 of a step, argued above) and the 1e-6
+    // absorbs the eased frac landing a hair under a boundary. Both are
+    // deliberate departures from the canonical floor(t*n)/n.
     frac = std::floor(frac * n + kPhase[i] + 1e-6) / n;
     frac = std::clamp(frac, 0.0, 1.0);
     return magi::frontFor(arrivals[(size_t)i], (float)frac);

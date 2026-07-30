@@ -94,6 +94,18 @@ EXCLUDED_SPELLED = {
                       "could not use it (no SigilShape dependency)",
     "AnimatedCamera::rollDeg": "the SigilWorld rule travel()'s auto-orient "
                                "follows; cited from world/Animation.h",
+    # DESIGN.md's evaluate-at-time rule (ROADMAP §43.0) quotes the four
+    # vendored choreograph calls the repository had never made — that they
+    # exist in the VENDOR's headers (build/vcpkg choreograph/) is the whole
+    # finding.  Choreograph's headers are not on the probe's scan list, and
+    # putting them there would assert vendor API stability this repo does
+    # not own.
+    "Output::inputPtr": "choreograph vendor API, cited by DESIGN.md's "
+                        "evaluate-at-time rule (§43.0)",
+    "Phrase::getValue": "choreograph vendor API, cited by the same rule",
+    "Sequence::getValue": "choreograph vendor API, cited by the same rule",
+    "TimelineItem::setPlaybackSpeed": "choreograph vendor API, cited by the "
+                                      "same rule (the one-call time stretch)",
 }
 
 # Names API.md spells on purpose that no header can resolve.  Each needs a

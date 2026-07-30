@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sigilmotion/Animation.h"
+
 #include <choreograph/Choreograph.h>
 
 #include <functional>
@@ -93,7 +95,59 @@ public:
                 choreograph::Output<float> *alphaOut = nullptr,
                 FixedStatus *statusOut = nullptr);
 
-  /** Steps the timeline and steppables by `deltaSeconds`; returns
+  /**
+   * A DERIVED OUTPUT: `dst` is recomputed every tick as `chain` applied
+   * to its source Output's current value — the `bind()` shaping
+   * vocabulary (`source`/`window`/`map`/`quantize`/the affine chain/
+   * `wrap`/`wiggle`/`clamp`), verbatim, reaching an OUTPUT instead of a
+   * property slot. The Ticker owns the write; the caller owns both
+   * cells, exactly as with any bound Output.
+   *
+   *     ch::Output<float> phase, penTip, stepped, backwards;
+   *     ticker.add([&](double) { phase = ...; return true; });
+   *     ticker.derive(&penTip,    bind(&phase).offset(-0.008f).clamp(0, 1));
+   *     ticker.derive(&stepped,   bind(&phase).quantize(8));
+   *     ticker.derive(&backwards, bind(&phase).invert());
+   *
+   * A derived Output is an ordinary Output: `bind(&penTip)`,
+   * `wiggle(&penTip, …)` and every `Output*`-typed consumer (a pool
+   * write, `spans::range`, `Effect::uniform`, a world lane) just work.
+   * This closes the corpus's #1 measured gap — the shadow cells sketches
+   * re-copied by hand every tick (ROADMAP §43.3).
+   *
+   * **THE HONEST LIMIT, at the call site because it belongs here:**
+   * `derive()` remaps a schedule's VALUE. That equals a TIME remap
+   * exactly when the schedule is affine in time — `phase = k·t` gives
+   * `0.5·phase(t) = phase(t/2)`; a non-linear phase gives a value remap
+   * that is not a retime. Compose does not retime time; it remaps
+   * schedules (and the corpus's schedules are overwhelmingly `t*k` or
+   * `fmod(t*k, 1)`, which is why this serves the demand).
+   *
+   * THE STEPPING CONTRACT: derivations run in a SECOND PHASE, after the
+   * timeline and after every steppable, so **a derivation never reads a
+   * stale source** — registration order does not matter, unlike a
+   * hand-rolled shadow copy in a steppable, which is one frame late
+   * whenever it is registered before its source's writer.
+   *
+   * ONE LEVEL ONLY, enforced loudly: within the second phase there is no
+   * topological order, so an Output may not be both a derivation's
+   * destination and a derivation's source. A registration that would
+   * chain two (`derive(&c, bind(&b))` after `derive(&b, …)`, in either
+   * order), write one destination twice, or self-derive is REFUSED with
+   * a warning and returns false — the silent one-frame lag it would
+   * otherwise hide is exactly the class this contract exists to close.
+   *
+   * The chain is applied once at registration, so `dst` is correct
+   * before the first tick. Derivations are pure in their source and are
+   * never retired; they do NOT hold active() true — when nothing else is
+   * active the source cannot move, so neither can the derived value.
+   *
+   * @return true if registered; false (with a warning) when refused.
+   */
+  bool derive(choreograph::Output<float> *dst, const Bound &chain);
+
+  /** Steps the timeline and steppables by `deltaSeconds`, then the
+   *  derivations (see derive() for the two-phase contract); returns
    *  active(). Zero deltas (paused clock) still report activity. */
   bool tick(double deltaSeconds);
 
@@ -125,8 +179,16 @@ public:
   double elapsed() const { return m_elapsed; }
 
 private:
+  /** One derived Output: the destination cell and the shaping applied to
+   *  its source each tick. Stepped in phase two — see derive(). */
+  struct Derivation {
+    choreograph::Output<float> *dst = nullptr;
+    BoundFloat map;
+  };
+
   choreograph::Timeline m_timeline;
   std::vector<std::function<bool(double)>> m_steppables;
+  std::vector<Derivation> m_derivations;
   double m_elapsed = 0.0;
 };
 

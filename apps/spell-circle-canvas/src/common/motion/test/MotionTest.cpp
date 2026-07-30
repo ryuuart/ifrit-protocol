@@ -414,6 +414,213 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
   EXPECT_NEAR(parked.apply(0.5f), 100.f + shakeX.apply(0.5f) / 4.0f, 1e-3f);
 }
 
+// ---------------------------------------------------------------------------
+// derive() — the bind() chain reaching an OUTPUT (2026-07-29, ROADMAP §43).
+// One new stage (wrap), one new verb (Ticker::derive), and a stepping-order
+// contract with its own pin. Everything else is the existing chain, verbatim.
+
+TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
+  ch::Output<float> phase = 0.0f;
+
+  // The seam: a ramp through 1.0 folds back to 0, floor-convention.
+  const BoundFloat looped = bind(&phase).wrap(1.0f).value();
+  EXPECT_FLOAT_EQ(looped.apply(0.25f), 0.25f);
+  EXPECT_FLOAT_EQ(looped.apply(1.25f), 0.25f);
+  EXPECT_FLOAT_EQ(looped.apply(7.75f), 0.75f);
+  EXPECT_FLOAT_EQ(looped.apply(1.0f), 0.0f); // the seam itself lands at 0
+
+  // A DESCENDING schedule wraps UP into [0, period) — fmod alone would
+  // answer a negative phase, which no consumer of a phase wants.
+  EXPECT_FLOAT_EQ(looped.apply(-0.25f), 0.75f);
+
+  // period == 0 is a NO-OP, not a division; so is a negative period.
+  EXPECT_FLOAT_EQ(bind(&phase).wrap(0.0f).value().apply(3.5f), 3.5f);
+  EXPECT_FLOAT_EQ(bind(&phase).wrap(-2.0f).value().apply(3.5f), 3.5f);
+
+  // ORDER: after the affine chain (the wrap sees scaled units), before
+  // clamp (a clamp still bounds the folded value).
+  EXPECT_FLOAT_EQ(bind(&phase).scale(360.0f).wrap(360.0f).value().apply(1.5f),
+                  180.0f);
+  EXPECT_FLOAT_EQ(
+      bind(&phase).wrap(1.0f).clamp(0.0f, 0.5f).value().apply(1.9f), 0.5f);
+
+  // …and before wiggle, so a wrapped phase WIGGLES CONTINUOUSLY across
+  // the seam: the noise phase reads the unwrapped schedule. The noise
+  // contribution (wiggled minus base) must step smoothly across v = 1,
+  // while the base itself jumps by a full period.
+  const BoundFloat wig = bind(&phase).wrap(1.0f).wiggle(5.f, 3.f, 9).value();
+  const float beforeSeam = wig.apply(0.9999f) - looped.apply(0.9999f);
+  const float afterSeam = wig.apply(1.0001f) - looped.apply(1.0001f);
+  EXPECT_NEAR(beforeSeam, afterSeam, 0.05f)
+      << "the noise repeated with the wrap — its phase must read the "
+         "unwrapped schedule";
+}
+
+TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
+  // The three hand-rolled retimes §43.3 names, spelled through the chain
+  // and compared BIT-EXACTLY against their originals — the consolidation
+  // claim is identity, not approximation.
+  ch::Output<float> out = 0.0f;
+
+  // vertigo_titles.cpp:105 — the pen tip trailing the growth schedule:
+  // "a second, independently-owned Output the ticker re-copies from
+  // growth − 0.008 every tick".
+  const BoundFloat penTip = bind(&out).offset(-0.008f).clamp(0.f, 1.f).value();
+  for (float g : {0.0f, 0.004f, 0.008f, 0.31f, 0.7431f, 0.999f, 1.0f})
+    EXPECT_EQ(penTip.apply(g), std::clamp(g - 0.008f, 0.0f, 1.0f));
+
+  // ScenesSkillTree.h:223 — pulseS = -0.12f + u * 1.12f.
+  const BoundFloat pulse = bind(&out).scale(1.12f).offset(-0.12f).value();
+  for (float u : {-1.0f, 0.0f, 0.31f, 0.5f, 0.99f, 1.0f, 2.5f})
+    EXPECT_EQ(pulse.apply(u), -0.12f + u * 1.12f);
+
+  // ScenesSkillTree.h:226 / ScenesVeloren.h — the looping phase,
+  // fmod(t * k, 1): scale into cycles, wrap at 1. Positive schedules are
+  // fmod bit-for-bit (both are exact operations on the same product).
+  const BoundFloat ring = bind(&out).scale(0.5f).wrap(1.0f).value();
+  for (float t : {0.0f, 0.7f, 1.9f, 2.0f, 13.37f, 400.25f})
+    EXPECT_EQ(ring.apply(t), std::fmod(t * 0.5f, 1.0f));
+
+  // ScenesVeloren.h's inverted sawtooth family: invert() IS 1 − v.
+  const BoundFloat rev = bind(&out).invert().value();
+  for (float v : {0.0f, 0.25f, 0.61f, 1.0f})
+    EXPECT_EQ(rev.apply(v), 1.0f - v);
+
+  // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom (eva_magi's
+  // frontAt, ScenesVeloren's beat windows). The normalisation is stored
+  // as one multiply-add, so bit-identity holds on a dyadic grid where
+  // both spellings are exact; off it they agree to float noise.
+  const BoundFloat win = bind(&out).window(0.25f, 0.75f).value();
+  for (int i = -8; i <= 72; ++i) {
+    const float t = (float)i / 64.0f;
+    EXPECT_EQ(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f));
+  }
+  for (float t : {0.311f, 0.5002f, 0.7309f})
+    EXPECT_NEAR(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f),
+                1e-6f);
+}
+
+TEST(AnimationValues, QuantizeTimeIsTheCanonicalFloorArithmetic) {
+  // motion::quantizeTime — the ONE definition behind Material's uTime
+  // stepping and the corpus's hand-rolled floor(t*N)/N (ScenesPersona's
+  // 6 Hz caustics, ScenesAero's 8 Hz breathing, ksp's instrument
+  // sampling). Bit-exact against the hand-rolled spelling in BOTH
+  // precisions, because each call site keeps its own.
+  for (double t : {0.0, 0.081, 1.0 / 6.0, 2.499999, 13.37, 1000.05}) {
+    EXPECT_EQ(quantizeTime(t, 6.0), std::floor(t * 6.0) / 6.0);
+    EXPECT_EQ(quantizeTime(t, 8.0), std::floor(t * 8.0) / 8.0);
+    const float ft = (float)t;
+    EXPECT_EQ(quantizeTime(ft, 8.0f), std::floor(ft * 8.0f) / 8.0f);
+  }
+  // hz <= 0 answers the input unchanged — "continuous", matching
+  // Material::quantizeTime(0).
+  EXPECT_EQ(quantizeTime(1.234, 0.0), 1.234);
+  EXPECT_EQ(quantizeTime(1.234, -5.0), 1.234);
+  // …and the value HOLDS between steps, which is the whole point.
+  EXPECT_EQ(quantizeTime(0.10, 6.0), quantizeTime(0.16, 6.0));
+  EXPECT_NE(quantizeTime(0.16, 6.0), quantizeTime(0.17, 6.0));
+}
+
+TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
+  // THE STEPPING-ORDER PIN (ROADMAP §43.3 ruling (a)). The derivation is
+  // registered FIRST and its source's writer SECOND — the arrangement
+  // that reads one frame stale under any single-phase step that honours
+  // registration order. The two-phase contract (sources, then
+  // derivations) makes the answer current regardless of order.
+  Ticker ticker;
+  ch::Output<float> src{0.0f}, dst{0.0f};
+  ASSERT_TRUE(ticker.derive(&dst, bind(&src).offset(-0.25f)));
+  double t = 0.0;
+  ticker.add([&](double dt) {
+    t += dt;
+    src = (float)t;
+    return true;
+  });
+
+  ticker.tick(0.5);
+  EXPECT_FLOAT_EQ(src.value(), 0.5f);
+  EXPECT_FLOAT_EQ(dst.value(), 0.25f)
+      << "the derivation read LAST frame's source — the two-phase step "
+         "contract is broken";
+  ticker.tick(0.25);
+  EXPECT_FLOAT_EQ(dst.value(), 0.5f);
+
+  // The same contract for a TIMELINE-driven source: the timeline steps in
+  // phase one too.
+  Ticker ticker2;
+  ch::Output<float> ramped{0.0f}, shadow{0.0f};
+  ASSERT_TRUE(ticker2.derive(&shadow, bind(&ramped).scale(2.0f)));
+  ticker2.timeline().apply(&ramped).then<ch::RampTo>(1.0f, 1.0f);
+  ticker2.tick(0.5);
+  EXPECT_NEAR(ramped.value(), 0.5f, 1e-4f);
+  EXPECT_FLOAT_EQ(shadow.value(), ramped.value() * 2.0f);
+
+  // …and registration is applied immediately, so a derived cell is
+  // correct BEFORE the first tick.
+  Ticker ticker3;
+  ch::Output<float> held{3.0f}, doubled{0.0f};
+  ASSERT_TRUE(ticker3.derive(&doubled, bind(&held).scale(2.0f)));
+  EXPECT_FLOAT_EQ(doubled.value(), 6.0f);
+}
+
+TEST(TickerTest, DeriveEnforcesTheOneLevelRuleLoudly) {
+  Ticker ticker;
+  ch::Output<float> a{1.0f}, b{0.0f}, c{0.0f}, x{0.0f};
+  ASSERT_TRUE(ticker.derive(&b, bind(&a).scale(2.0f)));
+
+  // A derivation of a derivation is REFUSED (in either registration
+  // order), not silently one frame late — §40/§42's standing lesson.
+  EXPECT_FALSE(ticker.derive(&c, bind(&b).offset(1.0f)))
+      << "derive-of-derive must refuse: phase two has no topological order";
+  EXPECT_FALSE(ticker.derive(&a, bind(&x).offset(1.0f)))
+      << "writing an Output that FEEDS a derivation chains two levels the "
+         "other way round";
+  // Two writers of one destination, and self-derivation.
+  EXPECT_FALSE(ticker.derive(&b, bind(&x).offset(1.0f)));
+  EXPECT_FALSE(ticker.derive(&x, bind(&x).offset(1.0f)));
+  // Degenerate registrations.
+  EXPECT_FALSE(ticker.derive(nullptr, bind(&a)));
+  EXPECT_FALSE(ticker.derive(&c, bind(nullptr)));
+
+  // The refused chains never write: after a tick, c and x hold their own
+  // values and the ACCEPTED derivation still runs.
+  ticker.tick(0.1);
+  EXPECT_FLOAT_EQ(b.value(), 2.0f);
+  EXPECT_FLOAT_EQ(c.value(), 0.0f);
+  EXPECT_FLOAT_EQ(x.value(), 0.0f);
+}
+
+TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
+  // A derived Output is an ORDINARY Output: the whole point. bind() it,
+  // wiggle() off it, hand it to any Output*-typed consumer.
+  Ticker ticker;
+  ch::Output<float> phase{0.0f}, trail{0.0f};
+  ticker.timeline().apply(&phase).then<ch::RampTo>(1.0f, 1.0f);
+  ASSERT_TRUE(ticker.derive(&trail, bind(&phase).offset(-0.25f).clamp(0, 1)));
+
+  const BoundFloat px = bind(&trail).target(0.0f, 240.0f).value();
+  const BoundFloat shake = wiggle(&trail, 3.0f, 7.0f, 2).value();
+  EXPECT_EQ(shake.source, &trail);
+
+  ticker.tick(0.5);
+  EXPECT_FLOAT_EQ(trail.value(), 0.25f);
+  EXPECT_FLOAT_EQ(px.apply(trail.value()), 60.0f);
+  EXPECT_LE(std::fabs(shake.apply(trail.value())), 3.0f + 1e-3f);
+
+  // Derivations are pure in their sources, so they do NOT hold active()
+  // true: when nothing else moves, nothing they read can move. A ticker
+  // whose only tenant is a derivation settles, and hosts stay
+  // event-driven.
+  ticker.tick(0.6); // the ramp finishes and self-removes
+  EXPECT_FLOAT_EQ(trail.value(), 0.75f);
+  EXPECT_FALSE(ticker.active())
+      << "a derivation must not keep the host rendering forever";
+  // …but a tick still refreshes it (a host may write the source by hand).
+  phase = 0.5f;
+  ticker.tick(0.0);
+  EXPECT_FLOAT_EQ(trail.value(), 0.25f);
+}
+
 TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {
   // The pin: the clock half and the value half of SigilMotion, working
   // together, with nothing else linked. A choreograph Output rides the

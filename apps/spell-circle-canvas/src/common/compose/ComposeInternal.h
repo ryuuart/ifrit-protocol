@@ -445,10 +445,10 @@ inline auto fields(MotionPath &v) {
 inline auto fields(BoundFloat &v) {
   auto &[source, inScale, inOffset, curve, clampInput, steps, scale, offset,
          clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
-         wiggleOctaves, wiggleFalloff] = v;
+         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
   return std::tie(source, inScale, inOffset, curve, clampInput, steps, scale,
                   offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
-                  wiggleSeed, wiggleOctaves, wiggleFalloff);
+                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
 }
 inline auto fields(Transition &v) {
   auto &[duration, ease, delay] = v;

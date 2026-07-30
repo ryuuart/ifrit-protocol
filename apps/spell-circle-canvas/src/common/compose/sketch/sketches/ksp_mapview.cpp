@@ -1842,7 +1842,7 @@ struct KspMapView : sigil::compose::sketch::Sketch {
       dashFast = -ft * 22.0f;
       dashSlow = -ft * 14.0f;
       // discretised "instrument sampling": the hub glow steps at 8 Hz
-      const float qt = std::floor(ft * 8.0f) / 8.0f;
+      const float qt = quantizeTime(ft, 8.0f);
       hubGlow = 6.0f + 3.4f * (0.5f + 0.5f * std::sin(qt * 4.4f));
       armPulse = 1.0f + 0.055f * std::sin(ft * 3.5f);
       // 6–9 Hz summed-sine jitter on the arm being "dragged"

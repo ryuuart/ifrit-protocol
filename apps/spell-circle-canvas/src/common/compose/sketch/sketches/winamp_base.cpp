@@ -1432,6 +1432,8 @@ struct WinampBase : sigil::compose::sketch::Sketch {
 
     // ---- the analyser: hard 12 Hz steps, no easing anywhere ------------
     if (t >= 3.2) {
+      // A step INDEX (edge detector against lastRoll), not a requantized
+      // time — deliberately not motion::quantizeTime, which re-emits t.
       const double stepT = std::floor(t * 12.0);
       if (stepT != lastRoll) {
         lastRoll = stepT;
