@@ -1527,6 +1527,9 @@ struct Effect {
   static Effect directionalBlur(float sigma,      // the smear: sigma ALONG
                                 float angleDeg,   // the axis at angleDeg,
                                 float across = 0);// `across` perpendicular
+  static Effect blur(Material sigmaMap,           // the blur whose sigma is
+                     float maxSigma);             // a FUNCTION OF POSITION
+  Effect &child(std::string name, Material src);  // a `uniform shader` slot
 };                                       // optional isAnimated()
 // `isAnimated()` is THE word — everywhere a scheme, an effect or a
 // Material declares volatility. R3 deleted the other four spellings
@@ -1555,6 +1558,39 @@ an animated smear angle rides the same live channel as a shader
 uniform (an unknown name warns and is ignored, Material's guardrail).
 It is a spatial filter, not motion blur — motion blur itself is
 refused, §43.7.
+
+`Effect::child(name, Material)` is `Material::child` on this seam, and
+that is the whole of it: same name, same warn-and-ignore guardrails,
+same tier inheritance (a live child makes the effect `isAnimated()`, by
+calling Material's own recursion), same prune-signature participation.
+`Effect::shader` fills exactly ONE child — `"content"`, the node's
+rendered layer — so a second declared `uniform shader` had nothing to
+bind it; now a Material fills it, resolved against THIS node's box, so
+unit-space authoring (`linearUnit`, `glowUnit`) works here as it does on
+a fill. A `filter()` has no child to fill, exactly as it has no uniform.
+
+`Effect::blur(sigmaMap, maxSigma)` is what that channel is FOR
+(ROADMAP §19: a depth-of-field falloff, a lens edge, a tube's
+curvature had no spelling): the sigma map is a Material read as a
+NUMBER — red channel × `maxSigma` is the radius at that pixel — so the
+whole falloff is one unit-space ramp. `"maxSigma"` binds on the same
+live channel; `child("sigma", other)` re-aims the map. HOW the library
+spends that is deliberately not in the signature: a variable-sigma SkSL
+kernel is not separable and must size its loop for the worst radius in
+the node, and MEASURED (compose_bench, `VaryingBlur` arms, Release) it
+costs 15× more when sigma quadruples where this costs 1.3×:
+
+| arm (varying sigma)     | CPU raster 96² | Graphite 256² |
+|-------------------------|---------------:|--------------:|
+| pyramid, σmax 6         |       0.80 ms  |      0.66 ms  |
+| naive kernel, σmax 6    |        167 ms  |      1.95 ms  |
+| pyramid, σmax 24        |       1.04 ms  |      0.84 ms  |
+| naive kernel, σmax 24   |       2521 ms  |      17.1 ms  |
+| constant σ 24 (no vary) |       0.45 ms  |      0.60 ms  |
+
+The last row is the floor: giving up on varying the parameter. The
+feature costs ~2.3× that on CPU and ~1.4× on the GPU, against 20–2400×
+for the kernel that produces the same picture by hand.
 
 Concrete looks are data built from these plus what already exists —
 composed in user code or the stress-test catalog, not enumerated in the
@@ -1803,7 +1839,15 @@ Effect::shader(fx, {{"uThreshold", 0.6f}})   // constants, as ever
 Effect::directionalBlur(18, 0)               // same channel, same words:
     .uniform("angle", &angle);               // the sandwich rebuilds per
                                              // paint from the bound value
+Effect::blur(focalRamp, 0)                   // …and a rack focus is the
+    .uniform("maxSigma", &focus);            // SAME channel again (§19)
 ```
+
+A parameter Material is live the other way round too: `Effect::blur(map,
+14)` where `map` carries a bound uniform makes the EFFECT
+`isAnimated()` — tier inheritance, so a bake can never sample the
+parameter once and freeze it (the §41 frozen-matte failure class,
+forbidden by construction here).
 
 A static shader effect compares by RECIPE (runtime-effect pointer +
 constant uniforms), so holding one `SkRuntimeEffect` process-wide and

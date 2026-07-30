@@ -1422,13 +1422,33 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                          : gateOutline(fullOutline, *marksShow);
   const bool trimmed = cut;
 
+  // The MARKS' boundary is what a decoration receives: every decoration
+  // dresses the outline, and a spans gate over the marks is a cut of that
+  // outline. The surface keeps its own (they are the same path, and the
+  // same object, whenever one mask gates both — the common case).
+  //
+  // Built BEFORE the effect's saveLayer because an effect's child Material
+  // (§19) resolves against it — the node's box, the node's clock, exactly
+  // what Material::child hands a fill's children.
+  const PaintContext paintCtx{{bounds.width(), bounds.height()},
+                              std::move(marksPath),
+                              elapsed(),
+                              contentScale,
+                              ticker.active(),
+                              &fonts,
+                              inst.borrowedPaths.empty()
+                                  ? nullptr
+                                  : &inst.borrowedPaths,
+                              &inst.stampCache};
+
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
-  // effect (bound uniforms, §11) resolves here per paint — computeVolatile
-  // declared the node volatile, so this recording is never cached stale.
+  // effect (bound uniforms, a live child material, §11/§19) resolves here
+  // per paint — computeVolatile declared the node volatile, so this
+  // recording is never cached stale.
   const Effect *layerFx = layerEffectOf(node);
   const sk_sp<SkImageFilter> layerFilter =
-      layerFx ? layerFx->resolvedImageFilter() : nullptr;
+      layerFx ? layerFx->resolvedImageFilter(&paintCtx) : nullptr;
   const bool hasEffect = (bool)layerFilter;
   if (hasEffect) {
     SkPaint effectPaint;
@@ -1440,20 +1460,6 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
     const SkRect content = recordBounds(inst);
     canvas.saveLayer(&content, &effectPaint);
   }
-  // The MARKS' boundary is what a decoration receives: every decoration
-  // dresses the outline, and a spans gate over the marks is a cut of that
-  // outline. The surface keeps its own (they are the same path, and the
-  // same object, whenever one mask gates both — the common case).
-  const PaintContext paintCtx{{bounds.width(), bounds.height()},
-                              std::move(marksPath),
-                              elapsed(),
-                              contentScale,
-                              ticker.active(),
-                              &fonts,
-                              inst.borrowedPaths.empty()
-                                  ? nullptr
-                                  : &inst.borrowedPaths,
-                              &inst.stampCache};
 
   // ---- the masking family, part 2: the PLANE gates ------------------------
   //
@@ -2121,9 +2127,24 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     canvas.translate(-origin.x(), -origin.y());
   }
 
-  const sk_sp<SkImageFilter> backdropFilter =
-      backdropEffectOf(node) ? backdropEffectOf(node)->resolvedImageFilter()
-                             : nullptr;
+  const Effect *backdropFx = backdropEffectOf(node);
+  sk_sp<SkImageFilter> backdropFilter;
+  if (backdropFx) {
+    // A backdrop effect's child materials (§19) resolve against the node's
+    // box too — the same context the node's own paint builds, minus the
+    // marks outline (nothing of the node has been painted yet). Built
+    // INSIDE the branch: every node reaches this line and only a few carry
+    // a backdrop.
+    const PaintContext backdropCtx{{rect.width(), rect.height()},
+                                   SkPath(),
+                                   elapsed(),
+                                   hostScale,
+                                   ticker.active(),
+                                   &fonts,
+                                   nullptr,
+                                   &inst.stampCache};
+    backdropFilter = backdropFx->resolvedImageFilter(&backdropCtx);
+  }
   const bool hasBackdrop = (bool)backdropFilter;
   if (hasBackdrop) {
     // The filtered backdrop composites as a CLOSED pass clipped to the

@@ -389,6 +389,141 @@ Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
   return e;
 }
 
+namespace {
+/** THE PYRAMID (§19's cost model), and the whole of blur()'s recipe: a
+ *  small fixed number of CONSTANT-sigma blurs of the layer, blended by the
+ *  parameter. Skia's Gaussian is separable and its cost is a function of
+ *  sigma; a spatially-varying sigma is NOT separable, so an author-written
+ *  kernel pays the worst radius at every pixel. Three fixed levels
+ *  (0, maxSigma/2, maxSigma) plus one mix pass is a constant number of
+ *  full-resolution passes no matter how wide the range gets.
+ *
+ *  Branch-free because both nested mixes are exact at the level sigmas:
+ *  t=0 → level0, t=1 → level1, t=2 → level2, and linear in sigma between.
+ *  The level COUNT is deliberately not in the API — see Effect::blur. */
+sk_sp<SkRuntimeEffect> paramBlurMix() {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader level0;"
+                 "uniform shader level1;"
+                 "uniform shader level2;"
+                 "uniform shader param;"
+                 "half4 main(float2 p) {"
+                 "  float t = clamp(param.eval(p).r, 0.0, 1.0) * 2.0;"
+                 "  half4 lo = mix(level0.eval(p), level1.eval(p),"
+                 "                 half(clamp(t, 0.0, 1.0)));"
+                 "  return mix(lo, level2.eval(p),"
+                 "             half(clamp(t - 1.0, 0.0, 1.0)));"
+                 "}"));
+    if (!effect)
+      SkDebugf("[compose] Effect::blur: mix shader failed: %s\n",
+               error.c_str());
+    return effect;
+  }();
+  return fx;
+}
+
+/** blur()'s filter DAG. The intermediates are per-draw image-filter
+ *  surfaces inside the effect's ONE saveLayer — the same place every
+ *  effect intermediate already lives — so there is nothing new to
+ *  invalidate. A null input means "the source", which is level 0. */
+sk_sp<SkImageFilter> makeParamBlur(float maxSigma, sk_sp<SkShader> sigmaMap) {
+  const sk_sp<SkRuntimeEffect> fx = paramBlurMix();
+  if (!sigmaMap || !fx || !(maxSigma > 0)) {
+    // No map or no SkSL: the honest fallback is the constant blur the
+    // parameter would have modulated, which is also what maxSigma == 0
+    // means (no blur anywhere).
+    return maxSigma > 0 ? SkImageFilters::Blur(maxSigma, maxSigma, nullptr)
+                        : nullptr;
+  }
+  SkRuntimeShaderBuilder b(fx);
+  b.child("param") = std::move(sigmaMap);
+  std::string_view names[3] = {"level0", "level1", "level2"};
+  const sk_sp<SkImageFilter> inputs[3] = {
+      nullptr, // level 0 IS the layer, unblurred
+      SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr),
+      SkImageFilters::Blur(maxSigma, maxSigma, nullptr)};
+  return SkImageFilters::RuntimeShader(b, names, inputs, 3);
+}
+} // namespace
+
+Effect Effect::blur(Material sigmaMap, float maxSigma) {
+  Effect e;
+  e.m_paramBlur = ParamBlur{maxSigma};
+  e.m_children.emplace_back(
+      "sigma", std::make_shared<const Material>(std::move(sigmaMap)));
+  // The static snapshot, built context-free exactly as Material::child
+  // refreshes m_shader at store time; a context-needing map rebuilds this
+  // per paint in resolvedImageFilter().
+  e.m_filter = e.buildFilter(nullptr);
+  return e;
+}
+
+Effect &Effect::child(std::string name, Material source) {
+  // Which names this effect kind can fill — Material::child's structure,
+  // one branch per kind, warn-and-ignore everywhere else.
+  if (m_paramBlur) {
+    if (name != "sigma") {
+      SkDebugf("[compose] Effect::child(\"%s\") on a blur() — its one child "
+               "is \"sigma\", the map; ignored\n",
+               name.c_str());
+      return *this;
+    }
+  } else if (m_effect) {
+    if (name == "content") {
+      SkDebugf("[compose] Effect::child(\"content\"): ignored — \"content\" "
+               "is the node's own rendered layer, filled by the library\n");
+      return *this;
+    }
+    if (!detail::declaresShaderChild(m_effect, name)) {
+      SkDebugf("[compose] Effect::child: \"%s\" is not declared by the effect "
+               "as `uniform shader` — ignored\n",
+               name.c_str());
+      return *this;
+    }
+  } else {
+    SkDebugf("[compose] Effect::child(\"%s\"): ignored — this effect has no "
+             "shader children to fill (only shader() and blur() do)\n",
+             name.c_str());
+    return *this;
+  }
+  auto held = std::make_shared<const Material>(std::move(source));
+  // Last write wins on a name, like Material::child: re-filling a slot
+  // replaces rather than stacking two entries the builder would both
+  // assign.
+  bool replaced = false;
+  for (auto &slot : m_children)
+    if (slot.first == name) {
+      slot.second = std::move(held);
+      replaced = true;
+      break;
+    }
+  if (!replaced)
+    m_children.emplace_back(std::move(name), std::move(held));
+  // Refresh the static snapshot (Material::child does the same). Note this
+  // must be an UNCONDITIONAL rebuild: resolvedImageFilter(nullptr) would
+  // hand back the snapshot it is meant to replace, and a STATIC child on a
+  // shader() effect — one the paint path has no reason to re-resolve —
+  // would then never reach the filter at all.
+  m_filter = buildFilter(nullptr);
+  return *this;
+}
+
+bool Effect::anyChildNeedsContext() const {
+  for (const auto &[name, child] : m_children)
+    if (child && (child->isAnimated() || child->geometryDependent()))
+      return true;
+  return false;
+}
+
+sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
+                                      const PaintContext *ctx) const {
+  for (const auto &[slot, child] : m_children)
+    if (slot == name)
+      return child ? detail::childShader(*child, ctx) : nullptr;
+  return nullptr;
+}
+
 Effect &Effect::uniform(std::string name,
                         const choreograph::Output<float> *value) {
   if (m_dirBlur && value) {
@@ -398,6 +533,17 @@ Effect &Effect::uniform(std::string name,
     if (name != "sigma" && name != "angle" && name != "across") {
       SkDebugf("[compose] Effect::uniform(\"%s\") on a directionalBlur() — "
                "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
+               name.c_str());
+      return *this;
+    }
+    m_bound.emplace_back(std::move(name), value);
+    return *this;
+  }
+  if (m_paramBlur && value) {
+    if (name != "maxSigma") {
+      SkDebugf("[compose] Effect::uniform(\"%s\") on a blur() — its one "
+               "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
+               "Material)); ignored\n",
                name.c_str());
       return *this;
     }
@@ -427,12 +573,30 @@ Effect Effect::then(const Effect &next) const {
   return e;
 }
 
-sk_sp<SkImageFilter> Effect::resolvedImageFilter() const {
+sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintContext *ctx) const {
   if (m_chainA)
-    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(),
-                                   m_chainA->resolvedImageFilter());
-  if (m_bound.empty())
+    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(ctx),
+                                   m_chainA->resolvedImageFilter(ctx));
+  // A context-needing child (live or geometry tier) has to be re-resolved
+  // per paint; a static one is already in the snapshot. Same question
+  // Material::build's memo asks of its children, same answer.
+  if (m_bound.empty() && !(ctx && anyChildNeedsContext()))
     return m_filter;
+  return buildFilter(ctx);
+}
+
+/** THE FILTER, built from the recipe — unconditionally, which is what
+ *  separates it from resolvedImageFilter(): the store-time snapshot and the
+ *  per-paint resolve are the SAME construction differing only in whether
+ *  there is a context, exactly as Material::build(live, ctx) is. */
+sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext *ctx) const {
+  if (m_paramBlur) { // rebuild the pyramid from the parameter and the map
+    float maxSigma = m_paramBlur->maxSigma;
+    for (const auto &[name, out] : m_bound)
+      if (name == "maxSigma")
+        maxSigma = out->value();
+    return makeParamBlur(maxSigma, childShaderFor("sigma", ctx));
+  }
   if (m_dirBlur) { // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_dirBlur;
     for (const auto &[name, out] : m_bound) {
@@ -452,16 +616,64 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter() const {
     builder.uniform(name.c_str()) = value;
   for (const auto &[name, out] : m_bound)
     builder.uniform(name.c_str()) = out->value();
+  // The child slots, against the painting node's box (Material::child's
+  // contract: a child sees the SAME PaintContext, because there is one
+  // node). "content" is the library's and is filled by the factory below.
+  for (const auto &[name, child] : m_children)
+    if (child)
+      builder.child(name.c_str()) = detail::childShader(*child, ctx);
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
+}
+
+bool Effect::isAnimated() const {
+  if (!m_bound.empty())
+    return true;
+  // TIER INHERITANCE (§10f's rule, its own recursion — Material answers
+  // for its whole subtree): a live child makes the effect live, so the
+  // node is declared volatile and no bake can sample the parameter once
+  // and freeze it.
+  for (const auto &[name, child] : m_children)
+    if (child && child->isAnimated())
+      return true;
+  return m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated());
+}
+
+/** Children compare by VALUE (Material::operator==, recursive) — the same
+ *  rule §10f pinned for material children: anything read live that did not
+ *  participate in reconciler equality would leave a pruned node sampling
+ *  last frame's parameter forever. */
+static bool childrenEqual(
+    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
+        &a,
+    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
+        &b) {
+  if (a.size() != b.size())
+    return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i].first != b[i].first)
+      return false;
+    if (!a[i].second || !b[i].second) {
+      if (a[i].second != b[i].second)
+        return false;
+      continue;
+    }
+    if (!(*a[i].second == *b[i].second))
+      return false;
+  }
+  return true;
 }
 
 bool Effect::operator==(const Effect &o) const {
   if (isAnimated() || o.isAnimated())
     return false; // live never prunes — the material rule
+  if (m_paramBlur || o.m_paramBlur) // blur(): by RECIPE + the sigma MAP
+    return m_paramBlur == o.m_paramBlur &&
+           childrenEqual(m_children, o.m_children);
   if (m_dirBlur || o.m_dirBlur) // directionalBlur(): by RECIPE, so a
     return m_dirBlur == o.m_dirBlur; // re-described equal one prunes
   if (m_effect || o.m_effect)
-    return m_effect == o.m_effect && m_uniforms == o.m_uniforms;
+    return m_effect == o.m_effect && m_uniforms == o.m_uniforms &&
+           childrenEqual(m_children, o.m_children);
   return m_filter == o.m_filter; // filter(): pointer identity, as ever
 }
 

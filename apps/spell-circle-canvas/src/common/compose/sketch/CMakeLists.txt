@@ -61,6 +61,7 @@ set(SIGIL_SKETCH_STUDIES
   # One sketch per API — legible over pretty. Each is a place to stand:
   # small, single-purpose, and captioned with the call that made it.
   travel_path wiggle_shake env_theme material_child matte_luma pop_lanes
+  blur_falloff
 )
 set(sigil_study_sources "")
 foreach(study IN LISTS SIGIL_SKETCH_STUDIES)

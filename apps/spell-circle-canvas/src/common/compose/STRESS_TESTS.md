@@ -466,3 +466,31 @@ this arc, −75% total); the size guard tightens to 768 B. Describe
 benches hold/improve (unchanged 26.3 µs, cold 250 µs). Behavior pinned
 by the capture diff: 29/29 CPU scenes byte-identical (modulo the
 intentional y2k sliver fix).
+
+**Spatially-varying blur (2026-07-30, ROADMAP §19):**
+`Effect::blur(sigmaMap, maxSigma)` against the workaround it replaces —
+`compose_bench --benchmark_filter='VaryingBlur'`, Release, quiet
+machine, same node and same map in every arm. The NAIVE arm is the only
+other way to get the picture: one SkSL pass whose loop bound is a
+compile-time constant (SkSL has no cheap dynamic bound), so it is
+`(2·3σ+1)²` taps at every pixel, non-separable because sigma varies per
+pixel. The last row is the FLOOR — a constant blur, which does not vary
+at all — i.e. what giving up costs.
+
+| arm | CPU raster 96² | Graphite 256² (median of 3) |
+|---|---:|---:|
+| pyramid, σmax 6 | 0.80 ms | 0.66 ms |
+| naive kernel, σmax 6 | 167 ms | 1.95 ms |
+| pyramid, σmax 24 | 1.04 ms | 0.84 ms |
+| naive kernel, σmax 24 | 2521 ms | 17.1 ms |
+| constant σ 24 (no variation) | 0.45 ms | 0.60 ms |
+
+Quadrupling sigma costs the kernel **15.1× (CPU) / 8.8× (GPU)** — the
+CPU figure is its tap ratio (21025/1369 = 15.4×) almost exactly — and
+costs the pyramid **1.3× / 1.26×**. So the design's "O(1) in the sigma
+range" was too strong and is restated: the pyramid costs what two Skia
+blurs and a mix cost, which is sublinear in sigma, against ~σ² for the
+kernel. Overhead against giving up: 2.3× (CPU) / 1.4× (GPU) at σmax 24.
+The Graphite arms submit with `SyncToCpu::kYes`; without it the most
+expensive shader measures as the cheapest, because its queue never
+drains inside the loop.

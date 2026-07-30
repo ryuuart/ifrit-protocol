@@ -1628,7 +1628,7 @@ thunder_fulu 0.48%, all at **maxDelta ≤ 2**, the one-less-requantisation
 direction the entry called "slightly more accurate"; the other three
 movers are the documented flappers. Baseline rebased. 450/450.
 
-## 19. Materials and effects have no spatially-varying parameter channel
+## 19. Materials and effects have no spatially-varying parameter channel — **EFFECT HALF CLOSED 2026-07-30, MEASURED; the world-space material half stays open**
 
 **Two independent citations, from a film UI and an anime UI**, for the
 same shape of gap — which is what promotes it out of a note under §10c.
@@ -1727,6 +1727,165 @@ carries a comparable parameter recipe with §11-bound uniforms
 rebuilding a filter DAG per paint, which is exactly the shape
 `Effect::blur(Material, maxSigma)` needs with a Material child added.
 The entry stays OPEN, narrowed to that build.
+
+### CLOSED 2026-07-30 (effect half) — built to the design, and MEASURED
+
+**What unblocked it:** the design named one dependency — "caching the
+blurred levels across frames would need §16's bake cache" — and §16 turned
+out to have been closed already, the citation was reading a stale header
+comment (see §16's 2026-07-30 reconciliation). Nothing else in the design
+was waiting on anything, so this is the build.
+
+**The surface is two calls, and the first is a mirror.**
+
+```cpp
+Effect &child(std::string name, Material source);   // Material::child, here
+static Effect blur(Material sigmaMap, float maxSigma);
+```
+
+```cpp
+// a depth of field, over a box the layout decides:
+.effect(Effect::blur(Material::linearUnit({0,0}, {0,1},
+                        {{0, white}, {0.42f, black}, {1, white}}), 14))
+// a lens edge:      .effect(Effect::blur(Material::glowUnit(
+//                       {0.5f,0.5f}, 1, {{0, black}, {1, white}}), 14))
+// a rack focus:     .effect(Effect::blur(map, 0).uniform("maxSigma", &focus))
+// the general door:  Effect::shader(fx).child("param", anyMaterial)
+```
+
+`Effect::child` mirrors `Material::child` in name, parameter list, return
+type, last-write-wins slot semantics, warn-and-ignore guardrails, tier
+inheritance and prune participation. Two divergences, both forced and both
+invisible at the surface: (1) the storage is
+`shared_ptr<const Material>` because `Material.h` includes `Compose.h`, so
+`Effect` can only forward-declare `Material` — the surface still takes one
+BY VALUE, and a copied Effect replaces the pointer rather than mutating a
+shared child; (2) `"content"` is refused by name on an effect (it is the
+node's own layer, filled by the library), which has no analogue on a
+material because a material has no layer. Everything else is the same code
+or the same words: `detail::childShader` (the Material→SkShader conversion)
+and `detail::declaresShaderChild` (the validation) are now ONE definition
+each with three and two callers — §10f's build loop and blend fold route
+through the first, both `child()` doors through the second.
+
+**Tier inheritance composes rather than repeating**: `Effect::isAnimated()`
+calls `Material::isAnimated()`, which already recurses through material
+children — so a live parameter lifts the effect, the node is declared
+volatile at the existing `Paint.cpp` seam, and a bake CANNOT sample the map
+once and freeze it. `Effect::blur` rides `directionalBlur`'s chassis: a
+comparable recipe (`ParamBlur{maxSigma}`) plus the map in the same child
+vector, so equality, the tier walk and the resolve loop are each one loop
+over one vector, and `child("sigma", other)` re-aims the map for free.
+
+**THE MEASUREMENT — the design's O(1) claim was an estimate; here are the
+numbers.** `compose_bench`, Release, quiet machine, `VaryingBlur` arms.
+Three arms on the same node, same map: the library pyramid; the NAIVE
+kernel that produces the same picture by hand (one SkSL pass, loop bound
+sized for the worst sigma in the node, `R = 3σ`, non-separable because
+sigma varies per pixel); and a constant-sigma `Blur(σ,σ)` as the honest
+FLOOR — it does not produce the picture, but it is what an author reaches
+for when they give up. Graphite arms submit with `SyncToCpu::kYes` (the
+first draft did not, and the most expensive shader looked like the
+cheapest because its queue never drained — noted in the bench).
+
+| arm                     | CPU raster 96² | Graphite 256² (median of 3) |
+|-------------------------|---------------:|----------------------------:|
+| pyramid, σmax 6         |        0.80 ms |                     0.66 ms |
+| naive kernel, σmax 6    |         167 ms |                     1.95 ms |
+| pyramid, σmax 24        |        1.04 ms |                     0.84 ms |
+| naive kernel, σmax 24   |        2521 ms |                     17.1 ms |
+| constant σ 24, no vary  |        0.45 ms |                     0.60 ms |
+
+- **The pyramid wins by 208× (CPU) / 3.0× (GPU) at σmax 6, and by 2424×
+  (CPU) / 20× (GPU) at σmax 24.**
+- **The SCALING claim survives, restated honestly.** Quadrupling sigma
+  costs the naive kernel 15.1× (CPU) / 8.8× (GPU) — the CPU figure is the
+  tap ratio 21025/1369 = 15.4× almost exactly, so that arm is doing what
+  the entry said it does. It costs the pyramid 1.3× (CPU) / 1.26× (GPU).
+  That is not literally O(1): two of the three levels ARE sigma-dependent
+  Skia blurs, and Skia's own Gaussian is sublinear in sigma (it downsamples
+  for wide radii), not free. "O(1) in the sigma range" was too strong; the
+  measured statement is *the pyramid costs what two Skia blurs and a mix
+  cost, which grows ~1.3× per 4× of sigma, against ~σ² for the kernel.*
+- **The overhead against giving up** is 2.3× (CPU) / 1.4× (GPU) at σmax 24.
+  The GPU numbers include a ~0.6 ms submit-and-wait floor common to every
+  arm; net of it the pyramid's own GPU work at σmax 24 is ~0.24 ms against
+  the kernel's ~16.5 ms.
+
+**PINS, each with its positive control run and the file restored (mtime
+stamped).** Debug, the named test fails exactly as stated:
+
+1. **FIELD PIN** — `Effect` gained two members (`m_paramBlur`,
+   `m_children`); the in-class `fieldPin` decomposition made that a BUILD
+   FAILURE until ruled on in `operator==`. Control: a 10th member added →
+   `error: type 'Effect' decomposes into 10 elements, but only 9 names were
+   provided`.
+2. **Tier inheritance** — drop the child loop from `Effect::isAnimated()` →
+   `ALiveSigmaMapMakesTheWholeEffectLive` fails (the parameter freezes) and
+   `AnUndeclaredEffectChildIsIgnoredNotBound`'s controls fail with it.
+3. **The prune signature** — drop `childrenEqual` from the blur branch of
+   `operator==` → `AStaticParamBlurPrunesByRecipeAndByItsMap` fails on
+   "the sigma map must ride the prune signature".
+4. **The node-box context** — resolve the effect with a null PaintContext
+   instead of the node's → all three pixel tests fail, because a
+   unit-space map with no box is not the map that was authored. This is
+   also the ALIGNMENT pin: the fixture node sits at (40, 40), so a map
+   reading layer or canvas coordinates would shift its falloff by a third
+   of the box and the assertions would not hold.
+5. **The guardrail** — remove `declaresShaderChild`'s check from
+   `Effect::child` → `AnUndeclaredEffectChildIsIgnoredNotBound` fails (an
+   ignored child that silently declares volatility is the failure).
+6. **The store-time snapshot** — a BUG FOUND BY REVIEW, not by a test, and
+   then pinned. `child()` first refreshed `m_filter` through
+   `resolvedImageFilter(nullptr)`, which early-outs by returning the very
+   snapshot it was meant to replace — so a STATIC child on a `shader()`
+   effect (one the paint path has no reason to re-resolve) never reached
+   the filter at all. Every test in the entry used a unit ramp, which is
+   geometry-tier and therefore rebuilt per paint, so all of them passed
+   over it. The fix is one construction — `buildFilter(ctx)`, called
+   unconditionally by `child()`/`blur()` and behind the early-out by
+   `resolvedImageFilter()`, exactly `Material::build(live, ctx)`'s shape —
+   and the pin is a solid-material child arm in
+   `AnEffectChildFillsASecondDeclaredShaderSlot`; the control restores the
+   old line and it fails.
+
+**THE PIXEL PIN** is `AParameterMapVariesTheBlurAcrossTheNode`: 8px stripes
+in a 120² node, stripe contrast measured at three points across the
+falloff — 190 sharp / 122 mid / 9 soft (monotonic), a picture no constant
+sigma can produce. Both controls run: a constant blur at the same sigma
+washes the sharp end too (contrast 12), and no blur at all leaves the soft
+end sharp (255). Six tests total, all in `ComposeEffects`.
+
+**Tests: `compose_test` 518 (517 passed, 1 skipped — the expected §34
+variation-drive skip), +6 from this entry; `compose_kit_test` 47,
+`motion_test` 21, `shape_test` 83, `world_test` 65 — all in BOTH configs —
+and `ctest` 17/17 in both (442 s Debug, 34 s Release). Both configs build
+clean; the one warning in the tree (`chladni_tab1.cpp:530`, an ignored
+nodiscard) predates this and is untouched by it.
+
+**PLATE LEDGER** (Release, `scripts/plate_ledger.py`, 65 scenes):
+**55 byte-identical, 0 unexplained movers — byte-neutral.** The three
+movers are all documented: `easel_playground` 187686f0e651 →
+**39528e682c55**, the SigilShape-attributed value this session already
+recorded, and `hitman_verlet` + `slitscan_2001`, auto-attributed flappers
+(`genesis_fire` happened to agree this run). Seven scenes report "not in
+baseline": the six unadopted API sketches plus `blur_falloff`, which is
+new here. **No rebase taken.** Render temps deleted immediately after
+hashing (~170 MB).
+
+**The sketch**: `sketch/sketches/blur_falloff.cpp` (gallery scene
+`blur falloff`, `Kit · API`) — four panels, same content and same maxSigma,
+only the map differing: constant (what it replaced), depth of field, a lens
+edge, and a rack focus with `maxSigma` bound. It reports "not in baseline"
+in the ledger, as every new scene does.
+
+**What is NOT closed.** The first bullet — a Material with no world-space
+option, so a field continuous ACROSS separately-laid-out nodes still has to
+become one canvas-sized node — is untouched by this and stays open under
+this entry. And the cross-frame level cache (blur the levels once, move
+only the parameter) is still the describe-keyed content-identity bake two
+other entries name as their reopening condition; the pyramid is cheap
+enough per frame that nothing here forced it.
 
 **SHIPPED as the measured-stability RELEASE** — the second candidate
 shape below, exactly as the entry preferred: no new API, no author

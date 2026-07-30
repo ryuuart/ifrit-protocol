@@ -2186,6 +2186,259 @@ TEST(ComposeEffects, AnUnknownDirectionalBlurUniformIsIgnoredNotLive) {
 }
 
 // ---------------------------------------------------------------------------
+// §19 — the SPATIALLY-VARYING parameter channel: Effect::child(name,
+// Material) and Effect::blur(sigmaMap, maxSigma).
+
+namespace {
+
+/** A hard-edged test target: 8px vertical stripes in the node's OWN local
+ *  space. Blur is measured as the loss of stripe contrast, and stripes
+ *  make that loss readable at a pixel pair instead of over an edge
+ *  profile. Static (no uniforms), so it never perturbs volatility. */
+Material stripeFill() {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(
+        SkString("half4 main(float2 p) {"
+                 "  float band = mod(floor(p.x / 8.0), 2.0);"
+                 "  return band < 1.0 ? half4(1) : half4(0, 0, 0, 1);"
+                 "}"));
+    return effect;
+  }();
+  return Material::sksl(fx);
+}
+
+/** THE PARAMETER: 0 at the node's left edge, 1 at its right, authored in
+ *  the UNIT SQUARE — which is the point of using a Material as the
+ *  carrier, because the box here is decided by the layout. */
+Material focalRamp() {
+  return Material::linearUnit({0, 0}, {1, 0},
+                              {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+}
+
+/** Local stripe contrast at canvas x (a stripe centre) — 0 is fully
+ *  washed out, 255 fully sharp. The pair straddles one stripe boundary. */
+int contrastAt(Host &host, int x, int y) {
+  const SkColor a = host.pixel(x, y);
+  const SkColor b = host.pixel(x + 8, y);
+  return std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b));
+}
+
+/** The fixture every arm below shares: a 120x120 striped node at canvas
+ *  (40, 40) — deliberately NOT at the origin, because a parameter
+ *  Material must resolve in the NODE's space, and a map that read layer
+ *  or canvas coordinates would shift its falloff by a third of the box. */
+void stripePlate(Host &host, Effect e) {
+  host.composer.render(box().child(box()
+                                       .width(120)
+                                       .height(120)
+                                       .inset(40, 40, 40, 40)
+                                       .absolute()
+                                       .fill(stripeFill())
+                                       .effect(std::move(e))));
+  host.frame();
+}
+
+} // namespace
+
+TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
+  // THE PIXEL PIN for §19: sharp at one edge, soft at the other, from ONE
+  // effect on ONE node — a picture no constant sigma can produce, which is
+  // what the entry's two citations (a depth-of-field falloff, a lens edge)
+  // asked for and had no spelling for.
+  Host varying;
+  stripePlate(varying, Effect::blur(focalRamp(), 16));
+  const int y = 100;                      // the node's vertical middle
+  const int sharp = contrastAt(varying, 51, y);  // local x 11 → sigma ~1.5
+  const int mid = contrastAt(varying, 67, y);    // local x 27 → sigma ~3.6
+  const int soft = contrastAt(varying, 139, y);  // local x 99 → sigma ~13
+  EXPECT_GT(sharp, 150) << "the map's 0 end must stay legibly sharp";
+  EXPECT_LT(soft, 40) << "the map's 1 end must be washed out";
+  EXPECT_GT(sharp, mid) << "sharp " << sharp << " mid " << mid;
+  EXPECT_GT(mid, soft) << "the falloff must be monotonic across the node"
+                       << " (sharp " << sharp << " mid " << mid << " soft "
+                       << soft << ")";
+
+  // THE CONTROLS, both directions, because "a blur happened" is not the
+  // claim — "the blur VARIES" is. A constant blur at the same sigma
+  // washes the sharp end too; a constant blur at zero leaves the soft end
+  // sharp. Neither can be the picture above.
+  Host constantMax, unblurred;
+  stripePlate(constantMax, Effect::filter(SkImageFilters::Blur(16, 16, nullptr)));
+  EXPECT_LT(contrastAt(constantMax, 51, y), 40)
+      << "a constant max-sigma blur cannot leave the left end sharp";
+  stripePlate(unblurred, Effect::filter(SkImageFilters::Offset(0, 0, nullptr)));
+  EXPECT_GT(contrastAt(unblurred, 139, y), 150)
+      << "…and no blur at all cannot make the right end soft";
+}
+
+TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
+  // The carrier ruling's first half (§19 Q1): a Material prunes where a
+  // raw callable never could. And the map is IN the equality — a child
+  // read live that did not participate would leave a pruned node sampling
+  // last frame's parameter forever (§10f's rule, same words).
+  Host host;
+  auto tree = [&](float maxSigma, Material map) {
+    return box().child(box().width(60).height(60).fill(green()).effect(
+        Effect::blur(std::move(map), maxSigma)));
+  };
+  host.composer.render(tree(10, focalRamp()));
+  host.frame();
+  host.composer.render(tree(10, focalRamp())); // fresh Effect, same recipe
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical blur recipe re-patched";
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  host.composer.render(tree(14, focalRamp())); // a different range IS a change
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  // …and so is a different MAP at the same range.
+  const Material flipped =
+      Material::linearUnit({0, 0}, {1, 0},
+                           {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}});
+  host.composer.render(tree(14, flipped));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "the sigma map must ride the prune signature";
+}
+
+TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
+  // TIER INHERITANCE (§19 Q4, the §41 frozen-matte failure class): a live
+  // parameter must lift the EFFECT to live, or a bake samples the map once
+  // and freezes it. The recursion is Material::isAnimated()'s own.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uK;"
+               "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  choreograph::Output<float> k{0.0f};
+  const Material liveMap = Material::sksl(fx).uniform("uK", &k);
+  EXPECT_TRUE(Effect::blur(liveMap, 16).isAnimated());
+  EXPECT_FALSE(Effect::blur(focalRamp(), 16).isAnimated())
+      << "a static map must NOT declare volatility (the control)";
+
+  // The pixels follow the live map with no re-describe: uK 0 is sharp
+  // everywhere, uK 1 is blurred everywhere.
+  Host host;
+  stripePlate(host, Effect::blur(liveMap, 16));
+  EXPECT_GT(contrastAt(host, 99, 100), 150);
+  k = 1.0f;      // move the map — NO re-describe
+  host.frame();  // the live effect re-resolves the parameter
+  EXPECT_LT(contrastAt(host, 99, 100), 40);
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u)
+      << "a live sigma map must declare volatility";
+}
+
+TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
+  // The range rides the SAME uniform channel directionalBlur established
+  // (§11) — no second mechanism for "animate the blur".
+  choreograph::Output<float> range{0.0f};
+  Host host;
+  stripePlate(host, Effect::blur(focalRamp(), 0).uniform("maxSigma", &range));
+  EXPECT_GT(contrastAt(host, 139, 100), 150); // range 0: no blur anywhere
+  range = 16.0f;
+  host.frame();
+  EXPECT_LT(contrastAt(host, 139, 100), 40); // the map's 1 end now washes
+  EXPECT_GT(contrastAt(host, 51, 100), 150); // …and its 0 end still does not
+}
+
+TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
+  // The general door (§19 Q2): Effect::shader fills exactly ONE child —
+  // "content", the node's own layer — and a second declared
+  // `uniform shader` was left unbound with no way to fill it. child()
+  // fills it with a Material, resolved against THIS node's box, so
+  // unit-space authoring works here as it does on a fill.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "uniform shader param;"
+               "half4 main(float2 p) {"
+               "  return content.eval(p) * param.eval(p).r;"
+               "}"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Host host;
+  host.composer.render(box().child(box()
+                                       .width(120)
+                                       .height(120)
+                                       .inset(40, 40, 40, 40)
+                                       .absolute()
+                                       .fill(green())
+                                       .effect(Effect::shader(fx).child(
+                                           "param", focalRamp()))));
+  host.frame();
+  // The ramp modulates the green layer left (0) to right (1) — and the
+  // ramp is in the NODE's unit square, so the dark end is at the node's
+  // left edge, not the canvas's.
+  EXPECT_LT(SkColorGetG(host.pixel(45, 100)), 40u);
+  EXPECT_GT(SkColorGetG(host.pixel(155, 100)), 200u);
+  EXPECT_NEAR((int)SkColorGetG(host.pixel(100, 100)), 128, 40);
+
+  // …AND A STATIC CHILD REACHES THE SNAPSHOT. Found by review, not by the
+  // arm above: a unit ramp is geometry-tier, so the paint path re-resolves
+  // it and any store-time mistake is invisible. A solid never needs a
+  // context, so it is only in the filter if child() rebuilt the snapshot —
+  // half a green layer, everywhere.
+  Host flat;
+  flat.composer.render(box().child(
+      box().width(120).height(120).inset(40, 40, 40, 40).absolute()
+          .fill(green())
+          .effect(Effect::shader(fx).child(
+              "param", Material::solid({0.5f, 0.5f, 0.5f, 1})))));
+  flat.frame();
+  EXPECT_NEAR((int)SkColorGetG(flat.pixel(60, 100)), 128, 24);
+  EXPECT_NEAR((int)SkColorGetG(flat.pixel(140, 100)), 128, 24);
+}
+
+TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
+  // Material::child's guardrail, verbatim: an undeclared name warns and is
+  // IGNORED — and, the sharp half, an ignored child must not declare
+  // volatility either (a node painting live for a child that does nothing
+  // is the silent failure this pins).
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uK;"
+               "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  choreograph::Output<float> k{1.0f};
+  const Material liveMap = Material::sksl(fx).uniform("uK", &k);
+
+  // (a) filter() has no child to fill, exactly as it has no uniform.
+  const sk_sp<SkImageFilter> raw = SkImageFilters::Blur(4, 4, nullptr);
+  Effect plain = Effect::filter(raw);
+  plain.child("param", liveMap);
+  EXPECT_EQ(plain.imageFilter(), raw) << "filter()'s filter was replaced";
+  EXPECT_FALSE(plain.isAnimated());
+
+  // (b) a shader() effect that declares no such child.
+  auto [oneChild, err2] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "half4 main(float2 p) { return content.eval(p); }"));
+  ASSERT_TRUE(oneChild) << err2.c_str();
+  Effect narrow = Effect::shader(oneChild);
+  narrow.child("param", liveMap);
+  EXPECT_FALSE(narrow.isAnimated());
+  // …and "content" is the library's, never the author's to overwrite.
+  Effect content = Effect::shader(oneChild);
+  content.child("content", liveMap);
+  EXPECT_FALSE(content.isAnimated());
+
+  // (c) a blur()'s one child is "sigma"; a typo must not bind.
+  Effect typo = Effect::blur(focalRamp(), 8);
+  typo.child("sgima", liveMap);
+  EXPECT_FALSE(typo.isAnimated());
+  // THE CONTROL: the declared name does bind, and does go live.
+  auto [twoChild, err3] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;"
+               "uniform shader param;"
+               "half4 main(float2 p) { return content.eval(p) * "
+               "param.eval(p).r; }"));
+  ASSERT_TRUE(twoChild) << err3.c_str();
+  Effect bound = Effect::shader(twoChild);
+  bound.child("param", liveMap);
+  EXPECT_TRUE(bound.isAnimated());
+  // …and blur()'s real name re-aims the map, which is what makes the
+  // child vector one mechanism rather than two.
+  Effect reaimed = Effect::blur(focalRamp(), 8);
+  reaimed.child("sigma", liveMap);
+  EXPECT_TRUE(reaimed.isAnimated());
+}
+
+// ---------------------------------------------------------------------------
 // Material::amount() (§5): a blend layer's strength.
 
 TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {

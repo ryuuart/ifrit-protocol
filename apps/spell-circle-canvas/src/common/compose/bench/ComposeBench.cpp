@@ -4,9 +4,12 @@
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Kinetic.h>
+#include <sigilcompose/Material.h>
 #include <sigilcompose/Util.h>
 
+#include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
 
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -351,6 +354,146 @@ static void BM_Draw_Bloom_TextureBaked(benchmark::State &state) {
 BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 
+// ---- §19: a blur whose SIGMA VARIES, three ways --------------------------
+//
+// The claim the entry's design made, labelled an estimate: the library's
+// pyramid is O(1) in the sigma RANGE where an author-written variable-sigma
+// kernel is O(sigma_max²) per pixel. These arms are what turns that into a
+// number. All three paint the SAME node (hard vertical stripes, so the
+// blur has something to lose) with the SAME parameter map:
+//
+//  Pyramid     Effect::blur(map, sigma)  — fixed levels + one mix pass.
+//  Naive       the workaround that produces the same PICTURE: one SkSL
+//              pass whose kernel is sized for the worst sigma anywhere in
+//              the node. Separability is unavailable when sigma varies per
+//              pixel, so it is (2R+1)² taps at EVERY pixel, R = 3σ.
+//  ConstantMax Effect::filter(Blur(σ, σ)) — the honest FLOOR. It does not
+//              produce the picture (nothing varies), but it is what an
+//              author reaches for when they give up, so it says what the
+//              feature costs over giving up.
+//
+// Two sigmas an octave-and-a-bit apart (6 and 24) because the claim is
+// about SCALING, not about one number.
+
+namespace {
+
+constexpr int kVaryPanelRaster = 96; // the naive kernel is O(σ²) on the CPU
+constexpr int kVaryPanelGpu = 256;
+
+/** Hard 8px stripes in node-local space — detail for the blur to destroy. */
+Material stripeTarget() {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(
+        SkString("half4 main(float2 p) {"
+                 "  float band = mod(floor(p.x / 8.0), 2.0);"
+                 "  return band < 1.0 ? half4(1) : half4(0, 0, 0, 1);"
+                 "}"));
+    return effect;
+  }();
+  return Material::sksl(fx);
+}
+
+/** The parameter: 0 at the node's left edge, 1 at its right. */
+Material sigmaRamp() {
+  return Material::linearUnit({0, 0}, {1, 0},
+                              {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+}
+
+/** THE WORKAROUND, written the way an author has to write it: the loop
+ *  bound is a COMPILE-TIME constant (SkSL has no cheap dynamic bound), so
+ *  it is the worst radius in the node, paid at every pixel. One effect
+ *  cached per radius — minting one per call would only measure the
+ *  compiler. */
+sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
+  static std::vector<std::pair<int, sk_sp<SkRuntimeEffect>>> cache;
+  for (const auto &[r, fx] : cache)
+    if (r == radius)
+      return fx;
+  const std::string r = std::to_string(radius);
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
+      ("uniform shader content;"
+       "uniform shader param;"
+       "uniform float uMaxSigma;"
+       "half4 main(float2 p) {"
+       "  float sigma = max(param.eval(p).r * uMaxSigma, 0.01);"
+       "  float inv = -0.5 / (sigma * sigma);"
+       "  half4 sum = half4(0);"
+       "  float wsum = 0.0;"
+       "  for (int dy = -" + r + "; dy <= " + r + "; ++dy) {"
+       "    for (int dx = -" + r + "; dx <= " + r + "; ++dx) {"
+       "      float w = exp(float(dx * dx + dy * dy) * inv);"
+       "      sum += content.eval(p + float2(float(dx), float(dy))) * half(w);"
+       "      wsum += w;"
+       "    }"
+       "  }"
+       "  return sum / half(wsum);"
+       "}")
+          .c_str()));
+  if (!effect)
+    SkDebugf("[bench] naive varying blur failed: %s\n", error.c_str());
+  cache.emplace_back(radius, effect);
+  return effect;
+}
+
+Element varyingPanel(int side, Effect e) {
+  return box().width((float)side).height((float)side).fill(stripeTarget()).effect(
+      std::move(e));
+}
+
+Effect pyramidArm(float sigma) { return Effect::blur(sigmaRamp(), sigma); }
+
+Effect naiveArm(float sigma) {
+  // §19's own point: R = 3σ is the radius the worst pixel needs.
+  const int radius = (int)std::lround(3.0f * sigma);
+  return Effect::shader(naiveVaryingBlur(radius), {{"uMaxSigma", sigma}})
+      .child("param", sigmaRamp());
+}
+
+/** One draw per iteration on a raster surface, effect re-resolved each
+ *  time (Cache::None keeps the filter out of a picture so the arms measure
+ *  the FILTER, not the replay). */
+void rasterVaryingArm(benchmark::State &state, Effect e, int side) {
+  Host host(side, side);
+  host.composer.render(varyingPanel(side, std::move(e)).cache(Cache::None));
+  host.composer.draw(*host.surface->getCanvas()); // warm the SkSL compile
+  for (auto _ : state)
+    host.composer.draw(*host.surface->getCanvas());
+}
+
+} // namespace
+
+static void BM_Draw_VaryingBlur_Pyramid_s6(benchmark::State &state) {
+  rasterVaryingArm(state, pyramidArm(6), kVaryPanelRaster);
+}
+BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s6)->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_VaryingBlur_Naive_s6(benchmark::State &state) {
+  rasterVaryingArm(state, naiveArm(6), kVaryPanelRaster);
+}
+BENCHMARK(BM_Draw_VaryingBlur_Naive_s6)
+    ->Unit(benchmark::kMillisecond)
+    ->Iterations(3);
+
+static void BM_Draw_VaryingBlur_Pyramid_s24(benchmark::State &state) {
+  rasterVaryingArm(state, pyramidArm(24), kVaryPanelRaster);
+}
+BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s24)->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_VaryingBlur_Naive_s24(benchmark::State &state) {
+  rasterVaryingArm(state, naiveArm(24), kVaryPanelRaster);
+}
+BENCHMARK(BM_Draw_VaryingBlur_Naive_s24)
+    ->Unit(benchmark::kMillisecond)
+    ->Iterations(1);
+
+static void BM_Draw_VaryingBlur_ConstantMax_s24(benchmark::State &state) {
+  rasterVaryingArm(state,
+                   Effect::filter(SkImageFilters::Blur(24, 24, nullptr)),
+                   kVaryPanelRaster);
+}
+BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24)->Unit(benchmark::kMillisecond);
+
+
 #ifdef COMPOSE_BENCH_GRAPHITE
 // ---- Item 21: the Graphite re-measure — does picture replay finally
 // beat rasterization when the target is a GPU surface? ----
@@ -581,6 +724,89 @@ static void BM_Draw_Bloom_TextureBaked_Graphite(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Draw_Bloom_TextureBaked_Graphite);
+
+// ---- §19 on the GPU: the same three arms, where these shaders live -------
+// The raster pair above is the portable measurement; this is the honest
+// one, because a runtime-effect kernel in production is a fragment shader.
+// Same fixture, same parameter map, a bigger panel (256²) so the numbers
+// are out of the submit noise.
+
+namespace {
+
+/** Submit and WAIT. The arms above deliberately do not (they compare
+ *  like-for-like at ten thousand iterations, where queue back-pressure is
+ *  the signal), but a §19 arm has to report the cost of one FINISHED
+ *  frame: an unsynced submit measures the CPU handing work over, and the
+ *  first draft of this measurement had the most expensive shader looking
+ *  like the cheapest because its queue never drained. */
+void submitGraphiteSynced(SkiaGraphiteContext &graphiteContext) {
+  auto recording = graphiteContext.recorder()->snap();
+  if (!recording)
+    return;
+  skgpu::graphite::InsertRecordingInfo info;
+  info.fRecording = recording.get();
+  graphiteContext.context()->insertRecording(info);
+  skgpu::graphite::SubmitInfo submitInfo;
+  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
+  graphiteContext.context()->submit(submitInfo);
+}
+
+void graphiteVaryingArm(benchmark::State &state, Effect e) {
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(),
+      SkImageInfo::MakeN32Premul(kVaryPanelGpu, kVaryPanelGpu));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(kVaryPanelGpu, kVaryPanelGpu);
+  host.composer.render(
+      varyingPanel(kVaryPanelGpu, std::move(e)).cache(Cache::None));
+  host.composer.draw(*surface->getCanvas()); // warm the pipeline compile
+  submitGraphiteSynced(*graphiteContext);
+  for (auto _ : state) {
+    host.composer.draw(*surface->getCanvas());
+    submitGraphiteSynced(*graphiteContext);
+  }
+}
+
+} // namespace
+
+static void BM_Draw_VaryingBlur_Pyramid_s6_Graphite(benchmark::State &state) {
+  graphiteVaryingArm(state, pyramidArm(6));
+}
+BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s6_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_VaryingBlur_Naive_s6_Graphite(benchmark::State &state) {
+  graphiteVaryingArm(state, naiveArm(6));
+}
+BENCHMARK(BM_Draw_VaryingBlur_Naive_s6_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_VaryingBlur_Pyramid_s24_Graphite(benchmark::State &state) {
+  graphiteVaryingArm(state, pyramidArm(24));
+}
+BENCHMARK(BM_Draw_VaryingBlur_Pyramid_s24_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_VaryingBlur_Naive_s24_Graphite(benchmark::State &state) {
+  graphiteVaryingArm(state, naiveArm(24));
+}
+BENCHMARK(BM_Draw_VaryingBlur_Naive_s24_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void
+BM_Draw_VaryingBlur_ConstantMax_s24_Graphite(benchmark::State &state) {
+  graphiteVaryingArm(state, Effect::filter(SkImageFilters::Blur(24, 24, nullptr)));
+}
+BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_s24_Graphite)
+    ->Unit(benchmark::kMillisecond);
 
 // ---- SigilWeave ROADMAP §1/§3: the dense-text Graphite arm ---------------
 // "The measurement gap that precedes everything": dense STATIC text on

@@ -48,6 +48,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -110,6 +111,21 @@ namespace detail {
  *  each only taking effect past its own start. */
 inline Material unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
                          bool radial);
+
+/** THE CHILD-SLOT CONVERSION, in ONE place because its callers have to
+ *  agree: sksl()'s children (§10f), blend()'s layers, and Effect's
+ *  children (§19) all need "this Material as the SkShader a builder slot
+ *  takes". @p ctx non-null is the per-frame `resolve()` form, null the
+ *  context-free `asShader()` snapshot — the tier split every child site
+ *  makes — and a solid collapses to a colour shader either way. */
+sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx);
+
+/** Does @p effect declare @p name as a `uniform shader`? Assigning a child
+ *  an effect does not declare SkDEBUGFAILs, so both child() doors —
+ *  Material's and Effect's — validate at STORE time and warn-and-ignore
+ *  (one sketch typo must not kill the hot-reload host). */
+bool declaresShaderChild(const sk_sp<SkRuntimeEffect> &effect,
+                         std::string_view name);
 } // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to

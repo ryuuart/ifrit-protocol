@@ -132,16 +132,6 @@ bool validUniform(const sk_sp<SkRuntimeEffect> &effect, std::string_view name,
   return u && u->sizeInBytes() == bytes;
 }
 
-// A named child is usable iff the effect declares it as a SHADER child —
-// assigning a missing child SkDEBUGFAILs exactly like a missing uniform.
-bool validShaderChild(const sk_sp<SkRuntimeEffect> &effect,
-                      std::string_view name) {
-  if (!effect)
-    return false;
-  const SkRuntimeEffect::Child *c = effect->findChild(name);
-  return c && c->type == SkRuntimeEffect::ChildType::kShader;
-}
-
 void warnUnknownUniform(const char *what, const std::string &name) {
   SkDebugf("Material::%s: uniform \"%s\" is not declared by the effect at "
            "float size — ignored\n",
@@ -157,6 +147,35 @@ SkGradient makeGradient(const RampArrays &r, SkTileMode tile) {
 }
 
 } // namespace
+
+namespace detail {
+
+// A named child is usable iff the effect declares it as a SHADER child —
+// assigning a missing child SkDEBUGFAILs exactly like a missing uniform.
+// Shared with Effect::child (§19): one validation, two child doors.
+bool declaresShaderChild(const sk_sp<SkRuntimeEffect> &effect,
+                         std::string_view name) {
+  if (!effect)
+    return false;
+  const SkRuntimeEffect::Child *c = effect->findChild(name);
+  return c && c->type == SkRuntimeEffect::ChildType::kShader;
+}
+
+// The Material→SkShader conversion every child slot performs (declared in
+// Material.h): the per-frame resolve when there is a context, the
+// context-free snapshot when there is not, a solid as a colour shader.
+sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx) {
+  if (!ctx)
+    return source.asShader(); // already turns a solid into SkShaders::Color
+  const Fill f = source.resolve(*ctx);
+  if (f.kind == Fill::Kind::Shader)
+    return f.shaderValue;
+  if (f.kind == Fill::Kind::Color)
+    return SkShaders::Color(f.colorValue, nullptr);
+  return nullptr;
+}
+
+} // namespace detail
 
 // Build a shader from an sksl recipe: constants, then bound Outputs at their
 // current value, then the auto-injected uTime/uResolution/uContentScale — the
@@ -270,19 +289,9 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
   // Children resolve with the SAME PaintContext the parent got (so a live
   // child ticks and a geometry child reads the parent node's box), and with
   // the null context on the static snapshot path.
-  for (const auto &[name, child] : live.children) {
-    sk_sp<SkShader> childShader;
-    if (ctx) {
-      const Fill f = child.resolve(*ctx);
-      if (f.kind == Fill::Kind::Shader)
-        childShader = f.shaderValue;
-      else if (f.kind == Fill::Kind::Color)
-        childShader = SkShaders::Color(f.colorValue, nullptr);
-    } else {
-      childShader = child.asShader();
-    }
-    b.child(name.c_str()) = std::move(childShader); // pre-validated at store
-  }
+  for (const auto &[name, child] : live.children)
+    b.child(name.c_str()) =
+        detail::childShader(child, ctx); // pre-validated at store
   if (ctx) {
     // Auto-injects are size-checked too: a user declaring `uniform float
     // uResolution` must not receive a float2 write (SkDEBUGFAIL).
@@ -578,7 +587,7 @@ Material &Material::child(std::string name, Material source) {
              name.c_str());
     return *this;
   }
-  if (!validShaderChild(m_live->effect, name)) {
+  if (!detail::declaresShaderChild(m_live->effect, name)) {
     SkDebugf("Material::child: \"%s\" is not declared by the effect as "
              "`uniform shader` — ignored\n",
              name.c_str());
@@ -720,16 +729,7 @@ sk_sp<SkShader> Material::foldBlend(const PaintContext *ctx) const {
   sk_sp<SkShader> acc;
   bool first = true;
   for (const auto &[mat, mode] : m_recipe->layers) {
-    sk_sp<SkShader> src;
-    if (ctx) {
-      const Fill f = mat.resolve(*ctx);
-      if (f.kind == Fill::Kind::Shader)
-        src = f.shaderValue;
-      else if (f.kind == Fill::Kind::Color)
-        src = SkShaders::Color(f.colorValue, nullptr);
-    } else {
-      src = mat.asShader(); // already turns a solid into SkShaders::Color
-    }
+    sk_sp<SkShader> src = detail::childShader(mat, ctx);
     if (first) {
       acc = std::move(src);
       first = false;

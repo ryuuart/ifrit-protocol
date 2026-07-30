@@ -310,16 +310,69 @@ public:
    *  angle rides the existing live channel, no re-describe per frame. */
   static Effect directionalBlur(float sigma, float angleDeg,
                                 float across = 0);
+  /** A blur whose SIGMA VARIES ACROSS THE NODE (ROADMAP §19) — a
+   *  depth-of-field falloff, a lens edge, a tube's curvature. @p sigmaMap
+   *  is a Material read as a NUMBER rather than as paint (§41's luma
+   *  matte is the precedent): its RED channel at a pixel, times
+   *  @p maxSigma, is the blur radius there. So the natural authoring is a
+   *  unit-space ramp — `Material::linearUnit({0,0}, {1,0}, {{0, black},
+   *  {1, white}})` is "sharp at the left edge, softest at the right" over
+   *  whatever box the layout decides — and any sksl() material is an
+   *  arbitrary field.
+   *
+   *  Effect::shader could express this only by paying the WORST sigma at
+   *  every pixel: SkSL has no cheap dynamic loop bound, so the kernel has
+   *  to be sized for the largest radius anywhere in the node, and it is
+   *  not separable once sigma varies. This spends a FIXED NUMBER of passes
+   *  instead — MEASURED (compose_bench `VaryingBlur` arms, and the table
+   *  in API.md): quadrupling @p maxSigma costs this 1.3× where it costs
+   *  that kernel 15× on the CPU, and the whole effect is 1.4–2.3× a plain
+   *  constant blur that varies nothing. How it spends them is the
+   *  library's business and is deliberately not in this signature: the
+   *  author says "blur varying by this map".
+   *
+   *  Rides the same rails as directionalBlur: a comparable RECIPE (an
+   *  equal re-described blur PRUNES, and the sigma map's Material
+   *  participates in that equality), the named parameter "maxSigma"
+   *  accepts uniform(name, &output), and a LIVE sigma map (a bound
+   *  uniform, uTime) makes the whole effect isAnimated() by tier
+   *  inheritance — so a bake can never sample the map once and freeze it.
+   *  `child("sigma", otherMap)` re-aims the map on an existing blur. */
+  static Effect blur(Material sigmaMap, float maxSigma);
+  /** THE CHILD SLOT — Material::child on the effect seam (§19), same name,
+   *  same shape, same semantics. The effect declares `uniform shader
+   *  NAME;` and this fills it with a Material, so the SkSL can read a
+   *  source the node has NOT painted: a parameter field, a mask channel, a
+   *  gradient, a second texture. `Effect::shader` already fills exactly
+   *  one child — `content`, the node's own rendered layer — and a second
+   *  declared `uniform shader` used to be left unbound with nothing to
+   *  bind it. The Material resolves against THIS NODE's box, so unit-space
+   *  authoring (linearUnit / glowUnit) works here as it does on a fill.
+   *
+   *  TIER INHERITANCE, the load-bearing half (Material::child's rule,
+   *  reached by calling Material's own recursion rather than repeating
+   *  it): a live child makes the effect isAnimated(), so the node is
+   *  declared volatile and no cache can freeze the parameter; the children
+   *  ride the prune signature, so two effects with different children
+   *  never compare equal.
+   *
+   *  Guardrails match Material::child's exactly: a name the effect does
+   *  not declare as `uniform shader` warns and is IGNORED, and on an
+   *  effect kind with no child to fill — `filter()`, which wraps an
+   *  already-built SkImageFilter, or a bare `directionalBlur()` — it is a
+   *  no-op with a warning, exactly as uniform() is there. On a blur() the
+   *  one fillable name is "sigma", its sigma map. */
+  Effect &child(std::string name, Material source);
   /** A LIVE float uniform — Material's contract, on the effect seam
    *  (ROADMAP §11: animating a ripple phase or a bloom threshold used to
    *  require a full re-describe per frame). The value is read from the
    *  Output at every paint, and the node repaints per frame while the
    *  effect is attached — a bound uniform declares volatility exactly as
    *  a live material does. Meaningful on a shader() effect (any declared
-   *  float uniform) or a directionalBlur() ("sigma" / "angle" /
-   *  "across"); a filter() has no uniform to receive the value (the
-   *  binding is ignored there, and the volatility is NOT declared —
-   *  unknown directionalBlur names warn and are ignored, Material's
+   *  float uniform), a directionalBlur() ("sigma" / "angle" / "across")
+   *  or a blur() ("maxSigma"); a filter() has no uniform to receive the
+   *  value (the binding is ignored there, and the volatility is NOT
+   *  declared — unknown recipe names warn and are ignored, Material's
    *  guardrail). */
   Effect &uniform(std::string name, const choreograph::Output<float> *value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
@@ -330,14 +383,19 @@ public:
 
   const sk_sp<SkImageFilter> &imageFilter() const { return m_filter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
-   *  phase applies. Identical to imageFilter() for a static effect. */
-  sk_sp<SkImageFilter> resolvedImageFilter() const;
+   *  phase applies. Identical to imageFilter() for a static effect.
+   *  @p ctx is the painting node's PaintContext, which child() materials
+   *  resolve against (its box, its clock) — exactly the context
+   *  Material::child hands its children. Null is the context-free form:
+   *  static children keep their snapshot, and it is what a caller holding
+   *  an Effect outside a paint can ask for. */
+  sk_sp<SkImageFilter>
+  resolvedImageFilter(const PaintContext *ctx = nullptr) const;
   /** THE VOLATILITY DECLARATION (one word, everywhere): does this effect
-   *  change without a re-describe? True while any uniform is bound. */
-  bool isAnimated() const {
-    return !m_bound.empty() ||
-           (m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated()));
-  }
+   *  change without a re-describe? True while any uniform is bound, or
+   *  while any child Material is live — the tier inheritance is
+   *  Material::isAnimated()'s own recursion, called, not copied. */
+  bool isAnimated() const;
   /** Structural equality for the reconciler: static shader effects
    *  compare by RECIPE (runtime-effect pointer + constant uniforms), so
    *  a re-described effect prunes when the caller holds one
@@ -354,6 +412,15 @@ private:
     float sigma = 0, angleDeg = 0, across = 0;
     bool operator==(const DirectionalBlur &) const = default;
   };
+  /** blur()'s comparable recipe (§19) — the parameter's RANGE. The sigma
+   *  MAP itself lives in m_children under "sigma", so one child vector
+   *  carries every Material an effect samples: one equality, one tier
+   *  walk, one resolve loop, and `child("sigma", …)` re-aims the map for
+   *  free. */
+  struct ParamBlur {
+    float maxSigma = 0;
+    bool operator==(const ParamBlur &) const = default;
+  };
 
   sk_sp<SkImageFilter> m_filter;
   // The shader recipe (kept so bound uniforms can rebuild per paint and
@@ -363,23 +430,45 @@ private:
   std::vector<std::pair<std::string, const choreograph::Output<float> *>>
       m_bound;
   std::optional<DirectionalBlur> m_dirBlur; // directionalBlur()'s recipe
+  std::optional<ParamBlur> m_paramBlur;     // blur()'s recipe
+  // The child slots: `uniform shader NAME` → Material (§19). Held by
+  // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
+  // includes this header, so it cannot be included back) — the surface is
+  // still child(name, Material) by value, and a copied Effect never
+  // mutates a shared child, it replaces the pointer.
+  std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
+      m_children;
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
+
+  /** Does any child need a PaintContext to resolve (live or geometry
+   *  tier)? Material::build's memo asks exactly this of its own children,
+   *  for the same reason: a static child's snapshot is already correct,
+   *  and a context-needing one must be rebuilt per paint or it freezes. */
+  bool anyChildNeedsContext() const;
+  /** The child slot @p name as a shader, resolved against @p ctx. */
+  sk_sp<SkShader> childShaderFor(std::string_view name,
+                                 const PaintContext *ctx) const;
+  /** The recipe's filter, built unconditionally — the store-time snapshot
+   *  (null ctx) and the per-paint resolve are one construction. */
+  sk_sp<SkImageFilter> buildFilter(const PaintContext *ctx) const;
 
   /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). operator== is
    *  hand-written in Compose.cpp and reads these members directly; the state
    *  is private, so the decomposition lives inside the class. */
   static void fieldPin(Effect &v) {
-    auto &[filter, effect, uniforms, bound, dirBlur, chainA, chainB] = v;
-    static_assert(std::tuple_size_v<decltype(std::tie(filter, effect, uniforms,
-                                                      bound, dirBlur, chainA,
-                                                      chainB))> == 7,
+    auto &[filter, effect, uniforms, bound, dirBlur, paramBlur, children,
+           chainA, chainB] = v;
+    static_assert(std::tuple_size_v<decltype(std::tie(
+                      filter, effect, uniforms, bound, dirBlur, paramBlur,
+                      children, chainA, chainB))> == 9,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Compose.cpp), then bump this count. "
-                  "(m_filter is EXCLUDED on the shader and directionalBlur "
-                  "paths because it is derived from m_effect + m_uniforms / "
-                  "m_dirBlur; m_chainA/B only exist on a live chain, which "
+                  "(m_filter is EXCLUDED on the shader, directionalBlur and "
+                  "blur paths because it is derived from m_effect + "
+                  "m_uniforms / m_dirBlur / m_paramBlur + m_children; "
+                  "m_chainA/B only exist on a live chain, which "
                   "isAnimated() already refuses.)");
   }
 };
