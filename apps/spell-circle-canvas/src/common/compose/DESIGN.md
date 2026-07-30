@@ -674,8 +674,11 @@ table marks which half is source-verified vs unmeasured):
    impact: 43.4 of 43.5 ms on one un-prunable callable).
 3. Ribbon `(along, across)` paint space — expose what `artAlong`
    computes (§8b/§14).
-4. `brush::Art` bake identity (§16) — the blocker for live ribbon
-   content.
+4. `brush::Art` bake identity — the blocker for live ribbon content.
+   (§16's pointer-keyed StampCache closed 2026-07-27; what this item
+   needs is the CONTENT half of identity — a bake that follows the
+   art's content, not its node pointer — see §16's 2026-07-30
+   reconciliation in ROADMAP.md.)
 5. **The one missing primitive, four clients** (3D panels, infinite
    canvas, high-res export, ribbons): snapshot a live keyed subtree at
    host-chosen density, invalidated per tile, keyed on scale (the y2k

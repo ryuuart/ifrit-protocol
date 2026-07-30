@@ -1538,6 +1538,40 @@ it rides the same store — unchanged, see the stage-two residue.
 exactly the documented self-nondeterministic list — `genesis_fire`,
 `hitman_verlet`, `slitscan_2001` — and nothing else.
 
+**RECONCILED 2026-07-30 — the closure stands; two headers and one
+citation had not caught up.** Three later entries (§41 reason 2, §19's
+pyramid-cache note, §43's motion-blur reopening condition) cite §16 as
+if open. The audit: what closed is the fresh-VALUE case (a brush
+rebuilt every describe finds a pointer-stable art's bake in the
+instance StampCache — the pin holds). What the citing entries lean on
+is the residual this closure EXPLICITLY declared out of contract: a
+fresh art NODE per describe has no stable key, so identity beyond the
+node pointer — the "describe-keyed bake cache", i.e. content identity
+— is a distinct, never-designed mechanism, not a shipped one. The
+citations' dependency is real; their attribution was stale. Corrected:
+`Scatter` and `Art`'s headers still said "THE BAKE LIVES IN THE BRUSH
+VALUE … ROADMAP §16 is the open fix" (Pattern's was updated at
+closure; its two siblings were missed — the §§22/25/27 sibling-path
+family again), now all three carry the closed wording; §41 reason 2
+re-worded to the fresh-NODE mechanism (its force is unchanged);
+§19/§43's reopening conditions now name the content-identity cache as
+beyond this entry rather than as this entry. Measured before deciding
+not to build it: every brush user in the corpus (nine sketches)
+either describes once at setup or holds art as members — thunder_fulu
+:731 "held for pointer stability", vagrant_story_target:1076,
+eva_magi_interior:1238 hold theirs across a per-frame renderSlot —
+so the uncovered case is paid ZERO times per frame in the corpus, and
+the content-identity key it would need lands exactly on §41's frozen
+class (a recipe key that ignores sampled bindings serves stale art;
+one that includes them is a per-paint subtree walk). No number
+motivates that trade today. The boundary is now pinned from BOTH
+sides: `AStampBakeSurvivesABrushRebuiltEveryDescribe` (the hit — 1
+bake in 5 frames) and NEW
+`ComposeBrushes.AFreshArtNodePerDescribeRebakesByContract` (the miss —
+4 fresh nodes, 4 bakes, and a content change reaching pixels with no
+stale red; a future content-identity cache must revisit that pin
+deliberately, which is the point of it).
+
 ## 17. `withKeyframes` is live volatility even where its value is constant — CLOSED
 Keyframe holds and settled easings repainted every frame while provably
 constant — 29 ms of a 38 ms frame in one study; closed by
@@ -1671,8 +1705,10 @@ was checked:
    parameter re-renders the pyramid per frame and carries §38's
    measured ancestor-volatility tax (19.6× there; extrapolation
    here). Caching the blurred levels across frames while only the
-   parameter moves would need §16's describe-keyed bake cache — the
-   same reopening condition two other entries already name.
+   parameter moves would need a describe-keyed (content-identity) bake
+   cache — the mechanism BEYOND §16's closure (its StampCache keys on
+   node pointers; see §16's 2026-07-30 reconciliation) — the same
+   reopening condition two other entries already name.
 4. **The failure mode is stated, never silent.** The §41 frozen-matte
    class is a param that silently degrades to a constant; three rules
    forbid it: an undeclared child name warns-and-ignores (Material's
@@ -5325,13 +5361,15 @@ be, for five reasons in descending order of force:
    live timeline in a one-shot render. So an ANIMATED matte tree, which is
    what a matte layer is FOR, would be silently frozen unless re-baked every
    frame, and re-baking every frame is item 2.
-2. **It inherits a known-open defect and puts it on the hot path.**
-   ROADMAP §16: a stamp bake lives in the VALUE and a fresh value per
-   describe re-bakes everything. `brush::Art` and `Pattern` both carry the
-   "build it ONCE and keep it" warning in their headers. The natural
-   authoring form for a matte is inline in the describe
-   (`.mask(by::luma(Material::element(row().child(…)))))`), which is exactly
-   the form that re-rasterises per frame — now inside a `saveLayer`'d group.
+2. **It inherits §16's residual and puts it on the hot path.** §16's
+   StampCache (closed 2026-07-27, reconciled 2026-07-30) keys bakes on
+   the art Element's NODE, so a fresh brush value per describe now
+   finds its bake — but a fresh art NODE per describe does not, by
+   contract ("keep the art pointer-stable", every brush header). The
+   natural authoring form for a matte is inline in the describe
+   (`.mask(by::luma(Material::element(row().child(…)))))`), which builds
+   exactly that fresh node per frame — so it re-rasterises per frame,
+   now inside a `saveLayer`'d group.
 3. **There is no answer for layout.** A matte must size against the MASKED
    node's laid-out box, which is known only at paint. Nothing in the
    architecture runs layout inside a recording, and adding that seam for
@@ -5355,7 +5393,9 @@ be, for five reasons in descending order of force:
 
    and that extra line is precisely where the caching decision belongs.
 
-**What would reopen it:** §16 landing a describe-keyed bake cache, plus a
+**What would reopen it:** a describe-keyed (content-identity) bake cache
+— the mechanism beyond §16's closed pointer-keyed StampCache, see §16's
+2026-07-30 reconciliation — plus a
 layout-at-record seam. Then `Material::element(Element)` — as a MATERIAL,
 not a Gate kind, so it composes with `blend`, with fills, and with all four
 matte variants at once — is a small feature. Until then it is a
@@ -6003,7 +6043,9 @@ the same content.
    reference that invented the technique.
 
 **WHAT WOULD REOPEN IT:** a linear float compositing surface (a colour-space
-decision, not this feature's), plus §16's describe-keyed bake cache. The
+decision, not this feature's), plus a describe-keyed (content-identity)
+bake cache — the mechanism beyond §16's closed pointer-keyed StampCache
+(see §16's 2026-07-30 reconciliation). The
 reopening condition is the SAME PAIR §41 named for the element matte, which
 is itself evidence that both refusals are the same refusal wearing two
 faces.
@@ -6052,6 +6094,24 @@ scenes:
   port would have moved pixels, so per the quantize-wave discipline it
   was not normalised. The sketch now carries a comment naming the
   animated spelling a new streak would use.
+
+*Fallout, found and fixed 2026-07-30 (the §16 reconciliation tripped
+it):* API.md's prose for this shipment spelled `SkImageFilters::Blur` —
+the FIRST doc spelling of a member of Skia's static-factory classes —
+and the doc-probe generator (`test/docs/api_doc_probes.py`) had
+`SkImageFilters` classified in NS_EXTERNAL as a NAMESPACE, so it emitted
+`using SkImageFilters::Blur;` at namespace scope, which is ill-formed
+for a class member: `compose_test` could not COMPILE on any rebuild
+after c358a48 (latent until the next regeneration; the `requires`
+member-probe forms cannot see an overloaded static either). Fixed by
+classification, not exclusion: a new `EXTERNAL_CLASSES` table
+(SkImageFilters/SkColorFilters/SkGradientShader/SkFontMgr — all
+`class SK_API X { static … }`, all previously mis-set as namespaces)
+routes these to a DERIVED-CLASS using-declaration probe
+(`struct Probe : SkImageFilters { using SkImageFilters::Blur; }`) — the
+same one-spelling-fits-all rule the namespace probe follows, one scope
+over, overload sets included — with the owning Skia header included
+on demand. The name stays probed; headers still win.
 
 ### 43.8 FREEZE FRAME IS ALREADY SHIPPED, and §41 is the reason
 

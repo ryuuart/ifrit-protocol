@@ -63,10 +63,24 @@ NS_EXTERNAL = {
     "std", "chrono", "choreograph", "ch", "sigil", "compose", "weave",
     "motion", "image", "scry", "loader", "filesystem", "ranges", "views",
     "literals", "this_thread",
-    # Skia's namespaces, which are Sk-prefixed like its types and would
-    # otherwise be probed as if they were classes.
-    "SkSurfaces", "SkShaders", "SkImageFilters", "SkImages", "SkColorFilters",
-    "SkPathEffects", "SkGradientShader", "SkRuntimeEffectPriv", "SkFontMgr",
+    # Skia's actual namespaces, which are Sk-prefixed like its types and
+    # would otherwise be probed as if they were classes.
+    "SkSurfaces", "SkShaders", "SkImages", "SkPathEffects",
+    "SkRuntimeEffectPriv",
+}
+
+# Skia's static-factory aggregates that READ like namespaces but are CLASSES
+# (`class SK_API SkImageFilters { static … }`).  A namespace-scope
+# using-declaration cannot name their members — the first doc spelling of
+# `SkImageFilters::Blur` turned the probe ill-formed — but a DERIVED-CLASS
+# using-declaration can, uniformly, overload sets included: the same
+# one-spelling rule the namespace probe follows, one scope over.  Each maps
+# to the Skia header that declares it, included only when a probe needs it.
+EXTERNAL_CLASSES = {
+    "SkImageFilters": "include/effects/SkImageFilters.h",
+    "SkColorFilters": "include/core/SkColorFilter.h",
+    "SkGradientShader": "include/effects/SkGradientShader.h",
+    "SkFontMgr": "include/core/SkFontMgr.h",
 }
 
 # Whole spellings API.md names on purpose that no header resolves.  Keyed by
@@ -291,6 +305,7 @@ class Generator:
                                           os.path.dirname(incdir))
                     self.headers.append(rel.replace(os.sep, "/"))
         self.usings = []        # (qualified, line, kind)
+        self.class_usings = []  # (class, member, spelled, line, kind)
         self.members = []       # (candidates, chain, spelled, line, kind)
         self.designators = []   # (candidates, field, spelled, line, kind)
         self.excluded = []      # (spelled, line, reason)
@@ -353,6 +368,14 @@ class Generator:
             # has to spell the path the headers actually put it on.
             self.usings.append((self.expand(parts[:i]) + [parts[i]],
                                 spelled, line, kind))
+            return
+        if parts[i] in EXTERNAL_CLASSES:
+            # Probed through a derived-class using-declaration (see
+            # EXTERNAL_CLASSES): the first member level is what the doc's
+            # reader would copy, and the one thing a class-scope using can
+            # name uniformly — overload sets included.
+            self.class_usings.append((parts[i], parts[i + 1], spelled, line,
+                                      kind))
             return
         # parts[i] names a type; the rest is a member chain.
         cands = resolve_type(parts[i], self.types)
@@ -435,7 +458,8 @@ class Generator:
         w("//\n// Every qualified name and designated-initialiser field these\n"
           "// docs spell, compiled against the headers that own them.  A failure\n"
           "// here is a documentation defect: HEADERS WIN.\n//\n")
-        w("//   using-probes   : %d\n" % len(self.usings))
+        w("//   using-probes   : %d (namespace-scope) + %d (class-scope, "
+          "EXTERNAL_CLASSES)\n" % (len(self.usings), len(self.class_usings)))
         w("//   member-probes  : %d\n" % len(self.members))
         w("//   designator-probes : %d\n" % len(self.designators))
         w("//   index-checked  : %d (overloaded member fns, checked in Python)\n"
@@ -447,11 +471,17 @@ class Generator:
           "// because the harness did not include the file that owns it.\n")
         for header in self.headers:
             w("#include <%s>\n" % header)
+        for cls in sorted({c for c, *_ in self.class_usings}):
+            w("#include <%s>  // EXTERNAL_CLASSES probe base\n"
+              % EXTERNAL_CLASSES[cls])
         w("\n")
         w("namespace sigil::compose {\nnamespace docs_probe {\nnamespace ch = choreograph;\n\n")
         for n, (path, spelled, line, kind) in enumerate(self.usings):
             w("namespace u%d { using %s; }  // %s %s (%s)\n"
               % (n, "::".join(path), line, spelled, kind))
+        for n, (cls, member, spelled, line, kind) in enumerate(self.class_usings):
+            w("namespace c%d { struct Probe : %s { using %s::%s; }; }"
+              "  // %s %s (%s)\n" % (n, cls, cls, member, line, spelled, kind))
         w("\n")
         for n, (cands, chain, spelled, line, kind) in enumerate(self.members):
             single = "::" not in chain
@@ -470,12 +500,13 @@ class Generator:
         # and proves nothing — the exact failure mode §25 is about, one level
         # up. So the counts are asserted, and lowering a floor is a conscious
         # act someone has to write down.
-        w("namespace {\nconstexpr int kUsingProbes = %d;\n"
+        w("namespace {\nconstexpr int kUsingProbes = %d; "
+          "// namespace-scope + class-scope\n"
           "constexpr int kMemberProbes = %d;\n"
           "constexpr int kIndexChecked = %d;\n"
           "constexpr int kDesignatorProbes = %d;\n} // namespace\n\n"
-          % (len(self.usings), len(self.members), len(self.index_checked),
-             len(self.designators)))
+          % (len(self.usings) + len(self.class_usings), len(self.members),
+             len(self.index_checked), len(self.designators)))
         w("TEST(ComposeDocs, EveryNameInTheDocsResolvesAgainstTheHeaders) {\n"
           "  // The probes above are compile-time; this case exists so the\n"
           "  // guard is VISIBLE in the suite, and so an extractor that\n"
@@ -507,7 +538,8 @@ def main():
 
     lines = ["Documented-name coverage (%s)"
              % ", ".join(os.path.basename(m) for m in args.md),
-             "  using-probes  : %d" % len(gen.usings),
+             "  using-probes  : %d (+ %d class-scope)"
+             % (len(gen.usings), len(gen.class_usings)),
              "  member-probes : %d" % len(gen.members),
              "  designators   : %d" % len(gen.designators),
              "  index-checked : %d" % len(gen.index_checked),

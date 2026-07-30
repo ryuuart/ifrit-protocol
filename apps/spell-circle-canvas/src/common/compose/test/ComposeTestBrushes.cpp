@@ -1594,3 +1594,56 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
       reds += host.pixel(x, y) == SK_ColorRED;
   EXPECT_GT(reds, 20);
 }
+
+TEST(ComposeBrushes, AFreshArtNodePerDescribeRebakesByContract) {
+  // §16's boundary, pinned from the other side (the test above is the hit
+  // direction): the StampCache key is the art Element's NODE, so art built
+  // INSIDE the describe is a fresh node per frame and re-bakes every
+  // frame — the author's half of the contract ("keep the art
+  // pointer-stable", the header's words). This is also the safety
+  // direction: a fresh node is never served another node's bake, so art
+  // whose content genuinely differs always reaches pixels — a cache that
+  // hit here on anything weaker than real content identity would be
+  // §41's frozen-matte class. A future describe-keyed (content-identity)
+  // bake cache — the reopening condition §41/§19/§43 name — would
+  // legitimately turn the identical-content half of this pin into a hit,
+  // and must revisit it deliberately.
+  static int bakes;
+  bakes = 0;
+  Host host;
+  auto tree = [&](SkColor color) {
+    Element art = // fresh node EVERY call, on purpose — the contract's cost
+        box().width(8).height(8).child(
+            custom([color](SkCanvas &c, const PaintContext &) {
+              ++bakes;
+              SkPaint p;
+              p.setColor(color);
+              c.drawRect(SkRect::MakeWH(8, 8), p);
+            }).width(8).height(8).cache(Cache::None));
+    brush::Scatter s;
+    s.art = std::move(art);
+    s.spacing = 20;
+    s.alignToPath = false;
+    return box().child(box().width(120).height(120)
+                           .cache(Cache::None) // repaints every frame
+                           .stroke(std::move(s)));
+  };
+  for (int i = 0; i < 4; ++i) {
+    host.composer.render(tree(SK_ColorRED));
+    host.frame();
+  }
+  EXPECT_EQ(bakes, 4) << "a fresh art node was served a bake it does not own";
+  // And content that genuinely differs lands on pixels: the fifth
+  // describe's art is GREEN, and green is what draws.
+  host.composer.render(tree(SK_ColorGREEN));
+  host.frame();
+  EXPECT_EQ(bakes, 5);
+  int greens = 0, reds = 0;
+  for (int x = 0; x < 130; ++x)
+    for (int y = 0; y < 10; ++y) {
+      greens += host.pixel(x, y) == SK_ColorGREEN;
+      reds += host.pixel(x, y) == SK_ColorRED;
+    }
+  EXPECT_GT(greens, 20);
+  EXPECT_EQ(reds, 0) << "stale art survived a content change";
+}

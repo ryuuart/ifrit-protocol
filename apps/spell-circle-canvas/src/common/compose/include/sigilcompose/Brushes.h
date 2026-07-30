@@ -885,9 +885,15 @@ inline void drawStamp(SkCanvas &c, const SkPicture &pic,
  *  the art Element pointer-stable across renders to prune; a mod fn makes
  *  the value incomparable (memo the host).
  *
- *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in Pattern): build
- *  the brush ONCE and keep it, because a fresh value per describe re-bakes
- *  everything, every frame. ROADMAP §16 is the open fix. */
+ *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed — as in
+ *  Pattern): inside a composer the bake lives in the INSTANCE's
+ *  StampCache, handed in via PaintContext::stamps and keyed on the
+ *  art's node with a weak guard, so a brush value rebuilt by every
+ *  describe finds its art's bake instead of re-rastering it. What
+ *  still re-bakes is a NEW ART NODE each describe: keep the art
+ *  Element pointer-stable (a member, a static, a captured value) —
+ *  its node is the cache key. This member cache serves standalone
+ *  paints (no composer, no PaintContext::stamps). */
 struct Scatter {
   Element art;
   float spacing = 24.0f; ///< Interval-mode sugar (px, or fraction ≤ 1)
@@ -1456,9 +1462,15 @@ inline Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
  *  station per N arc-px (6 px follows tight metro curves; loosen for
  *  long gentle paths).
  *
- *  THE BAKE LIVES IN THE BRUSH VALUE (as it does in Pattern): build
- *  the brush ONCE and keep it, because a fresh value per describe re-bakes
- *  the texture every frame. ROADMAP §16 is the open fix. */
+ *  THE CACHE IN THIS VALUE IS THE FALLBACK (§16, closed — as in
+ *  Pattern): inside a composer the 2x bake lives in the INSTANCE's
+ *  StampCache, handed in via PaintContext::stamps and keyed on the
+ *  art's node with a weak guard, so a brush value rebuilt by every
+ *  describe finds its art's bake — the most expensive of the three
+ *  to miss. What still re-bakes is a NEW ART NODE each describe:
+ *  keep the art Element pointer-stable (a member, a static, a
+ *  captured value) — its node is the cache key. This member cache
+ *  serves standalone paints (no composer, no PaintContext::stamps). */
 struct Art {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)
