@@ -6521,3 +6521,558 @@ cross-library pin.
 **NOT adopted, per the plan:** the ~30 sketches that hand-roll shadow
 cells. Corpus edits are the owner's call, as f206364's six unadopted
 sketches are.
+
+## 44. THE COMPOSER CAMERA — the crux inverts under measurement, and what the corpus actually asked for is not a camera — DESIGNED 2026-07-30, design only
+
+The doc-map has named this seam for as long as there has been a doc-map:
+*"a Composer camera with local-space bake anchoring (infinite canvas — the
+deepest item)."* Its provenance is `archive/SPATIAL.md` §0 (the
+four-client convergence table) and §2 (the 2D-affine boundary, plus one
+afternoon's experiment marked **UNMEASURED** in that document's own claims
+table). The After Effects analogue is 3D layers: give a 2D layer a Z, add
+a camera, get parallax and perspective.
+
+It is designed here and **deliberately not built**, on the §19 model. Two
+throwaway probes were written to answer it, both run against the Release
+library through `ComposeSketch` (an arbitrary path compiles, so neither
+probe entered the tree), and **both inverted the premise they were written
+to test.**
+
+### 44.0 First, the citation count, because the preamble says that is the only signal worth trusting
+
+| Ask | Study citations | State |
+|---|---|---|
+| a perspective transform on a subtree | **1** — `eva_magi_interior.cpp:212` item E, and it wants a STATIC projection of a flat plate | open |
+| parallax between planes | **1** — `thaumonomicon.cpp:1294`, and it is **already built**, out of `Cache::Texture` + bound `translateX/Y` at two divisors | shipped, no feature needed |
+| a Composer camera | **0** | — |
+| infinite canvas | **0** — it appears only as an anticipated client in SPATIAL.md's convergence table, never as a wall anybody hit | — |
+| windowed/tiled bake for a long strip | 1 — world's marquee, §36 | **measured to a ceiling of zero**, closed, `tiles::` shipped instead |
+
+Two rows of that table are the whole entry in miniature. The parallax row
+is a study that wanted AE's headline 3D effect and **got it out of the
+existing paint-only transform lanes**, with a comment that reasons about
+the caching correctly and unprompted:
+
+> the parallax is a bound transform, which is paint-only volatility, so the
+> bakes replay under it and no shader re-runs per frame
+
+And the camera row is empty. Per the preamble's ordering rule, a Composer
+camera is not an entry the corpus filed; it is an entry a design
+conversation anticipated. That does not make it wrong, but it means the
+wall has to be reproduced before the fix is built — and when it was, it
+was not there.
+
+### 44.1 THE CRUX: "a camera moves every node every frame, so it invalidates everything" — FALSE, and measured
+
+The naive reading is that a camera is maximally hostile to this
+architecture: pruning and baking rest on a node comparing equal, and a
+camera moves every node on screen continuously.
+
+**Probe 2** (`persp_live.cpp`, thrown away) builds a live 13-node
+`Composer` — small type, hairlines, a gradient — and draws it through a
+`SkCanvas` carrying a CSS-model perspective `SkM44`, reading the
+composer's own `stats()` frame by frame. Raster, Release, this machine.
+
+| arm | recorded | baked | painted | picturesLive | paint ms |
+|---|---|---|---|---|---|
+| affine, frame 1 (cold) | 13 | 0 | 2 | 13 | 0.732 |
+| affine, frames 2–5 | **0** | 0 | 0 | 13 | 0.206–0.213 |
+| perspective, camera STILL, 5 frames | **0** | 0 | 0 | 13 | 1.014–1.213 |
+| **perspective, camera MOVED every frame, 6 frames** | **0** | **0** | **0** | 13 | 0.990–1.041 |
+
+**A moving camera invalidates nothing.** Not one recording, not one bake,
+not one live paint, across six consecutive frames at six different camera
+angles. Re-describing the tree on top of that changes nothing either:
+`patched=1 recorded=1 reconcile=0.004–0.012 ms`, and that one node
+patches identically whether the camera moves or not — the camera is the
+host's CTM and never enters the tree, so it cannot be the cause.
+
+**Why, in one sentence that is already written down in the source.**
+`Paint.cpp`'s picture branch says it:
+
+> A picture can be replayed under a DIFFERENT matrix than it was recorded
+> at (an ancestor with a live transform keeps its picture and replays it
+> under the motion). Anything inside must therefore be matrix-independent
+> — which a device-space bake, snapped to one particular device rect, is
+> not.
+
+The picture tier is **matrix-independent by law**, and that law is old and
+load-bearing and has nothing to do with cameras. The camera therefore
+cannot reach describe, cannot reach reconcile, cannot reach layout, and
+cannot reach the recordings. The only stage that reads the CTM to make a
+CACHING decision is the **device-space pixel bake**, and there are exactly
+three sites, all in `Paint.cpp`, all already guarded (44.1b names the
+fourth reader, which is not a caching decision but can become one):
+
+- `upright` (automatic texture promotion) — `!totalM.hasPerspective()`
+- the `Cache::Group` device bake — `!totalM.hasPerspective()`
+- the `Cache::Texture` device bake — `!totalM.hasPerspective()`
+
+**So the answer to "which stage absorbs a camera move" is: the composite,
+and nothing above it — and what enforces that is not a new rule but the
+oldest one in the caching section.** The three `hasPerspective()` guards
+SPATIAL.md called "the (latent) boundary" turn out to be a complete and
+exact enumeration of every place in the library that is not
+matrix-independent. The boundary is not a fence around a feature; it is
+the list of sites that pin pixels to a device rect.
+
+### 44.1b The FOURTH CTM reader, and it is the one caveat on 44.1
+
+`Composer::draw()` derives `hostScale` — `PaintContext::contentScale` —
+from `maxScaleOf(canvas.getTotalMatrix())`, so a camera move DOES change
+one number that reaches paint. For everything but one case it is inert:
+recordings capture the scale current when they re-record (the code says so
+and calls it best effort), which is why probe 2 measured `recorded=0` under
+a moving camera.
+
+**The exception is a live `Material` that reads `uContentScale`.**
+`Material.cpp` marks such a material `usesScale`, and `resolve()` memoizes
+on a digest of its varying inputs — so a moving camera moves the digest,
+`liveStable` goes false, and that node re-bakes every frame. It is exactly
+the §17/§38 staleness contract working as designed (the input really did
+change), and it is worth naming for two reasons: it is the ONE way a camera
+move can reach the cache, and under perspective the number it is reacting
+to is computed from the matrix diagonal, which is the defect in 44.2b.1.
+So a `uContentScale` material under a projected node re-bakes every frame
+in response to an estimate that is wrong. Neither half is a blocker; both
+belong in the design's test list.
+
+### 44.2 "Local-space bake anchoring" already exists, and its leverage HALVES under perspective
+
+The canon's phrase describes a mechanism that shipped long ago: when a
+`Cache::Texture` node is moving — `transformLive`, or its device rect
+moved since last frame — the device branch is skipped and the node takes
+the **quantized local bake**, rasterized at one of eight coarse scale
+steps in the node's own space and blitted through the live matrix.
+`Paint.cpp` already names camera-shaped causes for it in prose: *"a
+resizing window, a pinch zoom, a pan."* A camera is a fourth item on that
+list, not a new phenomenon.
+
+Probe 2, arm E — the same panel with `.cache(Cache::Texture)` on its root,
+under a camera moving every frame:
+
+| frame | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| bakes | 1 | 0 | 0 | 0 | **1** | 0 |
+| paint ms | 1.450 | 0.624 | 0.583 | 0.552 | 0.762 | 0.470 |
+
+**It engages and it holds.** So local-space bake anchoring is real, is
+shipped, and does survive a moving camera. What it does not do is carry
+the feature, and two measurements say so.
+
+**(a) The leverage collapses.** Probe 1 (`persp_probe.cpp`, thrown away)
+takes one `snapshot()` picture of a 420×300 panel and draws it four ways
+into a 600×400 raster surface, 300 reps each:
+
+| | picture replay | bake blit | bake's advantage |
+|---|---|---|---|
+| **affine** | 0.210 ms | 0.051 ms | **4.1×** |
+| **perspective (yaw 45)** | 0.995 ms | 0.510 ms | **1.95×** |
+
+Probe 2's live composer agrees from the other side: the same node costs
+0.216 ms affine live, 0.039 ms affine baked (**5.5×**), and ~1.00 ms
+perspective live against ~0.50–0.62 ms perspective baked (**~1.7×**).
+
+Read the columns, not the rows. A perspective CTM costs the picture replay
+**4.7×** and costs the bake blit **10×** — because an affine blit of a
+matching-size image is a fast rect path and a perspective one is a general
+per-pixel inverse map with a w divide. **Perspective punishes the pixel
+cache harder than it punishes the thing the pixel cache was supposed to
+replace.** The tier compose reaches for under load is the tier perspective
+takes away.
+
+**(b) It is not the same pixels, and the bar here is 1 LSB.** Probe 1
+compares the bake-then-homography against the vector truth over every
+covered pixel:
+
+| yaw | bake 1× mean \|Δ\| | max | differing | bake 2× mean \|Δ\| | max | differing |
+|---|---|---|---|---|---|---|
+| 0 | **0.00** | **0** | **0.0%** | 1.94 | 94 | 13.6% |
+| 35 | 5.17 | 134 | 24.4% | 3.30 | 144 | 17.1% |
+| 60 | 5.21 | 135 | 26.1% | 4.91 | 148 | 19.8% |
+
+The yaw-0/1× row is the negative control and it reads exactly zero, which
+is what makes the rest of the table believable. Against §29's own
+standard — *"agreement to within 1 LSB is not agreement"* — a mean of 5.2
+with a max of 135 is not agreement by two orders of magnitude, and it is
+in the place it always is: small type and hairlines, magnified at the near
+edge, where the flat bake has no texels to give. Eyeballed at 4×
+magnification the 1× bake is legible and visibly soft; the 2× bake is
+close to the vector. It is the same trade `Cache::Texture` already
+documents for a rotated bake (mean 13.5 at ±90°) — **an opt-in the author
+accepts, never a default the library takes.**
+
+**So the doc-map's phrase is half a fact and half a misdirection.** The
+mechanism exists; it is not what makes a camera possible. What makes a
+camera possible is the picture tier, which needed nothing.
+
+### 44.2b Two defects found on the way, filed not fixed
+
+1. **`maxScaleOf()`'s perspective fallback is the matrix DIAGONAL, and
+   that is not the maximum magnification of a projected quad.**
+   `ComposeRuntime.h:569` returns `getMinMaxScales`'s upper singular value
+   and falls back to `max(|scaleX|, |scaleY|)` when the matrix has
+   perspective (Skia refuses the singular values there). A projected quad's
+   near edge can magnify well past the diagonal, so the quantized bake
+   ladder can pick a step BELOW the density the near edge needs. It also
+   walks: arm E's one re-bake at frame 5 out of six is the diagonal
+   crossing a `kBakeSteps` boundary as the yaw turned. The bounded cost
+   (eight steps) is why this is a defect and not a wall. The honest fix is
+   the maximum over the four mapped corners of the local bounds, which is
+   exact for a plane and is the number every consumer of `maxScaleOf`
+   actually wants.
+2. **A stale filed-gap comment.** `ComposeInternal.h`'s FIELD PINS block
+   says *"the same pair is still missing from `recordBounds()`'s transform
+   gate (filed, ROADMAP)."* It is not: `Paint.cpp`'s `recordBounds()` now
+   gates on `tf.pivoted()`, which includes `sx`/`sy`, and its comment
+   records the repair (*"Same field, same feature, second site — filed by
+   the travel() wave, taken here"*). One sentence in a header, left for the
+   owner rather than touched, because a comment edit in that header rebuilds
+   the world.
+
+### 44.3 The seven questions
+
+**1. What is the unit — a layer Z, or a full camera? NEITHER, and the
+existing lane set says why.** Compose already ships a complete 2D affine
+transform vocabulary: `translateX/translateY`, `rotate`, `scale` +
+`scaleX/scaleY`, `skewX/skewY`, over one `transformOrigin`, all
+`Animatable<float>`, all paint-only, all in one resolver. Read that list
+and the gap is not a camera and not a depth: **it is that `rotate` is
+`rotateZ` and the other two axes are missing.** The smallest coherent
+version is `rotateX`/`rotateY` plus the one scalar that makes them visible
+— CSS's `perspective` distance — and that is three more float lanes in the
+machinery that already exists.
+
+Why not a Z lane: a Z is meaningless without a camera to project it, so
+`z()` is not one property, it is one property plus an ambient value, and
+compose's only mechanism for an ambient value (`env::`) resolves at
+DESCRIBE. That is where the crux would actually have bitten (see rejected
+shape (b)). Why not a camera: measured, the host already has one — a
+concat before `draw()` — and it invalidates nothing (44.1). Three lanes
+buy the one thing a host CTM cannot: **per-node** projection, so two
+siblings can sit at different angles in one composition.
+
+**2. Where does the projection happen — `paint()`'s matrix, or a real
+per-node perspective draw?** `paint()`'s matrix, and the alternative
+turns out not to be an alternative. `shape::space::drawPanel` — the
+working sibling implementation the manager pointed at — is, in full,
+`canvas.save(); canvas.concat(fullM44); draw(canvas); canvas.restore()`.
+It IS the matrix path, wearing a camera's argument list. There is no
+second draw path to choose, and the lens's objection to an exceptional
+path never has to be raised.
+
+The projection is therefore one more term in `transformOf()` and one more
+concat in `paint()`, and its result is rasterized by Skia
+perspective-correct — measured, legible, at 4.7× the affine cost on raster
+(see 44.6 for why that number is not the deciding one).
+
+**3. What happens to layout? Nothing, and the reason is stronger than
+"Yoga is 2D."** Yoga being 2D is true and is the weak argument. The strong
+one: a projection changes a node's SCREEN footprint but not its content's
+intrinsic size, so if it fed layout, a foreshortened text node would
+re-measure at a different width — and the Risks section already prices
+that (*"animating text-affecting layout props re-measures per frame"*).
+At 60 Hz, for every node in view, that IS the crux, arrived at by the one
+route that would have made it real. `travel()` is the standing precedent
+and the ruling is copied verbatim: **paint-only, `bounds()` keeps
+reporting the laid-out box.** Perspective changes only the painted result.
+
+The one honest consequence, which wants an API.md line: there are two
+bounds notions in this library and the projection joins the second.
+`bounds(key)` is the layout box and stays flat; `recordBounds()` — the
+paint bounds that size effect layers, opacity layers and bakes — must map
+through the projection, exactly as it already maps through a child's
+rotate and scale.
+
+**4. Pruning and caching, concretely.** Measured in 44.1, and the answer
+is a table rather than an argument:
+
+| stage | does a camera move touch it? | what makes that true |
+|---|---|---|
+| describe | **no** | the camera is not a prop |
+| memo | **no** | same |
+| reconcile / patch | **no** | same |
+| layout | **no** | Q3's paint-only ruling |
+| recordings (the picture tier) | **no** — measured 0 across a moving camera | pictures are matrix-independent BY LAW; the law predates this |
+| device-space pixel bakes (`Cache::Texture` device, `Cache::Group` device) | refused | the two existing `!hasPerspective()` guards |
+| automatic texture promotion | refused, reported as `Prom::Transformed` | the existing `upright` guard |
+| quantized LOCAL pixel bake | survives; re-bakes on a scale-step crossing | the existing moving-node fallback |
+| the final composite | **yes — this is where it lands** | it is the CTM |
+
+"The camera lives below the recording and above the composite" is
+therefore not a rule that needs enforcing — it is a restatement of *no
+device space inside a picture recording*, which is enforced today by the
+`recordingDepth == 0` conditions on all three device paths and covered by
+their existing tests.
+
+**5. Hit-testing — the existing seam generalises, and the reason it does
+is a bill the library already paid.** `Query.cpp`'s `hitInstance` walks
+paint's matrix stack backwards as a point-to-point map, one level at a
+time, hand-unwinding skew, then scale, then rotation. A homography
+inverts too (`SkMatrix::invert` handles perspective) and maps a point to a
+point, so the walk is unchanged in shape — and because a projected node is
+still a PLANE, there is exactly one preimage. The change is a net
+DELETION: invert the one matrix the resolver already built instead of
+unwinding six floats by hand.
+
+That is only true because of the note already in `transformOf`: *"THE GATE
+IS `pivoted()`, NOT A COPY OF IT. One resolver, three consumers — paint's
+matrix, this child union, and `hitInstance`'s inverse — and the three must
+build the SAME matrix or a node draws where it cannot be hit."* Three
+hand-written copies would have been three chances to disagree about
+perspective, and the library has already been bitten twice by exactly
+that (`scaleX`/`scaleY`, two sites, §40).
+
+**The one thing 3D does need its own answer for is the horizon.** Beyond
+the vanishing line the w divide folds space: a point outside the drawn
+quad maps back inside it, and `SkMatrix::mapRect` — which maps four
+corners and takes their bounds — returns garbage. Both the hit test and
+`recordBounds` therefore need the same gate: **w > 0 at all four mapped
+corners, or the projection is refused for that node** (drawn unprojected,
+warned once, reported through the existing `Promotion`-style refusal
+vocabulary). This is the feature's one genuine soundness hazard and it has
+a precedent for how to handle it: `VariationDrive` refuses an axis it
+cannot prove safe and says so.
+
+**6. Does this subsume `tiles::`? No — and the reason is the altitude, not
+the capability.** `tiles::` slices a baked picture into N GPU textures for
+a consumer that owns a depth buffer and mirrored sampling; three lanes on
+an `Element` put one plane in ONE `SkCanvas` under the painter's rule.
+They are the two halves of the boundary DESIGN.md already draws —
+*surface-granular, not element-granular; between surfaces the depth rule.*
+Concretely, the world marquee's ribbon wall is a CURVED surface, and a
+homography maps planes; no number of lanes on an `Element` reaches it.
+`tiles::` does not exist because there is no camera. It exists because
+there is a second library that owns geometry, and it always will.
+
+Nor does a camera help the infinite canvas, which is the client the
+doc-map named. **Probe 2, arm G:** the same picture-cached tree, panned
+10,000 px off screen —
+
+| | ms/frame |
+|---|---|
+| on screen | 0.216 |
+| panned fully off screen | **0.021** |
+| clear the surface, draw nothing (floor) | **0.021** |
+
+`recorded=0 painted=0`, and compose's own `paintMs` reads **0.0001**. An
+off-screen picture-cached subtree already costs the floor, because
+`drawPicture` rejects against its cull rect and the whole subtree is
+inside one op. So the infinite canvas's three needs are pan/zoom (the host
+matrix — shipped), density (the quantized bake ladder — shipped), and
+culling within one enormous replay (`tiles::sliceable()`'s BBH, measured
+in §36 to land ON the extraction floor — shipped). **What the infinite
+canvas was missing was never a camera; naming it one is the NR-4 failure
+in advance — a wrong mechanism sending the fix to the wrong place.** What
+is left of it is Direction item 5, the retained-subtree snapshot at host
+density, and §36 already measured that a REGION bake has nothing to win.
+
+**7. Scope, honestly.** AE's 3D layers bring cameras, lights, shadows,
+material options and 3D intersection ordering. Almost all of it is out,
+and one item is out for a reason worth stating: **3D intersection ordering
+contradicts the stacking law.** *"A component cannot z-escape the site it
+was composed into"* is a kernel rule; a 3D node that interleaves with its
+uncle by depth breaks it. AE's own answer to this question — 2D/3D
+switches, precomps that flatten, "Collapse Transformations" — is the most
+confusing part of AE, and CSS's answer (`transform-style: flat` by
+default, `preserve-3d` an opt-in widely regarded as a footgun) is the one
+to copy: **flat, always, no opt-in.**
+
+### 44.4 The smallest coherent version — three float lanes, and not one new concept
+
+```cpp
+Element &rotateX(Animatable<float> deg);   // pitch, about transformOrigin
+Element &rotateY(Animatable<float> deg);   // yaw,   about transformOrigin
+Element &perspective(Animatable<float> distancePx); // CSS's perspective
+```
+
+Everything about this shape is chosen to reuse rather than to add:
+
+- **They are floats, so they are lanes.** `Animatable<float>` means the
+  whole `bind()` chain, `animate(to(…))`, transitions, `wiggle()`,
+  `staggerChildren`, `window()`/`quantize()` — every verb in the animation
+  grammar — applies on day one, with no plumbing. This is the same ruling
+  world's camera lanes made (*"every lane is a float"*) and the same one
+  `travel()` made (*"the lane is `t`"*), for the third time.
+- **They pivot on `transformOrigin`**, like `rotate` and `scale`, so a
+  card flips about its own edge with the property that already exists.
+- **They live in a `Box<SpaceProps>` block**, not in `PaintProps` —
+  `MotionPath` is the precedent and `Composer.cpp`'s
+  `static_assert(sizeof(ElementNode) <= 768)` is the rule that says so.
+  Cost: one null pointer, +8 bytes, 736 → 744.
+- **`rotate` is not renamed.** It is `rotateZ` and always was; a doc line
+  says so. Aliasing it would be a second grammar (§33), and renaming it
+  would move every caller's call site for zero information.
+- **A camera, if anyone wants one, is a util-tier or caller-side function
+  that computes three floats per node** — which is exactly what
+  thaumonomicon already does by hand for two planes, and exactly what the
+  extraction test says to wait for: a helper earns a home when it makes a
+  CHORE cheap, and nobody has yet done this chore twice.
+
+What ships with it: the w > 0 refusal, the `recordBounds` projection, the
+`hitInstance` inverse, and — finally — **a test on the
+`!hasPerspective()` boundary**, which §28 has wanted since SPATIAL.md
+called it latent.
+
+### 44.5 What is explicitly OUT
+
+- **A camera object, in any form** — `Composer::setCamera()`, an
+  `env::`-provided camera, a camera node. Measured redundant at the host
+  (44.1); priced by two EXISTING measurements at describe (rejected
+  shape (b)).
+- **`z()` / `translateZ()`** — a depth with no camera is not a property.
+- **Depth in the model, depth sort, 3D intersection ordering,
+  `preserve-3d`** — contradicts the stacking law (Q7).
+- **Lights, shadows, material options, back-face culling.** A back-face
+  test is one `w`-sign check and it is still out: nothing asked.
+- **3D layout, 3D bounds from `bounds()`, perspective-aware measure.**
+- **A matrix-valued `perspective(SkMatrix)`** — SPATIAL.md's and
+  `eva_magi_interior`'s own proposal, rejected below. Note the NAME is
+  taken by 44.4's scalar (CSS's perspective DISTANCE); the two are not
+  overloads of one idea and only one of them can be a lane.
+- **Curved surfaces, ribbons, tiled GPU strips** — `tiles::` and
+  SigilShape/SigilWorld own those, and the boundary is unchanged.
+
+### 44.6 THE MISSING NUMBER, and it is the one that decides whether to build
+
+**Every number in this entry is CPU raster, and Graphite is the primary
+target.** Doctrine 6 is explicit that the raster path cannot speak for the
+GPU. The 4.7× perspective penalty on picture replay is very likely a
+raster artefact: a perspective quad on a GPU is what texture units do in
+hardware, and glyphs under perspective on raster fall off the atlas path
+onto path filling, which is most of the cost.
+
+The direction of that uncertainty is favourable to the design above — if
+perspective is nearly free on Graphite, the live path wins outright, the
+bake tier is not needed, and three lanes is the whole feature. But the
+number does not exist, and the honest gate is therefore:
+
+> **Before spending the kernel change, measure ONE projected panel on
+> Graphite** (`compose_gpu_test` has the harness; `--gpu` on the gallery
+> has the surface). If perspective is also ~5× there, the answer changes
+> from "three lanes" to "refuse, and let the future 3D library own the
+> projection" — because at 5× on the primary target, a projected plate is
+> a per-frame budget decision and belongs where the depth buffer is, not
+> in a paint-only lane an author can put on any node.
+
+### 44.7 Rejected shapes, with reasons
+
+**(a) `Composer::setCamera(...)` — a camera value on the Composer.**
+Measured redundant: `Composer::draw()` already honours the incoming CTM
+(and `hostScale` already derives from `maxScaleOf`, which already has
+a perspective branch), so a host concat IS the camera, and probe 2 shows it costs zero invalidation. Additionally it
+would be a SECOND camera vocabulary in one repo next to
+`shape::space::Camera`, which compose may not depend on (the Eigen/glm
+refusal; every seam here is a Skia seam) — so it would be a duplicate
+type, not a shared one, which is the exact opposite of unifying verbs.
+
+**(b) `Element::z()` plus an ambient camera through `env::`.** This is the
+shape that looks most like AE and it is the one that makes the crux real.
+`env::`'s rule is that an inherited value is **resolved at describe and
+baked into the reading node's props**. A camera moving at 60 Hz would
+therefore change the props of every 3D node every frame — missing every
+`memo`, patching every instance, marking paint dirty up the spine — and
+the two measurements that price it already exist: a full CDE palette
+change costs **237 re-records over 1270 nodes** through `env::` (§10g) —
+and that is the CHEAP path, the one whose whole virtue is that props are
+the exact dependency tracker; the provider node rejected there would have
+invalidated the desktop. §3's bound-`Fill` theme measured **0.33 ms/frame
+steady against 0.033** for the same forty values held plain. A per-frame ambient value is the worst thing
+`env::` can carry. **The crux is real for exactly one design, and this is
+it.**
+
+**(c) `Element::perspective(SkMatrix)` restricted to `Cache::Texture`
+subtrees** — SPATIAL.md §2's "one concession worth taking", and
+`eva_magi_interior`'s own wording (*"a bake is already a texture and Skia
+will happily draw one under a 3×3"*). Three reasons it is the wrong shape,
+and the first two are the probes':
+1. **The restriction is unnecessary.** The live vector path under
+   perspective works, and is *better* — measured byte-identical at yaw 0
+   and mean 5.2/255 better than the 1× bake at yaw 35–60. Gating the
+   feature on a bake would ship the worse of the two paths as the only
+   path.
+2. **The bake is not the win it was assumed to be.** 1.95× instead of the
+   4.1× a bake buys in affine space (44.2), and paid for in visible
+   softness on small type — which is where the study that filed this wants
+   it.
+3. **A matrix is not a float, so it cannot be a lane.** It would be the
+   only paint transform in the library outside the animation grammar: no
+   `bind()`, no `animate()`, no transition, no `wiggle()`. And a
+   hand-built homography can put the vanishing line inside the node's own
+   box, which three clamped floats cannot.
+
+**(d) A real per-node perspective DRAW, like `shape::space::drawPanel`.**
+Not a rejection so much as a dissolution: `drawPanel` is a `concat` and a
+callback. There is no second path on offer, so the exceptional path the
+lens would have objected to does not exist.
+
+**(e) A `CameraPath` port, on the §39 model.** Nothing to port. §39
+already took the transferable idea (a curve supplies the shape, one float
+lane supplies the schedule) and spent it on `travel()`. A 2D camera flight
+IS `travel()` applied to the whole tree, which is the host's matrix moving
+— and the host owns that today.
+
+**(f) A projected or windowed `snapshot()` for the infinite canvas.**
+§36 measured the region bake at a ceiling of zero and showed it would be
+structurally SLOWER (compose's paint traversal has no node-level
+quick-reject, so a region paint walks the same ops while doing strictly
+more per node). Probe 2 arm G adds the other half: an off-screen
+picture-cached subtree already costs the clear-only floor. Both halves of
+the infinite canvas's supposed need are already answered.
+
+**(g) Deferring the whole thing and building nothing.** Tempting, and it
+is the runner-up verdict. Against it: the three lanes are not a 3D
+feature, they are the completion of a transform vocabulary that is
+missing two of its three rotation axes; the boundary they cross is
+already enumerated exactly (three guards, all correct); and the one study
+that filed a citation filed it for a wall that is real — `eva_magi` had to
+rectify its reference measurements by hand because it could not project a
+flat plate, and that is 1,945 lines of arithmetic done in the wrong space.
+
+### 44.8 The plan, and the estimate is LABELLED AS AN ESTIMATE
+
+Step 0 is the one worth doing whether or not the rest is built.
+
+| step | change | est. lines |
+|---|---|---|
+| **0** | `transformOf()` returns the MATRIX, not eight floats. `paint()`, `recordBounds()` and `hitInstance()` consume it. Deletes the duplicated pivot arithmetic at all three sites and the hand-unwound inverse in `Query.cpp`. **Byte-neutral, behaviour-identical, plate-ledger-verified — a consolidation the canon already asked for in `NodeTransform`'s own doc comment.** | **−40 net** |
+| 1 | `Box<SpaceProps>{rotateX, rotateY, perspective}`, three `Element` setters, three `Instance` anim slots, `fields(SpaceProps)` field pin, `propsEqual` clause, `NodeTransform::fieldPin` count bumped | ~140 |
+| 2 | the projection term in the resolver + the w > 0 corner gate + a warn-once refusal | ~70 |
+| 3 | docs: `Compose.h` doc comments, API.md's transform section, the two-bounds-notions note, DESIGN.md's Boundaries rewrite | ~90 |
+| 4 | tests: the `!hasPerspective()` boundary (§28's outstanding ask), the w-gate refusal, a hit-test round trip under perspective, `recordBounds` covers the projected quad, a pixel pin that a projected `Cache::Texture` node takes the LOCAL bake, the field-pin walk | ~250, 8–10 cases |
+
+**ESTIMATE, not a measurement: ~500 lines net across six files, one
+working session plus a plate-ledger sweep, which a purely additive lane
+set should pass byte-identical.** No performance claim is made about the
+result; the only performance claims in this entry are the probe tables
+above, and they are raster.
+
+### 44.9 THE VERDICT — design, then build, gated on one GPU number
+
+Not a refusal. The crux dissolved under measurement — **a camera is not
+hostile to this architecture at all, because nothing in this architecture
+except the device-space pixel bake reads the CTM** — and the thing the
+corpus actually asked for turns out to be three float lanes in machinery
+that already exists, with a net DELETION at the site that would otherwise
+have been three copies of one matrix.
+
+But not a build order either, for one honest reason: **every number here
+is raster, and this library's floor is 60 fps on Graphite.** Take 44.6's
+one measurement first. It costs an afternoon and it is the difference
+between a lane set and a refusal.
+
+And two things are settled regardless of that number, and are worth more
+than the feature:
+
+- **The "Composer camera" seam is retired.** There is no camera to build.
+  A host concat is one, it invalidates nothing, and it has been available
+  since `draw(SkCanvas&)` existed.
+- **"Local-space bake anchoring" is not the enabling mechanism.** It
+  shipped long before this entry as `Cache::Texture`'s moving-node
+  fallback, and under perspective its leverage halves while its error
+  grows to 5.2/255. What carries a camera is the picture tier's
+  matrix-independence — a law written for a completely different reason.
+  That is the same shape §36 found in the tiled bake, where the win had
+  already been paid for by one argument to `beginRecording`: **twice now,
+  the deepest item on the list turned out to be already funded by a rule
+  nobody wrote for it.**

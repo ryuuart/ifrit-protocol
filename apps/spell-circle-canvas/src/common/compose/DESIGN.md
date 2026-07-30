@@ -471,6 +471,38 @@ a third.
   `Paint.cpp` are the (latent) boundary and want a test. The one
   concession on the table: perspective on a `Texture`-cached subtree —
   a projected bake, what shipped game UI does. (archive/SPATIAL.md.)
+
+  **THREE THINGS ABOUT THAT BOUNDARY ARE NOW MEASURED, not argued
+  (2026-07-30, ROADMAP §44), and they retire the "Composer camera"
+  seam.**
+  - **A CAMERA IS THE HOST'S CTM, AND IT INVALIDATES NOTHING.** A live
+    Composer drawn under a projected `SkM44` with the camera moving
+    every frame records nothing, bakes nothing and paints nothing live
+    — measured on the counters, six consecutive frames at six angles.
+    The reason is a law that predates the question: **a recording is
+    matrix-independent by construction**, so the camera cannot reach
+    describe, memo, reconcile, layout or the pictures. There is no
+    camera to build; `draw(SkCanvas&)` has been one since it existed.
+    (One caveat, §44.1b: a live `Material` reading `uContentScale` reacts
+    to the CTM through `hostScale` and re-bakes as the camera moves —
+    the only route by which a camera reaches a cache.)
+  - **THE THREE `hasPerspective()` GUARDS ARE AN EXACT ENUMERATION of
+    every site in the library that pins pixels to a device rect** —
+    promotion's `upright`, the `Cache::Group` device bake, the
+    `Cache::Texture` device bake. The boundary is not a fence around a
+    feature; it is that list, and "the camera lives below the recording
+    and above the composite" is a restatement of *no device space
+    inside a picture recording*.
+  - **"Local-space bake anchoring" is already shipped and is NOT the
+    enabling mechanism.** It is `Cache::Texture`'s moving-node
+    fallback (quantized local scale steps), and it does survive a
+    moving camera — but under perspective a bake's advantage over a
+    picture replay falls from 4.1–5.5× to 1.7–2.0× while its error
+    against the vector truth grows to mean 5.2/255 (max 135) on small
+    type. Perspective punishes the pixel cache harder than the tier it
+    replaces. **All of those numbers are CPU raster; per Doctrine 6 the
+    Graphite figure does not exist and is the gate on building
+    anything here.**
 - **Guest-hood is absolute**: no surface, loop, or thread. A future 3D
   library (`SigilStage`) depends on Compose, never the reverse —
   surface-granular (N surfaces = N Composers = N textures), within a
@@ -684,6 +716,12 @@ table marks which half is source-verified vs unmeasured):
    host-chosen density, invalidated per tile, keyed on scale (the y2k
    1x-bake-2x-replay lesson). `Cache::Group` computes the bake;
    `bakeScale` is the authored half of the density product.
+   **Two of the four clients have since been answered without it**: the
+   long-strip tile bake measured a ceiling of zero and shipped as
+   `tiles::` (§36), and the INFINITE CANVAS turns out to want no camera
+   and no frustum — pan/zoom is the host matrix, density is the
+   quantized bake ladder, and an off-screen picture-cached subtree
+   already costs the clear-only floor, measured (§44).
 6. Tree inspector, then the FlatBuffers producer.
 7. Then price Graphite-on-Dawn vs raw Metal and let the 3D pipeline
    fall out of that decision.
