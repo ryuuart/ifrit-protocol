@@ -1156,6 +1156,12 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     // the magenta streaks, x 466..869, y 483..639: horizontal smears, not
     // shapes — three bands of different length at different heights, blurred
     // hard along x only.
+    //
+    // Effect::directionalBlur(sigma, 0) now spells the blur these ramps
+    // faked (the §43.7 filing named this site as the WANT). NOT ported:
+    // a real blur is a different picture than five hand-shaped gradient
+    // ramps — the ledger discipline keeps the plate as authored. A new
+    // streak would write .effect(Effect::directionalBlur(sigma, 0)).
     {
       auto g = box().inset(0).key("magenta");
       const float bands[5][4] = {{474, 508, 128, 0.95f},

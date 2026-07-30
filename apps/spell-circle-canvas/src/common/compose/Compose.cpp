@@ -356,8 +356,54 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   return e;
 }
 
+namespace {
+/** directionalBlur's filter, from EXISTING filters only (§43.7's ruling:
+ *  reuse over new SkSL — the separable Gaussian stays Skia's). An
+ *  axis-aligned angle IS SkImageFilters::Blur — the exact call the four
+ *  hand-consolidated sites wrote, which is what made their ports
+ *  bit-identical — and any other angle is the rotate → Blur → unrotate
+ *  sandwich, three DAG nodes, bounds handled by the filter graph. */
+sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
+                                         float across) {
+  float axis = std::fmod(angleDeg, 180.0f); // a blur axis has no sign
+  if (axis < 0)
+    axis += 180.0f;
+  if (axis == 0.0f)
+    return SkImageFilters::Blur(sigma, across, nullptr);
+  if (axis == 90.0f)
+    return SkImageFilters::Blur(across, sigma, nullptr);
+  const SkSamplingOptions sampling(SkFilterMode::kLinear);
+  sk_sp<SkImageFilter> aligned = SkImageFilters::MatrixTransform(
+      SkMatrix::RotateDeg(-angleDeg), sampling, nullptr);
+  sk_sp<SkImageFilter> blurred =
+      SkImageFilters::Blur(sigma, across, std::move(aligned));
+  return SkImageFilters::MatrixTransform(SkMatrix::RotateDeg(angleDeg),
+                                         sampling, std::move(blurred));
+}
+} // namespace
+
+Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
+  Effect e;
+  e.m_dirBlur = DirectionalBlur{sigma, angleDeg, across};
+  e.m_filter = makeDirectionalBlur(sigma, angleDeg, across);
+  return e;
+}
+
 Effect &Effect::uniform(std::string name,
                         const choreograph::Output<float> *value) {
+  if (m_dirBlur && value) {
+    // The recipe's named parameters — anything else is Material's
+    // guardrail: warn and ignore, never a debug abort (one sketch typo
+    // must not kill the hot-reload host).
+    if (name != "sigma" && name != "angle" && name != "across") {
+      SkDebugf("[compose] Effect::uniform(\"%s\") on a directionalBlur() — "
+               "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
+               name.c_str());
+      return *this;
+    }
+    m_bound.emplace_back(std::move(name), value);
+    return *this;
+  }
   if (m_effect && value)
     m_bound.emplace_back(std::move(name), value);
   return *this;
@@ -385,7 +431,21 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter() const {
   if (m_chainA)
     return SkImageFilters::Compose(m_chainB->resolvedImageFilter(),
                                    m_chainA->resolvedImageFilter());
-  if (m_bound.empty() || !m_effect)
+  if (m_bound.empty())
+    return m_filter;
+  if (m_dirBlur) { // rebuild the sandwich from the bound parameters
+    DirectionalBlur d = *m_dirBlur;
+    for (const auto &[name, out] : m_bound) {
+      if (name == "sigma")
+        d.sigma = out->value();
+      else if (name == "angle")
+        d.angleDeg = out->value();
+      else if (name == "across")
+        d.across = out->value();
+    }
+    return makeDirectionalBlur(d.sigma, d.angleDeg, d.across);
+  }
+  if (!m_effect)
     return m_filter;
   SkRuntimeShaderBuilder builder(m_effect);
   for (const auto &[name, value] : m_uniforms)
@@ -398,6 +458,8 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter() const {
 bool Effect::operator==(const Effect &o) const {
   if (isAnimated() || o.isAnimated())
     return false; // live never prunes — the material rule
+  if (m_dirBlur || o.m_dirBlur) // directionalBlur(): by RECIPE, so a
+    return m_dirBlur == o.m_dirBlur; // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_uniforms == o.m_uniforms;
   return m_filter == o.m_filter; // filter(): pointer identity, as ever

@@ -290,14 +290,37 @@ public:
    *  the layer arrives as the child shader named "content". */
   static Effect shader(sk_sp<SkRuntimeEffect> effect,
                        std::vector<std::pair<std::string, float>> uniforms = {});
+  /** A blur that smears ALONG one direction: @p sigma along the axis at
+   *  @p angleDeg (degrees, Element::rotate's screen sense — 0 smears
+   *  horizontally, 90 vertically, 45 down-right), @p across
+   *  perpendicular to it (default 0, a pure streak). A spatial filter,
+   *  not motion blur (ROADMAP §43.7's separate filing — motion blur
+   *  itself is refused there).
+   *
+   *  Built ENTIRELY from existing filters — no new SkSL: at an
+   *  axis-aligned angle it IS SkImageFilters::Blur(x, y) (bit-identical,
+   *  which is what let the four hand-built anisotropic sites port
+   *  unchanged), and at any other angle it is the rotate → Blur →
+   *  unrotate sandwich §43.7 named, three nodes the filter DAG composes.
+   *
+   *  Unlike a raw filter() this carries a comparable RECIPE, so a
+   *  re-described equal directionalBlur PRUNES (filter() can only
+   *  compare by pointer), and the named parameters "sigma" / "angle" /
+   *  "across" accept uniform(name, &output) below — an animated smear
+   *  angle rides the existing live channel, no re-describe per frame. */
+  static Effect directionalBlur(float sigma, float angleDeg,
+                                float across = 0);
   /** A LIVE float uniform — Material's contract, on the effect seam
    *  (ROADMAP §11: animating a ripple phase or a bloom threshold used to
    *  require a full re-describe per frame). The value is read from the
    *  Output at every paint, and the node repaints per frame while the
    *  effect is attached — a bound uniform declares volatility exactly as
-   *  a live material does. Only meaningful on a shader() effect: a
-   *  filter() has no uniform to receive the value (the binding is
-   *  ignored there, and the volatility is NOT declared). */
+   *  a live material does. Meaningful on a shader() effect (any declared
+   *  float uniform) or a directionalBlur() ("sigma" / "angle" /
+   *  "across"); a filter() has no uniform to receive the value (the
+   *  binding is ignored there, and the volatility is NOT declared —
+   *  unknown directionalBlur names warn and are ignored, Material's
+   *  guardrail). */
   Effect &uniform(std::string name, const choreograph::Output<float> *value);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
@@ -324,6 +347,14 @@ public:
   bool operator==(const Effect &o) const;
 
 private:
+  /** directionalBlur()'s comparable recipe — what operator== compares
+   *  (structural, like a shader recipe) and what bound "sigma" / "angle"
+   *  / "across" uniforms rebuild from per paint. */
+  struct DirectionalBlur {
+    float sigma = 0, angleDeg = 0, across = 0;
+    bool operator==(const DirectionalBlur &) const = default;
+  };
+
   sk_sp<SkImageFilter> m_filter;
   // The shader recipe (kept so bound uniforms can rebuild per paint and
   // so equality can compare structurally).
@@ -331,6 +362,7 @@ private:
   std::vector<std::pair<std::string, float>> m_uniforms;
   std::vector<std::pair<std::string, const choreograph::Output<float> *>>
       m_bound;
+  std::optional<DirectionalBlur> m_dirBlur; // directionalBlur()'s recipe
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
@@ -339,15 +371,16 @@ private:
    *  hand-written in Compose.cpp and reads these members directly; the state
    *  is private, so the decomposition lives inside the class. */
   static void fieldPin(Effect &v) {
-    auto &[filter, effect, uniforms, bound, chainA, chainB] = v;
+    auto &[filter, effect, uniforms, bound, dirBlur, chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(filter, effect, uniforms,
-                                                      bound, chainA,
-                                                      chainB))> == 6,
+                                                      bound, dirBlur, chainA,
+                                                      chainB))> == 7,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Compose.cpp), then bump this count. "
-                  "(m_filter is EXCLUDED on the shader path because it is "
-                  "derived from m_effect + m_uniforms; m_chainA/B only exist "
-                  "on a live chain, which isAnimated() already refuses.)");
+                  "(m_filter is EXCLUDED on the shader and directionalBlur "
+                  "paths because it is derived from m_effect + m_uniforms / "
+                  "m_dirBlur; m_chainA/B only exist on a live chain, which "
+                  "isAnimated() already refuses.)");
   }
 };
 

@@ -614,8 +614,10 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                          {{0.0f, hex(0x16262F, a * 0.35f)},
                           {0.38f, hex(0x1C303C, a)},
                           {1.0f, hex(0x080F16, a * 0.2f)}}))
-                     .effect(Effect::filter(
-                         SkImageFilters::Blur(12, 18, nullptr)))
+                     // the strut melts vertically out of focus: 18 along
+                     // the vertical, 12 across (== the hand-built
+                     // Blur(12, 18) this consolidated, bit-identically)
+                     .effect(Effect::directionalBlur(18, 90, 12))
                      .zIndex(0));
     };
     strut(-30, 96, 0.8f);
@@ -627,7 +629,8 @@ struct Ds2Bench : sigil::compose::sketch::Sketch {
                    .fill(Material::linear({0, 0}, {0, 28},
                                           {{0.0f, hex(0x243B47, 0.5f)},
                                            {1.0f, hex(0x0A141C, 0.25f)}}))
-                   .effect(Effect::filter(SkImageFilters::Blur(7, 10, nullptr)))
+                   // (== the hand-built Blur(7, 10), bit-identically)
+                   .effect(Effect::directionalBlur(10, 90, 7))
                    .zIndex(0));
   }
 

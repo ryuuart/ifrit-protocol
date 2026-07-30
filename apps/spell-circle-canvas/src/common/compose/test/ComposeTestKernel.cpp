@@ -2084,6 +2084,108 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
 }
 
 // ---------------------------------------------------------------------------
+// Effect::directionalBlur (§43.7's separate filing): the one spelling for
+// the four hand-built anisotropic-Blur sites, from existing filters only.
+
+TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
+  // The reuse ruling: at an axis-aligned angle directionalBlur IS the
+  // SkImageFilters::Blur call the four sites hand-wrote — same factory,
+  // same arguments — which is what made their ports bit-identical.
+  // Compared pixel-for-pixel over the whole plate.
+  auto plate = [](Host &host, Effect e) {
+    host.composer.render(box().child(
+        box().width(60).height(60).inset(70, 70, 70, 70).absolute()
+            .fill(green()).effect(std::move(e))));
+    host.frame();
+  };
+  Host ported, hand, swapped;
+  plate(ported, Effect::directionalBlur(26, 90, 14));
+  plate(hand, Effect::filter(SkImageFilters::Blur(14, 26, nullptr)));
+  EXPECT_TRUE(identicalPixels(ported, hand, 200, 200))
+      << "directionalBlur(26, 90, 14) must BE Blur(14, 26)";
+  // The control that keeps the pin honest: swapped sigmas are a
+  // different picture, and this comparison can see it.
+  plate(swapped, Effect::filter(SkImageFilters::Blur(26, 14, nullptr)));
+  EXPECT_FALSE(identicalPixels(ported, swapped, 200, 200));
+}
+
+TEST(ComposeEffects, ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt) {
+  // The other half of the ruling: any other angle is the rotate → Blur →
+  // unrotate sandwich §43.7 named — three existing DAG nodes, no new
+  // SkSL. A 45° streak on a centred square throws ink down-right along
+  // the smear axis and none the same distance across it.
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(80, 80, 80, 80).absolute()
+          .fill(green())
+          .effect(Effect::directionalBlur(18, 45))));
+  host.frame();
+  const unsigned along = SkColorGetG(host.pixel(125, 125));
+  const unsigned acrossAxis = SkColorGetG(host.pixel(75, 125));
+  EXPECT_GT(along, 40u);          // the streak reaches down-right
+  EXPECT_LT(acrossAxis, 10u);     // nothing rides across the axis
+  EXPECT_GT(along, acrossAxis * 4 + 8);
+}
+
+TEST(ComposeEffects, AStaticDirectionalBlurPrunesByRecipe) {
+  // filter() compares by pointer, so the hand-built sites re-patched on
+  // every describe. The recipe compares structurally: a re-described
+  // equal directionalBlur prunes, and the equality is honest about a
+  // changed angle.
+  Host host;
+  auto tree = [&](float angle) {
+    return box().child(box().width(60).height(60).fill(green())
+                           .effect(Effect::directionalBlur(12, angle, 4)));
+  };
+  host.composer.render(tree(30));
+  host.frame();
+  host.composer.render(tree(30)); // fresh Effect, same recipe
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical directionalBlur recipe re-patched";
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  host.composer.render(tree(75)); // a different angle IS a change
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
+  // Live parameters ride the EXISTING uniform channel (§11): the
+  // recipe's named parameters accept a bound Output and the sandwich
+  // rebuilds per paint — an animated smear angle needs no new mechanism
+  // and no re-describe (lain_navi faked exactly this with five gradient
+  // ramps because the animated spelling did not exist).
+  choreograph::Output<float> angle{0.0f};
+  Host host;
+  host.composer.render(box().child(
+      box().width(40).height(40).inset(80, 80, 80, 80).absolute()
+          .fill(green())
+          .effect(Effect::directionalBlur(18, 0).uniform("angle", &angle))));
+  host.frame();
+  // angle 0: the streak runs horizontally — ink right of the box, a
+  // sharp edge below it.
+  EXPECT_GT(SkColorGetG(host.pixel(125, 100)), 60u);
+  EXPECT_LT(SkColorGetG(host.pixel(100, 125)), 20u);
+  angle = 90.0f; // move the bound parameter — NO re-describe
+  host.frame();  // the live effect re-resolves and the streak turns
+  EXPECT_GT(SkColorGetG(host.pixel(100, 125)), 60u);
+  EXPECT_LT(SkColorGetG(host.pixel(125, 100)), 20u);
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u)
+      << "a bound directionalBlur parameter must declare volatility";
+}
+
+TEST(ComposeEffects, AnUnknownDirectionalBlurUniformIsIgnoredNotLive) {
+  // Material's guardrail on the same seam: a name that is not
+  // "sigma"/"angle"/"across" warns and is IGNORED — it must not bind,
+  // and it must not silently declare the node volatile.
+  choreograph::Output<float> v{1.0f};
+  const Effect typo = Effect::directionalBlur(10, 0).uniform("sgima", &v);
+  EXPECT_FALSE(typo.isAnimated());
+  // The control: a real parameter name does bind.
+  const Effect bound = Effect::directionalBlur(10, 0).uniform("sigma", &v);
+  EXPECT_TRUE(bound.isAnimated());
+}
+
+// ---------------------------------------------------------------------------
 // Material::amount() (§5): a blend layer's strength.
 
 TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {

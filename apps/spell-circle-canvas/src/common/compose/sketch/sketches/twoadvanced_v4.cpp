@@ -1106,8 +1106,10 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                                                {{0.0f, fade(kGlow, 0.75f)},
                                                 {0.45f, fade(kTealBar, 0.32f)},
                                                 {1.0f, fade(kTealBar, 0.0f)}}))
-                    .effect(Effect::filter(
-                        SkImageFilters::Blur(14, 26, nullptr)))
+                    // smear the reflection down into the water: 26 along
+                    // the vertical, 14 across (== the hand-built
+                    // Blur(14, 26) this consolidated, bit-identically)
+                    .effect(Effect::directionalBlur(26, 90, 14))
                     .opacity(0.78f)
                     .blend(SkBlendMode::kPlus));
     // the specular COLUMN — the vertical smear of a light in water, and
@@ -1119,8 +1121,9 @@ struct TwoAdvancedV4 : sigil::compose::sketch::Sketch {
                         {{0.00f, fade(kGlow, 0.55f)},
                          {0.35f, fade(kGlow, 0.20f)},
                          {1.00f, fade(kGlow, 0.0f)}}))
-                    .effect(Effect::filter(
-                        SkImageFilters::Blur(10, 3, nullptr)))
+                    // soften the column's sides: 10 horizontally, 3 down
+                    // it (== the hand-built Blur(10, 3), bit-identically)
+                    .effect(Effect::directionalBlur(10, 0, 3))
                     .blend(SkBlendMode::kPlus));
     scene.child(water);
 

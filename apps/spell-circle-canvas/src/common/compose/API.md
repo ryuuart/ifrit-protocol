@@ -1524,6 +1524,9 @@ struct Effect {
                                                   // lighting, compose chains
   static Effect shader(sk_sp<SkRuntimeEffect> e,  // SkSL image filter: the
                        Uniforms u = {});          // node's layer is an input
+  static Effect directionalBlur(float sigma,      // the smear: sigma ALONG
+                                float angleDeg,   // the axis at angleDeg,
+                                float across = 0);// `across` perpendicular
 };                                       // optional isAnimated()
 // `isAnimated()` is THE word — everywhere a scheme, an effect or a
 // Material declares volatility. R3 deleted the other four spellings
@@ -1536,6 +1539,22 @@ Element &effect(Effect);    // filters the node's own rendered layer
 Element &backdrop(Effect);  // filters what's already painted beneath
                             // the node's bounds, then paints the node
 ```
+
+`directionalBlur` is not a third primitive — it is a NAMED COMPOSITION
+of the first one (ROADMAP §43.7's separate filing: four sketch sites
+hand-built the same anisotropic `Blur`, one faked an animated version
+with gradient ramps). At an axis-aligned angle it *is*
+`SkImageFilters::Blur(x, y)` — bit-identical, which is what let the
+four sites port unchanged — and at any other angle it is the rotate →
+`Blur` → unrotate sandwich of existing filters; no new SkSL anywhere.
+What the name buys over writing the chain yourself: a comparable
+RECIPE, so a re-described equal `directionalBlur` prunes where a raw
+`filter()` can only compare by pointer, and the named parameters
+`"sigma"` / `"angle"` / `"across"` accept `.uniform(name, &output)` —
+an animated smear angle rides the same live channel as a shader
+uniform (an unknown name warns and is ignored, Material's guardrail).
+It is a spatial filter, not motion blur — motion blur itself is
+refused, §43.7.
 
 Concrete looks are data built from these plus what already exists —
 composed in user code or the stress-test catalog, not enumerated in the
@@ -1781,11 +1800,15 @@ Effects carry the same live contract (§11):
 Effect::shader(fx, {{"uThreshold", 0.6f}})   // constants, as ever
     .uniform("uPhase", &phase);              // BOUND: resolved per paint,
                                              // node repaints while attached
+Effect::directionalBlur(18, 0)               // same channel, same words:
+    .uniform("angle", &angle);               // the sandwich rebuilds per
+                                             // paint from the bound value
 ```
 
 A static shader effect compares by RECIPE (runtime-effect pointer +
 constant uniforms), so holding one `SkRuntimeEffect` process-wide and
-re-describing prunes; a live effect never prunes, like a live material.
+re-describing prunes — a static `directionalBlur` compares by its
+recipe too; a live effect never prunes, like a live material.
 `then()` chains precompose when static and re-compose per paint when a
 side is live.
 

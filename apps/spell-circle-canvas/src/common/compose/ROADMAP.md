@@ -1618,7 +1618,79 @@ something with the right cost model — for the blur case, a 2–3 level
 pyramid blended by the parameter, which is O(1) in the sigma range
 instead of O(sigma²) per pixel.
 
-## 20. A bound property that has FINISHED is live volatility forever — **CLOSED 2026-07-27**
+**DESIGNED 2026-07-30 (effect half) — design only, deliberately not
+built.** Four questions were put to the entry; the answers, with what
+was checked:
+
+1. **The carrier is a `Material`.** It is already compose's comparable,
+   animatable, position-varying value: it rides the prune signature
+   (a raw callable never compares equal — the `Shape` escape-hatch
+   lesson, restated at §3), it animates through the one uniform
+   channel, its unit-space ramps (`linearUnit` et al.) solve
+   "authored against a box the layout decides" for free, and §10f
+   already defines its tier inheritance (a live child makes the parent
+   live). §41 built luma coverage FROM one, which is precedent for
+   "a Material as a per-pixel PARAMETER rather than paint". A raw
+   callable never prunes; a new value type re-invents all of the above.
+2. **Where it plugs in — CHECKED, and §10f does NOT already reach the
+   effect seam.** `Material::child` fills `uniform shader` slots of an
+   sksl() *material*; `Effect::shader` fills exactly one child,
+   `"content"` (`Compose.cpp`: `RuntimeShader(builder, "content",
+   nullptr)`) — a second declared `uniform shader param` is left
+   unbound. The general case IS reachable today, statically, with no
+   new machinery: build the filter yourself —
+   `SkRuntimeShaderBuilder b(fx); b.child("param") = shader;
+   Effect::filter(SkImageFilters::RuntimeShader(b, "content", …))` —
+   but that spelling loses everything the carrier ruling wanted:
+   pointer-only equality (never prunes), a raw SkShader param (no
+   unit-space, no bound uniforms), and NO volatility declaration when
+   the param changes (Q4's failure class). The designed door is
+   **`Effect::child(name, Material)`, mirroring `Material::child`
+   verbatim** — same warn-and-ignore guardrails, same tier
+   inheritance, same prune-signature participation, the material
+   resolved against the node's box where `resolvedImageFilter()` runs
+   — a SLOT on the existing Effect, not a new Effect kind. For the
+   blur cost model specifically, one more named factory on the chassis
+   `directionalBlur` just proved out (comparable recipe + bound
+   parameters rebuilding a filter DAG per paint): e.g.
+   `Effect::blur(Material sigmaMap, float maxSigma)`, the pyramid
+   below as its recipe.
+3. **Cost model (ESTIMATES, labelled as such).** An author-written
+   variable-sigma SkSL kernel pays worst-case sigma at every pixel —
+   the entry's own point stands, and separability breaks under
+   spatially-varying sigma, so it is O(sigma_max²) per pixel. The
+   library pyramid: 2–3 fixed-sigma `SkImageFilters::Blur` levels of
+   the layer plus one small mix pass reading the levels and the
+   parameter as children — estimated 3–5 full-resolution passes,
+   O(1) in sigma range. The intermediates are per-draw image-filter
+   DAG surfaces inside the effect's one `saveLayer`
+   (Paint.cpp:~1441) — the SAME place every effect intermediate
+   already lives, OUTSIDE the §38 promotion/caching machinery, so
+   nothing new to invalidate. Static content pays once under
+   `Cache::Texture` (the existing effect/bake contract); a LIVE
+   parameter re-renders the pyramid per frame and carries §38's
+   measured ancestor-volatility tax (19.6× there; extrapolation
+   here). Caching the blurred levels across frames while only the
+   parameter moves would need §16's describe-keyed bake cache — the
+   same reopening condition two other entries already name.
+4. **The failure mode is stated, never silent.** The §41 frozen-matte
+   class is a param that silently degrades to a constant; three rules
+   forbid it: an undeclared child name warns-and-ignores (Material's
+   guardrail, visible); a live param material makes the effect
+   `isAnimated()` by tier inheritance, so the bake invalidates and
+   volatility is declared — sampling the param once at bake time is
+   forbidden by design; and a param on a `filter()` effect has nothing
+   to fill — warn-and-ignore, exactly as `uniform()` on `filter()`
+   behaves today.
+
+**VERDICT: real machinery — `Effect::child` plus node-box material
+resolution at the effect seam plus the pyramid recipe — so the design
+is the deliverable and nothing was built overnight.** What DID ship the
+same day is the chassis evidence: `Effect::directionalBlur` (§43.7)
+carries a comparable parameter recipe with §11-bound uniforms
+rebuilding a filter DAG per paint, which is exactly the shape
+`Effect::blur(Material, maxSigma)` needs with a Material child added.
+The entry stays OPEN, narrowed to that build.
 
 **SHIPPED as the measured-stability RELEASE** — the second candidate
 shape below, exactly as the entry preferred: no new API, no author
@@ -5944,6 +6016,43 @@ one cost nine `saveLayer`s. That is a real spatial-filter convenience with
 measured demand. It is not motion blur, and smuggling it in under this
 heading would be dishonest about what it does.
 
+**SHIPPED 2026-07-30** as `Effect::directionalBlur(sigma, angleDeg,
+across = 0)` — `sigma` along the axis, `across` perpendicular (the four
+sites were anisotropic, not pure streaks, so the honest signature has
+both). **The reuse ruling held: no new SkSL.** At an axis-aligned angle
+the factory emits `SkImageFilters::Blur(x, y)` — the exact call the
+sites wrote, proven bit-identical by pin
+(`ComposeEffects.ADirectionalBlurAtAnAxisAngleIsBlurBitwise`,
+whole-plate pixel compare, with a swapped-sigma control that fails the
+compare) — and any other angle is this entry's own sandwich, three
+existing DAG nodes (`ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt`
+pins the 45° streak with a cross-axis control). Beyond the name, the
+factory carries a comparable RECIPE ({sigma, angle, across} + a field
+pin, Effect's now at 7): a re-described equal one PRUNES where the
+hand-built `filter()` re-patched on pointer inequality every describe
+(`AStaticDirectionalBlurPrunesByRecipe`), and the named parameters ride
+the EXISTING §11 uniform channel — `.uniform("angle", &out)` rebuilds
+the sandwich per paint, no re-describe, volatility declared
+(`ABoundDirectionalBlurAngleAnimatesWithoutRedescribe`); an unknown
+name warns-and-ignores, Material's guardrail
+(`AnUnknownDirectionalBlurUniformIsIgnoredNotLive`). Per-site
+dispositions, targeted ledger byte-identical on all three touched
+scenes:
+
+- `twoadvanced_v4.cpp` water reflection `Blur(14, 26)` →
+  `directionalBlur(26, 90, 14)` — PORTED, bit-identical.
+- `twoadvanced_v4.cpp` specular column `Blur(10, 3)` →
+  `directionalBlur(10, 0, 3)` — PORTED, bit-identical.
+- `ds2_bench.cpp` strut `Blur(12, 18)` → `directionalBlur(18, 90, 12)`
+  — PORTED, bit-identical.
+- `ds2_bench.cpp` ceiling band `Blur(7, 10)` →
+  `directionalBlur(10, 90, 7)` — PORTED, bit-identical.
+- `lain_navi.cpp:1156` magenta streaks — **KEPT as authored.** A real
+  blur is a different picture than five hand-shaped gradient ramps; the
+  port would have moved pixels, so per the quantize-wave discipline it
+  was not normalised. The sketch now carries a comment naming the
+  animated spelling a new streak would use.
+
 ### 43.8 FREEZE FRAME IS ALREADY SHIPPED, and §41 is the reason
 
 The brief lists freeze frame first among the retiming asks. It exists, in
@@ -5979,7 +6088,7 @@ PIXELS today; you cannot freeze the CLOCK.**
 | Freeze frame | **ALREADY SHIPPED** — `snapshot()` / `Cache::Texture`. §41's refusal reason is this feature's specification |
 | Time stretch of a compose transition | **ALREADY AVAILABLE**, unused: `TimelineItem::setPlaybackSpeed()`, including negative. Needs a handle, not a mechanism |
 | **Motion blur** | **NO.** Five reasons, §43.7. The corpus wanted primitives, has them, and drew streaks |
-| `Effect::directionalBlur(sigma, angle)` | **FILED separately**, four hand-built sites plus one faked. A spatial filter, not motion blur |
+| `Effect::directionalBlur(sigma, angle)` | **FILED separately** — and **SHIPPED 2026-07-30** (see the filing above): existing filters only, four sites ported bit-identically, the faked fifth kept as authored. A spatial filter, not motion blur |
 
 ### 43.10 REJECTED ALTERNATIVES, collected
 
