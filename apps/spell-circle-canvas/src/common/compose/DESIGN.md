@@ -210,6 +210,55 @@ is bind-path with one gate — the axis must be advance-invariant,
 wght is refused with a warning (text draws unvaried); GRAD is the
 advance-invariant weight.
 
+### What an Output IS and IS NOT (2026-07-29)
+
+A `choreograph::Output<T>` is a **cell with an optional function behind
+it**, and the distinction decides what can be asked of it.
+
+- Driven by a Motion — anything reached through `ticker.timeline().apply()`,
+  which includes **every transition compose manufactures itself** — the cell
+  carries a back-pointer to that Motion (`Output::inputPtr()`), the Motion
+  holds a `Sequence`, and `Phrase::getValue(Time)` evaluates it at ANY time,
+  exactly. `Sequence::getValue` is total: it clamps to the initial value
+  below zero and the end value past the duration, so an out-of-range sample
+  is defined rather than extrapolated. `TimelineItem::setPlaybackSpeed()` is
+  public, so a per-Motion time stretch — including a negative one — is
+  already available. `Timeline` is itself a `TimelineItem`, so a nested
+  timeline is a retiming unit.
+- Written by a steppable — `ticker.add([&]{ out = f(elapsed); })`, which is
+  how most authored motion in the corpus is spelled — the cell is the WHOLE
+  of the state. There is nothing to evaluate, because `f` is a lambda the
+  library never sees.
+
+`isConnected()` is the discriminant, and it is checkable at runtime. The
+rule for anything that wants a value at a time other than now: **ask the
+Output whether it has a function, and refuse visibly when it does not.**
+`BoundFloat::apply()` being pure does not help — the chain is pure, the cell
+it reads is not. (ROADMAP §43.)
+
+### The TWO time channels, and they are plumbed differently (2026-07-29)
+
+After Effects has one clock. Compose has two, and no feature may assume
+otherwise:
+
+1. **The Motion channel.** `Ticker::timeline()` steps Motions, which write
+   cells; `resolveFloat` reads them. Advanced once per `tick()`, before any
+   steppable. Retiming it means per-subtree sub-timelines carried through
+   reconcile — a kernel change.
+2. **The elapsed channel.** One double, `PaintContext::elapsedSeconds`,
+   pulled per paint. It carries `Material` `uTime`/`quantizeTime`, `custom()`
+   programs, decorations, and the animated `image()` leaf's frame choice.
+   Retiming it means assigning a different double — the context is already
+   copied and shadowed per node.
+
+**A feature that retimes one channel and not the other produces a
+half-retimed subtree that looks plausible and is wrong** — the §41
+silent-freeze failure with a different surface. That is why the retiming
+unit is a SCHEDULE (an Output) and not a subtree: a schedule is one thing,
+a subtree is two clocks. Motion blur is refused for the same family of
+reasons plus a colour one — a shutter integral sums LIGHT, and per the
+colour rule above compose has no linear stage. (ROADMAP §43.)
+
 ### The motion path — SPACE and TIME are separate concerns (2026-07-29)
 
 `translateX`/`translateY` are two independent `Animatable<float>` lanes.

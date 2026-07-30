@@ -5475,3 +5475,594 @@ plus `genesis_fire` and `slitscan_2001` on the self-nondeterministic list
 `travel_path`, `wiggle_shake`, `env_theme`, `material_child`, `matte_luma`
 and `pop_lanes` — the sketches of f206364, still unadopted; adopting them is
 the owner's call.
+
+## 43. TIME REMAPPING and MOTION BLUR — the obstacle is one word wrong, and the corrected reading splits the wave clean (2026-07-29)
+
+Two After Effects fundamentals were filed as one wave because both need
+one primitive: **evaluating a property at a time other than "now."**
+Time remapping retimes a layer's own timeline (freeze, stretch, reverse,
+hold); motion blur accumulates a property ACROSS a frame interval instead
+of sampling it at one instant.
+
+The wave was filed with an obstacle attached: *compose's animation is
+resolved from `choreograph::Output<float>`, an Output is a mutable cell
+stepped by a Ticker and not a function of time, so the naive form of both
+features is unavailable.*
+
+**That obstacle is one word wrong, and correcting the word is most of the
+design.** What follows is the corrected reading, the boundary it draws,
+one feature designed, one feature REFUSED with an argument, and one
+feature found already shipped.
+
+### 43.0 THE OBSTACLE, CORRECTED — an Output is a cell WITH AN OPTIONAL FUNCTION BEHIND IT
+
+`choreograph::Output<T>` is a cell. It is also, when a Motion drives it, a
+**handle on that Motion**, and the chain from the cell to a pure function
+of time is four public calls that this repository has never made:
+
+```cpp
+choreograph::Motion<float> *m = out.inputPtr();       // Output.hpp:104
+if (m) {                                              //   null == unconnected
+  const float now   = m->getSequence().getValue(m->time());
+  const float later = m->getSequence().getValue(m->time() + 0.008f);
+}
+```
+
+`Sequence<T>` is a `Phrase<T>` and `Phrase::getValue(Time)` is exactly the
+`f(t)` the wave was told did not exist (`Phrase.hpp:74`). It is **total**:
+`Sequence::getValue` returns `_initial_value` below 0 and `getEndValue()`
+past the duration (`Sequence.hpp:265-287`), so an out-of-shutter sample
+clamps rather than extrapolating or reading garbage. `TimelineItem::time()`
+is the playhead, `step(dt)` is literally `_time += dt * _speed`
+(`TimelineItem.cpp:65`), and **`setPlaybackSpeed()` is public** — so a
+per-Motion time stretch, including a negative one, is already a one-call
+operation. `Timeline` itself derives from `TimelineItem`, so a NESTED
+timeline is a retiming unit with its own speed and its own `setTime`.
+
+`choreograph/phrase/Retime.hpp` ships `LoopPhrase`, `PingPongPhrase`,
+`ReversePhrase`, `ClipPhrase` and `SquashPhrase`, and `Choreograph.h:35`
+includes it in every translation unit that touches animation.
+
+**Grep result, and it is the headline: `inputPtr`, `getSequence`,
+`setPlaybackSpeed`, `jumpTo` and all five Retime phrases have ZERO uses in
+`src/`.** The entire evaluate-at-arbitrary-time substrate is present,
+compiled, and untouched. This is the third entry this session (after §7 and
+§10h) where the thing filed as unavailable was sitting in a header.
+
+So the obstacle is not "an Output is a cell". It is:
+
+> **An Output is evaluable at an arbitrary time exactly when a Motion drives
+> it, and `isConnected()` is the discriminant.** A cell written by a
+> steppable — `ticker.add([&]{ phase = f(elapsed); })` — has no function
+> behind it, because the author's `f` is a lambda the library never sees.
+> That half is genuinely unreachable, and no design fixes it.
+
+The correction matters because it moves the boundary. It is NOT
+`Transitioned` on one side and `bind()` on the other, as filed. Every
+compose-manufactured transition is Motion-backed **because `Transitions.cpp`
+builds the Motions itself** (`impl.ticker.timeline().apply(&anim->value)`,
+five sites) — so `animate()` in all three forms is exactly evaluable, and
+so is `bind(&out)` when the author happened to spell their phase through
+`timeline().apply()`. And the corpus says they almost never do: **34 of 44
+sketches drive motion through `ticker.add`, not through the timeline.** The
+boundary is real, it is wide, and it falls on the wrong side of the demand.
+
+### 43.1 THE TWO TIME CHANNELS, and they have nothing in common
+
+The second correction. AE has one clock. **Compose has two, they are
+plumbed differently, and they cost completely different amounts to retime.**
+Nothing in DESIGN.md said so before this entry.
+
+| | **the MOTION channel** | **the ELAPSED channel** |
+| --- | --- | --- |
+| carrier | `Ticker::timeline()` steps Motions, which write cells | `PaintContext::elapsedSeconds`, one double pulled per paint from `Composer::Impl::elapsed()` (`ComposeRuntime.h:706`) |
+| cadence | once per `tick()`, before any steppable (`Ticker.cpp:62-63`) | once per node per `paint()` |
+| who reads it | `resolveFloat` → every slot, span, gate | `Material` `uTime`/`quantizeTime` (`Material.cpp:203,286`), `custom()` programs, decorations, `imageAssetOf(node)->frameAt(elapsed()*1000)` (`Paint.cpp:1949`) |
+| retiming cost | a kernel change: per-subtree sub-timelines carried through reconcile | **push a different double.** Zero |
+
+The elapsed channel is already parameterised — `Material::build(live, ctx)`
+takes the context, `paintCtx` is constructed per node (`Paint.cpp:1447`) and
+already SHADOWED once for a different purpose (`metricCtx.size = {1,1}`,
+`Paint.cpp:1896`). Retiming it is a field assignment on a struct compose
+copies four times a frame anyway. Retiming the Motion channel is not.
+
+That asymmetry is why this wave splits, and why "retime a subtree" is the
+wrong ask: the two halves of a subtree's motion live in two different
+machines.
+
+### 43.2 THE BOUNDARY — per authoring spelling, three tiers
+
+**Tier A — evaluable at an arbitrary time, exactly, by the library.**
+
+| spelling | why |
+| --- | --- |
+| `animate(to(v), spec)` | `Transitions.cpp:103` builds the Motion; `getValue(t)` is exact |
+| `animate(from(a).to(b))` | same, plus the entrance `Hold` in the same Sequence |
+| `animate(through({…}))` | same; a multi-segment Sequence evaluates as one Phrase |
+| the `kFillLerp` colour lerp | a synthesized 0→1 Motion, `Transitions.cpp:264` |
+| `.stroke(spans::upTo(animate(…)))` | `spanAnims` are ordinary Motions |
+| `.mask(by::spans(animate(…)))`, `by::edge(_, animate(…))` | `maskAnims`, same |
+| a plain constant | constant in t. Trivially |
+| `Material` `uTime`, `quantizeTime(hz)` | pure function of `ctx.elapsedSeconds` |
+| `custom()` / decorations reading `ctx.elapsedSeconds` | same, **if** they read nothing else live |
+| an animated `image()` leaf | `frameAt(elapsed()*1000)` — pure |
+| `travel({.path, .t})` | the geometry is a pure function of `t`; the lane inherits its tier from `t`. §39's schedule/space split pays off here |
+| `glyphFx` + `Stagger` | `Paint.cpp:990` is `(master*total - order*each)/duration` — pure in the master progress |
+| `wiggle(&out, …)` / `.wiggle()` | pure in the normalised input by the 2026-07-29 ruling. **Inherits, does not confer** |
+
+**Tier B — evaluable iff the author's Output happens to be Motion-backed.**
+`bind(&out)…`, a bare `&out`, `travel({.t = bind(&out)})`, `wiggle(&out,…)`,
+`Effect::uniform(name, &out)`, `Hatch::spacingBinding`,
+`spans::range(&a, &b)`. Runtime-checkable in one call. **In practice this
+tier is mostly empty**, per the 34-of-44 count.
+
+**Tier C — not evaluable at all, ever.**
+An Output assigned by a steppable. `instancing::Pool` in `Mode::Live` (the
+author's SoA, re-read per frame). A `custom()` program that captures an
+`Output*` and reads it. Anything the author recomputes outside the library's
+sight. **`BoundFloat::apply()` is pure, but the cell it reads is not** —
+which is exactly the manager's point 3, and it is right.
+
+The load-bearing consequence: **a single node routinely spans all three
+tiers.** A card with `animate()` opacity (A), a bound trim (B or C) and a
+live `Material` (A) has no single answer. Any feature that retimes "a node"
+must therefore say what happens to the tiers it cannot reach — §43.4.
+
+### 43.3 Q1 — THE RETIMING UNIT IS A SCHEDULE, NOT A SUBTREE, AND NOT A NODE
+
+**`env::` is the wrong door, and it is worth writing down because it is the
+obvious-looking one.** `env::Provide` resolves during DESCRIBE, before the
+Composer sees the tree — that is precisely what makes it free (§10g: the
+element tree is environment-independent, `propsEqual` is already the
+dependency tracker). A time warp resolved at describe time can only bake a
+NUMBER into props. But retiming must change how a running Motion ADVANCES,
+which happens in `tick()`, on a different cadence from describe and
+independent of it. And the only possible reader of an env-borne time warp
+would be the kernel — which would destroy the one property §10g bought.
+**Refused: `env::` propagates values down a describe stack; it cannot
+propagate a clock.**
+
+A per-subtree sub-timeline carried through reconcile *would* work, and it
+has a precedent: `mountDelayCarryMs` (`ComposeRuntime.h:654`,
+`Reconcile.cpp:813-836`) is ALREADY a reconcile-time, dynamically scoped,
+save/restore time value carried down the tree — `staggerChildren()` is a
+subtree time offset in everything but name. So the mechanism is proven.
+**It is still the wrong unit**, for two reasons:
+
+1. It reaches Tier A's Motion half and nothing else. The same subtree's
+   materials, `custom()` programs and GIFs run off the elapsed channel and
+   would keep real time — a subtree in slow motion with its own textures
+   at 1×. That is §41's silent-freeze failure with a different surface.
+2. **The schedule is already a first-class shareable value in this library,
+   and AE's is not.** AE retimes a layer because a layer is its only unit
+   (the same shape of argument §41 used to refuse the element matte). Here,
+   one phase Output drives eleven beats (`minard_1869.cpp:2921`) across
+   dozens of nodes. Retiming the tree would retime the wrong thing.
+
+**So the unit is the SCHEDULE — an Output.** This is the same ruling §39
+made for the motion path six entries ago and DESIGN.md already states:
+*the lane is `t`, the position ALONG the curve, so the whole `bind()` chain
+applies to the SCHEDULE rather than to the geometry.* Compose separates
+schedule from geometry (§39) and schedule from value (§1). Time remapping
+is a transform of the schedule. It belongs on the schedule.
+
+#### `derive()` — the design, and it is what the corpus has been asking for
+
+A survey of all 44 sketches and 25 gallery scenes for hand-rolled retiming
+found the demand is not "retime a subtree" at all. Ranked:
+
+1. **A derived Output — `Output = f(Output)` that is ITSELF an
+   `Output<float>*`.** ~30 sketches work around its absence, and two
+   independent authors named it in near-identical words:
+   `vertigo_titles.cpp:105-108` (*"No derived Outputs. `penTip` must be a
+   second, independently-owned Output the ticker re-copies from
+   `growth − 0.008` every tick… Four cards × two shadow cells = eight
+   scalars kept in sync by hand"*), and `ScenesSkillTree.h:223-224`
+   (`pulseS = -0.12f + u * 1.12f; pulseE = pulseS + 0.12f;`).
+   `chladni_tab1.cpp:826` calls it *"the study's main gap"* over ~5,900
+   hand-stepped local timelines.
+2. Time quantization, `floor(t*N)/N` — 8 sites, and it is a PERFORMANCE
+   feature, not a look (`eva_magi_interior.cpp:1816-1820` documents
+   11.16 ms → a blit; `ScenesAero.h:235`).
+3. A HOLD segment in a phase — 7 sites, each an inlined piecewise, and
+   `ScenesVeloren.h:311-315` documents a bug caused by getting one wrong.
+4. A per-subtree clock offset — 8+ sites, almost all spelled
+   `ctx.elapsedSeconds + phase` (`twoadvanced_v4.cpp:360`).
+5. Loop/ping-pong/reverse — `bg3_dice_roll.cpp:1383`,
+   `xcom_battlescape.cpp:1708`, `ScenesFlourish.h:542`.
+
+**Items 1, 2, 3 and 5 are one feature, and its entire vocabulary is ALREADY
+IMPLEMENTED.** `BoundFloat` has `source`/`window` (= hold, it clamps),
+`map`, `quantize` (= posterize time), `scale`/`offset`/`target`,
+`invert` (= reverse), `wiggle`, `clamp`. What it cannot do is *materialise
+the result into an Output*, so the chain reaches an `Animatable<float>`
+property and nothing else — and every hit above is a case where the retimed
+phase must be a real Output, because the consumer is an `Output*`-typed API:
+a `Pool` write, `spans::range(&a, &b)`, a decoration field,
+`Effect::uniform`, `Hatch::spacingBinding`.
+
+§1 closed the half where a shaped chain reaches a PROPERTY. The open half is
+the same chain reaching an OUTPUT:
+
+```cpp
+// SigilMotion. One cell the library owns, one steppable, zero new math.
+choreograph::Output<float> phase, penTip, stepped, backwards;
+ticker.add([&](double){ phase = ...; return true; });
+
+ticker.derive(&penTip,    derive(&phase).offset(-0.008f).clamp(0, 1));
+ticker.derive(&stepped,   derive(&phase).quantize(8));      // posterize time
+ticker.derive(&backwards, derive(&phase).invert());         // reverse
+ticker.derive(&held,      derive(&phase).window(0.0f, 0.7f)); // hold at 0.7
+```
+
+`derive(&src)` returns a `Bound` — the SAME builder, the same
+`BoundFloat::apply`, verbatim. `Ticker::derive(dst, chain)` owns the write.
+Cost per derived value per frame: one pointer read and `apply()`, which is
+the cost of the property-side chain that already runs on every bound paint.
+
+**THE ONE UNSETTLED QUESTION, which is why this entry designs it rather
+than shipping it: STEP ORDER.** `Ticker::tick` steps the timeline, then
+steppables in REGISTRATION ORDER (`Ticker.cpp:62-68`). A derivation
+registered before its source reads a one-frame-stale value — silently, and
+visibly only as a one-frame lag in a shadow that nobody will attribute to
+registration order. Three candidate rulings:
+
+- **(a) two-phase step: sources, then derivations.** Correct, ~10 lines
+  (a second vector), and it makes the contract statable: *a derivation
+  never reads a stale source.* Cost: derivations may not depend on
+  derivations without a topological order, so the ruling must be either
+  "one level only, enforced" or "declaration order within phase two,
+  documented". **Preferred, and it needs its own pins.**
+- (b) document the hazard and require the author to register in order.
+  Rejected: this is a silent-wrong-answer class, and §40/§42's standing
+  lesson is to make those loud.
+- (c) evaluate lazily on read. Impossible — `Output::value()` is not
+  virtual and the whole point is to satisfy `Output*`-typed consumers.
+
+**THE HONEST LIMIT, and it must be stated at the call site.** `derive()`
+remaps the schedule's VALUE. That equals a time remap **exactly when the
+schedule is affine in time.** `phase = k·t` gives `0.5·phase(t) =
+phase(t/2)`; a non-linear phase gives a value remap that is not a retime.
+Compose does not retime time; it remaps schedules, and the corpus's
+schedules are overwhelmingly `t*k` or `fmod(t*k, 1)` — which is why this
+serves the demand and why the equivalence has to be written down rather
+than glossed.
+
+**ONE MISSING STAGE.** `BoundFloat` has no wrap. Six-plus sketches spell
+`std::fmod(t*k, 1.0)` by hand. `Bound::wrap(period)` completes the
+vocabulary and is four lines; it is also the only new math in the whole
+item.
+
+**WHAT `derive()` DOES NOT DO, named so nobody expects it to.** It cannot
+retime a mount entrance (compose owns that Motion, the author has no
+handle), a `Material`'s `uTime`, a `custom()` program's `elapsedSeconds`, or
+a GIF's frame. Those are the elapsed channel — §43.6 item 2.
+
+### 43.4 Q3 — THE FAILURE MODE, and why `derive()` has none to hide
+
+§41 refused the element matte because `snapshot()` runs no transitions, so
+an animated matte would be **silently frozen**. That is the standard this
+wave is held to.
+
+`derive()` clears it structurally rather than by defending a rule: it
+consumes an Output and produces an Output. There is no "property that cannot
+be retimed" case, because there is no property involved — the author points
+it at a schedule they own, and a schedule they own is by construction
+readable. **The failure mode is not silent, it is not possible.** That is
+the strongest argument for the schedule-as-unit ruling and it is worth more
+than the line count it saves.
+
+Every OTHER shape considered in this wave fails the test, and here is the
+table, because the failures are the reason for the verdicts:
+
+| shape | failure when it meets a tier it cannot reach |
+| --- | --- |
+| subtree retime via sub-timelines | the subtree's materials/`custom()`/GIFs keep real time. Half-retimed, plausible-looking, silent |
+| subtree retime via `env::` | applies only on frames that describe. Intermittent, silent |
+| motion blur, transform-only | content stays at one instant while position smears. Plausible-looking, silent |
+| motion blur, N re-records | correct, and §43.5's cost |
+| element matte (§41, for reference) | frozen matte. Silent |
+
+**If a subtree retime is ever built, the failure mode is a REFUSAL, not a
+hold.** The precedent is `Material::quantizeTime` (`Material.cpp:629`),
+which refuses unless the effect declares `uniform float uTime`, and
+`VariationDrive`, which refuses `wght` with a warning. A `timeWarp()` node
+would have to walk its subtree at reconcile, and log once per instance —
+in the shape `computeVolatile` already uses for a `Cache::Group` refusal
+(`Paint.cpp:716-733`) — naming every property it could not reach. A feature
+whose diagnostic is longer than its implementation is a feature that should
+not exist, which is itself an argument against building it.
+
+### 43.5 Q2 — MOTION BLUR'S SAMPLING, and `echo()` is a red herring
+
+**`echo()` is not a foundation.** It re-issues RAW DRAW OPS — `drawRRect`
+or `drawPath` for the surface, `textLayout.drawBatched` for text — once per
+`Echo`, wrapped in `save()/translate()/restore()` with a flat colour
+override (`Paint.cpp:1757-1770`, `1823-1835`). It is translate-only (no
+matrix), flat-coloured (it ignores the resolved fill entirely), it skips
+`glyphFx`, image and custom leaves by contract, its offset and colour are
+plain non-`Animatable` values, and **nothing is re-resolved per copy** —
+`resolvedFill` and `inst.paragraph` are computed once above the loop. There
+is no `t` in scope and no resolution point to put one. Also, per its own
+header at `Compose.h:2393`, a study already spelled 117 full paragraph
+re-draws through it. Every one of its three uses in the corpus is a static
+misprint stamp. **Red herring, confirmed.**
+
+The real precedent is `instancing::` (`Instances.h:535`), which genuinely
+replays one baked drawing N times with per-copy transforms through
+`drawSpriteAtlas`, and whose `Mode::Live` re-reads the pool every frame.
+
+The sampling design splits on ONE question — **does anything but the
+transform vary across the shutter?**
+
+- **Transform-only:** record the node ONCE, replay the picture at N
+  matrices under a `saveLayer`. Sampling: N at offsets `(i+0.5)/N − 0.5`
+  scaled by `shutter/360 × frameInterval`, each at `1/N` alpha. Cheap.
+- **Content-varying** (a trim phase, a gate, a material's `uTime`, glyph
+  progress): N RECORDINGS. `computeVolatile`'s `scalarContent` /
+  `opaqueToTheMemo` terms name exactly which properties force this.
+
+And a node's tiers decide which branch it gets — which means **the same
+authored `.motionBlur()` is cheap or 16× depending on properties the author
+did not mention at that call site.** That alone is close to
+disqualifying: §27's rule is that a default encoding a judgement about the
+caller's art cannot be changed compatibly, and this is worse — a cost model
+that inverts on an unrelated property.
+
+**AND THE ACCUMULATION IS ARITHMETICALLY WRONG IN COMPOSE'S OWN COLOUR
+SPACE.** §41 established this session, and wrote into DESIGN.md, that every
+surface compose paints into is `N32Premul` with a NULL `SkColorSpace` and
+that **compose has no linear stage.** A shutter integral is a sum of LIGHT;
+light adds linearly. Averaging N encoded sRGB samples is the same class of
+error as weighting encoded values with Rec. 709 coefficients — the mistake
+§41 spent a five-plate pixel pin ruling out six days' worth of confusion
+about. A moving white bar over black would come out visibly too bright, and
+at 8 bits `1/N` alpha for N=16 is 16/255, so the quantisation error is
+~6% per sample before the gamma error is counted. **A correct accumulation
+buffer requires a linear float surface, which §41 already declared "a
+breaking change, not a configuration."**
+
+### 43.6 Q4 — PRUNING AND CACHING, with the estimates labelled
+
+This project's rule is that unmeasured performance claims are worthless, so:
+**everything in this section is an ESTIMATE derived from measurements
+already in this file. Nothing here was measured by this wave, which
+measured nothing, because it built nothing.**
+
+**`derive()`: no interaction whatsoever, and that is the point.** A derived
+Output is indistinguishable from a hand-stepped one. `computeVolatile` sees
+`v.binding()` and behaves exactly as today; `collectGroupScalars` pushes it
+exactly as today; §20's settle machinery sees a float that either moved or
+did not. **The estimate is zero delta**, because the mechanism adds no new
+kind of thing to the kernel — it adds a second writer of a kind the kernel
+already handles. The corollary is honest and unflattering: `derive()` does
+not IMPROVE caching either. An author who replaces `vertigo_titles`' 14
+hand-stepped scalars with 14 derived ones pays §38's bound-value penalty
+identically. `derive()` buys correctness and line count, not frames.
+
+**A subtree retime: two costs, one of them structural.** (1) The subtree
+describes and steps against a different clock, so `mountDelayCarryMs`'s
+save/restore shape needs a sibling and every `applyTransitions` site needs
+to know which timeline to `apply()` into. (2) The structural one: a retimed
+subtree's motions never settle in step with anything else, and §20's
+release (`kScalarSettleFrames = 8`) is measured in FRAMES, not in scaled
+time — so a subtree at 0.1× speed holds still for 10× as many frames and
+releases 10× sooner in its own terms. Estimated: the release threshold
+becomes a function of the subtree's time scale, which is a change to §20's
+contract, not a use of it.
+
+**Motion blur: N× the blurred subtree's paint, PLUS the ancestor tax.** A
+motion-blurred node is by definition `transformLive` or content-volatile,
+so `computeVolatile` sets `ownPaint`, carries it up, and every ancestor is
+`subtreeVolatile` — which §38 MEASURED, in this file, as
+**Promotion::Volatile refused and 5.02 ms/frame lost on a 515-node panel
+(19.6×) for one property that was not even moving.** Motion blur makes that
+permanent by construction and then multiplies the blurred node's own cost
+by N. Estimating from §38's ~11 µs per stroked cell replay: N=16 on a
+modest 20-node blurred subtree is ~3.5 ms/frame of replay for the blur
+alone, on top of the ~5 ms the ancestor refusal costs. **Both figures are
+extrapolations from §38's arms, not measurements of a motion blur that does
+not exist** — but the direction is not in doubt, and the ancestor half is
+measured.
+
+### 43.7 Q5 — IS MOTION BLUR COMPOSE'S JOB? NO, AND THE CORPUS SAYS SO LOUDEST
+
+Weighed: a real accumulation buffer, versus a directional blur driven by a
+velocity computed from the same curve.
+
+The velocity IS cheaply available for Tier A —
+`(getValue(t+h) − getValue(t−h)) / 2h`, two Sequence evaluations, no
+re-record, no re-draw — and a directional blur is expressible in the
+EXISTING `Effect` surface today: `SkImageFilters::MatrixTransform(rotate)`
+→ `Blur(sigma, 0)` → rotate back, three nodes in a chain `Effect::then()`
+already composes, with sigma bound through `Effect::uniform` (§11, shipped).
+Nothing needs to be built for an author to do this.
+
+**And no sketch does it. That is the finding.** Across 44 sketches and 25
+scenes: nineteen `Blur(...)` call sites, every one a literal constant; four
+with `sigmaX != sigmaY`; **zero with a phase- or velocity-driven sigma; zero
+trail buffers; zero accumulation afterimages; and `echo()` never once used
+for motion.** The primitive that would express a smeared multi-copy blur
+exists and nobody reached for it that way.
+
+What the two studies that genuinely needed motion blur actually did:
+
+- **`genesis_fire.cpp`** — Reeves 1983, whose §3 IS particle motion blur.
+  It drew a STREAK: a quad from `pos(f)` to `pos(f + 1/2)` built from
+  `p.vel` in `drawVertices`, eight vertices with transparent edge colours
+  so the falloff *is* the vertex colour (`:512-580`). Geometry, not a
+  filter. The paper's own footnote 4, quoted in the sketch header, says the
+  straight-line approximation *"has so far proved sufficient."*
+- **`slitscan_2001.cpp`** — 406 additive stamps per wall across a
+  discretised exposure integral, with the artwork drifting DURING the
+  exposure (`:592-657`). The time integral was the SUBJECT of the study.
+  A library `motionBlur()` verb would have ruined it.
+
+So the demand, such as it is, reads *"give me the primitive so I can build
+the effect"* — and the primitives (`drawVertices`, `kPlus`, `Effect`
+chains, and now `getValue(t±h)`) are all present.
+
+**The AE argument, which is the same shape as §41 ruling 3 item 5.** AE
+needs motion blur because AE composites LAYERS OF PIXELS sampled at frame
+boundaries; motion blur repairs a sampling artefact of AE's own
+architecture. Compose draws vectors at the frame time. There is no
+inter-frame sampling artefact to repair except for genuinely fast motion,
+and the corpus's genuinely fast motion is drawn as geometry — which is
+cheaper, more correct, and more expressive than any shutter integral over
+the same content.
+
+**VERDICT: motion blur is REFUSED.** Five reasons, descending:
+
+1. **Zero demand for the EFFECT.** Two studies wanted primitives and had
+   them; the cheap approximation is already expressible and unused.
+2. **The accumulation is wrong in compose's colour space** (§43.5), and
+   fixing it means a linear float surface, which §41 already called a
+   breaking change rather than a configuration.
+3. **The cost inverts on properties the call site does not mention**
+   (transform-only vs content-varying), and it makes the ancestor
+   volatility §38 measured at 19.6× permanent.
+4. **The Tier B/C half fails silently and plausibly** — a node whose
+   position smears while its content sits at one instant is worse than
+   §41's frozen matte, because a freeze looks like a bug and a
+   half-blur looks like a render.
+5. **Compose separates paint from silhouette from schedule; AE cannot.**
+   The 1:1 translation of most motion-blur uses in this idiom is *draw the
+   streak* — and `genesis_fire` is the worked proof, in the corpus, of the
+   reference that invented the technique.
+
+**WHAT WOULD REOPEN IT:** a linear float compositing surface (a colour-space
+decision, not this feature's), plus §16's describe-keyed bake cache. The
+reopening condition is the SAME PAIR §41 named for the element matte, which
+is itself evidence that both refusals are the same refusal wearing two
+faces.
+
+**FILED SEPARATELY, NOT AS MOTION BLUR:** `Effect::directionalBlur(sigma,
+angle)` over the rotate/blur/rotate sandwich. Four sites hand-build
+anisotropic `Blur` and `lain_navi.cpp:1156-1177` explicitly WANTED a
+directional blur and faked it with five gradient ramps because an animated
+one cost nine `saveLayer`s. That is a real spatial-filter convenience with
+measured demand. It is not motion blur, and smuggling it in under this
+heading would be dishonest about what it does.
+
+### 43.8 FREEZE FRAME IS ALREADY SHIPPED, and §41 is the reason
+
+The brief lists freeze frame first among the retiming asks. It exists, in
+two spellings, and neither is new:
+
+- **`Cache::Texture`** bakes a subtree to pixels and blits it. A frozen
+  subtree is a subtree whose bake never invalidates.
+- **`snapshot()`** — and §41's REFUSAL is the proof: *"`snapshot()` samples
+  bindings at current values and runs no transitions — there is no live
+  timeline in a one-shot render."* For an element matte that is a fatal
+  silent freeze. **For a freeze frame it is the entire feature.**
+
+```cpp
+sk_sp<SkPicture> frozen = snapshot(subtree, fonts);   // the freeze
+// …then draw it, or Material::image() it, at any later time.
+```
+
+The same sentence is a defect in one entry and a specification in another,
+which is worth recording as a lesson in its own right: an architectural
+property is not good or bad, it is good or bad FOR something.
+
+What does NOT exist is a freeze that keeps the subtree LIVE in the tree
+while holding its clock — and per §43.3 that is the subtree-retime ask,
+refused above. The honest phrasing for the author: **you can freeze the
+PIXELS today; you cannot freeze the CLOCK.**
+
+### 43.9 VERDICTS
+
+| feature | verdict |
+| --- | --- |
+| **Time remapping, as `derive()` on a SCHEDULE** | **YES.** The #1 measured gap in the corpus (~30 sketches, named by two independent authors), the whole vocabulary already exists in `BoundFloat`, no kernel change, no cache interaction, and a failure mode that is structurally impossible rather than defended. One unsettled ruling (step order) and one new stage (`wrap`) |
+| Time remapping, as a subtree time warp | **NO.** `env::` is the wrong cadence; sub-timelines reach one of two time channels and half-retime the other, silently. Refused with the diagnostic-longer-than-the-feature argument |
+| Freeze frame | **ALREADY SHIPPED** — `snapshot()` / `Cache::Texture`. §41's refusal reason is this feature's specification |
+| Time stretch of a compose transition | **ALREADY AVAILABLE**, unused: `TimelineItem::setPlaybackSpeed()`, including negative. Needs a handle, not a mechanism |
+| **Motion blur** | **NO.** Five reasons, §43.7. The corpus wanted primitives, has them, and drew streaks |
+| `Effect::directionalBlur(sigma, angle)` | **FILED separately**, four hand-built sites plus one faked. A spatial filter, not motion blur |
+
+### 43.10 REJECTED ALTERNATIVES, collected
+
+| alternative | reason |
+| --- | --- |
+| `env::Provide<Clock>` for subtree retiming | describe cadence ≠ tick cadence; the kernel would have to read the environment, destroying §10g's one property |
+| per-subtree sub-timelines carried like `mountDelayCarryMs` | reaches the Motion channel only; the elapsed channel keeps real time. Silent half-retime |
+| retime only `Transitioned` properties | too small to author against, and it is the wrong axis: §43.0 shows the discriminant is `isConnected()`, not the `Animatable` kind |
+| a derived Output evaluated lazily on read | `Output::value()` is not virtual, and the whole demand is `Output*`-typed consumers |
+| derived Outputs stepped in registration order, hazard documented | a silent one-frame lag; §40/§42's standing lesson is to make that class loud |
+| `echo()` as the motion-blur foundation | translate-only, flat-coloured, nothing re-resolved per copy, skips glyph/image/custom leaves. Red herring |
+| accumulation buffer for motion blur | integrates encoded sRGB; contradicts §41's own colour ruling. Needs a linear float surface |
+| transform-only motion blur (cheap branch) | content sits at one instant while position smears. Plausible-looking silent wrong answer |
+| `motionBlur()` with automatic cheap/expensive branching | the cost inverts on a property the call site does not mention |
+| a `Timeline`/cue DSL to express retiming | already refused in `Studio.h:44` — 168 `animate()` sites, and a cue value saves zero lines |
+
+### 43.11 SCOPED IMPLEMENTATION PLAN — `derive()`, one sitting, SigilMotion only
+
+Nothing in this plan touches SigilCompose. That is the plan's main virtue.
+
+1. **`Bound::wrap(float period)`** — `<sigilmotion/Animation.h>`. A stage
+   after the affine chain, before `wiggle` (so a wrapped phase wiggles
+   continuously across the seam) and before `clamp`. Four lines plus the
+   field. Ruling to state: `wrap` at `period == 0` is a no-op, not a
+   division.
+2. **`derive(const choreograph::Output<float>*) -> Bound`** — a second
+   factory over the existing builder. Zero new math; it exists so the call
+   site reads as a derivation rather than as a property binding.
+3. **`Ticker::derive(choreograph::Output<float> *dst, Bound chain)`** — the
+   write, plus the two-phase step (§43.3 ruling (a)): a second steppable
+   vector, stepped after the first, with the one-level rule ENFORCED — a
+   `dst` that is also some registered chain's source is refused with a
+   warning, in the shape `Material::quantizeTime` refuses.
+4. **Pins** (`motion_test`, currently 15): `wrap` at the seam and at
+   `period == 0`; a derivation reads its source's SAME-FRAME value (the
+   pin that fails under registration order — write it so the source is
+   registered SECOND, which is the failing arrangement, and confirm the
+   two-phase step fixes it); a derivation of a derivation is refused and
+   warns; `quantize`/`invert`/`window` reproduce three named corpus
+   idioms bit-exactly against their hand-rolled originals.
+5. **Docs.** The affine-equivalence limit (§43.3) goes in the `derive()`
+   doc comment, not only here — an author reading the verb must learn that
+   it retimes a LINEAR schedule and remaps any other. DESIGN.md's animation
+   table gains the row.
+6. **Gate.** `motion_test` 15 → ~20; `compose_test` 506 and the rest
+   unchanged, since nothing in compose changes. No plate ledger run is
+   needed for an additive SigilMotion verb no corpus scene calls — but say
+   so in the entry rather than skipping it silently.
+
+**NOT in scope, and named:** adopting `derive()` into the ~30 sketches that
+hand-roll it. That is a corpus edit with a ledger cost, and it is the
+owner's call, exactly as f206364's six unadopted sketches are.
+
+### 43.12 FOUND IN THE SOURCE
+
+1. **`choreograph::SquashPhrase` is unconditionally broken and is compiled
+   into every animation TU** (`phrase/Retime.hpp`, included by
+   `Choreograph.h:35`). Its constructor initialiser list reads
+   `_source_duration(_source->getDuration())` while `_source` is declared
+   FIRST and therefore still a null `shared_ptr` — a null dereference on
+   construction — and the `source` parameter is never stored at all.
+   `stretchTime` is also inverted (`(t/_source_duration)*_new_duration`
+   where a squash needs the reciprocal). Nothing in `src/` instantiates it,
+   so it is latent, not live. **Do not reach for it.** `LoopPhrase`,
+   `PingPongPhrase`, `ReversePhrase` and `ClipPhrase` are sound. Fixable in
+   the sigil-vcpkg-registry port if a future wave wants it.
+2. **`Output::inputPtr()` is non-const**, so `Instance::resolveFloat` —
+   which is `const` — cannot reach the Sequence without a `const_cast` or a
+   non-const overload. A detail, but it is the first thing any
+   evaluate-at-time work trips over.
+3. **`mountDelayCarryMs` is a subtree time offset in everything but name**
+   (`Reconcile.cpp:813-836`): reconcile-time, dynamically scoped,
+   save/restore, compounding through nesting. Any future subtree-clock work
+   should be built as its sibling, not invented.
+4. **`quantizeTime` and hand-rolled `floor(t*N)/N` are the same feature at
+   two altitudes.** The library ships it for SHADERS
+   (`Material::quantizeTime`) and eight sketches hand-write it for
+   SCHEDULES. `Bound::quantize` already exists for PROPERTIES. Three
+   spellings of one idea, and `derive()` is what makes them one.
+5. **The elapsed channel is already shadowed once** — `metricCtx` at
+   `Paint.cpp:1896` copies `paintCtx` and overrides `size`. So a per-subtree
+   `elapsedSeconds` offset has a precedent for how, and costs a field
+   assignment. It is the cheapest unbuilt thing this wave found, and it is
+   what `twoadvanced_v4.cpp:360` and twelve other sites hand-roll. Filed,
+   NOT designed here, because it retimes only one of the two channels and
+   this entry's whole argument is that a half-retime must not be silent.
