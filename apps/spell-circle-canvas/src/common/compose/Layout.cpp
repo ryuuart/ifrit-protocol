@@ -121,9 +121,10 @@ void Composer::Impl::ensureLayout() {
   needsLayout = false;
 }
 
-void Composer::Impl::syncLayoutRects(Instance &inst) {
+void Composer::Impl::syncLayoutRects(Instance &inst, bool movedAbove) {
   const SkRect r = instanceRect(inst);
-  if (r != inst.lastLayoutRect) {
+  const bool rectChanged = r != inst.lastLayoutRect;
+  if (rectChanged) {
     const bool sizeChanged = r.width() != inst.lastLayoutRect.width() ||
                              r.height() != inst.lastLayoutRect.height();
     inst.lastLayoutRect = r;
@@ -139,8 +140,20 @@ void Composer::Impl::syncLayoutRects(Instance &inst) {
       inst.parent->markPaintDirtyUp(/*ownPaint=*/false);
     contentDirty = true;
   }
+  // §19: a node carrying a world-space material below ANY moved rect —
+  // its own (the position-only branch above stales only the parent, the
+  // invariant worldSpace breaks) or an ancestor's (instanceRect is
+  // parent-relative, so an ancestor's move changes this node's W without
+  // this node's compare ever firing) — marks its OWN paint dirty: its
+  // recording baked W. `movedAbove` carries any rect change, position or
+  // size, because a resized ancestor with a centered transform origin
+  // moves its descendants' W too.
+  if (inst.hasWorldSpaceMaterial && (movedAbove || rectChanged)) {
+    inst.markPaintDirtyUp();
+    contentDirty = true;
+  }
   for (auto &child : inst.children)
-    syncLayoutRects(*child);
+    syncLayoutRects(*child, movedAbove || rectChanged);
 }
 
 /** centerAt(): set the pinned node's left/top so its MEASURED box centers

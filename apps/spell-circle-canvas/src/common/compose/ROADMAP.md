@@ -45,7 +45,15 @@ Three properties make a wrong entry more dangerous than no entry:
 - **A wrong mechanism sends the fix to the wrong place.** NR-4 would have
   bought `Material::worldSpace()`; what is actually missing is one
   injected uniform. The entry did not merely overstate the gap, it
-  described a different one.
+  described a different one. *(Annotated 2026-08-04, because this bullet
+  aged into its own example: the injected-uniform mechanism cannot serve
+  the citation that ultimately SURVIVED — chaucer_astrolabe's field is
+  built from gradient FACTORIES (`Material::linear`/`radial`), not sksl,
+  so there is no shader for a uniform to reach; the local-matrix route
+  §19 shipped 2026-08-04 is what reaches `Fill` and the factories. And
+  "NR-4" is a dangling label — no entry by that name exists anywhere in
+  this file. The bullet's lesson about mechanism-vs-symptom stands; its
+  verdict on worldSpace did not.)*
 - **Wrong entries propagate into study headers**, where they are read as
   house knowledge. Five such claims are live in shipped sketches.
 
@@ -846,7 +854,13 @@ the right thing internally and hands out only the finished result.
   the highlight pixel visibly follows the focus against the centered
   control arm, identical recipes compare equal, a moved focus does not,
   and a degenerate conical never aliases a radial.
-- **`Material` is node-local, with no world-space option** — *narrowed by
+- ~~**`Material` is node-local, with no world-space option**~~ **CLOSED
+  2026-08-04 — `Material::worldSpace()` exists (§19's material half, where
+  the mechanism, the reproduction and the nine pins live).** The guidance
+  below SURVIVES the closure and stays this entry's lead: try the
+  union-outline workaround FIRST — it is faster than the feature wherever
+  it applies — and reach for the flag only in the two escapes. Original
+  entry: *narrowed by
   a half-citation against it.* 549 per-tile granite grains seeded off tile
   identity is correct for stone, but anything that must be continuous
   ACROSS tiles — the plaza's weathering — has to become a separate
@@ -864,10 +878,14 @@ the right thing internally and hands out only the finished result.
 
   So the item survives only for what escapes that: a field that is NOT
   axis-aligned (the union outline still works, but the ramp has to be
-  authored in the rotated frame), and geometry that is LAID OUT rather
+  authored in the rotated frame — and under a LIVE rotation there is no
+  stationary frame to author in at all, which is chaucer_astrolabe's case
+  and the one that closed this), and geometry that is LAID OUT rather
   than placed (you cannot take the union of rects you do not know). Try
-  the union-outline workaround first; cite this section only if your case
-  is one of those two.
+  the union-outline workaround first; a STATIC rotation is still cheaper
+  served by baking the orientation into the path, and a DIRECTIONAL field
+  by counter-rotating the angle; `worldSpace()` is for the positional
+  field under live motion, and for laid-out geometry.
 - **A `Fill` cannot be DERIVED from a bound float at the binding site.**
   `fill(bind(&level).map(ramp))` — "this widget's colour IS its value" —
   has no spelling. Ranked honestly: `fill(&out)` with a `ch::Output<Fill>`
@@ -1776,7 +1794,7 @@ thunder_fulu 0.48%, all at **maxDelta ≤ 2**, the one-less-requantisation
 direction the entry called "slightly more accurate"; the other three
 movers are the documented flappers. Baseline rebased. 450/450.
 
-## 19. Materials and effects have no spatially-varying parameter channel — **EFFECT HALF CLOSED 2026-07-30, MEASURED; the world-space material half stays open**
+## 19. Materials and effects have no spatially-varying parameter channel — **CLOSED: effect half 2026-07-30 (MEASURED), world-space material half 2026-08-04 (REPRODUCED FIRST)**
 
 **Two independent citations, from a film UI and an anime UI**, for the
 same shape of gap — which is what promotes it out of a note under §10c.
@@ -2027,13 +2045,154 @@ only the map differing: constant (what it replaced), depth of field, a lens
 edge, and a rack focus with `maxSigma` bound. It reports "not in baseline"
 in the ledger, as every new scene does.
 
-**What is NOT closed.** The first bullet — a Material with no world-space
-option, so a field continuous ACROSS separately-laid-out nodes still has to
-become one canvas-sized node — is untouched by this and stays open under
-this entry. And the cross-frame level cache (blur the levels once, move
+**What was NOT closed on 2026-07-30.** The first bullet — a Material with
+no world-space option, so a field continuous ACROSS separately-laid-out
+nodes still has to become one canvas-sized node — was untouched by the
+effect half and stayed open under this entry (now closed below,
+2026-08-04). And the cross-frame level cache (blur the levels once, move
 only the parameter) is still the describe-keyed content-identity bake two
 other entries name as their reopening condition; the pyramid is cheap
 enough per frame that nothing here forced it.
+
+### CLOSED 2026-08-04 (the world-space material half) — `Material::worldSpace()`, reproduced first, eight runtime pins + the field pin
+
+**Reproduced before building (house rule — the citing study reported the
+TEDIUM, not the rotation defect, so the defect claim was source-reading
+until it was pixels).** `chaucer_astrolabe` authors one brass light for
+the whole instrument in CANVAS px and hand-converts it into every node's
+frame (`brass()`/`brassStroke()`, `:795-846`); its rete rotates on a live
+Output (`.rotate(&reteRot)`, driven at `:3005`). The probe: a node with a
+hand-converted canvas-space radial inside a group rotated 0° vs 40°.
+**The highlight moved (69,69) → (96,57), 29.5 px in canvas space** —
+matching the rotation of the field with the object to the pixel
+(predicted (96.3, 57.7)). One light, one instrument; physically it should
+sit still. The defect is real, and it is exactly §10c escape 1 (a field
+that is not axis-aligned in the node's frame): the union-outline
+workaround cannot serve it, because no single node's frame is stationary
+under a LIVE rotation.
+
+**The surface is one verb, recipe like `amount()`/`bleed()`:**
+
+```cpp
+Material &worldSpace(bool = true);  // coordinates = the COMPOSER ROOT's
+                                    // frame (canvas px), not the node's
+```
+
+Per-material-LAYER, not inherited by `child()`/`blend()` layers (each
+Material anchors for itself; a flagged sksl parent's children still SEE
+root coordinates through Skia's local-matrix composition, which is
+coordinate flow, not flag inheritance). `uResolution` becomes the ROOT
+canvas size when flagged, so `linearUnit`/`glowUnit` become canvas-unit
+ramps. chaucer's hand conversion inverts to nothing: author the field
+once, in canvas px, and flag it.
+
+**Mechanism — one seam, every consumer inherits it.** At resolve the
+built shader is wrapped `makeWithLocalMatrix(W⁻¹)` where W = the
+node→root matrix (`PaintContext::toRoot`), accumulated by `paint()`'s own
+recursion as the forward form of the exact matrix stack `hitInstance()`
+inverts (Query.cpp) — so a node draws its field precisely where it can be
+hit. Precedent: textFill's metric-band wrap (`Paint.cpp`, the
+`makeWithLocalMatrix` line). The seam lives inside
+`Material::resolve()`/`build()`, so fill, coverage gates, effect children
+(`resolvedImageFilter`) and `foldBlend` all inherit it; `PaintContext`
+gained `toRoot` + `rootSize`, threaded at its five construction sites
+(the design named only `toRoot`; the root canvas size is not derivable
+from W, so it rides alongside — recorded as drift). Outside a composer
+`toRoot` is identity and the material deterministically degrades to
+node-local — the same picture as unflagged, pinned. No saveLayer
+anywhere; a flagged blend still folds to one shader tree; promotion
+eligibility is unchanged.
+
+**Tiering: W is the system's, never the author's.** The flag joins
+`Material::operator==` (the in-class field pin went 7→8); W itself is
+layout-derived and rides invalidation exactly like uResolution. When
+flagged, W's six affine floats join `Live::lastInputs` — §10f's rule that
+a digest cannot see an input it was never fed; without them the frame
+after a move serves the pre-move shader (pinned, via a setSize relayout
+that moves the node without re-describing).
+
+**Three movement classes, three mechanisms — plus one the design missed:**
+
+1. **LAYOUT moves** — `syncLayoutRects` threads a `movedAbove` flag down
+   its existing recursion; a node carrying a world-space material below
+   any moved rect marks its OWN paint dirty (the position-only branch
+   stales only the parent's recording, which is the invariant worldSpace
+   breaks; and instanceRect is parent-relative, so an ancestor's move
+   never fires the descendant's rect compare). The instance flag
+   `hasWorldSpaceMaterial` is computed once at reconcile patch (fill,
+   textFill, both effects' children, mask coverages), so the walk reads a
+   bool.
+2. **BOUND-TRANSFORM moves (own or ancestor)** — the volatility walk
+   threads `movingAbove`; a world-space node under a connected transform
+   lifts to CONTENT volatility, and the lift joins the MEMOIZED scalar
+   lane rather than the opaque one: `ContentScalars` gained W's six
+   floats, so §17 keeps the recording between ticks, §20's release frees
+   the flag once the motion provably settles (8 stable paints), and the
+   per-draw released scan — which gained W — re-declares the frame an
+   externally-driven rotation resumes. This is why the lift does NOT
+   fight the kind-partition doctrine (DESIGN.md § Caching): for the node
+   carrying the anchored field, the transform IS a content input, and it
+   is one made of floats — the layout-only fallback was not needed. The
+   walk-side W (`worldMatrixOf`) recomputes the paint-side accumulation
+   op-for-op, so the compares are bit-exact. `Cache::Group` refuses to
+   hold a bake across a moving world-space field (W is not among the
+   floats the group memo gathers) — conservative in §30's stated
+   direction, and a fully static chain keeps its group.
+3. **Static nodes** — static, prune, promote, all unchanged (additive:
+   an unflagged material's resolve path is byte-identical).
+4. **FOUND ON THE WAY, a class the design did not name:** a re-described
+   STATIC transform on an ancestor (`.rotate(40 + f)` by describe) moves
+   every descendant's W while those descendants PRUNE — no rect changes,
+   no binding connects, so neither mechanism above fires. Closed at
+   reconcile: a patch whose described transform changed
+   (`describedTransformEqual`, the propsEqual transform lanes + travel)
+   walks its subtree and stales the world-space carriers
+   (`staleWorldSpaceBelow`). Its control is pin 8's.
+
+**PINS (`ComposeWorldSpace`, ComposeTestKernel.cpp — eight runtime + the
+field pin), every control run and restored:**
+
+| pin | control run, and what failed |
+| --- | --- |
+| 1 continuity: two flex siblings share one ramp, pixel-continuous edge | drop `m_worldSpace` from `geometryDependent()` (the routing) → FAILS; in-test control: unflagged restarts per node (edge steps 80+ levels) |
+| 2 alignment: node at (40,40) samples the field where it sits; identity-toRoot resolve shifts the falloff by exactly the offset | same routing control → FAILS; the identity arm is the degradation pin |
+| 3 anchored field: a sibling-driven layout move (node prunes) leaves the field put | revert the syncLayoutRects extension → FAILS |
+| 4 ancestor move: the group moves, the descendant re-anchors | thread `false` instead of `movedAbove ‖ rectChanged` → FAILS while pin 3 stays green (isolation) |
+| 5 bound transform: live rotation, anchored per frame; §20 hold releases; the resumed frame re-anchors | drop `scalarContent \|= worldUnderMotion` → FAILS at every driven frame (paint-only classification replays the wrong picture) |
+| 6 prune: identical flagged re-describe prunes (patchedNodes 0); a flag flip patches | drop the flag from `operator==` → FAILS |
+| 7 digest: setSize relayout moves the node, binds held — same Live, same memo | drop `digestToRoot` → FAILS (the stale-shader frame). First fixture draft re-described and minted a fresh Live per frame, which HID the hole — recorded because it is the §10f trap shape verbatim |
+| 8 rotation (§10c escape 1, the reproduction as a pin): highlight anchored at 0° and 40°; unflagged control still moves 10+ px | drop `staleWorldSpaceBelow` → FAILS |
+| 9 field pin | 9th member added → `error: type 'Material' decomposes into 9 elements, but only 8 names were provided` |
+
+A fixture lesson worth keeping: a childless leaf never records a picture,
+so it re-resolves on every reach and passes every staleness pin
+vacuously. Pins 3 and 8 give their panels a corner child for exactly this
+reason — the first control run on pin 3 passed and was a lie.
+
+**The surviving citation, and the cheaper answers that still lead.**
+chaucer_astrolabe — a POSITIONAL field under a LIVE rotation — is the
+case this feature exists for; nothing else in the corpus calls it. The
+documented answers stay documented and stay FIRST: a field that is
+axis-aligned and absolutely placed wants the union-outline workaround
+(§10c, eva_magi_defense — faster than the feature); a STATIC rotation
+wants the orientation baked into the path; a DIRECTIONAL field under
+rotation wants the angle counter-rotated. Reach for `worldSpace()` when
+the field is positional and the motion is live.
+
+**Corpus adoption is NOT taken.** Porting chaucer's ~200 hand-converted
+`brass()`/`brassStroke()` sites onto the flag is the owner's call, not
+this wave's — the study renders byte-identically today and the hand
+conversion, while tedious, is correct at rotation 0.
+
+**Gates.** Debug `compose_test` 538 (537 passed, 1 skipped — the §34
+variation-drive skip), +8 from this entry, every prior test untouched.
+Release `ctest` **17/17, 34.41 s**. **PLATE LEDGER** (Release,
+`scripts/plate_ledger.py`, 65 scenes): **64 byte-identical, 1 moved —
+`hitman_verlet`, auto-attributed on the documented flapper list — 0
+unattributed movers, 0 failed. VERDICT: byte-neutral**, as an additive
+feature must be: no corpus scene flags a material, and the
+syncLayoutRects/volatility/reconcile changes all fire only behind
+`hasWorldSpaceMaterial`. No rebase taken.
 
 ## 20. A settled bound property never releases its volatility flag — **SHIPPED as the measured-stability RELEASE, CLOSED 2026-07-27**
 
@@ -2519,7 +2678,12 @@ The record it belongs to, which is now long enough to be a rule:
   had.
 - Four more in run 2 described things that were not what they said.
 - `Material::worldSpace` was cited independently by two studies, and
-  measurement refuted it.
+  measurement refuted it. *(Refuted for THOSE two citations — both were
+  axis-aligned, absolutely-placed fields the union outline serves better.
+  The chaucer_astrolabe citation post-dates the refutation and survives
+  it: a positional field under a LIVE rotation has no stationary frame
+  for the workaround to author in. Audited 2026-08-04; reproduced in
+  pixels — 29.5 px of canvas drift at 40° — and closed at §19.)*
 - A study refuted its own brief by finding `brushes::Ribbon::widthFn`
   does what the brief called impossible.
 - §7 was wrong: `PathFormat` always had its own trim window, and two

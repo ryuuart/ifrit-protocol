@@ -632,6 +632,77 @@ Composer::Impl::mount(const std::shared_ptr<ElementNode> &node,
   return inst;
 }
 
+namespace {
+
+/** §19: does anything this description paints anchor to the composer root
+ *  (Material::worldSpace)? Every seam that resolves a Material against the
+ *  node's PaintContext is walked — the fill slot, textFill's metric
+ *  material, both effects' child materials, the mask coverage materials —
+ *  and the answer lands on the INSTANCE as one bool, so the per-relayout
+ *  syncLayoutRects walk and the per-frame volatility walk never re-walk a
+ *  material tree. */
+bool nodeUsesWorldSpace(const ElementNode &n) {
+  if (n.materialData) {
+    if (n.materialData->live && n.materialData->live->usesWorldSpace())
+      return true;
+    if (n.materialData->recipe && n.materialData->recipe->usesWorldSpace())
+      return true;
+  }
+  if (n.textData && n.textData->metricFill &&
+      n.textData->metricFill->usesWorldSpace())
+    return true;
+  if (n.fxData) {
+    if (n.fxData->layerEffect && n.fxData->layerEffect->usesWorldSpace())
+      return true;
+    if (n.fxData->backdropEffect && n.fxData->backdropEffect->usesWorldSpace())
+      return true;
+    for (const Mask &m : n.fxData->masks)
+      if (m.with.coverage && m.with.coverage->usesWorldSpace())
+        return true;
+  }
+  return false;
+}
+
+/** §19: did the DESCRIBED transform change between two descriptions? A
+ *  re-described static rotation on an ancestor moves every descendant's W
+ *  while the descendants themselves prune — no rect changes (layout is
+ *  untouched), no binding is connected (volatility never fires), so
+ *  neither of the other two movement classes catches it. The patch asks
+ *  this and stales the world-space descendants by hand. Lanes mirror
+ *  propsEqual's transform block plus travel() (which replaces the
+ *  translate lanes and adds to rotate). */
+bool describedTransformEqual(const ElementNode &a, const ElementNode &b) {
+  const PaintProps &pa = a.paint, &pb = b.paint;
+  if (!propEqual(pa.translateX, pb.translateX) ||
+      !propEqual(pa.translateY, pb.translateY) ||
+      !propEqual(pa.rotate, pb.rotate) || !propEqual(pa.scale, pb.scale) ||
+      !propEqual(pa.scaleX, pb.scaleX) || !propEqual(pa.scaleY, pb.scaleY) ||
+      !propEqual(pa.skewX, pb.skewX) || !propEqual(pa.skewY, pb.skewY) ||
+      pa.originX != pb.originX || pa.originY != pb.originY ||
+      pa.originPx != pb.originPx)
+    return false;
+  if ((bool)a.motionData != (bool)b.motionData)
+    return false;
+  if (a.motionData &&
+      (!(a.motionData->path == b.motionData->path) ||
+       !propEqual(a.motionData->t, b.motionData->t) ||
+       a.motionData->lookAhead != b.motionData->lookAhead))
+    return false;
+  return true;
+}
+
+/** §19: mark every world-space-carrying descendant's OWN paint dirty —
+ *  their recordings baked a W the caller just changed. */
+void staleWorldSpaceBelow(Instance &inst) {
+  for (auto &child : inst.children) {
+    if (child->hasWorldSpaceMaterial)
+      child->markPaintDirtyUp();
+    staleWorldSpaceBelow(*child);
+  }
+}
+
+} // namespace
+
 void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
   stats.describedNodes++;
   bool described = true;
@@ -656,6 +727,16 @@ void Composer::Impl::patch(Instance &inst, std::shared_ptr<ElementNode> node) {
     stats.patchedNodes++;
     inst.markPaintDirtyUp();
     contentDirty = true;
+
+    // §19: the instance flag, once per patch (a pruned node keeps its
+    // flag — equal props mean equal materials); and the third movement
+    // class: a changed DESCRIBED transform moves every descendant's W
+    // while those descendants prune, so the world-space ones are staled
+    // by hand here (layout moves ride syncLayoutRects, bound transforms
+    // ride the volatility walk).
+    inst.hasWorldSpaceMaterial = nodeUsesWorldSpace(*resolved);
+    if (prev && !describedTransformEqual(*prev, *resolved))
+      staleWorldSpaceBelow(inst);
 
     // Kind change → full remount of content state.
     const bool kindChanged = prev && prev->kind != resolved->kind;

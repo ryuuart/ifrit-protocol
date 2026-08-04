@@ -194,6 +194,15 @@ struct Instance {
     /** Every mask gate's animated floats, resolved, in the order
      *  maskAnims indexes them. */
     std::vector<float> gates;
+    /** §19: the node→root matrix W's affine six, for a node carrying a
+     *  world-space material under a BOUND transform (its own or an
+     *  ancestor's) — W is then a content input of the recording exactly
+     *  as a gate fraction is: floats, resolvable outside paint, so the
+     *  §17 memo and §20's release/scan see a turning rete re-anchor and a
+     *  held one re-cache with no new machinery. All-zero (not identity)
+     *  when the node carries no world-space material — both fill sites
+     *  honour the same guard, so the compare stays meaningful. */
+    std::array<float, 6> world{};
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
@@ -302,6 +311,18 @@ struct Instance {
   bool hasPendingLiveFill = false;
   Fill pendingLiveFill;
   sk_sp<SkShader> bakedLiveShader;
+
+  // §19: does this node's description carry a world-space material
+  // ANYWHERE a paint consumes one — the fill slot, textFill, an effect's
+  // child materials, a mask's coverage? Computed ONCE at reconcile patch
+  // (Reconcile.cpp), so the per-relayout syncLayoutRects walk and the
+  // volatility walk read a bool instead of re-walking material trees.
+  // Such a node's recording bakes W, so any movement of the node OR an
+  // ancestor stales its OWN paint — the invariant the position-only
+  // branch of syncLayoutRects otherwise breaks (instanceRect is
+  // parent-relative: an ancestor's move changes this node's W without
+  // this node's rect compare ever firing).
+  bool hasWorldSpaceMaterial = false;
 
   // The layout rect this node was last painted/recorded at. ensureLayout's
   // post-pass compares and invalidates: a SIZE change stales this node's own
@@ -736,6 +757,17 @@ struct Composer::Impl {
   // a device rect and must not be recorded into a picture that can replay
   // under a different matrix.
   int recordingDepth = 0;
+  // §19: the node→root matrix W accumulated by paint()'s own recursion —
+  // Query.cpp's inverse walk, run forwards. Saved/restored around each
+  // paint() frame (RAII, because paint() has four returns); identity
+  // between draws. PaintContext::toRoot is read from here, so every
+  // consumer of the material seam sees the SAME matrix the hit test
+  // inverts.
+  SkMatrix curToRoot = SkMatrix::I();
+  // The root's LAID-OUT size (canvas px) — differs from `size` under an
+  // intrinsic root (snapshot()). Written by paint() at the root frame;
+  // PaintContext::rootSize is read from here.
+  SkSize rootLayoutSize = SkSize::MakeEmpty();
   static constexpr size_t kPromotedBudget = 192u * 1024 * 1024;
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
@@ -774,7 +806,22 @@ struct Composer::Impl {
   void indexKeys(detail::Instance &inst);
 
   // ---- volatility & caching (Paint.cpp) ----
-  bool computeVolatile(detail::Instance &inst);
+  /** @p movingAbove: a BOUND/transitioning transform is connected on some
+   *  ancestor (§19). A node carrying a world-space material below one has
+   *  its W changing off the describe clock, which is CONTENT volatility
+   *  for that node — it joins the memoized scalar lane (W is floats), so
+   *  §17 keeps the recording between ticks and §20 releases the flag when
+   *  the motion settles. Threaded down the existing recursion; everything
+   *  else ignores it. */
+  bool computeVolatile(detail::Instance &inst, bool movingAbove = false);
+  /** §19: the node→root matrix W, recomputed OUTSIDE paint by walking the
+   *  ancestor chain root-down through the same ops paint() accumulates
+   *  (translate(rect), then NodeTransform::matrix) — bit-identical to the
+   *  paint-side accumulation, which the §20 release compare requires. */
+  SkMatrix worldMatrixOf(detail::Instance &inst);
+  /** W's affine six for the ContentScalars lane — all-zero unless the
+   *  instance carries a world-space material (both fill sites guard). */
+  std::array<float, 6> worldScalarsOf(detail::Instance &inst);
   // Scratch for the §30 subtree value memo, swapped with the group root's
   // `groupPrev` each frame so a settled group allocates nothing at all.
   std::vector<float> groupScratch;
@@ -783,7 +830,11 @@ struct Composer::Impl {
   bool applyCustomLayouts(detail::Instance &inst);
   bool applyCenterPins(detail::Instance &inst);
   void ensureLayout();
-  void syncLayoutRects(detail::Instance &inst);
+  /** @p movedAbove (§19): some ancestor's layout rect changed this pass.
+   *  A node carrying a world-space material below any moved rect marks
+   *  its OWN paint dirty — its recording baked W, and W moved with the
+   *  ancestor even though this node's parent-relative rect did not. */
+  void syncLayoutRects(detail::Instance &inst, bool movedAbove = false);
   void layoutText(detail::Instance &inst, float constraint);
   SkRect instanceRect(const detail::Instance &inst) const;
   SkRect positionedRect(const detail::Instance &inst) const;

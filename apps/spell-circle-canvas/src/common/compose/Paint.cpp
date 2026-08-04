@@ -449,6 +449,39 @@ half4 main(float2 p) {
  *  stales every ancestor recording) in the same frame — nothing stale
  *  ever replays. Cheap by construction: released nodes are few and each
  *  check is a handful of float resolves. */
+// §19: the node→root matrix, recomputed outside paint. The op sequence per
+// level — preTranslate(rect), preConcat(matrix()) — is EXACTLY the pair
+// paint() applies to curToRoot as it recurses, on the same resolved floats,
+// so the result is bit-identical to the paint-side accumulation; the §20
+// release compare depends on that (an ulp of drift would read as motion).
+SkMatrix Composer::Impl::worldMatrixOf(Instance &inst) {
+  std::vector<Instance *> chain;
+  for (Instance *i = &inst; i; i = i->parent)
+    chain.push_back(i);
+  SkMatrix m = SkMatrix::I();
+  for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+    Instance &node = **it;
+    const SkRect rect = instanceRect(node);
+    m.preTranslate(rect.left(), rect.top());
+    m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint,
+                                         rect.width(), rect.height()));
+  }
+  return m;
+}
+
+namespace {
+std::array<float, 6> worldSix(const SkMatrix &w) {
+  return {w.getScaleX(), w.getSkewX(),  w.getTranslateX(),
+          w.getSkewY(),  w.getScaleY(), w.getTranslateY()};
+}
+} // namespace
+
+std::array<float, 6> Composer::Impl::worldScalarsOf(Instance &inst) {
+  if (!inst.hasWorldSpaceMaterial)
+    return {}; // all-zero, matching the paint-side guard
+  return worldSix(worldMatrixOf(inst));
+}
+
 void Composer::Impl::scanReleasedScalars() {
   if (volatileDirty || releasedScalars.empty())
     return; // a pending recompute rebuilds the list (pointers may be stale)
@@ -457,6 +490,10 @@ void Composer::Impl::scanReleasedScalars() {
     now.gates = inst->resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(*inst->desc))
       now.glyph = inst->resolveFloat(Instance::kGlyphProgress, g->progress);
+    // §19: the released scan gains the node's W — a rete released while
+    // holding must re-declare THE FRAME its externally-driven rotation
+    // resumes, before any recording with the old anchoring replays.
+    now.world = worldScalarsOf(*inst);
     if (!(now == inst->settledScalars)) {
       inst->settleFrames = 0; // the hold is over: warm up from scratch
       inst->settledScalars = std::move(now);
@@ -466,7 +503,7 @@ void Composer::Impl::scanReleasedScalars() {
   }
 }
 
-bool Composer::Impl::computeVolatile(Instance &inst) {
+bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   const ElementNode &node = *inst.desc;
 
   auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float> &v) {
@@ -626,6 +663,18 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // MASK GATES join here, because their count is a property of the
   // description and no fixed slot can hold them.
   scalarContent |= maskScalarLive; // a moving gate re-cuts or re-clips
+  // §19: a world-space material under a CONNECTED transform — this node's
+  // own or any ancestor's (movingAbove, threaded down this recursion) —
+  // has W changing off the describe clock, and W is baked into the
+  // recording. That is content volatility, and it joins the MEMOIZED lane
+  // rather than the opaque one: W is six floats ContentScalars carries, so
+  // §17 keeps the recording between ticks, §20 releases the flag once the
+  // motion provably settles, and the per-draw scan re-declares the frame
+  // it resumes. The kind-partition doctrine holds: for THIS node the
+  // transform is a content input, which is what the flag says.
+  const bool worldUnderMotion =
+      inst.hasWorldSpaceMaterial && (moving || movingAbove);
+  scalarContent |= worldUnderMotion;
   /** The pre-release reading. §20 below may set `scalarContent` false for a
    *  node that is provably holding still; the LIVE-MATERIAL memo must keep
    *  answering about such a node exactly as it did before that release
@@ -645,6 +694,7 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
     now.gates = inst.resolveGateValues();
     if (const GlyphFx *g = glyphFxOf(node))
       now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
+    now.world = worldScalarsOf(inst); // §19: a held W releases like a gate
     if (now == inst.settledScalars) {
       scalarContent = false; // released — provably holding still
       releasedScalars.push_back(&inst);
@@ -683,7 +733,8 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   bool childReadsBackdrop = false;
   bool childrenGroupSafe = true;
   for (auto &child : inst.children) {
-    childrenVolatile |= computeVolatile(*child);
+    // §19: a bound transform HERE moves every descendant's W.
+    childrenVolatile |= computeVolatile(*child, movingAbove || moving);
     childReadsBackdrop |= child->subtreeReadsBackdrop;
     childrenGroupSafe &= child->groupSafe;
   }
@@ -710,10 +761,18 @@ bool Composer::Impl::computeVolatile(Instance &inst) {
   // opacity are applied by paint()'s saveLayer, outside the bake, exactly as
   // they would be applied outside the live paint. A backdrop FILTER on the
   // root is still fatal — it samples the destination, which the bake is not.
-  inst.groupSafe =
-      !opaqueToTheMemo && !inst.ownReadsBackdrop && childrenGroupSafe;
+  // §19: a MOVING world-space field refuses the group memo — W is not
+  // among the floats collectGroupScalars gathers (only transforms INSIDE
+  // the group are), so a bake held across an ancestor's motion would blit
+  // stale anchoring. Conservative in the §30 direction: refused outright,
+  // and a fully-static chain (no connected transform anywhere above)
+  // keeps its group — description changes reach it through
+  // markPaintDirtyUp and layout moves through syncLayoutRects.
+  inst.groupSafe = !opaqueToTheMemo && !inst.ownReadsBackdrop &&
+                   !worldUnderMotion && childrenGroupSafe;
   inst.groupRootOK = node.cacheMode == Cache::Group && !opaqueToTheMemo &&
-                     childrenGroupSafe && backdropEffectOf(node) == nullptr;
+                     !worldUnderMotion && childrenGroupSafe &&
+                     backdropEffectOf(node) == nullptr;
   if (node.cacheMode == Cache::Group && !inst.groupRootOK && !inst.groupWarned) {
     inst.groupWarned = true;
     // Loud, because the alternative is an author reading `live paint,
@@ -1430,7 +1489,9 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                               inst.borrowedPaths.empty()
                                   ? nullptr
                                   : &inst.borrowedPaths,
-                              &inst.stampCache};
+                              &inst.stampCache,
+                              curToRoot,       // §19: W, as paint() stacked it
+                              rootLayoutSize}; // …and the canvas it maps into
 
   // The node's own layer effect wraps everything painted here, so it is
   // captured by picture recordings and BAKED by texture snapshots. A LIVE
@@ -1635,7 +1696,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
           paintCtx.contentScale,
           paintCtx.animating,
           paintCtx.fonts,
-          paintCtx.borrowed};
+          paintCtx.borrowed,
+          nullptr, // stamps: deliberately unshared, as before §19
+          paintCtx.toRoot,
+          paintCtx.rootSize};
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane)
         leaveGates(saves, cover);
@@ -1674,7 +1738,10 @@ void Composer::Impl::paintContent(Instance &inst, SkCanvas &canvas,
                                  paintCtx.contentScale,
                                  paintCtx.animating,
                                  paintCtx.fonts,
-                                 paintCtx.borrowed};
+                                 paintCtx.borrowed,
+                                 nullptr, // stamps: unshared, as before §19
+                                 paintCtx.toRoot,
+                                 paintCtx.rootSize};
       d.paint(canvas, markCtx);
     } else {
       d.paint(canvas, paintCtx);
@@ -2109,6 +2176,24 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   const NodeTransform tf = transformOf(inst);
   tf.concatTo(canvas, node.paint, rect.width(), rect.height());
 
+  // §19: accumulate W (node→root) alongside the canvas ops — the same
+  // T(rect)·matrix() product hitInstance() inverts, so a world-space
+  // material draws its field exactly where the hit test says the node is.
+  // NOT canvas.getTotalMatrix(): that includes the HOST's transform and
+  // bake-layer offsets, and W must stop at the composer root. RAII because
+  // paint() returns from four places.
+  if (!inst.parent)
+    rootLayoutSize = SkSize{rect.width(), rect.height()};
+  struct ToRootScope {
+    SkMatrix *slot;
+    SkMatrix saved;
+    explicit ToRootScope(SkMatrix *s) : slot(s), saved(*s) {}
+    ~ToRootScope() { *slot = saved; }
+  } toRootScope(&curToRoot);
+  curToRoot.preTranslate(rect.left(), rect.top());
+  curToRoot.preConcat(
+      tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
+
   const Effect *backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
   if (backdropFx) {
@@ -2124,7 +2209,9 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                                    ticker.active(),
                                    &fonts,
                                    nullptr,
-                                   &inst.stampCache};
+                                   &inst.stampCache,
+                                   curToRoot, // §19: this node's W
+                                   rootLayoutSize};
     backdropFilter = backdropFx->resolvedImageFilter(&backdropCtx);
   }
   const bool hasBackdrop = (bool)backdropFilter;
@@ -2158,7 +2245,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
                        elapsed(),
                        hostScale,
                        ticker.active(),
-                       &fonts};
+                       &fonts,
+                       nullptr,
+                       nullptr,
+                       curToRoot, // §19: the memo digest sees W move
+                       rootLayoutSize};
     inst.pendingLiveFill = liveMaterialOf(node)->resolve(probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
@@ -2185,6 +2276,12 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     if (const GlyphFx *g = glyphFxOf(node))
       scalarsNow.glyph =
           inst.resolveFloat(Instance::kGlyphProgress, g->progress);
+    // §19: W as of THIS paint — curToRoot is exactly it here, and the
+    // walk-side compares (release, scan) recompute it bit-identically.
+    if (inst.hasWorldSpaceMaterial)
+      scalarsNow.world = {curToRoot.getScaleX(),     curToRoot.getSkewX(),
+                          curToRoot.getTranslateX(), curToRoot.getSkewY(),
+                          curToRoot.getScaleY(),     curToRoot.getTranslateY()};
   }
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&

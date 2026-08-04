@@ -1802,7 +1802,31 @@ Material::blend({{base, kSrcOver},                      // §5: layer STRENGTH �
 material.uniform("uGlow", &output);  // bind a ch::Output → material is LIVE
 material.quantizeTime(6.0f);         // step the injected uTime at 6 Hz
 material.child("uPalette", Material::image(lut, …));  // a SECOND source
+material.worldSpace();               // §19: coordinates are the COMPOSER
+                                     // ROOT's frame (canvas px), not the
+                                     // node's — one field over many nodes
 ```
+
+**World space (§19).** `worldSpace()` anchors THIS material to the
+composer root: a field continuous across separately-laid-out nodes (one
+light over a whole instrument, weathering over a plaza's tiles) is
+authored ONCE in canvas px and every flagged node samples it where it
+actually sits — through its layout offset, its transforms, and its
+ancestors' transforms, so a rotating node samples the field through its
+rotation and the highlight stays put while the object turns.
+`uResolution` becomes the ROOT canvas size, so `linearUnit`/`glowUnit`
+read as fractions of the canvas. Per-material-LAYER (flagging a `blend()`
+does not flag its layers). The flag is recipe (prunes like `amount()`);
+the node→root matrix is the system's — invalidation rides layout,
+reconcile and the volatility walk automatically, including under a BOUND
+transform, where the node repaints while the motion runs and re-caches
+when it provably settles (§20's release). Resolved outside a composer the
+material degrades deterministically to node-local. Try the union-outline
+workaround FIRST (§10c — faster wherever the field is axis-aligned and
+absolutely placed); a static rotation is cheaper served by baking the
+orientation into the path, a directional field by counter-rotating the
+angle. `worldSpace()` is for the positional field under live motion, and
+for laid-out geometry.
 
 **The child slot — two sources in one shader (§10f).** An `sksl()`
 effect that declares `uniform shader NAME;` gets it filled with another

@@ -226,6 +226,18 @@ struct PaintContext {
    *  cache). Mutable through a const context on purpose: a bake is a
    *  cache write, not a paint output. */
   class StampCache *stamps = nullptr;
+
+  /** The node→composer-root matrix W (§19, Material::worldSpace) — the
+   *  forward accumulation of paint()'s own transform stack, whose inverse
+   *  the hit test walks (Query.cpp). Identity outside a composer, which is
+   *  the deterministic degradation: a world-space material resolved
+   *  standalone anchors node-locally, same picture as the unflagged one.
+   *  Layout-derived, like `size` — never part of any prune signature. */
+  SkMatrix toRoot = SkMatrix::I();
+  /** The composer root's laid-out size in canvas px — what uResolution
+   *  becomes for a world-space material (a canvas-unit ramp spans the
+   *  canvas). Empty outside a composer; resolve falls back to `size`. */
+  SkSize rootSize = SkSize::MakeEmpty();
 };
 
 using PaintProgram = std::function<void(SkCanvas &, const PaintContext &)>;
@@ -396,6 +408,11 @@ public:
    *  while any child Material is live — the tier inheritance is
    *  Material::isAnimated()'s own recursion, called, not copied. */
   bool isAnimated() const;
+  /** Does any child Material anchor to the composer root
+   *  (Material::worldSpace, §19)? The reconcile walk asks this to flag the
+   *  node for W-invalidation — the same tier-inheritance shape as
+   *  isAnimated(), calling Material's own recursion. */
+  bool usesWorldSpace() const;
   /** Structural equality for the reconciler: static shader effects
    *  compare by RECIPE (runtime-effect pointer + constant uniforms), so
    *  a re-described effect prunes when the caller holds one

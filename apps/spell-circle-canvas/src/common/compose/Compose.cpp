@@ -639,6 +639,16 @@ bool Effect::isAnimated() const {
   return m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated());
 }
 
+bool Effect::usesWorldSpace() const {
+  // §19: the same tier-inheritance shape as isAnimated() — Material's own
+  // recursion answers for blend layers and nested children.
+  for (const auto &[name, child] : m_children)
+    if (child && child->usesWorldSpace())
+      return true;
+  return m_chainA &&
+         (m_chainA->usesWorldSpace() || m_chainB->usesWorldSpace());
+}
+
 /** Children compare by VALUE (Material::operator==, recursive) — the same
  *  rule §10f pinned for material children: anything read live that did not
  *  participate in reconciler equality would leave a pruned node sampling

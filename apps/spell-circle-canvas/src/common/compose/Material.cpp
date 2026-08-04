@@ -180,11 +180,42 @@ sk_sp<SkShader> childShader(const Material &source, const PaintContext *ctx) {
 
 } // namespace detail
 
+namespace {
+/** §19's wrap, the ONE construction both resolve paths share: the built
+ *  shader sampled through W⁻¹, so a local drawing coordinate p evaluates
+ *  the field at W·p — the root-frame point the node actually occupies.
+ *  Precedent: textFill's metric-band mapping (Paint.cpp), the same
+ *  makeWithLocalMatrix composition. Identity W (outside a composer, or a
+ *  root-level node with no transform) wraps nothing: node-local and
+ *  root-local are the same frame there, which is the documented
+ *  degradation. */
+sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> s, const PaintContext &ctx) {
+  if (!s || ctx.toRoot.isIdentity())
+    return s;
+  SkMatrix inv;
+  if (!ctx.toRoot.invert(&inv))
+    return s; // degenerate transform: nothing sensible to anchor through
+  return s->makeWithLocalMatrix(inv);
+}
+/** W's affine six, for the varying-input digest (§10f: a digest cannot
+ *  see an input it was never fed — without these, frame 2 after a move
+ *  serves frame 1's shader). */
+void digestToRoot(std::vector<float> &inputs, const SkMatrix &w) {
+  inputs.push_back(w.getScaleX());
+  inputs.push_back(w.getSkewX());
+  inputs.push_back(w.getTranslateX());
+  inputs.push_back(w.getSkewY());
+  inputs.push_back(w.getScaleY());
+  inputs.push_back(w.getTranslateY());
+}
+} // namespace
+
 // Build a shader from an sksl recipe: constants, then bound Outputs at their
 // current value, then the auto-injected uTime/uResolution/uContentScale — the
 // last three only when the effect actually declares them (assigning a uniform
 // the effect lacks aborts in debug builds). `ctx` is null for the static build.
-sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
+sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx,
+                                bool worldSpace) {
   if (!live.effect)
     return nullptr;
   // A user-provided uniform (constant or bound) OWNS its slot: the
@@ -216,13 +247,28 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
       ctx && validUniform(live.effect, "uResolution", 2 * sizeof(float)) &&
       !userProvided("uResolution");
 
+  // §19: a world-space material's uResolution is the ROOT canvas size —
+  // linearUnit's division lands in canvas-unit space, so a unit ramp spans
+  // the canvas and two flagged siblings sample one continuous field.
+  const SkSize resSize = worldSpace && ctx && !ctx->rootSize.isEmpty()
+                             ? ctx->rootSize
+                             : (ctx ? ctx->size : SkSize::MakeEmpty());
+
   // The varying-input digest (constants are fixed per recipe; injected
   // values participate only when actually injected).
   std::vector<float> inputs;
   if (ctx) {
-    inputs.reserve(live.binds.size() + 4);
+    inputs.reserve(live.binds.size() + 10);
     for (const auto &[name, out] : live.binds)
       inputs.push_back(out ? out->value() : 0.0f);
+    // §19 × §10f: when anchored, W is a varying input like any other — a
+    // node that MOVED resolves a different shader, and the memo must see
+    // that or the second frame after a move serves the stale one.
+    if (worldSpace)
+      digestToRoot(inputs, ctx->toRoot);
+    // §19 × §10f: when anchored, W is a varying input like any other — a
+    // node that MOVED resolves a different shader, and the memo must see
+    // that or the second frame after a move serves the stale one.
     if (injectTime) {
       // Routed through the canonical quantizer (motion::quantizeTime) at
       // the SAME precision — double in, hz promoted exactly as the old
@@ -234,8 +280,8 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
     if (injectScale)
       inputs.push_back(ctx->contentScale);
     if (injectRes) {
-      inputs.push_back(ctx->size.width());
-      inputs.push_back(ctx->size.height());
+      inputs.push_back(resSize.width());
+      inputs.push_back(resSize.height());
     }
     // THE MEMO'S BLIND SPOT, closed at the door rather than papered over: a
     // child's varying inputs are the CHILD's (its own binds, its own uTime,
@@ -306,9 +352,15 @@ sk_sp<SkShader> Material::build(const Live &live, const PaintContext *ctx) {
       b.uniform("uContentScale") = ctx->contentScale;
     if (injectRes)
       b.uniform("uResolution") =
-          std::array<float, 2>{ctx->size.width(), ctx->size.height()};
+          std::array<float, 2>{resSize.width(), resSize.height()};
   }
   sk_sp<SkShader> built = b.makeShader();
+  // §19: wrap BEFORE the memo stores — a held world-space field then keeps
+  // a stable shader pointer across frames, which is what the liveMatOnly
+  // stability probe compares (a per-resolve wrapper would read as a
+  // material that never holds still).
+  if (worldSpace && ctx)
+    built = anchorToRoot(std::move(built), *ctx);
   if (ctx) {
     live.lastInputs = std::move(inputs);
     live.lastShader = built;
@@ -572,6 +624,10 @@ bool Material::operator==(const Material &o) const {
     return false; // a layer strength is recipe, like a stop or a mode
   if (m_bleed != o.m_bleed)
     return false; // a cull reserve is recipe too — a change must re-record
+  if (m_worldSpace != o.m_worldSpace)
+    return false; // §19: the FLAG is recipe (which frame the author meant);
+                  // W itself is layout-derived and never compares — it
+                  // rides invalidation exactly like uResolution does
   if (m_isSolid != o.m_isSolid)
     return false;
   if (m_isSolid)
@@ -682,6 +738,28 @@ Material &Material::amount(float a01) {
   return *this;
 }
 
+Material &Material::worldSpace(bool on) {
+  m_worldSpace = on; // recipe, like amount()/bleed(): joins operator==
+  return *this;
+}
+
+bool Material::usesWorldSpace() const {
+  if (m_worldSpace)
+    return true;
+  // The FLAG is layer-local (never inherited), but the reconcile walk
+  // needs to see a flagged layer anywhere below: a blend whose second
+  // layer anchors still needs its node W-invalidated.
+  if (m_live)
+    for (const auto &[name, child] : m_live->children)
+      if (child.usesWorldSpace())
+        return true;
+  if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
+    for (const auto &layer : m_recipe->layers)
+      if (layer.first.usesWorldSpace())
+        return true;
+  return false;
+}
+
 Material &Material::bleed(float px) {
   m_bleed = px; // read by the recording cull (max-accumulated, so only a
   return *this; // positive reserve ever grows anything)
@@ -723,6 +801,15 @@ bool Material::isAnimated() const {
 }
 
 bool Material::geometryDependent() const {
+  // §19: W is layout-derived exactly as uResolution is — a world-space
+  // material needs PaintContext (its node's toRoot) at resolve, resolves
+  // when the node records, and re-records when the layout moves it. This
+  // one `true` is what routes EVERY flagged material — gradient factories
+  // included, which have no m_live — through the context-carrying paths:
+  // Element::fill's live slot, the coverage gate's resolve, childShader's
+  // per-frame form, and build()'s memo skip for children.
+  if (m_worldSpace)
+    return true;
   if (m_live && m_live->usesGeometry)
     return true;
   if (m_live)
@@ -837,12 +924,29 @@ Fill Material::resolve(const PaintContext &ctx) const {
   // SDF uResolution), the flatten happens HERE, per resolve, so every layer
   // contributes its correct current form — the eager snapshot from blend()
   // would have baked those layers with a null context (uResolution = 0,0).
+  // §19: a flagged OUTER blend anchors the whole fold; a flagged LAYER
+  // anchored itself inside childShader → resolve (layer-local, by design).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend &&
-      (isAnimated() || geometryDependent()))
-    return Fill::shader(foldBlend(&ctx));
-  if (isAnimated() || geometryDependent())
-    return Fill::shader(build(*m_live, &ctx));
-  return toFill();
+      (isAnimated() || geometryDependent())) {
+    sk_sp<SkShader> folded = foldBlend(&ctx);
+    if (m_worldSpace)
+      folded = anchorToRoot(std::move(folded), ctx);
+    return Fill::shader(folded);
+  }
+  // The sksl path — build() digests W and wraps inside the memo. Guarded
+  // on m_live now: §19 makes gradient-factory materials (no m_live)
+  // geometryDependent too, and those take the branch below instead.
+  if (m_live && (isAnimated() || geometryDependent()))
+    return Fill::shader(build(*m_live, &ctx, m_worldSpace));
+  // §19's seam for everything that ISN'T an sksl recipe: the gradient
+  // factories, image()/buffer(), raw shader() wraps — chaucer's brass ramp
+  // is Material::linear in canvas px, and this is the line that reaches
+  // it. (The wrap is minted per resolve; these are geometry-tier, resolved
+  // at record, so no per-frame pointer stability is at stake.)
+  Fill f = toFill();
+  if (m_worldSpace && f.kind == Fill::Kind::Shader && f.shaderValue)
+    f.shaderValue = anchorToRoot(f.shaderValue, ctx);
+  return f;
 }
 
 Element &Element::textFill(Material m) {

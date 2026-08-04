@@ -355,6 +355,56 @@ public:
   /** The declared reserve (0 unless bleed() was set). */
   float bleed() const { return m_bleed; }
 
+  /** WORLD SPACE (ROADMAP §19 / §10c): this material's coordinates are the
+   *  COMPOSER ROOT's frame — canvas px — instead of the node's. A field
+   *  that must be continuous ACROSS separately-laid-out nodes (one light
+   *  over a whole instrument, a plaza's weathering over its tiles) is
+   *  authored ONCE against the canvas and every flagged node samples the
+   *  same field where it actually sits, through its layout offset and its
+   *  transforms. A rotated node samples the field through its rotation, so
+   *  the highlight stays put while the object turns — the chaucer_astrolabe
+   *  case (its brass ramp was hand-converted per node, and turned WITH the
+   *  rete). uResolution becomes the ROOT canvas size when flagged, so
+   *  linearUnit()/glowUnit() read as fractions of the canvas.
+   *
+   *  Per-material-LAYER, deliberately not inherited: flagging a blend()
+   *  does not flag its layers, flagging an sksl() parent does not flag its
+   *  child() materials — each Material anchors (or not) for itself. (A
+   *  flagged sksl() parent's children still SEE root coordinates, because
+   *  the wrap re-maps the coordinates the parent's SkSL evaluates them at
+   *  — that is Skia's local-matrix composition, not flag inheritance.)
+   *
+   *  Mechanism: at resolve the built shader is wrapped
+   *  `makeWithLocalMatrix(W⁻¹)` where W is the node→root matrix the paint
+   *  walk accumulated (`PaintContext::toRoot`) — the same matrix the hit
+   *  test inverts, so a node draws its field exactly where it can be hit.
+   *  ONE seam inside resolve()/build(), so every consumer inherits it:
+   *  fill(), coverage gates, Effect::child() materials, blend() layers.
+   *
+   *  Rides the GEOMETRY tier (like uResolution): W is layout-derived, so
+   *  the material resolves when the node records and the library re-records
+   *  it when the node — or any ancestor — moves (syncLayoutRects), when an
+   *  ancestor's described transform changes (reconcile), and per-frame
+   *  while a BOUND transform above it is connected (volatility lift, with
+   *  §20's measured-stability release once it holds still). The flag is
+   *  recipe (participates in operator==); W itself is the system's and
+   *  never compares.
+   *
+   *  Resolved OUTSIDE a composer (asShader(), a standalone decoration,
+   *  measure()): toRoot is identity, and the material deterministically
+   *  degrades to NODE-LOCAL coordinates — same picture as the unflagged
+   *  material. A Cache::Group subtree refuses to hold a bake across a
+   *  moving world-space field (W is not among the floats the group memo
+   *  compares), so it drops to live paint there — conservative, never
+   *  stale. */
+  Material &worldSpace(bool on = true);
+  /** Is THIS material flagged world-space (the layer-local flag)? */
+  bool worldSpace() const { return m_worldSpace; }
+  /** Does this material — or any blend() layer or child() below it —
+   *  anchor to the root? The reconcile walk asks this to flag the
+   *  instance for W-invalidation; authors want worldSpace() above. */
+  bool usesWorldSpace() const;
+
   /** Step the auto-injected uTime at `hz` (floor(t·hz)/hz) — declared
    *  choppiness as a MATERIAL property, not per-consumer ticker plumbing.
    *  The P3R sea rule: its caustics run at 6 Hz ("we imagine the
@@ -415,7 +465,13 @@ public:
 private:
   struct Live;   // sksl recipe (effect + constants + Output bindings)
   struct Recipe; // comparable build recipe (gradients/image/blend)
-  static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx);
+  /** @p worldSpace routes §19's anchoring through the ONE build: the
+   *  varying-input digest gains W's six floats (a digest cannot see an
+   *  input it was never fed — §10f's blind-spot rule), uResolution becomes
+   *  the root canvas size, and the built shader is wrapped W⁻¹ BEFORE the
+   *  memo stores it, so a held field keeps a stable shader pointer. */
+  static sk_sp<SkShader> build(const Live &live, const PaintContext *ctx,
+                               bool worldSpace = false);
   /** Fold a Blend recipe's layers into one shader — `ctx` null is the
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */
@@ -423,8 +479,9 @@ private:
   void detachLive(); // copy-on-write before any recipe mutation
 
   bool m_isSolid = false;
-  float m_amount = 1.0f; // blend-layer strength (see amount())
-  float m_bleed = 0.0f;  // recording-cull reserve (see bleed())
+  bool m_worldSpace = false; // root-frame anchoring (see worldSpace())
+  float m_amount = 1.0f;     // blend-layer strength (see amount())
+  float m_bleed = 0.0f;      // recording-cull reserve (see bleed())
   SkColor4f m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
                                 // sksl a constants-only snapshot (live paint
@@ -441,10 +498,10 @@ private:
    *  private, so the decomposition lives inside the class; it names every
    *  member and stops compiling the moment one is added. */
   static void fieldPin(Material &v) {
-    auto &[isSolid, amount, bleed, solid, shader, live, recipe] = v;
+    auto &[isSolid, worldSpace, amount, bleed, solid, shader, live, recipe] = v;
     static_assert(
-        std::tuple_size_v<decltype(std::tie(isSolid, amount, bleed, solid,
-                                            shader, live, recipe))> == 7,
+        std::tuple_size_v<decltype(std::tie(isSolid, worldSpace, amount, bleed,
+                                            solid, shader, live, recipe))> == 8,
         "Material gained or lost a member — rule on it in Material::operator== "
         "(Material.cpp: is it RECIPE, or is it derived from the recipe?), "
         "then bump this count.");
