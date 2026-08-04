@@ -1528,22 +1528,63 @@ inline per bullet below.
   under Cache::Texture where truncation is hard; control run: pixels go
   black with the recordBounds hookup disabled). 457/457; ledger 55/58
   byte-identical (flappers + the shape-attributed easel_playground).
-- **`Pattern` cannot pan LIVE** — the describe-time half is closed
+- ~~**`Pattern` cannot pan LIVE** — the describe-time half is closed
   (`Pattern::offset(SkPoint)`, which turned out to be plumbing that
   already existed: `bake()` hands its matrix to `Material::image`, whose
   `localMatrix` always took a translation). What remains is
   `offset(PropValue<SkPoint>)` under the paint-only volatility contract
   bound transforms already have, so a conveyor or a marching weave
-  animates without re-describing.
-  **STILL OPEN 2026-07-29 — LEFT, needs a ruling.** Verified in source:
-  `Pattern::offset(SkPoint)` is describe-time, folded into the
-  `SkMatrix` handed to `Material::image`, which stores it in the recipe
-  and compares it — so moving it re-records. Making it live is not a
-  `Pattern.h` change: `Material`'s only live channel is `sksl()`
-  uniforms bound to `ch::Output`, so this wants a NEW bound-matrix
-  channel on `Material` plus a decision about what volatility a panning
-  pattern declares (paint-only, or does the node go live?). That is a
-  Material/Paint change with a contract attached, not a papercut.
+  animates without re-describing.~~
+  **CLOSED 2026-08-04 — RULED BUILD (§14-a), and built as the THIRD
+  SIBLING of §19's W lane and §38's Fill lane.** The 2026-07-29 sweep
+  had it right that this is a Material/Paint change with a contract
+  attached; the campaign then built that contract twice (W's six floats,
+  the bound Fill), so the ruling took the precedent. What landed:
+  - **Surface**: `Pattern::offset(&x, &y)` — the same word, the bound
+    form, `fill(&output)`'s grammar (either axis nullable; adds to the
+    static offset, the phase origin). It rides a NEW bound-matrix
+    channel `Material::offset(&x, &y)` — exactly the channel the entry
+    named — meaningful on image()/buffer() recipes (warn-and-ignore
+    elsewhere, uniform()'s guardrail).
+  - **The volatility ruling the entry wanted**: NOT paint-only — for the
+    node the pan is a content input (the recording bakes the translated
+    shader), and it is two floats resolvable by pointer dereference, so
+    it joins `ContentScalars` (`pattern`, the fourth lane) and rides the
+    whole §20 contract: content volatility while moving, release after
+    `kScalarSettleFrames` of identity (the node PROMOTES — a parked
+    conveyor costs what a static pattern costs), re-declare via
+    `scanReleasedScalars` the frame it resumes. `computeVolatile` splits
+    pan-only materials off the live-material lane
+    (`animatedBeyondBoundOffset()`); a material with a pan AND anything
+    else stays conservatively opaque, and the GROUP lane is refused (the
+    Fill lane's contract — here only an unbuilt gather, stated at the
+    term list). One resolver body, `Instance::resolvePatternOffset()`,
+    serves all three compare sites (walk release, scan, paint probe) —
+    resolveBoundFill's one-body discipline.
+  - **Equality**: the binding is recipe — pointer identity joins
+    `Material::operator==` (field pin 8→9), and `materialEqual` gained
+    the pan-only carve-out from its never-prune rule, so an identical
+    bound re-describe PRUNES and a REBOUND pan patches (§40).
+  - **Pins** (`ComposePatternPan`, ComposeTestMask.cpp, five; every
+    control run to observed failure and restored): (a) a bound pan moves
+    the repeat per frame with NO re-describe, two frames pixel-asserted;
+    (b) settled pan releases against `Promotion::Volatile`'s refusals
+    mask + the asked-for bake materializes, 4 held frames record 0/paint
+    0, then move-after-settle shows the NEW phase with no stale frame
+    and the cycle re-settles; (c) a driven pan never releases; (d)
+    unbound `offset(SkPoint)` unchanged — static path, prunes, and
+    binding a COPY does not contaminate the original; (e) the binding is
+    recipe (prune/patch both directions). Controls: dropping the
+    `scalarContent` join fails (a)(b)(c) — the pattern goes silently
+    static; dropping the walk-release lane fails the re-release;
+    dropping the SCAN lane fails with a genuine STALE FRAME (the resumed
+    pan replayed the parked phase — the scan is load-bearing for
+    staleness here, not merely conservative); dropping the paint-probe
+    lane resurrects the §38 stale-recording signature; dropping the
+    equality term fails pin (e).
+  - **Ledger**: byte-neutral by construction (additive spelling; no
+    corpus scene binds a pattern offset) — verified in this wave's
+    ledger run.
 - ~~**`patterns::stripes` is single-colour and un-phased.**~~ **CLOSED
   2026-07-27 — `patterns::sequence(runs, phase)` shipped**: {width px,
   color} runs along +x, period = their sum, wrapped phase, seam covered
@@ -1566,6 +1607,10 @@ inline per bullet below.
   SigilWeave, every weave target, SpellCircle and all of compose in both
   configs, which is not a trade an overnight batch should make on its
   own authority. Bundle it with the next SigilWeave change.
+  **RULED AND PARKED 2026-08-04 (§14-b): the owner CONFIRMED the
+  recorded verdict.** No longer needs a ruling — the trigger is named:
+  the rename bundles with the NEXT REAL SigilWeave API change, whenever
+  that lands, and rides its rebuild for free.
 - ~~**`console::console()` admits no entrance choreography.** It builds its
   line Elements internally, so `staggerChildren()` on the returned panel
   is a no-op and "the console types out on mount" is inexpressible.
@@ -3846,7 +3891,11 @@ solved here):
    brush::weave can lift to it later. Known hard cases that make
    this its own feature: translucent strands (patch double-cover)
    and multi-crossing over the same region. Touches perceived
-   z-index — deferred on the designer's call.
+   z-index — deferred on the designer's call. *(Re-ruled 2026-08-04,
+   §33-a: stays DEFERRED. It reads on perceived z-index, so it will
+   be SHAPED by the owner's upcoming API interrogation pass and its
+   weave decisions rather than built ahead of them; the patch model
+   remains the named candidate.)*
 2. ~~The masking family — `wipe()` is one member (a paint-only
    directional mask, fraction Animatable), shape/alpha masks and the
    kit's alphaMask bake are others; the family was never designed as
@@ -3988,9 +4037,21 @@ findings, recorded so they are not rediscovered:
 - **Two of the new tests assert less than their names claim.**
   `AnimatedRevealDrawsOnAndDeclaresVolatility` proves the reveal advances
   but never checks the volatility half, and
-  `FitSizesAGapFromKeyedContent` needs a second `frame()` before the
+  ~~`FitSizesAGapFromKeyedContent` needs a second `frame()` before the
   derive answer lands — whether that is correct derive timing or a
-  one-frame lag worth closing is unresolved.
+  one-frame lag worth closing is unresolved.~~ **The FitSizes half is
+  RESOLVED 2026-08-04 (§33-i): harness-only, and in fact never
+  load-bearing.** The probe: delete the second `frame()` — the test
+  passes at current source; and `ensureLayout` already ran the derive
+  pass inside its convergence rounds BEFORE paint at the commit that
+  introduced the test (77f0d8d, verified against that revision's
+  Layout.cpp), so the extra frame was defensive from day one, not a
+  fixed bug. There is no user-visible lag: draw() runs
+  layout → derive → paint in ONE frame. Pinned both directions in the
+  test itself, one frame each — the first paint after describe, and the
+  half a harness quirk could not excuse: the first paint after the
+  keyed element MOVES shows the claim at the new position and nothing
+  at the old one. (The AnimatedReveal half stands as filed.)
 
 **STAGE TWO SHIPPED 2026-07-26 — kinds, composites, strands, crossings,
 the shaper seam, the kit library.** Landed:
@@ -4130,7 +4191,9 @@ audit file):
    Material); the doc fix is free.
 10. `decorations::brackets`/`gappedRule` vs `lines::cornerBrackets`/
     `cornerGaps` — one capability, two names, corpus found one
-    (41 vs 3). §26-family sibling failure in naming form.
+    (41 vs 3). §26-family sibling failure in naming form. *(Closed
+    2026-08-04: the decorations:: pair is DELETED — §33-j's note below
+    the R3 gate.)*
 
 Also filed from the audit: the missing boolean-shape vocabulary — a
 sketch reached for `clipOut()` and `shapes::subtract` by name
@@ -4286,14 +4349,17 @@ member that made the kernel right all along.
    the bridge decision and the per-scene verdicts are the
    *widthFn→Profile* note at the end of this section. It was 8 sites in 4
    sketches, not 7 in 5.
-3. **`decorations::brackets` / `gappedRule`.** NOT on the enumerated R3
+3. ~~**`decorations::brackets` / `gappedRule`.** NOT on the enumerated R3
    list, with live corpus sites (astral_tome ×5, stroke_atlas ×2) and a
    different construction from `spans::corners`/`edges` — deleting them
    is an uncleared corpus sweep with pixel risk. Their docs said
    "retained until the R3 deletion", which would now be false, so they
    were re-worded to CONDEMNED on the same terms as the other two. This
    is the one place R3 refused an implied deletion, and it is recorded
-   here rather than quietly done.
+   here rather than quietly done.~~ **CLOSED 2026-08-04 — the owner
+   ruled port-and-delete (§33-j), and it is DONE. The full execution
+   record, including the STALE COUNT this entry's parenthetical had
+   become, is the §33-j note below the R3 gate.**
 
 ### THE GATE
 
@@ -4354,6 +4420,60 @@ load. Any future ledger should carry the flag on both arms.
 - **ROADMAP.md and STRESS_TESTS.md keep their historical mentions** of
   the deleted names. They are records of what happened; API.md and the
   headers are the surface, and those are clean (`grep` is the audit).
+
+### §33-j EXECUTED 2026-08-04 — brackets/gappedRule ported and DELETED, and the count the ruling was taken on was stale
+
+The owner ruled port-and-delete on the CONDEMNED pair, on the record's
+"7 corpus sites: astral_tome ×5, stroke_atlas ×2". **The source said
+otherwise — 27 call sites in 5 scenes** (astral_tome ×6, stroke_atlas ×3,
+and three scenes the overnight sketch program added AFTER the R3 count:
+bg3_dice_roll ×8, dunhuang_star_chart ×3, vagrant_story_target ×7), plus
+8 test sites. The preamble's law ("read the source before building on any
+entry") applied to the ruling's own premise, and the execution was shaped
+so the SANCTION still holds exactly:
+
+- **The two sanctioned scenes took the real port.** Every plain
+  corner-mark site became the grammar's spelling —
+  `.stroke(spans::corners(arm), brush::solid(w, fill))` /
+  `spans::edges` — astral_tome's cell plates, sprof frame and ok-cells,
+  stroke_atlas's three specimen rows (captions now print the surviving
+  API, the R3 caption-plate precedent). Sites the span family CANNOT
+  spell kept the surviving `Border` value the factories built,
+  byte-identically: astral's onEdges(Top)-wrapped rule (no box-edge
+  vocabulary in spans::), the doubleBorder inner (a LayerStyle slot takes
+  decorations, and its 7 px inset has no stroke-pass spelling), and the
+  inset-4 registration brackets.
+- **The three UNSANCTIONED scenes were ported to file-local
+  `legacyBrackets`/`legacyGappedRule` shims** building the identical
+  Border value — byte-identical by construction and VERIFIED (their
+  plates hash equal before/after). Their spans:: ports await their own
+  pixel clearance; the shim comment says so at each site.
+- **The deltas, quantified** (Release, single-scene renders, same
+  binary): `astral_tome` 165 px of 3.6M (0.005%), maxDelta 161, only
+  13 px above delta 8 — sub-pixel AA at bracket arm ends (the span
+  claim extracts by fraction-of-total-length where cornerWindows
+  extracted by contour px; same findCorners scan, same arms, crops
+  indistinguishable). `stroke_atlas` 3301 px (0.046%), maxDelta 185,
+  concentrated in the two caption bands (y 2181–2235 — the printed API
+  names changed, which is the page doing its job) plus AA-level motion
+  in the specimen frames above them; the drawn brackets/rules are
+  visually identical. **No rebase taken — the owner adopts the two new
+  hashes.**
+- **The deletion**: the two factories are gone from Decorations.h
+  (which also retires §25's reported-not-fixed stale comment — the
+  "one of the two legacies R3 did not delete" sentence lived in the
+  deleted doc block); `Border` + `Mode::Bracket`/`Gapped` stay (the
+  machinery Weighted mode and the byte-identical ports need, and
+  `weightedCorners`/`border`/`doubleBorder` were never condemned).
+  Lines.h's four-spellings note and the no-corner warning now name the
+  survivors; API.md's border block teaches the span claim and records
+  the deletion once (the generated doc guard gained the two
+  exact-qualified exclusions, so `kit::spans::brackets` stays probed).
+  The ComposeBorders pixel tests were ported to the span-claim spelling
+  **with their pixel expectations UNCHANGED, and they pass unchanged** —
+  the strongest available evidence that the two constructions draw the
+  same picture at these fixtures; EngineDocs compiles the successor
+  block.
 
 ---
 
@@ -4656,6 +4776,12 @@ up. `Region`'s factories deliberately avoided the problem entirely by being
 STATIC MEMBERS (`Region::own()`, `Region::path()`), the house pattern
 `Fill::color` and `Material::radial` already use; that is the shape to reach
 for if the ruling goes against new nouns.
+
+*(§33-g, ruled 2026-08-04: the reservation is deliberately CARRIED to the
+owner's upcoming API interrogation pass — it stays standing, and no new
+concept nouns land at `sigil::compose` scope in the meantime. The
+don't-re-litigate instruction above now has its answer date: the layout
+question is settled THERE, once, with the whole surface on the table.)*
 
 ### The corpus port
 

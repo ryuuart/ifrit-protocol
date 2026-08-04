@@ -1,7 +1,12 @@
 #include "ComposeTestSupport.h"
 
 // ---------------------------------------------------------------------------
-// decorations::Border — brackets, gapped rules, weighted corners, insets.
+// The corner vocabulary — bracket claims, open-corner rules, weighted
+// corners, insets. §33-j (2026-08-04): `decorations::brackets`/`gappedRule`
+// are DELETED; the bracket and open-corner pictures are pinned here through
+// the surviving spelling — a span CLAIM on the node's real boundary
+// (`.stroke(spans::corners/edges(arm), brush::solid(w, fill))`) — and the
+// Border modes stay covered through border()/weightedCorners/doubleBorder.
 
 namespace {
 Fill white() { return Fill::color({1, 1, 1, 1}); }
@@ -11,6 +16,21 @@ Fill white() { return Fill::color({1, 1, 1, 1}); }
 Element panel(Decoration dec) {
   return box().child(
       box().width(100).height(100).fill(blue()).foreground(std::move(dec)));
+}
+/** The same panel with a span-qualified pass — the §33-j spelling of the
+ *  corner vocabulary. */
+Element spanPanel(Spans where, Decoration dec) {
+  return box().child(box().width(100).height(100).fill(blue()).stroke(
+      std::move(where), std::move(dec)));
+}
+Element shapedSpanPanel(std::function<SkPath(SkSize)> outline, Spans where,
+                        Decoration dec) {
+  return box().child(box()
+                         .width(100)
+                         .height(100)
+                         .shape(std::move(outline))
+                         .fill(blue())
+                         .stroke(std::move(where), std::move(dec)));
 }
 Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
   return box().child(box()
@@ -27,7 +47,7 @@ TEST(ComposeBorders, BracketsPaintOnlyNearTheCorners) {
   // reticle as four absolutely-placed Elements, which cost four nodes and
   // stopped following the shape the moment it was not a rectangle.
   Host host;
-  host.composer.render(panel(decorations::brackets(6, white(), 20)));
+  host.composer.render(spanPanel(spans::corners(20), brush::solid(6, white())));
   host.frame();
   EXPECT_EQ(host.pixel(10, 1), SK_ColorWHITE); // along the top, near a corner
   EXPECT_EQ(host.pixel(1, 10), SK_ColorWHITE); // and down the left of it
@@ -38,7 +58,7 @@ TEST(ComposeBorders, BracketsPaintOnlyNearTheCorners) {
 
 TEST(ComposeBorders, GappedRuleIsTheExactComplement) {
   Host host;
-  host.composer.render(panel(decorations::gappedRule(6, white(), 20)));
+  host.composer.render(spanPanel(spans::edges(20), brush::solid(6, white())));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // mid-run: drawn
   EXPECT_EQ(host.pixel(98, 50), SK_ColorWHITE);
@@ -51,8 +71,8 @@ TEST(ComposeBorders, BracketsFollowAChamferedSilhouette) {
   // brackets land on whatever corners the SHAPE has. A 30 px chamfer turns
   // four corners into eight, and the chamfer face itself gets marked.
   Host host;
-  host.composer.render(shapedPanel(shapes::chamfered(30),
-                                   decorations::brackets(6, white(), 10)));
+  host.composer.render(shapedSpanPanel(shapes::chamfered(30), spans::corners(10),
+                                       brush::solid(6, white())));
   host.frame();
   // (74, 4) sits ON the top-right chamfer face, ~5 px from its upper end.
   EXPECT_EQ(host.pixel(74, 4), SK_ColorWHITE);
@@ -62,7 +82,7 @@ TEST(ComposeBorders, BracketsFollowAChamferedSilhouette) {
   // A plain rectangle has no corner there at all, so the same call leaves
   // that pixel untouched — which is what makes this a test about the SHAPE.
   Host plain;
-  plain.composer.render(panel(decorations::brackets(6, white(), 10)));
+  plain.composer.render(spanPanel(spans::corners(10), brush::solid(6, white())));
   plain.frame();
   EXPECT_EQ(plain.pixel(74, 4), SK_ColorBLUE);
 }
@@ -73,8 +93,8 @@ TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
   // NOTHING and a gapped rule runs the whole way round.
   Host host;
   host.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue()).foreground(
-          decorations::brackets(6, white(), 20))));
+      box().width(100).height(100).corners({30}).fill(blue()).stroke(
+          spans::corners(20), brush::solid(6, white()))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorBLUE);
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);
@@ -82,8 +102,8 @@ TEST(ComposeBorders, ARoundedCornerIsNotACorner) {
 
   Host gapped;
   gapped.composer.render(box().child(
-      box().width(100).height(100).corners({30}).fill(blue()).foreground(
-          decorations::gappedRule(6, white(), 20))));
+      box().width(100).height(100).corners({30}).fill(blue()).stroke(
+          spans::edges(20), brush::solid(6, white()))));
   gapped.frame();
   EXPECT_EQ(gapped.pixel(50, 1), SK_ColorWHITE);
   EXPECT_EQ(gapped.pixel(9, 9), SK_ColorWHITE);

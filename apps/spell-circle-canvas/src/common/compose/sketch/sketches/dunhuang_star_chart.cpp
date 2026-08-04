@@ -149,7 +149,7 @@
 //                        brush press does not slide under the reveal
 //   brush::Scatter   the roll's contact replication marks
 //   patterns::grain (anisotropic) + Cache::Texture   the mulberry ground
-//   decorations::brackets/gappedRule   with an EXPLICIT angleDeg — the
+//   Bracket/Gapped Borders (legacy shims, §33-j)   with an EXPLICIT angleDeg — the
 //                        disc's 28-fold division turns 12.86° per vertex
 //                        and the 30° default finds no corners at all
 //   TextPath::Orient::Radial   the disc's mansion names
@@ -189,6 +189,35 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Strokes.h>
+
+namespace {
+// §33-j (2026-08-04): decorations::brackets/gappedRule are DELETED from the
+// library (the grammar's spelling is a spans::corners()/edges() claim).
+// This study keeps its drawn result BYTE-IDENTICAL through the surviving
+// Border value the deleted factories built — the owner's port ruling
+// sanctioned pixel deltas for astral_tome and stroke_atlas only, so the
+// spans:: port of THIS study awaits its own pixel clearance.
+inline sigil::compose::Border legacyBrackets(
+    float width, sigil::compose::Fill fill, float arm = 18.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Bracket,
+                                .corner = arm,
+                                .cornerAngleDeg = angleDeg};
+}
+inline sigil::compose::Border legacyGappedRule(
+    float width, sigil::compose::Fill fill, float gap = 14.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Gapped,
+                                .corner = gap,
+                                .cornerAngleDeg = angleDeg};
+}
+} // namespace
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -1635,7 +1664,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
                             .layer(lines::Line{
                                 .width = 1.25f,
                                 .fill = Fill::color(hex(0x4a3b28, 0.78f))}))
-                .foreground(decorations::brackets(2.0f, Fill::color(kInk),
+                .foreground(legacyBrackets(2.0f, Fill::color(kInk),
                                                   15.0f, 0.0f, 30.0f)));
 
     // the equator — the one line whose position the paper says varies ±5°
@@ -2260,7 +2289,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float b = std::min(lw, atlasRight - wn.s0 * mm);
       g.child(box().left(a).top(-4).width(Dim(b - a)).height(Dim(lh + 8))
                   .fill(Fill::color(hex(0x2f6d86, 0.30f)))
-                  .foreground(decorations::brackets(1.4f, Fill::color(kTrace), 9.0f,
+                  .foreground(legacyBrackets(1.4f, Fill::color(kTrace), 9.0f,
                                                     0.0f, 30.0f)));
     }
     g.child(text(toU8("THE WHOLE SCROLL, 1:16 \xc2\xb7 3,940 \xc3\x97 244 mm \xc2\xb7 right: "
@@ -2532,7 +2561,7 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const Plot &pl = plots[pi];
       auto p = box().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
       p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph))
-                  .stroke(decorations::gappedRule(0.9f, Fill::color(hex(0x8a7458, 0.5f)),
+                  .stroke(legacyGappedRule(0.9f, Fill::color(hex(0x8a7458, 0.5f)),
                                                   16.0f, 0.0f, 30.0f)));
       const float lo = pl.lo, hi = pl.hi;
       const bool merc = pl.merc;

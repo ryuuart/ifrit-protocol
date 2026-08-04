@@ -121,12 +121,24 @@ public:
    *  a conveyor belt moves, a barber pole turns — and two studies wrote
    *  the pattern twice for want of it.
    *
-   *  Still describe-time: animating a pan means re-describing, or a bound
-   *  uniform in hand-written SkSL. `offset(Animatable<SkPoint>)` under the
-   *  paint-only volatility contract is the version that closes it fully
-   *  (ROADMAP.md §14). */
+   *  Describe-time: this form re-describes to move. The BOUND overload
+   *  below is the live sibling. */
   Pattern &offset(SkPoint px) {
     m_offset = px;
+    return *this;
+  }
+  /** Pan the repeat LIVE (ROADMAP §14-a): the same word, the bound form —
+   *  `fill(&output)`'s grammar on the pan. Assign the Outputs and the
+   *  conveyor moves, the twill marches, with NO re-describe and no
+   *  rebake; either axis may be null. Adds to the static offset() (the
+   *  phase origin). Rides `Material::offset`'s bound-matrix channel:
+   *  content volatility while moving, §20's measured-stability release
+   *  once it holds still — a parked conveyor costs what a static pattern
+   *  costs, promotion included — and the re-declare the frame it resumes. */
+  Pattern &offset(const choreograph::Output<float> *x,
+                  const choreograph::Output<float> *y) {
+    m_boundX = x;
+    m_boundY = y;
     return *this;
   }
   /** How the baked tile samples. Defaults to linear, which is right for
@@ -197,14 +209,20 @@ private:
     SkMatrix local = SkMatrix::RotateDeg(m_rotate);
     local.preScale(m_scale, m_scale);
     local.postTranslate(m_offset.fX, m_offset.fY);
-    return Material::image(st.baked, SkTileMode::kRepeat, SkTileMode::kRepeat,
-                           local, m_sampling);
+    Material m = Material::image(st.baked, SkTileMode::kRepeat,
+                                 SkTileMode::kRepeat, local, m_sampling);
+    if (m_boundX || m_boundY)
+      m.offset(m_boundX, m_boundY); // §14-a: the live pan rides Material's
+                                    // bound-matrix channel
+    return m;
   }
 
   std::shared_ptr<State> m_state;
   float m_scale = 1.0f;
   float m_rotate = 0.0f;
   SkPoint m_offset = {0, 0};
+  const choreograph::Output<float> *m_boundX = nullptr;
+  const choreograph::Output<float> *m_boundY = nullptr;
   SkSamplingOptions m_sampling{SkFilterMode::kLinear};
 };
 

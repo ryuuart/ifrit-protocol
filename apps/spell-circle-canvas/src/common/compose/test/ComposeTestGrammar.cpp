@@ -249,18 +249,41 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
 TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
   // The derive pass, applied to a boundary: the pass claims exactly the
   // run the keyed element covers (the flowAround pattern).
+  //
+  // §33-i, RESOLVED 2026-08-04: this test used to call frame() TWICE
+  // before its first assertion, with a note that nobody knew whether that
+  // was correct derive timing or a user-visible one-frame lag. It is
+  // NEITHER — the extra frame was never load-bearing. The derive pass
+  // runs INSIDE ensureLayout's convergence rounds (Layout.cpp), which
+  // draw() executes BEFORE paint in the SAME frame, so the fit rects a
+  // stroke pass sizes its gap from are resolved by the first paint that
+  // could read them — and ensureLayout was already shaped that way at the
+  // commit that introduced this test (77f0d8d). Both halves are pinned
+  // below with ONE frame each: the first paint after describe, and — the
+  // half a harness quirk could not excuse — the first paint after a
+  // CONTENT CHANGE (the keyed element moves; a one-frame lag would show
+  // the gap at the label's old position).
   Host host(200, 200);
-  host.composer.render(
-      stack()
-          .child(box().key("lbl").rect(SkRect::MakeXYWH(40, 10, 30, 20)))
-          .child(box()
-                     .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-                     .stroke(spans::fit("lbl", 0.0f),
-                             util::stroke(6, red()))));
+  auto scene = [](SkRect label) {
+    return stack()
+        .child(box().key("lbl").rect(label))
+        .child(box()
+                   .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                   .stroke(spans::fit("lbl", 0.0f),
+                           util::stroke(6, red())));
+  };
+  host.composer.render(scene(SkRect::MakeXYWH(40, 10, 30, 20)));
   host.frame();
-  host.frame(); // derive resolves against the first layout
   EXPECT_EQ(host.pixel(55, 20), SK_ColorRED) << "under the label";
   EXPECT_EQ(host.pixel(100, 20), SK_ColorBLACK) << "away from it";
+  // The label MOVES; the very next paint must show the claim at the new
+  // position and nothing at the old one.
+  host.composer.render(scene(SkRect::MakeXYWH(90, 10, 30, 20)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 20), SK_ColorRED)
+      << "the moved label's claim lagged a frame";
+  EXPECT_EQ(host.pixel(55, 20), SK_ColorBLACK)
+      << "the claim at the label's OLD position replayed";
 }
 
 TEST(ComposeSpans, SpanValuesParticipateInReconcilerEquality) {

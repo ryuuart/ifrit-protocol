@@ -356,6 +356,20 @@ Fill detail::Instance::resolveBoundFill() const {
   return {};
 }
 
+std::array<float, 2> detail::Instance::resolvePatternOffset() const {
+  // §14-a: only the TOP-LEVEL bound offset of the node's fill material is
+  // a scalar-lane input — a nested one (blend layer, child slot) keeps
+  // the material on the opaque live path (animatedBeyondBoundOffset) and
+  // never reaches this lane. All-zero when unbound, matching the
+  // ContentScalars guard: a node without the channel compares equal to
+  // itself forever.
+  const Material *m = liveMaterialOf(*desc);
+  if (!m || !m->hasBoundOffset())
+    return {};
+  const SkPoint pan = m->boundOffsetValue();
+  return {pan.x(), pan.y()};
+}
+
 // ---------------------------------------------------------------------------
 // The masking family, at paint
 //
@@ -506,6 +520,9 @@ void Composer::Impl::scanReleasedScalars() {
     // while the walk sleeps must re-declare before its settled colour
     // replays from any ancestor's recording (or its own promoted bake).
     now.fill = inst->resolveBoundFill();
+    // §14-a: and the bound pan — a parked conveyor whose Output resumes
+    // while the walk sleeps re-declares before the parked phase replays.
+    now.pattern = inst->resolvePatternOffset();
     if (!(now == inst->settledScalars)) {
       inst->settleFrames = 0; // the hold is over: warm up from scratch
       inst->settledScalars = std::move(now);
@@ -643,9 +660,20 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
                         inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
   const Material *nodeLiveMat = liveMaterialOf(node);
+  // §14-a: a fill material whose ONLY animation is its own bound pan is
+  // NOT the live-material lane — it is two floats, resolvable outside
+  // paint by a pointer dereference, so it rides the §17/§20 scalar lane
+  // exactly as a gate fraction, W's six, and the bound Fill do. A
+  // material with a bound pan AND anything else (a live uniform, uTime, a
+  // nested pan in a blend layer) stays on the opaque live path —
+  // conservative, and the split is a partition: patternPan and liveMat
+  // can never both be true.
+  const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
+  const bool patternPan = liveMatAnimated && nodeLiveMat->hasBoundOffset() &&
+                          !nodeLiveMat->animatedBeyondBoundOffset();
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
-  const bool liveMat = nodeLiveMat && nodeLiveMat->isAnimated();
+  const bool liveMat = liveMatAnimated && !patternPan;
   const Material *mfLive = metricFillOf(node);
   const bool metricLive = mfLive && mfLive->isAnimated(); // chrome type
   const bool cacheNone = node.cacheMode == Cache::None;
@@ -698,6 +726,13 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // spelling — and the per-draw released scan re-declares THE FRAME the
   // Output moves, before anything stale replays.
   scalarContent |= boundFill;
+  // §14-a: and the bound PATTERN PAN — the third sibling. ContentScalars
+  // carries the resolved pair, so §17 keeps the recording between moves
+  // (each moved frame re-records with the new phase, nothing re-describes),
+  // §20's release frees the flag after kScalarSettleFrames of identity —
+  // a parked conveyor promotes like a static pattern — and the per-draw
+  // released scan re-declares THE FRAME the pan resumes.
+  scalarContent |= patternPan;
   /** The pre-release reading. §20 below may set `scalarContent` false for a
    *  node that is provably holding still; the LIVE-MATERIAL memo must keep
    *  answering about such a node exactly as it did before that release
@@ -719,6 +754,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
       now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
     now.world = worldScalarsOf(inst); // §19: a held W releases like a gate
     now.fill = inst.resolveBoundFill(); // §38: and so does a held bound fill
+    now.pattern = inst.resolvePatternOffset(); // §14-a: and a held bound pan
     if (now == inst.settledScalars) {
       scalarContent = false; // released — provably holding still
       releasedScalars.push_back(&inst);
@@ -755,7 +791,16 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // cannot hold a reference. Flattening the pointer into floats would make
   // "a freed shader reallocated at the same address" compare stable — the
   // exact silent-stale-bake failure §30 refuses outright.
-  const bool opaqueToTheMemo = sharedOpaque || boundFill || liveMat;
+  // §14-a, the GROUP lane, deliberately NOT taken (the Fill lane's
+  // contract): a bound pan still refuses Cache::Group. Unlike the Fill the
+  // refusal here is not unsound currency — a pan IS two floats — it is an
+  // unbuilt gather: collectGroupScalars does not collect the pan, so a
+  // group bake held across a moving one would blit the parked phase.
+  // Refused outright in §30's direction until that lane is decided on its
+  // own; the node-level release above still frees a settled pan's flag, so
+  // the practical cost is only that the group BAKE stays refused.
+  const bool opaqueToTheMemo =
+      sharedOpaque || boundFill || liveMat || patternPan;
   // Everything volatile about this node EXCEPT its animated scalars, and
   // everything EXCEPT its live material. The two memo carve-outs below are
   // exactly these two subtractions, which is why neither can forget a term.
@@ -2322,6 +2367,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     // the value the recording below bakes is this frame's binding read, so
     // the memo compares exactly "the Fill the recording was baked with".
     scalarsNow.fill = inst.resolveBoundFill();
+    // §14-a: the bound pan, same one-body law — the recording bakes the
+    // fill shader translated by exactly this read (Material::resolve's
+    // pannedImageShader), so the memo compares the pan it was baked with.
+    scalarsNow.pattern = inst.resolvePatternOffset();
   }
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&

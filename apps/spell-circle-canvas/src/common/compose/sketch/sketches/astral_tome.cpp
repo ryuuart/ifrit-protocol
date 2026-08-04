@@ -187,10 +187,11 @@
 //     full 32 px of its cell, and the waist parameter is what draws that.
 //     Radius varies by LINK DEGREE (armara's hub has 4, discidia's leaves 1),
 //     which is real data off the link list.
-//   * the cell plates are decorations::brackets + a gappedRule on the top edge
-//     only (shapes::onEdges(Edge::Top, …)); the mod draws no cell border at
-//     all, so the plate is entirely the study's apparatus and is drawn on the
-//     80 x 110 HIT box so you can see the chart overflow it.
+//   * the cell plates are spans::corners claims + a gapped Border on the top
+//     edge only (shapes::onEdges(Edge::Top, …)); the mod draws no cell border
+//     at all, so the plate is entirely the study's apparatus and is drawn on
+//     the 80 x 110 HIT box so you can see the chart overflow it. (§33-j
+//     ported the corner marks off the deleted decorations::brackets.)
 //   * the spread frame is doubleBorder + weightedCorners over a chamfered
 //     inner, and the 31-tick declination ladder runs the key cell's flanks.
 //
@@ -758,18 +759,25 @@ struct AstralTome : sigil::compose::sketch::Sketch {
    *  precisely so the 95-wide chart can be seen overflowing it. */
   Element cellPlate(int i, bool key) const {
     const SkPoint o = at::kOffsets[(size_t)i];
+    // §33-j (2026-08-04): decorations::brackets is DELETED; the corner
+    // marks are the grammar's spelling now — a span claim on the plate's
+    // real boundary. The top-edge rule keeps shapes::onEdges (a spans::
+    // family has no box-edge vocabulary), over the surviving Border value
+    // the deleted factory built — byte-identical construction.
     Element e = box()
                     .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), at::g(at::kCellW), at::g(at::kCellH)))
                     .key(std::string("cell") + std::to_string(i))
                     .shape(shapes::chamfered(at::g(4.0f), shapes::Corner::All))
-                    .foreground(decorations::brackets(
-                        1.5f, Fill::color(at::mul(at::kGilt, 1.0f, 0.62f)),
-                        at::g(14.0f)))
+                    .stroke(spans::corners(at::g(14.0f)),
+                            brush::solid(1.5f, Fill::color(at::mul(
+                                                   at::kGilt, 1.0f, 0.62f))))
                     .foreground(shapes::onEdges(
                         shapes::Edge::Top,
-                        decorations::gappedRule(
-                            1.0f, Fill::color(at::mul(at::kGilt, 1.0f, 0.30f)),
-                            at::g(16.0f))));
+                        Border{.width = 1.0f,
+                               .fill = Fill::color(
+                                   at::mul(at::kGilt, 1.0f, 0.30f)),
+                               .mode = Border::Mode::Gapped,
+                               .corner = at::g(16.0f)}));
     if (key) {
       // The declination ladder: 31 divisions of the cell, every 5th long —
       // the grid the star coordinates actually live on, drawn once.
@@ -1044,7 +1052,8 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(x, y, w, h))
                 .key("sprof")
-                .foreground(decorations::brackets(1.0f, Fill::color(dim), 12.0f))
+                // §33-j: the grammar's corner claim (was decorations::brackets)
+                .stroke(spans::corners(12.0f), brush::solid(1.0f, Fill::color(dim)))
                 .background(at::prog([=](SkCanvas &c, const PaintContext &) {
                   SkPaint band;
                   band.setAntiAlias(false);
@@ -1104,9 +1113,11 @@ struct AstralTome : sigil::compose::sketch::Sketch {
       m.child(box()
                   .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k, at::kCellW * k, at::kCellH * k))
                   .key(std::string("ok") + std::to_string(i))
-                  .foreground(decorations::brackets(
-                      0.9f, Fill::color(at::hex(at::kPage0[(size_t)i].color, 0.8f)),
-                      9.0f)));
+                  // §33-j: the grammar's corner claim
+                  .stroke(spans::corners(9.0f),
+                          brush::solid(0.9f,
+                                       Fill::color(at::hex(
+                                           at::kPage0[(size_t)i].color, 0.8f)))));
       // the 95 x 95 render box standing proud of it
       m.child(box()
                   .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k, at::kRenderBox * k, at::kRenderBox * k))
@@ -1185,13 +1196,20 @@ struct AstralTome : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(at::gx(15) + 5, 5, at::g(at::kGuiW - 30) - 10, at::kCanvasH - 10))
                 .key("plateframe")
                 .shape(shapes::chamfered(26.0f, shapes::Corner::All))
+                // §33-j: doubleBorder's inner rule keeps the surviving
+                // Border value the deleted gappedRule factory built (a
+                // LayerStyle slot takes decorations, not span passes, and
+                // the 7 px inset has no stroke-pass spelling) —
+                // byte-identical construction.
                 .style(decorations::doubleBorder(
                     decorations::weightedCorners(
                         1.0f, 3.2f, Fill::color(at::mul(at::kGilt, 1.0f, 0.55f)),
                         44.0f),
-                    decorations::gappedRule(
-                        0.8f, Fill::color(at::mul(at::kGilt, 1.0f, 0.22f)), 62.0f,
-                        7.0f))));
+                    Border{.width = 0.8f,
+                           .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.22f)),
+                           .inset = 7.0f,
+                           .mode = Border::Mode::Gapped,
+                           .corner = 62.0f})));
 
     // Plate head — kept inside x < 560 so nothing in the top-right pocket can
     // collide with it.
@@ -1273,9 +1291,15 @@ struct AstralTome : sigil::compose::sketch::Sketch {
     m.child(box()
                 .rect(SkRect::MakeXYWH(at::gx(15), 0, at::g(at::kGuiW - 30), at::kCanvasH))
                 .key("reg")
-                .foreground(decorations::brackets(
-                    1.4f, Fill::color(at::mul(at::kGilt, 1.0f, 0.4f)), 30.0f,
-                    4.0f)));
+                // §33-j: registration marks keep the surviving Border value
+                // (the 4 px inset has no stroke-pass spelling) —
+                // byte-identical construction.
+                .foreground(Border{.width = 1.4f,
+                                   .fill = Fill::color(
+                                       at::mul(at::kGilt, 1.0f, 0.4f)),
+                                   .inset = 4.0f,
+                                   .mode = Border::Mode::Bracket,
+                                   .corner = 30.0f}));
     return m;
   }
 

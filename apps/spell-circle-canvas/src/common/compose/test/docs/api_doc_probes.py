@@ -89,6 +89,14 @@ EXTERNAL_CLASSES = {
 EXCLUDED_SPELLED = {
     "shapes::subtract": "API.md §mask records this as a name a study reached "
                         "for and did NOT find",
+    # §33-j (2026-08-04): the two condemned Border factories are DELETED;
+    # API.md names the old spellings exactly once, to record the deletion
+    # and point at the span-claim successor.  Exact-qualified keys so
+    # `kit::spans::brackets` (a live kit value) stays probed.
+    "decorations::brackets": "deleted by §33-j; spell it "
+                             ".stroke(spans::corners(arm), brush::solid(…))",
+    "decorations::gappedRule": "deleted by §33-j; spell it "
+                               ".stroke(spans::edges(gap), brush::solid(…))",
     "sigil::scry::WebView": "SigilScry is Ultralight-gated; compose_web_test "
                             "owns that surface",
     "SyncToCpu::kYes": "skgpu::graphite::SyncToCpu — STRESS_TESTS.md writes "

@@ -365,8 +365,19 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   Fill ink = Fill::color({1, 1, 1, 1});
 
   auto border = decorations::border(1.4f, ink, 0.0f);
-  auto brackets = decorations::brackets(2.0f, ink, 18.0f, 0.0f, 12.0f);
-  auto gapped = decorations::gappedRule(1.4f, ink, 14.0f, 0.0f, 12.0f);
+  // §33-j: the corner rows are span claims now (brackets/gappedRule are
+  // deleted); Border's modes remain spellable for the shapes a claim
+  // cannot reach (inset rules, doubleBorder layers, onEdges adaptors).
+  auto brackets = box().stroke(spans::corners(18.0f, 12.0f),
+                               brush::solid(2.0f, ink));
+  auto gapped = box().stroke(spans::edges(14.0f, 12.0f),
+                             brush::solid(1.4f, ink));
+  auto bracketValue = Border{.width = 2.0f,
+                             .fill = ink,
+                             .inset = 4.0f,
+                             .mode = Border::Mode::Bracket,
+                             .corner = 18.0f,
+                             .cornerAngleDeg = 12.0f};
   auto weighted = decorations::weightedCorners(1.0f, 3.4f, ink, 18.0f, 0.0f,
                                                12.0f);
   auto doubled = decorations::doubleBorder(border, border);
@@ -404,7 +415,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   kit::brush::shapers::Square square{};
   kit::brush::shapers::Offset offset{};
 
-  (void)brackets; (void)gapped; (void)weighted; (void)doubled;
+  (void)brackets; (void)gapped; (void)bracketValue; (void)weighted; (void)doubled;
   (void)symmetric; (void)explicitSet;
   (void)ngon; (void)chamfer; (void)notch; (void)edges;
   (void)glow; (void)trace; (void)cord; (void)restyled;

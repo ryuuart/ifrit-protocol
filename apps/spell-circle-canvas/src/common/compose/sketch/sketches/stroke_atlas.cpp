@@ -831,30 +831,41 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
         Decoration dec;
         float rot = 0;
         std::optional<LayerStyle> style; // set instead of dec for stacks
+        std::optional<Spans> where;      // §33-j: span-qualified specimens
       };
       // 1..14, laid out in two staggered rows.
       std::vector<Frame> frames;
       auto add = [&](const char *label, shapes::OutlineFn shape, Decoration dec,
                      float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
-                               std::nullopt});
+                               std::nullopt, std::nullopt});
       };
       auto addStyle = [&](const char *label, shapes::OutlineFn shape,
                           LayerStyle style, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
-                               rot, std::move(style)});
+                               rot, std::move(style), std::nullopt});
+      };
+      // §33-j (2026-08-04): the corner-bracket and open-corner rows are the
+      // GRAMMAR's spelling now — a span claim on the frame's real boundary.
+      // decorations::brackets/gappedRule are deleted; the captions print
+      // the surviving API, as this page always has.
+      auto addSpans = [&](const char *label, shapes::OutlineFn shape,
+                          Spans where, Decoration dec, float rot = 0) {
+        frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
+                               std::nullopt, std::move(where)});
       };
 
       add("decorations::border(1.4, ink)", frameRect(8),
           decorations::border(1.4f, ink()), -1.1f);
-      add("decorations::brackets(2, ink, 26)", frameRect(8),
-          decorations::brackets(2.0f, ink(), 26.0f), 0.8f);
-      add("decorations::gappedRule(1.4, ink, 22)", frameRect(8),
-          decorations::gappedRule(1.4f, ink(), 22.0f));
+      addSpans("stroke(spans::corners(26), solid(2, ink))", frameRect(8),
+               spans::corners(26.0f), brush::solid(2.0f, ink()), 0.8f);
+      addSpans("stroke(spans::edges(22), solid(1.4, ink))", frameRect(8),
+               spans::edges(22.0f), brush::solid(1.4f, ink()));
       add("decorations::weightedCorners(1, 3.4, ink, 24)", frameRect(8),
           decorations::weightedCorners(1.0f, 3.4f, ink(), 24.0f), -0.7f);
-      add("brackets on shapes::chamfered(18)  8 corners", shapes::chamfered(18),
-          decorations::brackets(2.0f, red(), 12.0f), 1.2f);
+      addSpans("corners(12) on shapes::chamfered(18)  8 corners",
+               shapes::chamfered(18), spans::corners(12.0f),
+               brush::solid(2.0f, red()), 1.2f);
       add("border on shapes::notched(26, 9)",
           shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal),
           decorations::border(1.6f, ink()));
@@ -952,6 +963,8 @@ struct StrokeAtlasSketch : sigil::compose::sketch::Sketch {
                             .shape(frames[i].shape);
         if (frames[i].style)
           frame.style(*frames[i].style);
+        else if (frames[i].where)
+          frame.stroke(*frames[i].where, frames[i].dec);
         else
           frame.stroke(frames[i].dec);
         plate.child(frame.child(call(frames[i].label, 7.5f, kInkSoft)

@@ -169,7 +169,7 @@ inline void warnNoCornersFound(float sharpestDeg, float angleDeg) {
   seen.push_back(key);
   SkDebugf("lines: no corner cleared the %.1f\xc2\xb0 threshold, but the "
            "sharpest tangent break on this contour is %.1f\xc2\xb0 — so "
-           "brackets/gappedRule/weightedCorners and spans::corners() will "
+           "weightedCorners and spans::corners() will "
            "draw nothing here, and spans::edges() (their complement) will "
            "claim the WHOLE boundary instead of stopping short of "
            "anything. A "
@@ -606,12 +606,12 @@ inline SkPath cornerWindows(const SkPath &src, float radius,
  *  the brackets land on the chamfers.
  *
  *  One capability, four spellings before the stroke grammar: this,
- *  `cornerGaps` below, `decorations::brackets` and
- *  `decorations::gappedRule` — the audit's item 10. All four are retained
- *  (§27) and all four run this one scan. The grammar's spelling is
- *  `spans::corners(arm)`, which CLAIMS the runs on the element's real
- *  boundary instead of returning a path that replaces its shape; reach for
- *  that first, and for these when you want the geometry itself. */
+ *  `cornerGaps` below, and the deleted `decorations::brackets`/
+ *  `gappedRule` factories — the audit's item 10, closed by §33-j
+ *  (2026-08-04). The grammar's spelling is `spans::corners(arm)`, which
+ *  CLAIMS the runs on the element's real boundary instead of returning a
+ *  path that replaces its shape; reach for that first, and for these when
+ *  you want the geometry itself. */
 inline SkPath cornerBrackets(const SkPath &src, float arm,
                              float angleDeg = 30.0f) {
   return detail::cornerWindows(src, arm, true, angleDeg);

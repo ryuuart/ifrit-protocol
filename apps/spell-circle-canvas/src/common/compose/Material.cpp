@@ -624,6 +624,10 @@ bool Material::operator==(const Material &o) const {
     return false; // a layer strength is recipe, like a stop or a mode
   if (m_bleed != o.m_bleed)
     return false; // a cull reserve is recipe too — a change must re-record
+  if (m_boundOffset != o.m_boundOffset)
+    return false; // §14-a: the pan BINDING is recipe (pointer identity,
+                  // the bound-fill rule); the values it resolves to are
+                  // the scalar memo's business, never the prune's
   if (m_worldSpace != o.m_worldSpace)
     return false; // §19: the FLAG is recipe (which frame the author meant);
                   // W itself is layout-derived and never compares — it
@@ -738,6 +742,50 @@ Material &Material::amount(float a01) {
   return *this;
 }
 
+Material &Material::offset(const choreograph::Output<float> *x,
+                           const choreograph::Output<float> *y) {
+  // §14-a: only the image-backed kinds carry a local matrix for the pan
+  // to translate — Pattern's backend. Everything else warns and ignores,
+  // uniform()'s guardrail (one sketch typo must not kill the hot-reload
+  // host, and a silent no-op on a gradient would be a lie).
+  const bool pannable =
+      m_recipe && (m_recipe->kind == Recipe::Kind::Image ||
+                   m_recipe->kind == Recipe::Kind::Buffer);
+  if (!pannable) {
+    SkDebugf("Material::offset(&x, &y): ignored — only image()/buffer() "
+             "materials carry a local matrix to pan (Pattern's backend)\n");
+    return *this;
+  }
+  m_boundOffset = {x, y};
+  return *this;
+}
+
+SkPoint Material::boundOffsetValue() const {
+  return {m_boundOffset[0] ? m_boundOffset[0]->value() : 0.0f,
+          m_boundOffset[1] ? m_boundOffset[1]->value() : 0.0f};
+}
+
+/** The panned build — resolve()'s and asShader()'s ONE construction for a
+ *  bound-offset material: the recipe's static matrix post-translated by
+ *  the bindings' CURRENT values. Minted per call; the §17 scalar memo is
+ *  what keeps its node's recording stable between moves, so no per-frame
+ *  pointer stability is at stake (the gradient-tier argument, verbatim). */
+sk_sp<SkShader> Material::pannedImageShader() const {
+  if (!m_recipe)
+    return nullptr;
+  sk_sp<SkImage> img = m_recipe->kind == Recipe::Kind::Buffer
+                           ? (m_recipe->source ? m_recipe->source->image()
+                                               : nullptr)
+                           : m_recipe->image;
+  if (!img)
+    return nullptr;
+  SkMatrix local = m_recipe->local;
+  const SkPoint pan = boundOffsetValue();
+  local.postTranslate(pan.fX, pan.fY);
+  return SkShaders::Image(std::move(img), m_recipe->tx, m_recipe->ty,
+                          m_recipe->sampling, &local);
+}
+
 Material &Material::worldSpace(bool on) {
   m_worldSpace = on; // recipe, like amount()/bleed(): joins operator==
   return *this;
@@ -782,12 +830,27 @@ Material &Material::quantizeTime(float hz) {
 }
 
 bool Material::isAnimated() const {
+  // §14-a: a bound pan is animation — the material re-resolves per frame
+  // while the pan moves, so it must ride the live slot and every consumer
+  // (blend flatten deferral, child-slot liveness, decoration volatility)
+  // must see it. HOW its node caches is computeVolatile's split: a
+  // pan-only material rides the §17/§20 scalar lane, not the live-material
+  // memo — see animatedBeyondBoundOffset().
+  if (hasBoundOffset())
+    return true;
+  return animatedBeyondBoundOffset();
+}
+
+bool Material::animatedBeyondBoundOffset() const {
   if (m_live &&
       (!m_live->binds.empty() || m_live->usesTime || m_live->usesScale))
     return true;
   // A child slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
-  // resolved once and frozen into the parent's cache.
+  // resolved once and frozen into the parent's cache. A NESTED bound
+  // offset deliberately counts here (child.isAnimated(), not the
+  // subtraction): the node-level scalar lane resolves only the TOP
+  // material's own pan, so anything deeper stays conservatively opaque.
   if (m_live)
     for (const auto &[name, child] : m_live->children)
       if (child.isAnimated())
@@ -898,11 +961,18 @@ sk_sp<SkShader> Material::asShader() const {
   // branch exists to prevent. Fold the layers instead, per call.
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend && isAnimated())
     return foldBlend(nullptr);
+  // §14-a: a bound-offset image material's m_shader snapshot baked the
+  // static matrix — rebuild with the pan's current values, same
+  // stale-snapshot rule as the live branch below.
+  if (hasBoundOffset())
+    if (sk_sp<SkShader> panned = pannedImageShader())
+      return panned;
   // A live material's m_shader snapshot predates its binds — rebuild fresh so
   // bound Outputs contribute their CURRENT values (what blend() flattens; the
-  // Fable audit's stale-snapshot defect). Past the blend case, isAnimated()
-  // implies m_live: the other two liveness sources both read it.
-  if (isAnimated())
+  // Fable audit's stale-snapshot defect). Past the blend case isAnimated()
+  // used to imply m_live; §14-a's pan (handled above) broke that, so the
+  // guard is explicit now.
+  if (m_live && isAnimated())
     return build(*m_live, nullptr);
   if (m_shader)
     return m_shader;
@@ -938,6 +1008,19 @@ Fill Material::resolve(const PaintContext &ctx) const {
   // geometryDependent too, and those take the branch below instead.
   if (m_live && (isAnimated() || geometryDependent()))
     return Fill::shader(build(*m_live, &ctx, m_worldSpace));
+  // §14-a: the bound pan — the recipe matrix translated by the bindings'
+  // current values, per resolve. Sits above toFill() because the static
+  // snapshot baked the UNpanned matrix; the §17 scalar memo (whose
+  // ContentScalars carry the resolved pan) is what keeps the node's
+  // recording stable between moves.
+  if (hasBoundOffset()) {
+    if (sk_sp<SkShader> panned = pannedImageShader()) {
+      Fill f = Fill::shader(std::move(panned));
+      if (m_worldSpace)
+        f.shaderValue = anchorToRoot(f.shaderValue, ctx);
+      return f;
+    }
+  }
   // §19's seam for everything that ISN'T an sksl recipe: the gradient
   // factories, image()/buffer(), raw shader() wraps — chaucer's brass ramp
   // is Material::linear in canvas px, and this is the line that reaches

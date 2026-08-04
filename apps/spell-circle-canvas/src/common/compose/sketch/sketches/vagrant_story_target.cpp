@@ -123,8 +123,8 @@
 //  * THE RISK GAUGE ENCODES VALUE AS HATCH DENSITY, not as a fill — spacing
 //    tightens 7.0 -> 1.6 px as RISK climbs — inside a lines::dottedCore frame
 //    (solid casing, dotted core).
-//  * Bracket-only card frames: decorations::brackets and decorations::gappedRule
-//    on chamfered outlines. No rounded rect anywhere on this canvas.
+//  * Bracket-only card frames: Bracket/Gapped Borders (via the §33-j legacy
+//    shims) on chamfered outlines. No rounded rect anywhere on this canvas.
 //  * shapers::Jitter is deliberately absent. This is an instrument, not a
 //    page. shapers::Wave appears on one thing: the damage-number pop.
 //
@@ -183,6 +183,35 @@
 #include <sigilcompose/kit/Strokes.h>
 
 #include <sigilweave/ports/SystemFontManager.h>
+
+namespace {
+// §33-j (2026-08-04): decorations::brackets/gappedRule are DELETED from the
+// library (the grammar's spelling is a spans::corners()/edges() claim).
+// This study keeps its drawn result BYTE-IDENTICAL through the surviving
+// Border value the deleted factories built — the owner's port ruling
+// sanctioned pixel deltas for astral_tome and stroke_atlas only, so the
+// spans:: port of THIS study awaits its own pixel clearance.
+inline sigil::compose::Border legacyBrackets(
+    float width, sigil::compose::Fill fill, float arm = 18.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Bracket,
+                                .corner = arm,
+                                .cornerAngleDeg = angleDeg};
+}
+inline sigil::compose::Border legacyGappedRule(
+    float width, sigil::compose::Fill fill, float gap = 14.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Gapped,
+                                .corner = gap,
+                                .cornerAngleDeg = angleDeg};
+}
+} // namespace
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -1160,7 +1189,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .key("marksel")
                     .shape(shapes::chamfered(18.0f, shapes::Corner::All))
                     .rotate(45.0f)
-                    .foreground(decorations::brackets(
+                    .foreground(legacyBrackets(
                         2.2f, Fill::color(vs::kCyan), 11.0f)));
     }
     return g;
@@ -1218,16 +1247,16 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         sel ? shapes::Corner::All : shapes::Corner::Diagonal))
                     .fill(Fill::color(sel ? vs::hex(0x101826, 0.86f)
                                           : vs::hex(0x11141D, 0.72f)));
-    c.foreground(decorations::gappedRule(
+    c.foreground(legacyGappedRule(
         1.0f, Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)), 22.0f,
         6.0f));
-    c.foreground(decorations::brackets(
+    c.foreground(legacyBrackets(
         sel ? 2.6f : 1.8f, Fill::color(sel ? vs::kCyan : vs::kBone),
         sel ? 30.0f : 20.0f));
     if (sel)
       // An OUTSET bracket set 7 px proud of the plate: the selection reads as
       // a second frame standing off the first, not as a thicker line.
-      c.foreground(decorations::brackets(
+      c.foreground(legacyBrackets(
           3.4f, Fill::color(vs::mul(vs::kCyan, 1, 0.55f)), 13.0f, -7.0f));
 
     // The right-hand ~90 px is the hit-percentage column (a live custom leaf,
@@ -1577,7 +1606,7 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         .key(key)
         .shape(shapes::chamfered(cut, shapes::Corner::All))
         .fill(Fill::color(tint))
-        .foreground(decorations::gappedRule(
+        .foreground(legacyGappedRule(
             1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.26f)), 34.0f, 7.0f))
         .foreground(decorations::weightedCorners(
             1.2f, 2.6f, Fill::color(vs::mul(vs::kBone, 1, 0.62f)), 26.0f));
@@ -1657,9 +1686,9 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(20, 20, vs::kW - 40, vs::kH - 40))
                 .key("reg")
                 .shape(shapes::chamfered(34.0f, shapes::Corner::All))
-                .foreground(decorations::brackets(
+                .foreground(legacyBrackets(
                     1.6f, Fill::color(vs::mul(vs::kBone, 1, 0.50f)), 46.0f))
-                .foreground(decorations::gappedRule(
+                .foreground(legacyGappedRule(
                     1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.14f)), 120.0f)));
     g.child(labelAt("PLATE II \xC2\xB7 320x240 POLY GRID / 512x240 TEXT GRID", 880,
                     vs::kH - 60, 13.0f, vs::mul(vs::kBone, 1, 0.42f), 1.2f));

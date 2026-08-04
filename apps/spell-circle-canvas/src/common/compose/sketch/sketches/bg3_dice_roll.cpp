@@ -208,6 +208,35 @@
 
 #include <sigilweave/ports/SystemFontManager.h>
 
+namespace {
+// §33-j (2026-08-04): decorations::brackets/gappedRule are DELETED from the
+// library (the grammar's spelling is a spans::corners()/edges() claim).
+// This study keeps its drawn result BYTE-IDENTICAL through the surviving
+// Border value the deleted factories built — the owner's port ruling
+// sanctioned pixel deltas for astral_tome and stroke_atlas only, so the
+// spans:: port of THIS study awaits its own pixel clearance.
+inline sigil::compose::Border legacyBrackets(
+    float width, sigil::compose::Fill fill, float arm = 18.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Bracket,
+                                .corner = arm,
+                                .cornerAngleDeg = angleDeg};
+}
+inline sigil::compose::Border legacyGappedRule(
+    float width, sigil::compose::Fill fill, float gap = 14.0f,
+    float inset = 0.0f, float angleDeg = 30.0f) {
+  return sigil::compose::Border{.width = width,
+                                .fill = std::move(fill),
+                                .inset = inset,
+                                .mode = sigil::compose::Border::Mode::Gapped,
+                                .corner = gap,
+                                .cornerAngleDeg = angleDeg};
+}
+} // namespace
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMgr.h>
@@ -731,7 +760,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
             .child(box()
                        .inset(17)
                        .shape(shapes::polygon(20))
-                       .foreground(decorations::brackets(2.4f, bg3::ink(0.7f),
+                       .foreground(legacyBrackets(2.4f, bg3::ink(0.7f),
                                                          15.0f, 0.0f, a)))
             // The illuminated border proper: fleuron on every vertex.
             .child(box()
@@ -743,9 +772,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
             .child(box()
                        .inset(o - i)
                        .shape(shapes::polygon(20))
-                       .foreground(decorations::gappedRule(2.4f, bg3::ink(0.85f),
+                       .foreground(legacyGappedRule(2.4f, bg3::ink(0.85f),
                                                            32.0f, 0.0f, a))
-                       .foreground(decorations::brackets(3.4f, bg3::gilt(),
+                       .foreground(legacyBrackets(3.4f, bg3::gilt(),
                                                          11.0f, 0.0f, a)));
     return ring.rotate(&bezelSpin)
         .transformOrigin(0.5f, 0.5f)
@@ -921,7 +950,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                   .width(14.0f)
                   .height(y1 - y0 + 12.0f)
                   .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
-                  .foreground(decorations::brackets(1.6f, bg3::giltDark(),
+                  .foreground(legacyBrackets(1.6f, bg3::giltDark(),
                                                     11.0f, 0.0f, 24.0f)));
       // The header sits in the gap ABOVE its block, on its own row.
       g.child(label(blk.ability, kX + 22.0f, y0 - 21.0f, 9.0f,
@@ -1082,7 +1111,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                                          bg3::alpha(bg3::kGiltDark, 0.55f)}))
                    .overlay(lines::concentric(bg3::giltDark(0.45f), 4, 0.6f))
                    .overlay(lines::radialHatch(bg3::giltDark(0.3f), 20, 0.5f))
-                   .foreground(decorations::brackets(2.0f, bg3::ink(0.8f),
+                   .foreground(legacyBrackets(2.0f, bg3::ink(0.8f),
                                                      10.0f, 0.0f,
                                                      bg3::kCornerAngle)))
         .cache(Cache::Texture);
@@ -1127,7 +1156,7 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                 .height(yDC - yTotal)
                 .shape(shapes::chamfered(5.0f, shapes::Corner::AntiDiagonal))
                 .fill(bg3::alpha(bg3::kViridian, 0.14f))
-                .foreground(decorations::brackets(
+                .foreground(legacyBrackets(
                     1.8f, Fill::color(bg3::kViridian), 9.0f, 0.0f, 24.0f)));
     g.child(rule(kX - 34.0f, yTotal, 34.0f,
                  stroke(2.6f, Fill::color(bg3::kViridian)), 2.6f));
@@ -1149,9 +1178,9 @@ struct Bg3DiceRoll : sigil::compose::sketch::Sketch {
                 .width(bg3::kW - 52)
                 .height(bg3::kH - 52)
                 .shape(shapes::chamfered(26.0f))
-                .foreground(decorations::brackets(1.4f, bg3::ink(0.42f), 30.0f,
+                .foreground(legacyBrackets(1.4f, bg3::ink(0.42f), 30.0f,
                                                   0.0f, 24.0f))
-                .foreground(decorations::gappedRule(0.6f, bg3::giltDark(0.55f),
+                .foreground(legacyGappedRule(0.6f, bg3::giltDark(0.55f),
                                                     46.0f, 8.0f, 24.0f)));
     g.child(label("BALDUR\xe2\x80\x99S GATE 3  \xc2\xb7  DIALOGUE ABILITY CHECK",
                   56.0f, 44.0f, 13.0f, bg3::alpha(bg3::kInk, 0.62f), 3.4f));

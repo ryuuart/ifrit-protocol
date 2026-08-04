@@ -322,7 +322,19 @@ bool materialEqual(const Box<MaterialData> &a, const Box<MaterialData> &b) {
   if (a->live.has_value() != b->live.has_value())
     return false;
   if (a->live) {
-    if (a->live->isAnimated() || b->live->isAnimated())
+    // §14-a: a PAN-ONLY material (bound offset, nothing else animated) is
+    // exactly comparable — image identity, matrix, sampling, and the pan
+    // binding by pointer all participate in Material::operator== — so an
+    // identical re-describe PRUNES and a REBOUND pan patches (§40: a
+    // pruned swap would leave the old Output driving the pixels forever).
+    // Everything else that isAnimated() stays never-prune, as below.
+    const bool panOnlyA = a->live->hasBoundOffset() &&
+                          !a->live->animatedBeyondBoundOffset();
+    const bool panOnlyB = b->live->hasBoundOffset() &&
+                          !b->live->animatedBeyondBoundOffset();
+    if (panOnlyA != panOnlyB)
+      return false;
+    if (!panOnlyA && (a->live->isAnimated() || b->live->isAnimated()))
       return false;
     if (!(*a->live == *b->live))
       return false;

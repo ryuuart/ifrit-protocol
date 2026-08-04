@@ -2091,11 +2091,13 @@ of `trim(begin, end, offset)`'s third argument. Set on the whole value
 rather than one term, because it describes the claim and not one interval
 of it; terms that read no interval ignore it.
 
-**`spans::corners()` supersedes four spellings.** `decorations::brackets`
-/ `decorations::gappedRule` and `lines::cornerBrackets` /
-`lines::cornerGaps` are one capability under four names (the audit's item
-10); they all still work, and they now all run the same scan the spans
-do. `cornerAngleDeg`'s surprise is unchanged and documented below.
+**`spans::corners()` superseded four spellings, and two are gone.**
+`decorations::brackets` / `decorations::gappedRule` were DELETED (§33-j,
+2026-08-04 — the audit's item 10): spell them `.stroke(spans::corners(arm),
+brush::solid(w, fill))` / `.stroke(spans::edges(gap), …)`. The geometry
+doors `lines::cornerBrackets` / `lines::cornerGaps` remain, and everything
+runs the same scan. `cornerAngleDeg`'s surprise is unchanged and
+documented below.
 
 A corner sitting ON the boundary's seam (fraction 0) resolves as TWO
 adjacent intervals — the same split a seam-crossing trim window takes.
@@ -2734,12 +2736,15 @@ ComposeSketch src/common/compose/sketch/sketches/stroke_atlas.cpp \
 ```
 
 ```cpp
-// the rules (Decorations.h) — all Border modes, all comparable values
+// the rules (Decorations.h) — all comparable values
 decorations::border(width, fill, inset)                    // continuous
-decorations::brackets(width, fill, arm, inset, angleDeg)   // corners only
-decorations::gappedRule(width, fill, gap, inset, angleDeg) // corners omitted
+.stroke(spans::corners(arm), brush::solid(w, fill))        // corners only
+.stroke(spans::edges(gap), brush::solid(w, fill))          // corners omitted
 decorations::weightedCorners(runW, cornerW, fill, arm, inset, angleDeg)
 decorations::doubleBorder(outer, inner)                    // as a LayerStyle
+Border{.mode = Border::Mode::Bracket/Gapped, .inset = …}   // when a span
+                       // claim cannot spell it: inset rules, doubleBorder
+                       // layers, onEdges() adaptors (§33-j)
 
 // the rails (Lines.h) — per-rail offset, width, fill, dash and phase
 lines::rails(count, width, fill, gap)      // n symmetric rails

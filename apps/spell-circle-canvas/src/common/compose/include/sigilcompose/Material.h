@@ -405,6 +405,45 @@ public:
    *  instance for W-invalidation; authors want worldSpace() above. */
   bool usesWorldSpace() const;
 
+  /** THE BOUND-MATRIX CHANNEL (ROADMAP §14-a): pan an image-backed
+   *  material LIVE, in the node's own px, without re-describing. This is
+   *  `Pattern::offset(SkPoint)`'s bound sibling — the same word, the
+   *  bound form — and the third sibling of §19's W lane and §38's Fill
+   *  lane: the resolved pair joins `ContentScalars`, the node lifts to
+   *  CONTENT volatility while the pan moves, §20's measured-stability
+   *  release frees the flag once it provably holds still (so ancestors
+   *  cache and the node promotes), and the per-draw released scan
+   *  re-declares THE FRAME an externally-driven pan resumes.
+   *
+   *  Meaningful on image()/buffer() materials only — the kinds whose
+   *  recipe carries a local matrix for the pan to translate (Pattern's
+   *  backend); warned and IGNORED on any other kind, matching uniform()'s
+   *  guardrails. Composes with the recipe's static matrix the way
+   *  Pattern::offset(SkPoint) does: the bound values post-translate it,
+   *  so a static phase origin and a bound pan add. Either pointer may be
+   *  null (pan one axis). The BINDING is recipe — it participates in
+   *  operator== by pointer identity, like a bound fill — while the
+   *  values it resolves to are the system's and ride the scalar memo,
+   *  never the prune. */
+  Material &offset(const choreograph::Output<float> *x,
+                   const choreograph::Output<float> *y);
+  /** Does THIS material carry a bound offset (the layer-local answer)? */
+  bool hasBoundOffset() const { return m_boundOffset[0] || m_boundOffset[1]; }
+  /** The pan as of NOW — one pointer dereference per axis (0 for a null
+   *  axis). The walk-release, the per-draw scan and the paint probe all
+   *  read the pan through Instance::resolvePatternOffset(), which calls
+   *  this — one body, so the three compares cannot drift (§38's
+   *  discipline). */
+  SkPoint boundOffsetValue() const;
+  /** Everything isAnimated() says EXCEPT this material's own bound
+   *  offset: live uniform binds, uTime/uContentScale, and any animated
+   *  child()/blend() layer — including a NESTED bound offset, which the
+   *  node-level scalar lane cannot resolve and therefore must treat as
+   *  opaque. `computeVolatile` subtracts this from isAnimated() to route
+   *  a pan-only material onto the §17/§20 scalar lane instead of the
+   *  live-material memo. */
+  bool animatedBeyondBoundOffset() const;
+
   /** Step the auto-injected uTime at `hz` (floor(t·hz)/hz) — declared
    *  choppiness as a MATERIAL property, not per-consumer ticker plumbing.
    *  The P3R sea rule: its caustics run at 6 Hz ("we imagine the
@@ -476,12 +515,18 @@ private:
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */
   sk_sp<SkShader> foldBlend(const PaintContext *ctx) const;
+  /** §14-a: the image shader rebuilt with the bound pan's CURRENT values
+   *  post-translated onto the recipe matrix — resolve()'s and asShader()'s
+   *  one construction for a bound-offset material. */
+  sk_sp<SkShader> pannedImageShader() const;
   void detachLive(); // copy-on-write before any recipe mutation
 
   bool m_isSolid = false;
   bool m_worldSpace = false; // root-frame anchoring (see worldSpace())
   float m_amount = 1.0f;     // blend-layer strength (see amount())
   float m_bleed = 0.0f;      // recording-cull reserve (see bleed())
+  // §14-a: the bound pan (x, y) — see offset(). Recipe by pointer identity.
+  std::array<const choreograph::Output<float> *, 2> m_boundOffset{};
   SkColor4f m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;     // static resolution: null for solid/none; for
                                 // sksl a constants-only snapshot (live paint
@@ -498,10 +543,12 @@ private:
    *  private, so the decomposition lives inside the class; it names every
    *  member and stops compiling the moment one is added. */
   static void fieldPin(Material &v) {
-    auto &[isSolid, worldSpace, amount, bleed, solid, shader, live, recipe] = v;
+    auto &[isSolid, worldSpace, amount, bleed, boundOffset, solid, shader,
+           live, recipe] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(isSolid, worldSpace, amount, bleed,
-                                            solid, shader, live, recipe))> == 8,
+                                            boundOffset, solid, shader, live,
+                                            recipe))> == 9,
         "Material gained or lost a member — rule on it in Material::operator== "
         "(Material.cpp: is it RECIPE, or is it derived from the recipe?), "
         "then bump this count.");

@@ -216,6 +216,14 @@ struct Instance {
      *  The sk_sp keeps a shader-kind value alive, so pointer identity can
      *  never be a reused allocation comparing equal by accident. */
     Fill fill;
+    /** §14-a: the resolved value of a BOUND `Pattern::offset(&x, &y)` —
+     *  the pan a recording's fill shader was baked with, two floats
+     *  resolved by pointer dereference, the W lane's and the Fill lane's
+     *  third sibling. All-zero when the node's fill material carries no
+     *  top-level bound offset — every site reads it through
+     *  Instance::resolvePatternOffset(), so the guard cannot drift
+     *  between the walk, the scan and the paint probe. */
+    std::array<float, 2> pattern{};
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
@@ -403,6 +411,13 @@ struct Instance {
    *  drifted COPIES of an enumeration, and this lane refuses to have
    *  copies. */
   Fill resolveBoundFill() const;
+  /** §14-a, the third sibling: the pan a BOUND `Pattern::offset(&x, &y)`
+   *  resolves to this frame — one pointer dereference per axis, through
+   *  `Material::boundOffsetValue()` — or all-zero when the node's fill
+   *  material carries no top-level bound offset. Same one-body law as
+   *  resolveBoundFill: the walk release, the per-draw scan and the paint
+   *  probe all call THIS, so the three compares cannot drift. */
+  std::array<float, 2> resolvePatternOffset() const;
 
   /** A change here stales every ancestor's recording too.
    *
