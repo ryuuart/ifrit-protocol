@@ -1287,3 +1287,96 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_Draw_SpinningStamped_TransformReplay);
+
+// ---------------------------------------------------------------------------
+// §44.6 — THE MISSING NUMBER: dense GLYPHS under a perspective CTM on
+// Graphite. The raster penalty was 4.7× on picture replay, hypothesized to
+// be glyphs falling off the atlas path onto path filling; 44.10's recipe
+// block pre-registered this arm (skeleton graphiteVaryingArm, synced
+// submits, glyph-bearing content, Cache::None — the device bakes refuse
+// under perspective per 44.1's guards, so a Cache::Texture arm would
+// measure the local ladder instead of the projection). Three arms differing
+// ONLY by the matrix inside save()/concat()/restore(): identity, the same
+// card tilt WITHOUT its perspective row (the affine control — a pure
+// cos(25°) y-compression), and the full projective tilt.
+
+#ifdef COMPOSE_BENCH_GRAPHITE
+
+#include <include/core/SkM44.h>
+
+namespace {
+
+enum class PerspArm { Identity, AffineTilt, Perspective };
+
+/** The documented matrix: a game-UI card tilt — rotateX(25°) about the
+ *  panel center (400, 1200), viewed through a CSS-style perspective(2400)
+ *  (viewer distance = one panel height; the w-divide term is -1/2400 in
+ *  row 3, column 2). Across the 800×2400 panel w spans ~[0.79, 1.21]. The
+ *  affine control is the same product with the perspective factor removed. */
+SkM44 perspArmMatrix(PerspArm arm) {
+  if (arm == PerspArm::Identity)
+    return SkM44(); // identity — the arms stay structurally identical
+  SkM44 persp; // identity
+  persp.setRC(3, 2, -1.0f / 2400.0f);
+  const SkM44 rotX =
+      SkM44::Rotate({1, 0, 0}, 25.0f * SK_ScalarPI / 180.0f);
+  return SkM44::Translate(400, 1200) *
+         (arm == PerspArm::Perspective ? persp * rotX : rotX) *
+         SkM44::Translate(-400, -1200);
+}
+
+void graphitePerspectiveArm(benchmark::State &state, PerspArm arm) {
+  SkiaGraphiteContext *graphiteContext = graphite();
+  if (!graphiteContext) {
+    state.SkipWithError("Graphite Metal context is unavailable");
+    return;
+  }
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      graphiteContext->recorder(), SkImageInfo::MakeN32Premul(800, 2400));
+  if (!surface) {
+    state.SkipWithError("Graphite render target creation failed");
+    return;
+  }
+  Host host(800, 2400);
+  host.composer.render(denseBlock(Cache::None));
+  const SkM44 m = perspArmMatrix(arm);
+  SkCanvas *canvas = surface->getCanvas();
+  // Warm the pipeline compile (and the glyph atlas) under the arm's own
+  // matrix, synced like the measured frames.
+  canvas->save();
+  canvas->concat(m);
+  host.composer.draw(*canvas);
+  canvas->restore();
+  submitGraphiteSynced(*graphiteContext);
+  for (auto _ : state) {
+    canvas->save();
+    canvas->concat(m);
+    host.composer.draw(*canvas);
+    canvas->restore();
+    submitGraphiteSynced(*graphiteContext);
+  }
+}
+
+} // namespace
+
+static void BM_Draw_DenseText_Persp_Identity_Graphite(benchmark::State &state) {
+  graphitePerspectiveArm(state, PerspArm::Identity);
+}
+BENCHMARK(BM_Draw_DenseText_Persp_Identity_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void
+BM_Draw_DenseText_Persp_AffineTilt_Graphite(benchmark::State &state) {
+  graphitePerspectiveArm(state, PerspArm::AffineTilt);
+}
+BENCHMARK(BM_Draw_DenseText_Persp_AffineTilt_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+static void
+BM_Draw_DenseText_Persp_Perspective_Graphite(benchmark::State &state) {
+  graphitePerspectiveArm(state, PerspArm::Perspective);
+}
+BENCHMARK(BM_Draw_DenseText_Persp_Perspective_Graphite)
+    ->Unit(benchmark::kMillisecond);
+
+#endif // COMPOSE_BENCH_GRAPHITE

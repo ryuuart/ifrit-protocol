@@ -12,6 +12,7 @@
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
 // types must be complete here (not merely forward-declared).
+#include <include/core/SkCanvas.h> // NodeTransform::concatTo's elementary ops
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
@@ -554,8 +555,8 @@ inline const Animatable<float> *slotValueOf(const SlotSpec &spec,
 
 // ---- cross-TU paint/shape helpers -----------------------------------------
 
-/** The matrix's true maximum geometric scale — how many device pixels one
- *  local unit can span, whatever the rotation.
+/** The matrix's true maximum geometric scale over `local` — how many device
+ *  pixels one local unit can span, whatever the rotation.
  *
  *  NOT max(|getScaleX()|, |getScaleY()|). Those are the matrix DIAGONAL, and
  *  a quarter turn moves the whole scale into the SKEW terms: at ±90° the
@@ -565,12 +566,60 @@ inline const Animatable<float> *slotValueOf(const SlotSpec &spec,
  *  resolution and linear-upscaled it 4×. Measured on a 196×33 pill against
  *  the identical uncached render: mean |Δ| over its ink was 30–32/255 at
  *  ±90°, 14.5 at 45° (0.707 → the 0.75 step), 2.4 at 180° (|−1| → correct).
- *  Singular values instead; a pure rotation reports 1. */
-inline float maxScaleOf(const SkMatrix &m) {
+ *  Singular values instead; a pure rotation reports 1.
+ *
+ *  Under PERSPECTIVE (getMinMaxScales refuses) the scale is
+ *  position-dependent, so there is no one number for the whole plane, and
+ *  the old fallback — the diagonal again — was wrong twice over (§44.2b.1,
+ *  fixed 2026-08-03): a rotation empties it exactly as above, and it reads
+ *  no position at all while a projected quad's near edge magnifies well
+ *  past it. The honest local answer is the JACOBIAN of the projective map,
+ *  evaluated where the node actually is: the largest singular value of
+ *  J(p) = (1/w)·[[a−gX, b−hX], [d−gY, e−hY]], taken at the center and four
+ *  corners of `local` and maxed — for a plane the extremum over a convex
+ *  quad sits at a corner (the one nearest the horizon), and max-over-
+ *  samples errs in the CONSERVATIVE direction for every consumer: an
+ *  overestimate steps a bake finer (memory, never wrong pixels), an
+ *  underestimate ships a stale, blurry bake. Samples at or behind the
+ *  horizon (w ≤ 0) have no finite local scale and are skipped; if every
+ *  sample is degenerate the diagonal stands, bounded by the callers'
+ *  clamps. */
+inline float maxScaleOf(const SkMatrix &m, const SkRect &local) {
   SkScalar s[2];
   if (m.getMinMaxScales(s) && s[1] > 0)
     return s[1];
-  // Perspective (getMinMaxScales refuses): the diagonal is all there is.
+  if (m.hasPerspective()) {
+    const auto sigmaMaxAt = [&m](SkPoint pt) -> float {
+      const float w = m.getPerspX() * pt.x() + m.getPerspY() * pt.y() +
+                      m.get(SkMatrix::kMPersp2);
+      if (!std::isfinite(w) || w <= 1e-8f)
+        return -1.0f; // at/behind the horizon: no finite local scale
+      const SkPoint q = m.mapPoint(pt);
+      const float inv = 1.0f / w;
+      const float j00 = (m.getScaleX() - m.getPerspX() * q.x()) * inv;
+      const float j01 = (m.getSkewX() - m.getPerspY() * q.x()) * inv;
+      const float j10 = (m.getSkewY() - m.getPerspX() * q.y()) * inv;
+      const float j11 = (m.getScaleY() - m.getPerspY() * q.y()) * inv;
+      // Largest singular value of the 2×2, closed form.
+      const float e = j00 + j11, f = j00 - j11;
+      const float g = j10 + j01, h = j10 - j01;
+      const float sig =
+          0.5f * (std::sqrt(e * e + h * h) + std::sqrt(f * f + g * g));
+      return std::isfinite(sig) ? sig : -1.0f;
+    };
+    const SkPoint samples[5] = {{local.centerX(), local.centerY()},
+                                {local.left(), local.top()},
+                                {local.right(), local.top()},
+                                {local.right(), local.bottom()},
+                                {local.left(), local.bottom()}};
+    float best = -1.0f;
+    for (const SkPoint &pt : samples)
+      best = std::max(best, sigmaMaxAt(pt));
+    if (best > 0)
+      return best;
+  }
+  // Degenerate (a zero matrix; a horizon through every sample): the
+  // diagonal is all there is, and the callers' clamps bound it.
   return std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
 }
 
@@ -756,7 +805,10 @@ struct Composer::Impl {
    *  describe the same matrix or a node draws where it cannot be hit.
    *  They used to resolve eight slots each, by hand, three times; adding
    *  `travel()` (which REPLACES tx/ty and ADDS to rot) would have been
-   *  three chances to disagree. */
+   *  three chances to disagree. And one matrix PRODUCER, `matrix()`
+   *  below, for the same reason one step later: the three used to turn
+   *  those eight floats into a matrix by hand, three times (§44.8
+   *  step 0, taken 2026-08-03). */
   struct NodeTransform {
     float tx = 0, ty = 0, rot = 0, scl = 1, sx = 1, sy = 1, skx = 0, sky = 0;
     /** Does anything past the translate need the origin pivot at all?
@@ -770,6 +822,58 @@ struct Composer::Impl {
       return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 ||
              sky != 0;
     }
+    /** The matrix these lanes describe, prepended with `anchor` (the
+     *  layout offset — pass {0, 0} for node-local): the translate lanes,
+     *  then — gated on pivoted(), NOT a copy of it — the origin-pivoted
+     *  rotate → scale → skew stack. THE ONE PRODUCER for recordBounds()'s
+     *  child union and hitInstance()'s inverse; they used to build this by
+     *  hand and §40 was bitten twice by exactly that duplication (§44.8
+     *  step 0). The anchor folds into the FIRST translate (not a
+     *  post-concat) so recordBounds()'s floats stay bitwise what they
+     *  always were. */
+    SkMatrix matrix(SkPoint anchor, const detail::PaintProps &p, float w,
+                    float h) const {
+      SkMatrix m = SkMatrix::Translate(anchor.x() + tx, anchor.y() + ty);
+      if (pivoted()) {
+        const SkPoint origin = detail::resolveOrigin(p, w, h);
+        m.preTranslate(origin.x(), origin.y());
+        if (rot != 0)
+          m.preRotate(rot);
+        if (scl != 1 || sx != 1 || sy != 1)
+          m.preScale(scl * sx, scl * sy);
+        if (skx != 0 || sky != 0)
+          m.preSkew(std::tan(skx * 0.017453293f),
+                    std::tan(sky * 0.017453293f));
+        m.preTranslate(-origin.x(), -origin.y());
+      }
+      return m;
+    }
+    /** paint()'s consumer: the SAME stack, applied as the canvas's own
+     *  elementary ops rather than one concat of matrix()'s product.
+     *  NOT a convenience — a BYTE-EXACTNESS requirement, measured
+     *  2026-08-03: composing the stack into one SkMatrix and concat()ing
+     *  it associates the float multiplies differently than sequential
+     *  canvas ops, the CTM moves by ulps, and 17 of 65 ledger plates
+     *  moved through antialiased coverage. The op list below and
+     *  matrix()'s are THE SAME LIST in the same order; a lane added to
+     *  the struct goes in both (the fieldPin below counts it). */
+    void concatTo(SkCanvas &canvas, const detail::PaintProps &p, float w,
+                  float h) const {
+      if (tx != 0 || ty != 0)
+        canvas.translate(tx, ty);
+      if (pivoted()) {
+        const SkPoint origin = detail::resolveOrigin(p, w, h);
+        canvas.translate(origin.x(), origin.y());
+        if (rot != 0)
+          canvas.rotate(rot);
+        if (scl != 1 || sx != 1 || sy != 1)
+          canvas.scale(scl * sx, scl * sy);
+        if (skx != 0 || sky != 0)
+          canvas.skew(std::tan(skx * 0.017453293f),
+                      std::tan(sky * 0.017453293f));
+        canvas.translate(-origin.x(), -origin.y());
+      }
+    }
     /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). `pivoted()`
      *  is a hand-written exhaustive list over these members, exactly like
      *  a comparator, and fails the same way: silently, by not noticing. */
@@ -778,8 +882,9 @@ struct Composer::Impl {
       static_assert(std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx,
                                                         sy, skx, sky))> == 8,
                     "NodeTransform gained or lost a lane — put it in "
-                    "pivoted() above (unless it is a pure translate), and "
-                    "in transformOf()'s resolve, then bump this count.");
+                    "pivoted() above (unless it is a pure translate), in "
+                    "matrix()'s build, and in transformOf()'s resolve, "
+                    "then bump this count.");
     }
   };
   NodeTransform transformOf(detail::Instance &inst);

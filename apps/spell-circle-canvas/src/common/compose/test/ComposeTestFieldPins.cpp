@@ -278,3 +278,73 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       << "exactly one slot is applied by paint()'s saveLayer rather than its "
          "matrix; computeVolatile's device-bake refusal reads that split";
 }
+
+// ---- §44.2b.1 — maxScaleOf's perspective fallback --------------------------
+//
+// getMinMaxScales refuses a perspective matrix, and the old fallback read
+// the matrix DIAGONAL — wrong twice over: a rotation moves the whole scale
+// into the skew terms (at 90° the diagonal is exactly zero), and perspective
+// makes scale position-dependent while the diagonal reads no position at
+// all. The quantized bake ladder consumes this number, so the wrong answer
+// was a wrongly-stepped bake under a host perspective CTM. The fix is local
+// linearization: the Jacobian of the projective map, maxed over the center
+// and four corners of the node's local bounds. This pin holds the answer to
+// a NUMERICALLY-derived ground truth (finite differences of the mapped
+// point at the same five samples), which the diagonal misses by a large
+// factor.
+
+TEST(ComposeMaxScale, PerspectiveFallbackTracksTheJacobianNotTheDiagonal) {
+  // A card tilt WITH a rotation component: setRotate(90) snaps the diagonal
+  // to exactly (0, 0), and the perspective row makes the true local scale
+  // grow toward the rect's near edge (w = 1 − 0.002·y there).
+  SkMatrix m;
+  m.setRotate(90);
+  SkMatrix persp = SkMatrix::I();
+  persp.setPerspX(0.002f);
+  m.postConcat(persp);
+  ASSERT_TRUE(m.hasPerspective());
+  const SkRect rect = SkRect::MakeXYWH(0, 0, 200, 150);
+
+  // Ground truth by finite differences at the same five samples the
+  // fallback reads: J's columns are (f(p+εx)−f(p))/ε through the FULL
+  // projective map (divide included), σmax by the 2×2 closed form.
+  const auto fdSigmaMax = [&m](SkPoint p) {
+    const float eps = 1e-2f;
+    const SkPoint q0 = m.mapPoint(p);
+    const SkPoint qx = m.mapPoint({p.x() + eps, p.y()});
+    const SkPoint qy = m.mapPoint({p.x(), p.y() + eps});
+    const float j00 = (qx.x() - q0.x()) / eps, j10 = (qx.y() - q0.y()) / eps;
+    const float j01 = (qy.x() - q0.x()) / eps, j11 = (qy.y() - q0.y()) / eps;
+    const float e = j00 + j11, f = j00 - j11;
+    const float g = j10 + j01, h = j10 - j01;
+    return 0.5f * (std::sqrt(e * e + h * h) + std::sqrt(f * f + g * g));
+  };
+  float truth = 0;
+  for (SkPoint p : {SkPoint{rect.centerX(), rect.centerY()},
+                    SkPoint{rect.left(), rect.top()},
+                    SkPoint{rect.right(), rect.top()},
+                    SkPoint{rect.right(), rect.bottom()},
+                    SkPoint{rect.left(), rect.bottom()}})
+    truth = std::max(truth, fdSigmaMax(p));
+
+  const float got = cd::maxScaleOf(m, rect);
+  EXPECT_NEAR(got, truth, truth * 0.02f)
+      << "the perspective fallback disagrees with the numerical Jacobian";
+
+  // The wrongness the pin exists for: the diagonal answers exactly 0 here
+  // (the old fallback would have clamped to the ladder's 0.25 floor), while
+  // the true near-edge magnification is past 1.5×.
+  const float diagonal =
+      std::max(std::abs(m.getScaleX()), std::abs(m.getScaleY()));
+  EXPECT_LT(diagonal, 0.1f);
+  EXPECT_GT(got, 1.5f);
+
+  // And the affine path is untouched: strip the perspective row (the
+  // rotation carried the term into perspY, so clear both) and the same
+  // rotation answers 1 by singular values, rect ignored.
+  SkMatrix affine = m;
+  affine.setPerspX(0);
+  affine.setPerspY(0);
+  ASSERT_FALSE(affine.hasPerspective());
+  EXPECT_NEAR(cd::maxScaleOf(affine, rect), 1.0f, 1e-4f);
+}

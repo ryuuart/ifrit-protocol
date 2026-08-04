@@ -294,8 +294,10 @@ void Composer::draw(SkCanvas &canvas) {
   {
     // maxScaleOf, not the diagonal: a host that rotates its canvas reports
     // getScaleX/Y == 0 at a quarter turn and every material would have been
-    // handed uContentScale = 1 regardless of the real zoom.
-    const float s = detail::maxScaleOf(canvas.getTotalMatrix());
+    // handed uContentScale = 1 regardless of the real zoom. The canvas rect
+    // locates the Jacobian samples under a host perspective (§44.2b.1).
+    const float s =
+        detail::maxScaleOf(canvas.getTotalMatrix(), SkRect::MakeSize(impl.size));
     impl.hostScale = s > 0 ? s : 1.0f;
   }
 

@@ -1266,7 +1266,6 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     const SkRect crect = instanceRect(*child);
     SkRect cb = recordBounds(*child); // child-local
     const NodeTransform tf = transformOf(*child);
-    SkMatrix m = SkMatrix::Translate(crect.left() + tf.tx, crect.top() + tf.ty);
     // THE GATE IS `pivoted()`, NOT A COPY OF IT. One resolver, three
     // consumers — paint()'s matrix, this child union, and hitInstance()'s
     // inverse — and the three must build the SAME matrix or a node draws
@@ -1276,19 +1275,11 @@ SkRect Composer::Impl::recordBounds(Instance &inst) {
     // its parent's effect layer, opacity layer and texture bake were all
     // sized to the unscaled box and truncated the overflow. Same field,
     // same feature, second site — filed by the travel() wave, taken here.
-    if (tf.pivoted()) {
-      const SkPoint origin =
-          resolveOrigin(cn.paint, crect.width(), crect.height());
-      m.preTranslate(origin.x(), origin.y());
-      if (tf.rot != 0)
-        m.preRotate(tf.rot);
-      if (tf.scl != 1 || tf.sx != 1 || tf.sy != 1)
-        m.preScale(tf.scl * tf.sx, tf.scl * tf.sy);
-      if (tf.skx != 0 || tf.sky != 0)
-        m.preSkew(std::tan(tf.skx * 0.017453293f),
-                  std::tan(tf.sky * 0.017453293f));
-      m.preTranslate(-origin.x(), -origin.y());
-    }
+    // §44.8 step 0 then moved the whole build (gate included) into
+    // NodeTransform::matrix() — the pivot arithmetic only enters when
+    // tf.pivoted(), exactly as before, but now for all three at once.
+    const SkMatrix m = tf.matrix({crect.left(), crect.top()}, cn.paint,
+                                 crect.width(), crect.height());
     local.join(m.mapRect(cb));
   }
   return local;
@@ -2110,22 +2101,13 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
   canvas.save();
   canvas.translate(rect.left(), rect.top());
 
+  // ONE transform producer for the resolver's lanes (§44.8 step 0):
+  // concatTo() is matrix()'s op list applied as elementary canvas ops —
+  // byte-exactness demands the sequence, see its comment — while
+  // recordBounds()'s child union and hitInstance()'s inverse map/invert
+  // the composed matrix() itself.
   const NodeTransform tf = transformOf(inst);
-  if (tf.tx != 0 || tf.ty != 0)
-    canvas.translate(tf.tx, tf.ty);
-  if (tf.pivoted()) {
-    const SkPoint origin =
-        resolveOrigin(node.paint, rect.width(), rect.height());
-    canvas.translate(origin.x(), origin.y());
-    if (tf.rot != 0)
-      canvas.rotate(tf.rot);
-    if (tf.scl != 1 || tf.sx != 1 || tf.sy != 1)
-      canvas.scale(tf.scl * tf.sx, tf.scl * tf.sy);
-    if (tf.skx != 0 || tf.sky != 0)
-      canvas.skew(std::tan(tf.skx * 0.017453293f),
-                  std::tan(tf.sky * 0.017453293f));
-    canvas.translate(-origin.x(), -origin.y());
-  }
+  tf.concatTo(canvas, node.paint, rect.width(), rect.height());
 
   const Effect *backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
@@ -2844,7 +2826,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = want;
-          inst.textureScale = maxScaleOf(totalM);
+          inst.textureScale = maxScaleOf(totalM, localBoundsOf());
           inst.paintDirty = false;
           // A group root never replays a recording. It can have made one on
           // its very first frame — before it had a previous frame to compare
@@ -2948,7 +2930,7 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = bakeRect;
-          inst.textureScale = maxScaleOf(totalM);
+          inst.textureScale = maxScaleOf(totalM, localBounds);
           inst.bakedLiveShader =
               inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue
                                       : nullptr;
@@ -2998,8 +2980,11 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
     SkMatrix total = canvas.getTotalMatrix();
     // maxScaleOf, NOT the matrix diagonal: a ±90° node's diagonal is (0, 0)
     // and clamped to the 0.25 floor, which baked quarter-resolution type and
-    // upscaled it 4× (see ComposeRuntime.h for the measured error).
-    const float raw = std::clamp(maxScaleOf(total), 0.25f, 4.0f);
+    // upscaled it 4× (see ComposeRuntime.h for the measured error). The
+    // node's local bounds locate the Jacobian samples when the CTM carries
+    // a host perspective (§44.2b.1) — this ladder feeds the re-bake test
+    // below, so an underestimate here is a stale, blurry bake.
+    const float raw = std::clamp(maxScaleOf(total, localBounds), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                            1.5f, 2.0f, 3.0f, 4.0f};
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];

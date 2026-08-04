@@ -6752,7 +6752,7 @@ accepts, never a default the library takes.**
 mechanism exists; it is not what makes a camera possible. What makes a
 camera possible is the picture tier, which needed nothing.
 
-### 44.2b Two defects found on the way, filed not fixed
+### 44.2b Two defects found on the way, filed not fixed *(both since resolved: 1 FIXED 2026-08-03 below; 2's stale comment repaired 2026-08-03)*
 
 1. **`maxScaleOf()`'s perspective fallback is the matrix DIAGONAL, and
    that is not the maximum magnification of a projected quad.**
@@ -6767,6 +6767,24 @@ camera possible is the picture tier, which needed nothing.
    the maximum over the four mapped corners of the local bounds, which is
    exact for a plane and is the number every consumer of `maxScaleOf`
    actually wants.
+   **FIXED 2026-08-03, by local linearization at the node.** `maxScaleOf`
+   now takes the node's local bounds; under perspective it returns the
+   largest singular value of the JACOBIAN of the projective map —
+   J(p) = (1/w)·[[a−gX, b−hX], [d−gY, e−hY]] — maxed over the rect's
+   center and four corners (for a plane the extremum sits at the corner
+   nearest the horizon; max-over-samples errs CONSERVATIVE: an
+   overestimate steps a bake finer, an underestimate ships a stale blur).
+   Samples at/behind the horizon are skipped; all-degenerate falls back
+   to the diagonal, bounded by the callers' clamps. All four consumers
+   pass their honest rect (the ladder its bake bounds, the two
+   affine-guarded device bakes theirs, `hostScale` the canvas). The
+   affine path is untouched (`getMinMaxScales`). Pin:
+   `ComposeMaxScale.PerspectiveFallbackTracksTheJacobianNotTheDiagonal`
+   (`ComposeTestFieldPins.cpp`) — a 90°-rotated perspective matrix whose
+   diagonal reads exactly 0 against a finite-difference ground truth of
+   2.29, tolerance 2%; positive control run (diagonal reinstated → pin
+   fails at 0 vs 2.29 → restored). Ledger byte-neutral (no corpus scene
+   applies a host perspective CTM — the branch is unreachable there).
 2. **A stale filed-gap comment.** `ComposeInternal.h`'s FIELD PINS block
    says *"the same pair is still missing from `recordBounds()`'s transform
    gate (filed, ROADMAP)."* It is not: `Paint.cpp`'s `recordBounds()` now
@@ -7001,6 +7019,33 @@ number does not exist, and the honest gate is therefore:
 > a per-frame budget decision and belongs where the depth buffer is, not
 > in a paint-only lane an author can put on any node.
 
+**MEASURED 2026-08-03, by 44.10's own recipe** — arms in
+`bench/ComposeBench.cpp` after `BENCHMARK_MAIN()` (suite
+`BM_Draw_DenseText_Persp_*_Graphite`): `denseBlock` glyphs at 800×2400,
+`Cache::None`, synced submits (`submitGraphiteSynced`), three arms
+differing only by the matrix inside `save()/concat()/restore()` — the
+documented card tilt is rotateX(25°) about the panel center behind a
+CSS-style perspective(2400), w ∈ [0.79, 1.21]; the affine control is the
+same product without the perspective row. Release, 3 repetitions, CV
+under 1% on every arm; two independent runs agreed:
+
+| arm | run 1 mean | run 2 mean | CV (run 1 / run 2) |
+|---|---|---|---|
+| identity | 0.380 ms | 0.382 ms | 0.52% / 0.06% |
+| affine tilt (control) | 0.396 ms | 0.393 ms | 0.21% / 0.85% |
+| **perspective** | **0.694 ms** | **0.713 ms** | 0.26% / 0.14% |
+
+**Perspective costs ~1.8× on Graphite (1.75× against the affine control),
+not ~5× — the raster 4.7× does NOT carry to the GPU.** The residual cost
+is CPU-side, not GPU-side: benchmark CPU time goes 0.060 → 0.35 ms while
+wall adds ~0.31 ms, consistent with the glyph-atlas hypothesis living in
+the recording path rather than in shading. On 44.6's own pre-registered
+branches this lands on the FAVOURABLE side — the gate would have answered
+"three lanes", not "refuse" — which for compose is moot (44.10's scope
+ruling stands; the lanes stay unbuilt), but it is the number SigilWorld's
+projection work should inherit: a projected glyph-bearing plate is ~2×,
+not a per-frame budget decision. §44.6 is CLOSED for compose.
+
 ### 44.7 Rejected shapes, with reasons
 
 **(a) `Composer::setCamera(...)` — a camera value on the Composer.**
@@ -7093,6 +7138,33 @@ set should pass byte-identical.** No performance claim is made about the
 result; the only performance claims in this entry are the probe tables
 above, and they are raster.
 
+**Step 0 EXECUTED 2026-08-03.** The three sites are routed through ONE
+producer pair on `NodeTransform` (`ComposeRuntime.h`): `matrix(anchor, …)`
+composes the stack for `recordBounds()`'s child union (anchor = the layout
+offset, folded into the FIRST translate so the floats stay bitwise) and
+for `hitInstance()`'s inverse (`SkMatrix::invert` + `mapPoint`, replacing
+the hand-unwound inverse — degenerate lanes keep the old skip-not-refuse
+semantics); `concatTo(canvas, …)` is the same op list applied as
+elementary canvas ops for `paint()`. The pair exists because the obvious
+single spelling FAILED THE GATE: composing the stack into one `SkMatrix`
+and `canvas.concat()`ing it associates the float multiplies differently
+than sequential `translate/rotate/scale/skew` ops, the CTM moves by ulps,
+and **17 of 65 plates moved** through antialiased coverage. Reverted to
+the elementary sequence, kept beside `matrix()` with the measurement in
+its comment. Final ledger verdict: **byte-neutral — 63 byte-identical, 2
+moved, both on the documented self-nondeterministic list (hitman_verlet,
+slitscan_2001/genesis_fire across the two sweeps), auto-attributed.**
+Suites: Release ctest 17/17, compose_test 517+1 skipped both configs.
+Found on the way, FIXED BY the consolidation: the hand-unwound inverse
+applied skew⁻¹→scale⁻¹→rot⁻¹ to the point in that order, which composes
+to R⁻¹S⁻¹K⁻¹ — but `paint()`'s forward map is R·S·K, whose inverse is
+K⁻¹S⁻¹R⁻¹. The two agree only when the stack commutes (rotation +
+UNIFORM scale, or any single lane), so a hit test on a node combining
+rotation with per-axis scale or skew un-transformed the point in the
+wrong order for as long as the lanes existed. No pin had encoded the
+wrong answer; `invert()` of the one produced matrix is correct by
+construction.
+
 ### 44.9 THE VERDICT — design, then build, gated on one GPU number
 
 Not a refusal. The crux dissolved under measurement — **a camera is not
@@ -7155,7 +7227,10 @@ and in subagents, sandboxed and not. Nothing could be configured, compiled,
 benchmarked, ledgered or rendered. **No number was produced, and none is
 reported here.** 44.6 stays **OPEN and unmeasured**, and it is still the
 right question for whoever builds projection in SigilWorld — the raster
-4.7× has never been checked against the GPU.
+4.7× has never been checked against the GPU. *(Overtaken 2026-08-03: the
+number was taken by this recipe, exactly as written — see 44.6's MEASURED
+table. Perspective is ~1.8× on Graphite, not ~5×; the raster penalty does
+not carry.)*
 
 What the session produced instead, from reads alone, is the recipe, so the
 next attempt is an hour and not an afternoon:
@@ -7218,8 +7293,10 @@ durable value here — several of them retire seams rather than open them:
   the crux would have been real, priced by §10g and §3.
 - **`maxScaleOf()`'s perspective fallback is the matrix diagonal**
   (44.2b.1) — a live defect in compose *today*, independent of any 2.5D
-  feature, since the quantized bake ladder reads it. Still filed, still
-  unfixed.
+  feature, since the quantized bake ladder reads it. ~~Still filed, still
+  unfixed.~~ **FIXED 2026-08-03** — local linearization (the Jacobian at
+  the rect's center and corners, maxed); mechanism, pin and gate results
+  in 44.2b.1's own note.
 - **`ComposeInternal.h:330`'s filed-gap sentence is stale** (44.2b.2) —
   confirmed; the repair is at `Paint.cpp:1279` and pinned by
   `test/ComposeTestFieldPins.cpp:162-193`; the comment itself was
@@ -7264,7 +7341,7 @@ Also **unsourced: 44.4's "736 → 744".** The only sizes written down are
 future field addition should re-measure the headroom rather than quote it
 from here.
 
-#### Step 0 is UNCLAIMED and still worth doing
+#### Step 0 is UNCLAIMED and still worth doing *(claimed and EXECUTED 2026-08-03 — see 44.8's dated note; ledger byte-neutral)*
 
 44.8 step 0 — `transformOf()` returns the matrix; `paint()`,
 `recordBounds()` and `hitInstance()` consume it — **was not started** (no

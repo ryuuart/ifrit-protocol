@@ -55,35 +55,25 @@ Composer::Impl::hitInstance(Instance &inst, SkPoint parentPt,
   // position replaces the translate lanes and its auto-orient adds to
   // rotate, and the hit test must undo exactly what paint() applied.
   const NodeTransform tf = transformOf(inst);
-  local.offset(-tf.tx, -tf.ty);
-  const float rot = tf.rot;
-  const float scl = tf.scl;
-  const float sx = tf.sx;
-  const float sy = tf.sy;
-  const float skx = tf.skx;
-  const float sky = tf.sky;
-  if (tf.pivoted()) {
-    const SkPoint origin =
-        resolveOrigin(node.paint, rect.width(), rect.height());
-    SkPoint v{local.x() - origin.x(), local.y() - origin.y()};
-    // Inverse of paint()'s rotate→scale→skew, applied in reverse order.
-    if (skx != 0 || sky != 0) {
-      const float kx = std::tan(skx * 0.017453293f);
-      const float ky = std::tan(sky * 0.017453293f);
-      const float det = 1.0f - kx * ky;
-      if (std::abs(det) > 1e-6f)
-        v = {(v.x() - kx * v.y()) / det, (v.y() - ky * v.x()) / det};
-    }
-    const float kx2 = scl * sx, ky2 = scl * sy;
-    if (kx2 != 0 && ky2 != 0 && (kx2 != 1 || ky2 != 1))
-      v = {v.x() / kx2, v.y() / ky2};
-    if (rot != 0) {
-      const float rad = -rot * SK_FloatPI / 180.0f;
-      const float c = std::cos(rad), s = std::sin(rad);
-      v = {v.x() * c - v.y() * s, v.x() * s + v.y() * c};
-    }
-    local = {origin.x() + v.x(), origin.y() + v.y()};
-  }
+  // §44.8 step 0: the inverse is SkMatrix::invert of THE matrix producer
+  // (NodeTransform::matrix), not a hand-unwound copy of it. Degenerate
+  // lanes keep the old hand-inverse's semantics — a zero scale axis or a
+  // numerically singular skew pair means that STEP is skipped (treated as
+  // identity), never a refusal: a zero-scaled node still answers hits as
+  // if unscaled, exactly as the component-wise code did.
+  NodeTransform safe = tf;
+  if (tf.scl * tf.sx == 0 || tf.scl * tf.sy == 0)
+    safe.scl = safe.sx = safe.sy = 1;
+  const float kx = std::tan(tf.skx * 0.017453293f);
+  const float ky = std::tan(tf.sky * 0.017453293f);
+  if (std::abs(1.0f - kx * ky) <= 1e-6f)
+    safe.skx = safe.sky = 0;
+  SkMatrix inv;
+  if (safe.matrix({0, 0}, node.paint, rect.width(), rect.height())
+          .invert(&inv))
+    local = inv.mapPoint(local);
+  else // unreachable once sanitized; match "never refuse": translate only
+    local.offset(-tf.tx, -tf.ty);
 
   const SkSize size{rect.width(), rect.height()};
   const bool inside = shapeContains(inst, local, size);
