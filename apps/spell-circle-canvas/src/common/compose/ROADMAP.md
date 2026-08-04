@@ -4464,8 +4464,27 @@ so the SANCTION still holds exactly:
 - **The three UNSANCTIONED scenes were ported to file-local
   `legacyBrackets`/`legacyGappedRule` shims** building the identical
   Border value — byte-identical by construction and VERIFIED (their
-  plates hash equal before/after). Their spans:: ports await their own
-  pixel clearance; the shim comment says so at each site.
+  plates hash equal before/after). Their spans:: ports awaited their own
+  pixel clearance — granted the same day, next bullet.
+- **COMPLETED 2026-08-04, same day, under the follow-up owner ruling: the
+  three unsanctioned scenes took the REAL port, same split as the
+  sanctioned pair, and BOTH shims are deleted from all three files — the
+  corpus ends with ONE bracket vocabulary.** Spans-spellable sites became
+  `.stroke(spans::corners/edges(arm[, angle]), brush::solid(w, fill))`
+  (bg3_dice_roll ×7 incl. the bezel's angle-12 20-gon marks,
+  dunhuang_star_chart ×3, vagrant_story_target ×4); sites the span family
+  cannot spell kept the surviving `Border` value directly — every one an
+  inset: bg3's inset-8 gapped rule, vagrant's inset-6 card rule, the
+  card's OUTSET (inset −7) selection bracket, and the panel's inset-7
+  rule. Deltas (Release, single-scene renders, same binary):
+  `bg3_dice_roll` 259 px of 5.76M (0.0045%), maxDelta 160;
+  `dunhuang_star_chart` 21 px of 4.1M (0.0005%), maxDelta 174 —
+  five 1-px bracket arm tips and two short edge-run ends;
+  `vagrant_story_target` 243 px of 4.32M (0.0056%), maxDelta 167. All
+  AA-scale at arm ends and along chamfer diagonals, plus the one visible
+  (and documented) improvement: a span claim crossing a silhouette
+  vertex stitches into ONE contour, so the old two-segment seam notch
+  where bg3's gilt brackets bend over a 20-gon vertex fills in.
 - **The deltas, quantified** (Release, single-scene renders, same
   binary): `astral_tome` 165 px of 3.6M (0.005%), maxDelta 161, only
   13 px above delta 8 — sub-pixel AA at bracket arm ends (the span

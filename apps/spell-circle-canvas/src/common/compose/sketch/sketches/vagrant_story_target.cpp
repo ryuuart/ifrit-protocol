@@ -184,35 +184,6 @@
 
 #include <sigilweave/ports/SystemFontManager.h>
 
-namespace {
-// §33-j (2026-08-04): decorations::brackets/gappedRule are DELETED from the
-// library (the grammar's spelling is a spans::corners()/edges() claim).
-// This study keeps its drawn result BYTE-IDENTICAL through the surviving
-// Border value the deleted factories built — the owner's port ruling
-// sanctioned pixel deltas for astral_tome and stroke_atlas only, so the
-// spans:: port of THIS study awaits its own pixel clearance.
-inline sigil::compose::Border legacyBrackets(
-    float width, sigil::compose::Fill fill, float arm = 18.0f,
-    float inset = 0.0f, float angleDeg = 30.0f) {
-  return sigil::compose::Border{.width = width,
-                                .fill = std::move(fill),
-                                .inset = inset,
-                                .mode = sigil::compose::Border::Mode::Bracket,
-                                .corner = arm,
-                                .cornerAngleDeg = angleDeg};
-}
-inline sigil::compose::Border legacyGappedRule(
-    float width, sigil::compose::Fill fill, float gap = 14.0f,
-    float inset = 0.0f, float angleDeg = 30.0f) {
-  return sigil::compose::Border{.width = width,
-                                .fill = std::move(fill),
-                                .inset = inset,
-                                .mode = sigil::compose::Border::Mode::Gapped,
-                                .corner = gap,
-                                .cornerAngleDeg = angleDeg};
-}
-} // namespace
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
@@ -1189,8 +1160,8 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                     .key("marksel")
                     .shape(shapes::chamfered(18.0f, shapes::Corner::All))
                     .rotate(45.0f)
-                    .foreground(legacyBrackets(
-                        2.2f, Fill::color(vs::kCyan), 11.0f)));
+                    .stroke(spans::corners(11.0f),
+                            brush::solid(2.2f, Fill::color(vs::kCyan))));
     }
     return g;
   }
@@ -1247,17 +1218,27 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                         sel ? shapes::Corner::All : shapes::Corner::Diagonal))
                     .fill(Fill::color(sel ? vs::hex(0x101826, 0.86f)
                                           : vs::hex(0x11141D, 0.72f)));
-    c.foreground(legacyGappedRule(
-        1.0f, Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)), 22.0f,
-        6.0f));
-    c.foreground(legacyBrackets(
-        sel ? 2.6f : 1.8f, Fill::color(sel ? vs::kCyan : vs::kBone),
-        sel ? 30.0f : 20.0f));
+    // §33-j: the 6 px inset has no stroke-pass spelling — the gapped rule
+    // keeps the surviving Border value directly.
+    c.foreground(Border{
+        .width = 1.0f,
+        .fill = Fill::color(vs::mul(vs::kBone, 1, sel ? 0.42f : 0.26f)),
+        .inset = 6.0f,
+        .mode = Border::Mode::Gapped,
+        .corner = 22.0f});
+    c.stroke(spans::corners(sel ? 30.0f : 20.0f),
+             brush::solid(sel ? 2.6f : 1.8f,
+                          Fill::color(sel ? vs::kCyan : vs::kBone)));
     if (sel)
       // An OUTSET bracket set 7 px proud of the plate: the selection reads as
-      // a second frame standing off the first, not as a thicker line.
-      c.foreground(legacyBrackets(
-          3.4f, Fill::color(vs::mul(vs::kCyan, 1, 0.55f)), 13.0f, -7.0f));
+      // a second frame standing off the first, not as a thicker line. (§33-j:
+      // the outset — a negative inset — has no stroke-pass spelling, so the
+      // surviving Border value stays.)
+      c.foreground(Border{.width = 3.4f,
+                          .fill = Fill::color(vs::mul(vs::kCyan, 1, 0.55f)),
+                          .inset = -7.0f,
+                          .mode = Border::Mode::Bracket,
+                          .corner = 13.0f});
 
     // The right-hand ~90 px is the hit-percentage column (a live custom leaf,
     // see hitReadout) — everything static keeps clear of it by construction
@@ -1606,8 +1587,13 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
         .key(key)
         .shape(shapes::chamfered(cut, shapes::Corner::All))
         .fill(Fill::color(tint))
-        .foreground(legacyGappedRule(
-            1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.26f)), 34.0f, 7.0f))
+        // §33-j: the 7 px inset has no stroke-pass spelling — the gapped
+        // rule keeps the surviving Border value directly.
+        .foreground(Border{.width = 1.0f,
+                           .fill = Fill::color(vs::mul(vs::kBone, 1, 0.26f)),
+                           .inset = 7.0f,
+                           .mode = Border::Mode::Gapped,
+                           .corner = 34.0f})
         .foreground(decorations::weightedCorners(
             1.2f, 2.6f, Fill::color(vs::mul(vs::kBone, 1, 0.62f)), 26.0f));
   }
@@ -1686,10 +1672,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
                 .rect(SkRect::MakeXYWH(20, 20, vs::kW - 40, vs::kH - 40))
                 .key("reg")
                 .shape(shapes::chamfered(34.0f, shapes::Corner::All))
-                .foreground(legacyBrackets(
-                    1.6f, Fill::color(vs::mul(vs::kBone, 1, 0.50f)), 46.0f))
-                .foreground(legacyGappedRule(
-                    1.0f, Fill::color(vs::mul(vs::kBone, 1, 0.14f)), 120.0f)));
+                .stroke(spans::corners(46.0f),
+                        brush::solid(1.6f,
+                                     Fill::color(vs::mul(vs::kBone, 1, 0.50f))))
+                .stroke(spans::edges(120.0f),
+                        brush::solid(1.0f,
+                                     Fill::color(vs::mul(vs::kBone, 1, 0.14f)))));
     g.child(labelAt("PLATE II \xC2\xB7 320x240 POLY GRID / 512x240 TEXT GRID", 880,
                     vs::kH - 60, 13.0f, vs::mul(vs::kBone, 1, 0.42f), 1.2f));
     g.child(labelAt("SER-POUNCE / ROOD-REVERSE \xC2\xB7 BATTLE.PRG 146C", 880,
