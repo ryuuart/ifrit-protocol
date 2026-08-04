@@ -672,6 +672,101 @@ declared lane, the honest statement is the one above: **animate entities
 you got from `addSurface`/`addSweep`/`addFlock`/`addPoints`, not
 entities the reconciler owns; the camera is fine either way.**
 
+### Layers at depth (2026-07-30)
+
+After Effects' 3D layers — author a flat panel, give it a Z, let the
+camera supply parallax and perspective — was asked for as a first-class
+authoring path. **It is already one.** The finding is written down here
+rather than built because building it would mean re-spelling three
+things this library already has.
+
+`shape::mesh::quad()` is documented as "flat quad panel in the xy plane
+facing +z, centered at origin", which is an AE layer exactly: axis
+aligned in the comp until you rotate it. `scene::panel()` wraps that
+quad with `unlit = true` and the image as `texture`, and caches the mesh
+per `(width, height)` so re-declaring is a keep. So a comp is a group and
+its layers are children at different Z:
+
+```cpp
+world::scene::Scene comp(world);
+comp.render(world::scene::group().key("comp")
+    .child(world::scene::panel(sky,   1920, 1080).key("sky").at({0, 0, -900}))
+    .child(world::scene::panel(hills, 1920, 1080).key("hills").at({0, 0, -300}))
+    .child(world::scene::panel(fore,  1920, 1080).key("fore").at({0, 0,    0})));
+```
+
+or, one sentence per layer, through the easel:
+
+```cpp
+stage.panel(sky, 1920, 1080).at({0, 0, -900}).key("sky")
+     .panel(hills, 1920, 1080).at({0, 0, -300}).key("hills")
+     .commit();
+```
+
+**Parallax needs no new machinery, and the Scene×Animation collision
+above does not bite.** Parallax is a property of the CAMERA moving, not
+of the layers: the layers stay still, so they never want an `Animated*`
+component, and the eye is driven by `AnimatedCamera`/`CameraPath` —
+which is exactly behaviour (3) of the section above, *the camera is the
+exception, by construction*, already pinned by
+`CameraLanesAreUntouchedByReconciliation`. A declared dolly over a
+declared layer stack is the composition that section says composes
+freely. That is why this path is worth documenting as-is: the one known
+silent failure in the reconciler is out of its way by construction
+rather than by care, and a layer stack that reached for
+`AnimatedTransform` on scene-managed leaves would have walked straight
+into it.
+
+The displacement itself is ordinary perspective. For a lateral eye move
+`d` and a layer at view-space depth `z`, the on-screen shift is
+`f * d / z` — so for one camera move the near layer displaces more than
+the far one, in the ratio `z_far / z_near`, and a stack at ONE Z
+displaces uniformly (ratio 1). **Not yet pinned**: the pin wants to be
+device-free (project two layer centers through
+`space::Camera::viewProjection()` at two eye positions and compare the
+two shifts), with the equal-Z stack as its positive control, and it
+should live beside the other `resolveAnimation(entt::registry&)` tests
+so it survives on machines with no Vulkan.
+
+**LAYER and BILLBOARD are two spellings, not a mode flag.** An AE layer
+is axis-aligned; a billboard always faces the eye; both are wanted and
+they are different behaviours, so they read differently at the call
+site. A layer is `panel(...).at(...)` with no rotation — the quad's own
++z facing IS the comp plane. A billboard is the same node carrying a
+facing matrix, `panel(...).transform(faceCamera(eye, at))`, re-described
+each frame; the reconciler sees a transform-only change, so it is a
+`setTransform` and never a re-upload. Note that `world_demo` does NOT do
+this today: its "camera-facing cards" bake a `facing` vector lane
+against a hard-coded eye (`{0, 200, 1150}`, commented *the stream shot's
+camera*), which is a billboard frozen for one shot. Filed, not built:
+`faceCamera()` has no home yet — it belongs in `shape::space` beside
+`place()`, since it is camera math and both renderers want it.
+
+**Sizing is the CALLER's pixels-per-world-unit, and that is a ruling.**
+`panel()` takes width and height in world units and derives nothing from
+the image, which looks like the gap that forces hand-tuning — the tiger
+poster is a 900 px-wide SVG on a `quad(300, 300)`, square regardless of
+what the image's aspect actually is. But the fix is not an
+aspect-deriving overload, because aspect alone does not close it: two
+layers of different pixel sizes at the same px/wu must come out
+different world sizes, which is a SCALE the image cannot know. The
+number that does close it is one density for the stack, and the demo
+already computes exactly that by hand for the marquee —
+`const float pxPerWu = strip.totalAlongPx / loopLen;` — then divides its
+texel width by it. Generalised, a layer is
+`panel(img, img->width() / pxPerWu, img->height() / pxPerWu)`: one
+constant per comp, aspect correct by construction, no per-layer tuning.
+A stack type owning that float is the smallest thing worth adding here,
+and it is additive to everything above.
+
+**The compose bridge stays on the caller's side.** SigilWorld does not
+depend on SigilCompose and this changes nothing about that: a layer's
+content is an `SkImage`, and `compose::snapshot()` producing one is the
+caller's business, exactly as `world_demo` already does it for the
+marquee tiles. `world::layer(compose::Element)` is not available and is
+not wanted — world's currency is `SkImage` + `shape::Mesh` +
+`space::Camera`, and a layer stack is expressible entirely within it.
+
 ## Instancing
 
 `addInstanced(stamp, cloud, material, lanes)` renders one
