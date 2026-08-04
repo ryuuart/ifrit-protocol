@@ -555,6 +555,139 @@ BENCHMARK(BM_Draw_BrushWeave_Live)
     ->Arg(8)
     ->Unit(benchmark::kMicrosecond);
 
+/** ROADMAP §33 residue (resolveSpans): the span walk is re-run 3-4x per
+ *  paint with nothing held between frames — "fine at the corpus's pass
+ *  counts", where the corpus runs 1-3 passes per boundary. This arm is the
+ *  measurement that claim was missing: a 16-node grid whose every node
+ *  carries `passes` marching `spans::wrap` passes (disjoint windows off one
+ *  Output, the marching-ants idiom), so every endpoint resolves and every
+ *  boundary re-walks on every frame. 1-2 is corpus-representative; 8-16 is
+ *  the spans-heavy stress the fix-shape (an Instance-side cache keyed like
+ *  outlineCache) would exist for. */
+Element spanStrokeGrid(int passCount, choreograph::Output<float> &phase) {
+  auto root = positioned().inset(0, 0, 0, 0);
+  constexpr int kColumns = 4;
+  constexpr int kNodes = 16;
+  const float slot = 1.0f / (float)passCount;
+  for (int id = 0; id < kNodes; ++id) {
+    Element leaf = box()
+                       .left((float)(id % kColumns) * 156.0f + 4.0f)
+                       .top((float)(id / kColumns) * 156.0f + 4.0f)
+                       .width(140)
+                       .height(140)
+                       .fill(Fill::none())
+                       .cache(Cache::None);
+    for (int p = 0; p < passCount; ++p) {
+      const float base = (float)p * slot;
+      const SkColor4f color = p % 2 == 0 ? SkColor4f{0.95f, 0.55f, 0.25f, 1.0f}
+                                         : SkColor4f{0.25f, 0.65f, 0.95f, 1.0f};
+      leaf.stroke(spans::wrap(bind(&phase).offset(base),
+                              bind(&phase).offset(base + 0.6f * slot)),
+                  brush::solid(3.0f, Fill::color(color)));
+    }
+    root.child(std::move(leaf));
+  }
+  return root;
+}
+
+static void BM_Draw_StrokeSpans_Live(benchmark::State &state) {
+  const int passes = (int)state.range(0);
+  choreograph::Output<float> phase{0.0f};
+  CoreHost host(640, 640);
+  host.composer.render(spanStrokeGrid(passes, phase));
+  host.draw();
+  int tick = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    phase = (float)(++tick % 100) / 100.0f;
+    host.draw();
+  }
+  state.counters["passes"] = (double)passes;
+  reportNodes(state, 16);
+}
+BENCHMARK(BM_Draw_StrokeSpans_Live)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Unit(benchmark::kMicrosecond);
+
+// ---- ROADMAP §10g "scoped, not built" (1): env read tracking ------------
+//
+// A memo captures the ambient environment stack at construction and
+// compares it BEFORE its props, so a theme change misses every memo below
+// the provider — including memos that never read the environment at all.
+// The scoped-but-unbuilt read flag would let exactly those memos keep
+// hitting. These two arms bracket what it would save: `_ThemeHeld` is the
+// all-hits steady state, `_ThemeChange` re-describes every memo each
+// iteration and then prunes every one of them (patched stays 0 — the
+// describe's result compares equal). The delta per iteration is the entire
+// prize the read flag is competing for.
+
+struct BenchPalette {
+  SkColor4f surface{0.20f, 0.40f, 0.60f, 1.0f};
+  bool operator==(const BenchPalette &) const = default;
+};
+
+struct MemoCellProps {
+  int id = 0;
+  bool operator==(const MemoCellProps &) const = default;
+};
+
+Element memoGridUnder(int count, const BenchPalette &palette) {
+  env::Provide<BenchPalette> theme(palette);
+  auto root = box().row().wrapLines().gap(1);
+  for (int id = 0; id < count; ++id)
+    root.child(memo(MemoCellProps{id},
+                    [](const MemoCellProps &props) {
+                      // Never reads env::inherited — the read flag's case.
+                      return box().width(19).height(19).fill(
+                          cellFill(props.id, -1, 0));
+                    })
+                   .key("m" + std::to_string(id)));
+  return root;
+}
+
+static void BM_Env_ThemeChange_MemosNeverRead(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  CoreHost host;
+  host.composer.render(memoGridUnder(count, BenchPalette{}));
+  host.draw();
+  bool dark = false;
+  for ([[maybe_unused]] auto iteration : state) {
+    dark = !dark;
+    BenchPalette palette;
+    palette.surface = dark ? SkColor4f{0.10f, 0.12f, 0.16f, 1.0f}
+                           : SkColor4f{0.20f, 0.40f, 0.60f, 1.0f};
+    host.composer.render(memoGridUnder(count, palette));
+  }
+  state.counters["memoHits"] = (double)host.composer.stats().memoHits;
+  state.counters["patched"] = (double)host.composer.stats().patchedNodes;
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Env_ThemeChange_MemosNeverRead)
+    ->Arg(100)
+    ->Arg(500)
+    ->Arg(2000)
+    ->Unit(benchmark::kMicrosecond);
+
+static void BM_Env_ThemeHeld_MemosNeverRead(benchmark::State &state) {
+  const int count = (int)state.range(0);
+  CoreHost host;
+  host.composer.render(memoGridUnder(count, BenchPalette{}));
+  host.draw();
+  for ([[maybe_unused]] auto iteration : state)
+    host.composer.render(memoGridUnder(count, BenchPalette{}));
+  state.counters["memoHits"] = (double)host.composer.stats().memoHits;
+  state.counters["patched"] = (double)host.composer.stats().patchedNodes;
+  reportNodes(state, count);
+}
+BENCHMARK(BM_Env_ThemeHeld_MemosNeverRead)
+    ->Arg(100)
+    ->Arg(500)
+    ->Arg(2000)
+    ->Unit(benchmark::kMicrosecond);
+
 static void BM_Draw_GroupCache_LivePictures(benchmark::State &state) {
   const int count = (int)state.range(0);
   CoreHost host(640, 640);

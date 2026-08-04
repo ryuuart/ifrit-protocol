@@ -1230,17 +1230,27 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface> &face, SkFourByteTag tag) {
 } // namespace
 
 TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
+  // Prefer a system face whose wght really moves advances; where the
+  // system offers none (macOS: the UI face declares no wght at all, the
+  // §35.3 standing skip), fall back to the committed test instrument —
+  // test/assets/AdvanceVariant.ttf, a generated two-master VF whose wght
+  // interpolates advances 500..900 (see make_advance_variant_vf.py).
+  const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
   sk_sp<SkTypeface> ui = fonts().defaultTypeface();
-  if (!faceDeclaresAxis(ui, SkSetFourByteTag('w', 'g', 'h', 't')))
-    GTEST_SKIP() << "this font has no wght axis at all: the refusal would "
-                    "fire for the wrong reason and the pixels would hold "
-                    "however the drive behaved";
-  if (fonts().axisIsAdvanceInvariant(ui, "wght"))
-    GTEST_SKIP() << "this font's wght is advance-invariant; nothing to refuse";
+  if (!faceDeclaresAxis(ui, wght) || fonts().axisIsAdvanceInvariant(ui, "wght"))
+    ui = fonts().fontManager()->makeFromFile(
+        SIGILCOMPOSE_TEST_ASSET_DIR "/AdvanceVariant.ttf");
+  ASSERT_TRUE(ui) << "test asset AdvanceVariant.ttf failed to load";
+  ASSERT_TRUE(faceDeclaresAxis(ui, wght));
+  ASSERT_FALSE(fonts().axisIsAdvanceInvariant(ui, "wght"))
+      << "the instrument face's wght must move advances";
 
   choreograph::Output<float> weight{400.0f};
   Host host;
-  host.composer.render(box().child(text(u8"WEIGHT", styleAt(48))
+  sigil::weave::TextStyle style = styleAt(48);
+  style.shaping.typeface = ui;
+  style.paint.foreground.setColor(SK_ColorWHITE); // black-on-black otherwise
+  host.composer.render(box().child(text(u8"WEIGHT", style)
                                        .key("t")
                                        .variationDrive("wght", &weight)
                                        .absolute()
@@ -1249,6 +1259,15 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   SkBitmap base;
   base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
   host.surface->readPixels(base.pixmap(), 0, 0);
+
+  // Liveness guard: the baseline really has ink, so "pixels hold" below
+  // is a claim about glyphs and not about two blank grids (§34's lesson).
+  int inked = 0;
+  for (int y = 0; y < 200; y += 2)
+    for (int x = 0; x < 200; x += 2)
+      if (base.getColor(x, y) != SK_ColorBLACK)
+        ++inked;
+  ASSERT_GT(inked, 20) << "baseline text never drew";
 
   weight = 900.0f;
   host.frame(); // refused: draws at shaped coordinates, pixels hold

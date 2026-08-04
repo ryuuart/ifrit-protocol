@@ -4484,7 +4484,13 @@ so the SANCTION still holds exactly:
   AA-scale at arm ends and along chamfer diagonals, plus the one visible
   (and documented) improvement: a span claim crossing a silhouette
   vertex stitches into ONE contour, so the old two-segment seam notch
-  where bg3's gilt brackets bend over a 20-gon vertex fills in.
+  where bg3's gilt brackets bend over a 20-gon vertex fills in. Gates:
+  17/17 Release; ledger 41 identical / 24 moved / still_accent NEW,
+  zero unattributed — the three ported scenes (dunhuang and vagrant as
+  ONE combined beat+port move each, the beat baselines being
+  pre-rebase), the 2026-08-04 beat movers at their unchanged hashes,
+  the sanctioned pair at theirs, three documented flappers. No rebase
+  taken — the owner adopts the three new hashes.
 - **The deltas, quantified** (Release, single-scene renders, same
   binary): `astral_tome` 165 px of 3.6M (0.005%), maxDelta 161, only
   13 px above delta 8 — sub-pixel AA at bracket arm ends (the span
@@ -5217,6 +5223,36 @@ the open sibling still passes (it never stitched).*
    `axisIsAdvanceInvariant`), but proving it needs a variable face with an
    advance-VARIANT axis in the test assets — the same asset question
    `GradDrivesPaintOnlyWhenAdvanceInvariant` already skips on.
+
+   **CLOSED 2026-08-04 — the instrument is a GENERATED font, not a
+   downloaded one.** `test/assets/AdvanceVariant.ttf` (1.6 KB): a
+   two-master TrueType VF built by the committed
+   `test/assets/make_advance_variant_vf.py` (fontTools 4.63) — glyphs for
+   ".notdef", space, and the letters of "WEIGHT" as plain bars, one wght
+   axis 100..900 whose masters interpolate advances 500→900 units, so
+   `axisIsAdvanceInvariant(face, "wght")` answers FALSE for the RIGHT
+   reason. Authored by the script, so no third-party license rides along
+   (CC0 note in the name table). It lands on the SigilImage test-assets
+   convention (committed beside the test,
+   `SIGILCOMPOSE_TEST_ASSET_DIR` compile definition) and NOT on
+   `fetch_assets`, which is opt-in and demo-only — a test must never
+   depend on an opt-in target, and compose_test used only system faces
+   before this.
+
+   *Both tests' status on this machine:*
+   `GradDrivesPaintOnlyWhenAdvanceInvariant` was ALREADY passing (the SF
+   face's GRAD probe succeeds here — the entry's "already skips" dated
+   from a machine state that no longer holds), and is unchanged.
+   `AdvanceVariantAxisIsRefused` now prefers a qualifying system face and
+   falls back to the instrument; it RUNS and PASSES in both configs, and
+   the library's refusal diagnostic fires visibly in the log. Two
+   strengthenings landed with the un-skip, because the old body would
+   have passed vacuously: the text now draws WHITE (the fixture was
+   black-on-black — §34's flowAround lesson — so "pixels hold" compared
+   two blank grids however the drive behaved) and an inked-baseline
+   guard (`ASSERT_GT(inked, 20)`) makes the hold a claim about glyphs.
+   `compose_test` **545 cases / 92 suites, 545 passed, 0 skipped** in
+   BOTH configs — the suite line loses its standing skip.
 
 **THE GATE for §35.1 + §34's remainder, 2026-07-28.** Debug builds clean.
 `compose_test` **463 cases / 82 suites** (461 before, +2: one per item), 462
