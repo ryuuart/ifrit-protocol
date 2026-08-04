@@ -2759,14 +2759,16 @@ Still open: a GPU counterpart to the 60 FPS gate in the ledger, and a
 per-node GPU cost measurement (timestamp queries) if promotion is ever to
 be justified on GPU.
 
-## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake — **SHIPPED as `Cache::Group`, PIXEL-VERIFIED, NOT YET TIMED**
+## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake — **SHIPPED as `Cache::Group`, PIXEL-VERIFIED, MEASURED: 7.2× GPU / 23× CPU on kumiko, zero tax on non-opted scenes — not the 23× GPU target, and not a general win**
 
 > Shipped as `Cache::Group` in `Compose.h` / `Paint.cpp`, with the subtree
-> value memo that holds it. **The performance claim below (115.69 → ~4.95 ms)
-> is still a TARGET, not a result** — the session ended with the machine
-> under a corpus sweep and no reading was taken. Do not quote a number for
-> this until someone takes the before/after pair back to back on a clear
-> machine. What IS established is correctness, and the shape of the win:
+> value memo that holds it. **MEASURED 2026-08-04 — see the dated closure at
+> the end of this entry: kumiko GPU 123.29 → 17.13 ms (7.2×, 8 → 58 fps),
+> CPU raster 186.18 → 8.09 ms (23×), byte-identical captures both backends,
+> no measurable tax on scenes that don't opt in. The 115.69 → ~4.95 ms
+> figure below was the per-strip experiment's TARGET and was NOT reached by
+> Group in steady state — do not quote it as this feature's number.** What
+> IS established is correctness, and the shape of the win:
 > kumiko's lattice reads `[group]` at **0.49 ms of recording time on a
 > 1400x1000 node that was 523 live pictures**, with `0 cache writes` in
 > steady state.
@@ -2912,7 +2914,8 @@ do not use it, or use it as half of a pair. Verified: the drop-on-tick
 memo (asserted with a positive control that defeats the drop and
 requires the test to FAIL), pixel identity on kumiko at seven phases
 across the full loop against a stripped copy of the same sketch.
-Outstanding measurements: before/after back-to-back on a quiet machine,
+Outstanding measurements — ALL FOUR TAKEN 2026-08-04, see the MEASURED
+closure below: before/after back-to-back on a quiet machine,
 same commit and thermal state; the **feature-present-but-not-opted-in**
 middle point (separates "helps kumiko" from "taxes everyone"); CPU
 raster (the bandwidth risk — a large bake is SAMPLED every frame
@@ -2935,6 +2938,92 @@ What the next person must not assume:
    stale picture no over-black test would catch.
 4. **The refusal list in the header is tested** — any new limit added
    to that doc comment needs a case in the refusal tests (§28).
+
+### MEASURED closure (2026-08-04) — the four outstanding numbers, taken
+
+Conditions: commit `0b02183`, Release, one session back-to-back (same
+binary except where the A/B says otherwise, same thermal state), quiet
+machine (idle Spotify/Claude helpers present and noted; the CVs below
+arbitrate — all ≤ 1.5%, most ≤ 0.5%). Instrument: the entry's named arm —
+`ComposeGallery --headless --scene <s> [--gpu]`, single-scene mode so the
+sample is the full unbudgeted window (240 warm + 120 sample frames at
+1/60; on GPU every frame snap+insert+`submit(SyncToCpu)` per
+`GalleryCore`'s flushHook, so work ms is CPU + drained GPU). 3 reps per
+arm; means + CV. The A/B "without" builds removed the two
+`.cache(Cache::Group)` lines from `kumiko_asanoha.cpp` locally and were
+reverted; no library code was touched. **No plate ledger run — this was a
+measurement-only session, zero library changes, and the sketch sources
+ended `git`-clean.**
+
+**1. BEFORE/AFTER, kumiko GPU** (work ms, mean of 3, CV):
+
+```
+without Group   123.29 ms  (CV 0.52%)   8 fps    p99 ~143 ms
+with Group       17.13 ms  (CV 0.48%)  58 fps    p99 ~21 ms     7.2×
+```
+
+The quarantined 111.88 (and §29's 113) is SUPERSEDED by 123.29 — the
+clean same-commit baseline. **The ~4.95 ms target was not reached and was
+never this feature's number** — it came from the per-strip
+`Cache::Texture` experiment (not pixel-safe). Group's steady-state mean
+includes the loop's wrap, where the entrance bindings tick again and the
+group honestly drops to live paint, plus the untouched 3.20 ms backlight;
+the cheap frames are the blit, the p99 is the live frames. 58 fps mean
+sits AT the 60 fps floor, not comfortably over it.
+
+**2. Feature-present-but-not-opted-in** (GPU, HEAD, vs the entry's own
+historical readings from §29):
+
+```
+chladni tab1     2.63 ms (CV 0.44%)   vs 3.4 historical
+daemon console   0.52 ms (CV 1.1%*)   vs 1.0 historical
+```
+
+(*sub-ms scene; the CV is 6 µs of sd — timer floor, not contention.)
+Both non-opted scenes are FASTER than their recorded history on the
+feature-present build; nobody who doesn't call `Cache::Group` pays
+anything measurable. "Helps kumiko" and "taxes everyone" are now
+separated: it helps kumiko and taxes no one.
+
+**3. CPU raster — the bandwidth risk, answered**:
+
+```
+without Group   186.18 ms  (CV 0.04%)    5 fps
+with Group        8.09 ms  (CV 0.19%)  124 fps    23.0×
+```
+
+The fear was real but small: sampling the 1400x1000 bake every frame IS
+most of the remaining 7.9 ms paint column — and it is 23× cheaper than
+replaying the shaders. The 0-writes proxy is now backed by a time.
+
+**4. The stretch scenes** (GPU, baseline vs a local `.cache(Cache::Group)`
+on the entry's named assembly, reverted after measurement; capture PNGs
+byte-identical in all three cases, 0 differing pixels):
+
+```
+sigillum_aemeth   2.24 → 2.20 ms   NEUTRAL  (−2%; already re-describes at
+                                   phase bounds + Texture-caches its plates)
+thunder_fulu      1.42 → 1.48 ms   MILD HURT (+5%; the scribe binding ticks
+                                   every frame, so the memo gathers and
+                                   drops every frame — pure overhead)
+thaumonomicon     1.95 → 0.92 ms   HELPS, 2.1× (the static frame band; a
+                                   real candidate, NOT committed here —
+                                   measurement-only session)
+```
+
+The rhyme with kumiko was structural, not economic: all three were
+already ≤ 2.3 ms. Group is a remedy for the kumiko SHAPE at the kumiko
+COST, not a general seasoning — and a binding that never settles under
+the root makes it a small net loss.
+
+**Verdict: `Cache::Group` earns its place.** It takes the one
+catastrophic scene from 8 to 58 fps on the backend the product ships and
+from 5 to 124 fps on raster, byte-identically, while costing non-users
+nothing. Two honest subtractions from the headline: the 23× lives on CPU,
+not GPU — the GPU win is 7.2×, and kumiko's mean lands AT the 60 fps
+floor rather than under it with room; and of three scenes that looked
+like kumiko, only one benefited. Opt in where a profiled, settled
+assembly is expensive; do not sprinkle it.
 
 ## Host and tooling
 
