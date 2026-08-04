@@ -46,6 +46,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <iterator>
 #include <vector>
 
@@ -443,26 +444,24 @@ int main(int argc, char **argv) {
   }
 
   // The stream: a spline crossing the space above the set, carrying a
-  // chrome wire and camera-facing UI cards instanced on its arc-length
-  // points — declared through the scene layer (describe + reconcile),
-  // not imperative addSurface calls.
+  // chrome wire and camera-facing UI cards on its arc-length stations —
+  // declared through the scene layer (describe + reconcile), not
+  // imperative addSurface calls. The cards are live BILLBOARDS
+  // (2026-08-04): every shot re-describes them through
+  // space::faceCamera() against that shot's ACTUAL camera eye, and the
+  // reconciler sees transform-only changes — a setTransform per card,
+  // never a re-upload. (They used to be one merged points::panels mesh
+  // with a "facing" lane baked against the stream shot's hard-coded
+  // eye — a billboard frozen for one shot.)
   world::scene::Scene stream(*w);
+  std::function<world::scene::Scene::Stats(glm::vec3)> faceStream;
   shape::Spline3 arc;
   arc.points = {{-820, 260, -320},
                 {-300, 420, 60},
                 {260, 300, 220},
                 {820, 430, -260}};
   {
-    shape::Cloud stations = shape::points::onSpline(arc, 9);
-    const glm::vec3 eye = {0, 200, 1150}; // the stream shot's camera
-    std::vector<glm::vec3> &facing = stations.vector("facing");
-    for (size_t i = 0; i < stations.size(); ++i) {
-      const glm::vec3 to = eye - stations.positions[i];
-      const float len = glm::length(to);
-      facing[i] = len > 1e-6f ? to * (1.0f / len) : glm::vec3{0, 0, 1};
-    }
-    shape::points::InstanceOptions cardOptions;
-    cardOptions.orientLane = "facing";
+    const shape::Cloud stations = shape::points::onSpline(arc, 9);
 
     world::Material wireMat;
     wireMat.baseColor = {0.9f, 0.93f, 1.0f, 1};
@@ -488,14 +487,25 @@ int main(int argc, char **argv) {
     cardMat.texture = uiCard(384, 256, {0.45f, 0.95f, 0.85f, 1}, 0.62f);
     cardMat.baseColor = {1, 1, 1, 0.92f};
 
-    stream.render(
-        world::scene::group().key("stream")
-            .child(world::scene::surface(wire, wireMat).key("wire"))
-            .child(world::scene::surface(
-                       shape::points::panels(stations, 170, 112,
-                                             cardOptions),
-                       cardMat)
-                       .key("cards")));
+    // Pointer-stable wire so every re-describe keeps its surface; the
+    // card quads are identity-stable through the Scene's per-size quad
+    // cache — so a re-faced stream costs setTransform x cards, nothing
+    // else.
+    auto wireMesh =
+        std::make_shared<const shape::Mesh>(std::move(wire));
+    faceStream = [&stream, wireMesh, wireMat, cardMat,
+                  positions = stations.positions](glm::vec3 eye) {
+      world::scene::Node root = world::scene::group().key("stream");
+      root.child(world::scene::surface(wireMesh, wireMat).key("wire"));
+      for (size_t i = 0; i < positions.size(); ++i)
+        root.child(world::scene::panel(cardMat.texture, 170, 112)
+                       .material(cardMat)
+                       .key("card" + std::to_string(i))
+                       .transform(shape::space::faceCamera(
+                           eye, positions[i])));
+      return stream.render(root);
+    };
+    faceStream({0, 200, 1150}); // the stream shot frames it first
   }
 
   // The set dressing, declared through the world easel (Easel.h): two
@@ -688,6 +698,14 @@ int main(int argc, char **argv) {
   const int total = (int)std::size(shots);
   int written = 0;
   for (const Shot &shot : shots) {
+    // Re-face the stream's billboards toward THIS shot's eye: a
+    // transform-only reconcile (moved = cards, kept = wire).
+    const world::scene::Scene::Stats faced = faceStream(shot.camera.eye);
+    if (faced.added + faced.removed != 0)
+      std::fprintf(stderr,
+                   "stream re-face re-uploaded: +%d -%d (expected "
+                   "transform-only)\n",
+                   faced.added, faced.removed);
     w->setCamera(shot.camera);
     if (!w->render()) {
       std::fprintf(stderr, "render failed: %s\n", shot.name);
@@ -852,6 +870,12 @@ int main(int argc, char **argv) {
     const int kCameraFrame = 140; // 2.3 s into an 8 s eased lap
     for (int i = 0; i < kCameraFrame; ++i)
       ticker.tick(1.0 / 60.0);
+    // Resolve the lanes first so the flown eye is readable, then face
+    // the stream's billboards at it — the same per-frame re-describe a
+    // live loop would run (render()'s own resolve then finds every
+    // lane parked).
+    world::resolveAnimation(*w);
+    faceStream(registry.get<world::CameraComponent>(cam).camera.eye);
     if (w->render() && w->savePng(outDir / "world_camera_flight.png")) {
       const shape::space::Camera &c =
           registry.get<world::CameraComponent>(cam).camera;

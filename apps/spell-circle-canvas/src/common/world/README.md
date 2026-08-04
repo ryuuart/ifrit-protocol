@@ -726,7 +726,13 @@ device-free (project two layer centers through
 `space::Camera::viewProjection()` at two eye positions and compare the
 two shifts), with the equal-Z stack as its positive control, and it
 should live beside the other `resolveAnimation(entt::registry&)` tests
-so it survives on machines with no Vulkan.
+so it survives on machines with no Vulkan. *(Taken, 2026-08-04:
+`WorldLayers.NearLayersShiftMoreThanFarOnesInTheDepthRatio` is exactly
+that pin — near/far ratio `z_far / z_near` to 1% (float32 matrix
+round-off leaves ~0.1% on it), the equal-Z uniform-shift stack as its
+positive control, placed beside the `resolveAnimation` pins and
+verified device-free: with Vulkan discovery broken it still RUNS while
+every device test skips.)*
 
 **LAYER and BILLBOARD are two spellings, not a mode flag.** An AE layer
 is axis-aligned; a billboard always faces the eye; both are wanted and
@@ -741,6 +747,19 @@ against a hard-coded eye (`{0, 200, 1150}`, commented *the stream shot's
 camera*), which is a billboard frozen for one shot. Filed, not built:
 `faceCamera()` has no home yet — it belongs in `shape::space` beside
 `place()`, since it is camera math and both renderers want it.
+*(Taken, 2026-08-04: `shape::space::faceCamera(eye, at, up)` lives
+beside `place()` in `Space.h`, built on `detail::basisFor` — the SAME
+construction `points::instance()` and world's instanced path stamp
+with, so a billboard and a facing-lane instance orient identically;
+pinned — normals at the eye from several positions including the
+degenerate eye-directly-above, basis orthonormality, vertex-exact
+parity with `points::panels` — by
+`Space.FaceCameraPointsTheQuadNormalAtTheEye` in shape_test.
+world_demo un-froze the same day: the facing lane is gone, every shot
+re-describes the cards through `faceCamera` against its ACTUAL camera
+eye — including the flown `AnimatedCamera` shot — and the re-face
+reconciles transform-only, which the demo asserts by warning if
+added+removed is ever nonzero.)*
 
 **Sizing is the CALLER's pixels-per-world-unit, and that is a ruling.**
 `panel()` takes width and height in world units and derives nothing from
@@ -757,7 +776,16 @@ texel width by it. Generalised, a layer is
 `panel(img, img->width() / pxPerWu, img->height() / pxPerWu)`: one
 constant per comp, aspect correct by construction, no per-layer tuning.
 A stack type owning that float is the smallest thing worth adding here,
-and it is additive to everything above.
+and it is additive to everything above. *(Taken, 2026-08-04:
+`scene::Stack{pxPerWu}` in `Scene.h`, beside `panel()` —
+`stack.panel(img)` IS `panel(img, w/pxPerWu, h/pxPerWu)` with the
+arithmetic done (`stack.size(img)` exposes it), no new node kind, the
+explicit spellings untouched. Pinned by
+`WorldLayers.StackSizesLayersInTheirPixelRatio` (device-free: two
+pixel sizes through one stack land in their exact pixel ratio, aspect
+by construction, the hand-tuned square-poster spelling as the failing
+control) and `WorldLayers.StackPanelsReconcileAsKeepsAgainstExplicitPanels`
+(same arithmetic reconciles as a keep; a different density recreates).)*
 
 **The compose bridge stays on the caller's side.** SigilWorld does not
 depend on SigilCompose and this changes nothing about that: a layer's

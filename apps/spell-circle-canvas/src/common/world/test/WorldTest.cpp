@@ -3049,3 +3049,122 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
   EXPECT_FLOAT_EQ(registry.get<world::CameraComponent>(cam).camera.eye.z,
                   200.0f);
 }
+
+// ---------------------------------------------------------------------------
+// LAYERS AT DEPTH (2026-08-04) — README "Layers at depth", pinned.
+//
+// The AE-style layer stack was documented as already-expressible; these
+// pins close its three filed items. The parallax and Stack-arithmetic
+// pins are DEVICE-FREE on purpose — like the resolveAnimation() pins
+// above they run on a machine with no Vulkan, where every device test
+// here skips. faceCamera() itself is pinned in shape_test (it lives in
+// shape::space beside place()); the reconciler-keep pin below needs a
+// device because identity is only observable through Scene::render().
+// ---------------------------------------------------------------------------
+
+TEST(WorldLayers, NearLayersShiftMoreThanFarOnesInTheDepthRatio) {
+  // Parallax is ordinary perspective: for one lateral eye move d, a
+  // layer at view depth z shifts f*d/z on screen — so the near layer
+  // outruns the far one in the ratio z_far/z_near. No device, no
+  // renderer: two projections through space::Camera::viewProjection().
+  const SkSize viewport = SkSize::Make(1920, 1080);
+  const auto projectX = [&](glm::vec3 eye, glm::vec3 point) {
+    shape::space::Camera cam;
+    cam.eye = eye;
+    cam.target = eye + glm::vec3{0, 0, -100}; // a truck: view axis fixed
+    const glm::vec4 out =
+        cam.viewProjection(viewport) * glm::vec4(point, 1);
+    return out.x / out.w;
+  };
+  const glm::vec3 eyeA = {0, 0, 300}, eyeB = {50, 0, 300};
+  const glm::vec3 nearLayer = {0, 0, -300}; // view depth 600
+  const glm::vec3 farLayer = {0, 0, -900};  // view depth 1200
+  const float nearShift =
+      projectX(eyeB, nearLayer) - projectX(eyeA, nearLayer);
+  const float farShift =
+      projectX(eyeB, farLayer) - projectX(eyeA, farLayer);
+  // The truck must actually displace both layers on screen.
+  EXPECT_GT(std::abs(nearShift), 1.0f);
+  EXPECT_GT(std::abs(farShift), 1.0f);
+  // 1%: float32 LookAt/Perspective round-off leaves ~0.1% on the
+  // ratio; 1% still separates 2 from the control's 1 by a mile.
+  EXPECT_NEAR(nearShift / farShift, 1200.0f / 600.0f, 0.02f);
+
+  // POSITIVE CONTROL: a stack at ONE Z displaces uniformly — ratio 1 —
+  // so the depth ratio above is measuring depth, not the projection.
+  const glm::vec3 left = {-200, 0, -300}, right = {200, 0, -300};
+  const float leftShift = projectX(eyeB, left) - projectX(eyeA, left);
+  const float rightShift = projectX(eyeB, right) - projectX(eyeA, right);
+  EXPECT_GT(std::abs(leftShift), 1.0f);
+  EXPECT_NEAR(leftShift / rightShift, 1.0f, 0.01f);
+}
+
+namespace {
+
+sk_sp<SkImage> solidImage(int width, int height) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  return surface->makeImageSnapshot();
+}
+
+} // namespace
+
+TEST(WorldLayers, StackSizesLayersInTheirPixelRatio) {
+  // ONE density for the stack: two images of different pixel sizes come
+  // out at world sizes in the exact ratio of their pixel sizes, and
+  // each layer's aspect is its image's aspect by construction.
+  const sk_sp<SkImage> wide = solidImage(640, 360);
+  const sk_sp<SkImage> square = solidImage(320, 320);
+  const world::scene::Stack stack{32.0f};
+  const SkSize a = stack.size(*wide);
+  const SkSize b = stack.size(*square);
+  EXPECT_FLOAT_EQ(a.width() / b.width(), 640.0f / 320.0f);
+  EXPECT_FLOAT_EQ(a.height() / b.height(), 360.0f / 320.0f);
+  EXPECT_FLOAT_EQ(a.width() / a.height(), 640.0f / 360.0f);
+  EXPECT_FLOAT_EQ(a.width(), 20.0f); // 640 px / 32 px-per-wu
+
+  // POSITIVE CONTROL: the hand-tuned spelling this replaces (the tiger
+  // poster: a 640x360-class image on a square panel) FAILS the aspect
+  // equality — the guarantee is not vacuous.
+  const float handTunedAspect = 300.0f / 300.0f;
+  EXPECT_NE(handTunedAspect, 640.0f / 360.0f);
+}
+
+TEST(WorldLayers, StackPanelsReconcileAsKeepsAgainstExplicitPanels) {
+  // The Stack is arithmetic, not a new node kind: a Stack panel and an
+  // explicit panel(w, h) with the same numbers are the IDENTICAL
+  // surface, so re-describing one as the other is a keep.
+  world::WorldConfig config;
+  config.width = 96;
+  config.height = 72;
+  MAKE_WORLD_OR_SKIP(w, config);
+  const sk_sp<SkImage> image = solidImage(384, 256);
+  world::scene::Scene scene(*w);
+
+  const world::scene::Stack stack{2.0f}; // 192 x 128 wu
+  world::scene::Scene::Stats stats = scene.render(
+      world::scene::group().key("comp").child(
+          stack.panel(image).key("card").at({0, 0, -50})));
+  EXPECT_EQ(stats.added, 1);
+
+  stats = scene.render(
+      world::scene::group().key("comp").child(
+          world::scene::panel(image, 384 / 2.0f, 256 / 2.0f)
+              .key("card")
+              .at({0, 0, -50})));
+  EXPECT_EQ(stats.kept, 1) << "same arithmetic, same surface";
+  EXPECT_EQ(stats.added, 0);
+  EXPECT_EQ(stats.removed, 0);
+  EXPECT_EQ(stats.moved, 0);
+
+  // POSITIVE CONTROL: a different density is a different quad — the
+  // reconciler recreates, so the keep above was measuring identity.
+  const world::scene::Stack denser{4.0f};
+  stats = scene.render(
+      world::scene::group().key("comp").child(
+          denser.panel(image).key("card").at({0, 0, -50})));
+  EXPECT_EQ(stats.removed, 1);
+  EXPECT_EQ(stats.added, 1);
+  EXPECT_EQ(stats.kept, 0);
+}

@@ -121,4 +121,16 @@ void drawImagePanel(SkCanvas &canvas, sk_sp<SkImage> image, float width,
 glm::mat4 place(glm::vec3 position, float yawDeg = 0,
                 float pitchDeg = 0, float rollDeg = 0, float scale = 1);
 
+/** The BILLBOARD transform: content placed at @p at with its +z face —
+ *  mesh::quad()'s facing convention — pointed at @p eye. Camera math
+ *  both renderers want: a billboard is the same panel re-described each
+ *  frame with a fresh faceCamera(), which a reconciler sees as a
+ *  transform-only change (setTransform, never a re-upload). The basis
+ *  is detail::basisFor — the SAME construction points::instance() and
+ *  world's instanced path stamp with, so a faceCamera'd quad and a
+ *  facing-lane instance orient identically; Dir≈±up falls back the same
+ *  way, and eye==at degenerates to facing +z. */
+glm::mat4 faceCamera(glm::vec3 eye, glm::vec3 at,
+                     glm::vec3 up = {0, 1, 0});
+
 } // namespace sigil::shape::space

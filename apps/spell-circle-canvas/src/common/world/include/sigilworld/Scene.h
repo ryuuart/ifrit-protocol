@@ -28,6 +28,8 @@
 
 #include "sigilworld/World.h"
 
+#include <include/core/SkSize.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -108,6 +110,29 @@ inline Node surface(shape::Mesh mesh, Material material) {
 /** An unlit textured quad — the diegetic UI card. The quad mesh is
  *  cached per size inside the Scene, so panels stay identity-stable. */
 Node panel(sk_sp<SkImage> image, float width, float height);
+
+/** A layer stack's pixel DENSITY — the one number that closes panel
+ *  sizing (README "Layers at depth"): every image through the same
+ *  Stack lands at image_px / pxPerWu world units, so aspect is correct
+ *  by construction and two layers' world sizes stay in the exact ratio
+ *  of their pixel sizes — the scale an aspect-deriving overload cannot
+ *  know. Additive: `panel(image, w, h)` spellings are untouched, and a
+ *  Stack panel IS that spelling with the arithmetic done — identical
+ *  arithmetic means the reconciler sees the identical surface. */
+struct Stack {
+  float pxPerWu = 1;
+
+  /** World size of @p image at this density. */
+  SkSize size(const SkImage &image) const {
+    return SkSize::Make((float)image.width() / pxPerWu,
+                        (float)image.height() / pxPerWu);
+  }
+  /** `panel(image, image->width()/pxPerWu, image->height()/pxPerWu)`. */
+  Node panel(sk_sp<SkImage> image) const {
+    const SkSize s = image ? size(*image) : SkSize::MakeEmpty();
+    return scene::panel(std::move(image), s.width(), s.height());
+  }
+};
 
 class Scene {
 public:

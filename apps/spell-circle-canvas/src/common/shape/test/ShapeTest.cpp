@@ -398,6 +398,64 @@ TEST(Space, CameraProjectsCenterToViewportCenter) {
   EXPECT_NEAR(out.y / out.w, 300.0f, 1e-2f);
 }
 
+TEST(Space, FaceCameraPointsTheQuadNormalAtTheEye) {
+  // The billboard transform (world/README.md "Layers at depth",
+  // 2026-08-04): faceCamera(eye, at) turns mesh::quad's +z facing
+  // toward the eye from wherever it stands.
+  const glm::vec3 at = {40, -25, 60};
+  const glm::vec3 eyes[] = {
+      {0, 200, 1150},   // the stream shot's camera
+      {-820, 260, -320},
+      {40, -25, 61},    // almost on top of the panel
+      {40, 900, 60},    // directly ABOVE: dir ≈ +up, degenerate side
+      {40, -900, 60},   // directly below: dir ≈ -up
+  };
+  for (const glm::vec3 &eye : eyes) {
+    const glm::mat4 m = space::faceCamera(eye, at);
+    // Translation is the anchor.
+    EXPECT_NEAR(m[3][0], at.x, 1e-5f);
+    EXPECT_NEAR(m[3][1], at.y, 1e-5f);
+    EXPECT_NEAR(m[3][2], at.z, 1e-5f);
+    // The quad's +z normal lands on the unit eye direction.
+    const glm::vec3 n = glm::mat3(m) * glm::vec3{0, 0, 1};
+    const glm::vec3 want = glm::normalize(eye - at);
+    EXPECT_NEAR(glm::dot(n, want), 1.0f, 1e-5f)
+        << "eye " << eye.x << "," << eye.y << "," << eye.z;
+    // And the basis stays orthonormal (no shear, no scale).
+    const glm::vec3 bx = glm::mat3(m) * glm::vec3{1, 0, 0};
+    const glm::vec3 by = glm::mat3(m) * glm::vec3{0, 1, 0};
+    EXPECT_NEAR(glm::length(bx), 1.0f, 1e-5f);
+    EXPECT_NEAR(glm::length(by), 1.0f, 1e-5f);
+    EXPECT_NEAR(glm::dot(bx, by), 0.0f, 1e-5f);
+    EXPECT_NEAR(glm::dot(bx, n), 0.0f, 1e-5f);
+  }
+
+  // POSITIVE CONTROL: an untransformed quad's normal does NOT point at
+  // an off-axis eye — the assertion above can fail.
+  const glm::vec3 offAxis = glm::normalize(eyes[1] - at);
+  EXPECT_LT(glm::dot(glm::vec3{0, 0, 1}, offAxis), 0.99f);
+
+  // Parity with the facing-lane construction: a one-point cloud
+  // oriented by lane through points::panels() stamps the SAME basis
+  // faceCamera builds — a billboard and a facing-lane instance agree.
+  const glm::vec3 eye = eyes[0];
+  Cloud one;
+  one.positions = {at};
+  one.vector("facing") = {glm::normalize(eye - at)};
+  points::InstanceOptions options;
+  options.orientLane = "facing";
+  const Mesh stamped = points::panels(one, 170, 112, options);
+  const Mesh quad = mesh::quad(170, 112);
+  const glm::mat4 m = space::faceCamera(eye, at);
+  ASSERT_EQ(stamped.positions.size(), quad.positions.size());
+  for (size_t i = 0; i < quad.positions.size(); ++i) {
+    const glm::vec3 viaMatrix =
+        glm::vec3(m * glm::vec4(quad.positions[i], 1));
+    EXPECT_NEAR(glm::length(viaMatrix - stamped.positions[i]), 0.0f, 1e-4f)
+        << "vertex " << i;
+  }
+}
+
 TEST(Space, DrawMeshCoversPixels) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
