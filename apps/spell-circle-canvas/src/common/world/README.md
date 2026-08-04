@@ -627,7 +627,9 @@ same.
 The question nobody had asked: when `scene::Scene` reconciles, what
 happens to `Animated*` components on the entities it manages? Answered
 by reading and by three pins, not by guessing — and the headline is that
-**there is no supported way to put them together at all.**
+**there is no supported way to put them together at all.** *(True as
+written on 2026-07-29; the taken note at the end of this section —
+2026-08-04, the light door — is the supported way that now exists.)*
 
 `Scene` keeps its entity ids private (`Scene::Entry::id`); `render()`
 returns only `Stats`, and `Node` has no animation slots. So nothing in
@@ -671,6 +673,38 @@ judged deliberate. Until someone wants a declared node to carry a
 declared lane, the honest statement is the one above: **animate entities
 you got from `addSurface`/`addSweep`/`addFlock`/`addPoints`, not
 entities the reconciler owns; the camera is fine either way.**
+
+*(Taken, 2026-08-04 — owner ruling, the LIGHT door.)* The first door was
+built, and only the first door: **`Scene::find(keyPath)` publishes
+identity**, resolving the reconciler's own key-path spelling (parent
+keys joined with `/` — `"comp/sky"` for
+`group().key("comp").child(panel(...).key("sky"))`; the internal
+leading-`/` form is the same path) to the `entt::entity` behind that
+node — the currency the `Animated*` lanes take, one documented cast
+from a surface id. Unknown path answers an empty optional, never a
+throw. With identity published, the two silent behaviours above became
+observable/loud rather than silent: **(1) is now LOUD** — `render()`
+warns once per node (in the `[world]` SkDebugf voice) when a kept leaf's
+declared placement or material is outranked by a live
+`AnimatedTransform`/`AnimatedMaterial`, naming the key path, the
+component, and `find()`; **(2) is now OBSERVABLE** — after a recreate
+the old entity fails `registry.valid()` and `find()` returns the NEW
+entity, so the contract is one line: *re-attach your lanes after a
+recreate*. The lifetime rule lives on `find()`'s doc comment: the
+entity is valid until the next `render()` that recreates or removes
+that node. Pinned by `WorldSceneAnimation.FindResolvesANestedPathAcrossAKeep`
+(same entity across an identical re-render; scrambled/partial/group
+paths answer empty), `FindReturnsTheNewEntityAfterARecreate` (the drop
+observable; the reused-slot control — entt bumps the version, so the
+full id still differs), `ALaneAttachedThroughFindAnimates`
+(`resolveAnimation` composes, idempotent second resolve), and
+`AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent` (once per node, not
+per frame; the clean sibling kept beside it never named). **The heavy
+door stays unbuilt**: `Node` grows no animation slots and the
+reconciler carries nothing across a recreate. It reopens when a real
+scene asks for lanes that survive recreates — at which point the
+carry-over (or a re-attach signal) gets designed against that scene's
+actual shape, not speculatively.
 
 ### Layers at depth (2026-07-30)
 

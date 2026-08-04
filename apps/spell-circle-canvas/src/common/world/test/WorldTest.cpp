@@ -2903,9 +2903,13 @@ TEST(WorldAnimation, CameraPathFrameRendersIdenticallyAcrossRuns) {
 // placement, silently); a leaf whose material or mesh changed is
 // remove+add, so its lanes are destroyed with the entity; and the
 // camera is the one lane that composes freely, because a camera is not
-// a scene node. Note what none of these tests can do through the public
-// API: ASK the Scene for an entity id. It publishes none — which is
-// why "these two systems do not meet" is the honest headline.
+// a scene node. When these pins were written nothing in the public API
+// could ASK the Scene for an entity id — which is why "these two
+// systems do not meet" was the honest headline. Since 2026-08-04 that
+// door is open: Scene::find(keyPath) publishes identity (the LIGHT
+// door pins below), and these three keep pinning the underlying
+// mechanics — the iteration workaround they use deliberately reaches
+// around the API, as the fixture comment says.
 // ---------------------------------------------------------------------------
 
 namespace {
@@ -3048,6 +3052,196 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
   ASSERT_TRUE(registry.all_of<world::AnimatedCamera>(cam));
   EXPECT_FLOAT_EQ(registry.get<world::CameraComponent>(cam).camera.eye.z,
                   200.0f);
+}
+
+// ---------------------------------------------------------------------------
+// THE LIGHT DOOR (2026-08-04, owner ruling) — Scene::find() publishes
+// identity and the reconciler warns on the silent outrank. The three
+// pins above stay word-for-word as the record of the closed door; these
+// pin the shipped answer: (a) find() resolves the reconciler's own key
+// path to the kept entity, (b) a recreate's component drop is now
+// OBSERVABLE through find() returning the new entity, (c) a lane
+// attached through find() animates, (d) a kept-and-outranked leaf is
+// LOUD, once, and a clean keep stays silent. Like every Scene pin these
+// need a device — Scene requires a World, and identity is only
+// observable through Scene::render() — so they skip without Vulkan.
+// ---------------------------------------------------------------------------
+
+TEST(WorldSceneAnimation, FindResolvesANestedPathAcrossAKeep) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  const auto describe = [&] {
+    return world::scene::group().key("comp").child(
+        world::scene::group().key("hud").at({0, 60, 0}).child(
+            world::scene::surface(mesh, world::Material{})
+                .key("card")
+                .at({-420, 0, 0})));
+  };
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene.render(describe()).added, 1);
+
+  const std::optional<entt::entity> found = scene.find("comp/hud/card");
+  ASSERT_TRUE(found.has_value());
+  EXPECT_TRUE(w->registry().valid(*found));
+  EXPECT_TRUE(w->registry().all_of<world::TransformComponent>(*found))
+      << "find() hands out the entity that carries the node's components";
+  EXPECT_EQ(*found, soleSurfaceEntity(*w));
+  // The internal spelling (leading '/') is the same path.
+  EXPECT_EQ(scene.find("/comp/hud/card"), found);
+
+  // A KEEP: an identical re-render keeps the entity, and find() agrees.
+  const world::scene::Scene::Stats stats = scene.render(describe());
+  EXPECT_EQ(stats.kept, 1);
+  EXPECT_EQ(stats.added, 0);
+  EXPECT_EQ(scene.find("comp/hud/card"), found);
+
+  // CONTROL: scrambled or partial keys resolve nothing — and groups
+  // have no entity, so a group path is empty too. Never a throw.
+  EXPECT_FALSE(scene.find("hud/comp/card").has_value());
+  EXPECT_FALSE(scene.find("card").has_value());
+  EXPECT_FALSE(scene.find("comp/hud").has_value());
+  EXPECT_FALSE(scene.find("").has_value());
+}
+
+TEST(WorldSceneAnimation, FindReturnsTheNewEntityAfterARecreate) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto meshA = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  auto meshB = std::make_shared<const shape::Mesh>(shape::mesh::quad(60, 20));
+  const auto describe = [&](std::shared_ptr<const shape::Mesh> mesh) {
+    return world::scene::group().key("set").child(
+        world::scene::surface(std::move(mesh), world::Material{})
+            .key("card"));
+  };
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene.render(describe(meshA)).added, 1);
+
+  const std::optional<entt::entity> before = scene.find("set/card");
+  ASSERT_TRUE(before.has_value());
+  choreograph::Output<float> lift{10.0f};
+  w->registry().emplace<world::AnimatedTransform>(*before).y = &lift;
+
+  // Changed geometry: a different mesh pointer is remove + add.
+  const world::scene::Scene::Stats stats = scene.render(describe(meshB));
+  EXPECT_EQ(stats.removed, 1);
+  EXPECT_EQ(stats.added, 1);
+
+  // The drop is now OBSERVABLE: the old entity is gone from the
+  // registry, and find() answers the NEW one — re-attach your lanes.
+  EXPECT_FALSE(w->registry().valid(*before));
+  const std::optional<entt::entity> after = scene.find("set/card");
+  ASSERT_TRUE(after.has_value());
+  ASSERT_TRUE(w->registry().valid(*after));
+  EXPECT_NE(*after, *before);
+  // CONTROL against id aliasing: entt may reuse the destroyed slot's
+  // INDEX, but the version bumps — so the full id (the uint32 World
+  // hands out) still differs, and a stale id cannot pass for the new
+  // entity.
+  EXPECT_NE((uint32_t)*after, (uint32_t)*before);
+  EXPECT_FALSE(w->registry().all_of<world::AnimatedTransform>(*after))
+      << "the lane died with the old entity; the replacement is bare";
+  EXPECT_EQ(w->registry().view<world::AnimatedTransform>().size(), 0u);
+}
+
+TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene
+                .render(world::scene::group().key("set").child(
+                    world::scene::surface(mesh, world::Material{})
+                        .key("card")))
+                .added,
+            1);
+
+  // The supported spelling of the old registry-iteration workaround:
+  // ask the Scene, attach, resolve.
+  const std::optional<entt::entity> e = scene.find("set/card");
+  ASSERT_TRUE(e.has_value());
+  choreograph::Output<float> lift{0.0f};
+  w->registry().emplace<world::AnimatedTransform>(*e).y = &lift;
+
+  lift = 33.0f;
+  EXPECT_EQ(world::resolveAnimation(w->registry()).transforms, 1);
+  const glm::mat4 &model =
+      w->registry().get<world::TransformComponent>(*e).model;
+  EXPECT_FLOAT_EQ(model[3][1], 33.0f);
+  // Idempotent, like every resolve: a second pass writes nothing.
+  EXPECT_EQ(world::resolveAnimation(w->registry()).transforms, 0);
+}
+
+TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
+  world::WorldConfig config;
+  config.width = 32;
+  config.height = 32;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  auto mesh = std::make_shared<const shape::Mesh>(shape::mesh::quad(40, 40));
+  const auto describe = [&] {
+    return world::scene::group().key("set")
+        .child(world::scene::surface(mesh, world::Material{})
+                   .key("card")
+                   .at({100, 0, 0}))
+        .child(world::scene::surface(mesh, world::Material{})
+                   .key("clean")
+                   .at({-100, 0, 0}));
+  };
+  world::scene::Scene scene(*w);
+  ASSERT_EQ(scene.render(describe()).added, 2);
+
+  const std::optional<entt::entity> card = scene.find("set/card");
+  ASSERT_TRUE(card.has_value());
+  choreograph::Output<float> lift{0.0f};
+  w->registry().emplace<world::AnimatedTransform>(*card).y = &lift;
+
+  const auto count = [](const std::string &hay, const char *needle) {
+    size_t n = 0;
+    const std::string want(needle);
+    for (size_t pos = hay.find(want); pos != std::string::npos;
+         pos = hay.find(want, pos + want.size()))
+      ++n;
+    return n;
+  };
+
+  // Two kept renders with a live outranking lane: the warning names the
+  // node and the component, ONCE — not per frame — and never names the
+  // clean sibling kept right beside it.
+  ::testing::internal::CaptureStderr();
+  EXPECT_EQ(scene.render(describe()).kept, 2);
+  EXPECT_EQ(scene.render(describe()).kept, 2);
+  const std::string err = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(count(err, "/set/card"), 1u) << err;
+  EXPECT_EQ(count(err, "OUTRANKS"), 1u) << err;
+  EXPECT_NE(err.find("AnimatedTransform"), std::string::npos) << err;
+  EXPECT_NE(err.find("Scene::find()"), std::string::npos) << err;
+  EXPECT_EQ(count(err, "/set/clean"), 0u)
+      << "a clean keep must stay silent: " << err;
+
+  // CONTROL: with the lane gone the same keep says nothing new — the
+  // node was already warned — and a fresh clean scene never speaks.
+  w->registry().remove<world::AnimatedTransform>(*card);
+  world::scene::Scene fresh(*w);
+  ::testing::internal::CaptureStderr();
+  scene.render(describe());
+  ASSERT_EQ(fresh.render(world::scene::group().key("solo").child(
+                world::scene::surface(mesh, world::Material{}).key("pane")))
+                .added,
+            1);
+  fresh.render(world::scene::group().key("solo").child(
+      world::scene::surface(mesh, world::Material{}).key("pane")));
+  const std::string silent = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(count(silent, "OUTRANKS"), 0u) << silent;
 }
 
 // ---------------------------------------------------------------------------

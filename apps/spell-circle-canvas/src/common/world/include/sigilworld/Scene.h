@@ -32,7 +32,10 @@
 
 #include <map>
 #include <memory>
+#include <optional>
+#include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sigil::world::scene {
@@ -148,6 +151,40 @@ public:
   /** Reconcile the declared tree against the last render. */
   Stats render(const Node &root);
 
+  /** PUBLISH IDENTITY — the light door of the Scene × Animation ruling
+   *  (2026-08-04; README "Scene and Animation do not meet"): resolve a
+   *  key path to the live registry entity behind that node, so an
+   *  `Animated*` lane lands on a declared leaf ON PURPOSE instead of
+   *  by iterating the registry around the reconciler's back.
+   *
+   *  The path is the reconciler's OWN identity spelling — the same
+   *  bookkeeping key `render()` diffs by: keys joined with '/', so
+   *  `group().key("comp").child(panel(...).key("sky"))` answers to
+   *  "comp/sky" (the internal form's leading '/' is also accepted).
+   *  Unkeyed children carry the reconciler's index fallback in that
+   *  spelling too ("#<index>" for the hop, "@" for the unkeyed node
+   *  itself) — but key what you intend to animate. Only leaves have an
+   *  entity; a group path, an unknown path, or a leaf whose addSurface
+   *  failed answers an empty optional, never a throw.
+   *
+   *  Returns `entt::entity` because that is the currency a lane takes:
+   *  `registry().emplace<AnimatedTransform>(*scene.find("comp/sky"))`
+   *  composes directly with World::registry() and the Animated*
+   *  components. A World surface id is the SAME value one documented
+   *  cast away — `(uint32_t)e` / `world::entity(id)`, the bijection in
+   *  Components.h — so the setter spelling costs nothing.
+   *
+   *  LIFETIME: the entity is valid until the next render() that
+   *  RECREATES or REMOVES the node. A leaf whose mesh pointer or
+   *  material changed is remove+add — `registry.destroy()` of this
+   *  entity and every component on it, your lanes included. After such
+   *  a render, find() returns the NEW entity: re-attach your lanes. A
+   *  kept (or transform-only moved) leaf keeps its entity — and when a
+   *  kept leaf's declared placement or material is outranked by a live
+   *  Animated* component, render() says so once per node (see the
+   *  README section). */
+  std::optional<entt::entity> find(std::string_view keyPath) const;
+
   /** Forget everything (removes all scene-owned surfaces). */
   void clear();
 
@@ -160,11 +197,18 @@ private:
     bool visited = false;
   };
 
+  /** The loud half of the light door: a kept/moved leaf whose declared
+   *  placement or material a live Animated* component outranks warns
+   *  once per key path (the set below; entries reset when the node is
+   *  removed or recreated, so a fresh entity warns fresh). */
+  void warnIfOutranked(const std::string &path, uint32_t id);
+
   World &m_world;
   std::map<std::string, Entry> m_entries;
   std::map<std::pair<float, float>,
            std::shared_ptr<const shape::Mesh>>
       m_quads;
+  std::set<std::string> m_warnedOutranked;
 };
 
 } // namespace sigil::world::scene

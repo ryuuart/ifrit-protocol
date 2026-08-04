@@ -1,6 +1,11 @@
 #include "sigilworld/Scene.h"
 
+#include "sigilworld/Animation.h"
+#include "sigilworld/Components.h"
+
 #include <sigilshape/Mesh.h>
+
+#include <include/core/SkTypes.h> // SkDebugf — the outrank diagnostic
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -93,10 +98,14 @@ Scene::Stats Scene::render(const Node &root) {
           } else {
             ++stats.kept;
           }
+          // The kept entity may carry a live Animated* that outranks
+          // what this description just said — say so, once, loudly.
+          warnIfOutranked(path, entry.id);
         } else {
           if (it != m_entries.end()) {
             m_world.removeSurface(it->second.id);
             m_entries.erase(it);
+            m_warnedOutranked.erase(path);
             ++stats.removed;
           }
           Entry entry;
@@ -127,6 +136,7 @@ Scene::Stats Scene::render(const Node &root) {
   for (auto it = m_entries.begin(); it != m_entries.end();) {
     if (!it->second.visited) {
       m_world.removeSurface(it->second.id);
+      m_warnedOutranked.erase(it->first);
       it = m_entries.erase(it);
       ++stats.removed;
     } else {
@@ -136,10 +146,57 @@ Scene::Stats Scene::render(const Node &root) {
   return stats;
 }
 
+std::optional<entt::entity> Scene::find(std::string_view keyPath) const {
+  if (keyPath.empty())
+    return std::nullopt;
+  // The internal bookkeeping key always starts with '/'; accept the
+  // caller's "comp/sky" as the same path. No parallel resolution — this
+  // IS the map render() diffs by.
+  std::string path;
+  path.reserve(keyPath.size() + 1);
+  if (keyPath.front() != '/')
+    path += '/';
+  path += keyPath;
+  const auto it = m_entries.find(path);
+  if (it == m_entries.end())
+    return std::nullopt;
+  return entity(it->second.id);
+}
+
+void Scene::warnIfOutranked(const std::string &path, uint32_t id) {
+  entt::registry &reg = m_world.registry();
+  const entt::entity e = entity(id);
+  // O(1) per kept leaf: two component probes, no registry scan.
+  const bool transformOutranked = reg.any_of<AnimatedTransform>(e);
+  const AnimatedMaterial *mat = reg.try_get<AnimatedMaterial>(e);
+  const bool materialOutranked =
+      mat && (mat->opacity || mat->emissiveStrength || mat->uvOffsetX ||
+              mat->uvOffsetY || mat->uvScaleX || mat->uvScaleY);
+  if (!transformOutranked && !materialOutranked)
+    return;
+  if (!m_warnedOutranked.insert(path).second)
+    return; // once per node, not per frame
+  const char *outranker =
+      transformOutranked
+          ? (materialOutranked ? "AnimatedTransform + AnimatedMaterial"
+                               : "AnimatedTransform")
+          : "AnimatedMaterial";
+  SkDebugf("[world] scene node \"%s\" was kept, but a live %s OUTRANKS "
+           "what it declares: resolveAnimation() rewrites that state "
+           "after every render(), so the surface follows the lane while "
+           "Stats reports kept/moved. Drop the lane, or own the node's "
+           "motion deliberately through Scene::find() — and re-attach "
+           "after a recreate, which destroys the entity and the lane "
+           "with it. See world/README.md, \"Scene and Animation do not "
+           "meet\".\n",
+           path.c_str(), outranker);
+}
+
 void Scene::clear() {
   for (auto &[key, entry] : m_entries)
     m_world.removeSurface(entry.id);
   m_entries.clear();
+  m_warnedOutranked.clear();
 }
 
 } // namespace sigil::world::scene

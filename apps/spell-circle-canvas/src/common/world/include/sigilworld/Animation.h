@@ -68,13 +68,16 @@
  * component on the same footing as the rest, because a camera is
  * already a registry entity (`CameraComponent`) and needed no new home.
  *
- * WHAT THIS HEADER DOES NOT REACH: `scene::Scene`-managed surfaces.
- * The reconciler keeps its entity ids private, so there is no supported
- * way to attach an `Animated*` to a declared node; and a leaf whose
- * mesh or material changes is remove+add, i.e. a NEW entity, so a
- * component found by other means would vanish there. Camera lanes are
- * the exception that composes freely — the camera is not a scene node.
- * Pinned by the `WorldSceneAnimation` tests and argued in the README.
+ * MEETING `scene::Scene` (the light door, 2026-08-04): a declared
+ * node's entity is published by `Scene::find(keyPath)`, which is the
+ * supported way to attach an `Animated*` to a scene-managed leaf. Two
+ * rules still stand and are now LOUD rather than silent: a kept leaf's
+ * lane outranks its re-described placement/material (the reconciler
+ * warns, once per node), and a leaf whose mesh or material changes is
+ * remove+add — a NEW entity, your lanes destroyed with the old one, so
+ * find() again and re-attach. Camera lanes remain the exception that
+ * composes freely — the camera is not a scene node. Pinned by the
+ * `WorldSceneAnimation` tests and argued in the README.
  */
 
 #include "sigilworld/Components.h"
