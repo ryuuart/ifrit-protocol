@@ -8,7 +8,9 @@ look right and discovering they cannot.
 
 The rule they were written under: **generated, not drawn**. Where the
 original used a bitmap, the study generates the equivalent with
-`Material::`, `patterns::`, `sdf::`, `shapes::`, `brushes::`. Where the
+`Material::`, `patterns::`, `sdf::`, `shapes::`, `brush::` (spelled
+`brushes::` when these were written; R3 folded that namespace into
+`brush::` — line fixed 2026-08-03). Where the
 original had a construction — a pentagrid, a conic, a cellular automaton,
 a pendulum on a turntable — the study transcribes the construction rather
 than tracing its output. Every file header names its sources and splits

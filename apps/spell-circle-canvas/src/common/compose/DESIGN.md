@@ -645,7 +645,10 @@ a third.
 
   The shape member shipped WITH the family only because it takes a
   comparable `Region` value; the callable form would have hit the
-  un-prunable-callable wall that is item 2 of Direction below.
+  un-prunable-callable wall — ROADMAP §3's record, since its
+  2026-07-27 closure: a raw callable stays the escape hatch that
+  never compares, and what stays open there is §3's bound-geometry
+  remainder (item 2 of Direction below carries the landed note).
 - **PERPENDICULAR SIGN — ONE CONVENTION, STATED ONCE HERE.** Positive
   `across` is to the **LEFT of travel**, which in screen space (y down)
   is OUTSIDE a clockwise path — SkPath's own direction for rects and
@@ -707,10 +710,16 @@ table marks which half is source-verified vs unmeasured):
 1. ~~Positioned leaf set~~ **LANDED 2026-07-27** — `positioned()`, the
    ROADMAP §2 closure note is the record; Penrose's 1,647 Yoga nodes
    are 1, and `stats().yogaNodes` states it.
-2. Comparable `Outline` values (ROADMAP §3 — the highest measured
-   impact: 43.4 of 43.5 ms on one un-prunable callable).
+2. ~~Comparable `Outline` values~~ **LANDED 2026-07-27** — the `Shape`
+   value + `ShapeScheme` seam, ROADMAP §3's closure note is the record
+   (the 43.4 of 43.5 ms un-prunable callable now prunes). What survives
+   of §3 is the bound-geometry remainder: an outline as a function of
+   live Outputs still has no spelling and drops to `custom()`.
 3. Ribbon `(along, across)` paint space — expose what `artAlong`
-   computes (§8b/§14).
+   computes (§14; this item also cited §8b, which has since CLOSED —
+   §33 ruling 12, 2026-07-27: a milled groove is band+fill, no
+   crossFill lane — so the §14 half is what remains here. Noted
+   2026-08-03.)
 4. `brush::Art` bake identity — the blocker for live ribbon content.
    (§16's pointer-keyed StampCache closed 2026-07-27; what this item
    needs is the CONTENT half of identity — a bake that follows the

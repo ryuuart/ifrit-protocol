@@ -410,7 +410,13 @@ is retired with it — and a bisect would spend a day re-deriving what
 the m151 record already states. §2's acceptance text now carries the
 correction inline. The gate is repaired the way (2) asked: the plate
 baseline was rebased 2026-08-03 onto the post-m151 lineage, so future
-ledgers gate against reality rather than against a pre-bump hash.
+ledgers gate against reality rather than against a pre-bump hash. And
+the "must bake its own baseline arm" rule itself is retired as
+methodology, not just satisfied once: `ComposeGallery --ledger` +
+`scripts/plate_ledger.py` (the §20 note records their maiden run) made
+the baking one command and ~8 minutes, and the 2026-08-03 baseline is
+what the tool's manifest-compare now gates against — the rule's
+spirit, never quote a stale baseline, lives on inside the tool.
 
 **What stays open, and it is one sentence of this entry:** geometry that
 is BOUND (an outline as a function of live Outputs — Winamp's EQ curve)
@@ -556,6 +562,14 @@ What is genuinely missing here is smaller, and stated where it belongs:
 the node-level `trim()` is the only one that reaches the FILL and the
 content, and `dashPhase` has no bound form (§10b).
 
+*(Correction 2026-08-03: both halves of that residual are resolved, and
+the §10b pointer dangles — §10b carries no dashPhase bullet. The
+node-level `trim()` no longer exists to be the only anything: §33 R4
+deleted `Element::trim` when `mask(parts::…, by::…)` took its jobs. And
+`dashPhase` HAS a bound form — `PathFormat::dashPhaseBinding`
+(Decorations.h), "Bind it and the dashes march" (Lines.h). Nothing in
+this residual is missing any more.)*
+
 **The real defect was discoverability, and this is the second time this
 week a study has worked around something that exists** — the other being
 the bound `Fill`. A gap list is only worth its accuracy: an entry that
@@ -642,7 +656,11 @@ uncommitted edits, so it is attributed there; byte-neutral for this
 entry's delta (corpus callers all pass floats, which cannot resolve to
 the new Bend overload).
 
-## 8b. No way to shape a stroke ACROSS its width
+## 8b. No way to shape a stroke ACROSS its width — **CLOSED 2026-07-27 by §33 ruling 12: a milled groove is band+fill; no crossFill lane**
+
+*(Header reconciled 2026-08-03: the ruling had closed this entry
+without the header ever yielding. The record is §33's 2026-07-27
+rulings session, ruling 12; the entry below stands as filed.)*
 
 Named by the Penrose study as the single highest-value cue it could not
 get cleanly. The Oxford paving's inlay is a **milled band**: a groove
@@ -1933,6 +1951,14 @@ only the parameter) is still the describe-keyed content-identity bake two
 other entries name as their reopening condition; the pyramid is cheap
 enough per frame that nothing here forced it.
 
+## 20. A settled bound property never releases its volatility flag — **SHIPPED as the measured-stability RELEASE, CLOSED 2026-07-27**
+
+*(Header restored 2026-08-03: this entry's body was always here — nine
+other entries cite §20 by number — but the `## 20.` heading itself had
+gone missing between §19 and §21. Nothing below is moved or reworded;
+the title and the CLOSED date are taken from the body's own SHIPPED
+record.)*
+
 **SHIPPED as the measured-stability RELEASE** — the second candidate
 shape below, exactly as the entry preferred: no new API, no author
 knowledge. The §17/§3.6 memos already kept a settled node's own
@@ -2772,8 +2798,17 @@ Weathered/Modern boundary at 33.1%).
 
 ## 32. The animation grammar names the MECHANISM, not the intent
 
-**Status: open — the alias-first spelling SHIPPED 2026-07-26; the
-taste calls below remain.** Filed 2026-07-25 from the consolidation pass, not
+**Status: ~~open — the alias-first spelling SHIPPED 2026-07-26; the
+taste calls below remain~~ one taste call left (corrected 2026-08-03 —
+the line had outlived its own rulings). The per-property change
+override was RULED `animate(to(v), spec)` by the 2026-07-27 rulings
+session (§33, ruling 1); the scheme-declaration word was RULED
+`animates()` there (ruling 2) and finished by R3's ruling 13, which
+settled it as `isAnimated()`. The one call still live is the
+second-word collision filed by the confirming review — authored
+`from(a).to(b)` against the driven stages, now spelled
+`source(lo,hi)`/`target(lo,hi)` per §33 ruling 3 — recorded at the
+end of this entry.** Filed 2026-07-25 from the consolidation pass, not
 from a study — the wall-hitter is the library's own designer, and the
 independent code-only review corroborates: one animation engine,
 roughly five authoring grammars, and "the map of which grammar owns
@@ -3320,7 +3355,10 @@ that blocks `widthFn`. It needs its own pass with a designer reading the
 diffs. And **`isLive()` was never in R2's map**: ruling 2 unified the
 five *volatility* spellings on `animates()`, and `Material` gained
 `animates()` beside `isLive()` in R1; whether the older word dies is a
-call nobody has made.
+call nobody has made. *(Superseded — noted 2026-08-03: R3's ruling 13
+made the call. `Material::isLive()` died with `animates()` and
+`animated()`; `isAnimated()` is the one word, 33 sites ported — see the
+deletion manifest below.)*
 
 **Namespace friction, FOURTH sighting** (the roadmap wanted a ruling
 after three). `derive::` collided with `fallout2_charsheet.cpp`'s own
@@ -3644,7 +3682,13 @@ delivered here.
 
 **Stage three / open**: the lowercase incomparable `ops::` lambda family
 and the `brush::ops` demotion (audit item 6, C-batch); the four pinned
-passes, unchanged. Two entries CLOSED by phase R1 below: `Ribbon`'s
+passes, unchanged. *(Settled since — noted 2026-08-03: audit item 6
+records the lambda family EXECUTED 2026-07-27 — wave/zigzag/rounded/
+sketchy deleted, 8 sites ported — and R3's `ops::` JUDGEMENT below
+records the deliberate end state of the demotion: `ops::PathOp`,
+`ops::chain()` and `ops::debug()` survive behind `brush::restyle` as
+the one documented mechanism door. Nothing of stage three remains
+open.)* Two entries CLOSED by phase R1 below: `Ribbon`'s
 migration onto the profile seam (a `Profile width` member landed
 additively — `widthFn`/`widthMax` still compile and still draw what they
 drew, so the trap is closed on the new path and the old pair dies with
@@ -5791,7 +5835,11 @@ plus `genesis_fire` and `slitscan_2001` on the self-nondeterministic list
 (`hitman_verlet` happened to land identical this run). The six are
 `travel_path`, `wiggle_shake`, `env_theme`, `material_child`, `matte_luma`
 and `pop_lanes` — the sketches of f206364, still unadopted; adopting them is
-the owner's call.
+the owner's call. *(The call is made — noted 2026-08-03: the plate-baseline
+rebase of that date adopted all seven study scenes — these six plus §19's
+`blur_falloff` — into the 65-scene baseline
+(`build/plate_baseline_<config>.sha256`), so the adoption ruling is taken
+de facto and "not in baseline" no longer appears for any of them.)*
 
 ## 43. TIME REMAPPING and MOTION BLUR — the obstacle is one word wrong, and the corrected reading splits the wave clean (2026-07-29)
 

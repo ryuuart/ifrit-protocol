@@ -213,3 +213,9 @@ funnels through it.
 **2026-07-26: it is built** (`BM_Draw_DenseText_PictureReplay_Graphite`,
 compose_bench) **and still unmeasured** — the machine was not quiet. The
 gap closes when that arm has a Release number, not before.
+**2026-07-27: CLOSED — the arm has its Release number.** §1 took it on
+a quiet machine (CVs 0.10-0.79%): 141.3 µs → 57.7 µs around the
+ordered-recordings flag. Every ranked item above was then judged
+through that funnel, exactly as this paragraph demanded. *(Tail
+annotated 2026-08-03; the stale "still unmeasured" had outlived its
+own §1 by a week.)*
