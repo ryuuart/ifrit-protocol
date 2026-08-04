@@ -203,6 +203,19 @@ struct Instance {
      *  when the node carries no world-space material — both fill sites
      *  honour the same guard, so the compare stays meaningful. */
     std::array<float, 6> world{};
+    /** §38: the resolved value of a BOUND `fill(&output)`. `Fill`'s
+     *  equality is structurally exact (kind + SkColor4f bitwise + shader
+     *  POINTER identity — the same rule `bakedLiveShader` holds the
+     *  live-material memo with), and resolving one is a pointer
+     *  dereference, so "the numbers the recording was baked with" DOES
+     *  exist for this lane — the sentence §20 wrote about the general
+     *  case is false for a bound fill, and this member is the whole
+     *  extension. Default (None) when the node's fill is not bound —
+     *  every fill site goes through Instance::resolveBoundFill(), so the
+     *  guard cannot drift between the walk, the scan and the paint probe.
+     *  The sk_sp keeps a shader-kind value alive, so pointer identity can
+     *  never be a reused allocation comparing equal by accident. */
+    Fill fill;
     bool operator==(const ContentScalars &) const = default;
   };
   ContentScalars bakedScalars;
@@ -380,6 +393,16 @@ struct Instance {
    *  the recording was BAKED with. Empty when the node carries no mask, or
    *  only shape/alpha gates, which have no numbers. */
   std::vector<float> resolveGateValues() const;
+  /** §38, `resolveGateValues`'s sibling for the Fill lane: the value a
+   *  BOUND `fill(&output)` resolves to this frame — `binding()->value()`,
+   *  exactly the read paint() bakes into the recording — or a default
+   *  (None) Fill when the node's fill is not bound. ALL of the §17/§20
+   *  compares (the walk-side release, the per-draw released scan, the
+   *  paint-side probe) call this one body, so the compares are exact by
+   *  construction rather than by review — the §38 staleness bugs were
+   *  drifted COPIES of an enumeration, and this lane refuses to have
+   *  copies. */
+  Fill resolveBoundFill() const;
 
   /** A change here stales every ancestor's recording too.
    *

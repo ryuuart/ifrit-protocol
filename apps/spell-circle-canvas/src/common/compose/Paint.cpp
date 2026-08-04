@@ -348,6 +348,14 @@ std::vector<float> detail::Instance::resolveGateValues() const {
   return values;
 }
 
+Fill detail::Instance::resolveBoundFill() const {
+  const ElementNode &node = *desc;
+  if (node.paint.fill)
+    if (const choreograph::Output<Fill> *binding = node.paint.fill->binding())
+      return binding->value();
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // The masking family, at paint
 //
@@ -494,6 +502,10 @@ void Composer::Impl::scanReleasedScalars() {
     // holding must re-declare THE FRAME its externally-driven rotation
     // resumes, before any recording with the old anchoring replays.
     now.world = worldScalarsOf(*inst);
+    // §38: and the bound fill — a released accent whose Output is assigned
+    // while the walk sleeps must re-declare before its settled colour
+    // replays from any ancestor's recording (or its own promoted bake).
+    now.fill = inst->resolveBoundFill();
     if (!(now == inst->settledScalars)) {
       inst->settleFrames = 0; // the hold is over: warm up from scratch
       inst->settledScalars = std::move(now);
@@ -675,6 +687,17 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   const bool worldUnderMotion =
       inst.hasWorldSpaceMaterial && (moving || movingAbove);
   scalarContent |= worldUnderMotion;
+  // §38: a BOUND fill joins the memoized lane too. §20's text argued "there
+  // is no equivalent of 'the numbers the recording was baked with' for the
+  // general case" — false for a bound Fill, whose equality is structurally
+  // exact (kind + colour bitwise + shader pointer) and whose resolve is one
+  // pointer dereference. ContentScalars carries the resolved value, so §17
+  // keeps the recording between changes, §20's release frees the flag after
+  // kScalarSettleFrames of identity — the 19.6× measured on a never-moving
+  // bound accent (the promotion denial, §38's table) collapses to the plain
+  // spelling — and the per-draw released scan re-declares THE FRAME the
+  // Output moves, before anything stale replays.
+  scalarContent |= boundFill;
   /** The pre-release reading. §20 below may set `scalarContent` false for a
    *  node that is provably holding still; the LIVE-MATERIAL memo must keep
    *  answering about such a node exactly as it did before that release
@@ -695,6 +718,7 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
     if (const GlyphFx *g = glyphFxOf(node))
       now.glyph = inst.resolveFloat(Instance::kGlyphProgress, g->progress);
     now.world = worldScalarsOf(inst); // §19: a held W releases like a gate
+    now.fill = inst.resolveBoundFill(); // §38: and so does a held bound fill
     if (now == inst.settledScalars) {
       scalarContent = false; // released — provably holding still
       releasedScalars.push_back(&inst);
@@ -715,18 +739,30 @@ bool Composer::Impl::computeVolatile(Instance &inst, bool movingAbove) {
   // (A Fill is not a float; nor is a live material's uTime, an animated
   // decoration, a GIF frame, a variable-font drive or a bound effect
   // uniform.)
-  const bool opaqueToTheMemo = boundFill || liveMat || metricLive ||
-                               cacheNone || decorLive || imageLive ||
-                               driveLive || spanVolatile || maskOpaque ||
-                               liveEffect;
+  // §38 split the one list in two: `sharedOpaque` is every term that is
+  // opaque to EVERY memo, named once; `boundFill` and `liveMat` each carry
+  // their own ruling (the fill rides the §17/§20 scalar lane now, the live
+  // material has its own memo) and are added back per consumer. The
+  // subtraction discipline is unchanged — no consumer re-enumerates.
+  const bool sharedOpaque = metricLive || cacheNone || decorLive ||
+                            imageLive || driveLive || spanVolatile ||
+                            maskOpaque || liveEffect;
+  // §38, the GROUP lane, deliberately NOT taken: a bound fill still refuses
+  // Cache::Group. The group memo's currency is one flat float vector
+  // gathered across the subtree (collectGroupScalars) — a Fill's
+  // shader-kind value compares by POINTER identity, which is only sound
+  // while an owning sk_sp keeps the allocation alive, and a float vector
+  // cannot hold a reference. Flattening the pointer into floats would make
+  // "a freed shader reallocated at the same address" compare stable — the
+  // exact silent-stale-bake failure §30 refuses outright.
+  const bool opaqueToTheMemo = sharedOpaque || boundFill || liveMat;
   // Everything volatile about this node EXCEPT its animated scalars, and
   // everything EXCEPT its live material. The two memo carve-outs below are
   // exactly these two subtractions, which is why neither can forget a term.
-  const bool otherThanScalar = opaqueToTheMemo || fillLerp;
-  const bool otherThanLiveMat = fillLerp || boundFill || metricLive ||
-                                cacheNone || decorLive || imageLive ||
-                                driveLive || spanVolatile || maskOpaque ||
-                                liveEffect || scalarDeclared;
+  // (`boundFill` is inside `scalarDeclared` now — §38 — so it reaches
+  // `otherThanLiveMat` through the scalar term, exactly as a gate does.)
+  const bool otherThanScalar = sharedOpaque || liveMat || fillLerp;
+  const bool otherThanLiveMat = sharedOpaque || fillLerp || scalarDeclared;
   const bool ownContent = otherThanScalar || scalarContent;
 
   bool childrenVolatile = false;
@@ -2282,6 +2318,10 @@ void Composer::Impl::paint(Instance &inst, SkCanvas &canvas) {
       scalarsNow.world = {curToRoot.getScaleX(),     curToRoot.getSkewX(),
                           curToRoot.getTranslateX(), curToRoot.getSkewY(),
                           curToRoot.getScaleY(),     curToRoot.getTranslateY()};
+    // §38: the bound fill, through the SAME body the walk and scan call —
+    // the value the recording below bakes is this frame's binding read, so
+    // the memo compares exactly "the Fill the recording was baked with".
+    scalarsNow.fill = inst.resolveBoundFill();
   }
   const bool scalarsStable = inst.scalarMemo && !inst.paintDirty &&
                              (inst.picture || inst.textureImage) &&

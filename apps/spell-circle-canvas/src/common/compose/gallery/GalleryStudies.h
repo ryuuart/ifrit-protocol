@@ -192,6 +192,10 @@ inline constexpr StudyInfo kStudies[] = {
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "
      "falloffs: constant, depth of field, a lens edge, a rack focus"},
+    {"still_accent", "still accent", "Kit \xc2\xb7 API",
+     "\xc2\xa7""38's measured fixture \xe2\x80\x94 one bound fill() that "
+     "never moves over 512 cells: the 19.6\xc3\x97 reproduction, retired "
+     "by the settle/release"},
 };
 inline constexpr int kStudyCount = (int)(sizeof(kStudies) /
                                          sizeof(kStudies[0]));

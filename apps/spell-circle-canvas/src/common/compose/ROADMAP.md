@@ -108,7 +108,10 @@ palette change**. Nothing is wrong with the binding; the PRICING is.
 `animated()` is per node and binary, so "repaints when the theme changes"
 and "repaints at 60 Hz" are one declaration, and 80% of a desktop
 inherits it through its ancestors. Wanted: a change-rate hint, or
-property-granular volatility.
+property-granular volatility. *(§38 measured it — 19.6× at 512 nodes —
+and built the Fill lane 2026-08-04: a held bound fill settles, releases
+via §20, and promotes, with no hint and no new API; the bound-transform
+and live-material lanes are scoped there, not built.)*
 
 `trim` is a node property while a second window wants to be a stroke's
 (§7 — which turned out to already work). `dashPhase` was a constant while
@@ -1291,7 +1294,10 @@ names does not exist yet — when it does it inherits by the same rule with
 no new mechanism. (4) Nothing was done about §Argument 3's real defect,
 which this entry keeps running into: `isAnimated()` is per-node and
 binary, so a property that changes every three seconds and one that
-changes at 60 Hz make the same declaration.
+changes at 60 Hz make the same declaration. *(Resolved: §38 measured it
+— 19.6× at 512 nodes — and then BUILT the Fill lane 2026-08-04: a bound
+fill settles, releases through §20's machinery, and promotes; the
+never-moving bound accent now costs what the plain spelling costs.)*
 
 ## 10h. Bound colours on decorations: PARTIALLY closed, and worth stating
 
@@ -5397,7 +5403,7 @@ this change. Run twice, before and after `Animatable` joined the move, with
 **the same four lines both times**. **No other mover. Byte-neutral, as a
 move must be.** No rebase was taken.
 
-## 38. §Argument 3's binary volatility declaration — MEASURED, and the measurement found a staleness bug instead
+## 38. §Argument 3's binary volatility declaration — MEASURED, and the measurement found a staleness bug instead; **the Fill lane BUILT 2026-08-04 — the 19.6× collapses to 1.02×**
 
 §10g's closing item (4) and §Argument 3 both name the same defect:
 `isAnimated()` is per-node and binary, so "changes every three seconds"
@@ -5563,7 +5569,9 @@ from the unconditional `ownContent` terms into `scalarContent`,
 compares it. No new concept, no new API, no author knowledge — §20's
 preferred shape, on one more lane.
 
-**SCOPED, NOT BUILT, and the reason is the direction of the change.**
+**SCOPED, NOT BUILT** *(that night — the daylight pass below built it
+2026-08-04, to exactly this scope)***, and the reason is the direction of
+the change.**
 Tonight's fix only ever REMOVES caching, which is why it could be landed
 on a measurement and a ledger at the end of one night. The extension only
 ever ADDS it, which is the direction that produces stale pixels — the
@@ -5586,6 +5594,137 @@ holding still but which never releases the FLAG — so it buys promotion
 for ITSELF (`temporallyStable`) and nothing for its ancestors. That
 asymmetry between the two existing stability machineries is worth
 closing in the same pass.
+
+### BUILT 2026-08-04 — the Fill lane, to the entry's own scope, with the promotion proof the entry demanded
+
+**The mechanism is one lane on §20's machinery, exactly as scoped.**
+`ContentScalars` gained a `Fill fill;` member (default None; the sk_sp
+keeps a shader-kind value alive, so pointer-identity equality can never
+bless a reused allocation); `Instance::resolveBoundFill()` is
+`resolveGateValues()`'s sibling — `binding()->value()`, the same read
+paint() bakes, ONE body called by all three compares (walk release, scan,
+paint probe) so the §38 drifted-copies class cannot recur; and in
+`computeVolatile`, `boundFill` moved from the unconditional ownContent
+terms into `scalarContent`. The term lists were re-derived, not
+re-enumerated: `sharedOpaque` names the terms opaque to EVERY memo once,
+and `opaqueToTheMemo` / `otherThanScalar` / `otherThanLiveMat` are
+additions to it (`boundFill` reaches `otherThanLiveMat` through
+`scalarDeclared`, exactly as a gate does), so
+`ownContent == scalarContent | otherThanScalar` still holds by
+construction. Pre-release values of every consumer are bit-identical to
+before; the release is the only new behaviour.
+
+**The number, re-taken and retired** (`compose_bench`, Release, quiet
+machine, 5 repetitions, cv ≤ 0.7 % on every mean; HEAD measured first,
+same session, same machine):
+
+| arm, 512 cells (515 nodes) | HEAD | +Fill lane | plain arm |
+| --- | --- | --- | --- |
+| `BM_Draw_StillAccent_Bound` (never moves) | 5344 µs, 0 textures, 4 live paints/frame | **280 µs, 1 texture, 0 live** | 274 µs |
+| `BM_Draw_SlowAccent_Bound` (moves every 180 frames) | 5327 µs | **567 µs** | 296 µs |
+
+19.5× → **1.02×** on the fixture that filed the entry; the promotion the
+binary declaration denied (`textures 0 → 1`) is the whole collapse. At
+32 cells both arms stay 342/341 µs — unpromotable stays free, which
+bounds the claim the same way the original table did. The slow arm's
+remaining 1.9× is the §20 settle cycle's documented price (each move
+buys one re-declare re-record plus the settling frame's re-record, ~8
+warm frames per 180), against a plain arm that re-describes and prunes.
+
+**The promotion proof (precondition 1), not merely the recording.**
+`Promotion::Volatile` is flagged from `contentStable =
+!subtreeVolatile || temporallyStable`, and the release frees
+`subtreeVolatile` itself, so the pin asserts the refusals MASK — exact,
+cost-threshold-free — plus an asked-for bake (`Cache::Texture` obeys the
+same volatility gate as auto promotion, without the timing an assertion
+could flap on) actually materializing.
+
+**PINS (`ComposeSettledFill` + the re-aimed §38 bugfix pin,
+ComposeTestMask.cpp), every control run to observed failure and
+restored:**
+
+| pin | control run, and what failed |
+| --- | --- |
+| 1 `ASettledBoundFillReleasesVolatilityAndPromotes` — the fixture at test size: before settle the root is `refused(Volatile)` and its asked-for bake is refused; after 12 frames the refusal clears, the bake is taken, and 4 held frames record 0 / paint 0; then the moved-again pin (§20's model): the frame the Output moves shows the NEW colour — no stale frame, pixel-asserted — and the cycle re-settles and re-releases | drop `scalarContent \|= boundFill` → FAILS (never releases); drop `now.fill` from the WALK release → FAILS (walk compares None against the settled value, never releases); drop `now.fill` from the SCAN → FAILS conservatively (the scan revokes the release every frame — an omission there fails toward repainting, never staleness) |
+| 2 `AMovingBoundFillNeverReleases` — driven every frame for 20: the refusal holds every frame, no bake is ever held, the last written colour is on screen | the `scalarContent \|= boundFill` control fails THIS pin too — a bound fill would vanish from volatility entirely, so the join is provably what declares as well as what releases |
+| 3 `ABoundFillMovingUnderAHeldGateRepaints` — §38's own bugfix pin, re-aimed: the node now TAKES the memo (records 0; live paints 4, the parent only — was 8, stated in the test) and the pixel half is untouched: the fill moving under a held gate repaints | drop `scalarsNow.fill` from the paint probe → FAILS with the historical signature verbatim, `8100 vs 100` red pixels — the §38 staleness bug resurrected, which is exactly what the lane must never allow |
+
+No struct-pin motion: `ContentScalars` keeps its defaulted `operator==`
+(the ComposeInternal.h doctrine — the compiler writes the exhaustive
+compare — lists it by name), and `Fill`'s hand-written equality was
+already pinned (`fields(Fill&)`).
+
+**The `opaqueToTheMemo` GROUP lane (precondition 2): decided separately,
+and NOT taken.** A bound fill still refuses `Cache::Group`. The group
+memo's currency is one flat float vector gathered across the subtree
+(`collectGroupScalars`); a Fill's shader kind compares by pointer
+identity, which is only sound while an owning `sk_sp` keeps the
+allocation alive, and a float vector cannot hold a reference —
+flattening the pointer to bits would let a freed shader reallocated at
+the same address compare STABLE, the silent-stale-bake failure §30
+refuses outright. The node-level lane does not have this problem
+(`ContentScalars` owns the ref). A settled bound fill inside a group
+subtree still releases its own flag, so the practical cost is only that
+the group BAKE stays refused — §30's conservative direction, stated in
+the code at the term list.
+
+**§38-b, the bound TRANSFORM lane: assessed against §19 and NOT taken
+(scoped note, 2026-08-04).** §19's `worldUnderMotion` is not the
+generalization half-built — it worked precisely because for a
+world-space-material carrier the transform IS a content input (W is
+baked into the recording), so it could ride `scalarContent` and the
+existing memo. For a plain node the transform is paint-only volatility
+by the kind-partition doctrine: routing it through `scalarContent`
+would invalidate the node's OWN recording on every moved frame — a
+per-frame re-record REGRESSION for every bound-transform scene in the
+corpus (kumiko's 523 entrance strips alone). The correct shape is a
+release of the PAINT half — the `moving`/`ownPaint` return contribution
+— with a settle counter that accumulates outside the `scalarMemo` gate,
+a scan that stales ancestors' recordings without dropping the node's
+own, and its own interaction rules with the device-space bake
+(`transformLive` gates WHICH bake is legal, not just whether). That is a
+sibling mechanism, not one more lane, and it wants its own fixture
+measurement first (the entry's own estimate: the same 5 ms shape).
+
+**§38-c, the live-Material flag release: NOT taken (scoped note,
+2026-08-04).** The settle bar interacts destructively with the quantize
+rates that make a material's shader pointer stable:
+`kScalarSettleFrames = 8`, but `quantizeTime(10)` at 60 Hz re-mints the
+shader every 6 frames — never settles — and `quantizeTime(5)` settles at
+frame 8 and moves at frame 12, a release/re-declare THRASH whose every
+cycle costs the settling frame's chain re-record plus the re-declare's,
+i.e. strictly worse than today's steady `liveMatOnly` replay.
+`temporallyStable`'s EMA is fractional rather than consecutive-frames
+for exactly this reason. Extending the FLAG release to materials needs
+its own hysteresis design (and a walk/scan-side `Material::resolve`
+probe that today exists only at the paint site) — filed, with this
+paragraph as the reason.
+
+**The ledger precondition (3): the corpus now CONTAINS the slow bound
+fill.** New study sketch `still_accent`
+(`compose/sketch/sketches/still_accent.cpp`, registered in the studies
+list and `GalleryStudies.h`): §38's measured fixture verbatim — 512
+stroked star cells plus ONE accent whose fill is bound and assigned
+once, never moved (a `kRepaintHz` knob turns on the §20 cycle
+demonstration). It is the living reproduction of the 19.6× and the
+demonstration the extension retires it: headless single-scene timing
+shows `paint 0.19 ms · rec 0 · painted 0` at 513 cells — the released,
+promoted state. It reports **"not in baseline"** in the plate ledger
+until the owner rebases, which is the program's normal door for a new
+scene.
+
+**Gates.** Debug `compose_test` 540 (539 passed, 1 skipped — the §34
+variation-drive skip), +2 `ComposeSettledFill` pins from this entry; the
+one deliberate stats edit is pin 3's live-paint count (8 → 4, the memo
+the node now rightly takes), stated in the test beside the §38 history.
+Release `ctest` 17/17. **PLATE LEDGER** (Release,
+`scripts/plate_ledger.py`, 66 scenes): **64 byte-identical, 1 attributed
+flapper (`hitman_verlet`, documented list), 0 unattributed movers**, and
+`still_accent` reporting not-in-baseline as expected. **VERDICT:
+byte-neutral** on every pre-existing scene — the release changes WHEN
+things repaint, never what they paint, and the memo a bound-fill node
+newly takes replays the identical recording it would have painted live.
+No rebase taken (the owner adopts `still_accent` with the next rebase).
 
 ---
 
