@@ -83,13 +83,14 @@ endif()
 # the moment it is written and a rename that the prose misses is a build
 # break rather than a confident wrong answer. The generator FAILS on a
 # documented name no header declares — the guard cannot go quiet.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(COMPOSE_API_DOC_PROBES
     ${CMAKE_CURRENT_BINARY_DIR}/ComposeApiDocProbes.cpp)
 file(GLOB_RECURSE COMPOSE_PUBLIC_HEADERS
      CONFIGURE_DEPENDS include/sigilcompose/*.h)
 add_custom_command(
   OUTPUT ${COMPOSE_API_DOC_PROBES}
-  COMMAND ${CMAKE_COMMAND} -E env python3
+  COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --md ${CMAKE_CURRENT_SOURCE_DIR}/API.md
           --md ${CMAKE_CURRENT_SOURCE_DIR}/DESIGN.md

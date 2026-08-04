@@ -469,8 +469,11 @@ a third.
 - **Compose stays 2D and affine.** No depth, no z in the model, no
   perspective in the kernel; the `!hasPerspective()` guards in
   `Paint.cpp` are the (latent) boundary and want a test. The one
-  concession on the table: perspective on a `Texture`-cached subtree —
-  a projected bake, what shipped game UI does. (archive/SPATIAL.md.)
+  concession once on the table — perspective on a `Texture`-cached
+  subtree, a projected bake, what shipped game UI does
+  (archive/SPATIAL.md) — is **withdrawn by ROADMAP §44.10**:
+  `rotateX`/`rotateY`/`perspective` and `SpaceProps` are not to be
+  built in compose.
 
   **THREE THINGS ABOUT THAT BOUNDARY ARE NOW MEASURED, not argued
   (2026-07-30, ROADMAP §44), and they retire the "Composer camera"
@@ -500,9 +503,11 @@ a third.
     picture replay falls from 4.1–5.5× to 1.7–2.0× while its error
     against the vector truth grows to mean 5.2/255 (max 135) on small
     type. Perspective punishes the pixel cache harder than the tier it
-    replaces. **All of those numbers are CPU raster; per Doctrine 6 the
-    Graphite figure does not exist and is the gate on building
-    anything here.**
+    replaces. **All of those numbers are CPU raster; the Graphite
+    figure still does not exist — and it no longer gates anything in
+    compose.** ROADMAP §44.10 declined the feature on scope, not cost,
+    and the open measurement question (§44.6) moved to SigilWorld with
+    the projection work.
 - **Guest-hood is absolute**: no surface, loop, or thread. A future 3D
   library (`SigilStage`) depends on Compose, never the reverse —
   surface-granular (N surfaces = N Composers = N textures), within a

@@ -7176,7 +7176,8 @@ durable value here — several of them retire seams rather than open them:
   unfixed.
 - **`ComposeInternal.h:330`'s filed-gap sentence is stale** (44.2b.2) —
   confirmed; the repair is at `Paint.cpp:1279` and pinned by
-  `test/ComposeTestFieldPins.cpp:162-193`.
+  `test/ComposeTestFieldPins.cpp:162-193`; the comment itself was
+  repaired 2026-08-03.
 
 #### Corrections to this entry, found by reading it against the source
 

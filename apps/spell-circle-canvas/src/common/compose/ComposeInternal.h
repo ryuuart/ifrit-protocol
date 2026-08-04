@@ -326,8 +326,10 @@ struct ElementNode {
 // `applyTransitions()` — which only runs inside the `own` branch — never
 // ramps an `animate()` on that property. Nothing errors. No test fails.
 // It happened twice on one feature: `scaleX`/`scaleY` were missing from
-// `propsEqual` from the day they landed until e37d58d, and the same pair is
-// still missing from `recordBounds()`'s transform gate (filed, ROADMAP).
+// `propsEqual` from the day they landed until e37d58d, and
+// `recordBounds()`'s transform gate carried the same omission until it
+// was routed through `pivoted()` (Paint.cpp) — pinned since by the
+// field-pin TU's PerAxisScaleReachesTheParentsChildBoundsUnion.
 //
 // THE MECHANISM. `kPopOpPso[]` (world/) is index-aligned per variant
 // alternative under `static_assert(std::size(...) ==
