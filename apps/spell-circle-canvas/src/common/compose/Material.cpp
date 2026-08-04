@@ -61,11 +61,13 @@ struct Material::Live {
  *  equal (the §8.1 prune). Solid/raw-shader/sksl compare via Material's own
  *  state instead. */
 struct Material::Recipe {
-  enum class Kind : uint8_t { Linear, Radial, Sweep, Image, Blend, Buffer };
+  enum class Kind : uint8_t { Linear, Radial, Conical, Sweep, Image, Blend,
+                              Buffer };
   Kind kind = Kind::Linear;
   // Gradients: endpoints/center + radius or sweep degrees + ramp.
-  SkPoint p0 = {0, 0}, p1 = {0, 0};
-  float f0 = 0.0f, f1 = 0.0f; // radius / (startDeg, endDeg)
+  SkPoint p0 = {0, 0}, p1 = {0, 0}; // Conical: (focus, center)
+  float f0 = 0.0f, f1 = 0.0f; // radius / (startDeg, endDeg) /
+                              // Conical: (focusRadius, radius)
   std::vector<Stop> stops;
   SkTileMode tile = SkTileMode::kClamp;
   // Image: pointer identity + mapping.
@@ -85,6 +87,7 @@ struct Material::Recipe {
     switch (kind) {
     case Kind::Linear:
     case Kind::Radial:
+    case Kind::Conical:
     case Kind::Sweep:
       return p0 == o.p0 && p1 == o.p1 && f0 == o.f0 && f1 == o.f1 &&
              stops == o.stops && tile == o.tile;
@@ -356,8 +359,44 @@ Material Material::radial(SkPoint center, float radius, std::vector<Stop> stops,
   return m;
 }
 
+Material Material::conical(SkPoint focus, float focusRadius, SkPoint center,
+                           float radius, std::vector<Stop> stops,
+                           SkTileMode tile) {
+  RampArrays r = split(stops);
+  Material m = shader(SkShaders::TwoPointConicalGradient(
+      focus, focusRadius, center, radius, makeGradient(r, tile)));
+  auto rec = std::make_shared<Recipe>();
+  rec->kind = Recipe::Kind::Conical;
+  rec->p0 = focus;
+  rec->p1 = center;
+  rec->f0 = focusRadius;
+  rec->f1 = radius;
+  rec->stops = std::move(stops);
+  rec->tile = tile;
+  m.m_recipe = std::move(rec);
+  return m;
+}
+
 Material Material::sweep(SkPoint center, std::vector<Stop> stops, float startDeg,
                          float endDeg) {
+  // §10j: Skia's sweep CLAMPS outside [startDeg, endDeg] — it never wraps.
+  // A window reaching past the circle (`sweep(c, stops, 90, 450)`, the
+  // obvious hue-wheel-starting-at-red) paints the run before startDeg in
+  // the first stop's flat colour, silently. The numbers only meet here, so
+  // this is where the diagnostic lives — once per process, like the sdf
+  // pad warning above.
+  if (startDeg < 0.0f || endDeg > 360.0f) {
+    static bool warnedSweepWindow = false;
+    if (!warnedSweepWindow) {
+      warnedSweepWindow = true;
+      SkDebugf("[compose] Material::sweep(start %.1f, end %.1f): angles "
+               "outside [0, 360] CLAMP, they do not wrap — no canvas angle "
+               "ever reaches the part of the window past the circle, so that "
+               "run paints in the nearest stop's flat colour. Rotate the "
+               "stops into [0, 360] instead. (warned once)\n",
+               startDeg, endDeg);
+    }
+  }
   RampArrays r = split(stops);
   Material m = shader(SkShaders::SweepGradient(
       center, startDeg, endDeg, makeGradient(r, SkTileMode::kClamp)));
@@ -439,8 +478,21 @@ sk_sp<SkImage> PixelBuffer::image() {
 Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
                         std::vector<std::pair<std::string, float>> constants) {
   Material m;
-  if (!effect)
+  if (!effect) {
+    // Host & tooling: "a material that fails to build should be loud."
+    // The classic route here is `MakeForShader` returning null and the
+    // caller passing it straight in — the material then resolves to NONE
+    // and the node paints nothing, with the compile error long scrolled
+    // away. Say so at BUILD, once, where the mistake is.
+    static bool warnedNullEffect = false;
+    if (!warnedNullEffect) {
+      warnedNullEffect = true;
+      SkDebugf("[compose] Material::sksl(null effect): the material is NONE "
+               "and its node will paint nothing. Check the error string "
+               "MakeForShader returned next to the effect. (warned once)\n");
+    }
     return m;
+  }
   m.m_live = std::make_shared<Live>();
   m.m_live->effect = std::move(effect);
   for (auto &[name, value] : constants) {

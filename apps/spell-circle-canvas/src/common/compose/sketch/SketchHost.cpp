@@ -291,10 +291,12 @@ void SketchHost::poll() {
 }
 
 SketchContext SketchHost::makeContext() {
-  SketchContext ctx{*m_composer,      *m_ticker,     m_assets,
-                    m_canvasSpec.size, &m_canvasSpec, &m_fonts};
-  ctx.deterministic = m_options.deterministic;
-  return ctx;
+  // A prvalue return — SketchContext is non-copyable (a per-frame value;
+  // capturing one in a steppable dangles), so guaranteed elision is the
+  // only way it travels.
+  return SketchContext{*m_composer,       *m_ticker,     m_assets,
+                       m_canvasSpec.size, &m_canvasSpec, &m_fonts,
+                       m_options.deterministic};
 }
 
 void SketchHost::applyCanvasSpec() {

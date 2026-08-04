@@ -156,6 +156,44 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
 }
 
+TEST(ComposeSpans, ReorderedTermsPruneBecauseResolveNeverReadsOrder) {
+  // §33-f: `corners(8) | at(0, 4)` and `at(0, 4) | corners(8)` claim the
+  // SAME runs — resolve() unions its terms and never reads their order —
+  // but equality used to walk the term lists index by index, so a
+  // describe that reorders terms produced a spurious patch. Never a wrong
+  // picture; only a lost prune. Equality is order-insensitive now (a
+  // multiset match over the same term comparison), so the reorder PRUNES.
+  // (Control for the fix itself: revert Spans::operator== to the indexed
+  // walk and the patchedNodes == 0 below fails.)
+  const auto tree = [](Spans where) {
+    return stack().child(box()
+                             .key("m")
+                             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                             .stroke(std::move(where),
+                                     util::stroke(4, red()), "marks"));
+  };
+  Host host;
+  host.composer.render(tree(spans::corners(8) | spans::at(0, 4)));
+  host.frame();
+  host.composer.render(tree(spans::at(0, 4) | spans::corners(8)));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "a reordered union re-patched — the prune is order-sensitive "
+         "while resolve() is not";
+  // The in-test control: a genuinely DIFFERENT claim must still patch, or
+  // the assertion above is satisfied by an equality that says yes to
+  // everything.
+  host.composer.render(tree(spans::corners(12) | spans::at(0, 4)));
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u)
+      << "a different claim pruned — a reordered describe would now freeze "
+         "stale marks";
+  // And duplicates count: {corners, corners} is not {corners, at} however
+  // you order them.
+  EXPECT_FALSE((spans::corners(8) | spans::corners(8)) ==
+               (spans::corners(8) | spans::at(0, 4)));
+  EXPECT_TRUE((spans::corners(8) | spans::at(0, 4)) ==
+              (spans::at(0, 4) | spans::corners(8)));
+}
+
 TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
   // THE SUGAR LAW, in pixels: `stroke(where, what)` and
   // `stroke(what).mask(parts::marks(), by::spans(where))` are one machine,
@@ -1224,6 +1262,61 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
         << "an identical profiled ribbon re-recorded — the prune is not real";
   }
   EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 999.0f), 24.0f);
+}
+
+namespace {
+/** A law that is NaN over one short window — astral_tome's
+ *  `0.40 + 0.60·sqrt(sin(π·along))` in miniature, where float rounding
+ *  made sin(π·1.0f) dip to −8.7e-08 and sqrt of it NaN. */
+struct NanAtMidLaw {
+  float across(float along) const {
+    return along > 0.48f && along < 0.52f ? std::sqrt(-1.0f) : 20.0f;
+  }
+  float max() const { return 20.0f; }
+  bool operator==(const NanAtMidLaw &) const = default;
+};
+} // namespace
+
+TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
+  // §33-m / astral_tome: Skia draws NONE of a path that contains one
+  // non-finite vertex, so a law returning NaN at a single sample deleted
+  // its WHOLE band — bloom and body silently absent for the sketch's
+  // entire life — and nothing said why. The guard in profileOffset turns
+  // the bad sample into a LOCAL pinch to the spine; the rest of the band
+  // draws. (Control: revert the one-line guard and `nan` below goes to
+  // zero everywhere — the band vanishes outright.)
+  const auto bandOf = [](bool poisoned) {
+    Host host(200, 200);
+    brush::Ribbon r;
+    r.fill = Fill::color({1, 0, 0, 1});
+    if (poisoned)
+      r.width = Profile(NanAtMidLaw{});
+    else
+      r.width = Profile(TaperLaw{20.0f, 20.0f});
+    host.composer.render(stack().child(straightRun(std::move(r))));
+    host.frame();
+    std::vector<int> t;
+    for (int x : {40, 70, 100, 130, 160})
+      t.push_back(thicknessAt(host, x));
+    return t;
+  };
+  const std::vector<int> finite = bandOf(false);
+  const std::vector<int> nan = bandOf(true);
+  ASSERT_EQ(finite.size(), nan.size());
+  // Away from the poisoned window the two bands agree — the rest of the
+  // band DRAWS.
+  for (size_t i = 0; i < finite.size(); ++i) {
+    if (i == 2)
+      continue; // the poisoned column
+    EXPECT_GT(finite[i], 10) << "the control band is missing at sample " << i;
+    EXPECT_LE(std::abs(finite[i] - nan[i]), 2)
+        << "the NaN law changed the band away from its own bad sample (" << i
+        << ")";
+  }
+  // At the window the band pinches toward the spine rather than filling.
+  EXPECT_LT(nan[2], finite[2])
+      << "the NaN sample did not pinch — is the guard resolving it to a "
+         "full-width value?";
 }
 
 // ---- the brush:: fold, now a deletion -------------------------------------

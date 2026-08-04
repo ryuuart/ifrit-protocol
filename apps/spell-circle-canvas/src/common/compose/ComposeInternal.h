@@ -150,6 +150,10 @@ struct DeriveData {
   float flowAroundMargin = 0;
   std::string connectFrom, connectTo;
   Router router;
+  /** connector()'s terminal gap: px pulled back along the routed path at
+   *  EACH end, Anchor::gap's clamp (never more than 45% of the route per
+   *  end, so a short wire keeps a visible run). */
+  float connectorGap = 0.0f;
   std::vector<Anchor> railAnchors; // rail(): ordered waypoints
   RailRouter railRouter;
   // band(): the spine is guide DATA — either authored here, or borrowed
@@ -395,11 +399,11 @@ inline auto fields(CustomData &v) {
 }
 inline auto fields(DeriveData &v) {
   auto &[placeFn, flowAroundKeys, flowAroundMargin, connectFrom, connectTo,
-         router, railAnchors, railRouter, bandSpine, bandAround, bandWidth,
-         bandFormation, spanFitKeys, borrowedPathKeys] = v;
+         router, connectorGap, railAnchors, railRouter, bandSpine, bandAround,
+         bandWidth, bandFormation, spanFitKeys, borrowedPathKeys] = v;
   return std::tie(placeFn, flowAroundKeys, flowAroundMargin, connectFrom,
-                  connectTo, router, railAnchors, railRouter, bandSpine,
-                  bandAround, bandWidth, bandFormation, spanFitKeys,
+                  connectTo, router, connectorGap, railAnchors, railRouter,
+                  bandSpine, bandAround, bandWidth, bandFormation, spanFitKeys,
                   borrowedPathKeys);
 }
 inline auto fields(StrokePass &v) {

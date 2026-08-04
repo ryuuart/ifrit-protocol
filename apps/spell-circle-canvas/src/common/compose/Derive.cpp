@@ -5,6 +5,7 @@
 
 #include "ComposeRuntime.h"
 
+#include <include/core/SkContourMeasure.h> // the connector's terminal gap
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
@@ -191,6 +192,30 @@ void Composer::Impl::deriveRoute(Instance &inst) {
           b.moveTo(from.centerX(), from.centerY());
           b.lineTo(to.centerX(), to.centerY());
           inst.connectorPath = b.detach();
+        }
+        // Terminal gap — Anchor::gap's spelling on the connector door
+        // (§10): pull each END of the routed path back along itself,
+        // clamped like the rail's pullIn so a short wire keeps a run.
+        // Applied to the ROUTE rather than to the rects so it works for
+        // any router, straight or orthogonal or arc.
+        if (derive->connectorGap > 0 && !inst.connectorPath.isEmpty()) {
+          SkPathBuilder trimmed;
+          SkContourMeasureIter iter(inst.connectorPath, false);
+          bool touched = false;
+          while (sk_sp<SkContourMeasure> contour = iter.next()) {
+            const float len = contour->length();
+            if (len <= 0)
+              continue;
+            if (contour->isClosed()) { // no terminals to pull back
+              (void)contour->getSegment(0, len, &trimmed, true);
+              continue;
+            }
+            const float pull = std::min(derive->connectorGap, len * 0.45f);
+            (void)contour->getSegment(pull, len - pull, &trimmed, true);
+            touched = true;
+          }
+          if (touched)
+            inst.connectorPath = trimmed.detach();
         }
         inst.routedHitPath = expandForHit(inst.connectorPath);
         inst.markPaintDirtyUp();

@@ -18,6 +18,7 @@
 #include <include/core/SkTypes.h> // SkDebugf — the slot-rename diagnostic
 
 #include <algorithm>
+#include <cmath> // std::isfinite — the profileOffset non-finite guard
 #include <set>
 
 namespace sigil::compose {
@@ -992,13 +993,14 @@ Element &Element::flowAround(std::string_view key, float margin) {
 }
 
 Element connector(std::string_view fromKey, std::string_view toKey,
-                  Router router) {
+                  Router router, float gap) {
   Element e;
   e.node()->kind = Kind::Custom; // painted via derive-resolved outline
   detail::DeriveData &derive = e.node()->deriveData.ensure();
   derive.connectFrom = std::string(fromKey);
   derive.connectTo = std::string(toKey);
   derive.router = std::move(router);
+  derive.connectorGap = gap;
   return e;
 }
 
@@ -1748,8 +1750,15 @@ SkPath profileOffset(const SkPath &spine, const Profile &profile) {
       // The band's frame: positive across is LEFT of travel, which with y
       // down is outside a clockwise path. One body for the band's rails
       // and a relative strand, so the two cannot drift apart.
-      const float w =
+      float w =
           profile.acrossAt(total > 0 ? (base + d) / total : 0.0f, total);
+      // §33-m (astral_tome): ONE non-finite sample deletes the WHOLE band
+      // — Skia draws none of a path containing a non-finite vertex, so a
+      // law like sqrt(sin(π·along)) whose float rounding dips negative at
+      // along == 1 silently erased everything and nothing said why. A
+      // NaN width is a LOCAL pinch to the spine instead.
+      if (!std::isfinite(w))
+        w = 0.0f;
       const SkPoint at{pos.fX + tan.y() * w, pos.fY - tan.x() * w};
       if (!started) {
         out.moveTo(at);

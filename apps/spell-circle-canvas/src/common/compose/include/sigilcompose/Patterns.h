@@ -256,6 +256,13 @@ inline Material noise(float frequency, int octaves = 4, float seed = 1.0f,
  *  multiplied in y, so > 1 runs the fibre lengthwise (wood, brushed
  *  metal) and 1.0 is isotropic (dust, paper, stone).
  *
+ *  GRAIN WANTS AN OPAQUE SURFACE. The shader returns its own opaque
+ *  luminance, so over a near-transparent base it COMPOSITES AS THAT
+ *  LUMINANCE instead of modulating what is beneath — the first nebula
+ *  authored at 15% alpha came back a white cloud (§10c). Multiply grain
+ *  over a solid ground (or into an opaque blend() stack); do not expect
+ *  it to read through its own node's alpha.
+ *
  *  MIND THE PRODUCT. `stretch` divides the x frequency but MULTIPLIES the
  *  y one by the same factor, so it is not free: keep
  *  `frequency · stretch · 2^(octaves-1)` under roughly 0.4, or the y axis

@@ -1165,6 +1165,15 @@ Three tiers, cheapest first:
    A slot's NAME IS ITS KEY — one field — so `.key()` on a slot renames
    the mount and `renderSlot()` on the original name no-ops into a W × 0
    layout. Name a slot once, in `slot()`; both calls warn if you don't.
+
+   **Slots are THE text-content idiom — counters, timers, tickers,
+   any label whose STRING changes.** There is no binding path for text
+   content: `PropValue` covers floats, colors and fills, never a
+   string, so the obvious first hunt — a `text()` overload taking an
+   Output — finds nothing (§9). Don't re-describe the whole tree for
+   one number either; mount `.child(slot("fps"))` and
+   `renderSlot("fps", text(...))` when the value ticks. It is genuinely
+   cheap: one leaf patches, the surrounding caches hold.
 3. **Multiple Composers** for fully separate systems (scene HUD vs
    poster): each is already a guest in the canvas; cross-composer
    ordering is simply draw-call order.
@@ -2780,14 +2789,17 @@ frame and diverge only in motion, which is the worst way for a bug to be
 visible. (The reach half of this trap is gone: `max()` is required, so a
 166 px band can no longer declare 10 px and be silently clipped.)
 
-**2b. A profile that returns a non-finite width deletes the WHOLE band.**
-One NaN vertex makes the built path non-finite and Skia draws none of it —
-so the band does not pinch, it vanishes, and nothing says why. Found the
-hard way: `sqrt(sin(3.14159265f * along))` is NaN at `along == 1`, because
-the float π rounds UP and the sine goes to -8.7e-08. Every construction
-samples the law at exactly 1, so an entire study's link bloom was
-invisible for its whole life (`astral_tome`, fixed 2026-07-26). Clamp
-inside the law; the seam does not guard it for you.
+**2b. A profile that returns a non-finite width used to delete the WHOLE
+band.** One NaN vertex makes a built path non-finite and Skia draws none
+of it — so the band did not pinch, it vanished, and nothing said why.
+Found the hard way: `sqrt(sin(3.14159265f * along))` is NaN at
+`along == 1`, because the float π rounds UP and the sine goes to
+-8.7e-08. Every construction samples the law at exactly 1, so an entire
+study's link bloom was invisible for its whole life (`astral_tome`,
+fixed 2026-07-26). GUARDED since 2026-08-04: `profileOffset` resolves a
+non-finite sample to a LOCAL pinch to the spine, so the rest of the band
+draws. Still clamp inside the law — the pinch is damage control, not the
+width you meant.
 
 **3. `shapers::Jitter` is ONE pass of `SkDiscretePathEffect`.** It jitters
 vertices; it does not bow the segments between them, so it is not the

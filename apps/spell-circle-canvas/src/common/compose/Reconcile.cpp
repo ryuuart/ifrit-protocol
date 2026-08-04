@@ -221,7 +221,7 @@ bool textEqual(const ElementNode &a, const ElementNode &b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 14,
+static_assert(kFieldCount<DeriveData> == 15,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
@@ -246,6 +246,7 @@ bool deriveEqual(const Box<DeriveData> &a, const Box<DeriveData> &b) {
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
          a->connectFrom == b->connectFrom && a->connectTo == b->connectTo &&
+         a->connectorGap == b->connectorGap &&
          a->bandAround == b->bandAround &&
          a->bandFormation == b->bandFormation &&
          a->spanFitKeys == b->spanFitKeys &&
@@ -348,8 +349,7 @@ static_assert(kFieldCount<Spans::Term> == 11,
 bool Spans::operator==(const Spans &other) const {
   if (terms.size() != other.terms.size())
     return false;
-  for (size_t i = 0; i < terms.size(); ++i) {
-    const Term &a = terms[i], &b = other.terms[i];
+  const auto termEqual = [](const Term &a, const Term &b) {
     if (a.rule != b.rule || a.arm != b.arm || a.angleDeg != b.angleDeg ||
         a.duty != b.duty || a.margin != b.margin || a.count != b.count ||
         a.index != b.index || a.key != b.key)
@@ -363,6 +363,34 @@ bool Spans::operator==(const Spans &other) const {
     if ((a.rule == Rule::Range || a.rule == Rule::Wrap) &&
         (!propEqual(a.begin, b.begin) || !propEqual(a.end, b.end) ||
          !propEqual(a.offset, b.offset)))
+      return false;
+    return true;
+  };
+  // ORDER-INSENSITIVE (§33): `corners(8) | at(0,4)` and `at(0,4) |
+  // corners(8)` claim the same runs — resolve() unions, it never reads
+  // term order — so a describe that reorders terms must PRUNE, not patch.
+  // (A retained node keeps ITS OWN term order and the values array paired
+  // with it, so pruning across a reorder replays correct pixels.) The
+  // multiset match is greedy-with-used-flags, which is exact because term
+  // equality is an equivalence; the in-order fast path keeps the common
+  // identical describe at one pass.
+  size_t inOrder = 0;
+  while (inOrder < terms.size() &&
+         termEqual(terms[inOrder], other.terms[inOrder]))
+    ++inOrder;
+  if (inOrder == terms.size())
+    return true;
+  std::vector<bool> used(terms.size(), false);
+  for (size_t i = inOrder; i < terms.size(); ++i) {
+    bool matched = false;
+    for (size_t j = inOrder; j < other.terms.size(); ++j) {
+      if (used[j] || !termEqual(terms[i], other.terms[j]))
+        continue;
+      used[j] = true;
+      matched = true;
+      break;
+    }
+    if (!matched)
       return false;
   }
   return true;

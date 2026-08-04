@@ -1607,3 +1607,36 @@ TEST(ComposeInstances, PickInvertsTheStampTopmostFirst) {
   // Scale honoured: outside 1's shrunken quad.
   EXPECT_FALSE(pick(pool, atlas, {135, 100}).has_value());
 }
+
+TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
+  // §9: "no way to shape a run without building an Element" — measure()
+  // is per-Element, so hand-placing N glyphs cost N layouts. measureRun()
+  // is ONE layout through the same shaping path a text() leaf takes; the
+  // pin is that its advances reproduce what the Element machinery
+  // measures for the same run.
+  const sigil::weave::TextStyle style = whiteStyle(24);
+  const std::vector<float> advances =
+      measureRun(u8"HAMBURGEFONTSIV", style, fonts());
+  ASSERT_FALSE(advances.empty());
+  float sum = 0;
+  for (float a : advances) {
+    EXPECT_GT(a, 0.0f);
+    sum += a;
+  }
+  // The independent arm: the full Element path (reconcile + Yoga + text
+  // measure) sizes the same run. measure() ceils the shaped width, so
+  // agreement is to the ceil.
+  const SkSize laidOut = measure(text(u8"HAMBURGEFONTSIV", style), fonts());
+  EXPECT_NEAR(std::ceil(sum), laidOut.width(), 1.01f)
+      << "measureRun's advances disagree with the laid-out element";
+  // Controls: a doubled face doubles the run (shaping is live, not a
+  // cached constant)…
+  float sumBig = 0;
+  for (float a : measureRun(u8"HAMBURGEFONTSIV", whiteStyle(48), fonts()))
+    sumBig += a;
+  EXPECT_NEAR(sumBig, sum * 2.0f, sum * 0.1f);
+  // …an empty run shapes to nothing, and the count is the GLYPH count —
+  // one per character here, no ligatures in play.
+  EXPECT_TRUE(measureRun(u8"", style, fonts()).empty());
+  EXPECT_EQ(advances.size(), 15u);
+}

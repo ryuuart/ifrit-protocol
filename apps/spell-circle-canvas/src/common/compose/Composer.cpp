@@ -7,7 +7,10 @@
 
 #include "ComposeRuntime.h"
 
+#include <sigilweave/Choreograph.h> // forEachPlacedGlyph — measureRun()
+#include <sigilweave/Flow.h>
 #include <sigilweave/FontContext.h>
+#include <sigilweave/ParagraphLayout.h>
 
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
@@ -133,6 +136,29 @@ TextMetrics metrics(const sigil::weave::TextStyle &style,
   out.xHeight = fm.fXHeight > 0 ? fm.fXHeight : out.ascent * 0.52f;
   out.lineHeight = out.ascent + out.descent + out.leading;
   return out;
+}
+
+std::vector<float> measureRun(std::u8string_view utf8,
+                              const sigil::weave::TextStyle &style,
+                              sigil::weave::FontContext &fonts) {
+  std::vector<float> advances;
+  if (utf8.empty())
+    return advances;
+  // The exact machinery a text() leaf runs (layoutText, Layout.cpp): one
+  // Paragraph, one unconstrained single-line layout, the placed glyphs in
+  // order. Only the Element is skipped — which is the point (§9: shaping
+  // a run used to cost a whole layout PER GLYPH placed by hand).
+  sigil::weave::Paragraph paragraph;
+  paragraph.appendText(utf8, style);
+  static const sigil::weave::ParagraphLayoutOptions kOptions;
+  sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+  sigil::weave::ParagraphLayout layout =
+      sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
+  sigil::weave::forEachPlacedGlyph(
+      layout, paragraph,
+      [&](const sigil::weave::ShapedWord *, SkGlyphID, float advance, SkColor,
+          SkPoint) { advances.push_back(advance); });
+  return advances;
 }
 
 SkSize measure(Element root, sigil::weave::FontContext &fonts,

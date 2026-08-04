@@ -216,11 +216,13 @@ SIGIL_SKETCH(MySketch)
   `ComposeSketch` target and try again. The check is mtime-based, so
   header-only library changes trip it too; that is deliberate.
 - **`SketchContext` is a per-frame value the host rebuilds**, so
-  capturing it by reference in a `ticker.add()` lambda dangles.
-  Capture `this` and reach for the context through the argument
-  `update()` and `setup()` are handed. `hello.cpp` sidesteps the trap
-  by capturing only `this`, which makes it invisible until a steppable
-  needs `ctx.composer`.
+  capturing it by reference in a `ticker.add()` lambda dangles — and
+  since 2026-08-04 it is NON-COPYABLE, so capturing it by value (which
+  would hold stale spec/size pointers just as silently) does not
+  compile either. Capture `this` and reach for the context through the
+  argument `update()` and `setup()` are handed; a steppable that needs
+  the composer captures `&ctx.composer` (stable for the sketch's life),
+  never the context.
 - **`SkPath::addPath` no longer exists in this Skia.** The obvious
   spelling fails to compile and the error does not point anywhere
   useful. Build with `SkPathBuilder` and `SkPathBuilder::addPath`, then

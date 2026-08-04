@@ -772,6 +772,81 @@ TEST(ComposeMaterial, LinearGradientFillPaints) {
   EXPECT_LT(SkColorGetR(right), 70u);
 }
 
+TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
+  // §10c: the offset-focus radial. Displacing a plain radial()'s CENTRE
+  // slides the whole ramp — falloff and highlight are one knob. conical()
+  // (SkShaders::TwoPointConicalGradient) keeps the outer circle put and
+  // moves only the focus, which is the sphere-shading primitive.
+  const auto sphere = [](SkPoint focus) {
+    return box().child(
+        box().width(120).height(120).inset(40, 40, 40, 40).absolute().fill(
+            Material::conical(focus, 0.0f, {60, 60}, 60.0f,
+                              {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}})));
+  };
+  Host centered, offset;
+  centered.composer.render(sphere({60, 60}));
+  offset.composer.render(sphere({35, 35}));
+  centered.frame();
+  offset.frame();
+  // The highlight visibly MOVES to the focus: at the displaced focus
+  // (node-local (35,35) = canvas (75,75)) the offset arm is near-white
+  // and clearly brighter than the centered arm at that same pixel…
+  EXPECT_GT(SkColorGetR(offset.pixel(75, 75)), 200u);
+  EXPECT_GT((int)SkColorGetR(offset.pixel(75, 75)),
+            (int)SkColorGetR(centered.pixel(75, 75)) + 40)
+      << "the focus offset did not move the highlight";
+  // …while at the old centre the ordering reverses.
+  EXPECT_GT((int)SkColorGetR(centered.pixel(100, 100)),
+            (int)SkColorGetR(offset.pixel(100, 100)) + 40);
+  // And the recipe is comparable: identical conicals prune-equal, a moved
+  // focus does not (it would freeze the highlight forever), and the
+  // conical never aliases the radial it displaces.
+  const std::vector<Stop> stops{{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}};
+  EXPECT_TRUE(Material::conical({35, 35}, 0, {60, 60}, 60, stops) ==
+              Material::conical({35, 35}, 0, {60, 60}, 60, stops));
+  EXPECT_FALSE(Material::conical({35, 35}, 0, {60, 60}, 60, stops) ==
+               Material::conical({36, 35}, 0, {60, 60}, 60, stops));
+  EXPECT_FALSE(Material::conical({60, 60}, 0, {60, 60}, 60, stops) ==
+               Material::radial({60, 60}, 60, stops));
+}
+
+TEST(ComposeMaterial, SweepWarnsWhenTheWindowLeavesTheCircle) {
+  // §10j: Skia's sweep CLAMPS outside [startDeg, endDeg]. sweep(c, stops,
+  // 90, 450) — the obvious hue-wheel-starting-at-red — silently painted a
+  // quarter of the ring in the first stop's flat colour. The factory says
+  // so now, once. Control first (a legal window must stay silent), then
+  // the trap arm — the warning is once-per-process, so this test is the
+  // one place that triggers it.
+  const std::vector<Stop> stops{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  ::testing::internal::CaptureStderr();
+  (void)Material::sweep({50, 50}, stops, 0.0f, 360.0f);
+  (void)Material::sweep({50, 50}, stops, 90.0f, 270.0f);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a window inside the circle must not warn";
+  ::testing::internal::CaptureStderr();
+  (void)Material::sweep({50, 50}, stops, 90.0f, 450.0f);
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("Material::sweep"), std::string::npos) << log;
+  EXPECT_NE(log.find("wrap"), std::string::npos) << log;
+}
+
+TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
+  // Host & tooling: "a material that fails to build should be loud." The
+  // silent half of that failure is MakeForShader returning null and the
+  // caller passing it straight in — the node then paints NOTHING with the
+  // compile error long scrolled away. Control first: a valid effect stays
+  // silent; the null build warns once, at build, not at draw.
+  ::testing::internal::CaptureStderr();
+  (void)Material::sksl(ukEffect(), {{"uK", 1.0f}});
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a valid effect must not warn";
+  ::testing::internal::CaptureStderr();
+  (void)Material::sksl(nullptr);
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("Material::sksl"), std::string::npos) << log;
+  EXPECT_NE(log.find("nothing"), std::string::npos) << log;
+}
+
 TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
   // Two solids blended kPlus → additive brighten in ONE flattened shader
   // (no saveLayer). red + green = yellow.

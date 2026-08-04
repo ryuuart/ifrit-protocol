@@ -608,6 +608,106 @@ TEST(ComposeLines, WavyRunLeavesTheAxis) {
   EXPECT_EQ(offAxisStraight, 0);
 }
 
+namespace {
+/** An L-shaped run: right along the bottom, then up — one hard 90° corner
+ *  at local (120, 120), absolute (140, 140). */
+Element corneredRun(lines::Line style) {
+  return box().child(box()
+                         .absolute()
+                         .inset(20, 20, 20, 20)
+                         .shape([](SkSize s) {
+                           SkPathBuilder b;
+                           b.moveTo(0, 120);
+                           b.lineTo(120, 120);
+                           b.lineTo(120, 0);
+                           return b.detach();
+                         })
+                         .stroke(std::move(style)));
+}
+} // namespace
+
+TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
+  // §10: parallels > 1 builds its rails from a stroke OUTLINE, and the
+  // grounded default join is round — so a hard 90° jog in a cased wire
+  // came out as a soft S-curve with no way to say otherwise. The join is
+  // now DATA on the Line (it participates in the defaulted equality, so
+  // it is recipe like every other field): miter reaches the corner's
+  // outer point, round provably never does.
+  const auto cased = [](SkPaint::Join join) {
+    return lines::Line{.width = 3,
+                       .fill = green(),
+                       .parallels = 2,
+                       .gap = 12,
+                       .join = join};
+  };
+  Host miter, round1, round2;
+  miter.composer.render(corneredRun(cased(SkPaint::kMiter_Join)));
+  round1.composer.render(corneredRun(cased(SkPaint::kRound_Join)));
+  round2.composer.render(corneredRun(cased(SkPaint::kRound_Join)));
+  miter.frame();
+  round1.frame();
+  round2.frame();
+  // The outer rail rides 6 px outside the corner at (140, 140). A miter
+  // join carries it to the diagonal point (146, 146); a round join arcs
+  // at radius 6 and tops out ~1.8 px short of it. The named pixel sits in
+  // the miter tip and past the round arc.
+  EXPECT_NE(miter.pixel(146, 146), SK_ColorBLACK)
+      << "the miter tip never reached the corner";
+  EXPECT_EQ(round1.pixel(146, 146), SK_ColorBLACK)
+      << "a round join reached the miter tip — the field is not wired";
+  // Control: the two joins differ near the corner, and only there by
+  // construction; two renders of the SAME join are identical.
+  int cornerDiff = 0, sameDiff = 0;
+  for (int y = 138; y <= 152; ++y)
+    for (int x = 138; x <= 152; ++x) {
+      cornerDiff += miter.pixel(x, y) != round1.pixel(x, y);
+      sameDiff += round1.pixel(x, y) != round2.pixel(x, y);
+    }
+  EXPECT_GT(cornerDiff, 3) << "join control changed nothing at a 90° jog";
+  EXPECT_EQ(sameDiff, 0);
+}
+
+TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
+  // §10j: the evenly-spaced form spaces rings out to the bbox
+  // HALF-DIAGONAL, so on a circle() node the outermost ring lands at
+  // R·√2 — outside the shape, clipped away. The stated-radii overload
+  // puts a circle exactly where it says; the old spelling is the control,
+  // demonstrating the trap it closes.
+  const auto ringNode = [](lines::RadialHatch hatch) {
+    return box().child(box()
+                           .absolute()
+                           .inset(20, 20, 20, 20)
+                           .shape(shapes::circle())
+                           .stroke(std::move(hatch)));
+  };
+  Host stated, spaced;
+  stated.composer.render(ringNode(lines::concentric(green(), std::vector<float>{60.0f}, 2.0f)));
+  spaced.composer.render(ringNode(lines::concentric(green(), /*rings=*/1,
+                                                    /*width=*/2.0f)));
+  stated.frame();
+  spaced.frame();
+  // The stated ring: radius 60 from the box centre (100, 100).
+  EXPECT_NE(stated.pixel(160, 100), SK_ColorBLACK)
+      << "the stated-radius ring is not at its stated radius";
+  EXPECT_NE(stated.pixel(100, 160), SK_ColorBLACK);
+  // The control: ONE evenly-spaced ring lands at the reach (the
+  // half-diagonal, ~113 px) — entirely outside the R = 80 circle, so the
+  // node draws nothing at all. That is the entry's trap, verbatim.
+  int spacedInk = 0;
+  for (int y = 0; y < 200; y += 2)
+    for (int x = 0; x < 200; x += 2)
+      spacedInk += spaced.pixel(x, y) != SK_ColorBLACK;
+  EXPECT_EQ(spacedInk, 0)
+      << "the evenly-spaced ring was expected to clip away on a circle() "
+         "node (the §10j trap) — if this now draws, the trap is fixed and "
+         "this control needs a rethink";
+  // And the stated form is a comparable value: radii join the equality.
+  EXPECT_TRUE(lines::concentric(green(), std::vector<float>{60.0f}) ==
+              lines::concentric(green(), std::vector<float>{60.0f}));
+  EXPECT_FALSE(lines::concentric(green(), std::vector<float>{60.0f}) ==
+               lines::concentric(green(), std::vector<float>{61.0f}));
+}
+
 #include <sigilcompose/Brushes.h>
 
 // ---------------------------------------------------------------------------
@@ -1130,6 +1230,176 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
         << "a cached node at opacity/blend" << (rotate ? " + rotate(-90)" : "")
         << " did not composite the same as the uncached one";
   }
+}
+
+// ---------------------------------------------------------------------------
+// §44-d — the !hasPerspective() boundary. The three device-space bakes
+// (automatic promotion's `upright` gate, the Cache::Group device bake, the
+// Cache::Texture device bake) all refuse a perspective CTM, because a
+// device bake pins pixels to ONE device rect and a projected quad is not
+// one. §44.1 verified the guards against source; nothing PINNED them —
+// §28's oldest outstanding ask. The refusal is asserted through the
+// observable promotion state (guard #1) and through pixels tracking a
+// moving camera (guard #3); the no-perspective arms are the controls.
+
+namespace {
+/** A host camera that is PURE perspective: the keystone `[1,0,0; 0,1,0;
+ *  0,p,1]` — a plate tipped away from the viewer, anchored at the top
+ *  edge. Deliberately NOT a perspective·rotateY SkM44: that matrix's 2D
+ *  projection also carries a skew term, so the `upright` gate would
+ *  refuse it through its OLDER clauses and this pin would hold even with
+ *  the `!hasPerspective()` clause deleted (measured — the first draft
+ *  passed its own control). This one is upright by every other test the
+ *  gate makes: scale 1, skew 0, and only `hasPerspective()` says no. */
+SkMatrix hostCamera(float p) {
+  SkMatrix m = SkMatrix::I();
+  m.setPerspY(p);
+  return m;
+}
+/** Host::frame, under a host concat — the camera compose never sees. */
+void frameUnder(Host &h, const SkMatrix &camera) {
+  SkCanvas *canvas = h.surface->getCanvas();
+  canvas->clear(SK_ColorBLACK);
+  canvas->save();
+  canvas->concat(camera);
+  h.composer.draw(*canvas);
+  canvas->restore();
+}
+/** Mean |Δ| over ink between two hosts — bakeErrorAt's meter, reusable
+ *  for frames drawn under a camera. */
+double meanInkDiff(Host &a, Host &b, int w, int h) {
+  SkBitmap ba, bb;
+  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  a.surface->readPixels(ba.pixmap(), 0, 0);
+  b.surface->readPixels(bb.pixmap(), 0, 0);
+  double total = 0;
+  size_t ink = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor pa = ba.getColor(x, y), pb = bb.getColor(x, y);
+      if (pa == SK_ColorBLACK && pb == SK_ColorBLACK)
+        continue;
+      ++ink;
+      total += (std::abs((int)SkColorGetR(pa) - (int)SkColorGetR(pb)) +
+                std::abs((int)SkColorGetG(pa) - (int)SkColorGetG(pb)) +
+                std::abs((int)SkColorGetB(pa) - (int)SkColorGetB(pb))) /
+               3.0;
+    }
+  return ink ? total / (double)ink : 0.0;
+}
+} // namespace
+
+TEST(ComposeCache, PromotionRefusesAHostPerspectiveCtm) {
+  // Guard #1, promotion's `upright` gate: a perspective CTM must read as
+  // Transformed — a device bake under it would pin a projected quad to an
+  // axis-aligned rect. The no-perspective arm is the positive control: the
+  // SAME node under the same harness PROMOTES, so a silently widened gate
+  // fails the arm that proves the refusal was the guard's doing.
+  for (bool perspective : {false, true}) {
+    Host host(300, 300);
+    host.composer.setProfiling(true);
+    host.composer.render(profiledUnder(
+        expensivePanel().absolute().left(40).top(40).key("underCamera")));
+    const SkMatrix camera =
+        perspective ? hostCamera(0.0012f) : SkMatrix::I();
+    for (int i = 0; i < 30; ++i)
+      frameUnder(host, camera);
+    const Composer::NodeCost *row = requireRow(host.composer, "underCamera");
+    ASSERT_NE(row, nullptr);
+    if (perspective) {
+      EXPECT_NE(row->cacheState, Composer::CacheState::Promoted)
+          << "promoted a node under a host perspective CTM";
+      EXPECT_TRUE(row->refused(Composer::Promotion::Transformed))
+          << "the refusal must name the geometry";
+    } else {
+      EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted)
+          << "the control arm did not promote — the refusal assertion above "
+             "is not testing the perspective guard";
+    }
+  }
+}
+
+namespace {
+/** Smooth content for the projected-bake meter: a ramp panel with thick
+ *  bars, not hairlines — the LOCAL bake legitimately resamples through
+ *  the projection, so the pin bounds the error rather than demanding
+ *  byte equality (that is the device bake's claim, and the device bake
+ *  is exactly what perspective refuses). */
+Element rampPanel(bool cached) {
+  Element p = box()
+                  .width(180)
+                  .height(120)
+                  .absolute()
+                  .left(60)
+                  .top(90)
+                  .fill(Material::linearUnit({0, 0}, {1, 1},
+                                             {{0.0f, {0.9f, 0.3f, 0.1f, 1}},
+                                              {1.0f, {0.1f, 0.4f, 0.9f, 1}}}));
+  for (int i = 0; i < 4; ++i)
+    p.child(box()
+                .absolute()
+                .left(15 + (float)i * 42)
+                .top(18)
+                .width(18)
+                .height(84)
+                .fill(Fill::color({0.92f, 0.93f, 0.95f, 1})));
+  if (cached)
+    p.cache(Cache::Texture);
+  return box().cache(Cache::None).child(std::move(p));
+}
+} // namespace
+
+TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
+  // Guard #3, the Cache::Texture device bake: under a perspective CTM the
+  // node must fall back to the matrix-independent LOCAL bake (unpromoted
+  // in the device sense) rather than bake a device-rect-pinned texture.
+  // Pinned through what an author can see: the baked node's pixels track
+  // the camera, frame over frame, staying near the uncached twin — a
+  // device-pinned texture would replay the OLD projection after the
+  // camera moved, and the second sweep below would blow up.
+  Host plain(300, 300), baked(300, 300);
+  plain.composer.render(rampPanel(false));
+  baked.composer.render(rampPanel(true));
+  const SkMatrix before = hostCamera(0.0008f);
+  size_t bakes = 0;
+  for (int i = 0; i < 3; ++i) {
+    frameUnder(plain, before);
+    frameUnder(baked, before);
+    bakes += baked.composer.stats().texturesBaked;
+  }
+  const double still = meanInkDiff(plain, baked, 300, 300);
+  EXPECT_LT(still, 4.0) << "the perspective fallback bake drifted from the "
+                           "live render while the camera held still";
+
+  // THE CAMERA MOVES. The projection changes enough to be its own control
+  // (the two plain frames must differ), and the baked node must follow.
+  const SkMatrix after = hostCamera(0.0016f);
+  Host plainAfter(300, 300);
+  plainAfter.composer.render(rampPanel(false));
+  frameUnder(plainAfter, after);
+  const double cameraMoved = meanInkDiff(plain, plainAfter, 300, 300);
+  EXPECT_GT(cameraMoved, 8.0)
+      << "the two camera angles are too close to distinguish a pinned bake "
+         "from a tracking one — the pin below is vacuous";
+  frameUnder(baked, after);
+  bakes += baked.composer.stats().texturesBaked;
+  const double tracked = meanInkDiff(plainAfter, baked, 300, 300);
+  EXPECT_LT(tracked, 4.0)
+      << "the baked node did not track the camera — a device-rect-pinned "
+         "texture replayed the old projection (mean |delta| over ink "
+      << tracked << " against " << cameraMoved << " of real motion)";
+  // The accounting is what separates the two paths (a wrongly-taken
+  // device bake mostly self-heals through its rect-stability test, so
+  // pixels alone cannot convict it — measured, the first draft of this
+  // pin passed with the guard deleted): the LOCAL fallback bakes ONCE and
+  // the bake is matrix-independent, so the camera's motion re-bakes
+  // NOTHING. A device bake is pinned to its rect and has to be re-taken
+  // when the camera moves — one extra bake, visible right here.
+  EXPECT_EQ(bakes, 1u)
+      << "a Cache::Texture node under a perspective camera took a "
+         "device-space bake (or re-baked under camera motion) instead of "
+         "holding one local bake";
 }
 
 // ---------------------------------------------------------------------------

@@ -711,7 +711,13 @@ struct TextPath {
   /** The baseline, resolved against the node's laid-out box — any
    *  `shapes::` generator, or your own. EVERY contour is walked, in
    *  order, as one arc-length coordinate — a trajectory clipped to the
-   *  frame is several contours and used to lose its label silently. */
+   *  frame is several contours and used to lose its label silently.
+   *
+   *  "The node's box" means the TEXT NODE'S OWN box, not a parent's: the
+   *  obvious `disc(c, R).child(text(...).onPath(...))` resolves the ring
+   *  against the text's intrinsic size and collapses every label into a
+   *  blob. The working spelling is that the text leaf IS the disc — give
+   *  the text node the disc's width and height (§10j). */
   Shape path;
   /** Where the run sits along the path, as a fraction of its length.
    *  With Align::Center this is the run's midpoint. */
@@ -2723,10 +2729,16 @@ Element slot(std::string_view name);
  *  decorations (attach a PathFormat — the routed path arrives as
  *  PaintContext::outline). Straight line by default; supply a router
  *  for anything else. Position it absolute().inset(0) over the nodes
- *  it connects. */
+ *  it connects.
+ *
+ *  `gap` is `Anchor::gap`'s spelling on this door: it pulls each END of
+ *  the routed path back along itself by that many px (clamped so short
+ *  routes keep a visible run). Routes run centre to centre, and with
+ *  `sdf::` chrome the node box is far larger than the visible shape —
+ *  the gap is how a wire stops at the glow instead of piercing it. */
 using Router = std::function<SkPath(const SkRect &from, const SkRect &to)>;
 Element connector(std::string_view fromKey, std::string_view toKey,
-                  Router router = {});
+                  Router router = {}, float gap = 0.0f);
 
 /** A rail endpoint/waypoint: a NORMALIZED point on a keyed node's resolved
  *  bounds ((0,0)=top-left, (1,1)=bottom-right — the binding form tldraw and
@@ -2866,7 +2878,14 @@ inline Element flowAround(Element el, std::string_view key,
  *  dims). Bindings are sampled at their current values; transitions
  *  don't run — there is no live timeline. This is the bake primitive
  *  behind ContourWalk element stamps, and generally "an element tree
- *  as a brush". */
+ *  as a brush".
+ *
+ *  THE INTRINSIC SIZE COMES FROM THE ROOT'S CHILDREN, not from the
+ *  root's own dims (§10j): `snapshot(box().width(32).fill(…))` bakes at
+ *  content size, so a probe that reads its own output back gets a
+ *  silently different answer than the same content wrapped in a shell —
+ *  wrap the sized tree in a plain `box().child(...)` and the forced dims
+ *  are honored (the Pattern bake rule). */
 sk_sp<SkPicture> snapshot(Element root, sigil::weave::FontContext &fonts,
                           SkSize maxSize = SkSize::MakeEmpty());
 
@@ -2979,6 +2998,18 @@ struct TextMetrics {
 
 TextMetrics metrics(const sigil::weave::TextStyle &style,
                     sigil::weave::FontContext &fonts);
+
+/** Shape ONE RUN without building an Element (§9): per-glyph advances in
+ *  px, in visual order, through the same shaping path a text() leaf takes
+ *  (real kerning, real ligatures — the count is the GLYPH count, not the
+ *  byte or code-point count). Hand-placing N glyphs used to cost N text()
+ *  leaves and N `measure()` layouts; this is one layout, and the pen
+ *  positions are the running prefix sums. Single style, no wrapping (the
+ *  run is laid on one unbounded line — a '\n' starts a new line and will
+ *  reset the rest positions, so pass a RUN, not a paragraph). */
+std::vector<float> measureRun(std::u8string_view utf8,
+                              const sigil::weave::TextStyle &style,
+                              sigil::weave::FontContext &fonts);
 
 /** One-shot intrinsic measurement: what size would this element take?
  *  Runs the same reconcile+layout as snapshot() and returns the root's

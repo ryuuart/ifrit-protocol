@@ -238,6 +238,9 @@ plate's 9,580 settling sand grains:
   tinted glyph by 252/255 and put seven off-palette colours on screen,
   each exactly two units low — invisible to the eye and caught only by a
   colour census. Another argument for atlas variants over more lanes.
+  *(Taken 2026-08-04: the warning now sits on `Pool::tints()` itself in
+  Instances.h — the multiply, the #FCFCFC case, and atlas variants as
+  the exact-palette remedy. Doc-only, no pin.)*
 - ~~**The non-uniform-scale half**~~ — **CLOSED**: `Pool::sizes()` is an
   opt-in `SkSize` lane, and the fix was smaller than the gap looked
   because `drawSpriteAtlas` was already decomposing to quads for backend
@@ -728,9 +731,21 @@ the right thing internally and hands out only the finished result.
   `echo()`. It composes with `textFill()`, so engraved chrome type is now
   two calls. (The hollow-type case above is its sibling and still open:
   that one *hollows* a face, this one *thickens* one.)
-- **No way to shape a run without building an Element.** `measure()` is
-  per-Element, so hand-placing 230 glyphs costs 230 layouts. Wanted:
+- ~~**No way to shape a run without building an Element.**~~ **CLOSED
+  2026-08-04.** `measure()` is
+  per-Element, so hand-placing 230 glyphs cost 230 layouts. Wanted:
   `FontContext::measureRun(u8string, TextStyle) -> vector<float>`.
+  Landed as the compose free function `measureRun(u8string_view,
+  TextStyle, FontContext&) -> vector<float>` beside `metrics()` — a
+  method on weave's FontContext would put a compose convenience inside
+  the layout engine, and metrics() already set the free-function
+  precedent for exactly this tier. One Paragraph + one unconstrained
+  single-line `layoutParagraph` (the same machinery `text()` runs),
+  advances collected via `forEachPlacedGlyph`. Pin:
+  `ComposeText.MeasureRunShapesOnceAndMatchesTheLaidOutElement` — the
+  advance sum reproduces `measure(text(...))`'s width through the full
+  Element path (the independent arm), a doubled face doubles the run,
+  and an empty run shapes to nothing.
 - **No tab leader — now the headline text gap, and priced.**
   `TabStopOptions` is `{positions, interval}` and nothing else, so a
   dot-leadered two-column row is two absolutely positioned leaves plus a
@@ -756,7 +771,12 @@ the right thing internally and hands out only the finished result.
   and fills but not `u8string`, so a counter or a timer must re-describe.
   `slot()`/`renderSlot()` is the right answer and is genuinely cheap —
   but the obvious first attempt is to hunt for `text(&output)`, and
-  API.md never names slots as *the* counter idiom.
+  API.md never names slots as *the* counter idiom. *(Doc half taken
+  2026-08-04: API.md's Slots tier now opens "Slots are THE text-content
+  idiom", says outright that no text-Output overload exists, and names
+  the counter/timer/ticker cases. The `PropValue<u8string>` question
+  itself stays open — this note is about discoverability, not a new
+  lane.)*
 
 ## 10. Decorations: adaptors and frames
 
@@ -766,13 +786,29 @@ the right thing internally and hands out only the finished result.
   514 directions. Correct at the low level, wrong as a default, subtle
   enough to ship. Wanted: a `worldLight` flag, or the node's accumulated
   rotation on `PaintContext`.
-- **`lines::Line` with `parallels > 1` has no join control** — the offset
-  contour rounds sharp corners, so 45° jogs come out as soft S-curves.
-  The offset is built from a stroke outline anyway; expose
-  `SkPaint::Join`.
-- **`connector()` has no endpoint gap.** `Anchor` has one; `connector()`
-  does not, so a route always runs to the node box's *centre* — and with
-  `sdf::` chrome the box is far larger than the visible shape.
+- ~~**`lines::Line` with `parallels > 1` has no join control**~~ —
+  **CLOSED 2026-08-04.** The offset
+  contour rounded sharp corners, so 45° jogs came out as soft S-curves.
+  The offset is built from a stroke outline anyway, so the entry's route
+  was taken literally: `Line::join` (`SkPaint::Join`, default stays the
+  grounded round) is applied to the drawn strokes AND to the spread
+  paint that builds the parallel rails. Plain data, so it rides the
+  defaulted equality. Pin:
+  `ComposeLines.ParallelJoinControlKeepsACornerSharp` — miter reaches
+  the outer corner's diagonal point, round provably does not, and two
+  same-join renders are byte-identical (the control).
+- ~~**`connector()` has no endpoint gap.**~~ **CLOSED 2026-08-04.**
+  `Anchor` has one; `connector()`
+  did not, so a route always ran to the node box's *centre* — and with
+  `sdf::` chrome the box is far larger than the visible shape. Now
+  `connector(from, to, router, gap)`: Anchor::gap's spelling and clamp
+  (≤45% of the route per end), applied to the ROUTED PATH's open-contour
+  terminals so it works under any router. `DeriveData::connectorGap`
+  joins `deriveEqual` and the 14→15 field pin; the existing re-described-
+  route invalidation covers a gap-only change. Pin:
+  `ComposeDerive.ConnectorGapPullsTheWireOffTheEndpoints` — gap 0 (the
+  control) pierces both terminals exactly as before; gap 30 starts and
+  stops where it says and leaves the middle intact.
 
 ## 10b. Animated lines and paths: the parameter anchor
 
@@ -790,10 +826,26 @@ the right thing internally and hands out only the finished result.
   Documented, and still a live trap: a planet terminator authored at 1.28
   puts the dark end of its ramp entirely outside an inscribed disc and the
   shading silently disappears. A min-side-relative variant, or a doc that
-  reads as a warning.
-- **No offset-focus radial.** `SkShaders::TwoPointConicalGradient` is the
+  reads as a warning. *(Taken 2026-08-04, the doc route — because the
+  min-side-relative variant ALREADY EXISTS: `glowUnit()` is radius-as-
+  fraction-of-the-shorter-side, radius 1 = the inscribed circle, and has
+  been the documented remedy since §14. What was missing was this entry's
+  direction of the trap: radialUnit's doc warned about the hard rim at
+  radius 1, not about a ramp authored PAST 1 disappearing outside the
+  disc. The doc now states both, and names glowUnit as the min-side
+  variant. Doc-only, no pin.)*
+- ~~**No offset-focus radial.**~~ **CLOSED 2026-08-04.**
+  `SkShaders::TwoPointConicalGradient` is the
   natural sphere-shading primitive; displacing the centre works but
-  couples falloff to offset.
+  couples falloff to offset. Now `Material::conical(focus, focusRadius,
+  center, radius, stops, tile)` — the Skia primitive exposed under the
+  factory tier, `Recipe::Kind::Conical` reusing the gradient arm's
+  p0/p1/f0/f1 fields (no new Recipe fields, so Material's 7-member field
+  pin stands). Pin:
+  `ComposeMaterial.ConicalMovesTheHighlightWithoutMovingTheFalloff` —
+  the highlight pixel visibly follows the focus against the centered
+  control arm, identical recipes compare equal, a moved focus does not,
+  and a degenerate conical never aliases a radial.
 - **`Material` is node-local, with no world-space option** — *narrowed by
   a half-citation against it.* 549 per-tile granite grains seeded off tile
   identity is correct for stone, but anything that must be continuous
@@ -828,6 +880,9 @@ the right thing internally and hands out only the finished result.
   luminance** rather than modulating what is beneath; the first nebula
   came back a white cloud at 15% alpha. The header warns about `noise` vs
   `grain` channels; it should also say grain wants an OPAQUE surface.
+  *(Taken 2026-08-04: grain's doc block now opens with "GRAIN WANTS AN
+  OPAQUE SURFACE", the nebula case, and the multiply-over-solid-ground
+  remedy. Doc-only, no pin.)*
 
 ## 10d. Custom layout: a data channel, and a container that can size itself
 
@@ -1266,34 +1321,63 @@ axis are the same axis.
 
 ## 10j. Winding, boxes, and three traps a colour study walked into
 
-- **`shapes::circle()` has no winding direction, and the winding IS the
-  historical convention.** On a text baseline, path direction decides
+- ~~**`shapes::circle()` has no winding direction, and the winding IS the
+  historical convention.**~~ **CLOSED (found already shipped) 2026-08-04.**
+  On a text baseline, path direction decides
   whether glyph-up points radially IN (Chevreul's limb) or OUT
   (Nightingale's ring) — one uniform engraver's convention each way, and
   opposite in sign. `circle()` is `addOval(kCW)` from 12 o'clock, so half
   of all ring inscriptions need a hand-rolled `OutlineFn`. Wanted:
   `shapes::circle(SkPathDirection, float startDeg)`, or
   `Orient::RadialIn/Out`.
+  *The papercut pass came to build this and found it built — the shapes
+  wave (fcbdfa1) had already landed
+  `shapes::circle(SkPathDirection, unsigned startIndex = 1)`, spelled
+  with `addOval`'s startIndex rather than the entry's `startDeg` so the
+  oriented overload stays byte-for-byte `addOval` conics (its own doc
+  records why, including the startIndex=0 near-miss a test caught).
+  Pinned by `ComposeText.RingWindingDecidesWhichWayTheGlyphsFace`
+  (onPath text observably reverses; the directed default IS the
+  undirected path — the control) and the `KitFrame` baseline-direction
+  suite. An arbitrary startDeg remains unspelled; nothing has asked for
+  a start point off the oval's four extremes.*
 - **`TextPath`'s baseline resolves against the TEXT NODE's own box**, so
   the obvious `disc(c, R).child(text(...).onPath(...))` collapses every
   label into a blob at the text's intrinsic size. The working spelling is
   that the text leaf IS the disc. Undocumented; one sentence pays for
-  itself.
+  itself. *(Taken 2026-08-04: the sentence is on `TextPath::path`'s doc
+  in Compose.h, where the author meets the field. Doc-only, no pin.)*
 - **`snapshot()` sizes by the root's CHILDREN, not the root's own dims** —
   stated only in a comment inside `Instances.h`. A probe of
   `box().width(32).fill(…).effect(…)` read back a colour implying an
   exponent of 1.82; the same content wrapped in a shell reads 2.20. For
   the read-your-own-output-back pattern that verification depends on,
-  that is a silent wrong answer.
-- **`Material::sweep` clamps outside `[startDeg, endDeg]` instead of
-  wrapping**, so `sweep(c, stops, 90, 450)` — the obvious way to start a
-  hue wheel at red — draws a quarter of the ring in the first stop's
-  colour with no diagnostic.
-- **`lines::concentric` cannot place a ring at a stated radius.** Radii
-  are `inner + (reach − inner)·k/rings` with `reach` the bbox
-  HALF-DIAGONAL, so on a `circle()` node the outermost ring always lands
+  that is a silent wrong answer. *(Taken 2026-08-04: stated on
+  `snapshot()`'s own doc in Compose.h — including the shell-wrap remedy
+  the Instances.h comment carried. Doc-only, no pin.)*
+- ~~**`Material::sweep` clamps outside `[startDeg, endDeg]` instead of
+  wrapping**~~ — **CLOSED 2026-08-04 (the diagnostic, not a wrap):**
+  `sweep(c, stops, 90, 450)` — the obvious way to start a
+  hue wheel at red — drew a quarter of the ring in the first stop's
+  colour with no diagnostic. The factory now warns once per process when
+  a window leaves [0, 360] (the sdf-pad warn-once pattern), and the
+  header doc says to rotate the STOPS instead. Clamping itself is
+  unchanged — partial sweeps inside the circle are legitimate and stay
+  silent. Pin: `ComposeMaterial.SweepWarnsWhenTheWindowLeavesTheCircle`
+  (in-circle windows stay silent — the control — then the trap window
+  names itself).
+- ~~**`lines::concentric` cannot place a ring at a stated radius.**~~
+  **CLOSED 2026-08-04.** Radii
+  were `inner + (reach − inner)·k/rings` with `reach` the bbox
+  HALF-DIAGONAL, so on a `circle()` node the outermost ring always landed
   at R√2 — outside the shape, clipped away. Same class as §10c's
-  `radialUnit` trap, and a two-circle limb is unspellable.
+  `radialUnit` trap, and a two-circle limb was unspellable. Now:
+  `RadialHatch::radiiPx` (joins the hand-written equality) and the
+  `lines::concentric(fill, std::vector<float> radiiPx, …)` overload —
+  stated px radii, one circle per entry; the spacing form is untouched.
+  Pin: `ComposeLines.ConcentricPlacesARingAtAStatedRadius`, whose
+  control demonstrates the trap verbatim (one evenly-spaced ring on a
+  circle() node draws NOTHING).
 
 ## 10k. Themed textures, and text that cannot be asked for
 
@@ -2697,14 +2781,32 @@ What the next person must not assume:
   still see the real signal.
 - **A material that fails to build should be loud.** `MakeForShader`
   returning a valid effect and an empty error string, then dying at draw,
-  is the worst possible failure mode.
+  is the worst possible failure mode. *(Taken in the buildable half
+  2026-08-04: `Material::sksl(nullptr)` — the classic MakeForShader-
+  returned-null-and-nobody-looked route — now warns once at BUILD that
+  the material is NONE and its node will paint nothing, instead of
+  silently drawing nothing. Pin:
+  `ComposeMaterial.ANullSkslEffectIsLoudAtBuild`, valid-effect control
+  arm included. The valid-effect-then-faults case named above is the
+  split-Skia pointer-auth fault (Patterns.h documents the two rules that
+  prevent it; `stock_materials` is its ctest) — nothing observable
+  exists at build time to warn on there, so that half stays with the
+  crash reporter.)*
 - **The ABI skew guard has no override and no protocol.** One library
   header touch blocks every sketch until someone rebuilds the host. That
   is the right default; what is missing is a documented "who rebuilds"
   convention for concurrent work.
-- **`SketchContext` dangles if captured by reference in a steppable.** It
-  is a per-frame value the host rebuilds. Now documented in
-  `sketch/README.md`; making it non-copyable would be better.
+- ~~**`SketchContext` dangles if captured by reference in a steppable.**~~
+  **CLOSED 2026-08-04.** It
+  is a per-frame value the host rebuilds. Was documented in
+  `sketch/README.md`; making it non-copyable would be better — and now it
+  is: copy ctor/assignment deleted (an explicit constructor keeps the
+  hosts' braced construction; `makeContext()` returns a prvalue under
+  guaranteed elision). A steppable can no longer hold one by value
+  either, which would have dangled its spec/size pointers just as
+  silently. Layout unchanged, kAbiVersion stays 4; every static sketch
+  and the gallery compile clean, so no sketch was copying it.
+  Compile-time change — no runtime pin.
 - Small open items (2026-07-22 handoff): **persona menu**'s selection
   wedge occludes the "EQUIP" label — a spacing decision wanting a P3R
   reference (the real menu pushes neighbours clear), not a paint bug;
@@ -3561,10 +3663,21 @@ findings, recorded so they are not rediscovered:
   nothing held between frames. Fine at the corpus's pass counts; the
   place to fix it is an `Instance`-side cache keyed on (outline identity,
   resolved endpoints), i.e. the same shape as `outlineCache`.
-- **`Spans` equality is term-ORDER-sensitive; `resolve()` is not.**
+- ~~**`Spans` equality is term-ORDER-sensitive; `resolve()` is not.**~~
+  **CLOSED 2026-08-04.**
   `corners(8) | at(0,4)` and `at(0,4) | corners(8)` claim the same runs
-  but compare unequal, so a describe that reorders terms produces a
+  but compared unequal, so a describe that reorders terms produced a
   spurious patch. Never a wrong picture — only a lost prune.
+  `Spans::operator==` is a multiset match now (greedy-with-used-flags
+  over the SAME term comparison — exact because term equality is an
+  equivalence; identical-order describes keep a one-pass fast path).
+  Safe because a pruned node keeps ITS OWN term order and the resolved
+  values array paired with it. Pin:
+  `ComposeSpans.ReorderedTermsPruneBecauseResolveNeverReadsOrder` —
+  reorder patches 0 nodes, a genuinely different claim still patches
+  (the in-test control), duplicates count; the reverted comparator
+  fails the pin (run 2026-08-04). Prune-only: the ledger stayed
+  byte-neutral.
 - **There is no seam-crossing span.** `spans::range` clamps, so
   Wrap-mode marching ants and the orbiting comet remain `trim()`'s job.
   If spans are ever to retire trim outright, a wrapping range is the
@@ -4087,9 +4200,17 @@ the variable is the law, not the lane. Fixed in the law
 Filed as a hazard in API.md's traps list, because the failure mode
 generalises: a profile that returns a non-finite width does not pinch the
 band to nothing, it deletes the whole band, and nothing says why. The seam
-is NOT guarded — one line in `profileOffset` would turn this into a local
+is ~~NOT guarded~~ — one line in `profileOffset` would turn this into a local
 pinch instead of a silent deletion, and that is a policy call for whoever
 owns the next robustness pass, not something to slip into a migration.
+**GUARDED 2026-08-04 (the papercut pass took the policy call as written):
+the one line in `profileOffset`'s varying walk resolves a non-finite
+sample to width 0 — a local pinch to the spine — so the rest of the band
+draws. The constant-detection path needs no guard (NaN ≠ NaN already
+routes a poisoned law to the varying walk). Pin:
+`ComposeWidthProfile.ANonFiniteSamplePinchesInsteadOfDeletingTheBand`;
+control run with the guard reverted — the band vanishes outright and the
+pin fails. API.md's trap 2b updated to say guarded-but-still-clamp.**
 
 ### Tests
 
@@ -6471,7 +6592,13 @@ owner's call, exactly as f206364's six unadopted sketches are.
 2. **`Output::inputPtr()` is non-const**, so `Instance::resolveFloat` —
    which is `const` — cannot reach the Sequence without a `const_cast` or a
    non-const overload. A detail, but it is the first thing any
-   evaluate-at-time work trips over.
+   evaluate-at-time work trips over. *(Attempted and SKIPPED 2026-08-04,
+   left open: verified there is NO call site today —
+   `Instance::resolveFloat` reads `binding->value()` and never touches
+   `inputPtr()`, so a compose-side `const_cast` would be dead code
+   guessing at future work. The real fix is a const overload in the
+   vendored choreograph port (sigil-vcpkg-registry), which is a separate
+   workflow; take it when the first evaluate-at-time call site exists.)*
 3. **`mountDelayCarryMs` is a subtree time offset in everything but name**
    (`Reconcile.cpp:813-836`): reconcile-time, dynamically scoped,
    save/restore, compounding through nesting. Any future subtree-clock work
@@ -7331,7 +7458,27 @@ durable value here — several of them retire seams rather than open them:
 - **The three device-space bakes are already `!hasPerspective()`-guarded**,
   and that set is a complete enumeration of the sites pinning pixels to a
   device rect (44.1) — **re-verified against source 2026-07-30**, see the
-  corrections below.
+  corrections below. **And PINNED 2026-08-04** — the boundary test §28
+  wanted and 44.10's closure of 44.8 step 4 orphaned:
+  `ComposeCache.PromotionRefusesAHostPerspectiveCtm` (the `upright`
+  guard, observable as `refused(Transformed)`; the no-perspective arm
+  promotes — the control) and
+  `ComposeCache.ATextureBakeUnderPerspectiveTracksTheCamera` (the
+  `Cache::Texture` guard: under a host perspective concat the node holds
+  ONE local bake that survives camera motion and stays within tolerance
+  of the live twin; texturesBaked == 1 is the discriminating observable,
+  because a wrongly-taken device bake mostly self-heals through its
+  rect-stability test and pixels alone cannot convict it). Both controls
+  run by deleting each guard clause in turn — each pin fails, restored,
+  both pass. One finding for the next reader: a perspective·rotateY
+  SkM44's 2D projection carries a SKEW term, so it cannot isolate the
+  `hasPerspective()` clause — the first draft passed its own control
+  through the older skew clauses; the pins use a pure keystone
+  (persp-only, upright by every other test the gate makes). The THIRD
+  guard, `Cache::Group`'s own `hasPerspective()` clause, stays unpinned
+  — its bake path needs a settled bound-scalar subtree and the two
+  pinned guards bracket the same refusal shape; take it if a Group ever
+  regresses here.
 - **The "Composer camera" seam is RETIRED** (44.9). A host concat is one.
   If DESIGN.md's doc-map still names *"a Composer camera with local-space
   bake anchoring"* as an open seam, it should now point here.

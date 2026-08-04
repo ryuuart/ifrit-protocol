@@ -141,7 +141,24 @@ public:
                          SkTileMode tile = SkTileMode::kClamp);
   static Material radial(SkPoint center, float radius, std::vector<Stop> stops,
                          SkTileMode tile = SkTileMode::kClamp);
-  /** Angular sweep from startDeg (12 o'clock is -90°) around center. */
+  /** OFFSET-FOCUS radial — `SkShaders::TwoPointConicalGradient`, the
+   *  natural sphere-shading primitive (§10c). The ramp runs from the
+   *  circle (@p focus, @p focusRadius) to the circle (@p center,
+   *  @p radius); a highlight displaced off the sphere's centre is
+   *  `conical(hot, 0, centre, R, …)`. Displacing a plain radial()'s
+   *  centre instead couples the falloff to the offset — the whole ramp
+   *  slides — where this keeps the outer circle put and only the focus
+   *  moves. Both radii in node-local px, like radial(). */
+  static Material conical(SkPoint focus, float focusRadius, SkPoint center,
+                          float radius, std::vector<Stop> stops,
+                          SkTileMode tile = SkTileMode::kClamp);
+  /** Angular sweep from startDeg (12 o'clock is -90°) around center.
+   *
+   *  Angles outside [0, 360) CLAMP, they do not wrap: `sweep(c, stops,
+   *  90, 450)` — the obvious way to start a hue wheel at red — paints
+   *  the quarter before 90° in the first stop's flat colour, because no
+   *  canvas angle ever reaches past 360. Rotate the STOPS into [0, 360)
+   *  instead; the factory warns once when a window leaves the circle. */
   static Material sweep(SkPoint center, std::vector<Stop> stops,
                         float startDeg = 0.0f, float endDeg = 360.0f);
   /** Image/sprite as a fill (tiled or clamped); `local` maps source px into
@@ -218,9 +235,15 @@ public:
    *  soft round light authored at radius 1 is still at ~10% alpha where
    *  the inscribed circle is, so if the node also carries
    *  `.shape(shapes::circle())` the glow gets a visible hard rim. The
-   *  magic number is 0.707. Use glowUnit() below when you mean "fills
-   *  this box", and keep radialUnit for when you genuinely mean the
-   *  corners (a vignette, a corner-to-corner wash). */
+   *  magic number is 0.707. And the trap cuts the other way too: a ramp
+   *  authored past 1 (a planet terminator at radius 1.28) puts its far
+   *  end entirely OUTSIDE the inscribed disc, so on a circle-shaped node
+   *  the shading silently disappears — nothing is drawn wrong, the
+   *  interesting part of the ramp just never intersects the shape. Use
+   *  glowUnit() below when you mean "fills this box" (it is the
+   *  min-side-relative variant: radius 1 IS the inscribed circle), and
+   *  keep radialUnit for when you genuinely mean the corners (a
+   *  vignette, a corner-to-corner wash). */
   static Material radialUnit(SkPoint center01, float radius01,
                              std::vector<Stop> stops) {
     return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),

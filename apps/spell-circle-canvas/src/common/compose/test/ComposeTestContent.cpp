@@ -1061,6 +1061,49 @@ TEST(ComposeDerive, ArcRouterBowsOffTheChord) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // chord midpoint empty
 }
 
+TEST(ComposeDerive, ConnectorGapPullsTheWireOffTheEndpoints) {
+  // §10: Anchor has a terminal gap and connector() did not, so a route
+  // always ran to the node box's CENTRE — and with sdf:: chrome the box
+  // is far larger than the visible shape, so every wire pierced its
+  // terminals. Same spelling, same clamp, on the connector door.
+  const auto scene = [](float gap) {
+    PathFormat wire;
+    wire.width = 4;
+    wire.strokeFill = Fill::color({1, 1, 0, 1});
+    return stack()
+        .child(box().key("a").width(20).height(20)
+                   .inset(10, 90, 170, 90).absolute().fill(red()))
+        .child(box().key("b").width(20).height(20)
+                   .inset(170, 90, 10, 90).absolute().fill(green()))
+        .child(connector("a", "b", {}, gap)
+                   .inset(0).foreground(wire).zIndex(1));
+  };
+  // Control: gap 0 is the old behaviour — the wire runs centre to centre
+  // (20,100) → (180,100) and paints OVER both terminal boxes.
+  Host flush;
+  flush.composer.render(scene(0.0f));
+  flush.frame();
+  EXPECT_EQ(flush.pixel(25, 100), SK_ColorYELLOW)
+      << "the gapless wire must still reach into its near terminal";
+  EXPECT_EQ(flush.pixel(175, 100), SK_ColorYELLOW)
+      << "…and pierce the far one (that IS the complaint)";
+  EXPECT_EQ(flush.pixel(100, 100), SK_ColorYELLOW);
+  // The gap: 30 px pulled back at EACH end — the wire now runs x ∈
+  // [50, 150], both terminals show their own fill, the middle survives.
+  Host gapped;
+  gapped.composer.render(scene(30.0f));
+  gapped.frame();
+  EXPECT_EQ(gapped.pixel(25, 100), SK_ColorRED)
+      << "the gap did not pull the wire off its near terminal";
+  EXPECT_EQ(gapped.pixel(175, 100), SK_ColorGREEN)
+      << "the gap did not pull the wire off its far terminal";
+  EXPECT_EQ(gapped.pixel(145, 100), SK_ColorYELLOW)
+      << "the wire ends before its gap says to";
+  EXPECT_EQ(gapped.pixel(160, 100), SK_ColorBLACK)
+      << "the wire overran its gap";
+  EXPECT_EQ(gapped.pixel(100, 100), SK_ColorYELLOW); // the run survives
+}
+
 #include <sigilcompose/Layouts.h>
 
 // ---------------------------------------------------------------------------

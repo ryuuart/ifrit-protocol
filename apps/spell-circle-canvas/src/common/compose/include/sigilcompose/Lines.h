@@ -652,6 +652,15 @@ struct Line {
   float gap = 4.0f;
   float coreWidthFactor = 1.0f;
 
+  /** Corner treatment for the drawn strokes AND the parallel-offset
+   *  construction (§10). The default is the grounded round join
+   *  (osm-carto/leaflet rails) — which also means the offset contour
+   *  ROUNDS sharp corners, so a crisp 45° jog in a cased wire comes out
+   *  as a soft S-curve. `SkPaint::kMiter_Join` keeps the jog sharp: the
+   *  offset rails are built from a stroke outline anyway, so the join is
+   *  simply exposed rather than invented. */
+  SkPaint::Join join = SkPaint::kRound_Join;
+
   /** Wave/zigzag displacement of the run itself (the y2k squiggle, the
    *  hand-drawn nerve): amplitude in px, wavelength in px along the arc.
    *  Zigzag alternates hard vertices instead of the sine. */
@@ -759,8 +768,8 @@ struct Line {
     SkPaint stroke;
     stroke.setAntiAlias(true);
     stroke.setStyle(SkPaint::kStroke_Style);
-    stroke.setStrokeJoin(SkPaint::kRound_Join); // grounded: round joins on
-    stroke.setStrokeCap(SkPaint::kRound_Cap);   // rails (osm-carto/leaflet)
+    stroke.setStrokeJoin(join); // defaults to the grounded round join on
+    stroke.setStrokeCap(SkPaint::kRound_Cap); // rails (osm-carto/leaflet)
     applyFill(stroke);
     if (!dashIntervals.empty())
       stroke.setPathEffect(SkDashPathEffect::Make(
@@ -853,8 +862,8 @@ struct Line {
         SkPaint spread;
         spread.setStyle(SkPaint::kStroke_Style);
         spread.setStrokeWidth(std::max(span, 0.5f));
-        spread.setStrokeJoin(SkPaint::kRound_Join);
-        spread.setStrokeCap(SkPaint::kRound_Cap);
+        spread.setStrokeJoin(join); // the offset contour inherits the join,
+        spread.setStrokeCap(SkPaint::kRound_Cap); // so miter rails jog sharp
         SkPath loop = skpathutils::FillPathWithPaint(body, spread);
         if (std::optional<SkPath> simple = Simplify(loop))
           loop = std::move(*simple); // tight-bend self-intersection repair
@@ -1368,16 +1377,23 @@ struct RadialHatch {
   float holeFraction = 0.08f;
   SkPoint centre = {0.5f, 0.5f};
   float rotateDeg = 0.0f;
+  /** STATED ring radii, in px from the centre. When non-empty this list
+   *  replaces the `rings` spacing entirely — one circle per entry,
+   *  exactly where it says (§10j: the even spacing runs out to the bbox
+   *  HALF-DIAGONAL, so on a circle() node the outermost ring lands at
+   *  R·√2, outside the shape, clipped away — and a two-circle limb at
+   *  authored radii was unspellable). Spokes keep their own reach. */
+  std::vector<float> radiiPx;
 
   bool operator==(const RadialHatch &o) const {
     return strokeFill == o.strokeFill && spokes == o.spokes &&
            rings == o.rings && width == o.width &&
            holeFraction == o.holeFraction && centre == o.centre &&
-           rotateDeg == o.rotateDeg;
+           rotateDeg == o.rotateDeg && radiiPx == o.radiiPx;
   }
 
   void paint(SkCanvas &c, const PaintContext &ctx) const {
-    if (width <= 0 || (spokes <= 0 && rings <= 0))
+    if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty()))
       return;
     const SkRect box = ctx.outline.getBounds();
     if (box.isEmpty())
@@ -1413,7 +1429,13 @@ struct RadialHatch {
       }
       c.drawPath(b.detach(), p);
     }
-    if (rings > 0) {
+    if (!radiiPx.empty()) {
+      SkPathBuilder b;
+      for (float r : radiiPx)
+        if (r > 0)
+          b.addCircle(origin.fX, origin.fY, r);
+      c.drawPath(b.detach(), p);
+    } else if (rings > 0) {
       SkPathBuilder b;
       for (int i = 1; i <= rings; ++i) {
         const float r = inner + (reach - inner) * ((float)i / (float)rings);
@@ -1442,6 +1464,23 @@ inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
   h.strokeFill = std::move(fill);
   h.spokes = 0;
   h.rings = rings;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** Rings at STATED radii (px from the centre) — `concentric(ink, {60,
+ *  64})` is a two-circle limb, exactly where it says. The evenly-spaced
+ *  form above spaces out to the bbox half-diagonal, which on a circle()
+ *  node clips the outermost ring away (§10j). */
+inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
+                              float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = 0;
+  h.radiiPx = std::move(radiiPx);
   h.width = width;
   h.centre = centre;
   return h;

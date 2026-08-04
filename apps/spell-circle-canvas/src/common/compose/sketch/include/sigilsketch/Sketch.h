@@ -54,6 +54,22 @@ struct SketchContext {
   CanvasSpec *spec = nullptr; // host-owned; written via the calls below
   sigil::weave::FontContext *fonts = nullptr; // the composer's fonts —
                                               // measure()/snapshot() fuel
+
+  SketchContext(Composer &composerIn, sigil::motion::Ticker &tickerIn,
+                Assets &assetsIn, SkSize sizeIn, CanvasSpec *specIn = nullptr,
+                sigil::weave::FontContext *fontsIn = nullptr,
+                bool deterministicIn = false)
+      : composer(composerIn), ticker(tickerIn), assets(assetsIn),
+        size(sizeIn), spec(specIn), fonts(fontsIn),
+        deterministic(deterministicIn) {}
+  /** NON-COPYABLE, deliberately: this is a PER-FRAME value the host
+   *  rebuilds — capturing it in a steppable by reference dangles next
+   *  frame, and capturing a COPY would hold stale spec/size just as
+   *  silently. Neither compiles now; capture `ctx.composer` (stable for
+   *  the sketch's life) or plain data instead. Layout is unchanged, so
+   *  kAbiVersion stays at 4. */
+  SketchContext(const SketchContext &) = delete;
+  SketchContext &operator=(const SketchContext &) = delete;
   /** `--deterministic`: the host is taking a capture that will be DIFFED,
    *  so anything the sketch measured about its own execution must be
    *  pinned. See `measured()` below — read the flag directly only when

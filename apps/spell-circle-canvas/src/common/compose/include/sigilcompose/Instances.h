@@ -113,6 +113,13 @@ public:
   std::span<SkPoint> positions() { return m_positions; }
   std::span<float> rotations() { return m_rotations; }
   std::span<float> scales() { return m_scales; }
+  /** Per-instance tint — and a tint MULTIPLIES the atlas cell's colours,
+   *  which is a trap for exact-palette work (§2): a cell filled with a
+   *  palette's own white (#FCFCFC) scales every tinted channel by
+   *  252/255, putting off-palette colours on screen that are exactly two
+   *  units low — invisible to the eye, caught only by a colour census.
+   *  For exact palette swaps, bake atlas VARIANTS (one cell per palette)
+   *  and select by frame; tint only what may legitimately scale. */
   std::span<SkColor4f> tints() { return m_tints; }
   std::span<int> frames() { return m_frames; }
   /** Per-instance NON-UNIFORM scale, as an (x, y) multiplier on top of
