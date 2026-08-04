@@ -6522,7 +6522,7 @@ cross-library pin.
 cells. Corpus edits are the owner's call, as f206364's six unadopted
 sketches are.
 
-## 44. THE COMPOSER CAMERA — the crux inverts under measurement, and what the corpus actually asked for is not a camera — DESIGNED 2026-07-30, design only
+## 44. THE COMPOSER CAMERA — the crux inverts under measurement, and what the corpus actually asked for is not a camera — DESIGNED 2026-07-30; **DECLINED FOR COMPOSE ON SCOPE 2026-07-30, see 44.10** — the analysis stands, the feature does not
 
 The doc-map has named this seam for as long as there has been a doc-map:
 *"a Composer camera with local-space bake anchoring (infinite canvas — the
@@ -7076,3 +7076,165 @@ than the feature:
   already been paid for by one argument to `beginRecording`: **twice now,
   the deepest item on the list turned out to be already funded by a rule
   nobody wrote for it.**
+
+### 44.10 THE RULING — DECLINED FOR COMPOSE **ON SCOPE**, 2026-07-30. Not on cost, and 44.6's gate number was never taken
+
+**Owner ruling: the 3D and camera work belongs to SigilWorld. Compose stays
+2D; the 3D library owns projection.** `rotateX`/`rotateY`/`perspective`,
+`SpaceProps`, and the w > 0 corner gate are **not built and are not to be
+built** in compose. 44.4, 44.8 steps 1–4 and 44.9's conditional build order
+are closed.
+
+**Read the reason, not just the outcome, because the outcome is a
+coincidence.** This lands on the same words 44.6 pre-registered as its
+failure branch — *"refuse, and let the future 3D library own the
+projection"* — but it arrives by a completely different route, and a future
+reader who conflates the two will draw a conclusion this entry does not
+support:
+
+- 44.6's refusal branch was conditioned on **a measurement**: perspective
+  costing ~5× on Graphite.
+- This refusal is **a scope decision about which library owns projection**,
+  taken by the owner independent of cost.
+
+**Nothing here is evidence that perspective is expensive on Graphite.
+Nothing here is evidence that it is cheap.** Do not cite 44.10 for either.
+
+#### The gate was NOT run, and the reason is the instrument, not the answer
+
+The session that would have taken 44.6's measurement **had no working
+shell**: every `Bash` invocation — including `true` and `exit 0` — returned
+exit code 1 without executing, with empty stdout and stderr, in the parent
+and in subagents, sandboxed and not. Nothing could be configured, compiled,
+benchmarked, ledgered or rendered. **No number was produced, and none is
+reported here.** 44.6 stays **OPEN and unmeasured**, and it is still the
+right question for whoever builds projection in SigilWorld — the raster
+4.7× has never been checked against the GPU.
+
+What the session produced instead, from reads alone, is the recipe, so the
+next attempt is an hour and not an afternoon:
+
+- **The arm goes in `bench/ComposeBench.cpp`.** Google Benchmark, static
+  registration; arms are already declared *after* `BENCHMARK_MAIN()` (1070)
+  and register fine. **No CMake edit is needed to add one.**
+- **Correction to 44.6's own parenthetical: `compose_bench` has no `--gpu`
+  flag.** Graphite arms are selected by compile-time
+  `COMPOSE_BENCH_GRAPHITE` (defined only on `APPLE AND TARGET
+  SpellCircleSkia`) and at runtime by `--benchmark_filter=Graphite`. The
+  `--gpu` flag belongs to `ComposeGallery --headless`.
+- **Copy `graphiteVaryingArm` (`ComposeBench.cpp:754-809`)** — the §19
+  family, and the only synced one.
+- **It must submit through `submitGraphiteSynced`
+  (`ComposeBench.cpp:742-752`, `SyncToCpu::kYes`), not `submitGraphite`
+  (518).** The method note is already in the source at 735-741: the first
+  draft of a §19 measurement *"had the most expensive shader looking like
+  the cheapest because its queue never drained."* A perspective-vs-affine
+  pair is exactly that shape.
+- **The content must bear GLYPHS**, because 44.6's whole hypothesis is that
+  the raster penalty is glyphs falling off the atlas onto path filling.
+  `denseBlock` (`ComposeBench.cpp:257-268`) or `scoreboard` are the
+  fixtures; the varying-blur panel is the right *skeleton* and the wrong
+  *content*. No existing GPU arm touches the CTM at all, so the two arms
+  differ only by a `save()/concat(SkM44)/restore()` and a new
+  `SkM44.h` include.
+- **Keep `Cache::None` or `Cache::Picture`** — the three device bakes refuse
+  under perspective anyway (44.1's guards), so a `Cache::Texture` arm would
+  measure the local ladder, not the projection.
+- **Never `snap()` without `insertRecording`.** `makeRecorderOptions`
+  (`SkiaGraphiteContextCommon.cpp:84-101`) sets
+  `fRequireOrderedRecordings = true` as a stated PRECONDITION: a discarded
+  recording kills the recorder permanently and silently.
+- For the pixel half (projected-quad correctness, a w-gate refusal),
+  `test/ComposeGpuTest.mm:50-95` is the headless draw+readback harness 44.6
+  meant; it takes a `Composer&`, so a matrix arg or an inline copy is
+  needed (`DirectPrimitiveMatrix`, `:159-238`, is the precedent for
+  copying).
+
+#### What still stands, and it is most of the entry
+
+The measured findings are unaffected by the scope ruling and are the
+durable value here — several of them retire seams rather than open them:
+
+- **A camera reaches nothing in this architecture** (44.1). Six frames, six
+  angles, `recorded=0 baked=0 painted=0`.
+- **Recordings are matrix-independent by law**, and that law predates and
+  outlives this entry (44.1).
+- **The three device-space bakes are already `!hasPerspective()`-guarded**,
+  and that set is a complete enumeration of the sites pinning pixels to a
+  device rect (44.1) — **re-verified against source 2026-07-30**, see the
+  corrections below.
+- **The "Composer camera" seam is RETIRED** (44.9). A host concat is one.
+  If DESIGN.md's doc-map still names *"a Composer camera with local-space
+  bake anchoring"* as an open seam, it should now point here.
+- **"Local-space bake anchoring" is not the enabling mechanism** (44.9).
+- **The rejected shapes stay rejected on their own reasons** (44.7) — in
+  particular (b), the `env::`-ambient camera, which is the one design where
+  the crux would have been real, priced by §10g and §3.
+- **`maxScaleOf()`'s perspective fallback is the matrix diagonal**
+  (44.2b.1) — a live defect in compose *today*, independent of any 2.5D
+  feature, since the quantized bake ladder reads it. Still filed, still
+  unfixed.
+- **`ComposeInternal.h:330`'s filed-gap sentence is stale** (44.2b.2) —
+  confirmed; the repair is at `Paint.cpp:1279` and pinned by
+  `test/ComposeTestFieldPins.cpp:162-193`.
+
+#### Corrections to this entry, found by reading it against the source
+
+44.1–44.9 were written from probes. Verifying them against the tree on
+2026-07-30 (reads only, no build) found the measurements sound and **five
+attributions wrong**. They are recorded because this entry now stands as
+*analysis*, which is a thing future readers cite:
+
+1. **"the doc comment already asks for the matrix consolidation" (44.8 step
+   0) — NOT AS DESCRIBED.** `NodeTransform`'s comment
+   (`ComposeRuntime.h:751-759`) argues for ONE RESOLVER of the eight
+   numbers. It never asks for an `SkMatrix` return. Step 0 is a good idea
+   on its own merit; it is not a debt the canon already booked.
+2. **"the note already in `transformOf`" (44.3 Q5) — WRONG LOCATION.** The
+   *"THE GATE IS `pivoted()`, NOT A COPY OF IT"* note is in
+   `recordBounds()`, `Paint.cpp:1270-1278`. `transformOf` (1228-1257) has
+   no such note.
+3. **"the fourth CTM reader is not a caching decision" (44.1b) —
+   UNDERSTATED.** `Paint.cpp:2998-3007`'s quantized bake-step ladder reads
+   the CTM *and is* a caching decision (it feeds the re-bake test at 3015).
+   It is also precisely where 44.2b.1's diagonal defect bites. 44.1b names
+   only `Composer.cpp:298`.
+4. **The `upright` guard has TWO consumers, not one.** Automatic promotion
+   (`Paint.cpp:2421`) **and the §15 split bake** (`Paint.cpp:2620`). 44.3
+   Q4's table omits the second.
+5. **"`VariationDrive` … reported through the existing `Promotion`-style
+   refusal vocabulary" (44.3 Q5, 44.4) — TWO MECHANISMS DESCRIBED AS ONE.**
+   `VariationDrive` refuses via a per-instance tri-state latch plus a
+   one-shot `SkDebugf` (`Paint.cpp:87-110`). `Prom::` is a separate bitset
+   published to the profiler (`Paint.cpp:2400-2435`). `Cache::Group`'s
+   `groupWarned` refusal (`Paint.cpp:717-733`) is the closest thing to what
+   44.4 describes. Any future refusal path has to *choose* — extending
+   `Composer::Promotion` is a public-enum API change.
+
+Also **unsourced: 44.4's "736 → 744".** The only sizes written down are
+`Composer.cpp:33-34`'s 2752 → 1288 → 688 B, and the `<= 768` ceiling at
+`Composer.cpp:36-37`. 736 could not be found anywhere in the tree. Any
+future field addition should re-measure the headroom rather than quote it
+from here.
+
+#### Step 0 is UNCLAIMED and still worth doing
+
+44.8 step 0 — `transformOf()` returns the matrix; `paint()`,
+`recordBounds()` and `hitInstance()` consume it — **was not started** (no
+shell). It survives the scope ruling intact, because it is a consolidation
+under the unify/reuse lens and has nothing to do with 2.5D: three sites
+build one matrix from eight floats by hand today, and §40 has already been
+bitten twice by exactly that duplication.
+
+Read against source, the −40 estimate is credible and the sites are:
+
+| site | today | after |
+|---|---|---|
+| `paint()`'s matrix build | `Paint.cpp:2116-2128`, 13 lines of pivot arithmetic | one `canvas.concat(m)` |
+| `recordBounds()`'s child union | `Paint.cpp:1279-1291`, 13 lines — **already builds an `SkMatrix`** | one assignment |
+| `Query.cpp`'s `hitInstance` | `Query.cpp:57-86`, an 18–22 line HAND-UNWOUND inverse plus six float aliases | `SkMatrix::invert` + `mapPoints`, ~5 lines |
+
+`recordBounds()` is the cheapest first move — it is the one consumer whose
+output is already the matrix. **Byte-neutral by construction, and it must
+be plate-ledger-verified as such; it is not a behaviour change and any
+plate movement means the consolidation is wrong.**
