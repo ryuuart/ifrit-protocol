@@ -82,11 +82,13 @@ Eight studies, more than any other item. `Pool` covers "many copies of
 one thing"; every real case is "many variations of one recipe" — labelled
 nodes, staggered lattices, particles with lifetimes, rows with text,
 hairlines that must not thicken with their circle. The non-uniform scale
-lane has landed; what remains is a delay/progress lane, a short-string
-lane, a stroke-width lane, and — separately, wearing the same clothes —
-a **positioned leaf set** for generated geometry that wants no layout at
-all. Three studies paid four-figure Yoga node counts for scenes with zero
-layout in them.
+lane has landed, and so has the **positioned leaf set** for generated
+geometry that wants no layout at all (`positioned()`, 2026-07-27); the
+delay/progress lane is REFUSED (owner ruling 2026-08-03, §2 — schedule
+is SigilMotion's word, not a `Pool` column); what remains is a
+short-string lane, per-leaf clip, and the stroke-width question. Three
+studies paid four-figure Yoga node counts for scenes with zero layout
+in them.
 
 **3. Volatility is declared per NODE and BINARY, and authors think per
 PROPERTY and per RATE.** The CDE study priced this and the number is
@@ -179,6 +181,19 @@ the R4 baseline (`834bf1d613ae`, quiet machine, one render). Not supported insid
 contract (documented in API.md): flex props, `centerAt`, `layout()`
 schemes, `flowAround`. The remainder of this entry — the instancing lanes
 proper — stays open below.
+
+**The byte-identity clause above — CORRECTED 2026-08-03, owner ruling;
+the node count stands.** The §3 plate ledger caught it: HEAD stably
+renders `ccd7c2aa…`, not `834bf1d613ae` — verified on two independently
+built binaries, ~89% of pixels differing at maxDelta ≤ 139, the
+sub-pixel edge-shift signature of antialiasing moving, not of geometry
+changing. The claim predates the Skia m151 toolchain bump that landed
+in the working tree between the claim and the check; the attribution is
+TOOLCHAIN, not compose, and the ruling is to record measured reality
+rather than bisect a delta no compose change owns. `834bf1d613ae` is
+superseded as a gate — the plate baseline rebased 2026-08-03 carries
+the post-m151 lineage, so the ledger now gates against what HEAD
+actually renders.
 
 **And a second thing the cell bakes: its SHADE.** The X-COM study
 measured it — block 3 at shade 8 needs per-channel multipliers R 0.17 /
@@ -277,13 +292,25 @@ widening every instance.
 > the inverse projection against the same lanes the stamp reads
 > (rotation, scale, sizes(), texWindows(), frame size), topmost-first;
 > pinned by `ComposeInstances.PickInvertsTheStampTopmostFirst`.
-> Still open in this entry: the delay/progress lane (leaning REFUSE as
-> library surface — progress semantics live in the author's update
+> Still open in this entry: ~~the delay/progress lane (leaning REFUSE
+> as library surface — progress semantics live in the author's update
 > loop, and the Pool doc already rules user data stays user-side; a
-> ruling should say so or name the consumer), the short-string lane,
+> ruling should say so or name the consumer)~~, the short-string lane,
 > per-leaf clip, and the stroke-width / `strokeInvariant` question —
 > which `variants()` now partly answers (a re-stroke per size IS a
 > variant set).
+> **The delay/progress lane — REFUSED, owner ruling 2026-08-03.** The
+> lean above asked for a ruling; this is it, and it is the lean's
+> argument sharpened. Schedule semantics belong to SigilMotion:
+> `derive()` (Ticker.h) and `bind()` are the timing vocabulary, and a
+> timing lane inside the instancing pool would spell SCHEDULE a second
+> time in a library whose job is STAMPING — exactly the two-spellings
+> class §32/§43 refuse. And the stagger the studies wanted is not
+> stranded: the frame lane plus `alphas()` plus authoring math already
+> express it — per-instance index arithmetic at describe time, which
+> is where a describe-time library keeps its authoring decisions
+> anyway. A consumer this cannot serve is a SigilMotion consumer, not
+> a new `Pool` column.
 > **Plate ledger for the whole 2026-07-27 instancing stretch
 > (variants + alphas + repeat hygiene + pick): 54 of 56
 > byte-identical** against the §16 arm; the two movers are
@@ -309,7 +336,11 @@ Natural API: optional per-instance **alpha**, **delay** and **short
 string** lanes; non-uniform per-instance size; generators that write only
 their own lanes. Or, failing that, say plainly in the header that
 labelled lists stay real elements — the doc currently reads as if they
-are covered.
+are covered. *(Status against that list, 2026-08-03: the alpha lane,
+the size lane and generator lane-hygiene shipped 2026-07-27 — the
+blockquote above; the delay lane is REFUSED by the 2026-08-03 ruling
+there; the short-string lane is the part of this paragraph still
+standing.)*
 
 ## 3. `outline()` can never prune, and parametric curves have no generator — *four studies* — **CLOSED 2026-07-27 (comparability + generators); one named remainder stays open**
 
@@ -365,6 +396,21 @@ whatever state that acceptance measured, it is not the committed one.
 moved antialiasing corpus-wide, plus the approved widthFn/positioned
 deltas), so any future ledger must bake its own baseline arm rather
 than quote those files.
+
+**Both findings DISPOSED — owner ruling 2026-08-03: amend the claim, do
+not bisect.** Finding (2) already named finding (1)'s mechanism: the
+m151 bump moved antialiasing corpus-wide, and the penrose delta wears
+exactly that signature — ~89% of pixels at maxDelta ≤ 139, every edge
+shifting sub-pixel. The byte-identity claim simply predates the
+toolchain bump that landed in the working tree between claim and check,
+and `ccd7c2aa…` is stable across four renders and two independently
+built binaries, so the new number is reality, not flake. Attribution is
+TOOLCHAIN, not compose — the instanceRect()-rounding hypothesis in (1)
+is retired with it — and a bisect would spend a day re-deriving what
+the m151 record already states. §2's acceptance text now carries the
+correction inline. The gate is repaired the way (2) asked: the plate
+baseline was rebased 2026-08-03 onto the post-m151 lineage, so future
+ledgers gate against reality rather than against a pre-bump hash.
 
 **What stays open, and it is one sentence of this entry:** geometry that
 is BOUND (an outline as a function of live Outputs — Winamp's EQ curve)
