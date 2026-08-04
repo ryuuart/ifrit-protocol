@@ -351,6 +351,40 @@ struct Weave {
    *  lands.** */
   float patch = 0.0f;
 
+  /** THE CROSSING CACHE (ROADMAP 33-h, closed 2026-08-04).
+   *
+   *  `discoverCrossings` is a pure function of the RESOLVED strand paths —
+   *  its flatten step is a constant inside it, and the CrossingRule reads
+   *  the discovered set, never feeds it — so the cache key is the
+   *  function's ENTIRE argument: the resolved paths vector, compared by
+   *  SkPath content equality (exact, with a same-pathref fast path). That
+   *  is what §40 demands of a key, satisfied structurally: an authored
+   *  edit, an outline change under a relative strand, a borrowed-path
+   *  change, and a strand-count change all land in the key BECAUSE they
+   *  all land in the paths. No callable ever enters the key, so there is
+   *  no easeEqual-style conservative-miss arm to need.
+   *
+   *  Held on the VALUE by shared_ptr — the Scatter/Pattern member-cache
+   *  precedent: copies share it, fresh values start cold, and it is
+   *  deliberately absent from operator== (a cache is not part of the
+   *  value). Two live copies painting DIFFERENT geometry alternately
+   *  thrash it back to the old per-paint discovery cost — never to a
+   *  wrong answer. 33-h's per-Instance refusal (a Weave is a Decoration;
+   *  no Instance to hang state on) was a size argument taken while the
+   *  cost was unmeasured; BM_Draw_BrushWeave_Live then measured
+   *  295/1723/7996 us per steady frame at 2/4/8 strands and the
+   *  milliseconds overruled it — via this value-side slot, which needed
+   *  no PaintContext plumbing at all. */
+  struct CrossingCache {
+    std::vector<SkPath> key; ///< the resolved paths the answer belongs to
+    std::vector<Crossing> found;
+    bool valid = false;
+    int computes = 0; ///< how many discoveries actually ran — the pins'
+                      ///< instrument, never read by the paint itself
+  };
+  std::shared_ptr<CrossingCache> crossingCache =
+      std::make_shared<CrossingCache>();
+
   bool operator==(const Weave &o) const {
     return strands == o.strands && crossing == o.crossing &&
            patch == o.patch;
@@ -426,8 +460,18 @@ struct Weave {
       paintStrand(i);
 
     // 3. Repair the crossings the rule disagrees with. Crossings are
-    //    DISCOVERED, never authored.
-    const std::vector<Crossing> crossings = discoverCrossings(paths);
+    //    DISCOVERED, never authored — and MEMOIZED on the resolved paths
+    //    (33-h): a steady frame pays one vector-of-paths comparison
+    //    instead of the O(P^2 M^2) flatten-and-test. Identical input,
+    //    identical answer: the cache moves WHEN discovery runs, never
+    //    what is drawn, which is what the byte-identity pin holds.
+    if (!crossingCache->valid || crossingCache->key != paths) {
+      crossingCache->found = discoverCrossings(paths);
+      crossingCache->key = paths;
+      crossingCache->valid = true;
+      ++crossingCache->computes;
+    }
+    const std::vector<Crossing> &crossings = crossingCache->found;
     if (crossings.empty())
       return;
     const auto reachOf = [&](size_t i) {

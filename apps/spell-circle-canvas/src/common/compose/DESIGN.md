@@ -738,7 +738,16 @@ table marks which half is source-verified vs unmeasured):
    already costs the clear-only floor, measured (§44).
 6. Tree inspector, then the FlatBuffers producer.
 7. Then price Graphite-on-Dawn vs raw Metal and let the 3D pipeline
-   fall out of that decision.
+   fall out of that decision. *(Trigger landscape annotated 2026-08-04,
+   post-§44.10: compose DECLINED 3D on scope — ROADMAP §44.10, 2026-07-30
+   — so "when 3D is real" no longer means a compose camera; it means
+   SigilWorld's projection work, and that is where this pricing exercise
+   would now be run from. One small new datum in Dawn's favour when it
+   is ever priced: the §29/§44.1 fps-gate work found Dawn is one of the
+   TWO backends implementing Graphite's per-recording GpuStats
+   elapsed-time queries (Vulkan is the other; MtlCaps never sets the
+   flag) — Graphite-on-Dawn would buy the GPU timing instrument raw
+   Metal denies us. The item stays DEFERRED; nothing here starts it.)*
 
 Phase history: phases 1–5 (kernel through gallery) landed, as did the
 review arcs (split, Material/Brush, geometry/routes,

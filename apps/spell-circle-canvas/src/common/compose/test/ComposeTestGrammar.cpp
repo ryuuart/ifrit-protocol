@@ -641,6 +641,149 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
 }
 
+// ---------------------------------------------------------------------------
+// 33-h's crossing cache (closed 2026-08-04): discovery is memoized on the
+// RESOLVED strand paths — the function's entire input — held on the Weave
+// value by shared_ptr (the Scatter/Pattern member-cache precedent). The
+// three pins: staleness through each door into the key, and byte identity.
+// `crossingCache->computes` is the instrument — it counts DISCOVERIES, not
+// paints, so a steady frame that repaints (Cache::None) must not move it.
+
+TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
+  // THE STALENESS PIN, authored door. One warm cache (a copy shares its
+  // original's), then a strand's path is edited. THREE strands, not two,
+  // on purpose: with a lone crossing the knot's territory is unbounded
+  // (no neighbour), and a stale repair clipped only by the CURRENT tubes
+  // still covers the new meeting — a single-crossing pin cannot see
+  // staleness in pixels. Two knots bound each other's territory, so the
+  // stale answer visibly mis-paints.
+  //
+  // Red runs y=100; green verticals at x=60 and x=140. alternate() puts
+  // red over at knot 0 (x=60) and leaves green over at knot 1 (x=140).
+  // The edit moves the first vertical to x=180: knot 0 is now (140,100)
+  // — red over there — and (180,100) keeps green. A stale answer still
+  // calls (140,100) knot 1 (green, unrepaired) and aims its red repair
+  // at (60,100), where its 40 px territory reaches nothing.
+  //
+  // THE CONTROL WAS RUN 2026-08-04: with the key comparison deliberately
+  // removed from Weave::paint (`valid` alone, geometry ignored), this pin
+  // fails exactly as predicted — (140,100) reads GREEN (stale crossings)
+  // and computes stays 1.
+  brush::Weave w = brush::weave(
+      {brush::Strand{strand::path(diagonal({0, 100}, {200, 100})),
+                     brush::solid(9, red())},
+       brush::Strand{strand::path(diagonal({60, 0}, {60, 200})),
+                     brush::solid(9, green())},
+       brush::Strand{strand::path(diagonal({140, 0}, {140, 200})),
+                     brush::solid(9, green())}},
+      crossing::alternate());
+  Host host(240, 240);
+  host.composer.render(
+      stack().child(box().inset(0).stroke(w).cache(Cache::None)));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 100), SK_ColorRED) << "knot 0: red repaired over";
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN) << "knot 1: list order";
+  EXPECT_EQ(w.crossingCache->computes, 1) << "the cold paint discovers once";
+  host.frame();
+  EXPECT_EQ(w.crossingCache->computes, 1)
+      << "a steady repaint must HIT, not rediscover";
+
+  brush::Weave moved = w; // shares the WARM cache — that is the scenario
+  moved.strands[1].path = strand::path(diagonal({180, 0}, {180, 200}));
+  host.composer.render(
+      stack().child(box().inset(0).stroke(moved).cache(Cache::None)));
+  host.frame();
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorRED)
+      << "stale crossings: (140,100) still numbered as the green knot";
+  EXPECT_EQ(host.pixel(180, 100), SK_ColorGREEN)
+      << "the new knot 1 keeps list order";
+  EXPECT_EQ(w.crossingCache->computes, 2)
+      << "the edit must land in the key and rediscover";
+}
+
+TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
+  // THE STALENESS PIN, outline door. A relative strand resolves against
+  // ctx.outline, so the SAME weave value over a changed shape must
+  // rediscover — the key is the resolved paths, not the value's fields.
+  // A self-strand ring crossed by an authored line, red always on top;
+  // when the ring grows, the knots move outward along the line, and only
+  // a fresh discovery repairs them at the new radius. The line runs
+  // VERTICALLY so both knots sit a quarter turn from the ring's contour
+  // seam (addCircle starts at 3 o'clock, and a knot AT the seam is
+  // rejected by the transversality walk — a discovery property, not the
+  // cache's).
+  brush::Weave w = brush::weave(
+      {brush::Strand{strand::self(), brush::solid(6, red())},
+       brush::Strand{strand::path(diagonal({100, 0}, {100, 200})),
+                     brush::solid(6, green())}},
+      CrossingRule(EveryCrossingRedOnTop{}));
+  auto ring = [](float radius) {
+    return [radius](SkSize) {
+      SkPathBuilder p;
+      p.addCircle(100, 100, radius);
+      return p.detach();
+    };
+  };
+  Host host(200, 200);
+  host.composer.render(stack().child(
+      box().inset(0).shape(ring(60.0f)).stroke(w).cache(Cache::None)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 160), SK_ColorRED) << "the r=60 knot repairs";
+  EXPECT_EQ(w.crossingCache->computes, 1);
+  host.frame();
+  EXPECT_EQ(w.crossingCache->computes, 1) << "steady outline: a hit";
+
+  host.composer.render(stack().child(
+      box().inset(0).shape(ring(85.0f)).stroke(w).cache(Cache::None)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 185), SK_ColorRED)
+      << "stale crossings: the repair stayed at the old radius";
+  EXPECT_EQ(w.crossingCache->computes, 2)
+      << "the outline change must land in the key and rediscover";
+}
+
+TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
+  // THE BYTE-IDENTITY PIN: the cache changes WHEN discovery runs, never
+  // what is drawn. Frame 1 discovers (cold), frame 2 hits, and a fresh
+  // equal value discovers again from cold — all three surfaces must be
+  // byte-equal.
+  auto bytes = [](Host &host) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(host.surface->width(),
+                                              host.surface->height()));
+    host.surface->readPixels(bm.pixmap(), 0, 0);
+    const uint8_t *p = (const uint8_t *)bm.getPixels();
+    return std::vector<uint8_t>(p, p + bm.computeByteSize());
+  };
+  auto weaveX = [] {
+    return brush::weave(
+        {brush::Strand{strand::path(diagonal({20, 20}, {180, 180})),
+                       brush::solid(9, red())},
+         brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
+                       brush::solid(9, green())}},
+        crossing::alternate());
+  };
+  brush::Weave w = weaveX();
+  Host host(240, 240);
+  host.composer.render(
+      stack().child(box().inset(0).stroke(w).cache(Cache::None)));
+  host.frame();
+  const std::vector<uint8_t> cold = bytes(host);
+  EXPECT_EQ(w.crossingCache->computes, 1);
+  host.frame();
+  EXPECT_EQ(w.crossingCache->computes, 1) << "frame 2 must be a HIT";
+  EXPECT_TRUE(cold == bytes(host)) << "the cache-hit frame drew differently";
+
+  brush::Weave fresh = weaveX(); // its own cold cache
+  Host host2(240, 240);
+  host2.composer.render(
+      stack().child(box().inset(0).stroke(fresh).cache(Cache::None)));
+  host2.frame();
+  EXPECT_EQ(fresh.crossingCache->computes, 1);
+  EXPECT_TRUE(cold == bytes(host2))
+      << "cold and cached must be one picture, byte for byte";
+}
+
 // RENAMED 2026-07-28 (audit): the Inner half is conceded untested in this
 // test's own closing comment (every arm is Align::Center, because an open
 // rail has no inside) — Inner is covered by

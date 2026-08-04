@@ -1798,6 +1798,7 @@ struct Flat {
   std::vector<SkPoint> points;
   std::vector<float> at; // cumulative arc length at each point
   float length = 0;
+  SkRect bounds = SkRect::MakeEmpty(); // of `points` — the pair rejection
 };
 
 Flat flatten(const SkPath &path) {
@@ -1826,6 +1827,8 @@ Flat flatten(const SkPath &path) {
       f.at.push_back(f.length);
     }
   }
+  if (!f.points.empty())
+    f.bounds.setBounds({f.points.data(), f.points.size()});
   return f;
 }
 
@@ -1891,6 +1894,18 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath> &strands) {
         continue;
       const Flat &fa = flats[a];
       const Flat &fb = flats[b];
+      // BBOX REJECTION before the segment x segment loop (33-h's cheap
+      // algorithmic half). A reported crossing's hit point lies on a
+      // segment of EACH strand — within the eps overshoot, under 2e-3 px
+      // at the 2 px flatten step — so two strands whose bounds stay half
+      // a pixel apart provably cannot cross. 0.5 px is ~250x the true
+      // overshoot: this skips only provably empty work and can never
+      // change an answer, which is what the byte-identity pin holds.
+      SkRect nearA = fa.bounds, nearB = fb.bounds;
+      nearA.outset(0.5f, 0.5f);
+      nearB.outset(0.5f, 0.5f);
+      if (!SkRect::Intersects(nearA, nearB))
+        continue;
       for (size_t i = 0; i + 1 < fa.points.size(); ++i) {
         const SkPoint p0 = fa.points[i], p1 = fa.points[i + 1];
         const SkVector r{p1.fX - p0.fX, p1.fY - p0.fY};

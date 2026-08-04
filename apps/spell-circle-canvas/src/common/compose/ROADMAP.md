@@ -1311,7 +1311,13 @@ additive feature should be. No rebase was taken.
 `inherited<T>()` so a memo that never read the environment keeps hitting
 through a theme change; sound under memo's existing purity assumption,
 and worth exactly one describe call that would prune anyway, so it wants
-a measurement first. (2) A second library consumer: `console::` is the
+a measurement first. *(Item (1) CLOSED 2026-08-04, evidence-negative —
+the measurement it wanted was taken: the read flag would save **≈0.16 µs
+per never-reading memo**, and only on CHANGE frames — **~0.2 ms per
+palette switch at CDE scale**, nothing on the other 299 frames. Two
+orders of magnitude under anything that buys a mechanism; the `BM_Env_*`
+arms are the instrument and the re-open hook. Items (2) and (3) of this
+list stay exactly as filed.)* (2) A second library consumer: `console::` is the
 worked example; `Debug.h`'s plates and the `kit::` frames are the obvious
 next keys, each on its own props type. (3) The `styles::` bundle the entry
 names does not exist yet — when it does it inherits by the same rule with
@@ -1774,6 +1780,10 @@ Cache::None node repainting every frame, stable art) — one bake in five
 frames where the old world took five. The crossing-cache half of
 ruling 6 (weave's `discoverCrossings`) still wants its bench arm before
 it rides the same store — unchanged, see the stage-two residue.
+*(2026-08-04: the bench arm landed, the gate fired, and the crossing
+cache is BUILT — on the Weave VALUE via this entry's member-cache
+precedent, not in the StampCache store; §33's 33-h closure is the
+record.)*
 **Plate ledger: 53 of 56 byte-identical** against the §11/§5 arm
 (Release, `--no-promotion`, quiet machine); the three movers are
 exactly the documented self-nondeterministic list — `genesis_fire`,
@@ -1812,6 +1822,14 @@ bake in 5 frames) and NEW
 4 fresh nodes, 4 bakes, and a content change reaching pixels with no
 stale red; a future content-identity cache must revisit that pin
 deliberately, which is the point of it).
+
+**RE-VERIFIED 2026-08-04 — the refusal stands on current evidence.**
+The corpus audit was re-run after the intervening churn: **ten
+stamped-brush files** now (up from the nine sketches above), and every
+one is StampCache-hit, memo-held, or setup-only-describe — still **ZERO
+uncovered bakes per steady frame**. The content-identity cache remains
+unbuilt for the same reason it was refused: no number motivates the §41
+frozen-class trade, and the boundary pins hold from both sides.
 
 ## 17. `withKeyframes` is live volatility even where its value is constant — CLOSED
 Keyframe holds and settled easings repainted every frame while provably
@@ -3108,6 +3126,17 @@ without Group   123.29 ms  (CV 0.52%)   8 fps    p99 ~143 ms
 with Group       17.13 ms  (CV 0.48%)  58 fps    p99 ~21 ms     7.2×
 ```
 
+*(INSTRUMENT CORRECTION 2026-08-04, from the fps-gate work: the 17.13
+is the CAPTURE PASS's from-zero mean — kumiko declares
+`ctx.captureAt(4.2)`, whose `activate()` resets FrameStats for the
+exact-stepped rebuild, so the table printed the 252 from-zero frames
+with the entrance and the first Group gathers included. The STEADY
+sample, read through the `--timing-json` lane the gate added, is
+**11.21 ms** (89 fps, p99 15.08). The verdict is UNCHANGED and
+stronger: 11.21 vs 123.29 is **11×**, and "58 fps sits AT the floor"
+below overstates the risk — the steady frame clears it with room. §29's
+2026-08-04 closure records the capture-pass/steady-sample mechanics.)*
+
 The quarantined 111.88 (and §29's 113) is SUPERSEDED by 123.29 — the
 clean same-commit baseline. **The ~4.95 ms target was not reached and was
 never this feature's number** — it came from the per-strip
@@ -4084,6 +4113,14 @@ findings, recorded so they are not rediscovered:
   nothing held between frames. Fine at the corpus's pass counts; the
   place to fix it is an `Instance`-side cache keyed on (outline identity,
   resolved endpoints), i.e. the same shape as `outlineCache`.
+  **CLOSED 2026-08-04 (33-e), evidence-negative.** The gate arm was
+  built and run: `BM_Draw_StrokeSpans_Live` measures the walk LINEAR at
+  **≈0.86 µs per pass per node**, holding through 16 passes — no
+  super-linear shape, no wall, nothing a cache would rescue at corpus
+  or at stress pass counts. The Instance-side cache stays UNBUILT; the
+  bench arm is the standing instrument and the re-open hook (a scene
+  whose per-node pass count multiplies is the evidence that reopens
+  this, and the arm will show it).
 - ~~**`Spans` equality is term-ORDER-sensitive; `resolve()` is not.**~~
   **CLOSED 2026-08-04.**
   `corners(8) | at(0,4)` and `at(0,4) | corners(8)` claim the same runs
@@ -4139,6 +4176,66 @@ findings, recorded so they are not rediscovered:
   `PaintContext`, which is a design change, not an optimisation. The missing
   `compose_bench` weave arm is now `BM_Draw_BrushWeave_Live/{2,4,8}`; keep
   it as the decision gate before choosing a cache or algorithmic fix.
+
+  **CLOSED 2026-08-04 (33-h) — the gate fired and the cache is BUILT, on
+  the VALUE.** `BM_Draw_BrushWeave_Live/{2,4,8}` measured the steady
+  frame at **295 / 1,723 / 7,996 µs** (Release, CV ≤ 1%) — 48% of a
+  60 fps budget at eight strands, quadratic confirmed — and the
+  milliseconds overruled the size refusal above. That refusal was taken
+  while the cost was unmeasured, so this is new evidence, not a
+  re-litigation; and the refused per-Instance plumbing through the const
+  `PaintContext` was never needed, because the honest home was the §16
+  Scatter/Pattern precedent all along. What shipped (`Brushes.h`,
+  `Compose.cpp`):
+  - **Discovery memoized on its ENTIRE input.** `Weave::CrossingCache`,
+    a `shared_ptr` slot on the value — copies share it, fresh values
+    start cold, deliberately absent from `operator==` — keyed on the
+    RESOLVED strand-paths vector under SkPath content equality (exact,
+    same-pathref fast path). Keying downstream of resolution is what
+    satisfies §40 structurally: an authored edit, an outline change
+    under a relative strand, a borrowed-path change and a count change
+    all land in the key BECAUSE they all land in the paths. No callable
+    ever enters the key (the flatten step is a constant inside the
+    function; the `CrossingRule` reads the discovered set, never feeds
+    it), so no easeEqual-style conservative-miss arm is needed. Two
+    live copies painting different geometry alternately thrash back to
+    the old per-paint cost — never to a wrong answer.
+  - **Per-strand bbox rejection** before the segment×segment loop
+    (bounds outset 0.5 px, ~250× the eps overshoot, so it can only skip
+    provably empty work, never change an answer). Measured alone on the
+    bench: 302/1731/8071 µs — nil there BY GEOMETRY (the arm's star
+    strands all cross the centre, every pair's bounds overlap); it buys
+    first frames and genuinely disjoint strand pairs, and costs nothing.
+  - **AFTER, same arm, same conditions: 18.3 / 61.0 / 295 µs**
+    (today's same-session before: 298 / 1,730 / 8,082) — 16× / 28× /
+    27×. The steady frame collapsed to paint cost plus one
+    vector-of-paths comparison; eight strands now cost what two did.
+  - **Pins** (compose_test, `ComposeComposites`), controls run:
+    `CrossingCacheRecomputesWhenAuthoredGeometryChanges` — THREE
+    strands, deliberately: a lone crossing's knot territory is
+    unbounded (no neighbour), so a stale repair clipped only by the
+    current tubes still covers the moved meeting and a two-strand pin
+    cannot SEE staleness in pixels. With the key comparison deliberately
+    removed (`valid` alone), the pin fails exactly as predicted — the
+    re-numbered knot reads the under-strand's green, stale crossings —
+    and the discovery counter (`CrossingCache::computes`, the pins'
+    instrument) stays flat.
+    `CrossingCacheFollowsTheOutlineUnderRelativeStrands` — the
+    `ctx.outline` door into the key; same control fails on the counter.
+    `CrossingCacheIsByteNeutral` — cold paint, cache-hit repaint, and a
+    fresh equal value byte-identical: the cache moves WHEN discovery
+    runs, never what is drawn.
+  - **Found while pinning, recorded not fixed:** a crossing that lands
+    ON a closed contour's seam point (addCircle's 3-o'clock start) is
+    rejected by the transversality walk — `pointAtArc` clamps at the
+    seam, so the side test degenerates. A discovery property predating
+    this cache (the outline pin routes its knots a quarter-turn away);
+    filed here so the next braid-on-a-ring surprise finds it.
+  - **Ledger**: byte-neutral. Release sweep, 66 scenes, 5 jobs:
+    **64 byte-identical, 2 moved — both attributed** (`genesis_fire`,
+    `slitscan_2001`, the documented self-nondeterministic list), 0
+    findings, 0 failures. A crossings cache changes milliseconds,
+    never pixels.
 - **`Decoration` is 136 B** (104 before stage two): +24 for the borrows
   vector, +8 for `reach` and padding. `ElementNode` is unchanged at 744 —
   decorations live in vectors, never inline.** Storing the keys on demand instead was evaluated and

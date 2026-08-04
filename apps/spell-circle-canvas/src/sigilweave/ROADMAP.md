@@ -78,6 +78,11 @@ per-frame repacking is not the wall the entry described. (`_2000w`
 has no blob twin; batched alone is 849 µs.) The fix stays unbuilt
 until a real scene shows repacking cost; this entry is now
 evidence-negative.
+**2026-08-04 — RE-CONFIRMED post-churn.** Same arms, fresh run on the
+current tree: blob path **291 µs**, drawBatched **199 µs** — the
+repacking path is still **31.6% faster** than the blob arm. The
+evidence-negative verdict holds; nothing that landed since 07-27
+(m151, the compose completeness round) moved this.
 
 ## 3. Slug-cache the moving-text picture path — measure before building
 
@@ -154,6 +159,10 @@ getWidths is the one-time variable-axis probe (`FontContext.cpp:
 Revisit only if a path needs true per-glyph ink bounds from Skia —
 then one strikeRef per (typeface, size) with `getWidthsStrided`
 reading straight out of `ShapedWord::glyphs` is the right shape.
+**2026-08-04 — trigger-parked status CONFIRMED, dated touch only.** No
+new evidence either way since filing: no path has asked Skia for
+per-glyph ink bounds, and advances still come from HarfBuzz. The gate
+sentence above stands unchanged as the trigger.
 
 ## 6. Strike/atlas cache bounds are all defaults
 
@@ -190,6 +199,13 @@ simply refills after a clear). Stays diagnosis-only per the 2026-07-26
 note; the oversubscribing arm remains unbuilt by design. Measure: the cold-path bench
 (`BM_Update_ReplaceWholeParagraph_Cold_500w`) plus a corpus that
 oversubscribes `kMaxShapeEntries`.
+**2026-08-04 — TERMINAL.** The load-bearing condition (§2 or §3
+reopening) has now been re-confirmed unmet on fresh numbers — §2's
+re-run above (291/199 µs, the batched path still 31.6% faster) — so
+this entry is diagnosis-only PERMANENTLY unless a future entry
+EXPLICITLY reopens §2 or §3. It does not reopen on its own, and no
+future reader should treat it as a queue item: the cliff it describes
+protects nothing that exists.
 
 ## What is already right (verified, so nobody re-derives it)
 
