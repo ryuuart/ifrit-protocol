@@ -1852,6 +1852,12 @@ struct VagrantStoryTarget : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(vs::kW, vs::kH);
     ctx.background(vs::kVoid);
+    // §31 boundary nudge: beat phase 1.0 — ring fully swept, damage pop at
+    // rest and visible, risk mid-decay, sphere at 42°. (The old 6.0 default
+    // hit the beat boundary exactly: the chain-ability timing ring — a
+    // headline element — masked out at sweep 0, RISK at its instantaneous
+    // spike max.)
+    ctx.captureAt(7.0);
 
     face = pickFace();
     if (ctx.fonts) {

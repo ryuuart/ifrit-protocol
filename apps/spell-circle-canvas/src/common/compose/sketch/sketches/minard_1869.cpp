@@ -2855,6 +2855,11 @@ struct Minard1869 : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kDesk);
+    // §31 named-state beat: the file's own capture command — both bands +
+    // temperature + geography complete, caliper overlay lit. (The old 6.0
+    // default was mid-advance-band, beat u = 0.82: retreat, temperature and
+    // the entire audit sequence absent. Fully-quiescent alternative: 29.0.)
+    ctx.captureAt(20.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager())

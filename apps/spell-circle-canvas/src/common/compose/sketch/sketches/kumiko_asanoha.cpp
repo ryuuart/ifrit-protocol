@@ -929,6 +929,11 @@ struct KumikoAsanoha : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
+    // §31 robustness nudge: the same completed backlit ranma the old 6.0
+    // default showed (before/after shots verified byte-identical) — but
+    // mid-hold with 0.82 s / 2.2 s margins instead of 0.4 s before the
+    // 6.4 s teardown/reassembly. Pure margin against the loop boundary.
+    ctx.captureAt(4.2);
 
     panel = Panel{};
     panel.build();

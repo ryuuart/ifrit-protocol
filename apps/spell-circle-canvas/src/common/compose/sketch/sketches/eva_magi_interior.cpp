@@ -1840,6 +1840,11 @@ struct EvaMagiInterior : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(magi::kW, magi::kH);
     ctx.background(magi::kGround);
+    // §31 named-state beat: the reference moment the arrival field is
+    // SOLVED to land on — MELCHIOR taken, BALTHASAR at the measured 30.2%
+    // with a ragged front; exact by construction. (The old 6.0 default was
+    // a dead beat: both MAGI flat red, verdict card not yet filed.)
+    ctx.captureAt(2.5);
     fonts = ctx.fonts;
     audit();
     buildBrushes();

@@ -1504,6 +1504,12 @@ struct SpaceJam1996 : sigil::compose::sketch::Sketch {
     using namespace sj;
     ctx.canvas(S(640), S(800));
     ctx.background(kPageBlack); // <body bgcolor="#000000">, literally
+    // §31 named-state beat: the completed 1996 page holds [7.96, ~11.46)
+    // before the reload wipes it; 9.5 s is mid-hold. (The old 6.0 default
+    // was mid-load, missing the logotype — dead last in the byte schedule
+    // at 7.96 s. The study's diff reference is the finished
+    // headless-Chrome render.)
+    ctx.captureAt(9.5);
 
     buildTable();
     bakeArt(ctx);

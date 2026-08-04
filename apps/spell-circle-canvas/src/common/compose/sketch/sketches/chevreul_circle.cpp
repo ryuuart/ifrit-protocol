@@ -1646,6 +1646,11 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
+    // §31 entrance-into-hold beat: the header's settled plate on the 14 s
+    // loop (13 s reveal + 1 s hold); 12.6 s is fully settled with 1.4 s of
+    // margin before the reset. (The old 6.0 default caught the plate
+    // roughly half-built: verification rows 4/13, later panels unrevealed.)
+    ctx.captureAt(12.6);
 
     computeColours();
 

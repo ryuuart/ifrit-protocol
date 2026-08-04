@@ -1622,6 +1622,11 @@ struct XcomBattlescape : sigil::compose::sketch::Sketch {
     using namespace xcom;
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(C(blk(0, 15)));
+    // §31 named-state beat: 9.6 s state cycle; the canonical still is the
+    // 14-tile path preview [3.2, 4.8) with TU 58 intact — the openxcom
+    // reference screen. 4.0 s is its midpoint (the old 6.0 default landed
+    // inside the fire-mode popup covering the battlescape).
+    ctx.captureAt(4.0);
 
     bakeAtlas();
     terrain = std::make_shared<Pool>();

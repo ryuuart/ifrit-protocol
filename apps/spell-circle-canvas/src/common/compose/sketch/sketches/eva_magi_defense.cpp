@@ -1063,6 +1063,10 @@ struct EvaMagiDefense : sigil::compose::sketch::Sketch {
     using namespace eva;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
+    // §31 named-state beat: the file's documented REFERENCE MOMENT — all
+    // five outer MAGI fallen (last at 2.28), the hue front not yet moving
+    // (3.0). 2.5 s sits inside that hold [2.28, 3.0).
+    ctx.captureAt(2.5);
 
     funnel = funnelPath();
     runAudit();

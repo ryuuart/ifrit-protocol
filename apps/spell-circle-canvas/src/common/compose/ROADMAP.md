@@ -3121,7 +3121,9 @@ assembly is expensive; do not sprinkle it.
 
 ## 31. A still is a CLAIM about an animation — and the harness was choosing it
 
-**Status: closed for the mechanism (61c8963, ffc8b04), open for the audit.**
+**Status: CLOSED — the mechanism (61c8963, ffc8b04) and, 2026-08-04, the
+audit: the per-scene judgement pass is COMPLETE (see the closure note at
+the end of this entry).**
 
 §26 made gallery captures reproducible: two consecutive sweeps had differed
 on 15 of 45 scenes, so no plate had ever been verifiable frame to frame.
@@ -3169,12 +3171,13 @@ them, which there is no rewind for. Proven to be the same machinery, not a
 second path: `--capture-at 6.0` reproduces the default at **0 differing
 pixels** on `y2k chrome`, `aero desktop`, `persona menu`.
 
-**Open: the audit.** `--capture-at` exists so the corpus question is
-askable — sweep at two scene times and diff, and whatever differs was
-moving under the shutter. Those scenes are not necessarily wrong; each
-needs its author to say whether the moment it was caught at is the one
-worth showing. Only `black watch` has been given a declaration so far
-(7.2 s, loom 0.90, inside the Modern hold).
+**The audit (closed 2026-08-04 — see the closure note below).**
+`--capture-at` exists so the corpus question is askable — sweep at two
+scene times and diff, and whatever differs was moving under the shutter.
+Those scenes are not necessarily wrong; each needed its author to say
+whether the moment it was caught at is the one worth showing. `black
+watch` was the first declaration (7.2 s, loom 0.90, inside the Modern
+hold).
 
 Determinism made the captures reproducible. This makes them
 *representative*. They are not the same property, and the corpus spent its
@@ -3186,7 +3189,8 @@ diffed pairwise: **52 of 56 scenes are in motion when the gallery
 photographs them.** Only four are settled: beethoven, fallout2
 charsheet, penrose paving, stock materials. Range: daemon console 98.7%
 of pixels differing down to stroke atlas 0.03%. Differing does NOT mean
-wrong — the per-scene judgement is the remaining task, by taxonomy:
+wrong — the per-scene judgement (COMPLETE as of 2026-08-04, see below)
+goes by taxonomy:
 
 - **Continuous ambient motion** (daemon console, ui_particles,
   flourish) — any frame is representative; leave alone.
@@ -3198,9 +3202,23 @@ wrong — the per-scene judgement is the remaining task, by taxonomy:
   change lives (thaumonomicon 58.9, ds2 bench 66.8, xcom 49.3, and
   eva magi defense 50.1 are the discrete-state suspects above it).
 
-Only black_watch declares its beat so far (7.2 s — loom 0.90, inside
+Only black_watch declared its beat at first (7.2 s — loom 0.90, inside
 the Modern hold; it is also the audit's control, straddling the
 Weathered/Modern boundary at 33.1%).
+
+**Judgement pass (2026-08-04, COMPLETE — this closes §31).** All 66
+registry scenes (22 catalog + 44 studies) classified by the taxonomy
+above; the record is the review sheet at
+`build/beats_review/REVIEW.md`, with per-scene before/after shots
+beside it. The tally: **20 beats declared** — owner-approved from
+before/after shots, all 20 proposals approved (13 named-state, 5
+entrance-into-hold, 2 robustness/boundary nudges; catalog scenes carry
+a `captureSeconds()` override, studies `ctx.captureAt()` with the
+rationale in a comment) — **39 ambient/leave** recorded as judgements
+in the sheet, **2 suspects cleared as ambient** (ds2_bench = the
+full-plate scanline shader, thaumonomicon = whole-page parallax), and
+**7 already declared**. Every adopted still was verified byte-identical
+to its approved after-shot.
 
 ## 32. The animation grammar names the MECHANISM, not the intent
 

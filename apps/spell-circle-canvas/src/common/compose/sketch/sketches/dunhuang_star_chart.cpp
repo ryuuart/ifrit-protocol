@@ -2925,6 +2925,12 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas((int)kW, (int)kH);
     ctx.background(kVoid);
+    // §31 entrance-into-hold beat: the file's own documented reference; the
+    // settled plate holds [28.2, 31.0) on the 31 s loop, and 29.0 s keeps
+    // 2 s of margin before the wrap. (The old 6.0 default was
+    // mid-precession: the unprojected sky sliding at ~1450 AD — no scroll,
+    // no asterisms, no audit.)
+    ctx.captureAt(29.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;

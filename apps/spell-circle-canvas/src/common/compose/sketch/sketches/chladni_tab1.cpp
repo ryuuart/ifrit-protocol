@@ -769,6 +769,11 @@ struct ChladniTab1 : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
+    // §31 entrance-into-hold beat: the header's settled mark — all twelve
+    // figures inked (6.47), credit in (8.3), the idle bow at maximum on
+    // figure 8's rim. (The old 6.0 default caught figure 12's sand still
+    // migrating and the Capieux credit absent.)
+    ctx.captureAt(10.6);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager())

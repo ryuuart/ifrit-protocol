@@ -2892,6 +2892,11 @@ struct ChaucerAstrolabe : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kVellum);
+    // §31 named-state beat: a 26 s loop of named states; 23.0 s is
+    // CHAUCER'S MOMENT — the 12 March 1391 trace at full opacity
+    // [21.9, 24.8]. Any other state asserts a different date. (The old 6.0
+    // default was mid-assembly: azimuth arcs still growing, rete absent.)
+    ctx.captureAt(23.0);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager())

@@ -1989,6 +1989,12 @@ struct CdeMotifSketch : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(1152, 900);
     ctx.background(cde::C(0x000000));
+    // §31 named-state beat: palettes snap every 3 s over {Default, Crimson,
+    // Black, Summer}; the old 6.0 default landed exactly on the
+    // Crimson -> Black snap (the all-black degenerate palette). Default —
+    // the shipped canonical, loaded at setup — holds [12, 15); 13.5 s is
+    // dead centre, with the derivation strip visibly mid-sweep.
+    ctx.captureAt(13.5);
 
     // CDE_STATIC_COLORS=1 rebuilds all forty colours as plain values
     // instead of bound Outputs — the A/B for "what does declared

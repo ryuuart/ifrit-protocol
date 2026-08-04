@@ -1998,6 +1998,11 @@ struct HitmanVerlet : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
+    // §31 named-state beat: the file's own capture command — 0.75 s after
+    // the documented bomb, ragdoll/cloth/plants in full inverse-square
+    // flight; the state a physics study exists to show. (The old 6.0
+    // default caught the settled heap, motionless.)
+    ctx.captureAt(3.35);
 
     loopT = elapsed = 0;
     simSteps = 0;

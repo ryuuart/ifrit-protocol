@@ -70,6 +70,12 @@ struct ZelligeScene final : Scene {
 
   const char *name() const override { return "zellige"; }
 
+  // §31 named-state beat: the wall re-rolls all three girih recipes every
+  // 3.0 s, and the old t = 6.0 default sat within one frame of the
+  // phase1 -> phase2 re-roll (race-prone). Phase 0 is the authored setup
+  // recipe the captions document; 1.5 s is the hold midpoint.
+  double captureSeconds() const override { return 1.5; }
+
   void setup(Composer &composer, sigil::motion::Ticker &) override {
     namespace zw = zellige_wall;
     nextSwap = zw::kSwapPeriod;

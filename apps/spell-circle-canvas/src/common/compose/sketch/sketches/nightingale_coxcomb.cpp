@@ -677,6 +677,11 @@ struct NightingaleCoxcomb : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kPaper);
+    // §31 entrance-into-hold beat: the header's settled mark — the first
+    // clean instant after the needle sweeps fade (13.55); the plate is
+    // permanent from there. (The old 6.0 default showed the legend entirely
+    // unwritten, dashed leader mid-draw.)
+    ctx.captureAt(13.6);
 
     auto family = [&](const char *name, SkFontStyle style) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager())

@@ -1226,6 +1226,11 @@ struct LainNavi : sigil::compose::sketch::Sketch {
     using namespace lain;
     ctx.canvas(kW, kH);
     ctx.background(kGround);
+    // §31 named-state beat: both cycles are phased for 2.5 s — the plate's
+    // verbatim `.frame $fp,40,$31` line (anchor of the published sharpness
+    // numbers) sits at the focal plane and "no double minds" is at full
+    // bloom.
+    ctx.captureAt(2.5);
 
     // SOLVE the mono size from the measured advance rather than guessing it:
     // measure a 40-character run at 100 pt and scale.

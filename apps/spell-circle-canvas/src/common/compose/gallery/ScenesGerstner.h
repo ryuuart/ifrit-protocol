@@ -137,6 +137,12 @@ struct GerstnerGridScene final : Scene {
 
   const char *name() const override { return "gerstner grid"; }
 
+  // §31 named-state beat: configurations step every 2.6 s from the
+  // four-column opening — Capital's default, held (per the comment in
+  // setup()) "so a still frame lands on a real setting". 1.5 s is settled
+  // mid-hold in that opening configuration.
+  double captureSeconds() const override { return 1.5; }
+
   void setup(Composer &composer, sigil::motion::Ticker &ticker) override {
     sweep = 0;
     config = 3;

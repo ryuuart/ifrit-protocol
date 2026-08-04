@@ -2113,6 +2113,11 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
   void setup(sketch::SketchContext &ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
+    // §31 entrance-into-hold beat: the file's own reference on the 27 s
+    // score — everything through the 19.7 tap complete and the foot 40%
+    // through its flying-white sweep. (The old 6.0 default showed ~15% of
+    // the talisman written. Fully settled alternative: 26.0.)
+    ctx.captureAt(20.6);
 
     auto family = [&](const char *name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager())

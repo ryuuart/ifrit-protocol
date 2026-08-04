@@ -20,6 +20,11 @@ struct ManuscriptScene final : Scene {
 
   const char *name() const override { return "manuscript"; }
 
+  // §31 named-state beat: two verse states on a 14 s cycle; verse 0 is the
+  // incipit the fixed rubric announces ("INCIPIT..."). 3.5 s is dead centre
+  // of verse 0's hold — maximum margin from both verse turns.
+  double captureSeconds() const override { return 3.5; }
+
   static constexpr const char8_t *kVerses[2] = {
       u8"Here begins the book of the ember gate, set down in the year "
       u8"of the long tide by the wardens of the flooded causeway. Let "
