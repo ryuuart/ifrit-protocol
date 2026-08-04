@@ -3259,6 +3259,37 @@ public:
    *  composite). */
   void setView(Effect view);
 
+  /** THE DECLARED INPUT SPACE — a declaration, not a conversion (§10e).
+   *
+   *  Compose composites in ENCODED sRGB and has no linear stage: every
+   *  surface it paints into is N32Premul with no SkColorSpace, so the
+   *  numbers an author writes are the numbers that land in the bytes
+   *  (DESIGN.md's colour rule, ROADMAP §41). That is not configurable —
+   *  a colour-managed surface would be a BREAKING change, because every
+   *  channel weighting in the library (`by::luma`'s Rec. 601 first)
+   *  would have to be ruled on again.
+   *
+   *  What was missing is the ability to SAY what you believe: "I
+   *  deliberately author encoded sRGB" and "nobody thought about colour
+   *  at all" produced identical trees. So the composer accepts a
+   *  declaration of what the author believes their colour values are.
+   *  `EncodedSRGB` — the default — matches reality and is silent.
+   *  Anything else is a mismatch the library can finally see, and it
+   *  says so once, precisely: your values will still be TREATED as
+   *  encoded sRGB — under a `LinearSRGB` declaration every channel
+   *  maths in the pipeline (blending, `by::luma`, alpha compositing)
+   *  runs on numbers it was not defined for, so your maths are wrong at
+   *  the edges. NO conversion is performed, ever, and the declaration
+   *  participates in nothing else — two renders under different
+   *  declarations are byte-identical, and there is a pin proving it. */
+  enum class InputSpace : uint8_t {
+    EncodedSRGB, ///< display-encoded sRGB — the space compose composites in
+    LinearSRGB,  ///< linear-light sRGB — NOT compose's space; declaring warns
+    DisplayP3,   ///< display-encoded Display P3 — NOT compose's space; warns
+  };
+  void declareInputSpace(InputSpace space);
+  InputSpace declaredInputSpace() const;
+
   /** Reconciles against the retained tree (keys match instances; memo
    *  and payload identity prune). Call whenever data changed. */
   void render(Element root);

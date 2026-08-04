@@ -40,6 +40,11 @@ int main(int argc, char *argv[]) {
     // step every scene straight to its deterministic capture frame. This
     // is what scripts/plate_ledger.py drives, in parallel, per scene.
     bool ledger = false;
+    // --timing-json <path>: also write one JSON line per scene with the
+    // steady-state sample numbers — the machine-readable lane the GPU
+    // 60 FPS gate (scripts/plate_ledger.py --fps-gate) parses. Stdout is
+    // unchanged; refused under --ledger (no benchmark phases, no timing).
+    std::string timingJson;
     for (int i = 2; i < argc; ++i) {
       const std::string arg = argv[i];
       if (arg == "--gpu")
@@ -57,6 +62,8 @@ int main(int argc, char *argv[]) {
         only = argv[++i];
       else if (arg == "--capture-at" && i + 1 < argc)
         captureAt = std::atof(argv[++i]);
+      else if (arg == "--timing-json" && i + 1 < argc)
+        timingJson = argv[++i];
       else
         outDir = arg;
     }
@@ -78,7 +85,7 @@ int main(int argc, char *argv[]) {
       }
     }
     return compose_gallery::runHeadless(outDir, gpu, sceneIndex, noPromotion,
-                                        captureAt, ledger);
+                                        captureAt, ledger, timingJson);
   }
 
   // `--shot <png> [--scene <name|index>]`: bring the real window up, let it

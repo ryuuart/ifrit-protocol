@@ -976,21 +976,45 @@ W×H, which moves its siblings in any flex column. It should land with a
 full 35-study pixel sweep behind it, and probably opt-in, which is why it
 is filed rather than done.
 
-## 10e. Colour has no space, and gradients have six stops
+## 10e. Colour has no space, and gradients have six stops — **all three closed: the input-space declaration landed 2026-08-04 in this entry's own minimal form; the colour-managed surface stays refused per §41**
 
 Sixteen studies in, the first one whose entire content is a PALETTE — a
 reconstruction of Chevreul's 1864 chromatic circle as a measuring
 instrument — and it lands on something nothing else could have found.
 
-- **`Fill` and `Material` carry no colour space, and `Composer` has no
-  input space.** For a study of measured pigment values that is not a
-  nicety: "I deliberately did not set a view transform" and "nobody
-  thought about colour at all" produce IDENTICAL trees. There is an OCIO
-  seam (`Ocio.h`, `setView`) and it is opt-in and invisible, so a value
-  described as sRGB and a value described as anything else are the same
-  bytes with the same behaviour. Wanted, minimally: a declared input
-  space on the Composer so a mismatch is a question the library can ask,
-  rather than one nobody knows to.
+- ~~**`Fill` and `Material` carry no colour space, and `Composer` has no
+  input space.**~~ **CLOSED 2026-08-04, exactly the minimal form this
+  entry asked for and no more.** The original finding: for a study of
+  measured pigment values, "I deliberately did not set a view transform"
+  and "nobody thought about colour at all" produce IDENTICAL trees; the
+  OCIO seam (`Ocio.h`, `setView`) is opt-in and invisible. Wanted,
+  minimally: a declared input space on the Composer so a mismatch is a
+  question the library can ask, rather than one nobody knows to.
+
+  Shipped: `Composer::declareInputSpace(InputSpace)` /
+  `declaredInputSpace()` — a DECLARATION of what the AUTHOR believes
+  their colour values are (`EncodedSRGB`, the default and today's only
+  truth; `LinearSRGB`; `DisplayP3`). The library asks the question at
+  the declaration site: a mismatched declaration warns once per process
+  (the renderSlot house contract), precisely, naming the consequence —
+  values will be TREATED as encoded sRGB regardless, so under a linear
+  declaration every channel maths in the pipeline runs on numbers it
+  was not defined for and your maths are wrong at the edges. NO
+  conversion machinery, no surface change: the declaration participates
+  in nothing, and the pin proves that the strong way — two renders of
+  one gradient tree under opposite declarations are byte-identical
+  (`ComposeComposer.DeclaredInputSpaceIsALoudDeclarationAndNothingElse`;
+  three controls fired: truthful-declaration-warns dies on the silent
+  control, dropping the once-guard dies on the once pin, and a sneaked
+  "conversion" stage — a view effect installed by the declaration —
+  dies on the byte-identity control, which is the control that matters).
+  The full colour-managed surface stays REFUSED with §41's reasoning:
+  compose composites in encoded sRGB with no linear stage (DESIGN.md's
+  colour rule), and changing that is a BREAKING change that re-opens
+  every encoded-value coefficient in the library, `by::luma`'s Rec. 601
+  first. What this entry wanted — a mismatch as an askable question, so
+  deliberate and accidental colour stop producing identical trees — is
+  exactly and only what exists now.
 - ~~**Gradients cap at six stops**~~ — *two studies* — **CLOSED**. The
   count is baked into the source with one effect cached per count, which
   is the rule `Patterns.h` already followed for grain's octaves and for
@@ -2809,6 +2833,77 @@ it replaces. Dead weight, not a regression.
 Still open: a GPU counterpart to the 60 FPS gate in the ledger, and a
 per-node GPU cost measurement (timestamp queries) if promotion is ever to
 be justified on GPU.
+
+### 2026-08-04 — both named gaps taken: one built, one refused by the API, and the refusal is stated rather than worked around
+
+**The GPU 60 FPS gate exists: `scripts/plate_ledger.py --fps-gate`.** A
+separate SERIAL lane, deliberately never mixed into the byte-identity
+sweep, because timing and hashing want opposite conditions — hashing
+wants parallel, benchmark-free (`--ledger`), `--no-promotion` CPU
+renders, load-immune because a hash cannot flap under contention; timing
+wants serial single-scene `--gpu` renders through the full benchmark
+phases (§30's own instrument: the unbudgeted 240-warm/120-sample window,
+work ms = CPU + drained GPU via `submit(SyncToCpu)` per frame). The
+machine-readable seam is `ComposeGallery --headless --timing-json
+<path>`: one JSON line per scene carrying the STEADY-STATE sample
+numbers, snapshotted at sample-window close — necessary because the
+table's numbers can belong to the CAPTURE pass, not the sample, whenever
+a scene declares its capture moment (`activate()` resets FrameStats for
+the exact-stepped rebuild, and the table prints whatever is left; `daemon
+console` prints 0.73 in the table and 0.53 in the JSON, and the 0.53 is
+the one that reproduces §30's 0.52).
+Default stdout unchanged; refused under `--ledger`, where a timing file
+of zeros would be a lie.
+
+First corpus run (2026-08-04, Release, Metal, quiet machine, budget
+16.7 ms): **66 scenes, 66 PASS, 0 over budget, 0 render failures.** The
+interesting rows: `easel_playground` 15.33 ms (65 fps, p99 16.75) is the
+closest thing the corpus has to the floor; `kumiko_asanoha` reads
+11.21 ms (89 fps, p99 15.08) against §30's 17.13, and the delta is
+mostly the INSTRUMENT, not the machine — kumiko declares
+`ctx.captureAt(4.2)`, so §30's table number was the capture pass's mean
+(252 from-zero frames, entrance and first Group gathers included; the
+FrameStats-reset mechanics above), where the JSON lane reports the
+steady 120-frame sample §30's methodology section *described*. Some
+run-to-run spread rides on top (§29 recorded 112–144 on one binary);
+both readings PASS, which is the robust part; `spacejam_1996` means
+3.28 but carries a p99 of
+114.25 ms — the gate judges the steady mean, so a spike like that is
+visible in the table without failing it, and whether it matters is that
+scene's own question. Next-heaviest steady frames: `fallout2_charsheet`
+9.95, `twoadvanced_v4` 8.87, `ds2_bench` 8.71, `penrose_paving` 8.39,
+`chaucer_astrolabe` 6.87, `loot grid` 6.29.
+
+**Per-node GPU timestamp queries: REFUSED BY THE API AT m151** — the
+§44.1 closure shape, and the evidence is the vendored source, not a
+guess:
+
+- The API exists and is per-RECORDING: request
+  `skgpu::GpuStatsFlags::kElapsedTime` via
+  `InsertRecordingInfo::fGpuStatsFlags` and the
+  `fFinishedWithStatsProc` callback delivers `GpuStats::elapsedTime`,
+  gated on `Context::supportedGpuStats()`
+  (`include/gpu/graphite/GraphiteTypes.h`, `include/gpu/GpuTypes.h`).
+- Only Vulkan (VkQueryPool timestamps in
+  `VulkanCommandBuffer::startStatsQuery`) and Dawn implement it.
+  **`MtlCaps` never sets `fSupportedGpuStats`**, and the base
+  `CommandBuffer::startStatsQuery` is `SK_ABORT("Stats query
+  unsupported.")` with no Metal override — so on the backend the product
+  ships, `supportedGpuStats()` is `kNone` and `QueueManager` strips the
+  request with a warning. Confirmed on the REAL context, not only in
+  source: the GPU headless header now prints the probe — this machine
+  reads `GPU per-recording elapsed-time stats: unsupported on this
+  backend (supportedGpuStats mask 0x0)` — so the day a Skia bump lights
+  Metal up is visible in every GPU sweep rather than in someone's
+  memory of this entry.
+- Even where the flag IS supported, the bracket is the whole command
+  buffer. Graphite batches draws from many compose nodes into shared
+  DrawPasses; a per-NODE boundary does not exist in the command stream,
+  so per-node GPU cost means Skia surgery (query breaks between merged
+  draws), not integration. If promotion is ever to be justified on GPU,
+  the evidence will be per-frame elapsed time on a Vulkan-class backend
+  — or the wall-clock `submit(SyncToCpu)` bracket the work-ms column
+  already is, which remains the honest GPU instrument on Metal.
 
 ## 30. kumiko's 113 ms GPU is static shader ALU — routes to an EXPLICIT bake — **SHIPPED as `Cache::Group`, PIXEL-VERIFIED, MEASURED: 7.2× GPU / 23× CPU on kumiko, zero tax on non-opted scenes — not the 23× GPU target, and not a general win**
 

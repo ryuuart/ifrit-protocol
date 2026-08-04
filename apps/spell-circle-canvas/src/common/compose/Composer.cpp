@@ -198,6 +198,40 @@ void Composer::setView(Effect view) {
   m_impl->contentDirty = true; // the composite changes even if no node did
 }
 
+void Composer::declareInputSpace(InputSpace space) {
+  m_impl->inputSpace = space;
+  if (space == InputSpace::EncodedSRGB)
+    return; // the declaration matches reality — nothing to say
+  // The mismatch warning, once per process — the house diagnostic contract
+  // (renderSlot's unknown-name warning): the mismatch is a fact about the
+  // program's colour thinking, not about this composer instance, and a
+  // repeat per composer would be noise where one precise sentence is the
+  // point. NOTE deliberately no conversion follows: §41's ruling is that a
+  // colour-managed surface is a breaking change, so the library's whole
+  // response to a mismatch is to make it a said thing instead of a silent
+  // one (§10e's minimal form).
+  static bool warned = false;
+  if (warned)
+    return;
+  warned = true;
+  const char *name =
+      space == InputSpace::LinearSRGB ? "LinearSRGB" : "DisplayP3";
+  SkDebugf(
+      "[compose] declareInputSpace(%s): compose composites in ENCODED sRGB "
+      "and performs NO conversion (DESIGN.md colour rule, ROADMAP \xc2\xa7"
+      "41) — your values will be TREATED as encoded sRGB regardless of this "
+      "declaration. Under a %s declaration every channel maths in the "
+      "pipeline (blending, by::luma, alpha compositing) runs on numbers it "
+      "was not defined for, so your maths are wrong at the edges. The "
+      "declaration changes no pixel; it exists so this mismatch is said "
+      "out loud (\xc2\xa7" "10e).\n",
+      name, name);
+}
+
+Composer::InputSpace Composer::declaredInputSpace() const {
+  return m_impl->inputSpace;
+}
+
 void Composer::render(Element root) {
   Impl &impl = *m_impl;
   const auto start = std::chrono::steady_clock::now();

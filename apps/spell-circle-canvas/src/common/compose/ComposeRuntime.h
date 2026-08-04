@@ -756,6 +756,11 @@ struct Composer::Impl {
   bool hasCenterPins = false; // any centerAt() in the tree
   bool liveOnly = false; // snapshot(): skip per-node caches
   Effect view;           // output view transform (null filter = pass-through)
+  // §10e: what the AUTHOR declared their colour values to be. Read by
+  // declaredInputSpace() and by nothing else — compose composites in
+  // encoded sRGB regardless (DESIGN.md's colour rule, §41), and the
+  // mismatch warning fires at declaration time in declareInputSpace().
+  InputSpace inputSpace = InputSpace::EncodedSRGB;
   // staggerChildren(): the accumulated extra mount delay for the subtree
   // being mounted right now (depth-first, saved/restored per child — a
   // nested staggered container compounds on its parent's carry).

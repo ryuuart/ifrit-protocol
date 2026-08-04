@@ -847,6 +847,78 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   EXPECT_NE(log.find("nothing"), std::string::npos) << log;
 }
 
+#include <cstring> // memcmp — the §10e no-conversion control
+
+TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
+  // §10e's minimal form: "I deliberately declared my colour space" and
+  // "nobody thought about colour at all" must stop producing identical
+  // trees — as a QUESTION the library asks, never as a conversion stage.
+  // §41's ruling stands: compose composites in encoded sRGB, a
+  // colour-managed surface is a BREAKING change, so the entire response
+  // to a mismatch is one precise warning. Everything below is one test
+  // because the warning is once-per-process (the house contract) and the
+  // ordering therefore matters: controls first, the trap arm second, and
+  // the no-conversion pixel control last, where its own mismatched
+  // declarations are already silenced.
+  //
+  // Control 1: the default and an explicit truthful declaration are
+  // silent — they match reality, and a warning here would teach authors
+  // to ignore the real one.
+  ::testing::internal::CaptureStderr();
+  {
+    Host host;
+    EXPECT_EQ(host.composer.declaredInputSpace(),
+              Composer::InputSpace::EncodedSRGB); // the default IS today's truth
+    host.composer.declareInputSpace(Composer::InputSpace::EncodedSRGB);
+    host.composer.render(box().fill(red()));
+    host.frame();
+  }
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "a truthful declaration must not warn";
+  // The trap arm: a mismatched declaration warns ONCE, naming the
+  // consequence — values treated as encoded sRGB, maths wrong at the
+  // edges — not merely that something is off.
+  ::testing::internal::CaptureStderr();
+  Host host;
+  host.composer.declareInputSpace(Composer::InputSpace::LinearSRGB);
+  EXPECT_EQ(host.composer.declaredInputSpace(),
+            Composer::InputSpace::LinearSRGB);
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("declareInputSpace"), std::string::npos) << log;
+  EXPECT_NE(log.find("TREATED as encoded sRGB"), std::string::npos) << log;
+  EXPECT_NE(log.find("no pixel"), std::string::npos) << log;
+  // Once per process: a second mismatch — even a DIFFERENT one — stays
+  // silent (renderSlot's unknown-name contract).
+  ::testing::internal::CaptureStderr();
+  host.composer.declareInputSpace(Composer::InputSpace::DisplayP3);
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+      << "the mismatch warning is once per process";
+  // Control 2 — THE control: the declaration participates in NOTHING.
+  // Two renders of one gradient tree under opposite declarations must be
+  // byte-identical; any conversion machinery that snuck in dies here,
+  // because a linear→encoded transfer moves every mid-gradient byte.
+  auto plate = [](Composer::InputSpace space) {
+    Host h;
+    h.composer.declareInputSpace(space);
+    h.composer.render(box().child(
+        box().width(160).height(120).fill(Material::linear(
+            {0, 0}, {160, 120},
+            {{0.0f, {1, 0, 0, 1}}, {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
+             {1.0f, {0, 0, 1, 1}}}))));
+    h.frame();
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
+    h.surface->readPixels(bm.pixmap(), 0, 0);
+    return bm;
+  };
+  const SkBitmap a = plate(Composer::InputSpace::EncodedSRGB);
+  const SkBitmap b = plate(Composer::InputSpace::LinearSRGB);
+  ASSERT_EQ(a.computeByteSize(), b.computeByteSize());
+  EXPECT_EQ(0, std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()))
+      << "the declaration must not touch a pixel — §41 forbids a "
+         "conversion stage";
+}
+
 TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
   // Two solids blended kPlus → additive brighten in ONE flattened shader
   // (no saveLayer). red + green = yellow.

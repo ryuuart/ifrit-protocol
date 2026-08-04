@@ -42,6 +42,7 @@
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
 #include "GalleryGpu.h"
 #include "SkiaGraphiteContext.h"
+#include <include/gpu/GpuTypes.h> // skgpu::GpuStatsFlags — the §29 probe
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
@@ -208,10 +209,39 @@ inline std::unique_ptr<Scene> makeScene(int index) {
 }
 
 /** Sweeps the registry (or one scene when `only` is a valid index),
- *  printing the FPS table and writing a 2x PNG per scene. */
+ *  printing the FPS table and writing a 2x PNG per scene.
+ *
+ *  @p timingJsonPath — when non-empty, ALSO writes one JSON line per scene
+ *  with the steady-state sample numbers (`{"scene":…,"work_ms":…,
+ *  "p99_ms":…,"fps":…}`), the machine-readable lane the GPU 60 FPS gate
+ *  (`scripts/plate_ledger.py --fps-gate`) parses. The table's stdout is
+ *  untouched. The JSON snapshot is taken at the END OF THE SAMPLE WINDOW,
+ *  before the capture pass — a scene that declares its capture moment (or
+ *  a `--capture-at` run) rebuilds the stage for the capture, which resets
+ *  FrameStats and refills it with from-zero stepping frames, so the
+ *  numbers left in `stage.stats` by table-print time can be the CAPTURE
+ *  pass's, not the sample's. The gate must report the steady frame, so it
+ *  reads the snapshot. Refused under --ledger: the ledger runs no
+ *  benchmark phases, and a timing file of zeros would be a lie. */
 inline int runHeadless(const std::string &outDir, bool gpu = false,
                        int only = -1, bool noPromotion = false,
-                       double captureAtOverride = -1.0, bool ledger = false) {
+                       double captureAtOverride = -1.0, bool ledger = false,
+                       const std::string &timingJsonPath = std::string()) {
+  if (!timingJsonPath.empty() && ledger) {
+    std::fprintf(stderr, "--timing-json is refused under --ledger: ledger "
+                         "mode skips the benchmark phases, so there is no "
+                         "timing to report\n");
+    return 1;
+  }
+  FILE *timingJson = nullptr;
+  if (!timingJsonPath.empty()) {
+    timingJson = std::fopen(timingJsonPath.c_str(), "w");
+    if (!timingJson) {
+      std::fprintf(stderr, "cannot open --timing-json path %s\n",
+                   timingJsonPath.c_str());
+      return 1;
+    }
+  }
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
   std::unique_ptr<SkiaGraphiteContext> graphite;
   if (gpu) {
@@ -230,6 +260,28 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     // real cost; treat per-node selfMs on GPU as recording weight only.
     std::printf("NOTE: per-node profile times are RECORDING time on GPU, "
                 "not GPU execution — trust the work-ms column.\n");
+    // §29's other named gap, resolved by LOOKING (2026-08-04): Graphite
+    // m151 does carry a per-RECORDING GPU-time API — request
+    // GpuStatsFlags::kElapsedTime through InsertRecordingInfo's
+    // fFinishedWithStatsProc and the finished callback reports
+    // GpuStats::elapsedTime — but only the Vulkan (VkQueryPool
+    // timestamps) and Dawn backends implement it. MtlCaps never sets
+    // fSupportedGpuStats, so on this Metal context the mask below is 0x0
+    // and the QueueManager strips any request with a warning. And even
+    // where it IS supported, the bracket is the whole command buffer —
+    // Graphite batches many compose nodes into shared DrawPasses, so
+    // per-NODE GPU cost is unreachable without Skia surgery. Printed so
+    // the day a Skia bump lights Metal up is visible right here.
+    const skgpu::GpuStatsFlags gpuStatCaps =
+        graphite->context()->supportedGpuStats();
+    const bool hasElapsed =
+        gpuStatCaps & skgpu::GpuStatsFlags::kElapsedTime;
+    std::printf("GPU per-recording elapsed-time stats: %s "
+                "(supportedGpuStats mask 0x%x)\n",
+                hasElapsed ? "SUPPORTED — a GPU-time lane is now wireable"
+                           : "unsupported on this backend (Vulkan/Dawn "
+                             "only at m151)",
+                (unsigned)gpuStatCaps);
   }
 #else
   if (gpu) {
@@ -317,6 +369,10 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
     int warmFrames = 0, sampleFrames = kMinSampleFrames;
     bool shortened = false;
     double reconcileMs = 0, layoutMs = 0, volatileMs = 0, paintMs = 0;
+    // The steady-state sample numbers, snapshotted the moment the sample
+    // window closes — see the timingJsonPath doc above for why the JSON
+    // line cannot read stage.stats at table-print time.
+    double sampleWorkMs = 0, sampleP99Ms = 0, sampleFps = 0;
     if (!ledger) {
       for (int f = 0; f < kProbeFrames; ++f) {
         surface->getCanvas()->clear(clearColor);
@@ -344,6 +400,9 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
         volatileMs += cs.volatileMs;
         paintMs += cs.paintMs;
       }
+      sampleWorkMs = stage.stats.average();
+      sampleP99Ms = stage.stats.percentile(0.99);
+      sampleFps = stage.stats.fps();
     }
     // ---- capture determinism -------------------------------------------
     // Everything above is a TIME budget, so `warmFrames` and `sampleFrames`
@@ -430,6 +489,17 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
           layoutMs / n, volatileMs / n, paintMs / n,
           stage.composer->stats().picturesRecorded,
           stage.composer->stats().nodesPainted);
+      if (timingJson) {
+        std::fprintf(
+            timingJson,
+            "{\"scene\":\"%s\",\"canvas\":\"%dx%d\",\"work_ms\":%.3f,"
+            "\"p99_ms\":%.3f,\"fps\":%.1f,\"shortened\":%s,"
+            "\"backend\":\"%s\"}\n",
+            registryName(i), (int)sceneSize.width(), (int)sceneSize.height(),
+            sampleWorkMs, sampleP99Ms, sampleFps,
+            shortened ? "true" : "false", gpu ? "gpu" : "raster");
+        std::fflush(timingJson); // a crashed scene must not eat the corpus
+      }
     }
     // Capture the PNG at 2x: the stats above ran at 1x, but the saved
     // frame re-renders through a scaled canvas so review images are
@@ -534,6 +604,8 @@ inline int runHeadless(const std::string &outDir, bool gpu = false,
   if (!gpu)
     std::printf("wrote %d gallery scene%s to %s\n", last - first,
                 last - first == 1 ? "" : "s", outDir.c_str());
+  if (timingJson)
+    std::fclose(timingJson);
   return 0;
 }
 

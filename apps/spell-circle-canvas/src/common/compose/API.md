@@ -528,6 +528,19 @@ public:
    *  (<sigilcompose/Ocio.h>); any Effect works. Post-cache. */
   void setView(Effect view);
 
+  /** What you believe your colour values are — a DECLARATION, not a
+   *  conversion (§10e). Compose composites in encoded sRGB with no
+   *  linear stage (DESIGN.md's colour rule); that is not configurable.
+   *  EncodedSRGB (the default) is silent; declaring LinearSRGB or
+   *  DisplayP3 warns once, precisely — your values are still TREATED
+   *  as encoded sRGB, so your maths are wrong at the edges. No pixel
+   *  changes under any declaration; it exists so "nobody thought about
+   *  colour" and "I deliberately declared it" stop producing identical
+   *  trees. */
+  enum class InputSpace : uint8_t { EncodedSRGB, LinearSRGB, DisplayP3 };
+  void declareInputSpace(InputSpace space);
+  InputSpace declaredInputSpace() const;
+
   /** Reconciles `root` against the retained tree by key/position:
    *  new nodes mount, matching nodes patch (starting transitions),
    *  missing nodes unmount. Call whenever your data changed — memo'd
